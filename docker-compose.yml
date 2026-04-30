@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: accessflow-postgres
+    environment:
+      POSTGRES_DB: accessflow
+      POSTGRES_USER: accessflow
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-accessflow}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accessflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - accessflow-network
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:8-alpine
+    container_name: accessflow-redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - accessflow-network
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  accessflow-network:
+    driver: bridge

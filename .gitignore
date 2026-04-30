@@ -1,0 +1,20 @@
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+.history/
+
+# OS X
+.DS_Store
+
+# Docker
+.docker/
