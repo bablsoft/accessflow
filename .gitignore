@@ -18,3 +18,4 @@ target/
 
 # Docker
 .docker/
+build/
