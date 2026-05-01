@@ -1,5 +1,7 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.internal.persistence;
 
+import com.partqam.accessflow.core.api.AuthProviderType;
+import com.partqam.accessflow.core.api.UserRoleType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

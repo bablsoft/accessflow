@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.internal.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

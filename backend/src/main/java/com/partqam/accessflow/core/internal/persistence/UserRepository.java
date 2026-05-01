@@ -1,5 +1,6 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.internal.persistence;
 
+import com.partqam.accessflow.core.api.UserRoleType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,7 +13,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
-    List<User> findAllByOrganizationId(UUID organizationId);
+    List<User> findAllByOrganization_Id(UUID organizationId);
 
-    List<User> findAllByOrganizationIdAndRole(UUID organizationId, UserRoleType role);
+    List<User> findAllByOrganization_IdAndRole(UUID organizationId, UserRoleType role);
 }

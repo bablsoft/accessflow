@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.internal.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

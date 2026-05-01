@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.api;
 
 public enum DbType {
     POSTGRESQL,

@@ -1,6 +1,8 @@
-package com.partqam.accessflow.core;
+package com.partqam.accessflow.core.internal.persistence;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.SslMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
