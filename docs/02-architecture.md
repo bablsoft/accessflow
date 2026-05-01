@@ -1,0 +1,79 @@
+# 02 — System Architecture
+
+## High-Level Architecture
+
+AccessFlow is composed of five primary subsystems communicating via REST/WebSocket internally. The Proxy Engine is the **sole path** to production databases — no direct database credentials are ever exposed to users.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        USER BROWSER                             │
+│           React + Vite + Ant Design  (Frontend SPA)             │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │  HTTPS REST + WebSocket
+┌─────────────────────────▼───────────────────────────────────────┐
+│                     API GATEWAY LAYER                           │
+│         Spring Boot 3  /  JWT Auth  /  Rate Limiting            │
+└──┬────────────┬───────────────┬───────────────────┬────────────┘
+   │            │               │                   │
+┌──▼──┐    ┌────▼────┐    ┌─────▼──────┐    ┌──────▼──────┐
+│Query│    │ Review  │    │  AI Query  │    │  Admin &    │
+│Proxy│    │Workflow │    │  Analyzer  │    │  Audit Svc  │
+│ Svc │    │   Svc   │    │    Svc     │    │             │
+└──┬──┘    └────┬────┘    └─────┬──────┘    └──────┬──────┘
+   │            │               │                   │
+┌──▼────────────▼───────────────▼───────────────────▼──────────┐
+│              PostgreSQL (AccessFlow Internal DB)              │
+└───────────────────────────────────────────────────────────────┘
+   │
+┌──▼──────────────────────────────────────────────────────────┐
+│              CUSTOMER DATABASES (Proxied)                   │
+│        PostgreSQL instances   /   MySQL instances           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Service Descriptions
+
+| Service | Responsibility |
+|---------|---------------|
+| **Query Proxy Service** | Core engine that intercepts SQL, validates against policies, routes to approval workflow or executes directly, streams results back to the user. |
+| **Review Workflow Service** | Manages approval chains: creates review requests, notifies reviewers, records decisions, triggers execution on approval. Implements a state machine for multi-stage approvals. |
+| **AI Query Analyzer Service** | Wraps configurable AI backends (OpenAI, Anthropic, or local Ollama). Provides risk scoring, query analysis, index hints, and syntax suggestions. |
+| **Admin & Audit Service** | Datasource CRUD, user/role management, policy configuration, audit log queries, notification channel setup. |
+| **Notification Dispatcher** | Fanout service sending review events to Email, Slack, and configurable webhooks asynchronously. |
+
+---
+
+## Technology Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Backend Runtime | Java 21 (LTS) with Virtual Threads (Project Loom) |
+| Backend Framework | Spring Boot 3.3.x, Spring Security, Spring Data JPA |
+| Database (internal) | PostgreSQL 15+ (AccessFlow metadata, audit log, user data) |
+| ORM / Migrations | Hibernate 6, Flyway for schema migrations |
+| Frontend Framework | React 18, Vite 5, TypeScript |
+| UI Component Library | Ant Design 5.x |
+| SQL Editor | CodeMirror 6 with SQL language plugin |
+| Auth (Community) | JWT (RS256) with refresh token rotation |
+| Auth (Enterprise) | SAML 2.0 via Spring Security SAML extension |
+| Containerization | Docker, Docker Compose 2.x |
+| Kubernetes | Helm 3 chart with ConfigMap/Secret templating |
+| Message Queue | Redis Streams (optional, for async review fanout) |
+| AI Backends | OpenAI API, Anthropic Claude API, Ollama (self-hosted) — admin configurable |
+
+---
+
+## Request Flow Summary
+
+1. User opens SQL editor in browser, selects a datasource, writes SQL.
+2. Frontend sends `POST /api/v1/queries` to the Spring Boot API.
+3. API validates JWT, checks the user has a permission record for the datasource.
+4. Query Proxy Service classifies the SQL type (SELECT / DML / DDL).
+5. Review plan is looked up for the datasource → determines if AI review and/or human approval required.
+6. If AI review enabled → AI Analyzer Service invoked asynchronously; status becomes `PENDING_AI`.
+7. On AI completion → if human approval required, status becomes `PENDING_REVIEW`; reviewers notified.
+8. Reviewer approves via UI (or Slack/webhook) → status becomes `APPROVED`.
+9. Proxy opens JDBC connection to customer database, executes SQL, captures metadata.
+10. Audit log entry written. WebSocket event pushed to submitter. Status becomes `EXECUTED`.
