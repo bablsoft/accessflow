@@ -45,45 +45,138 @@ accessflow/
 | Spring Modulith | 2.0.6 |
 | PostgreSQL driver | latest compatible with Boot 4 |
 
-### Module Structure — Spring Modulith (FLAT)
+---
 
-The project was refactored to a **single Maven module** with **Spring Modulith** enforcing logical module boundaries via package conventions. Do **not** split into Maven sub-modules; do **not** recreate the multi-module layout described in `docs/05-backend.md` (that doc is the original design, not the current implementation).
+### Architecture
+
+#### Spring Modulith Structure
+
+The project is a **single Maven module** with **Spring Modulith** enforcing logical module boundaries via package conventions. Do **not** split into Maven sub-modules.
 
 **Root package:** `com.partqam.accessflow`
 
-Logical Modulith modules map to sub-packages:
+Each business module lives under its own top-level sub-package. Modules communicate through **Spring application events** and **exposed `api` packages** — never by reaching into another module's `internal` sub-packages.
 
 ```
 com.partqam.accessflow/
+├── AccessFlowApplication.java
+├── core/           # Domain entities, JPA repositories, enums, service interfaces
+│   ├── api/        # Public — enums and interfaces accessible to other modules
+│   └── internal/
+│       └── persistence/   # JPA entities + Spring Data repositories
 ├── proxy/          # SQL proxy engine, JDBC connection management
+│   ├── api/
+│   └── internal/
 ├── workflow/       # Review state machine, approval chains
+│   ├── api/
+│   └── internal/
 ├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama)
+│   ├── api/
+│   └── internal/
 ├── security/       # JWT config, Spring Security filters, SAML (Enterprise)
+│   ├── api/
+│   └── internal/
 ├── notifications/  # Email, Slack, Webhook dispatchers
-├── audit/          # Audit log service, ApplicationEvent consumers
-├── admin/          # Admin REST controllers and services
-├── api/            # REST controllers, DTOs, request/response types
-└── core/           # Domain entities, JPA repositories, enums, service interfaces
+│   ├── api/
+│   └── internal/
+└── audit/          # Audit log service, ApplicationEvent consumers
+    ├── api/
+    └── internal/
 ```
 
-**Cross-module communication rules (Spring Modulith):**
-- Modules expose a public API via types in their root package (e.g. `com.partqam.accessflow.workflow`).
-- Internal implementation goes in sub-packages (e.g. `...workflow.internal`).
-- Modules communicate via **Spring ApplicationEvents** — never import an internal type from another module.
-- The `ApplicationModulesTest` must pass after every change (`./mvnw test -Dtest=ApplicationModulesTest`).
+#### Key Rules
 
-### Naming & Code Conventions
+- **Module boundaries are enforced.** `ApplicationModulesTest` must exist and pass in CI. Run it after every change: `./mvnw test -Dtest=ApplicationModulesTest`.
+- **No cyclic dependencies between modules.** If two modules need each other, extract a shared interface or communicate through events.
+- **`internal` sub-packages are module-private.** Only types in `api` (or the module root package) are accessible to other modules.
+- **Spring configuration placement:** all `@Configuration` classes belong in the owning module's `internal` package.
+- **Cross-module communication** uses `ApplicationEventPublisher` (fire-and-forget) or `@ApplicationModuleListener` (transactional event listeners). Direct injection of another module's internal beans is forbidden.
 
-- **No `@Autowired` field injection** — constructor injection only. Use `@RequiredArgsConstructor` (Lombok) or explicit constructors.
-- **No `@Transactional` on controllers** — only on service methods.
-- **No JPA entities returned from controllers** — always map to a DTO. DTOs live in `api/` or the relevant module's public package.
-- All API response envelopes follow the error format in `docs/04-api-spec.md`:
-  ```json
-  { "error": "ERROR_CODE", "message": "Human-readable text", "timestamp": "ISO-8601" }
-  ```
-- Service interfaces defined in `core/`; implementations in their owning module.
-- Prefer `record` types for DTOs and value objects (Java 25 supports them fully).
-- Use **virtual threads** (Project Loom) for blocking I/O — the proxy engine and AI calls must not block platform threads. Enable with `spring.threads.virtual.enabled=true`.
+#### Layering Within a Module
+
+| Layer | Package | Responsibility |
+|-------|---------|----------------|
+| API | `api/` | Service interfaces, DTOs, and enums exposed to other modules |
+| Internal – Persistence | `internal/persistence/` | JPA entities and Spring Data repositories |
+| Internal – Service | `internal/` (root) | Business logic, state machines, orchestration |
+| Internal – Web | `internal/web/` | REST controllers, request/response models, web mappers |
+| Events | `events/` | Published and consumed domain events |
+
+- Controllers delegate to services; they never contain business logic.
+- Controllers expose dedicated request/response models defined in `internal/web/`; they must not return `api/` DTOs or entities directly.
+- `@RestController` classes live under `<module>.internal.web`, not the module root.
+- Repositories are Spring Data JPA interfaces — no custom JDBC unless justified.
+- Mappers (MapStruct preferred) convert between entities and DTOs. No entity ever leaks into a controller response.
+
+---
+
+### Code Standards
+
+#### Java 25
+
+- Use **records** for DTOs, events, and value objects.
+- Use **sealed interfaces/classes** where a closed type hierarchy is appropriate.
+- Use **pattern matching** (`switch` expressions, `instanceof` patterns) over manual type checks.
+- Use **text blocks** for multi-line strings (SQL, JSON templates).
+- Prefer `var` for local variables where the type is obvious from the right-hand side.
+- Use **virtual threads** (`spring.threads.virtual.enabled=true`) — never create platform threads manually. The proxy engine and AI calls must not block platform threads.
+- Keep method cognitive complexity within Sonar thresholds.
+
+#### Naming Conventions
+
+- Classes: `PascalCase`.
+- Methods / variables: `camelCase`.
+- Constants: `UPPER_SNAKE_CASE`.
+- Packages: all lowercase, no underscores.
+- REST endpoints: `kebab-case` paths — `/api/v1/query-requests`.
+- Database tables / columns: `snake_case`.
+- Test classes: `<ClassUnderTest>Test` (unit), `<ClassUnderTest>IntegrationTest` (integration).
+
+#### REST API Design
+
+- All endpoints versioned: `/api/v1/...`.
+- Use proper HTTP methods and status codes (201 for creation, 202 for async acceptance, 204 for deletion, 422 for SQL parse errors).
+- Return `ProblemDetail` (RFC 9457) for all error responses via `@ControllerAdvice`.
+- Use `ResponseEntity` only when setting custom headers or non-default status codes; return concrete types otherwise.
+- Every controller method MUST have Springdoc `@Operation` and `@ApiResponse` annotations.
+- Request DTOs use Bean Validation annotations (`@NotNull`, `@Size`, `@Valid`, etc.).
+- All API response envelopes follow the error format in `docs/04-api-spec.md`.
+
+#### Database & JPA
+
+- All entities use **UUID** primary keys.
+- Entity field access strategy: `@Access(AccessType.FIELD)`.
+- Always specify `@Column(nullable = ...)` and `@Table(name = ...)` explicitly.
+- Use **Flyway** for schema migrations. Migration files: `V{number}__{description}.sql`. **Never modify an existing migration file.**
+- `spring.jpa.hibernate.ddl-auto` must be `validate` in all real environments.
+- Avoid `FetchType.EAGER` — always `LAZY`; fetch via `@EntityGraph` or join-fetch when needed.
+- Use `@Version` for optimistic locking on entities that can be concurrently modified.
+- All tables: `snake_case` names, `UUID` PKs, `TIMESTAMPTZ` timestamps.
+
+#### Dependency Injection
+
+- **Constructor injection exclusively.** No `@Autowired` on fields. All dependencies must be `final`.
+- Use `@RequiredArgsConstructor` (Lombok) or explicit constructors.
+
+#### JSON Mapping
+
+- Always import `tools.jackson.databind.ObjectMapper` (not `com.fasterxml.jackson.databind.ObjectMapper`).
+- For tree parsing, use `tools.jackson.databind.JsonNode`.
+- When touching existing code that still uses `com.fasterxml.jackson.databind.*`, migrate imports in the same change.
+
+#### Logging
+
+- Use SLF4J (`LoggerFactory.getLogger(...)`) — never `System.out.println`.
+- `ERROR` for failures needing attention, `WARN` for recoverable issues, `INFO` for business events, `DEBUG`/`TRACE` for development.
+
+#### Exception Handling
+
+- Define module-specific exception hierarchies extending a common base.
+- Never catch `Exception` or `Throwable` broadly — catch specific types.
+- A global `@ControllerAdvice` maps exceptions to `ProblemDetail` responses.
+- Never expose stack traces or internal details in API error responses.
+
+---
 
 ### Configuration
 
@@ -102,13 +195,7 @@ com.partqam.accessflow/
 | `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
 
-`application.yml` structure to follow (see `docs/05-backend.md` for the full template):
-```yaml
-spring:
-  jpa:
-    open-in-view: false          # always off
-    hibernate.ddl-auto: validate # never create/update/create-drop in any real env
-```
+---
 
 ### Database Migrations (Flyway)
 
@@ -116,7 +203,7 @@ spring:
 - File naming: `V{n}__{Snake_case_description}.sql` (double underscore).
 - **Never modify an existing migration file.**
 - Every new column must either have a DEFAULT value or be nullable (zero-downtime deploys).
-- Versioning sequence from the data model doc:
+- Versioning sequence:
 
   ```
   V1__create_organizations.sql
@@ -133,26 +220,26 @@ spring:
   V12__create_saml_configurations.sql
   ```
 
-### Data Model Rules
+---
 
-All tables: `snake_case` names, `UUID` PKs, `TIMESTAMPTZ` timestamps. See `docs/03-data-model.md` for every column definition. Critical invariants:
+### Domain Invariants
 
 - `datasource.password_encrypted` — **always `@JsonIgnore`**; never serialized in any response.
-- `notification_channels.config` — sensitive sub-fields (SMTP password, webhook secret) are AES-256-GCM encrypted before persistence; never returned in GET responses.
-- `audit_log` — INSERT-only from the application; the DB user has no UPDATE/DELETE privilege on this table. Never delete or update audit records.
-- `query_requests.status` transitions must follow the state machine exactly (see below).
+- `notification_channels.config` — sensitive sub-fields (SMTP password, webhook secret) AES-256-GCM encrypted before persistence; never returned in GET responses.
+- `audit_log` — INSERT-only; the DB user has no UPDATE/DELETE privilege on this table.
+- `query_requests.status` transitions must follow the state machine exactly:
 
-### Query Request State Machine
+  ```
+  PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
+                             ↘ REJECTED
+             ↘ PENDING_REVIEW (if AI not required)
+  PENDING_REVIEW → CANCELLED (submitter only)
+  APPROVED → FAILED (execution error)
+  ```
 
-```
-PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
-                           ↘ REJECTED
-           ↘ PENDING_REVIEW (if AI not required)
-PENDING_REVIEW → CANCELLED (submitter only)
-APPROVED → FAILED (execution error)
-```
+  Illegal transitions must throw a domain exception, not silently succeed.
 
-Illegal transitions must throw a domain exception, not silently succeed.
+---
 
 ### Security Rules — Non-Negotiable
 
@@ -160,10 +247,12 @@ Illegal transitions must throw a domain exception, not silently succeed.
 2. **JSqlParser validation first** — parse every submitted SQL before any execution path. Reject unparseable SQL with HTTP 422.
 3. **Schema allow-list at AST level** — walk the parsed AST to validate referenced tables, not string matching.
 4. **`password_encrypted` never in heap beyond pool init** — decrypt credentials once inside `QueryProxyService`, pass to HikariCP, do not store the plaintext.
-5. **A user can never approve their own query**, regardless of role. Enforce this in the workflow service, not just the UI.
+5. **A user can never approve their own query**, regardless of role. Enforce in the workflow service, not just the UI.
 6. **`@JsonIgnore` on all encrypted/sensitive fields** — entity-level, not just controller-level.
 7. **CORS** — only the configured `CORS_ALLOWED_ORIGIN` is allowed. No wildcard in production.
 8. **Refresh token cookies** — `HttpOnly; Secure; SameSite=Strict`.
+
+---
 
 ### Enterprise Conditional Beans
 
@@ -181,35 +270,56 @@ public class SamlAuthenticationService implements AuthenticationService { ... }
 
 Never use `if (edition.equals("enterprise"))` guards inside a shared bean — use conditional beans.
 
+---
+
 ### Testing (Backend)
 
-| Layer | Tools |
-|-------|-------|
-| Unit | JUnit 5 + Mockito — service logic, state machine, AI prompt building |
-| Integration | Spring Boot Test + Testcontainers (PostgreSQL 15 / MySQL 8) |
-| API | REST Assured + `@SpringBootTest(webEnvironment = RANDOM_PORT)` |
-| Security | Dedicated tests for JWT forgery, permission boundary violations |
+| Type | Suffix | Framework | Scope |
+|------|--------|-----------|-------|
+| Unit | `*Test.java` | JUnit 5 + Mockito | Single class, no Spring context |
+| Integration | `*IntegrationTest.java` | `@SpringBootTest` + Testcontainers | Full context, real DB |
+| Module | `*ModuleTest.java` | `@ApplicationModuleTest` | Single module isolation |
+| Architecture | `ApplicationModulesTest.java` | Spring Modulith verify API | Module boundary enforcement |
 
-- Coverage target: **≥ 80%** line coverage on proxy, workflow, and core modules.
-- **Use Testcontainers** for all integration tests — never mock the database.
-- `ApplicationModulesTest` must always pass. Run it after any refactor.
+**Coverage target: ≥ 90% line coverage** (enforced via JaCoCo — build fails below threshold).
+
+**Testcontainers setup** — use a shared `@TestConfiguration`:
 
 ```java
-@SpringBootTest
-@Testcontainers
-class SomeIntegrationTest {
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15")
-        .withDatabaseName("testdb").withUsername("test").withPassword("test");
-
-    @DynamicPropertySource
-    static void props(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", postgres::getJdbcUrl);
-        r.add("spring.datasource.username", postgres::getUsername);
-        r.add("spring.datasource.password", postgres::getPassword);
+@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfig {
+    @Bean
+    @ServiceConnection
+    PostgreSQLContainer<?> postgres() {
+        return new PostgreSQLContainer<>("postgres:18-alpine");
     }
 }
 ```
+
+Use `@Import(TestcontainersConfig.class)` in integration tests. **Never use H2** as a substitute for PostgreSQL.
+
+**Architecture verification test** must exist at the root:
+
+```java
+class ApplicationModulesTest {
+    @Test
+    void verifyModularStructure() {
+        ApplicationModules.of(AccessFlowApplication.class).verify();
+    }
+}
+```
+
+---
+
+### Maven Build Configuration
+
+| Plugin | Purpose |
+|--------|---------|
+| `spring-boot-maven-plugin` | Packaging & running |
+| `maven-surefire-plugin` | Unit tests (`*Test.java`) |
+| `maven-failsafe-plugin` | Integration tests (`*IntegrationTest.java`) |
+| `jacoco-maven-plugin` | Coverage enforcement (90% minimum, build fails below) |
+| `maven-compiler-plugin` | Java 25, enable preview features if used |
 
 ### Build Commands
 
@@ -217,10 +327,21 @@ class SomeIntegrationTest {
 cd backend
 ./mvnw verify                    # full build + tests
 ./mvnw verify -Pcoverage         # with JaCoCo coverage report
-./mvnw checkstyle:check          # style enforcement
-./mvnw spotless:apply            # auto-format
-./mvnw spring-boot:run           # run locally (requires .env or env vars set)
+./mvnw spring-boot:run           # run locally (requires env vars set)
 ./mvnw test -Dtest=ApplicationModulesTest  # module boundary check
+```
+
+---
+
+### Event-Driven Patterns
+
+```java
+// Publishing
+applicationEventPublisher.publishEvent(new QuerySubmittedEvent(request.id()));
+
+// Consuming
+@ApplicationModuleListener
+void onQuerySubmitted(QuerySubmittedEvent event) { ... }
 ```
 
 ---
