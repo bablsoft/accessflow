@@ -157,6 +157,7 @@ com.partqam.accessflow/
 - Avoid `FetchType.EAGER` — always `LAZY`; fetch via `@EntityGraph` or join-fetch when needed.
 - Use `@Version` for optimistic locking on entities that can be concurrently modified.
 - All tables: `snake_case` names, `UUID` PKs, `TIMESTAMPTZ` timestamps.
+- PostgreSQL enum types: `snake_case`, **no** `_enum` suffix (e.g. `db_type`, `query_status`, `risk_level`, not `db_type_enum`). The `columnDefinition` value in the `@Column` annotation must match the SQL type name exactly.
 
 #### Dependency Injection
 

@@ -37,7 +37,7 @@ public class DatasourceEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "db_type", nullable = false, columnDefinition = "db_type_enum")
+    @Column(name = "db_type", nullable = false, columnDefinition = "db_type")
     private DbType dbType;
 
     @Column(nullable = false, length = 255)
@@ -57,7 +57,7 @@ public class DatasourceEntity {
     private String passwordEncrypted;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ssl_mode", nullable = false, columnDefinition = "ssl_mode_enum")
+    @Column(name = "ssl_mode", nullable = false, columnDefinition = "ssl_mode")
     private SslMode sslMode = SslMode.DISABLE;
 
     @Column(name = "connection_pool_size", nullable = false)

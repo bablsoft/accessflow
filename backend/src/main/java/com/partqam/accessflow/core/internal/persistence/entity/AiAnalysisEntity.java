@@ -35,7 +35,7 @@ public class AiAnalysisEntity {
     private QueryRequestEntity queryRequest;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider_enum")
+    @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider")
     private AiProviderType aiProvider;
 
     @Column(name = "ai_model", nullable = false, length = 100)
@@ -45,7 +45,7 @@ public class AiAnalysisEntity {
     private int riskScore;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "risk_level", nullable = false, columnDefinition = "risk_level_enum")
+    @Column(name = "risk_level", nullable = false, columnDefinition = "risk_level")
     private RiskLevel riskLevel;
 
     @Column(nullable = false, columnDefinition = "text")

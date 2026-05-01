@@ -36,7 +36,7 @@ public class ReviewDecisionEntity {
     private UserEntity reviewer;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "decision_enum")
+    @Column(nullable = false, columnDefinition = "decision")
     private DecisionType decision;
 
     @Column(columnDefinition = "text")

@@ -41,11 +41,11 @@ public class QueryRequestEntity {
     private String sqlText;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "query_type", nullable = false, columnDefinition = "query_type_enum")
+    @Column(name = "query_type", nullable = false, columnDefinition = "query_type")
     private QueryType queryType;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "query_status_enum")
+    @Column(nullable = false, columnDefinition = "query_status")
     private QueryStatus status = QueryStatus.PENDING_AI;
 
     @Column(columnDefinition = "text")
