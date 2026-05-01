@@ -1,0 +1,50 @@
+package com.partqam.accessflow.core.internal.persistence;
+
+import com.partqam.accessflow.core.api.DecisionType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "review_decisions")
+@Getter
+@Setter
+@NoArgsConstructor
+public class ReviewDecision {
+
+    @Id
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "query_request_id", nullable = false)
+    private QueryRequest queryRequest;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "reviewer_id", nullable = false)
+    private User reviewer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "decision_enum")
+    private DecisionType decision;
+
+    @Column(columnDefinition = "text")
+    private String comment;
+
+    @Column(nullable = false)
+    private int stage;
+
+    @Column(name = "decided_at", nullable = false)
+    private Instant decidedAt = Instant.now();
+}

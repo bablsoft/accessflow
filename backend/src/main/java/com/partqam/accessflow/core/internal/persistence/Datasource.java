@@ -72,9 +72,9 @@ public class Datasource {
     @Column(name = "require_review_writes", nullable = false)
     private boolean requireReviewWrites = true;
 
-    // FK to review_plans — entity added in a future issue; stored as bare UUID for now
-    @Column(name = "review_plan_id")
-    private UUID reviewPlanId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_plan_id")
+    private ReviewPlan reviewPlan;
 
     @Column(name = "ai_analysis_enabled", nullable = false)
     private boolean aiAnalysisEnabled = true;
