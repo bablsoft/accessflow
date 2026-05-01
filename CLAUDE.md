@@ -63,7 +63,9 @@ com.partqam.accessflow/
 ├── core/           # Domain entities, JPA repositories, enums, service interfaces
 │   ├── api/        # Public — enums and interfaces accessible to other modules
 │   └── internal/
-│       └── persistence/   # JPA entities + Spring Data repositories
+│       └── persistence/
+│           ├── entity/    # JPA entity classes (suffix: *Entity)
+│           └── repo/      # Spring Data JPA repository interfaces
 ├── proxy/          # SQL proxy engine, JDBC connection management
 │   ├── api/
 │   └── internal/
@@ -97,7 +99,8 @@ com.partqam.accessflow/
 | Layer | Package | Responsibility |
 |-------|---------|----------------|
 | API | `api/` | Service interfaces, DTOs, and enums exposed to other modules |
-| Internal – Persistence | `internal/persistence/` | JPA entities and Spring Data repositories |
+| Internal – Persistence – Entity | `internal/persistence/entity/` | JPA entity classes; every class **must** carry the `Entity` suffix (e.g. `UserEntity`) |
+| Internal – Persistence – Repo | `internal/persistence/repo/` | Spring Data JPA repository interfaces |
 | Internal – Service | `internal/` (root) | Business logic, state machines, orchestration |
 | Internal – Web | `internal/web/` | REST controllers, request/response models, web mappers |
 | Events | `events/` | Published and consumed domain events |
@@ -105,6 +108,8 @@ com.partqam.accessflow/
 - Controllers delegate to services; they never contain business logic.
 - Controllers expose dedicated request/response models defined in `internal/web/`; they must not return `api/` DTOs or entities directly.
 - `@RestController` classes live under `<module>.internal.web`, not the module root.
+- JPA entity classes live in `internal/persistence/entity/` and **must** carry the `Entity` suffix (e.g. `UserEntity`, `QueryRequestEntity`). Never place entities in the persistence root package.
+- Spring Data JPA repository interfaces live in `internal/persistence/repo/`. Never place repositories in the persistence root package.
 - Repositories are Spring Data JPA interfaces — no custom JDBC unless justified.
 - Mappers (MapStruct preferred) convert between entities and DTOs. No entity ever leaks into a controller response.
 
@@ -152,6 +157,7 @@ com.partqam.accessflow/
 - Avoid `FetchType.EAGER` — always `LAZY`; fetch via `@EntityGraph` or join-fetch when needed.
 - Use `@Version` for optimistic locking on entities that can be concurrently modified.
 - All tables: `snake_case` names, `UUID` PKs, `TIMESTAMPTZ` timestamps.
+- PostgreSQL enum types: `snake_case`, **no** `_enum` suffix (e.g. `db_type`, `query_status`, `risk_level`, not `db_type_enum`). The `columnDefinition` value in the `@Column` annotation must match the SQL type name exactly.
 
 #### Dependency Injection
 

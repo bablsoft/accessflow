@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.AuthProviderType;
 import com.partqam.accessflow.core.api.UserRoleType;
@@ -23,14 +23,14 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class User {
+public class UserEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+    private OrganizationEntity organization;
 
     @Column(nullable = false, unique = true, length = 255)
     private String email;
