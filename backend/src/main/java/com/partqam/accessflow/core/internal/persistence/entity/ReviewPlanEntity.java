@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,14 +21,14 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ReviewPlan {
+public class ReviewPlanEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+    private OrganizationEntity organization;
 
     @Column(nullable = false, length = 255)
     private String name;

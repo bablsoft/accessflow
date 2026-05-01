@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.EditionType;
 import jakarta.persistence.Column;
@@ -19,7 +19,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Organization {
+public class OrganizationEntity {
 
     @Id
     private UUID id;

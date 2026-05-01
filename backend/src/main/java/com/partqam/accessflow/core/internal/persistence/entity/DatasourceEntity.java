@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.partqam.accessflow.core.api.DbType;
@@ -24,14 +24,14 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class Datasource {
+public class DatasourceEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+    private OrganizationEntity organization;
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -74,7 +74,7 @@ public class Datasource {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "review_plan_id")
-    private ReviewPlan reviewPlan;
+    private ReviewPlanEntity reviewPlan;
 
     @Column(name = "ai_analysis_enabled", nullable = false)
     private boolean aiAnalysisEnabled = true;

@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.DecisionType;
 import jakarta.persistence.Column;
@@ -22,18 +22,18 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ReviewDecision {
+public class ReviewDecisionEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "query_request_id", nullable = false)
-    private QueryRequest queryRequest;
+    private QueryRequestEntity queryRequest;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "reviewer_id", nullable = false)
-    private User reviewer;
+    private UserEntity reviewer;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "decision_enum")

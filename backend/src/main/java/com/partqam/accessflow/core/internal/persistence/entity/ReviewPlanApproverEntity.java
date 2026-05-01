@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.UserRoleType;
 import jakarta.persistence.Column;
@@ -21,18 +21,18 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class ReviewPlanApprover {
+public class ReviewPlanApproverEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "review_plan_id", nullable = false)
-    private ReviewPlan reviewPlan;
+    private ReviewPlanEntity reviewPlan;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private UserEntity user;
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "user_role_type")

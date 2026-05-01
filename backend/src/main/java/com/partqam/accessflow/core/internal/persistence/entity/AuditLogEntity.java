@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,19 +21,19 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class AuditLog {
+public class AuditLogEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "organization_id", nullable = false)
-    private Organization organization;
+    private OrganizationEntity organization;
 
     // Nullable — system-generated events have no actor
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_id")
-    private User actor;
+    private UserEntity actor;
 
     @Column(nullable = false, length = 100)
     private String action;

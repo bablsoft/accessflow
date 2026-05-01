@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.RiskLevel;
@@ -25,14 +25,14 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class AiAnalysis {
+public class AiAnalysisEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "query_request_id", nullable = false)
-    private QueryRequest queryRequest;
+    private QueryRequestEntity queryRequest;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider_enum")

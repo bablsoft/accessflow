@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,18 +21,18 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class DatasourceUserPermission {
+public class DatasourceUserPermissionEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "datasource_id", nullable = false)
-    private Datasource datasource;
+    private DatasourceEntity datasource;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserEntity user;
 
     @Column(name = "can_read", nullable = false)
     private boolean canRead = false;
@@ -59,7 +59,7 @@ public class DatasourceUserPermission {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
-    private User createdBy;
+    private UserEntity createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

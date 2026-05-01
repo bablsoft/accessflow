@@ -1,4 +1,4 @@
-package com.partqam.accessflow.core.internal.persistence;
+package com.partqam.accessflow.core.internal.persistence.entity;
 
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
@@ -24,18 +24,18 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-public class QueryRequest {
+public class QueryRequestEntity {
 
     @Id
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "datasource_id", nullable = false)
-    private Datasource datasource;
+    private DatasourceEntity datasource;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "submitted_by", nullable = false)
-    private User submittedBy;
+    private UserEntity submittedBy;
 
     @Column(name = "sql_text", nullable = false, columnDefinition = "text")
     private String sqlText;
