@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: accessflow
       POSTGRES_PASSWORD: ${DB_PASSWORD:-accessflow}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U accessflow"]
       interval: 10s
