@@ -3,6 +3,6 @@
 Managed Database Access & Query Governance Platform.
 
 ## Project Structure
-- `backend/`: Spring Boot 4 multi-module project.
+- `backend/`: Spring Boot 4 application using Spring Modulith (single Maven module; logical modules as packages under `com.partqam.accessflow`).
 - `docs/`: Project documentation.
 - `docker-compose.yml`: Local infrastructure setup.
