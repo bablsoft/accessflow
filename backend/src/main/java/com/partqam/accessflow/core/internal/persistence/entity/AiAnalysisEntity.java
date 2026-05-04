@@ -14,7 +14,9 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
@@ -35,6 +37,7 @@ public class AiAnalysisEntity {
     private QueryRequestEntity queryRequest;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider")
     private AiProviderType aiProvider;
 
@@ -45,6 +48,7 @@ public class AiAnalysisEntity {
     private int riskScore;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "risk_level", nullable = false, columnDefinition = "risk_level")
     private RiskLevel riskLevel;
 
