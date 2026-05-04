@@ -50,7 +50,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
-| `name` | VARCHAR(255) — human-readable label |
+| `name` | VARCHAR(255) — human-readable label; **UNIQUE per organization** (case-insensitive at the service layer) |
 | `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` |
 | `host` | VARCHAR(255) |
 | `port` | INTEGER |
@@ -66,6 +66,8 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `ai_analysis_enabled` | BOOLEAN DEFAULT true |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
+
+> **Constraint:** `UNIQUE (organization_id, name)` — added in `V10__datasource_unique_name_per_org.sql`. Attempting to create or rename a datasource into an existing name in the same organization returns HTTP 409 with `error: DATASOURCE_NAME_ALREADY_EXISTS`.
 
 ---
 
