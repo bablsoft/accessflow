@@ -22,12 +22,20 @@
 ```
 accessflow-ui/
 ├── public/
-│   └── favicon.svg
+│   ├── favicon.svg
+│   └── db-icons/                   # SVG logos shown in DatasourceTypeSelector
+│       ├── postgresql.svg
+│       ├── mysql.svg
+│       ├── mariadb.svg
+│       ├── oracle.svg              # Generic icon if vendor mark license unclear
+│       ├── mssql.svg               # Generic icon if vendor mark license unclear
+│       └── generic.svg             # Fallback for any UNAVAILABLE / unknown type
 ├── src/
 │   ├── api/                        # Axios client instances, one per domain
 │   │   ├── client.ts               # Base Axios instance with JWT interceptor
 │   │   ├── queries.ts              # Query request API calls
 │   │   ├── datasources.ts          # Datasource API calls
+│   │   ├── datasourceTypes.ts      # GET /datasources/types — wizard metadata
 │   │   ├── reviews.ts              # Review workflow API calls
 │   │   ├── admin.ts                # Admin API calls
 │   │   └── auth.ts                 # Auth API calls
@@ -56,6 +64,10 @@ accessflow-ui/
 │   │   │
 │   │   ├── datasources/
 │   │   │   ├── DatasourceForm.tsx  # Create/edit datasource form
+│   │   │   ├── DatasourceTypeSelector.tsx # Visual grid of supported db types (wizard step 1)
+│   │   │   ├── DatasourceWizardSteps.tsx  # Stepper shell driving the create wizard
+│   │   │   ├── JdbcUrlPreview.tsx  # Live-rendered JDBC URL from selected type + form state
+│   │   │   ├── DriverStatusBadge.tsx # READY / AVAILABLE / UNAVAILABLE indicator
 │   │   │   ├── ConnectionTester.tsx # Live connection test widget
 │   │   │   ├── PermissionMatrix.tsx # User × permission grid
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
@@ -94,6 +106,7 @@ accessflow-ui/
 │   │   │
 │   │   ├── datasources/
 │   │   │   ├── DatasourceListPage.tsx
+│   │   │   ├── DatasourceCreateWizardPage.tsx  # Multi-step create flow with type selection
 │   │   │   └── DatasourceSettingsPage.tsx
 │   │   │
 │   │   └── admin/
@@ -161,6 +174,18 @@ Full detail view for any query:
 - `ApprovalTimeline` — visual timeline of review stages and decisions with reviewer comments
 - Execution result section (if executed): rows affected, duration, timestamp
 - Cancel button (if query is in `PENDING_*` status and viewer is the submitter)
+
+### DatasourceCreateWizardPage *(ADMIN)*
+
+Three-step flow at `/datasources/new` for adding a new datasource. Replaces a flat form so the user picks a database type first — and so the backend's on-demand JDBC driver loader (see `docs/05-backend.md` → Dynamic JDBC Driver Loading) can resolve the right driver before any connection is attempted.
+
+1. **Type selection** — fetches `GET /datasources/types` and renders a grid of cards via `DatasourceTypeSelector`. Each card shows the logo (`icon_url`), display name, a one-line description, and a `DriverStatusBadge` (`READY` / `AVAILABLE` / `UNAVAILABLE`). Cards with `UNAVAILABLE` are disabled with a tooltip pointing the admin at the driver-cache configuration. Selecting a card advances to step 2 and seeds the form with `default_port` and `default_ssl_mode`.
+2. **Connection details** — standard fields (name, host, port, database, username, password, ssl_mode), pre-filled from the type's defaults. A `JdbcUrlPreview` renders the URL live from `jdbc_url_template` as the user types. Bean-Validation errors surface inline.
+3. **Test & save** — first calls `POST /datasources/{id}/test` against the freshly created (or staged) datasource, surfaces latency or vendor error, then commits via `POST /datasources` and navigates to `DatasourceSettingsPage` with a success toast. The first connection of a never-yet-resolved type may take 1–5 s due to driver download — show an explicit "Resolving driver…" state on the test button.
+
+The wizard is the only entry point that materializes a datasource; `DatasourceListPage` links to it via a "New datasource" button.
+
+**Logo asset licensing.** PostgreSQL, MySQL, and MariaDB publish permissively licensed marks that can be checked into `frontend/public/db-icons/` directly. Oracle and Microsoft SQL Server marks are trademarked and their reuse rules are not blanket-permissive; if licensing review is inconclusive at PR time, fall back to the bundled `generic.svg` for those entries rather than shipping a vendor mark we are not entitled to use.
 
 ### DatasourceSettingsPage *(ADMIN)*
 
@@ -259,6 +284,7 @@ VITE_APP_EDITION=community         # community | enterprise
 /reviews                            → ReviewQueuePage
 
 /datasources                        → DatasourceListPage
+/datasources/new                    → DatasourceCreateWizardPage
 /datasources/:id/settings           → DatasourceSettingsPage
 
 /admin/users                        → UsersPage

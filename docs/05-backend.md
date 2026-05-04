@@ -97,6 +97,49 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 - Pool config: `maximumPoolSize` from `datasource.connection_pool_size`, `connectionTimeout=30s`, `idleTimeout=10m`.
 - Customer DB credentials decrypted from `password_encrypted` at pool creation time; never stored in JVM heap beyond pool init.
 
+### Dynamic JDBC Driver Loading
+
+Customer-database JDBC drivers are **not** bundled in the Spring Boot fat JAR. They are resolved per `DbType` on demand the first time a datasource of that type is used (via `POST /datasources` or its first `POST /datasources/{id}/test`). Only `org.postgresql:postgresql` ships baked in — used for AccessFlow's own internal database.
+
+**Driver registry.** A static, in-process allowlist keyed by `DbType` maps to `{groupId, artifactId, version, sha256}`. Initial entries:
+
+| DbType | Maven coordinates | Notes |
+|--------|-------------------|-------|
+| `POSTGRESQL` | `org.postgresql:postgresql` | Already on classpath; no resolution needed |
+| `MYSQL` | `com.mysql:mysql-connector-j` | |
+| `MARIADB` | `org.mariadb.jdbc:mariadb-java-client` | |
+| `ORACLE` | `com.oracle.database.jdbc:ojdbc11` | Oracle license terms apply |
+| `MSSQL` | `com.microsoft.sqlserver:mssql-jdbc` | |
+
+Versions are pinned in the registry; SHA-256 checksums are verified after every download. The API will not accept arbitrary GAVs from callers — only registry entries are resolvable.
+
+**Resolution flow.** On first datasource of a given `db_type`:
+1. Check local cache directory `${ACCESSFLOW_DRIVER_CACHE:-/var/lib/accessflow/drivers}` for a JAR matching `{artifactId}-{version}.jar`.
+2. If absent, download from `${ACCESSFLOW_DRIVERS_REPOSITORY_URL:-https://repo1.maven.org/maven2}` over HTTPS.
+3. Verify SHA-256 against the registry entry. Mismatch → discard and fail closed.
+4. Load into a child `URLClassLoader` scoped to that `DbType`.
+5. Register with `DriverManager` via a delegating `Driver` shim so the Hikari-side `getConnection(url, props)` resolves correctly across classloaders.
+
+Any failure in this flow bubbles as `DriverResolutionException` and surfaces on the `POST /datasources` response as HTTP 422 `DATASOURCE_DRIVER_UNAVAILABLE` (see `docs/04-api-spec.md`).
+
+**HikariCP integration.** The resolved `Driver` instance is passed to Hikari via `setDriverClassName` together with the dedicated `URLClassLoader` (`setClassLoader`). Pool creation is otherwise unchanged.
+
+**Configuration.**
+
+| Variable | Purpose |
+|----------|---------|
+| `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached driver JARs. Default `/var/lib/accessflow/drivers`. Mount this as a persistent volume in production. |
+| `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL. Default `https://repo1.maven.org/maven2`. Override for internal Nexus / Artifactory mirrors. |
+| `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, no network resolution is attempted; only the cache is consulted. For air-gapped installs the operator pre-populates the cache. |
+
+**Security posture.**
+- Allowlist only — registry entries cannot be extended via API.
+- Mandatory SHA-256 verification; HTTPS-only downloads.
+- Each driver lives in its own classloader; no driver code can reach beans outside the proxy engine.
+- The cache directory is opened read-only by the JVM after the initial write completes.
+
+**Operational notes.** First datasource of a never-yet-resolved type incurs a one-time download latency of roughly 1–5 s depending on driver size and network. The wizard's "test connection" step (see `docs/06-frontend.md` → DatasourceCreateWizardPage) surfaces this so admins are not surprised by a longer first call. The 5 s login timeout on `POST /datasources/{id}/test` does **not** include driver download time.
+
 ### SQL Injection Prevention
 
 - JSqlParser validates all SQL before any execution path.
@@ -209,10 +252,17 @@ SQL to analyze:
 <dependency>spring-boot-starter-mail</dependency>
 
 <!-- DB -->
-<dependency>org.postgresql:postgresql</dependency>
-<dependency>com.mysql:mysql-connector-j</dependency>
+<dependency>org.postgresql:postgresql</dependency>   <!-- AccessFlow internal DB only -->
 <dependency>org.flywaydb:flyway-core</dependency>
 <dependency>com.zaxxer:HikariCP</dependency>
+<!-- Customer-DB JDBC drivers (MySQL, MariaDB, Oracle, MSSQL, …) are NOT bundled.
+     They are resolved on demand from the Maven repository at runtime — see
+     "Dynamic JDBC Driver Loading" above. -->
+
+<!-- Dynamic Driver Loading (implementation choice — TBD in PR) -->
+<!-- Either: org.apache.maven.resolver:maven-resolver-supplier
+     Or:     hand-rolled java.net.http.HttpClient + java.security.MessageDigest -->
+
 
 <!-- SQL Parsing -->
 <dependency>com.github.jsqlparser:jsqlparser:4.7</dependency>
