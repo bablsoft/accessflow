@@ -52,6 +52,24 @@
 }
 ```
 
+The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
+
+**Response 401:** Invalid credentials, disabled account, or unknown email.
+
+### POST /auth/refresh
+
+Exchanges the `refresh_token` cookie for a new access token. Reads the refresh token from the `refresh_token` HttpOnly cookie sent automatically by the browser; no request body.
+
+**Response 200:** Same shape as `POST /auth/login`. A rotated `refresh_token` cookie is set on the response.
+
+**Response 401:** Cookie missing, expired, malformed, or revoked.
+
+### POST /auth/logout
+
+Revokes the current refresh token and clears the cookie. Reads the refresh token from the `refresh_token` cookie; no request body.
+
+**Response 204:** No content. The response sets `refresh_token=` with `Max-Age=0` to clear the cookie. Returns 204 even when no cookie is present, so logout is idempotent.
+
 ---
 
 ## Datasource Endpoints
