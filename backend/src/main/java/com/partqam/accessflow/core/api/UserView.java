@@ -1,5 +1,6 @@
 package com.partqam.accessflow.core.api;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record UserView(
@@ -10,5 +11,7 @@ public record UserView(
         UUID organizationId,
         boolean active,
         AuthProviderType authProvider,
-        String passwordHash
+        String passwordHash,
+        Instant lastLoginAt,
+        Instant createdAt
 ) {}
