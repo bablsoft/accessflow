@@ -293,6 +293,80 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 | `PUT` | `/admin/saml-config` | Update SAML configuration *(Enterprise only)* |
 | `GET` | `/system/info` | Returns edition, version, feature flags |
 
+### GET /admin/users — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 100) |
+| `sort` | string | e.g. `email,asc` (Spring Data sort syntax) |
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "email": "alice@company.com",
+      "display_name": "Alice",
+      "role": "ANALYST",
+      "auth_provider": "LOCAL",
+      "active": true,
+      "last_login_at": "2026-05-04T10:15:00Z",
+      "created_at": "2026-04-01T09:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+Results are scoped to the caller's organization.
+
+### POST /admin/users — Request Body
+
+```json
+{
+  "email": "newuser@company.com",
+  "password": "InitialPassword123!",
+  "display_name": "New User",
+  "role": "ANALYST"
+}
+```
+
+The new user is created with `auth_provider=LOCAL` in the caller's organization.
+
+**Response 201:** Single user object (same shape as a `content[]` element above). The `Location` header points to `/api/v1/admin/users/{id}`.
+
+**Response 400:** Validation error (invalid email, password too short, missing role).
+**Response 409:** A user with this email already exists. `error: EMAIL_ALREADY_EXISTS`.
+
+### PUT /admin/users/{id} — Request Body
+
+All fields optional. Omitted fields are left unchanged.
+
+```json
+{
+  "role": "REVIEWER",
+  "active": true,
+  "display_name": "Updated Name"
+}
+```
+
+**Response 200:** Updated user object.
+**Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
+**Response 422:** Self-protection violation — admins cannot demote themselves from `ADMIN` or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
+
+### DELETE /admin/users/{id}
+
+Soft-deactivates the user (`active=false`) and revokes all of their refresh tokens, forcing logout across all sessions.
+
+**Response 204:** No content.
+**Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
+**Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
+
 ### GET /admin/audit-log — Query Parameters
 
 | Param | Type | Description |

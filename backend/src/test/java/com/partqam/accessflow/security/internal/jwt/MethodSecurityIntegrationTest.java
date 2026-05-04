@@ -92,6 +92,8 @@ class MethodSecurityIntegrationTest {
                 UUID.randomUUID(),
                 true,
                 AuthProviderType.LOCAL,
+                null,
+                null,
                 null
         ));
         for (var path : ALL_PATHS) {

@@ -38,6 +38,8 @@ class JwtServiceImplTest {
                 UUID.randomUUID(),
                 true,
                 AuthProviderType.LOCAL,
+                null,
+                null,
                 null
         );
     }

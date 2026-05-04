@@ -1,5 +1,8 @@
 package com.partqam.accessflow.security.internal.web;
 
+import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
+import com.partqam.accessflow.core.api.IllegalUserOperationException;
+import com.partqam.accessflow.core.api.UserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -39,6 +42,30 @@ class GlobalExceptionHandler {
     ProblemDetail handleAccessDenied(AccessDeniedException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
         pd.setProperty("error", "FORBIDDEN");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        pd.setProperty("error", "EMAIL_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    ProblemDetail handleUserNotFound(UserNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        pd.setProperty("error", "USER_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalUserOperationException.class)
+    ProblemDetail handleIllegalUserOperation(IllegalUserOperationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_USER_OPERATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
