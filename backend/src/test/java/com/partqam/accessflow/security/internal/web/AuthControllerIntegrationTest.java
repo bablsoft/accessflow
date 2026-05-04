@@ -8,6 +8,7 @@ import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntit
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,7 +84,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginWithValidCredentialsReturns200WithAccessToken() {
-        var result = mvc.post().uri("/auth/login")
+        var result = mvc.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"email":"%s","password":"%s"}
@@ -99,7 +100,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginWithWrongPasswordReturns401() {
-        var result = mvc.post().uri("/auth/login")
+        var result = mvc.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"email":"%s","password":"wrongpassword"}
@@ -111,7 +112,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginWithInvalidBodyReturns400() {
-        var result = mvc.post().uri("/auth/login")
+        var result = mvc.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"email":"not-an-email","password":"short"}
@@ -122,8 +123,36 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
+    void refreshWithValidCookieReturns200AndIssuesNewAccessToken() {
+        var loginResult = mvc.post().uri("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email":"%s","password":"%s"}
+                        """.formatted(EMAIL, PASSWORD))
+                .exchange();
+        var loginCookie = loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        var originalRefreshToken = extractRefreshToken(loginCookie);
+
+        var refreshResult = mvc.post().uri("/api/v1/auth/refresh")
+                .cookie(new Cookie("refresh_token", originalRefreshToken))
+                .exchange();
+
+        assertThat(refreshResult).hasStatus(200);
+        assertThat(refreshResult).bodyJson().extractingPath("$.access_token").asString().isNotBlank();
+        var rotatedCookie = refreshResult.getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertThat(rotatedCookie).contains("refresh_token=").contains("Path=/api/v1/auth");
+    }
+
+    @Test
+    void refreshWithoutCookieReturns401() {
+        var result = mvc.post().uri("/api/v1/auth/refresh").exchange();
+
+        assertThat(result).hasStatus(401);
+    }
+
+    @Test
     void logoutReturns204AndClearsCookie() {
-        var loginResult = mvc.post().uri("/auth/login")
+        var loginResult = mvc.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"email":"%s","password":"%s"}
@@ -131,12 +160,22 @@ class AuthControllerIntegrationTest {
                 .exchange();
         var cookie = loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE);
 
-        var logoutResult = mvc.post().uri("/auth/logout")
+        var logoutResult = mvc.post().uri("/api/v1/auth/logout")
                 .header(HttpHeaders.COOKIE, cookie)
                 .exchange();
 
         assertThat(logoutResult).hasStatus(204);
         assertThat(logoutResult.getResponse().getHeader(HttpHeaders.SET_COOKIE)).contains("Max-Age=0");
+    }
+
+    private static String extractRefreshToken(String setCookieHeader) {
+        for (var part : setCookieHeader.split(";")) {
+            var trimmed = part.trim();
+            if (trimmed.startsWith("refresh_token=")) {
+                return trimmed.substring("refresh_token=".length());
+            }
+        }
+        throw new AssertionError("refresh_token not found in: " + setCookieHeader);
     }
 
     @Test
@@ -148,7 +187,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void protectedEndpointWithValidTokenIsNotRejected() throws Exception {
-        var loginResult = mvc.post().uri("/auth/login")
+        var loginResult = mvc.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"email":"%s","password":"%s"}
