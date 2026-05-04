@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/v1/auth")
 @Tag(name = "Authentication", description = "JWT authentication endpoints")
 @RequiredArgsConstructor
 class AuthController {
@@ -76,7 +76,7 @@ class AuthController {
                 .secure(true)
                 .sameSite("Strict")
                 .maxAge(maxAge)
-                .path("/auth")
+                .path("/api/v1/auth")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
