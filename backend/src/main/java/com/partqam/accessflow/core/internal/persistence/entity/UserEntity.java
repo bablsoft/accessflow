@@ -14,6 +14,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -42,6 +44,7 @@ public class UserEntity {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "auth_provider", nullable = false, columnDefinition = "auth_provider_type")
     private AuthProviderType authProvider = AuthProviderType.LOCAL;
 
@@ -49,6 +52,7 @@ public class UserEntity {
     private String samlSubject;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "user_role_type")
     private UserRoleType role;
 

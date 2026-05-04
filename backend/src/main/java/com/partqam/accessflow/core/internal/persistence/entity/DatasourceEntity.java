@@ -15,6 +15,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -37,6 +39,7 @@ public class DatasourceEntity {
     private String name;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "db_type", nullable = false, columnDefinition = "db_type")
     private DbType dbType;
 
@@ -57,6 +60,7 @@ public class DatasourceEntity {
     private String passwordEncrypted;
 
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "ssl_mode", nullable = false, columnDefinition = "ssl_mode")
     private SslMode sslMode = SslMode.DISABLE;
 
