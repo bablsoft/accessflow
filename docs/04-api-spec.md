@@ -76,6 +76,7 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 
 | Method | Path | Auth Required | Description |
 |--------|------|---------------|-------------|
+| `GET` | `/datasources/types` | Any | List supported database types with display metadata for the create wizard |
 | `GET` | `/datasources` | Any | List datasources the current user has access to |
 | `POST` | `/datasources` | ADMIN | Create new datasource |
 | `GET` | `/datasources/{id}` | Any | Get datasource details |
@@ -86,6 +87,43 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
+
+### GET /datasources/types — Response 200
+
+```json
+{
+  "types": [
+    {
+      "code": "POSTGRESQL",
+      "display_name": "PostgreSQL",
+      "icon_url": "/static/db-icons/postgresql.svg",
+      "default_port": 5432,
+      "default_ssl_mode": "VERIFY_FULL",
+      "jdbc_url_template": "jdbc:postgresql://{host}:{port}/{database_name}",
+      "driver_status": "READY"
+    },
+    {
+      "code": "MYSQL",
+      "display_name": "MySQL",
+      "icon_url": "/static/db-icons/mysql.svg",
+      "default_port": 3306,
+      "default_ssl_mode": "REQUIRED",
+      "jdbc_url_template": "jdbc:mysql://{host}:{port}/{database_name}",
+      "driver_status": "AVAILABLE"
+    }
+  ]
+}
+```
+
+`driver_status` values:
+
+| Value | Meaning |
+|-------|---------|
+| `READY` | Driver is cached locally; first connection has no resolution cost. |
+| `AVAILABLE` | Driver is in the registry but not yet cached; will be downloaded on first use. |
+| `UNAVAILABLE` | Registry entry exists but the cache directory is unwritable or the resolver is offline without a cache hit. Admin attention needed. |
+
+Initial supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. See `docs/05-backend.md` → Dynamic JDBC Driver Loading for the resolution mechanism.
 
 ### GET /datasources — Query Parameters
 
@@ -156,6 +194,7 @@ The password is AES-256-GCM encrypted server-side using the `ENCRYPTION_KEY` env
 **Response 400:** Validation error (missing required field, port out of range, etc.). `error: VALIDATION_ERROR`.
 **Response 403:** Caller is not an ADMIN. `error: FORBIDDEN`.
 **Response 409:** A datasource with this name already exists in the caller's organization. `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+**Response 422:** JDBC driver for `db_type` could not be resolved (download failure, checksum mismatch, or offline-mode cache miss). The `detail` field contains the resolver error. `error: DATASOURCE_DRIVER_UNAVAILABLE`.
 
 ### GET /datasources/{id} — Response 200
 
@@ -190,6 +229,8 @@ Soft-deactivates the datasource (`is_active=false`). The row is retained for aud
 ### POST /datasources/{id}/test
 
 Opens a transient JDBC connection to the customer database (no Hikari pool), executes `SELECT 1`, and closes the connection. Login timeout is 5 seconds.
+
+> The first call against a newly added `db_type` may take longer because the JDBC driver is resolved on demand (see `docs/05-backend.md` → Dynamic JDBC Driver Loading). The 5-second login timeout does **not** include driver download time. Driver-resolution failures surface as HTTP 422 `DATASOURCE_DRIVER_UNAVAILABLE`.
 
 **Response 200:**
 ```json

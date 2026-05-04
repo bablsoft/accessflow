@@ -78,6 +78,8 @@
 
 **Theme:** Productivity and operations polish.
 
+- **Dynamic JDBC driver loading** — drivers resolved from Maven Central on demand instead of bundled in the fat JAR (AF-10)
+- **Datasource creation wizard** — visual type-selection step (Postgres, MySQL, MariaDB, Oracle, MSSQL) with logos and prefilled defaults (AF-11)
 - **Query scheduling** — submit an approved query to execute at a future datetime
 - **Bulk approval UI** — reviewers can approve/reject multiple queries in one action
 - **AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users
