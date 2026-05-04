@@ -38,6 +38,7 @@ server:
 
 accessflow:
   edition: ${ACCESSFLOW_EDITION:community}
+  encryption-key: ${ENCRYPTION_KEY:}
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
     access-token-expiry: PT15M

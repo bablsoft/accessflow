@@ -87,6 +87,47 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
 
+### GET /datasources — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 100) |
+| `sort` | string | e.g. `name,asc` (Spring Data sort syntax) |
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "organization_id": "uuid",
+      "name": "Production PostgreSQL",
+      "db_type": "POSTGRESQL",
+      "host": "db.company.com",
+      "port": 5432,
+      "database_name": "app_prod",
+      "username": "accessflow_svc",
+      "ssl_mode": "VERIFY_FULL",
+      "connection_pool_size": 10,
+      "max_rows_per_query": 1000,
+      "require_review_reads": false,
+      "require_review_writes": true,
+      "review_plan_id": "uuid",
+      "ai_analysis_enabled": true,
+      "active": true,
+      "created_at": "2026-05-04T10:15:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+Results are scoped to the caller's organization. ADMINs see all datasources in the organization. Non-ADMINs see only datasources they have a row in `datasource_user_permissions` for. The encrypted password is never serialized.
+
 ### POST /datasources — Request Body
 
 ```json
@@ -108,7 +149,59 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 }
 ```
 
+The password is AES-256-GCM encrypted server-side using the `ENCRYPTION_KEY` env var before persistence.
+
+**Response 201:** Single datasource object (same shape as a `content[]` element above). The `Location` header points to `/api/v1/datasources/{id}`.
+
+**Response 400:** Validation error (missing required field, port out of range, etc.). `error: VALIDATION_ERROR`.
+**Response 403:** Caller is not an ADMIN. `error: FORBIDDEN`.
+**Response 409:** A datasource with this name already exists in the caller's organization. `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+
+### GET /datasources/{id} — Response 200
+
+Single datasource object — same shape as a `content[]` element above. Returns `404 DATASOURCE_NOT_FOUND` if the datasource does not exist, belongs to a different organization, or — for non-ADMIN callers — if the caller has no permission row for it.
+
+### PUT /datasources/{id} — Request Body
+
+All fields optional. Omitted fields are left unchanged. Providing `password` triggers re-encryption with a fresh IV.
+
+```json
+{
+  "name": "Production PostgreSQL (renamed)",
+  "host": "new-db.company.com",
+  "port": 5432,
+  "password": "new-service-account-password",
+  "connection_pool_size": 25,
+  "active": true
+}
+```
+
+**Response 200:** Updated datasource object.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 409:** Renaming would conflict with another datasource in the same organization. `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+
+### DELETE /datasources/{id}
+
+Soft-deactivates the datasource (`is_active=false`). The row is retained for audit log foreign-key integrity. Restore by `PUT` with `{"active": true}`.
+
+**Response 204:** No content.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+
+### POST /datasources/{id}/test
+
+Opens a transient JDBC connection to the customer database (no Hikari pool), executes `SELECT 1`, and closes the connection. Login timeout is 5 seconds.
+
+**Response 200:**
+```json
+{ "ok": true, "latency_ms": 42, "message": "ok" }
+```
+
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Connection failed. The body contains the vendor error message in `detail`. `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+
 ### GET /datasources/{id}/schema — Response
+
+Introspects tables and columns from the customer database via JDBC `DatabaseMetaData`. System schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out. ADMINs may introspect any datasource in their organization; non-ADMINs require a permission row.
 
 ```json
 {
@@ -128,6 +221,59 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
   ]
 }
 ```
+
+**Response 404:** Datasource does not exist in the caller's organization, or — for non-ADMIN callers — caller has no permission row. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Schema introspection failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+
+### GET /datasources/{id}/permissions — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "user_id": "uuid",
+      "user_email": "alice@company.com",
+      "user_display_name": "Alice",
+      "can_read": true,
+      "can_write": false,
+      "can_ddl": false,
+      "row_limit_override": null,
+      "allowed_schemas": ["public"],
+      "allowed_tables": null,
+      "expires_at": null,
+      "created_by": "uuid",
+      "created_at": "2026-05-04T10:15:00Z"
+    }
+  ]
+}
+```
+
+### POST /datasources/{id}/permissions — Request Body
+
+```json
+{
+  "user_id": "uuid",
+  "can_read": true,
+  "can_write": false,
+  "can_ddl": false,
+  "row_limit_override": 1000,
+  "allowed_schemas": ["public"],
+  "allowed_tables": ["users", "orders"],
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+**Response 201:** Permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/{permId}`.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 409:** A permission row already exists for `(user_id, datasource_id)`. `error: DATASOURCE_PERMISSION_ALREADY_EXISTS`.
+**Response 422:** Target user does not exist or does not belong to the caller's organization. `error: ILLEGAL_DATASOURCE_PERMISSION`.
+
+### DELETE /datasources/{id}/permissions/{permId}
+
+**Response 204:** No content.
+**Response 404:** Permission does not exist or belongs to a different datasource. `error: DATASOURCE_PERMISSION_NOT_FOUND`.
 
 ---
 
