@@ -85,6 +85,13 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 
 ### Execution Flow (Step by Step)
 
+> Implementation status (AF-15 — Query Submission Endpoint): the `workflow` module currently
+> implements steps 1, 2, 5 (capability bit on `datasource_user_permissions`), 7 (publishes
+> `QuerySubmittedEvent`), and writes the initial `query_requests` row in `PENDING_AI`. AST-level
+> schema allow-listing (step 3) and review-plan resolution (steps 4, 6, 8) ship in follow-up
+> issues. Submission is exposed via the `workflow.internal.web.QuerySubmissionController`
+> rather than the historical `QueryProxyService` name used below.
+
 1. **Receive request** — `POST /api/v1/queries` hits the controller, which delegates to `QueryProxyService`.
 2. **Permission check** — Load `DatasourceUserPermission` for `(user, datasource)`. Verify `can_read` / `can_write` / `can_ddl` as appropriate. Reject with 403 if no permission record exists.
 3. **SQL parsing** — Parse SQL using `JSqlParser` via `SqlParserService` (`proxy/api/`). Determine `QueryType` (SELECT, INSERT, UPDATE, DELETE, DDL, OTHER). Reject unparseable SQL and stacked / multi-statement input with 422 (`InvalidSqlException` → `error: "INVALID_SQL"`).

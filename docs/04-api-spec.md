@@ -356,6 +356,15 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 }
 ```
 
+`review_plan` and `estimated_review_completion` are returned as `null` until the review-plan resolution and SLA estimation features ship; the AI analyzer is triggered asynchronously and the persisted query starts in `PENDING_AI`.
+
+**Errors:**
+- `400 VALIDATION_ERROR` — request body missing `datasource_id` or `sql`.
+- `403 FORBIDDEN` — caller has no active permission row for this datasource, or the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL). Admins bypass this check.
+- `404 DATASOURCE_NOT_FOUND` — datasource does not exist in the caller's organization, or — for non-admin callers — the caller has no permission row for it.
+- `422 INVALID_SQL` — SQL did not parse, contained multiple statements, or classified as `OTHER` (transactional / session-control statements are not accepted).
+- `422 DATASOURCE_UNAVAILABLE` — datasource exists but is inactive.
+
 ### GET /queries — Query Parameters
 
 | Param | Type | Description |
