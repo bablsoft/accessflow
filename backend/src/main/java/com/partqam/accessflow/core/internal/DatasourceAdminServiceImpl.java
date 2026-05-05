@@ -14,8 +14,11 @@ import com.partqam.accessflow.core.api.DatasourcePermissionView;
 import com.partqam.accessflow.core.api.DatasourceView;
 import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
 import com.partqam.accessflow.core.api.SslMode;
 import com.partqam.accessflow.core.api.UpdateDatasourceCommand;
+import com.partqam.accessflow.core.events.DatasourceConfigChangedEvent;
+import com.partqam.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
@@ -28,6 +31,7 @@ import com.partqam.accessflow.core.api.CredentialEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -64,6 +69,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final UserRepository userRepository;
     private final ReviewPlanRepository reviewPlanRepository;
     private final CredentialEncryptionService encryptionService;
+    private final JdbcCoordinatesFactory coordinatesFactory;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -139,6 +146,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional
     public DatasourceView update(UUID id, UUID organizationId, UpdateDatasourceCommand command) {
         var entity = loadInOrganization(id, organizationId);
+        var before = poolFingerprint(entity);
+        var wasActive = entity.isActive();
         if (command.name() != null && !command.name().equals(entity.getName())) {
             if (datasourceRepository.existsByOrganization_IdAndNameIgnoreCaseAndIdNot(
                     organizationId, command.name(), id)) {
@@ -185,6 +194,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.active() != null) {
             entity.setActive(command.active());
         }
+        if (wasActive && !entity.isActive()) {
+            eventPublisher.publishEvent(new DatasourceDeactivatedEvent(entity.getId()));
+        } else if (!Objects.equals(before, poolFingerprint(entity))) {
+            eventPublisher.publishEvent(new DatasourceConfigChangedEvent(entity.getId()));
+        }
         return toView(entity);
     }
 
@@ -192,7 +206,27 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional
     public void deactivate(UUID id, UUID organizationId) {
         var entity = loadInOrganization(id, organizationId);
+        if (!entity.isActive()) {
+            return;
+        }
         entity.setActive(false);
+        eventPublisher.publishEvent(new DatasourceDeactivatedEvent(entity.getId()));
+    }
+
+    private static PoolFingerprint poolFingerprint(DatasourceEntity entity) {
+        return new PoolFingerprint(
+                entity.getHost(),
+                entity.getPort(),
+                entity.getDatabaseName(),
+                entity.getUsername(),
+                entity.getPasswordEncrypted(),
+                entity.getSslMode(),
+                entity.getConnectionPoolSize());
+    }
+
+    private record PoolFingerprint(String host, int port, String databaseName, String username,
+                                   String passwordEncrypted, SslMode sslMode,
+                                   int connectionPoolSize) {
     }
 
     @Override
@@ -337,30 +371,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     private String buildJdbcUrl(DatasourceEntity entity) {
-        var sslParam = sslModeParam(entity);
-        return switch (entity.getDbType()) {
-            case POSTGRESQL -> "jdbc:postgresql://" + entity.getHost() + ":" + entity.getPort()
-                    + "/" + entity.getDatabaseName() + (sslParam.isEmpty() ? "" : "?" + sslParam);
-            case MYSQL -> "jdbc:mysql://" + entity.getHost() + ":" + entity.getPort()
-                    + "/" + entity.getDatabaseName() + (sslParam.isEmpty() ? "" : "?" + sslParam);
-        };
-    }
-
-    private String sslModeParam(DatasourceEntity entity) {
-        return switch (entity.getDbType()) {
-            case POSTGRESQL -> switch (entity.getSslMode()) {
-                case DISABLE -> "sslmode=disable";
-                case REQUIRE -> "sslmode=require";
-                case VERIFY_CA -> "sslmode=verify-ca";
-                case VERIFY_FULL -> "sslmode=verify-full";
-            };
-            case MYSQL -> switch (entity.getSslMode()) {
-                case DISABLE -> "useSSL=false";
-                case REQUIRE -> "useSSL=true&requireSSL=true";
-                case VERIFY_CA -> "useSSL=true&verifyServerCertificate=true";
-                case VERIFY_FULL -> "useSSL=true&verifyServerCertificate=true";
-            };
-        };
+        return coordinatesFactory.from(
+                entity.getDbType(), entity.getHost(), entity.getPort(),
+                entity.getDatabaseName(), entity.getUsername(), entity.getSslMode()).url();
     }
 
     private Properties jdbcProperties(DatasourceEntity entity) {
