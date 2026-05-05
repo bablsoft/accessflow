@@ -452,6 +452,43 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
 | `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
 
+All `/reviews/*` endpoints require `REVIEWER` or `ADMIN` role. The submitter of a query is **never** allowed to approve, reject, or request changes on it (HTTP 403, regardless of role). Reviewers must additionally match a `review_plan_approvers` row at the query's *current* stage.
+
+`min_approvals_required` on the review plan is interpreted **per stage**: each stage must collect that many `APPROVED` decisions before the next stage's approvers are considered current. A single `REJECTED` decision at any stage transitions the query to `REJECTED`. `REQUESTED_CHANGES` is recorded but does not transition the query — it remains in `PENDING_REVIEW` until another decision is made.
+
+### GET /reviews/pending — Query Parameters
+
+Standard pagination (`page`, `size`). Result is filtered to queries the caller can act on at the current stage; queries the reviewer can see but cannot yet act on (e.g. they're a stage-2 approver and stage 1 is still pending) are omitted.
+
+**Response 200:**
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource": { "id": "uuid", "name": "Production PostgreSQL" },
+      "submitted_by": { "id": "uuid", "email": "alice@company.com" },
+      "sql_text": "UPDATE orders SET status = 'shipped' WHERE id = 123",
+      "query_type": "UPDATE",
+      "justification": "Customer support ticket #8821",
+      "ai_analysis": {
+        "id": "uuid",
+        "risk_level": "MEDIUM",
+        "risk_score": 42,
+        "summary": "Single-row UPDATE with indexed WHERE clause."
+      },
+      "current_stage": 1,
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
 ### POST /reviews/{queryId}/approve — Request Body
 
 ```json
@@ -460,6 +497,8 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 }
 ```
 
+`comment` is optional. When the per-stage threshold is met AND it's the last stage, the query transitions to `APPROVED`. Otherwise it stays `PENDING_REVIEW` (more approvers needed at this stage, or higher stages remain).
+
 ### POST /reviews/{queryId}/reject — Request Body
 
 ```json
@@ -467,6 +506,44 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
   "comment": "Please add a more specific WHERE clause. The current one could match multiple rows."
 }
 ```
+
+`comment` is optional. The query is immediately transitioned to `REJECTED`.
+
+### POST /reviews/{queryId}/request-changes — Request Body
+
+```json
+{
+  "comment": "Please narrow the WHERE clause to the specific order id."
+}
+```
+
+`comment` is **required** (HTTP 400 if blank). The decision is recorded with type `REQUESTED_CHANGES`; the query remains in `PENDING_REVIEW` so the submitter (or another reviewer) can act on the comment.
+
+### Common Response Body (approve / reject / request-changes)
+
+```json
+{
+  "query_request_id": "uuid",
+  "decision_id": "uuid",
+  "decision": "APPROVED",
+  "resulting_status": "APPROVED",
+  "idempotent_replay": false
+}
+```
+
+`idempotent_replay` is `true` if the same reviewer submitted the same decision at the same stage previously (the existing decision is returned unchanged). The unique index `(query_request_id, reviewer_id, stage)` enforces single-decision-per-stage at the database level.
+
+### Common Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Comment missing on `request-changes` |
+| 401 | `UNAUTHORIZED` | Missing or invalid JWT |
+| 403 | `FORBIDDEN` | Caller is the submitter (self-approval blocked) |
+| 403 | `REVIEWER_NOT_ELIGIBLE` | Caller is not an approver at the current stage |
+| 404 | `QUERY_REQUEST_NOT_FOUND` | Query doesn't exist or belongs to a different organization |
+| 409 | `QUERY_NOT_PENDING_REVIEW` | Query is not in `PENDING_REVIEW` (already terminal, or still in `PENDING_AI`) |
+| 409 | `ILLEGAL_STATUS_TRANSITION` | Lower-level state-machine guard fired |
 
 ---
 

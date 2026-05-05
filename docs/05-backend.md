@@ -85,12 +85,14 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 
 ### Execution Flow (Step by Step)
 
-> Implementation status (AF-15 — Query Submission Endpoint): the `workflow` module currently
-> implements steps 1, 2, 5 (capability bit on `datasource_user_permissions`), 7 (publishes
-> `QuerySubmittedEvent`), and writes the initial `query_requests` row in `PENDING_AI`. AST-level
-> schema allow-listing (step 3) and review-plan resolution (steps 4, 6, 8) ship in follow-up
-> issues. Submission is exposed via the `workflow.internal.web.QuerySubmissionController`
-> rather than the historical `QueryProxyService` name used below.
+> Implementation status: AF-15 landed steps 1, 2, 5 (capability bit on
+> `datasource_user_permissions`), 7 (publishes `QuerySubmittedEvent`), and writes the initial
+> `query_requests` row in `PENDING_AI` via `workflow.internal.web.QuerySubmissionController`.
+> AF-16 added steps 6, 7-completion, and 8: the `workflow.internal.QueryReviewStateMachine`
+> consumes `AiAnalysisCompletedEvent` / `AiAnalysisFailedEvent` to advance out of `PENDING_AI`,
+> and `workflow.internal.web.ReviewController` exposes `/api/v1/reviews/pending`,
+> `/approve`, `/reject`, `/request-changes` for human approvers. AST-level schema allow-listing
+> (step 3) and the executor invocation (steps 9, 10, 11) ship in follow-up issues.
 
 1. **Receive request** — `POST /api/v1/queries` hits the controller, which delegates to `QueryProxyService`.
 2. **Permission check** — Load `DatasourceUserPermission` for `(user, datasource)`. Verify `can_read` / `can_write` / `can_ddl` as appropriate. Reject with 403 if no permission record exists.
@@ -245,6 +247,38 @@ Any failure in this flow bubbles as `DriverResolutionException` and surfaces on 
 ### Multi-Stage Approval
 
 `review_plan_approvers` rows have a `stage` integer. Stage 1 approvers must all approve before stage 2 notifications are sent. The workflow service tracks current stage and advances automatically.
+
+`review_plan.min_approvals_required` is **per stage**: each stage must collect that many `APPROVED` decisions before the next stage's approvers become current. Current-stage computation is decision-derived: `min(stage : count(APPROVED at stage) < min_approvals_required)`, scoped to the plan's approver rules.
+
+### Implementation: AI-completion → review transition
+
+`workflow.internal.QueryReviewStateMachine` is a Spring Modulith `@ApplicationModuleListener` consuming `AiAnalysisCompletedEvent` and `AiAnalysisFailedEvent` from the `core` module's events. It runs `AFTER_COMMIT` of the AI module's persistence transaction, so the `ai_analyses` row and `query_requests.ai_analysis_id` link are already visible.
+
+Decision rules:
+
+| Plan flag combination | Resulting status |
+|-----------------------|-------------------|
+| `requires_human_approval=false` | `APPROVED` (auto-approve) |
+| `auto_approve_reads=true` AND `query_type=SELECT` AND AI risk ∈ {LOW, MEDIUM} | `APPROVED` (fast path) |
+| (default) | `PENDING_REVIEW` |
+| Datasource has no review plan | `PENDING_REVIEW` (safe default) |
+
+`AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. (The AI module persists a sentinel `CRITICAL` analysis row on failure so the reviewer has context.)
+
+### Implementation: review decisions
+
+`workflow.internal.DefaultReviewService` enforces eligibility and orchestrates state transitions through `core.api.QueryRequestStateService`:
+
+1. **Self-approval check** (first): submitter ≠ reviewer, regardless of role. Throws `AccessDeniedException` (HTTP 403). Enforced in service, not controller — see `docs/07-security.md:50`.
+2. **Tenant scope**: query, plan, and reviewer must all be in the same `organization_id`.
+3. **Role gate**: caller must be `REVIEWER` or `ADMIN`.
+4. **Approver match at current stage**: caller's `userId` matches a `review_plan_approvers.user_id` at the current stage, OR caller's role matches a `review_plan_approvers.role` at that stage.
+5. **State guard**: the underlying `QueryRequestStateService` takes a `PESSIMISTIC_WRITE` lock on the `query_requests` row (`@Lock(LockModeType.PESSIMISTIC_WRITE)` in `QueryRequestRepository.findByIdForUpdate`), re-reads decisions inside that transaction, inserts the new `review_decisions` row, and conditionally transitions the status — all atomically. The row lock makes it impossible for two concurrent approvers to both observe the threshold-met condition and double-advance.
+6. **Idempotency**: a unique index on `(query_request_id, reviewer_id, stage)` (Flyway V11) plus a service-level pre-check guarantees that a duplicate decision (e.g. a double-clicked button) returns the existing decision rather than inserting twice.
+
+`approve` may resolve to either `PENDING_REVIEW` (more approvers needed at this stage, or higher stages remain) or `APPROVED` (last stage threshold met). `reject` is always terminal (`REJECTED`). `request-changes` is non-terminal — the query stays in `PENDING_REVIEW` and the comment is recorded for the submitter.
+
+Terminal transitions publish `QueryApprovedEvent` / `QueryRejectedEvent` (in `workflow.events`) for the audit and notifications modules to subscribe to.
 
 ---
 

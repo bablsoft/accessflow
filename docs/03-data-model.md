@@ -158,6 +158,8 @@ PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED → FAILED (on execution error)
 ```
 
+**Auto-approve fast path (`PENDING_AI → APPROVED` directly).** When the datasource's review plan has `auto_approve_reads=true`, a SELECT whose AI analysis returns LOW or MEDIUM risk skips `PENDING_REVIEW` entirely. HIGH/CRITICAL risk SELECTs and all non-SELECT queries still go through human review. Plans with `requires_human_approval=false` always auto-approve on AI completion. AI failure (`AiAnalysisFailedEvent`) never auto-approves — the query always lands in `PENDING_REVIEW` so a human can inspect.
+
 ---
 
 ## ai_analyses
@@ -214,6 +216,8 @@ Records a reviewer's decision on a query request.
 | `comment` | TEXT nullable |
 | `stage` | INTEGER — which stage of multi-stage plan this decision belongs to |
 | `decided_at` | TIMESTAMPTZ |
+
+A unique index on `(query_request_id, reviewer_id, stage)` (Flyway V11) enforces single-decision-per-stage at the database level — a reviewer cannot record two decisions for the same query at the same stage. The service layer translates a duplicate insert attempt into an idempotent replay, returning the existing decision unchanged.
 
 ---
 

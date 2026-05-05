@@ -7,7 +7,9 @@ import com.partqam.accessflow.core.api.DatasourcePermissionAlreadyExistsExceptio
 import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
+import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
@@ -172,6 +174,24 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
         pd.setProperty("error", "POOL_INITIALIZATION_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryRequestNotFoundException.class)
+    ProblemDetail handleQueryRequestNotFound(QueryRequestNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        pd.setProperty("error", "QUERY_REQUEST_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalQueryStatusTransitionException.class)
+    ProblemDetail handleIllegalQueryStatusTransition(IllegalQueryStatusTransitionException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_STATUS_TRANSITION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("actual", ex.actual().name());
+        pd.setProperty("expected", ex.expected().name());
         return pd;
     }
 
