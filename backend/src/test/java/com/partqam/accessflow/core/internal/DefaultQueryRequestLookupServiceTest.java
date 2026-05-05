@@ -6,6 +6,7 @@ import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
+import com.partqam.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.when;
 class DefaultQueryRequestLookupServiceTest {
 
     @Mock QueryRequestRepository queryRequestRepository;
+    @Mock AiAnalysisRepository aiAnalysisRepository;
     @InjectMocks DefaultQueryRequestLookupService service;
 
     @Test
