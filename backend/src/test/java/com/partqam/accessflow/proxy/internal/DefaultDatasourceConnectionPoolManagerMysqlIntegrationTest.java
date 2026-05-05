@@ -10,6 +10,7 @@ import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntit
 import com.partqam.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.DatasourceUserPermissionRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
+import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
@@ -46,6 +47,7 @@ class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired DatasourceUserPermissionRepository permissionRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired UserRepository userRepository;
     @Autowired CredentialEncryptionService encryptionService;
 
     private OrganizationEntity org;
@@ -78,6 +80,7 @@ class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
     void setUp() {
         permissionRepository.deleteAll();
         datasourceRepository.deleteAll();
+        userRepository.deleteAll();
         organizationRepository.deleteAll();
         org = new OrganizationEntity();
         org.setId(UUID.randomUUID());
@@ -91,6 +94,7 @@ class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
     void cleanup() {
         permissionRepository.deleteAll();
         datasourceRepository.deleteAll();
+        userRepository.deleteAll();
         organizationRepository.deleteAll();
     }
 
