@@ -257,6 +257,17 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (!isAdmin && !permissionRepository.existsByUser_IdAndDatasource_Id(userId, id)) {
             throw new DatasourceNotFoundException(id);
         }
+        return introspect(id, entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true, propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public DatabaseSchemaView introspectSchemaForSystem(UUID id, UUID organizationId) {
+        var entity = loadInOrganization(id, organizationId);
+        return introspect(id, entity);
+    }
+
+    private DatabaseSchemaView introspect(UUID id, DatasourceEntity entity) {
         var url = buildJdbcUrl(entity);
         var props = jdbcProperties(entity);
         DriverManager.setLoginTimeout(CONNECTION_TIMEOUT_SECONDS);

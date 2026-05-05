@@ -33,6 +33,15 @@ spring:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
 
+  ai:
+    anthropic:
+      api-key: ${AI_API_KEY:}
+      base-url: ${AI_BASE_URL:https://api.anthropic.com}
+      chat:
+        options:
+          model: ${AI_MODEL:claude-sonnet-4-20250514}
+          max-tokens: 1024
+
 server:
   port: 8080
 
@@ -55,6 +64,8 @@ accessflow:
       max-rows: 10000
       statement-timeout: 30s
       default-fetch-size: 1000
+  ai:
+    provider: ${AI_PROVIDER:anthropic}
 
 springdoc:
   api-docs:

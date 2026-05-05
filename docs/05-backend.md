@@ -247,16 +247,31 @@ The `AiAnalyzerService` (`accessflow-ai` module) is pluggable via a strategy int
 
 ```java
 public interface AiAnalyzerStrategy {
-    AiAnalysisResult analyze(String sql, DbType dbType);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext);
 }
 ```
 
-Implementations:
-- `OpenAiAnalyzerStrategy` — calls OpenAI Chat Completions API
-- `AnthropicAnalyzerStrategy` — calls Anthropic Messages API
-- `OllamaAnalyzerStrategy` — calls local Ollama REST API
+`schemaContext` is an opaque, provider-renderable description of the target schema (for example,
+the output of `SystemPromptRenderer.describeSchema(...)`). It may be `null` or empty when
+introspection is unavailable, in which case the prompt substitutes `(no schema introspection
+available)`.
 
-Active strategy selected via `accessflow.ai.provider` config. Can be changed at runtime by ADMIN via `PUT /admin/ai-config` (triggers bean refresh).
+Implementations call providers through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M5`):
+- `AnthropicAnalyzerStrategy` — uses Spring AI's auto-configured `ChatModel` from `spring-ai-starter-model-anthropic` (default; landed in AF-14).
+- `OpenAiAnalyzerStrategy` — `spring-ai-starter-model-openai` (planned).
+- `OllamaAnalyzerStrategy` — `spring-ai-starter-model-ollama` (planned).
+
+Provider settings (model, API key, base URL, max tokens, timeouts) live under Spring AI's namespace, e.g. `spring.ai.anthropic.api-key`, `spring.ai.anthropic.chat.options.model`. The accessflow-level toggle `accessflow.ai.provider` selects which strategy bean activates.
+
+Active strategy selected via `accessflow.ai.provider` config. Runtime swap via `PUT /admin/ai-config` (triggers bean refresh) is planned in a follow-up issue.
+
+Two entry points:
+- `AiAnalyzerService.analyzePreview(...)` — synchronous, used by `POST /api/v1/queries/analyze`. No
+  persistence; failures propagate as exceptions.
+- `AiAnalyzerService.analyzeSubmittedQuery(UUID queryRequestId)` — invoked from
+  `AiAnalysisListener` on `QuerySubmittedEvent`. Persists an `ai_analyses` row, links it from
+  `query_requests.ai_analysis_id`, and publishes `AiAnalysisCompletedEvent` (or
+  `AiAnalysisFailedEvent` plus a sentinel `CRITICAL` row on failure — never propagates).
 
 ### System Prompt Template
 
