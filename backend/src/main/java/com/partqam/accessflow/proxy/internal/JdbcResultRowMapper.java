@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.sql.Array;
 import java.sql.Date;
 import java.sql.ResultSet;
@@ -78,7 +77,6 @@ class JdbcResultRowMapper {
             return null;
         }
         return switch (jdbcType) {
-            case Types.NULL -> null;
             case Types.BIT, Types.BOOLEAN -> rs.getBoolean(index);
             case Types.TINYINT, Types.SMALLINT, Types.INTEGER -> rs.getInt(index);
             case Types.BIGINT -> rs.getLong(index);
@@ -121,9 +119,6 @@ class JdbcResultRowMapper {
         if (raw instanceof Number || raw instanceof Boolean) {
             return raw;
         }
-        if (raw instanceof BigDecimal bd) {
-            return bd;
-        }
         if (raw instanceof byte[] bytes) {
             return encodeBytes(bytes);
         }
@@ -135,20 +130,19 @@ class JdbcResultRowMapper {
     }
 
     private static OffsetDateTime toOffsetDateTime(Date date) {
-        return date == null ? null : date.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC);
+        return date.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC);
     }
 
     private static OffsetDateTime toOffsetDateTime(Time time) {
-        return time == null ? null : time.toLocalTime().atDate(java.time.LocalDate.EPOCH)
-                .atOffset(ZoneOffset.UTC);
+        return time.toLocalTime().atDate(java.time.LocalDate.EPOCH).atOffset(ZoneOffset.UTC);
     }
 
     private static OffsetDateTime toOffsetDateTime(Timestamp ts) {
-        return ts == null ? null : ts.toInstant().atOffset(ZoneOffset.UTC);
+        return ts.toInstant().atOffset(ZoneOffset.UTC);
     }
 
     private static String encodeBytes(byte[] bytes) {
-        return bytes == null ? null : BASE64_PREFIX + Base64.getEncoder().encodeToString(bytes);
+        return BASE64_PREFIX + Base64.getEncoder().encodeToString(bytes);
     }
 
     private Object readArray(Array array) throws SQLException {
