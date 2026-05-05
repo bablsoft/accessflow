@@ -51,6 +51,10 @@ accessflow:
     max-lifetime: 30m
     leak-detection-threshold: 0s
     pool-name-prefix: accessflow-ds-
+    execution:
+      max-rows: 10000
+      statement-timeout: 30s
+      default-fetch-size: 1000
 
 springdoc:
   api-docs:

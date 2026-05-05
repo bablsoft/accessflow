@@ -59,7 +59,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `password_encrypted` | TEXT — AES-256-GCM encrypted at rest |
 | `ssl_mode` | ENUM: `DISABLE` \| `REQUIRE` \| `VERIFY_CA` \| `VERIFY_FULL` |
 | `connection_pool_size` | INTEGER DEFAULT 10 |
-| `max_rows_per_query` | INTEGER DEFAULT 1000 — hard cap on SELECT result rows |
+| `max_rows_per_query` | INTEGER DEFAULT 1000 — hard cap on SELECT result rows. Surfaced to the proxy module via `DatasourceConnectionDescriptor.maxRowsPerQuery` and clamped at execution time to `accessflow.proxy.execution.max-rows`. |
 | `require_review_reads` | BOOLEAN DEFAULT false — force review even for SELECT |
 | `require_review_writes` | BOOLEAN DEFAULT true — force review for INSERT/UPDATE/DELETE |
 | `review_plan_id` | FK → `review_plans` |

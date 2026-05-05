@@ -613,6 +613,20 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `403` | Forbidden — insufficient role or no datasource permission |
 | `404` | Not Found |
 | `409` | Conflict — e.g. duplicate datasource name |
-| `422` | Unprocessable Entity — SQL parse error |
+| `422` | Unprocessable Entity — SQL parse error, query execution failure, datasource unavailable |
 | `429` | Too Many Requests — rate limit hit |
 | `500` | Internal Server Error |
+| `503` | Service Unavailable — connection pool initialization failed |
+| `504` | Gateway Timeout — query exceeded `accessflow.proxy.execution.statement-timeout` |
+
+## Error Codes (`error` property on `ProblemDetail`)
+
+The following codes are returned in addition to the per-endpoint codes documented above:
+
+| Code | HTTP | Source | Notes |
+|------|------|--------|-------|
+| `INVALID_SQL` | 422 | `InvalidSqlException` | SQL did not parse, or contained multiple statements. |
+| `QUERY_EXECUTION_FAILED` | 422 | `QueryExecutionFailedException` | The customer database rejected the query. Body includes `sqlState` and `vendorCode`. |
+| `QUERY_EXECUTION_TIMEOUT` | 504 | `QueryExecutionTimeoutException` | Query exceeded the configured statement timeout. Body includes `timeoutSeconds`. |
+| `DATASOURCE_UNAVAILABLE` | 422 | `DatasourceUnavailableException` | Datasource is missing or marked inactive. |
+| `POOL_INITIALIZATION_FAILED` | 503 | `PoolInitializationException` | HikariCP could not open a pool to the customer database (bad credentials, host unreachable, etc.). |

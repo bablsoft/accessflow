@@ -17,5 +17,6 @@ public record DatasourceConnectionDescriptor(
         String passwordEncrypted,
         SslMode sslMode,
         int connectionPoolSize,
+        int maxRowsPerQuery,
         boolean active) {
 }

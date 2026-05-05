@@ -35,6 +35,7 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
                 entity.getPasswordEncrypted(),
                 entity.getSslMode(),
                 entity.getConnectionPoolSize(),
+                entity.getMaxRowsPerQuery(),
                 entity.isActive());
     }
 }

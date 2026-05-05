@@ -9,7 +9,11 @@ import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
+import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
+import com.partqam.accessflow.proxy.api.PoolInitializationException;
+import com.partqam.accessflow.proxy.api.QueryExecutionFailedException;
+import com.partqam.accessflow.proxy.api.QueryExecutionTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -130,6 +134,43 @@ class GlobalExceptionHandler {
     ProblemDetail handleInvalidSql(InvalidSqlException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "INVALID_SQL");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryExecutionTimeoutException.class)
+    ProblemDetail handleQueryExecutionTimeout(QueryExecutionTimeoutException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.GATEWAY_TIMEOUT, ex.getMessage());
+        pd.setProperty("error", "QUERY_EXECUTION_TIMEOUT");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("timeoutSeconds", ex.timeout().toSeconds());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryExecutionFailedException.class)
+    ProblemDetail handleQueryExecutionFailed(QueryExecutionFailedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "QUERY_EXECUTION_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        if (ex.sqlState() != null) {
+            pd.setProperty("sqlState", ex.sqlState());
+        }
+        pd.setProperty("vendorCode", ex.vendorCode());
+        return pd;
+    }
+
+    @ExceptionHandler(DatasourceUnavailableException.class)
+    ProblemDetail handleDatasourceUnavailable(DatasourceUnavailableException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "DATASOURCE_UNAVAILABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PoolInitializationException.class)
+    ProblemDetail handlePoolInitialization(PoolInitializationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        pd.setProperty("error", "POOL_INITIALIZATION_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

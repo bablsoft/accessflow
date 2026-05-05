@@ -10,7 +10,8 @@ record ProxyPoolProperties(
         Duration idleTimeout,
         Duration maxLifetime,
         Duration leakDetectionThreshold,
-        String poolNamePrefix) {
+        String poolNamePrefix,
+        Execution execution) {
 
     ProxyPoolProperties {
         if (connectionTimeout == null) {
@@ -27,6 +28,24 @@ record ProxyPoolProperties(
         }
         if (poolNamePrefix == null) {
             poolNamePrefix = "accessflow-ds-";
+        }
+        if (execution == null) {
+            execution = new Execution(null, null, null);
+        }
+    }
+
+    record Execution(Integer maxRows, Duration statementTimeout, Integer defaultFetchSize) {
+
+        Execution {
+            if (maxRows == null) {
+                maxRows = 10_000;
+            }
+            if (statementTimeout == null) {
+                statementTimeout = Duration.ofSeconds(30);
+            }
+            if (defaultFetchSize == null) {
+                defaultFetchSize = 1_000;
+            }
         }
     }
 }
