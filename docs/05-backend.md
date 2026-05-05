@@ -53,6 +53,11 @@ accessflow:
   proxy:
     max-execution-timeout: 30s
     max-result-rows: 10000
+    connection-timeout: 30s              # HikariCP connectionTimeout (per-pool)
+    idle-timeout: 10m                    # HikariCP idleTimeout
+    max-lifetime: 30m                    # HikariCP maxLifetime
+    leak-detection-threshold: 0s         # 0 disables leak detection
+    pool-name-prefix: accessflow-ds-     # pool name = prefix + datasource UUID
 
   redis:
     url: ${REDIS_URL:redis://localhost:6379}
@@ -92,10 +97,29 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 
 ### Connection Pool Management
 
-- One `HikariCP` pool per active datasource.
-- Pool created lazily on first query, destroyed on datasource deletion.
-- Pool config: `maximumPoolSize` from `datasource.connection_pool_size`, `connectionTimeout=30s`, `idleTimeout=10m`.
-- Customer DB credentials decrypted from `password_encrypted` at pool creation time; never stored in JVM heap beyond pool init.
+Implemented in `proxy/internal/`:
+
+- `DatasourceConnectionPoolManager` (public API) — `DataSource resolve(UUID)` and `void evict(UUID)`. Returns a Hikari pool typed as `javax.sql.DataSource` so callers stay framework-agnostic and use the standard JDBC `try-with-resources` idiom.
+- `DefaultDatasourceConnectionPoolManager` — `ConcurrentHashMap` cache, atomic lazy creation via `compute`, `@PreDestroy` shutdown closes all pools.
+- `DatasourcePoolFactory` — owns the Hikari wiring; decrypts the password only here and drops the local reference before returning.
+- `DatasourcePoolEvictionListener` — `@ApplicationModuleListener` for `DatasourceConfigChangedEvent` and `DatasourceDeactivatedEvent` (both in `core/events/`); fires in a new transaction after the publisher's transaction commits. Annotation comes from `spring-modulith-events-api`.
+
+Behavior:
+
+- One `HikariCP` pool per active datasource, keyed by datasource id.
+- Pool created lazily on first `resolve(...)`. The pool is closed and the entry removed when:
+  - `evict(...)` is called (e.g. by the listener after a config-change or deactivation event).
+  - The application shuts down (`@PreDestroy`).
+- Per-pool config: `maximumPoolSize` from `datasource.connection_pool_size`, plus the timeouts under `accessflow.proxy.*` (`connection-timeout`, `idle-timeout`, `max-lifetime`, optional `leak-detection-threshold`).
+- Customer DB credentials decrypted from `password_encrypted` at pool creation time only; the local plaintext reference is dropped before `createPool` returns. Hikari retains its own copy for reconnects.
+- Pool init is fail-fast: bad credentials or unreachable hosts raise `PoolInitializationException` from `resolve(...)` rather than on first `getConnection()`.
+
+Eviction events (in `core/events/`, published by `DatasourceAdminServiceImpl`):
+
+- `DatasourceConfigChangedEvent(UUID datasourceId)` — fired from `update(...)` when any of `host`, `port`, `databaseName`, `username`, `passwordEncrypted`, `sslMode`, or `connectionPoolSize` changed.
+- `DatasourceDeactivatedEvent(UUID datasourceId)` — fired from `update(...)` when `active` flips `true → false`, and from `deactivate(...)` (idempotent — only when the entity was active before the call).
+
+The proxy module reads the datasource state via `DatasourceLookupService` (`core/api/`) which returns a `DatasourceConnectionDescriptor` record — a Modulith-clean alternative to letting `proxy/internal/` reach into `core/internal/` JPA entities.
 
 ### Dynamic JDBC Driver Loading
 

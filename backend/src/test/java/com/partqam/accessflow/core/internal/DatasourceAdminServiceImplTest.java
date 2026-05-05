@@ -9,8 +9,11 @@ import com.partqam.accessflow.core.api.DatasourcePermissionAlreadyExistsExceptio
 import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
 import com.partqam.accessflow.core.api.SslMode;
 import com.partqam.accessflow.core.api.UpdateDatasourceCommand;
+import com.partqam.accessflow.core.events.DatasourceConfigChangedEvent;
+import com.partqam.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -24,7 +27,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +52,8 @@ class DatasourceAdminServiceImplTest {
     @Mock UserRepository userRepository;
     @Mock ReviewPlanRepository reviewPlanRepository;
     @Mock CredentialEncryptionService encryptionService;
+    @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks DatasourceAdminServiceImpl service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -160,6 +167,18 @@ class DatasourceAdminServiceImplTest {
         service.deactivate(datasourceId, orgId);
 
         assertThat(entity.isActive()).isFalse();
+        verify(eventPublisher).publishEvent(new DatasourceDeactivatedEvent(datasourceId));
+    }
+
+    @Test
+    void deactivateIsIdempotentForAlreadyInactiveDatasource() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setActive(false);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.deactivate(datasourceId, orgId);
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -169,6 +188,43 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.deactivate(datasourceId, orgId))
                 .isInstanceOf(DatasourceNotFoundException.class);
+    }
+
+    @Test
+    void updatePublishesConfigChangedEventWhenPoolFieldsChange() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, "new-host", null, null, null, null, null, null, null, null, null, null,
+                null, null));
+
+        verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void updateDoesNotPublishWhenOnlyNonPoolFieldsChange() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, 5000, null, null, null, null,
+                null));
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updatePublishesDeactivatedWhenActiveFlipsToFalse() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, "new-host", null, null, null, null, null, null, null, null, null, null,
+                null, false));
+
+        verify(eventPublisher).publishEvent(new DatasourceDeactivatedEvent(datasourceId));
+        verify(eventPublisher, never()).publishEvent(any(DatasourceConfigChangedEvent.class));
     }
 
     @Test
