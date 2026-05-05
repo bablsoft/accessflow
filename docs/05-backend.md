@@ -51,13 +51,15 @@ accessflow:
     ollama-base-url: http://ollama:11434
 
   proxy:
-    max-execution-timeout: 30s
-    max-result-rows: 10000
     connection-timeout: 30s              # HikariCP connectionTimeout (per-pool)
     idle-timeout: 10m                    # HikariCP idleTimeout
     max-lifetime: 30m                    # HikariCP maxLifetime
     leak-detection-threshold: 0s         # 0 disables leak detection
     pool-name-prefix: accessflow-ds-     # pool name = prefix + datasource UUID
+    execution:
+      max-rows: 10000                    # Global ceiling for SELECT row materialization
+      statement-timeout: 30s             # JDBC setQueryTimeout default
+      default-fetch-size: 1000           # JDBC setFetchSize hint
 
   redis:
     url: ${REDIS_URL:redis://localhost:6379}
@@ -91,7 +93,7 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 6. **Fast path** — If neither AI nor human review is required (e.g. `auto_approve_reads=true` for a SELECT), skip to step 9.
 7. **AI analysis** — If `requires_ai_review=true`, publish `QuerySubmittedEvent`. The `AiAnalyzerService` picks it up asynchronously. Query status → `PENDING_AI`. When complete, status → `PENDING_REVIEW` (or `APPROVED` if no human review needed).
 8. **Human approval** — If `requires_human_approval=true`, status → `PENDING_REVIEW`. Notification Dispatcher sends alerts to reviewers. System waits for decisions. Once `min_approvals_required` is met (respecting `stage` ordering), status → `APPROVED`.
-9. **Execute** — Proxy acquires a JDBC connection from the per-datasource connection pool. Executes SQL with `PreparedStatement`. Applies `max_rows_per_query` hard cap via `setMaxRows()`. Captures `rows_affected`, `execution_duration_ms`.
+9. **Execute** — Workflow orchestrator calls `QueryExecutor.execute(...)` (`proxy/api/`). The executor acquires a JDBC connection from the per-datasource pool, runs the SQL via `PreparedStatement` with `setQueryTimeout` and `setMaxRows(N+1)` (truncation detection), and dispatches by `QueryType`: `SELECT → executeQuery`, anything else → `executeLargeUpdate`. Returns a `SelectExecutionResult` (columns + rows + truncated flag) or `UpdateExecutionResult` (rows affected) — both carry `duration`. The orchestrator persists `rows_affected`, `execution_started_at`, `execution_completed_at`, `execution_duration_ms`, and `error_message` onto `query_requests`.
 10. **Audit** — Every status transition publishes an `AuditEvent` (Spring Application Event) consumed by `AuditLogService` and written to `audit_log`.
 11. **Respond** — Status → `EXECUTED`. WebSocket event pushed to submitter. API returns execution metadata.
 
@@ -119,7 +121,43 @@ Eviction events (in `core/events/`, published by `DatasourceAdminServiceImpl`):
 - `DatasourceConfigChangedEvent(UUID datasourceId)` — fired from `update(...)` when any of `host`, `port`, `databaseName`, `username`, `passwordEncrypted`, `sslMode`, or `connectionPoolSize` changed.
 - `DatasourceDeactivatedEvent(UUID datasourceId)` — fired from `update(...)` when `active` flips `true → false`, and from `deactivate(...)` (idempotent — only when the entity was active before the call).
 
-The proxy module reads the datasource state via `DatasourceLookupService` (`core/api/`) which returns a `DatasourceConnectionDescriptor` record — a Modulith-clean alternative to letting `proxy/internal/` reach into `core/internal/` JPA entities.
+The proxy module reads the datasource state via `DatasourceLookupService` (`core/api/`) which returns a `DatasourceConnectionDescriptor` record — a Modulith-clean alternative to letting `proxy/internal/` reach into `core/internal/` JPA entities. The descriptor exposes `maxRowsPerQuery` so the executor can enforce per-datasource row caps without a second round trip.
+
+### Query Execution
+
+Implemented in `proxy/internal/`:
+
+- `QueryExecutor` (public API in `proxy/api/`) — single method `QueryExecutionResult execute(QueryExecutionRequest)`. Pure execution primitive: input is `(datasourceId, sql, queryType, maxRowsOverride?, statementTimeoutOverride?)`; output is a sealed `QueryExecutionResult` (`SelectExecutionResult` | `UpdateExecutionResult`). Status transitions and `query_requests` writes live in the workflow orchestrator that consumes this service.
+- `DefaultQueryExecutor` — `@Service`. Resolves the datasource descriptor, computes `effectiveMaxRows = min(override ?? datasource.maxRowsPerQuery, accessflow.proxy.execution.max-rows)` and `effectiveTimeout = override ?? accessflow.proxy.execution.statement-timeout`, then runs:
+  ```
+  Connection.setReadOnly(queryType == SELECT)
+  PreparedStatement.setQueryTimeout(effectiveTimeout)
+  PreparedStatement.setFetchSize(min(effectiveMaxRows + 1, accessflow.proxy.execution.default-fetch-size))
+  if SELECT → setMaxRows(effectiveMaxRows + 1) + executeQuery + materialize
+  else      → executeLargeUpdate
+  ```
+  `autoCommit` is left at the HikariCP default (`true`). The `+1` row beyond the cap is read solely to mark the result `truncated=true` and is then discarded.
+- `JdbcResultRowMapper` — converts `ResultSet` rows into JSON-friendly Java types: `null` for SQL NULL, `OffsetDateTime` for date/time/timestamp, `BigDecimal` for `NUMERIC`/`DECIMAL`, `"base64:<...>"` strings for `BYTEA`/`BLOB`, raw passthrough for PostgreSQL `JSON`/`JSONB`, `String` for PostgreSQL `UUID`, recursive mapping for `ARRAY`. Unknown types fall back to `toString()` with a `WARN` log.
+- `SqlExceptionTranslator` — package-private. Maps `SQLException` → `QueryExecutionException` subclasses. SQLState `57014` (PostgreSQL cancellation), `HY008` (MySQL/ODBC cancellation), and `70100` (MySQL connection killed) become `QueryExecutionTimeoutException`; everything else becomes `QueryExecutionFailedException` with `sqlState` and `vendorCode` preserved.
+
+Configuration (`accessflow.proxy.execution.*`, see `application.yml` block above):
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `max-rows` | `10000` | Global ceiling for SELECT result rows. Per-datasource `maxRowsPerQuery` is clamped to this. |
+| `statement-timeout` | `30s` | Default JDBC `setQueryTimeout` for every execution. |
+| `default-fetch-size` | `1000` | JDBC `setFetchSize` hint to bound driver-side buffers. |
+
+Exception → HTTP mapping is in `security/internal/web/GlobalExceptionHandler.java`:
+
+| Exception | Status | `error` code |
+|-----------|--------|--------------|
+| `QueryExecutionTimeoutException` | 504 Gateway Timeout | `QUERY_EXECUTION_TIMEOUT` |
+| `QueryExecutionFailedException` | 422 Unprocessable Entity | `QUERY_EXECUTION_FAILED` (also exposes `sqlState`, `vendorCode`) |
+| `DatasourceUnavailableException` | 422 Unprocessable Entity | `DATASOURCE_UNAVAILABLE` |
+| `PoolInitializationException` | 503 Service Unavailable | `POOL_INITIALIZATION_FAILED` |
+
+Out of scope for the executor itself (tracked separately): persistent storage of SELECT rows for the `/queries/{id}/results` endpoint, byte-size caps and concurrency budgets, and the workflow orchestrator that flips `QueryStatus` and writes execution metadata onto `query_requests`.
 
 ### Dynamic JDBC Driver Loading
 

@@ -39,7 +39,7 @@ class DatasourcePoolFactoryTest {
     private final UUID datasourceId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor descriptor = new DatasourceConnectionDescriptor(
             datasourceId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-            "ENC(secret)", SslMode.DISABLE, 15, true);
+            "ENC(secret)", SslMode.DISABLE, 15, 1000, true);
 
     @BeforeEach
     void setUp() {
@@ -47,7 +47,7 @@ class DatasourcePoolFactoryTest {
         coordinatesFactory = mock(JdbcCoordinatesFactory.class);
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
-                Duration.ZERO, "accessflow-ds-");
+                Duration.ZERO, "accessflow-ds-", null);
         when(coordinatesFactory.from(any(), anyString(), anyInt(), anyString(), anyString(), any()))
                 .thenReturn(new JdbcCoordinates(
                         "jdbc:postgresql://h:5432/appdb?sslmode=disable",
@@ -108,7 +108,7 @@ class DatasourcePoolFactoryTest {
     void createPoolSetsLeakDetectionWhenPositive() {
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
-                Duration.ofSeconds(2), "accessflow-ds-");
+                Duration.ofSeconds(2), "accessflow-ds-", null);
         factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties);
 
         var captured = new AtomicReference<HikariConfig>();
