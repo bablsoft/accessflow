@@ -327,6 +327,10 @@ class ApplicationModulesTest {
 | `jacoco-maven-plugin` | Coverage enforcement (90% minimum, build fails below) |
 | `maven-compiler-plugin` | Java 25, enable preview features if used |
 
+### Dependency Management
+
+When adding a new dependency to `backend/pom.xml` (or `frontend/package.json`), always pin to the **latest stable version** available at the time of the change. Verify on Maven Central / npm before committing — do not blindly trust versions referenced in the design docs under `docs/`, which may have drifted. If the docs cite an older pin for the same library, update the doc in the same change so the codebase and docs stay consistent.
+
 ### Build Commands
 
 ```bash

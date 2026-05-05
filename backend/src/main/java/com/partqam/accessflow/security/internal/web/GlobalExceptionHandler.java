@@ -9,6 +9,7 @@ import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
+import com.partqam.accessflow.proxy.api.InvalidSqlException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -121,6 +122,14 @@ class GlobalExceptionHandler {
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidSqlException.class)
+    ProblemDetail handleInvalidSql(InvalidSqlException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "INVALID_SQL");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

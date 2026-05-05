@@ -80,7 +80,7 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 
 1. **Receive request** — `POST /api/v1/queries` hits the controller, which delegates to `QueryProxyService`.
 2. **Permission check** — Load `DatasourceUserPermission` for `(user, datasource)`. Verify `can_read` / `can_write` / `can_ddl` as appropriate. Reject with 403 if no permission record exists.
-3. **SQL parsing** — Parse SQL using `JSqlParser`. Determine `QueryType` (SELECT, INSERT, UPDATE, DELETE, DDL). Reject unparseable SQL with 422.
+3. **SQL parsing** — Parse SQL using `JSqlParser` via `SqlParserService` (`proxy/api/`). Determine `QueryType` (SELECT, INSERT, UPDATE, DELETE, DDL, OTHER). Reject unparseable SQL and stacked / multi-statement input with 422 (`InvalidSqlException` → `error: "INVALID_SQL"`).
 4. **Schema allow-list check** — If `allowed_schemas` or `allowed_tables` is set on the permission, validate parsed statement only touches permitted objects. Reject with 403 if violated.
 5. **Review plan lookup** — Load the `ReviewPlan` assigned to the datasource. Determine whether AI review and/or human approval is required for this `QueryType`.
 6. **Fast path** — If neither AI nor human review is required (e.g. `auto_approve_reads=true` for a SELECT), skip to step 9.
@@ -265,7 +265,7 @@ SQL to analyze:
 
 
 <!-- SQL Parsing -->
-<dependency>com.github.jsqlparser:jsqlparser:4.7</dependency>
+<dependency>com.github.jsqlparser:jsqlparser:5.3</dependency>
 
 <!-- JWT -->
 <dependency>com.nimbusds:nimbus-jose-jwt</dependency>
