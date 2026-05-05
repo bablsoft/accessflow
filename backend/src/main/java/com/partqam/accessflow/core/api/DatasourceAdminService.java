@@ -26,6 +26,8 @@ public interface DatasourceAdminService {
 
     DatabaseSchemaView introspectSchema(UUID id, UUID organizationId, UUID userId, boolean isAdmin);
 
+    DatabaseSchemaView introspectSchemaForSystem(UUID id, UUID organizationId);
+
     List<DatasourcePermissionView> listPermissions(UUID datasourceId, UUID organizationId);
 
     DatasourcePermissionView grantPermission(UUID datasourceId, UUID organizationId,

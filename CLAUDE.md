@@ -492,11 +492,16 @@ The `AiAnalyzerStrategy` interface must be implemented by all three adapters:
 
 ```java
 public interface AiAnalyzerStrategy {
-    AiAnalysisResult analyze(String sql, DbType dbType);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext);
 }
 ```
 
-- Active adapter is selected by `accessflow.ai.provider` config.
+`schemaContext` may be `null` or empty when introspection is unavailable; the prompt template
+substitutes `(no schema introspection available)` in that case.
+
+- Adapters route their HTTP calls through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M5`) — inject the auto-configured `ChatModel` (or `ChatClient`) rather than hand-rolling a `RestClient` per provider.
+- Active adapter is selected by `accessflow.ai.provider` config (toggles the `@ConditionalOnProperty` strategy beans).
+- Provider settings live under Spring AI's namespace: `spring.ai.anthropic.api-key`, `spring.ai.anthropic.chat.options.model`, etc. Don't duplicate them under `accessflow.ai.*`.
 - The system prompt template is in `docs/05-backend.md` — use it verbatim; do not invent a different prompt.
 - AI calls are asynchronous — publish a `QuerySubmittedEvent` and handle in the strategy asynchronously using virtual threads.
 - The response must be parsed strictly as JSON matching the `AiAnalysisResult` schema. If the AI returns non-JSON or an unexpected schema, log and mark the analysis as failed; do not propagate the exception to the query request.
