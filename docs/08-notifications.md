@@ -58,7 +58,7 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 
 ### Slack
 
-Uses **Slack Incoming Webhooks API**.
+Uses the official **[Slack Java SDK](https://docs.slack.dev/tools/java-slack-sdk/)** (`com.slack.api:slack-api-client`) for incoming-webhook delivery. Block Kit payloads are constructed with the SDK's typed builders so the wire shape is validated by the SDK rather than hand-rolled JSON.
 
 **Configuration:**
 ```json

@@ -2,27 +2,31 @@ package com.partqam.accessflow.notifications.internal.strategy;
 
 import com.partqam.accessflow.core.api.RiskLevel;
 import com.partqam.accessflow.notifications.internal.NotificationContext;
-import lombok.RequiredArgsConstructor;
+import com.slack.api.model.block.ActionsBlock;
+import com.slack.api.model.block.HeaderBlock;
+import com.slack.api.model.block.LayoutBlock;
+import com.slack.api.model.block.SectionBlock;
+import com.slack.api.model.block.composition.MarkdownTextObject;
+import com.slack.api.model.block.composition.PlainTextObject;
+import com.slack.api.model.block.composition.TextObject;
+import com.slack.api.model.block.element.ButtonElement;
+import com.slack.api.webhook.Payload;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Builds Slack Block Kit payloads for each {@link com.partqam.accessflow.notifications.api.NotificationEventType}
- * per {@code docs/08-notifications.md} §Slack.
+ * Builds {@link Payload} objects (Slack incoming-webhook envelope) for each event type per
+ * {@code docs/08-notifications.md} §Slack. Payloads are constructed using the typed Block Kit
+ * builders from the official Slack Java SDK so the wire shape is validated by the SDK rather
+ * than hand-rolled.
  */
 @Component
-@RequiredArgsConstructor
 class SlackBlockKitFactory {
 
-    private final ObjectMapper objectMapper;
-
-    String buildEventBody(NotificationContext ctx, String optionalChannelOverride) {
-        var blocks = new ArrayList<Map<String, Object>>();
+    Payload buildEventPayload(NotificationContext ctx, String optionalChannelOverride) {
+        var blocks = new ArrayList<LayoutBlock>();
         blocks.add(headerBlock(headerLabel(ctx)));
         blocks.add(summarySection(ctx));
         if (ctx.fullSqlText() != null && !ctx.fullSqlText().isBlank()) {
@@ -31,93 +35,65 @@ class SlackBlockKitFactory {
         if (ctx.reviewUrl() != null) {
             blocks.add(actionsBlock(ctx.reviewUrl().toString()));
         }
-        return body(blocks, optionalChannelOverride);
+        return Payload.builder()
+                .channel(blankToNull(optionalChannelOverride))
+                .text(headerLabel(ctx))
+                .blocks(blocks)
+                .build();
     }
 
-    String buildTestBody(String optionalChannelOverride) {
-        var blocks = new ArrayList<Map<String, Object>>();
-        blocks.add(textSection("AccessFlow notification channel test successful"));
-        return body(blocks, optionalChannelOverride);
+    Payload buildTestPayload(String optionalChannelOverride) {
+        var blocks = List.<LayoutBlock>of(textSection("AccessFlow notification channel test successful"));
+        return Payload.builder()
+                .channel(blankToNull(optionalChannelOverride))
+                .text("AccessFlow notification channel test successful")
+                .blocks(blocks)
+                .build();
     }
 
-    private Map<String, Object> headerBlock(String label) {
-        var text = new LinkedHashMap<String, Object>();
-        text.put("type", "plain_text");
-        text.put("text", label);
-        var block = new LinkedHashMap<String, Object>();
-        block.put("type", "header");
-        block.put("text", text);
-        return block;
+    private static HeaderBlock headerBlock(String label) {
+        return HeaderBlock.builder()
+                .text(PlainTextObject.builder().text(label).build())
+                .build();
     }
 
-    private Map<String, Object> summarySection(NotificationContext ctx) {
-        var fields = new ArrayList<Map<String, Object>>();
-        fields.add(fieldMrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
-        fields.add(fieldMrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
+    private static SectionBlock summarySection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
+        fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
         if (ctx.queryType() != null) {
-            fields.add(fieldMrkdwn("*Query Type:*\n" + ctx.queryType()));
+            fields.add(mrkdwn("*Query Type:*\n" + ctx.queryType()));
         }
         if (ctx.riskLevel() != null) {
-            fields.add(fieldMrkdwn("*Risk Level:*\n" + riskBadge(ctx.riskLevel(), ctx.riskScore())));
+            fields.add(mrkdwn("*Risk Level:*\n" + riskBadge(ctx.riskLevel(), ctx.riskScore())));
         }
         if (ctx.reviewerDisplayName() != null) {
-            fields.add(fieldMrkdwn("*Reviewer:*\n" + ctx.reviewerDisplayName()));
+            fields.add(mrkdwn("*Reviewer:*\n" + ctx.reviewerDisplayName()));
         }
-        var block = new LinkedHashMap<String, Object>();
-        block.put("type", "section");
-        block.put("fields", fields);
-        return block;
+        return SectionBlock.builder().fields(fields).build();
     }
 
-    private Map<String, Object> sqlPreviewSection(String preview) {
-        var text = new LinkedHashMap<String, Object>();
-        text.put("type", "mrkdwn");
-        text.put("text", "*SQL Preview:*\n```" + preview + "```");
-        var block = new LinkedHashMap<String, Object>();
-        block.put("type", "section");
-        block.put("text", text);
-        return block;
+    private static SectionBlock sqlPreviewSection(String preview) {
+        return SectionBlock.builder()
+                .text(mrkdwn("*SQL Preview:*\n```" + preview + "```"))
+                .build();
     }
 
-    private Map<String, Object> actionsBlock(String url) {
-        var btn = new LinkedHashMap<String, Object>();
-        btn.put("type", "button");
-        var btnText = new LinkedHashMap<String, Object>();
-        btnText.put("type", "plain_text");
-        btnText.put("text", "View in AccessFlow");
-        btn.put("text", btnText);
-        btn.put("url", url);
-        btn.put("style", "primary");
-        var block = new LinkedHashMap<String, Object>();
-        block.put("type", "actions");
-        block.put("elements", List.of(btn));
-        return block;
+    private static ActionsBlock actionsBlock(String url) {
+        var button = ButtonElement.builder()
+                .text(PlainTextObject.builder().text("View in AccessFlow").build())
+                .url(url)
+                .style("primary")
+                .build();
+        return ActionsBlock.builder().elements(List.of(button)).build();
     }
 
-    private Map<String, Object> textSection(String text) {
-        var inner = new LinkedHashMap<String, Object>();
-        inner.put("type", "mrkdwn");
-        inner.put("text", text);
-        var block = new LinkedHashMap<String, Object>();
-        block.put("type", "section");
-        block.put("text", inner);
-        return block;
+    private static SectionBlock textSection(String text) {
+        return SectionBlock.builder().text(mrkdwn(text)).build();
     }
 
-    private static Map<String, Object> fieldMrkdwn(String text) {
-        var m = new LinkedHashMap<String, Object>();
-        m.put("type", "mrkdwn");
-        m.put("text", text);
-        return m;
-    }
-
-    private String body(List<Map<String, Object>> blocks, String optionalChannelOverride) {
-        var envelope = new LinkedHashMap<String, Object>();
-        envelope.put("blocks", blocks);
-        if (optionalChannelOverride != null && !optionalChannelOverride.isBlank()) {
-            envelope.put("channel", optionalChannelOverride);
-        }
-        return objectMapper.writeValueAsString(envelope);
+    private static MarkdownTextObject mrkdwn(String text) {
+        return MarkdownTextObject.builder().text(text).build();
     }
 
     private static String headerLabel(NotificationContext ctx) {
@@ -144,5 +120,9 @@ class SlackBlockKitFactory {
 
     private static String nullToDash(String value) {
         return (value == null || value.isBlank()) ? "—" : value;
+    }
+
+    private static String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
     }
 }

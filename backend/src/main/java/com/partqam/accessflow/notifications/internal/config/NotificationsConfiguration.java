@@ -1,5 +1,6 @@
 package com.partqam.accessflow.notifications.internal.config;
 
+import com.slack.api.Slack;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,5 +23,10 @@ class NotificationsConfiguration {
         scheduler.setVirtualThreads(true);
         scheduler.setThreadNamePrefix("accessflow-notifications-");
         return scheduler;
+    }
+
+    @Bean
+    Slack slack() {
+        return Slack.getInstance();
     }
 }

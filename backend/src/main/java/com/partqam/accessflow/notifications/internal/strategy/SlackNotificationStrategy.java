@@ -6,12 +6,14 @@ import com.partqam.accessflow.notifications.internal.NotificationContext;
 import com.partqam.accessflow.notifications.internal.codec.ChannelConfigCodec;
 import com.partqam.accessflow.notifications.internal.codec.SlackChannelConfig;
 import com.partqam.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
+import com.slack.api.Slack;
+import com.slack.api.webhook.Payload;
+import com.slack.api.webhook.WebhookResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
+
+import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
@@ -20,7 +22,7 @@ class SlackNotificationStrategy implements NotificationChannelStrategy {
 
     private final ChannelConfigCodec codec;
     private final SlackBlockKitFactory blockKitFactory;
-    private final RestClient restClient;
+    private final Slack slack;
 
     @Override
     public NotificationChannelType supports() {
@@ -30,31 +32,30 @@ class SlackNotificationStrategy implements NotificationChannelStrategy {
     @Override
     public void deliver(NotificationContext ctx, NotificationChannelEntity channel) {
         var config = codec.decodeSlack(channel.getConfigJson());
-        var body = blockKitFactory.buildEventBody(ctx, config.channel());
-        post(config, body, "event " + ctx.eventType());
+        var payload = blockKitFactory.buildEventPayload(ctx, config.channel());
+        post(config, payload, "event " + ctx.eventType());
     }
 
     @Override
     public void sendTest(NotificationChannelEntity channel, String optionalEmailOverride) {
         var config = codec.decodeSlack(channel.getConfigJson());
-        var body = blockKitFactory.buildTestBody(config.channel());
-        post(config, body, "test");
+        var payload = blockKitFactory.buildTestPayload(config.channel());
+        post(config, payload, "test");
     }
 
-    private void post(SlackChannelConfig config, String body, String description) {
+    private void post(SlackChannelConfig config, Payload payload, String description) {
+        WebhookResponse response;
         try {
-            restClient.post()
-                    .uri(config.webhookUrl())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .toBodilessEntity();
-            log.debug("Posted Slack {} to {}", description, config.webhookUrl());
-        } catch (RestClientResponseException ex) {
-            throw new NotificationDeliveryException(
-                    "Slack delivery failed (" + ex.getStatusCode() + ")", ex);
-        } catch (RuntimeException ex) {
+            response = slack.send(config.webhookUrl().toString(), payload);
+        } catch (IOException ex) {
             throw new NotificationDeliveryException("Slack delivery failed", ex);
         }
+        if (response.getCode() == null || response.getCode() < 200 || response.getCode() >= 300) {
+            throw new NotificationDeliveryException(
+                    "Slack delivery returned HTTP " + response.getCode()
+                            + (response.getBody() != null ? ": " + response.getBody() : ""));
+        }
+        log.debug("Posted Slack {} to {} ({})",
+                description, config.webhookUrl(), response.getCode());
     }
 }
