@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Query awaiting review</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; }
+        .badge-LOW { background: #2f855a; }
+        .badge-MEDIUM { background: #c05621; }
+        .badge-HIGH { background: #c53030; }
+        .badge-CRITICAL { background: #742a2a; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2>Query awaiting your review</h2>
+    <p class="meta">
+        <strong>Datasource:</strong> <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong>Submitted by:</strong>
+        <span th:text="${submitterDisplayName} ?: ${submitterEmail} ?: '—'">—</span>
+        <span th:if="${submitterEmail and submitterDisplayName}">&lt;<span th:text="${submitterEmail}"></span>&gt;</span><br>
+        <strong>Query type:</strong> <span th:text="${queryType} ?: '—'">—</span>
+    </p>
+    <p th:if="${riskLevel}">
+        <strong>AI risk:</strong>
+        <span th:classappend="'badge badge-' + ${riskLevel}" th:text="${riskLevel}">RISK</span>
+        <span th:if="${riskScore != null}" th:text="'(score ' + ${riskScore} + ')'"></span>
+    </p>
+    <p th:if="${aiSummary}"><em th:text="${aiSummary}"></em></p>
+    <p><strong>SQL preview:</strong></p>
+    <pre th:text="${sqlPreview}"></pre>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="'Review in AccessFlow'">Review in AccessFlow</a>
+    </p>
+</body>
+</html>

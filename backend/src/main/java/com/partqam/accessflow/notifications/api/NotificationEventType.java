@@ -1,0 +1,9 @@
+package com.partqam.accessflow.notifications.api;
+
+public enum NotificationEventType {
+    QUERY_SUBMITTED,
+    QUERY_APPROVED,
+    QUERY_REJECTED,
+    AI_HIGH_RISK,
+    TEST
+}

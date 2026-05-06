@@ -517,7 +517,7 @@ substitutes `(no schema introspection available)` in that case.
 - Email bodies use Thymeleaf templates in `resources/templates/email/` — one template per event type.
 - Slack messages use Block Kit format (see `docs/08-notifications.md`).
 - Webhooks must include `X-AccessFlow-Signature: sha256=<HMAC-SHA256>` on every delivery.
-- Webhook retry policy: 30 s → 2 min → 10 min (3 attempts total). Mark failed and write to audit log after exhaustion.
+- Webhook retry policy: 1 initial attempt + up to 3 scheduled retries at +30 s, +2 min, +10 min (4 total attempts). Retry delays are configurable via `accessflow.notifications.retry.{first,second,third}`. On exhaustion the dispatcher logs `ERROR`; audit-log integration is deferred until the audit module exists.
 - Sensitive channel config fields (`smtp_password`, `webhook_secret`) must be AES-256 encrypted before persistence; never returned in API responses.
 
 ---

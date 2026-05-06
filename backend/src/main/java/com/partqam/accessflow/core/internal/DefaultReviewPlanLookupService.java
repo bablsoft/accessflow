@@ -7,9 +7,11 @@ import com.partqam.accessflow.core.internal.persistence.entity.ReviewPlanEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.ReviewPlanApproverRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 class DefaultReviewPlanLookupService implements ReviewPlanLookupService {
 
     private final DatasourceRepository datasourceRepository;
@@ -51,6 +54,27 @@ class DefaultReviewPlanLookupService implements ReviewPlanLookupService {
                 plan.getMinApprovalsRequired(),
                 plan.isAutoApproveReads(),
                 maxStage,
-                List.copyOf(approvers));
+                List.copyOf(approvers),
+                parseNotifyChannelIds(plan.getNotifyChannels()));
+    }
+
+    private List<UUID> parseNotifyChannelIds(String[] raw) {
+        if (raw == null || raw.length == 0) {
+            return List.of();
+        }
+        return Arrays.stream(raw)
+                .filter(s -> s != null && !s.isBlank())
+                .map(this::parseUuidOrNull)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    private UUID parseUuidOrNull(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Skipping malformed notify_channels entry: {}", value);
+            return null;
+        }
     }
 }

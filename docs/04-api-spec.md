@@ -640,6 +640,96 @@ Soft-deactivates the user (`active=false`) and revokes all of their refresh toke
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 **Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
 
+### Notification Channels (`/admin/notification-channels`)
+
+All four endpoints require `role=ADMIN` and operate within the caller's organization. Sensitive config fields (`smtp_password`, `secret`) are AES-256-GCM encrypted at rest and replaced with the literal `"********"` on read; sending the masked value back on `PUT` preserves the existing ciphertext.
+
+#### GET /admin/notification-channels
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "channel_type": "WEBHOOK",
+    "name": "Eng webhook",
+    "config": {
+      "url": "https://hooks.example.com/x",
+      "secret": "********",
+      "timeout_seconds": 10
+    },
+    "active": true,
+    "created_at": "2026-05-06T10:15:00Z"
+  }
+]
+```
+
+#### POST /admin/notification-channels
+
+**Request body:**
+```json
+{
+  "name": "Eng webhook",
+  "channel_type": "WEBHOOK",
+  "config": {
+    "url": "https://hooks.example.com/x",
+    "secret": "topsecret",
+    "timeout_seconds": 10
+  }
+}
+```
+
+**Response 201:** The created channel (same shape as GET, `secret` replaced with `********`). `Location` header points to `/api/v1/admin/notification-channels/{id}`.
+**Response 400:** Validation error (e.g. missing `name`).
+**Response 422:** Channel `config` is missing required keys for its type. `error: NOTIFICATION_CHANNEL_CONFIG_INVALID`.
+
+Required `config` keys per channel type:
+- `EMAIL`: `smtp_host`, `smtp_port`, `smtp_password`, `from_address` (optional: `smtp_user`, `smtp_tls` (default true), `from_name`).
+- `SLACK`: `webhook_url` (optional: `channel`, `mention_users`).
+- `WEBHOOK`: `url`, `secret` (optional: `timeout_seconds` default 10).
+
+#### PUT /admin/notification-channels/{id}
+
+Partial update. Any field omitted is left unchanged. Sending `"smtp_password": "********"` or `"secret": "********"` preserves the existing ciphertext.
+
+**Request body:**
+```json
+{
+  "name": "Eng webhook v2",
+  "active": true,
+  "config": {
+    "secret": "rotated-secret"
+  }
+}
+```
+
+**Response 200:** The updated channel.
+**Response 404:** Channel not found in caller's organization. `error: NOTIFICATION_CHANNEL_NOT_FOUND`.
+**Response 422:** Resulting config is invalid. `error: NOTIFICATION_CHANNEL_CONFIG_INVALID`.
+
+#### POST /admin/notification-channels/{id}/test
+
+Sends a synthetic message through the channel.
+
+**Request body (optional, EMAIL only):**
+```json
+{ "email": "ops@example.com" }
+```
+
+**Response 200:**
+```json
+{ "status": "OK", "detail": "Test notification dispatched" }
+```
+
+Per-type behavior:
+- `EMAIL`: sends a fixed-subject test email to `body.email` if present, else to the configured `from_address`.
+- `SLACK`: posts the literal message `AccessFlow notification channel test successful`.
+- `WEBHOOK`: POSTs `{"event": "TEST", "timestamp": "..."}` with full HMAC headers (`X-AccessFlow-Event: TEST`, `X-AccessFlow-Signature`, `X-AccessFlow-Delivery`).
+
+**Response 404:** Channel not found in caller's organization.
+**Response 502:** Delivery failed. `error: NOTIFICATION_DELIVERY_FAILED`.
+
 ### GET /admin/audit-log — Query Parameters
 
 | Param | Type | Description |

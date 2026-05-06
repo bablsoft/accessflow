@@ -66,6 +66,12 @@ accessflow:
       default-fetch-size: 1000
   ai:
     provider: ${AI_PROVIDER:anthropic}
+  notifications:
+    public-base-url: ${ACCESSFLOW_PUBLIC_BASE_URL:http://localhost:5173}
+    retry:
+      first: PT30S
+      second: PT2M
+      third: PT10M
 
 springdoc:
   api-docs:
