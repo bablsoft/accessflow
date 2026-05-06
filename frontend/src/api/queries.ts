@@ -23,7 +23,7 @@ export async function getQuery(id: string): Promise<QueryRequest | null> {
 
 export async function submitQuery(input: SubmitQueryInput): Promise<QueryRequest> {
   await jittered(300, 600);
-  const user = useAuthStore.getState().user();
+  const user = useAuthStore.getState().user;
   if (!user) throw new Error('not authenticated');
   const ds = DATASOURCES.find((d) => d.id === input.datasource_id)!;
   const id = `q-${Math.floor(Math.random() * 9000 + 1000)}-${Math.random().toString(36).slice(2, 5)}`;

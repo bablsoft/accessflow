@@ -1,40 +1,33 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { User } from '@/types/api';
-import { USERS } from '@/mocks/data';
+import * as authApi from '@/api/auth';
+import type { AuthUser, LoginPayload } from '@/api/auth';
 
 interface AuthState {
-  userId: string | null;
-  edition: 'COMMUNITY' | 'ENTERPRISE';
-  setUserId: (id: string) => void;
-  setEdition: (e: 'COMMUNITY' | 'ENTERPRISE') => void;
-  login: (email: string) => Promise<void>;
-  logout: () => void;
-  user: () => User | null;
+  user: AuthUser | null;
+  accessToken: string | null;
+  setSession: (payload: LoginPayload) => void;
+  clear: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   isAuthenticated: () => boolean;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      userId: null,
-      edition: 'ENTERPRISE',
-      setUserId: (id) => set({ userId: id }),
-      setEdition: (edition) => set({ edition }),
-      login: async (email) => {
-        await new Promise((r) => setTimeout(r, 600));
-        const match = USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-        // In demo mode any email works — fall back to alice if no match
-        const u = match ?? USERS[0]!;
-        set({ userId: u.id });
-      },
-      logout: () => set({ userId: null }),
-      user: () => {
-        const id = get().userId;
-        return id ? USERS.find((u) => u.id === id) ?? null : null;
-      },
-      isAuthenticated: () => get().userId !== null,
-    }),
-    { name: 'af-auth' },
-  ),
-);
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  accessToken: null,
+  setSession: (payload) => set({ user: payload.user, accessToken: payload.access_token }),
+  clear: () => set({ user: null, accessToken: null }),
+  login: async (email, password) => {
+    const payload = await authApi.login(email, password);
+    set({ user: payload.user, accessToken: payload.access_token });
+  },
+  logout: async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Best-effort: even if the network call fails, drop local state.
+    }
+    set({ user: null, accessToken: null });
+  },
+  isAuthenticated: () => get().user !== null,
+}));

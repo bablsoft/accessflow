@@ -16,7 +16,7 @@ import type { QueryRequest } from '@/types/api';
 
 export function ReviewQueuePage() {
   const queries = useQueriesStore((s) => s.queries);
-  const user = useAuthStore((s) => s.user());
+  const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState('mine');
   const { message } = App.useApp();
   const navigate = useNavigate();
