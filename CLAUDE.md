@@ -482,6 +482,101 @@ CI pipeline (`.github/workflows/frontend-ci.yml`):
 - Steps: `npm ci → lint → typecheck → test:coverage → build`.
 - Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
+**Test layering and conventions:**
+- **Unit tests** (`src/utils`, `src/mocks`, store logic): pure logic only, no React.
+- **Component tests** (React Testing Library): assert behaviour from the user's perspective — query by role/label, not test IDs. No snapshot tests of large component trees.
+- **E2E tests** (Playwright, when added): cover login, submit query, approve in review queue, create datasource. Backed by a real backend (compose + Testcontainers) — not by mocks.
+- Mock HTTP at the network layer with **MSW** (when first needed); do not mock Axios directly.
+- Tests live alongside source as `*.test.ts(x)` or in `__tests__/`. Pick one per directory and stay consistent.
+
+### Component & File Conventions
+
+- One component per file. Filename matches the default export (`PascalCase.tsx` for components, `camelCase.ts` for hooks/utilities).
+- Components use named exports; default exports are reserved for lazy-loaded route pages.
+- `components/` folders are grouped by **domain**, not by type — see `docs/06-frontend.md` for the canonical list (`common/`, `editor/`, `review/`, `datasources/`, `audit/`).
+- Shared primitives (`StatusBadge`, `RiskBadge`, `CopyButton`, `PageHeader`) live in `components/common/`. Reuse them — never re-implement status/risk colours inline.
+- Pages own routing concerns and data fetching; presentational components stay pure (props in, JSX out).
+- Co-locate component-specific styles, helpers, and tests alongside the component (`Foo.tsx`, `Foo.test.tsx`, `useFoo.ts`).
+
+### Accessibility (a11y)
+
+- Use semantic HTML (`<button>`, `<nav>`, `<main>`, `<form>`) — never click handlers on `<div>`.
+- All interactive elements must be keyboard-reachable; no `tabindex` > 0.
+- Provide `aria-label` for icon-only buttons (e.g. `CopyButton`, audit-log row actions).
+- Form inputs require visible labels via Ant Design `Form.Item label` — placeholder is not a label.
+- Tables (audit log, permission matrix) need `<caption>` or `aria-label`; column headers use `scope="col"`.
+- Modals/drawers must trap focus and restore it on close (Ant Design's `Modal`/`Drawer` do this — don't bypass with custom overlays).
+- Honour `prefers-reduced-motion`: skip non-essential transitions when set.
+- Colour is never the sole status indicator — pair colour with text or an icon (the existing `StatusBadge` pattern).
+
+### Error Handling & Error Envelopes
+
+- Wrap each top-level route in an error boundary; surface a recovery action ("Retry"), not a stack trace.
+- Backend errors follow the RFC 9457 `ProblemDetail` envelope — see `docs/04-api-spec.md`. Render `title`/`detail`; map known `error` codes (e.g. `PERMISSION_DENIED`, `SQL_PARSE_ERROR`) to user-friendly messages in `src/utils/apiErrors.ts`.
+- Never display raw axios error objects, server stack traces, or SQL strings as error messages.
+- 422 (SQL parse) errors render inline in the editor as gutter markers — not as a toast.
+- 401 is handled by the Axios interceptor (refresh + retry) — components must not catch it.
+
+### TanStack Query Defaults & Conventions
+
+- Default `staleTime: 30_000`, `gcTime: 5 * 60_000`, `refetchOnWindowFocus: false`, `retry: 1` — set on the global `QueryClient` (`src/main.tsx`). Don't change defaults per-call without a comment explaining why.
+- Query keys are arrays, hierarchical, prefixed by domain — `['queries', queryId]`, `['datasources', 'list', { page, size }]`. Define key factories in `src/api/<domain>.ts`.
+- Mutations that change a list invalidate the list key; mutations that change one record invalidate both `['<domain>', id]` and the list key.
+- Use `useMutation` with optimistic updates for review approve/reject; roll back on error.
+- Never duplicate server data into Zustand — use `useQueryClient().getQueryData(...)` if a non-React caller needs it.
+
+### WebSocket Conventions
+
+- A single `useWebSocket()` hook owns the connection; pages subscribe/unsubscribe to events.
+- JWT is passed as the `?token=<JWT>` query param on connect — **not** an `Authorization` header (browsers don't allow custom headers on WS handshake). Reconnect when the access token rotates.
+- Auto-reconnect with exponential backoff (1s, 2s, 4s, … capped at 30s); reset on successful connect.
+- Map WS events → query invalidations:
+  - `query.status_changed`, `query.executed` → invalidate `['queries', queryId]` and `['queries', 'list']`
+  - `review.new_request`, `review.decision_made` → invalidate `['reviews', 'queue']`
+  - `ai.analysis_complete` → invalidate `['queries', queryId]`
+- Never trust WS payloads as authoritative — always re-fetch via REST after invalidation.
+
+### Forms & Validation
+
+- Use Ant Design `Form` + `Form.Item`; do not manage form state manually with `useState`.
+- Mirror server-side validation rules in the form (e.g. `name` length 3–50, `host` non-empty) so users see errors before submit. The server remains the source of truth — surface its 400/422 responses field-level when `error.path` is present.
+- For runtime validation of API responses with non-trivial shapes (AI analysis, datasource schema), use `zod` (add the dep when first needed). Don't trust `as` casts.
+- Submit handlers are typed (`(values: SubmitQueryRequest) => Promise<void>`); never `any`.
+- Disable the submit button while pending; render a spinner inside the button, not a full-page loader.
+
+### Loading, Empty, and Skeleton States
+
+- Lists and tables render Ant Design `Skeleton` while loading — not a centred spinner.
+- Empty states use a dedicated component (`<EmptyState title icon action>`) — not a bare "No data".
+- Avoid layout shift: skeletons should match the dimensions of the loaded content.
+- For mutations, show inline progress on the affected row (review approve/reject), not a global toast.
+
+### Code Splitting
+
+- Lazy-load each top-level route group (`pages/admin/*`, `pages/datasources/*`, `pages/reviews/*`) via `React.lazy` + `<Suspense>` in the router.
+- The login page and `AppLayout` shell stay in the main bundle.
+- Don't lazy-load shared components (`components/common/*`) — the cache cost outweighs the bundle saving.
+
+### Frontend Security
+
+- Never use `dangerouslySetInnerHTML`. SQL highlighting in read-only panels uses CodeMirror with a string `value`, not raw HTML.
+- No `eval`, `new Function(...)`, or `setTimeout(stringArg)`.
+- All outbound requests go through `src/api/client.ts` — never `fetch` directly. The centralised client enforces `withCredentials`, baseURL, and the refresh interceptor.
+- Refresh-token cookie is `HttpOnly; Secure; SameSite=Strict` — frontend code never reads it. Token rotation is handled implicitly by the cookie + interceptor; treat each `/auth/refresh` 200 as authoritative.
+- The backend sets a strict CSP (`default-src 'self'`) — no inline `<script>`, no remote CDN scripts, no inline-string event handlers in markup (`onClick={fn}` is fine; HTML-string handlers are not).
+- Never log JWTs, session IDs, or datasource passwords (even in dev). Redact before `console.log`.
+- For `<a target="_blank">` (audit detail, external links), always pair with `rel="noopener noreferrer"`.
+
+### Theming
+
+- Ant Design tokens drive all colour and typography — read them via `--af-*` CSS custom properties (configured in `src/utils/antdTheme.ts`). Never hardcode hex colours in components.
+- Status and risk colours go through `src/utils/statusColors.ts` and `src/utils/riskColors.ts` — single source of truth, already covered by tests.
+- Dark mode follows `prefers-color-scheme`; user preference (when added) lives in `preferencesStore` (Zustand), not `localStorage` directly.
+
+### Demo-Mode Caveat
+
+The current `frontend/` scaffold runs in **demo mode**: mocked auth (`authStore` persists to localStorage), mocked AI/schema, in-memory query store. The rules above describe the **production** patterns and apply when wiring real backend calls (tracked under [FE-09](https://github.com/partqam/accessflow/issues/80) and follow-ups). Don't "fix" demo code to match these rules unless the task explicitly says so.
+
 ---
 
 ## API Contract
