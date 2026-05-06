@@ -9,6 +9,7 @@ import java.util.UUID;
  */
 public record DatasourceConnectionDescriptor(
         UUID id,
+        UUID organizationId,
         DbType dbType,
         String host,
         int port,

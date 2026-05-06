@@ -26,7 +26,7 @@ import com.partqam.accessflow.notifications.api.NotificationChannelType;
 import com.partqam.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.partqam.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
 import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
-import com.partqam.accessflow.workflow.events.QueryReadyForReviewEvent;
+import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
 import com.sun.net.httpserver.HttpServer;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;

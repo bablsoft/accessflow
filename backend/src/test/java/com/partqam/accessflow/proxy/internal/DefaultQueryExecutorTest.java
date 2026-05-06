@@ -226,8 +226,8 @@ class DefaultQueryExecutorTest {
     }
 
     private DatasourceConnectionDescriptor descriptor(int maxRows) {
-        return new DatasourceConnectionDescriptor(datasourceId, DbType.POSTGRESQL,
-                "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows, true);
+        return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows, true);
     }
 
     private static ResultSet emptyResultSet() throws SQLException {

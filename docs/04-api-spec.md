@@ -734,14 +734,43 @@ Per-type behavior:
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `actor_id` | UUID | Filter by user who performed the action |
+| `actorId` | UUID | Filter by user who performed the action |
 | `action` | string | Filter by action type (e.g. `QUERY_SUBMITTED`) |
-| `resource_type` | string | Filter by resource type |
-| `resource_id` | UUID | Filter by specific resource |
-| `from` | ISO datetime | Start of time range |
-| `to` | ISO datetime | End of time range |
-| `page` | int | Page number |
-| `size` | int | Page size (max 500) |
+| `resourceType` | string | Filter by resource type, snake_case (e.g. `query_request`, `datasource`, `user`, `permission`, `notification_channel`) |
+| `resourceId` | UUID | Filter by specific resource |
+| `from` | ISO datetime | Inclusive lower bound on `created_at` |
+| `to` | ISO datetime | Exclusive upper bound on `created_at` |
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 500). Requests over the cap get `400 BAD_AUDIT_QUERY` |
+| `sort` | string | Spring Data sort syntax; default `created_at,DESC` |
+
+Returns rows scoped to the caller's organization only. ADMIN role required (otherwise 403).
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "organization_id": "uuid",
+      "actor_id": "uuid",
+      "action": "QUERY_SUBMITTED",
+      "resource_type": "query_request",
+      "resource_id": "uuid",
+      "metadata": {"datasource_id": "uuid"},
+      "ip_address": "10.0.0.1",
+      "user_agent": "Mozilla/5.0",
+      "created_at": "2026-05-06T10:30:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`actor_id`, `ip_address`, `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion).
 
 ---
 

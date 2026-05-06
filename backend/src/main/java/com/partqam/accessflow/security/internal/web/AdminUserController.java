@@ -1,5 +1,10 @@
 package com.partqam.accessflow.security.internal.web;
 
+import com.partqam.accessflow.audit.api.AuditAction;
+import com.partqam.accessflow.audit.api.AuditEntry;
+import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditResourceType;
+import com.partqam.accessflow.audit.api.RequestAuditContext;
 import com.partqam.accessflow.core.api.CreateUserCommand;
 import com.partqam.accessflow.core.api.UpdateUserCommand;
 import com.partqam.accessflow.core.api.UserAdminService;
@@ -12,8 +17,10 @@ import com.partqam.accessflow.security.internal.web.model.UserPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,6 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -37,11 +46,13 @@ import java.util.UUID;
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Users", description = "User management endpoints (ADMIN only)")
 @RequiredArgsConstructor
+@Slf4j
 class AdminUserController {
 
     private final UserAdminService userAdminService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenStore refreshTokenStore;
+    private final AuditLogService auditLogService;
 
     @GetMapping
     @Operation(summary = "List users in the caller's organization (paginated)")
@@ -60,7 +71,8 @@ class AdminUserController {
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "409", description = "Email already exists")
     ResponseEntity<AdminUserResponse> createUser(@Valid @RequestBody CreateUserRequest request,
-                                                 Authentication authentication) {
+                                                 Authentication authentication,
+                                                 HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var command = new CreateUserCommand(
                 caller.organizationId(),
@@ -70,6 +82,8 @@ class AdminUserController {
                 request.role()
         );
         var created = userAdminService.createUser(command);
+        recordAudit(AuditAction.USER_CREATED, created.id(), caller, httpRequest,
+                Map.of("email", created.email(), "role", created.role().name()));
         var response = AdminUserResponse.from(created);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -99,14 +113,34 @@ class AdminUserController {
     @ApiResponse(responseCode = "204", description = "User deactivated")
     @ApiResponse(responseCode = "404", description = "User not found in caller's organization")
     @ApiResponse(responseCode = "422", description = "Cannot deactivate self")
-    ResponseEntity<Void> deactivateUser(@PathVariable UUID id, Authentication authentication) {
+    ResponseEntity<Void> deactivateUser(@PathVariable UUID id, Authentication authentication,
+                                        HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         userAdminService.deactivateUser(id, caller.organizationId(), caller.userId());
         refreshTokenStore.revokeAllForUser(id.toString());
+        recordAudit(AuditAction.USER_DEACTIVATED, id, caller, httpRequest, Map.of());
         return ResponseEntity.noContent().build();
     }
 
     private JwtClaims currentClaims(Authentication authentication) {
         return (JwtClaims) authentication.getPrincipal();
+    }
+
+    private void recordAudit(AuditAction action, UUID resourceId, JwtClaims caller,
+                             HttpServletRequest httpRequest, Map<String, Object> metadata) {
+        try {
+            var context = RequestAuditContext.from(httpRequest);
+            auditLogService.record(new AuditEntry(
+                    action,
+                    AuditResourceType.USER,
+                    resourceId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    new HashMap<>(metadata),
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for {} on user {}", action, resourceId, ex);
+        }
     }
 }

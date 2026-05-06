@@ -3,6 +3,7 @@ package com.partqam.accessflow.core.internal;
 import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.SslMode;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
+import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,11 +24,15 @@ class DefaultDatasourceLookupServiceTest {
     @InjectMocks DefaultDatasourceLookupService service;
 
     private final UUID id = UUID.randomUUID();
+    private final UUID organizationId = UUID.randomUUID();
 
     @Test
     void findByIdMapsAllConnectionFields() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
         var entity = new DatasourceEntity();
         entity.setId(id);
+        entity.setOrganization(org);
         entity.setDbType(DbType.POSTGRESQL);
         entity.setHost("h");
         entity.setPort(5432);
@@ -44,6 +49,7 @@ class DefaultDatasourceLookupServiceTest {
         assertThat(result).isPresent();
         var descriptor = result.get();
         assertThat(descriptor.id()).isEqualTo(id);
+        assertThat(descriptor.organizationId()).isEqualTo(organizationId);
         assertThat(descriptor.dbType()).isEqualTo(DbType.POSTGRESQL);
         assertThat(descriptor.host()).isEqualTo("h");
         assertThat(descriptor.port()).isEqualTo(5432);

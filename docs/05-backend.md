@@ -359,6 +359,50 @@ SQL to analyze:
 
 ---
 
+## Audit Logging
+
+Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes a single public service: `AuditLogService` (`audit/api/AuditLogService.java`). Two write paths:
+
+1. **Synchronous, from controllers** — for user-initiated actions where `ip_address` / `user_agent` should be captured from the live `HttpServletRequest`. The controller calls `auditLogService.record(...)` after the underlying service call succeeds (or in the catch block for failed login). `RequestAuditContext.from(httpRequest)` extracts IP (honoring `X-Forwarded-For`) and user-agent. Failures in audit writes are caught and logged — never propagated to the caller.
+
+   | Controller | Action |
+   |---|---|
+   | `AuthController.login` | `USER_LOGIN`, `USER_LOGIN_FAILED` |
+   | `AdminUserController` | `USER_CREATED`, `USER_DEACTIVATED` |
+   | `DatasourceController` | `DATASOURCE_CREATED`, `DATASOURCE_UPDATED`, `PERMISSION_GRANTED`, `PERMISSION_REVOKED` |
+   | `QuerySubmissionController` | `QUERY_SUBMITTED` |
+   | `ReviewController` | `QUERY_APPROVED`, `QUERY_REJECTED` |
+
+2. **Asynchronous, from `AuditEventListener`** — for system-driven state transitions where there is no live request thread. Uses Spring Modulith's `@ApplicationModuleListener` (which is `@Async + @Transactional(REQUIRES_NEW) + @TransactionalEventListener(AFTER_COMMIT)`). IP/UA are intentionally null on these rows. Each handler swallows runtime failures to keep the publishing transaction unaffected.
+
+   | Event | Action |
+   |---|---|
+   | `AiAnalysisCompletedEvent` | `QUERY_AI_ANALYZED` |
+   | `AiAnalysisFailedEvent` | `QUERY_AI_FAILED` |
+   | `QueryReadyForReviewEvent` | `QUERY_REVIEW_REQUESTED` |
+   | `QueryAutoApprovedEvent` | `QUERY_APPROVED` (system actor, `actor_id = NULL`, metadata `{"auto_approved": true}`) |
+   | `DatasourceDeactivatedEvent` | `DATASOURCE_UPDATED` with metadata `{"change":"deactivated"}` |
+
+`AuditAction` extends the doc enum with `QUERY_AI_FAILED` so the read API can filter for failed AI runs without parsing the JSONB metadata.
+
+### Read endpoint
+
+`GET /api/v1/admin/audit-log` — `@PreAuthorize("hasRole('ADMIN')")`. Filters: `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`. Pagination via Spring `Pageable`; max page size 500. Always scoped to the caller's organization — admins in org A cannot read org B's rows.
+
+### Module isolation
+
+- The `audit_log` entity lives under `audit/internal/persistence/entity/`, with plain `UUID` columns for `organizationId` / `actorId` (no JPA `@ManyToOne` joins — same pattern as `NotificationChannelEntity`). Postgres-level FKs to `organizations` and `users` were dropped in V14 so audit history survives org/user deletion.
+- Cross-module event types (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`) live in `core/events/` so the audit listener does not depend on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
+
+### Deferred
+
+- **Tamper-evident hash chain** (`previous_hash` / `current_hash`) — not yet implemented; tracked as a follow-up issue.
+- **Separate audit-writer DB user** with INSERT-only privilege — deployment-level, tracked as a follow-up issue.
+- **`QUERY_EXECUTED` / `QUERY_FAILED` audit** — depends on the proxy executor wiring `APPROVED → EXECUTED` / `APPROVED → FAILED` status transitions, which it does not yet do. Tracked as a follow-up issue.
+- **`QUERY_CANCELLED` audit** — depends on a cancel endpoint, which does not yet exist. Tracked as a follow-up issue.
+
+---
+
 ## Key Dependencies (pom.xml)
 
 ```xml

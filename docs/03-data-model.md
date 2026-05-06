@@ -228,8 +228,8 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
-| `organization_id` | FK → `organizations` |
-| `actor_id` | FK → `users` |
+| `organization_id` | UUID — references `organizations(id)` semantically; the SQL FK was dropped in V14 so audit history survives org deletion and the entity can live in the `audit` module without cross-module JPA joins |
+| `actor_id` | UUID — references `users(id)` semantically; the SQL FK was dropped in V14. NULL for system-generated rows |
 | `action` | VARCHAR(100) — e.g. `QUERY_SUBMITTED`, `QUERY_APPROVED`, `DATASOURCE_CREATED` |
 | `resource_type` | VARCHAR(100) — e.g. `query_request`, `datasource`, `user` |
 | `resource_id` | UUID |
@@ -243,7 +243,8 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | Action | Trigger |
 |--------|---------|
 | `QUERY_SUBMITTED` | User submits a query |
-| `QUERY_AI_ANALYZED` | AI analysis completes |
+| `QUERY_AI_ANALYZED` | AI analysis completes successfully |
+| `QUERY_AI_FAILED` | AI analysis errors (model timeout, malformed JSON, etc.) — extension to the original catalog so the read API can filter without parsing metadata |
 | `QUERY_REVIEW_REQUESTED` | Query enters pending review |
 | `QUERY_APPROVED` | Reviewer approves |
 | `QUERY_REJECTED` | Reviewer rejects |
