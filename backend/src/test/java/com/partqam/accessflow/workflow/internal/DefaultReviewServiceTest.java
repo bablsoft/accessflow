@@ -332,7 +332,8 @@ class DefaultReviewServiceTest {
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(new ReviewPlanSnapshot(
                         UUID.randomUUID(), organizationId, true, true, min, false, 1,
-                        List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1)))));
+                        List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1)),
+                        List.of())));
     }
 
     private void givenTwoStagePlan() {
@@ -341,13 +342,14 @@ class DefaultReviewServiceTest {
                         UUID.randomUUID(), organizationId, true, true, 1, false, 2,
                         List.of(
                                 new ApproverRule(null, UserRoleType.REVIEWER, 1),
-                                new ApproverRule(null, UserRoleType.ADMIN, 2)))));
+                                new ApproverRule(null, UserRoleType.ADMIN, 2)),
+                        List.of())));
     }
 
     private ReviewPlanSnapshot planWith(List<ApproverRule> approvers) {
         var maxStage = approvers.stream().mapToInt(ApproverRule::stage).max().orElse(0);
         return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, true, true, 1, false,
-                maxStage, approvers);
+                maxStage, approvers, List.of());
     }
 
     private ReviewerContext reviewerContext(UserRoleType role) {

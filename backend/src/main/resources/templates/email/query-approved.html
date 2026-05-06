@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Query approved</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2f855a; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2>Your query was approved</h2>
+    <p class="meta">
+        <strong>Datasource:</strong> <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong>Approved by:</strong>
+        <span th:text="${reviewerDisplayName} ?: 'auto-approved'">auto-approved</span>
+    </p>
+    <p><strong>SQL preview:</strong></p>
+    <pre th:text="${sqlPreview}"></pre>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="'Open in AccessFlow'">Open in AccessFlow</a>
+    </p>
+</body>
+</html>

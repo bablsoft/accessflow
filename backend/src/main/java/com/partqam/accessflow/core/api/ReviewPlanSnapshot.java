@@ -7,6 +7,8 @@ import java.util.UUID;
  * Cross-module DTO carrying the policy fields of a review plan plus its sorted approver rules.
  * {@code maxStage} is the highest {@code stage} value across approvers, used by the workflow
  * service to detect "is this the last stage" without enumerating rules.
+ * {@code notifyChannelIds} are the {@code notification_channels.id} UUIDs the plan has opted
+ * into; consumed by the notifications module to fan out review-related events.
  */
 public record ReviewPlanSnapshot(
         UUID id,
@@ -16,5 +18,6 @@ public record ReviewPlanSnapshot(
         int minApprovalsRequired,
         boolean autoApproveReads,
         int maxStage,
-        List<ApproverRule> approvers) {
+        List<ApproverRule> approvers,
+        List<UUID> notifyChannelIds) {
 }

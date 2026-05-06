@@ -6,20 +6,26 @@ Notifications are dispatched **asynchronously** by the `NotificationDispatcher` 
 
 Delivery is non-blocking — notification failures do not affect the query workflow state.
 
+The dispatcher runs on virtual-thread executors and consumes events using Spring Modulith's `@ApplicationModuleListener`. The base URL of the AccessFlow UI is configured via `accessflow.notifications.public-base-url` (env: `ACCESSFLOW_PUBLIC_BASE_URL`); review-link buttons use this base.
+
 ---
 
 ## Event Types
 
-| Event | Trigger | Default Recipients |
-|-------|---------|-------------------|
-| `QUERY_SUBMITTED` | Query enters `PENDING_REVIEW` | All reviewers in the current stage of the review plan |
-| `QUERY_APPROVED` | Query fully approved (all stages complete) | Query submitter |
-| `QUERY_REJECTED` | Reviewer rejects query | Query submitter |
-| `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter |
-| `QUERY_EXECUTED` | Execution completes successfully | Query submitter |
-| `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users |
-| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` | All ADMIN users |
-| `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN + REVIEWER users on the datasource |
+| Event | Trigger | Default Recipients | Status |
+|-------|---------|-------------------|--------|
+| `QUERY_SUBMITTED` | Query enters `PENDING_REVIEW` | Reviewers eligible at the lowest stage of the review plan (rules with explicit `userId` plus all org users matching `ApproverRule.role`), excluding the submitter | implemented |
+| `QUERY_APPROVED` | Query fully approved (all stages complete) — fired for both human approval and auto-approval | Query submitter | implemented |
+| `QUERY_REJECTED` | Reviewer rejects query | Query submitter | implemented |
+| `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
+| `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
+| `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
+| `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
+| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` | All ADMIN users | deferred — no scheduler implemented yet |
+
+`AI_HIGH_RISK` only fires for `RiskLevel.CRITICAL`; lower risk levels still surface via the standard `QUERY_SUBMITTED` notification.
+
+The reviewer-on-datasource recipient subset for `AI_HIGH_RISK` is currently restricted to the org-level ADMIN role because datasource-level reviewer membership is not modeled in the data model yet.
 
 ---
 
@@ -52,7 +58,7 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 
 ### Slack
 
-Uses **Slack Incoming Webhooks API**.
+Uses the official **[Slack Java SDK](https://docs.slack.dev/tools/java-slack-sdk/)** (`com.slack.api:slack-api-client`) for incoming-webhook delivery. Block Kit payloads are constructed with the SDK's typed builders so the wire shape is validated by the SDK rather than hand-rolled JSON.
 
 **Configuration:**
 ```json
@@ -161,7 +167,7 @@ expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 assert hmac.compare_digest(f"sha256={expected}", received_signature)
 ```
 
-**Retry policy:** On non-2xx response or timeout, retry after 30s, then 2m, then 10m. After 3 failed attempts, mark delivery as failed and write to audit log.
+**Retry policy:** One initial attempt followed by up to three scheduled retries at +30 s, +2 min, +10 min — four total attempts. Retries are scheduled on a virtual-thread `TaskScheduler`; each attempt re-fetches the channel and generates a fresh `X-AccessFlow-Delivery` UUID. Per-attempt delays are configurable via `accessflow.notifications.retry.{first,second,third}` (default `PT30S`, `PT2M`, `PT10M`). After exhaustion the dispatcher logs an `ERROR` line including the channel id, event type, and last exception. Audit-log integration is deferred until the audit module ships.
 
 ---
 
