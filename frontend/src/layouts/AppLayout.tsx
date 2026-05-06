@@ -8,8 +8,8 @@ import { useQueriesStore } from '@/store/queriesStore';
 import './app-layout.css';
 
 export function AppLayout() {
-  const user = useAuthStore((s) => s.user());
-  const edition = useAuthStore((s) => s.edition);
+  const user = useAuthStore((s) => s.user);
+  const edition = usePreferencesStore((s) => s.edition);
   const sidebarCollapsed = usePreferencesStore((s) => s.sidebarCollapsed);
   const toggleSidebar = usePreferencesStore((s) => s.toggleSidebar);
   const queries = useQueriesStore((s) => s.queries);

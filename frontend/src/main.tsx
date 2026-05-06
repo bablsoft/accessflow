@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App';
+import { BootGate } from './components/common/BootGate';
 import { darkTheme, lightTheme } from './theme/antdTheme';
 import { usePreferencesStore } from './store/preferencesStore';
 import './styles/globals.css';
@@ -21,7 +22,9 @@ function ThemedApp() {
   }, [theme]);
   return (
     <ConfigProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
-      <App />
+      <BootGate>
+        <App />
+      </BootGate>
     </ConfigProvider>
   );
 }

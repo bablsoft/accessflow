@@ -28,7 +28,7 @@ export function QueryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const query = useQueriesStore((s) => s.queries.find((q) => q.id === id));
-  const user = useAuthStore((s) => s.user());
+  const user = useAuthStore((s) => s.user);
   const { message } = App.useApp();
   const [comment, setComment] = useState('');
 

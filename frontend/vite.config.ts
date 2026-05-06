@@ -27,7 +27,15 @@ export default defineConfig({
       // Cover the pure-logic surface today. UI components/pages that depend
       // on CodeMirror, AntD, or routing are excluded until FE-09 lands tests
       // for them.
-      include: ['src/utils/**/*.ts', 'src/mocks/analyzer.ts', 'src/mocks/schema.ts', 'src/mocks/delay.ts'],
+      include: [
+        'src/utils/**/*.ts',
+        'src/mocks/analyzer.ts',
+        'src/mocks/schema.ts',
+        'src/mocks/delay.ts',
+        'src/api/auth.ts',
+        'src/api/client.ts',
+        'src/store/authStore.ts',
+      ],
       exclude: [
         '**/__tests__/**',
         '**/*.test.{ts,tsx}',

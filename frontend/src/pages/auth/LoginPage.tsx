@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Input } from 'antd';
+import { Alert, Button, Input } from 'antd';
 import {
   ArrowRightOutlined,
   EyeOutlined,
@@ -9,29 +9,36 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { usePreferencesStore } from '@/store/preferencesStore';
+import { authErrorMessage } from '@/utils/apiErrors';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('alice.chen@acme.com');
-  const [password, setPassword] = useState('demo-password');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'alice.chen@acme.com' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'demo-password' : '');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((s) => s.login);
-  const edition = useAuthStore((s) => s.edition);
+  const edition = usePreferencesStore((s) => s.edition);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
-    await login(email);
-    setLoading(false);
-    navigate('/editor');
+    try {
+      await login(email, password);
+      navigate('/editor');
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const samlLogin = async () => {
-    setLoading(true);
-    await login(email);
-    setLoading(false);
-    navigate('/editor');
+  const samlLogin = () => {
+    // SAML SSO is wired in a follow-up; FE-01 covers /auth/* local auth only.
+    setError('SAML SSO is not configured yet. Please sign in with email and password.');
   };
 
   return (
@@ -100,6 +107,17 @@ export function LoginPage() {
             </div>
           </div>
 
+          {error && (
+            <Alert
+              type="error"
+              message={error}
+              style={{ marginBottom: 16 }}
+              showIcon
+              closable
+              onClose={() => setError(null)}
+            />
+          )}
+
           {edition === 'ENTERPRISE' && (
             <>
               <Button
@@ -132,6 +150,7 @@ export function LoginPage() {
             <div style={{ marginBottom: 14 }}>
               <label
                 className="muted"
+                htmlFor="login-email"
                 style={{
                   display: 'block',
                   fontSize: 11.5,
@@ -142,6 +161,9 @@ export function LoginPage() {
                 Email
               </label>
               <Input
+                id="login-email"
+                type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
@@ -158,6 +180,7 @@ export function LoginPage() {
               >
                 <label
                   className="muted"
+                  htmlFor="login-password"
                   style={{ fontSize: 11.5, fontWeight: 500, margin: 0 }}
                 >
                   Password
@@ -172,13 +195,16 @@ export function LoginPage() {
                 </a>
               </div>
               <Input
+                id="login-password"
                 type={showPw ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 suffix={
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
+                    aria-label={showPw ? 'Hide password' : 'Show password'}
                     style={{
                       background: 'transparent',
                       border: 0,

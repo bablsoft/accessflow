@@ -12,7 +12,8 @@ import {
   RightOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
-import type { Role, User } from '@/types/api';
+import type { Role } from '@/types/api';
+import type { AuthUser } from '@/api/auth';
 import { Avatar } from './Avatar';
 import './sidebar.css';
 
@@ -44,7 +45,7 @@ const NAV: NavEntry[] = [
 ];
 
 interface SidebarProps {
-  user: User;
+  user: AuthUser;
   edition: 'COMMUNITY' | 'ENTERPRISE';
   pendingCount: number;
   collapsed: boolean;

@@ -9,7 +9,7 @@ interface GuardProps {
 }
 
 export function AuthGuard({ children, requireRole }: GuardProps) {
-  const user = useAuthStore((s) => s.user());
+  const user = useAuthStore((s) => s.user);
   if (!user) return <Navigate to="/login" replace />;
   if (requireRole) {
     const roles = Array.isArray(requireRole) ? requireRole : [requireRole];

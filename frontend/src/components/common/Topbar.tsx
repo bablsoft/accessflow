@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { USERS } from '@/mocks/data';
 import { useNavigate } from 'react-router-dom';
+import { DevUserSwitcher } from './DevUserSwitcher';
 import './topbar.css';
 
 interface TopbarProps {
@@ -20,17 +20,15 @@ interface TopbarProps {
 
 export function Topbar({ onOpenMobileNav }: TopbarProps) {
   const [search, setSearch] = useState('');
-  const userId = useAuthStore((s) => s.userId);
-  const setUserId = useAuthStore((s) => s.setUserId);
-  const edition = useAuthStore((s) => s.edition);
-  const setEdition = useAuthStore((s) => s.setEdition);
   const logout = useAuthStore((s) => s.logout);
+  const edition = usePreferencesStore((s) => s.edition);
+  const setEdition = usePreferencesStore((s) => s.setEdition);
   const theme = usePreferencesStore((s) => s.theme);
   const setTheme = usePreferencesStore((s) => s.setTheme);
   const navigate = useNavigate();
 
-  const onLogout = () => {
-    logout();
+  const onLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -54,19 +52,7 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       </div>
       <div style={{ flex: 1 }} />
       <div className="af-topbar-pills">
-        <Select
-          size="small"
-          value={userId ?? undefined}
-          style={{ minWidth: 200 }}
-          className="hide-mobile"
-          onChange={setUserId}
-          options={USERS.filter((u) => u.active)
-            .slice(0, 8)
-            .map((u) => ({
-              value: u.id,
-              label: `${u.display_name} · ${u.role}`,
-            }))}
-        />
+        {import.meta.env.DEV && <DevUserSwitcher />}
         <Select
           size="small"
           value={edition}
