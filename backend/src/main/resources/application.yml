@@ -78,3 +78,4 @@ springdoc:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+    persist-authorization: true
