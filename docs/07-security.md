@@ -114,13 +114,20 @@ AccessFlow uses defense-in-depth against injection attacks:
 
 ## Audit Log Integrity
 
-The `audit_log` table is designed to be tamper-evident:
+The `audit_log` table is designed to be tamper-evident. Today the implementation provides the application-level half of that goal; the deployment-level and cryptographic-chain halves are deferred (see "Deferred" below).
 
-- The application database user has **INSERT-only** privilege on `audit_log`. No UPDATE or DELETE.
-- A **separate audit writer DB user** is used for audit log inserts, distinct from the general application user.
-- Every state transition in the query workflow publishes a Spring `ApplicationEvent` which is consumed by `AuditLogService` within the same transaction boundary.
-- Audit events include `ip_address` and `user_agent` captured from the HTTP request context.
-- `metadata` JSONB contains context-specific information but **never** stores query result data (rows returned).
+Implemented today:
+
+- Audit writes go through `AuditLogService` (`audit/api/`). Writes are append-only — neither the entity nor the service exposes UPDATE or DELETE.
+- User-initiated actions are audited synchronously from controllers so `ip_address` (honoring `X-Forwarded-For`) and `user_agent` from the HTTP request are captured on the row.
+- System-driven state transitions are audited via `@ApplicationModuleListener` in `audit/internal/AuditEventListener` — these run after the publishing transaction commits, on a separate thread; `ip_address` / `user_agent` are NULL on those rows by design.
+- `metadata` JSONB contains context-specific information but **never** stores query result data (rows returned), passwords, or encryption keys.
+
+Deferred (tracked as separate GitHub issues):
+
+- The application database user has **INSERT-only** privilege on `audit_log`. No UPDATE or DELETE. Today the application uses a single Postgres role; the second role with INSERT-only grant is a deployment-level change tracked separately.
+- A **separate audit writer DB user** for audit log inserts, distinct from the general application user.
+- Cryptographic hash chain (`previous_hash` / `current_hash` columns + verifier endpoint). The schema does not yet include those columns; the chain will be added in a follow-up issue.
 
 ---
 

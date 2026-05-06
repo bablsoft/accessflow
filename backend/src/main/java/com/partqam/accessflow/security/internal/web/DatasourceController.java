@@ -1,5 +1,10 @@
 package com.partqam.accessflow.security.internal.web;
 
+import com.partqam.accessflow.audit.api.AuditAction;
+import com.partqam.accessflow.audit.api.AuditEntry;
+import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditResourceType;
+import com.partqam.accessflow.audit.api.RequestAuditContext;
 import com.partqam.accessflow.core.api.CreateDatasourceCommand;
 import com.partqam.accessflow.core.api.CreatePermissionCommand;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
@@ -18,8 +23,10 @@ import com.partqam.accessflow.security.internal.web.model.UpdateDatasourceReques
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,15 +42,19 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/datasources")
 @Tag(name = "Datasources", description = "Datasource management endpoints")
 @RequiredArgsConstructor
+@Slf4j
 class DatasourceController {
 
     private final DatasourceAdminService datasourceAdminService;
+    private final AuditLogService auditLogService;
 
     @GetMapping
     @Operation(summary = "List datasources accessible to the caller (paginated)")
@@ -65,7 +76,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "409", description = "A datasource with this name already exists")
     ResponseEntity<DatasourceResponse> createDatasource(
             @Valid @RequestBody CreateDatasourceRequest request,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var command = new CreateDatasourceCommand(
                 caller.organizationId(),
@@ -84,6 +96,8 @@ class DatasourceController {
                 request.reviewPlanId(),
                 request.aiAnalysisEnabled());
         var created = datasourceAdminService.create(command);
+        recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
+                caller, httpRequest, Map.of("name", created.name(), "db_type", created.dbType().name()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
@@ -112,7 +126,8 @@ class DatasourceController {
     @ApiResponse(responseCode = "409", description = "Name conflict with another datasource")
     DatasourceResponse updateDatasource(@PathVariable UUID id,
                                         @Valid @RequestBody UpdateDatasourceRequest request,
-                                        Authentication authentication) {
+                                        Authentication authentication,
+                                        HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var command = new UpdateDatasourceCommand(
                 request.name(),
@@ -129,8 +144,10 @@ class DatasourceController {
                 request.reviewPlanId(),
                 request.aiAnalysisEnabled(),
                 request.active());
-        return DatasourceResponse.from(
-                datasourceAdminService.update(id, caller.organizationId(), command));
+        var updated = datasourceAdminService.update(id, caller.organizationId(), command);
+        recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
+                httpRequest, Map.of("name", updated.name()));
+        return DatasourceResponse.from(updated);
     }
 
     @DeleteMapping("/{id}")
@@ -192,7 +209,8 @@ class DatasourceController {
     ResponseEntity<PermissionResponse> grantPermission(
             @PathVariable UUID id,
             @Valid @RequestBody CreatePermissionRequest request,
-            Authentication authentication) {
+            Authentication authentication,
+            HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var command = new CreatePermissionCommand(
                 request.userId(),
@@ -205,6 +223,14 @@ class DatasourceController {
                 request.expiresAt());
         var view = datasourceAdminService.grantPermission(id, caller.organizationId(),
                 caller.userId(), command);
+        var metadata = new HashMap<String, Object>();
+        metadata.put("datasource_id", id.toString());
+        metadata.put("user_id", view.userId().toString());
+        metadata.put("can_read", view.canRead());
+        metadata.put("can_write", view.canWrite());
+        metadata.put("can_ddl", view.canDdl());
+        recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
+                caller, httpRequest, metadata);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{permId}")
                 .buildAndExpand(view.id())
@@ -219,9 +245,12 @@ class DatasourceController {
     @ApiResponse(responseCode = "404", description = "Permission not found")
     ResponseEntity<Void> revokePermission(@PathVariable UUID id,
                                           @PathVariable UUID permId,
-                                          Authentication authentication) {
+                                          Authentication authentication,
+                                          HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         datasourceAdminService.revokePermission(id, caller.organizationId(), permId);
+        recordAudit(AuditAction.PERMISSION_REVOKED, AuditResourceType.PERMISSION, permId, caller,
+                httpRequest, Map.of("datasource_id", id.toString()));
         return ResponseEntity.noContent().build();
     }
 
@@ -231,5 +260,25 @@ class DatasourceController {
 
     private boolean isAdmin(JwtClaims claims) {
         return claims.role() == UserRoleType.ADMIN;
+    }
+
+    private void recordAudit(AuditAction action, AuditResourceType resourceType, UUID resourceId,
+                             JwtClaims caller, HttpServletRequest httpRequest,
+                             Map<String, Object> metadata) {
+        try {
+            var context = RequestAuditContext.from(httpRequest);
+            auditLogService.record(new AuditEntry(
+                    action,
+                    resourceType,
+                    resourceId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    new HashMap<>(metadata),
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for {} on {} {}", action, resourceType.dbValue(),
+                    resourceId, ex);
+        }
     }
 }

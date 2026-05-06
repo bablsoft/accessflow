@@ -72,8 +72,8 @@ class DefaultAiAnalyzerServiceTest {
     }
 
     private DatasourceConnectionDescriptor descriptor(DbType dbType) {
-        return new DatasourceConnectionDescriptor(datasourceId, dbType, "h", 5432, "db",
-                "u", "ENC(p)", SslMode.DISABLE, 5, 1000, true);
+        return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(), dbType, "h",
+                5432, "db", "u", "ENC(p)", SslMode.DISABLE, 5, 1000, true);
     }
 
     private DatabaseSchemaView schemaView() {

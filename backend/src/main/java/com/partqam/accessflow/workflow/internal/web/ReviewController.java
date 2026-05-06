@@ -1,13 +1,21 @@
 package com.partqam.accessflow.workflow.internal.web;
 
+import com.partqam.accessflow.audit.api.AuditAction;
+import com.partqam.accessflow.audit.api.AuditEntry;
+import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditResourceType;
+import com.partqam.accessflow.audit.api.RequestAuditContext;
 import com.partqam.accessflow.security.api.JwtClaims;
 import com.partqam.accessflow.workflow.api.ReviewService;
+import com.partqam.accessflow.workflow.api.ReviewService.DecisionOutcome;
 import com.partqam.accessflow.workflow.api.ReviewService.ReviewerContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -18,15 +26,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/reviews")
 @Tag(name = "Reviews", description = "Reviewer workflow endpoints")
 @RequiredArgsConstructor
+@Slf4j
 class ReviewController {
 
     private final ReviewService reviewService;
+    private final AuditLogService auditLogService;
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
@@ -52,9 +63,12 @@ class ReviewController {
     @ApiResponse(responseCode = "409", description = "Query is not in PENDING_REVIEW")
     ReviewDecisionResponse approve(@PathVariable UUID queryId,
                                    @Valid @RequestBody ReviewDecisionRequest body,
-                                   Authentication authentication) {
+                                   Authentication authentication,
+                                   HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.approve(queryId, toContext(caller), body.comment());
+        recordDecisionAudit(AuditAction.QUERY_APPROVED, queryId, caller, outcome, body.comment(),
+                httpRequest);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 
@@ -69,9 +83,12 @@ class ReviewController {
     @ApiResponse(responseCode = "409", description = "Query is not in PENDING_REVIEW")
     ReviewDecisionResponse reject(@PathVariable UUID queryId,
                                   @Valid @RequestBody ReviewDecisionRequest body,
-                                  Authentication authentication) {
+                                  Authentication authentication,
+                                  HttpServletRequest httpRequest) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.reject(queryId, toContext(caller), body.comment());
+        recordDecisionAudit(AuditAction.QUERY_REJECTED, queryId, caller, outcome, body.comment(),
+                httpRequest);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 
@@ -90,6 +107,33 @@ class ReviewController {
         var caller = currentClaims(authentication);
         var outcome = reviewService.requestChanges(queryId, toContext(caller), body.comment());
         return ReviewDecisionResponse.from(queryId, outcome);
+    }
+
+    private void recordDecisionAudit(AuditAction action, UUID queryId, JwtClaims caller,
+                                     DecisionOutcome outcome, String comment,
+                                     HttpServletRequest httpRequest) {
+        if (outcome.wasIdempotentReplay()) {
+            return;
+        }
+        try {
+            var context = RequestAuditContext.from(httpRequest);
+            var metadata = new HashMap<String, Object>();
+            if (comment != null && !comment.isBlank()) {
+                metadata.put("comment", comment);
+            }
+            metadata.put("resulting_status", outcome.resultingStatus().name());
+            auditLogService.record(new AuditEntry(
+                    action,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    metadata,
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for {} on query {}", action, queryId, ex);
+        }
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

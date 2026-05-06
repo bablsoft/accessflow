@@ -1,4 +1,4 @@
-package com.partqam.accessflow.workflow.events;
+package com.partqam.accessflow.core.events;
 
 import java.util.UUID;
 

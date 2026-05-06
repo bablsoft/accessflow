@@ -34,8 +34,10 @@ class DefaultDatasourceConnectionPoolManagerTest {
     private DefaultDatasourceConnectionPoolManager manager;
 
     private final UUID id = UUID.randomUUID();
+    private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor activeDescriptor = new DatasourceConnectionDescriptor(
-            id, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, 1000, true);
+            id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10,
+            1000, true);
 
     @BeforeEach
     void setUp() {
@@ -95,7 +97,8 @@ class DefaultDatasourceConnectionPoolManagerTest {
     @Test
     void resolveThrowsWhenDatasourceInactive() {
         var inactive = new DatasourceConnectionDescriptor(
-                id, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, 1000, false);
+                id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
+                10, 1000, false);
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(inactive));
 
         assertThatThrownBy(() -> manager.resolve(id))
@@ -144,10 +147,10 @@ class DefaultDatasourceConnectionPoolManagerTest {
         var idB = UUID.randomUUID();
         var poolA = mock(HikariDataSource.class);
         var poolB = mock(HikariDataSource.class);
-        var descA = new DatasourceConnectionDescriptor(idA, DbType.POSTGRESQL, "a", 5432, "d",
-                "u", "ENC", SslMode.DISABLE, 10, 1000, true);
-        var descB = new DatasourceConnectionDescriptor(idB, DbType.MYSQL, "b", 3306, "d",
-                "u", "ENC", SslMode.DISABLE, 10, 1000, true);
+        var descA = new DatasourceConnectionDescriptor(idA, organizationId, DbType.POSTGRESQL,
+                "a", 5432, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, true);
+        var descB = new DatasourceConnectionDescriptor(idB, organizationId, DbType.MYSQL,
+                "b", 3306, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, true);
         when(datasourceLookupService.findById(idA)).thenReturn(Optional.of(descA));
         when(datasourceLookupService.findById(idB)).thenReturn(Optional.of(descB));
         when(poolFactory.createPool(descA)).thenReturn(poolA);

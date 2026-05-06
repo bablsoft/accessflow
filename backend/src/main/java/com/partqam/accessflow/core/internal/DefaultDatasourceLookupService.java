@@ -27,6 +27,7 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
     private static DatasourceConnectionDescriptor toDescriptor(DatasourceEntity entity) {
         return new DatasourceConnectionDescriptor(
                 entity.getId(),
+                entity.getOrganization().getId(),
                 entity.getDbType(),
                 entity.getHost(),
                 entity.getPort(),
