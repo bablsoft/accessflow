@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: accessflow-dev-postgres
+    environment:
+      POSTGRES_DB: accessflow
+      POSTGRES_USER: accessflow
+      POSTGRES_PASSWORD: accessflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - accessflow_dev_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accessflow -d accessflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - accessflow-dev
+
+  redis:
+    image: redis:8-alpine
+    container_name: accessflow-dev-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - accessflow_dev_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - accessflow-dev
+
+volumes:
+  accessflow_dev_postgres_data:
+  accessflow_dev_redis_data:
+
+networks:
+  accessflow-dev:
+    driver: bridge
