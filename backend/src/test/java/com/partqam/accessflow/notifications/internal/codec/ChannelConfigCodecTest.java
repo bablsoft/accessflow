@@ -121,6 +121,138 @@ class ChannelConfigCodecTest {
                 .hasMessageContaining("webhook_url");
     }
 
+    @Test
+    void rejectsSlackWithBlankWebhookUrl() {
+        var input = new java.util.HashMap<String, Object>();
+        input.put("webhook_url", " ");
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.SLACK, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("webhook_url");
+    }
+
+    @Test
+    void rejectsSlackWithMalformedWebhookUrl() {
+        var input = new java.util.HashMap<String, Object>();
+        input.put("webhook_url", "not a uri with spaces");
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.SLACK, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("valid URI");
+    }
+
+    @Test
+    void rejectsEmailWithNonNumericPort() {
+        var input = new java.util.HashMap<String, Object>();
+        input.put("smtp_host", "smtp.example.com");
+        input.put("smtp_port", "not-a-number");
+        input.put("smtp_password", "pw");
+        input.put("from_address", "from@example.com");
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.EMAIL, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("smtp_port");
+    }
+
+    @Test
+    void emailPortAcceptsStringNumeric() {
+        var json = codec.encodeForPersistence(NotificationChannelType.EMAIL, Map.of(
+                "smtp_host", "smtp.example.com",
+                "smtp_port", "587",
+                "smtp_password", "pw",
+                "from_address", "from@example.com"));
+        var decoded = codec.decodeEmail(json);
+        assertThat(decoded.smtpPort()).isEqualTo(587);
+    }
+
+    @Test
+    void emailMissingPortRejected() {
+        var input = new java.util.HashMap<String, Object>();
+        input.put("smtp_host", "smtp.example.com");
+        input.put("smtp_password", "pw");
+        input.put("from_address", "from@example.com");
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.EMAIL, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("smtp_port");
+    }
+
+    @Test
+    void mergeWithNullPartialReturnsExistingJson() {
+        var original = codec.encodeForPersistence(NotificationChannelType.SLACK, Map.of(
+                "webhook_url", "https://hooks.slack.com/x"));
+        var merged = codec.mergeForPersistence(NotificationChannelType.SLACK, original, null);
+        assertThat(merged).isEqualTo(original);
+    }
+
+    @Test
+    void decodeForApiHandlesEmptyJson() {
+        var view = codec.decodeForApi("");
+        assertThat(view).isEmpty();
+    }
+
+    @Test
+    void decodeForApiHandlesNullJson() {
+        var view = codec.decodeForApi(null);
+        assertThat(view).isEmpty();
+    }
+
+    @Test
+    void decodeForApiHandlesInvalidJson() {
+        assertThatThrownBy(() -> codec.decodeForApi("{not-json"))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("not valid JSON");
+    }
+
+    @Test
+    void slackMentionUsersAcceptsScalarAndList() {
+        var withList = codec.encodeForPersistence(NotificationChannelType.SLACK, Map.of(
+                "webhook_url", "https://hooks.slack.com/x",
+                "mention_users", java.util.List.of("@alice", "@bob")));
+        assertThat(codec.decodeSlack(withList).mentionUsers()).containsExactly("@alice", "@bob");
+
+        var withScalar = codec.encodeForPersistence(NotificationChannelType.SLACK, Map.of(
+                "webhook_url", "https://hooks.slack.com/x",
+                "mention_users", "@solo"));
+        assertThat(codec.decodeSlack(withScalar).mentionUsers()).containsExactly("@solo");
+
+        var without = codec.encodeForPersistence(NotificationChannelType.SLACK, Map.of(
+                "webhook_url", "https://hooks.slack.com/x"));
+        assertThat(codec.decodeSlack(without).mentionUsers()).isEmpty();
+    }
+
+    @Test
+    void webhookTimeoutDefaultsTo10WhenAbsent() {
+        var json = codec.encodeForPersistence(NotificationChannelType.WEBHOOK, Map.of(
+                "url", "https://h.example/x",
+                "secret", "topsecret"));
+        assertThat(codec.decodeWebhook(json).timeoutSeconds()).isEqualTo(10);
+    }
+
+    @Test
+    void webhookTimeoutFallsBackToDefaultOnMalformedValue() {
+        // Build manually to avoid the encoder rewriting the value.
+        var raw = "{\"url\":\"https://h.example/x\",\"secret_encrypted\":\"enc:x\","
+                + "\"timeout_seconds\":\"not-a-number\"}";
+        assertThat(codec.decodeWebhook(raw).timeoutSeconds()).isEqualTo(10);
+    }
+
+    @Test
+    void emailDecodeAcceptsMissingTlsAsTrue() {
+        var json = codec.encodeForPersistence(NotificationChannelType.EMAIL, Map.of(
+                "smtp_host", "smtp.example.com",
+                "smtp_port", 587,
+                "smtp_password", "pw",
+                "from_address", "from@example.com"));
+        assertThat(codec.decodeEmail(json).smtpTls()).isTrue();
+    }
+
+    @Test
+    void mergePreservesExistingSecretWhenPartialOmitsKey() {
+        var original = codec.encodeForPersistence(NotificationChannelType.WEBHOOK, Map.of(
+                "url", "https://h.example/x",
+                "secret", "kept"));
+        var merged = codec.mergeForPersistence(NotificationChannelType.WEBHOOK, original, Map.of(
+                "url", "https://h.example/y"));
+        assertThat(codec.decodeWebhook(merged).secretPlain()).isEqualTo("kept");
+    }
+
     /**
      * Trivial reversible "encryption" used to exercise the round-trip without depending on
      * core's package-private AES helper. Prepends a marker so encrypted values are visibly
