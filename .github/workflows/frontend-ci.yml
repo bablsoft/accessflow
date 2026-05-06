@@ -1,0 +1,72 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+  issues: write
+
+jobs:
+  build:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        # Coverage thresholds (90% lines/functions/statements, 80% branches)
+        # are enforced inside vite.config.ts — this step fails when they slip.
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: frontend/test-results/junit.xml
+          check_name: Frontend Test Results
+          comment_mode: always
+
+      - name: Publish coverage report
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: frontend
+          json-summary-path: frontend/coverage/coverage-summary.json
+          json-final-path: frontend/coverage/coverage-final.json
+          file-coverage-mode: changes
+          name: Frontend Coverage
