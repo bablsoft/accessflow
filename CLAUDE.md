@@ -364,23 +364,27 @@ The frontend does not exist yet in the repository. Create it at `frontend/` usin
 npm create vite@latest frontend -- --template react-ts
 ```
 
-### Tech Stack (required — do not substitute)
+### Tech Stack (required libraries — version: always latest stable)
 
-| Technology | Version | Role |
-|-----------|---------|------|
-| React | 18 | UI framework |
-| Vite | 5 | Build tool |
-| TypeScript | 5 | Language (`strict: true`) |
-| Ant Design | 5.x | Component library |
-| CodeMirror | 6 | SQL editor (`@codemirror/lang-sql`) |
-| Zustand | 4 | Auth + UI state |
-| TanStack Query | 5 | Server state (replaces `useEffect` for data fetching) |
+For all frontend dependencies, pin to the **latest stable** version available on npm at the time of `npm install`. Re-verify with `npm view <pkg> version` before adding or upgrading. If a newer major has shipped since the last check, prefer it unless a specific incompatibility is documented in the same change. Do not substitute the libraries themselves — but always take the newest stable major of each.
+
+| Technology | Snapshot (latest stable as of 2026-05-06) | Role |
+|-----------|-------------------------------------------|------|
+| React + ReactDOM | 19.x | UI framework |
+| Vite + @vitejs/plugin-react | 8.x | Build tool |
+| TypeScript | 6.x | Language (`strict: true`) |
+| Ant Design | 6.x | Component library |
+| CodeMirror + @codemirror/lang-sql | 6.x | SQL editor |
+| Zustand | 5.x | Auth + UI state |
+| TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |
-| React Router | 6 | Routing |
-| sql-formatter | 15 | SQL formatting |
-| Vitest | latest | Unit/component tests |
-| React Testing Library | latest | Component tests |
-| Playwright | latest | E2E tests |
+| React Router | 7.x (library mode) | Routing |
+| sql-formatter | 15.x | SQL formatting |
+| Vitest | latest stable | Unit/component tests |
+| React Testing Library | latest stable | Component tests |
+| Playwright | latest stable | E2E tests |
+
+When you bump a major in `frontend/package.json`, update this snapshot row in the same change so the doc stays consistent with the lockfile.
 
 ### Directory Structure
 
@@ -463,10 +467,20 @@ Built with CodeMirror 6. Required features:
 cd frontend
 npm run test           # Vitest unit + component tests
 npm run test:e2e       # Playwright (requires running backend)
-npm run test:coverage  # Coverage report
+npm run test:coverage  # Coverage report (enforces threshold)
 npm run lint           # ESLint
+npm run typecheck      # tsc -b --noEmit
 npm run build          # Vite production build
 ```
+
+**Coverage target: ≥ 90% line coverage** — same gate as the backend. Enforced by Vitest's `coverage.thresholds` in `vite.config.ts`; the build fails when below threshold. Branches must hit ≥ 80%, lines/functions/statements ≥ 90%.
+
+The coverage `include` list deliberately scopes measurement to pure-logic modules (`src/utils/**`, the analyzer/schema/delay mocks) at the demo stage. As feature work lands and pages/components gain meaningful tests (tracked under [FE-09](https://github.com/partqam/accessflow/issues/80)), expand the `include` list in the same change. **Any time you add a new pure-logic module, include it in coverage measurement and ship it with tests.**
+
+CI pipeline (`.github/workflows/frontend-ci.yml`):
+- Triggers on changes to `frontend/**` on push to main and on PRs.
+- Steps: `npm ci → lint → typecheck → test:coverage → build`.
+- Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
 ---
 

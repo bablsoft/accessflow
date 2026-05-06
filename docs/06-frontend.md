@@ -2,18 +2,24 @@
 
 ## Tech Stack
 
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| React | 18 | UI framework |
-| Vite | 5 | Build tool and dev server |
-| TypeScript | 5 | Type safety |
-| Ant Design | 5.x | UI component library |
-| CodeMirror | 6 | SQL editor engine |
-| Zustand | 4 | Global state management |
-| React Query (TanStack) | 5 | Server state, caching, refetching |
-| Axios | 1.x | HTTP client |
-| React Router | 6 | Client-side routing |
-| sql-formatter | 15 | SQL formatting (Ctrl+Shift+F) |
+Frontend dependencies follow a **latest-stable** policy: pin every package to the most recent stable major published on npm at the time of `npm install`. Verify with `npm view <pkg> version` before adding or upgrading; if a newer major has shipped since the last check, prefer it unless a specific incompatibility is documented in the same change. The table below names the role each library plays — the version column captures the latest-stable snapshot at the time the row was last touched, not a pin.
+
+| Technology | Version snapshot | Purpose |
+|-----------|------------------|---------|
+| React + ReactDOM | latest stable (19.x at 2026-05-06) | UI framework |
+| Vite + @vitejs/plugin-react | latest stable (8.x at 2026-05-06) | Build tool and dev server |
+| TypeScript | latest stable (6.x at 2026-05-06) | Type safety (`strict: true`) |
+| Ant Design | latest stable (6.x at 2026-05-06) | UI component library |
+| CodeMirror + @codemirror/lang-sql | latest stable (6.x at 2026-05-06) | SQL editor engine |
+| Zustand | latest stable (5.x at 2026-05-06) | Global state management |
+| TanStack Query | latest stable (5.x at 2026-05-06) | Server state, caching, refetching |
+| Axios | latest stable (1.x at 2026-05-06) | HTTP client |
+| React Router | latest stable (7.x at 2026-05-06, library mode) | Client-side routing |
+| sql-formatter | latest stable (15.x at 2026-05-06) | SQL formatting (Ctrl+Shift+F) |
+| Vitest + @testing-library/react | latest stable | Unit/component tests |
+| Playwright | latest stable | E2E tests |
+
+When upgrading the codebase to a new major, update this snapshot column in the same change so the doc stays in sync.
 
 ---
 
