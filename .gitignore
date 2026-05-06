@@ -19,3 +19,9 @@ target/
 # Docker
 .docker/
 build/
+
+# Secrets / keys
+*.pem
+*.key
+.env
+.env.local
