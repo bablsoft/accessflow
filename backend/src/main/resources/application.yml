@@ -39,7 +39,7 @@ spring:
       base-url: ${AI_BASE_URL:https://api.anthropic.com}
       chat:
         options:
-          model: ${AI_MODEL:claude-sonnet-4-20250514}
+          model: ${AI_MODEL:claude-sonnet-4-6}
           max-tokens: 1024
 
 server:
