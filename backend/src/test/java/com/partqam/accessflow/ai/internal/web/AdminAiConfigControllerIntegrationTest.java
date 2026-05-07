@@ -1,10 +1,16 @@
 package com.partqam.accessflow.ai.internal.web;
 
 import com.partqam.accessflow.TestcontainersConfig;
+import com.partqam.accessflow.ai.api.AiAnalysisException;
+import com.partqam.accessflow.ai.api.AiAnalysisResult;
+import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.AuthProviderType;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
+import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.EditionType;
+import com.partqam.accessflow.core.api.RiskLevel;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.core.api.UserView;
 import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -22,8 +28,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
+
+import java.util.List;
 
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
@@ -31,6 +40,10 @@ import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 @SpringBootTest
@@ -43,6 +56,7 @@ class AdminAiConfigControllerIntegrationTest {
     @Autowired AiConfigRepository repository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
+    @MockitoBean AiAnalyzerStrategy aiAnalyzerStrategy;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -174,6 +188,66 @@ class AdminAiConfigControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
                 .exchange();
         assertThat(get).hasStatus(403);
+    }
+
+    @Test
+    void testEndpointReturnsOkWhenAnalyzerSucceeds() {
+        var fakeResult = new AiAnalysisResult(
+                10,
+                RiskLevel.LOW,
+                "ok",
+                List.of(),
+                false,
+                null,
+                AiProviderType.ANTHROPIC,
+                "claude-sonnet-4-20250514",
+                12,
+                34);
+        when(aiAnalyzerStrategy.analyze(any(), any(), any())).thenReturn(fakeResult);
+
+        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("OK");
+        assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("LOW");
+        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null));
+    }
+
+    @Test
+    void testEndpointReturnsErrorWhenAnalyzerThrows() {
+        when(aiAnalyzerStrategy.analyze(any(), any(), any()))
+                .thenThrow(new AiAnalysisException("provider unreachable"));
+
+        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("ERROR");
+        assertThat(result).bodyJson().extractingPath("$.detail").asString()
+                .isEqualTo("provider unreachable");
+    }
+
+    @Test
+    void testEndpointForbiddenForNonAdmin() {
+        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void putRejectsModelOver100Chars() {
+        var body = "{\"model\":\"" + "x".repeat(101) + "\"}";
+        var result = mvc.put().uri("/api/v1/admin/ai-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(result).hasStatus(400);
     }
 
     private UserEntity saveUser(String email, UserRoleType role) {
