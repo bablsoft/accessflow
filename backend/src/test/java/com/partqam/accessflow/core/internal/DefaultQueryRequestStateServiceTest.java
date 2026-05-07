@@ -12,6 +12,7 @@ import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
+import com.partqam.accessflow.core.events.QueryStatusChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,18 +39,24 @@ class DefaultQueryRequestStateServiceTest {
     @Mock QueryRequestRepository queryRequestRepository;
     @Mock ReviewDecisionRepository reviewDecisionRepository;
     @Mock UserRepository userRepository;
+    @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks DefaultQueryRequestStateService service;
 
     private final UUID queryId = UUID.randomUUID();
     private final UUID reviewerId = UUID.randomUUID();
+    private final UUID submitterId = UUID.randomUUID();
 
     private QueryRequestEntity query;
     private UserEntity reviewer;
+    private UserEntity submitter;
 
     @BeforeEach
     void setUp() {
         query = new QueryRequestEntity();
         query.setId(queryId);
+        submitter = new UserEntity();
+        submitter.setId(submitterId);
+        query.setSubmittedBy(submitter);
         reviewer = new UserEntity();
         reviewer.setId(reviewerId);
     }
@@ -244,6 +252,66 @@ class DefaultQueryRequestStateServiceTest {
                 java.time.Instant.now(), java.time.Instant.now())))
                 .isInstanceOf(IllegalQueryStatusTransitionException.class);
         verify(queryRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void transitionToPublishesStatusChangedEvent() {
+        query.setStatus(QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.transitionTo(queryId, QueryStatus.PENDING_AI, QueryStatus.PENDING_REVIEW);
+
+        var captor = ArgumentCaptor.forClass(QueryStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        var event = captor.getValue();
+        assertThat(event.queryRequestId()).isEqualTo(queryId);
+        assertThat(event.submitterId()).isEqualTo(submitterId);
+        assertThat(event.oldStatus()).isEqualTo(QueryStatus.PENDING_AI);
+        assertThat(event.newStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void recordExecutionOutcomePublishesStatusChangedEvent() {
+        query.setStatus(QueryStatus.APPROVED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.EXECUTED,
+                7L, 100, null, java.time.Instant.now(), java.time.Instant.now()));
+
+        var captor = ArgumentCaptor.forClass(QueryStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().oldStatus()).isEqualTo(QueryStatus.APPROVED);
+        assertThat(captor.getValue().newStatus()).isEqualTo(QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void recordRejectionPublishesStatusChangedEvent() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdAndStage(queryId, 1))
+                .thenReturn(List.of());
+        when(userRepository.findById(reviewerId)).thenReturn(Optional.of(reviewer));
+        when(reviewDecisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.recordRejection(queryId, reviewerId, 1, "no");
+
+        var captor = ArgumentCaptor.forClass(QueryStatusChangedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().newStatus()).isEqualTo(QueryStatus.REJECTED);
+    }
+
+    @Test
+    void recordChangesRequestedDoesNotPublishStatusChangedEvent() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdAndStage(queryId, 1))
+                .thenReturn(List.of());
+        when(userRepository.findById(reviewerId)).thenReturn(Optional.of(reviewer));
+        when(reviewDecisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.recordChangesRequested(queryId, reviewerId, 1, "fix");
+
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

@@ -9,12 +9,14 @@ import com.partqam.accessflow.core.api.RecordApprovalCommand;
 import com.partqam.accessflow.core.api.RecordDecisionResult;
 import com.partqam.accessflow.core.api.RecordExecutionCommand;
 import com.partqam.accessflow.core.api.ReviewDecisionSnapshot;
+import com.partqam.accessflow.core.events.QueryStatusChangedEvent;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,7 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
     private final QueryRequestRepository queryRequestRepository;
     private final ReviewDecisionRepository reviewDecisionRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -37,8 +40,10 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
             throw new IllegalQueryStatusTransitionException(queryRequestId, entity.getStatus(),
                     expected);
         }
+        var previous = entity.getStatus();
         entity.setStatus(next);
         queryRequestRepository.save(entity);
+        publishStatusChanged(entity, previous, next);
     }
 
     @Override
@@ -58,8 +63,10 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
                 command.comment(), command.stage());
         var stageApproved = countApprovalsAtStage(command.queryRequestId(), command.stage());
         if (stageApproved >= command.minApprovalsRequired() && command.isLastStage()) {
+            var previous = entity.getStatus();
             entity.setStatus(QueryStatus.APPROVED);
             queryRequestRepository.save(entity);
+            publishStatusChanged(entity, previous, QueryStatus.APPROVED);
             return new RecordDecisionResult(inserted.getId(), QueryStatus.APPROVED, false);
         }
         return new RecordDecisionResult(inserted.getId(), QueryStatus.PENDING_REVIEW, false);
@@ -79,8 +86,10 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
             return new RecordDecisionResult(existing.getId(), entity.getStatus(), true);
         }
         var inserted = persistDecision(entity, reviewerId, DecisionType.REJECTED, comment, stage);
+        var previous = entity.getStatus();
         entity.setStatus(QueryStatus.REJECTED);
         queryRequestRepository.save(entity);
+        publishStatusChanged(entity, previous, QueryStatus.REJECTED);
         return new RecordDecisionResult(inserted.getId(), QueryStatus.REJECTED, false);
     }
 
@@ -110,6 +119,7 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
             throw new IllegalQueryStatusTransitionException(command.queryRequestId(),
                     entity.getStatus(), QueryStatus.APPROVED);
         }
+        var previous = entity.getStatus();
         entity.setStatus(command.outcome());
         entity.setRowsAffected(command.rowsAffected());
         entity.setExecutionDurationMs(command.durationMs());
@@ -117,6 +127,7 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         entity.setExecutionStartedAt(command.startedAt());
         entity.setExecutionCompletedAt(command.completedAt());
         queryRequestRepository.save(entity);
+        publishStatusChanged(entity, previous, command.outcome());
     }
 
     @Override
@@ -162,6 +173,18 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
                 .findAllByQueryRequest_IdAndStage(queryRequestId, stage).stream()
                 .filter(d -> d.getDecision() == DecisionType.APPROVED)
                 .count();
+    }
+
+    private void publishStatusChanged(QueryRequestEntity entity, QueryStatus previous,
+                                      QueryStatus next) {
+        if (previous == next) {
+            return;
+        }
+        eventPublisher.publishEvent(new QueryStatusChangedEvent(
+                entity.getId(),
+                entity.getSubmittedBy().getId(),
+                previous,
+                next));
     }
 
     private static ReviewDecisionSnapshot toSnapshot(ReviewDecisionEntity entity) {

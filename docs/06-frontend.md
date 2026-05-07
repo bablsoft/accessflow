@@ -82,10 +82,14 @@ accessflow-ui/
 │   │       ├── AuditLogTable.tsx   # Searchable audit event table
 │   │       └── AuditDetailDrawer.tsx # Slide-in detail for single event
 │   │
+│   ├── realtime/
+│   │   ├── websocketManager.ts     # Framework-free singleton: connect/reconnect/dispatch
+│   │   └── RealtimeBridge.tsx      # Mounts the manager once at the app root
+│   │
 │   ├── hooks/
 │   │   ├── useQueryRequest.ts      # CRUD + status polling for a query request
 │   │   ├── useReviewQueue.ts       # Pending reviews for current user
-│   │   ├── useWebSocket.ts         # WebSocket connection and event subscriptions
+│   │   ├── useWebSocket.ts         # Typed `subscribe` wrapper for components
 │   │   ├── useSchemaIntrospect.ts  # Fetch and cache datasource schema
 │   │   ├── useAiAnalysis.ts        # Debounced AI analysis calls from editor
 │   │   └── useCurrentUser.ts       # Auth state, role checks
@@ -254,17 +258,39 @@ interface AuthStore {
 
 ### WebSocket Hook
 
-```typescript
-// useWebSocket.ts
-const { subscribe, unsubscribe } = useWebSocket();
+The connection itself is owned by `<RealtimeBridge />` mounted once at the app root in `src/main.tsx`. It reads `accessToken` from `authStore`, opens `${VITE_WS_URL}?token=<JWT>` on auth, reconnects with exponential backoff, and disconnects on logout. The bridge also wires **default `queryClient.invalidateQueries`** for the standard event/key mapping (see table below) — most callers don't need to subscribe at all; they just observe their existing TanStack queries refetching.
 
-// Subscribe to events for a specific query
-subscribe('query.status_changed', (data) => {
-  if (data.query_id === currentQueryId) {
-    queryClient.invalidateQueries(['query', currentQueryId]);
-  }
-});
+For event-specific side effects (e.g. a toast on a new review request), subscribe inside a component:
+
+```typescript
+// useWebSocket.ts — typed subscribe wired to the singleton manager
+const { subscribe } = useWebSocket();
+
+useEffect(() =>
+  subscribe('review.new_request', (data) => {
+    message.info(t('realtime.new_review_request', { id: data.query_id }));
+  }),
+  [subscribe, message, t],
+);
 ```
+
+`subscribe` returns an unsubscribe function — return it from `useEffect` so the listener is removed on unmount.
+
+#### Default invalidations
+
+| Event                  | Invalidates                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `query.status_changed` | `['queries','detail',query_id]` and `['queries','list']`                    |
+| `query.executed`       | `['queries','detail',query_id]` and `['queries','list']`                    |
+| `ai.analysis_complete` | `['queries','detail',query_id]`                                             |
+| `review.new_request`   | `['reviews','pending']`                                                     |
+| `review.decision_made` | `['reviews','pending']` and `['queries','detail',query_id]`                 |
+
+#### Reconnection
+
+`websocketManager` (in `src/realtime/`) reconnects with exponential backoff `1s → 2s → 4s → 8s → 16s → 30s` (capped). The counter resets on a successful `onopen`. After 3 consecutive failures the log level drops to `debug` so a sustained backend outage does not spam the console. `disconnect()` clears any pending reconnect timer; re-mounting (`accessToken` becomes non-null) reopens immediately.
+
+The Axios refresh interceptor calls `useAuthStore.setState(...)` whenever the access token rotates — the bridge's `useEffect` reacts to that change and reconnects with the new token. No extra plumbing required.
 
 ---
 

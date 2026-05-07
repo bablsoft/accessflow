@@ -40,6 +40,8 @@ export default defineConfig({
         'src/api/reviewPlans.ts',
         'src/api/setup.ts',
         'src/hooks/useSchemaIntrospect.ts',
+        'src/hooks/useWebSocket.ts',
+        'src/realtime/websocketManager.ts',
         'src/store/authStore.ts',
         'src/store/setupStore.ts',
       ],

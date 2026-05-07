@@ -12,6 +12,7 @@ accessflow/
 ├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama adapters
 ├── accessflow-security/          # JWT config, Spring Security, SAML (Enterprise module)
 ├── accessflow-notifications/     # Email (JavaMail), Slack API, Webhook dispatcher
+├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
 └── accessflow-app/               # Spring Boot main application, Docker entrypoint
 ```
@@ -392,7 +393,7 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 ### Module isolation
 
 - The `audit_log` entity lives under `audit/internal/persistence/entity/`, with plain `UUID` columns for `organizationId` / `actorId` (no JPA `@ManyToOne` joins — same pattern as `NotificationChannelEntity`). Postgres-level FKs to `organizations` and `users` were dropped in V14 so audit history survives org/user deletion.
-- Cross-module event types (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`) live in `core/events/` so the audit listener does not depend on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
+- Cross-module event types live in `core/events/` (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`, `QueryStatusChangedEvent`, `AiAnalysisCompletedEvent`) and `workflow/events/` (`QueryApprovedEvent`, `QueryRejectedEvent`, `QueryExecutedEvent`, `ReviewDecisionMadeEvent`). Keeping the read-side events in `core/events/` lets audit and realtime consume them without depending on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
 
 ### Deferred
 
@@ -400,6 +401,63 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 - **Separate audit-writer DB user** with INSERT-only privilege — deployment-level, tracked as a follow-up issue.
 - **`QUERY_EXECUTED` / `QUERY_FAILED` audit** — depends on the proxy executor wiring `APPROVED → EXECUTED` / `APPROVED → FAILED` status transitions, which it does not yet do. Tracked as a follow-up issue.
 - **`QUERY_CANCELLED` audit** — depends on a cancel endpoint, which does not yet exist. Tracked as a follow-up issue.
+
+---
+
+## Realtime / WebSocket
+
+Lives in `realtime/`. Pushes domain events to connected frontend clients over a single WebSocket endpoint at `/ws`, so status changes, review notifications, and execution outcomes appear in the UI within ~1 s without polling. Wire format and event list are defined in [`docs/04-api-spec.md`](04-api-spec.md#websocket-events).
+
+### Handshake auth
+
+Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so the access token is passed as a query parameter: `ws://host/ws?token=<JWT>`.
+
+`realtime/internal/ws/JwtHandshakeInterceptor` (a `HandshakeInterceptor`) extracts the token, calls `AccessTokenAuthenticator` from `security/api/`, and on success stores the resolved `JwtClaims` on the handshake attributes. The same RSA signing key, expiry, and type checks as the REST `JwtAuthenticationFilter` apply — there is no separate WS token. On failure the interceptor returns `false` and the upgrade is rejected with HTTP 403.
+
+`/ws` is added to the `permitAll()` list in `SecurityConfiguration`; the interceptor performs auth, not the JWT filter (which only reads `Authorization`).
+
+### Session registry and fan-out
+
+`realtime/internal/ws/SessionRegistry` maintains a `ConcurrentMap<UUID userId, Set<WebSocketSession>>`. The handler (`RealtimeWebSocketHandler extends TextWebSocketHandler`) registers on `afterConnectionEstablished` and unregisters on `afterConnectionClosed`. Per-session sends are synchronized on the session (Spring requires single-threaded sends per session); a send that throws drops the offending session from the registry without affecting the user's other tabs.
+
+### Source events → WS events
+
+| WS event                | Source domain event                                       | Target               |
+| ----------------------- | --------------------------------------------------------- | -------------------- |
+| `query.status_changed`  | `QueryStatusChangedEvent` (in `core/events/`)             | submitter            |
+| `query.executed`        | `QueryExecutedEvent` (in `workflow/events/`)              | submitter            |
+| `ai.analysis_complete`  | `AiAnalysisCompletedEvent` (in `core/events/`)            | submitter            |
+| `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
+| `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
+
+`QueryStatusChangedEvent` is published from the single chokepoint `DefaultQueryRequestStateService.transitionTo(...)` and the explicit decision/execution paths in the same service — every status mutation funnels through entity save in this service.
+
+`ReviewDecisionMadeEvent` fires from `DefaultReviewService.approve/reject/requestChanges` on every non-replay decision (the existing `QueryApprovedEvent`/`QueryRejectedEvent` pair is unchanged and still consumed by audit/notifications — they signal terminal state, not every review touch).
+
+`QueryExecutedEvent` fires from `DefaultQueryLifecycleService.execute(...)` on both the success and failure branches.
+
+### Dispatcher
+
+`realtime/internal/RealtimeEventDispatcher` is a `@Component` with one `@ApplicationModuleListener` per source event. Each listener:
+1. Builds the spec-shaped envelope `{event, timestamp, data}` via Jackson (`tools.jackson.databind.ObjectMapper`).
+2. Resolves enrichment fields (datasource name, submitter email, AI risk) through the existing public lookup APIs in `core/api/` (`QueryRequestLookupService`, `DatasourceAdminService`, `UserQueryService`, `AiAnalysisLookupService`, `ReviewPlanLookupService`) — same pattern as `NotificationContextBuilder`.
+3. Calls `SessionRegistry.sendToUser(userId, json)`.
+
+Every handler wraps its body in try/catch and logs at ERROR; a transient WS or lookup failure never propagates back to the publishing transaction (same defensive pattern as `AuditEventListener` and `NotificationDispatcher`).
+
+### JSON envelope
+
+```json
+{
+  "event": "query.status_changed",
+  "timestamp": "2026-05-07T10:31:00Z",
+  "data": {
+    "query_id": "uuid",
+    "old_status": "PENDING_AI",
+    "new_status": "PENDING_REVIEW"
+  }
+}
+```
 
 ---
 
