@@ -10,11 +10,6 @@ vi.mock('./client', () => ({
   apiClient: { get, post, delete: del },
 }));
 
-vi.mock('@/mocks/reviewsMock', () => ({
-  approveQueryMock: vi.fn(),
-  rejectQueryMock: vi.fn(),
-}));
-
 import * as queriesApi from './queries';
 
 describe('api/queries', () => {

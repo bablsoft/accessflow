@@ -10,7 +10,6 @@ import type {
   QueryType,
   SubmitQueryResponse,
 } from '@/types/api';
-import { approveQueryMock, rejectQueryMock } from '@/mocks/reviewsMock';
 
 const BASE = '/api/v1/queries';
 
@@ -89,10 +88,6 @@ export async function analyzeOnly(input: AnalyzeQueryInput): Promise<AiAnalysis>
   const { data } = await apiClient.post<AiAnalysis>(`${BASE}/analyze`, input);
   return data;
 }
-
-// TODO(FE-03): replace with real /reviews/{id}/approve and /reviews/{id}/reject calls.
-export const approveQuery = approveQueryMock;
-export const rejectQuery = rejectQueryMock;
 
 export const isPending = (s: QueryStatus): boolean =>
   s === 'PENDING_AI' || s === 'PENDING_REVIEW';

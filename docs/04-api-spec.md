@@ -545,6 +545,79 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
 | 409 | `QUERY_NOT_PENDING_REVIEW` | Query is not in `PENDING_REVIEW` (already terminal, or still in `PENDING_AI`) |
 | 409 | `ILLEGAL_STATUS_TRANSITION` | Lower-level state-machine guard fired |
 
+### GET /review-plans
+
+Returns every review plan visible to the caller's organization (no pagination — picker-friendly). Authenticated users in the org can read; only `ADMIN` can mutate.
+
+**Response 200:**
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "organization_id": "uuid",
+      "name": "PII writes",
+      "description": "All writes against PII tables",
+      "requires_ai_review": true,
+      "requires_human_approval": true,
+      "min_approvals_required": 1,
+      "approval_timeout_hours": 24,
+      "auto_approve_reads": false,
+      "notify_channels": [],
+      "approvers": [
+        { "user_id": null, "role": "REVIEWER", "stage": 1 }
+      ],
+      "created_at": "2026-05-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### POST /review-plans — Request Body *(ADMIN only)*
+
+```json
+{
+  "name": "PII writes",
+  "description": "All writes against PII tables",
+  "requires_ai_review": true,
+  "requires_human_approval": true,
+  "min_approvals_required": 1,
+  "approval_timeout_hours": 24,
+  "auto_approve_reads": false,
+  "notify_channels": [],
+  "approvers": [
+    { "user_id": null, "role": "REVIEWER", "stage": 1 }
+  ]
+}
+```
+
+Validation: `name` non-blank, ≤255 chars; `description` ≤2000; `min_approvals_required` 1–10; `approval_timeout_hours` 1–8760. Each approver must specify `user_id` OR `role` (`role` must be `ADMIN` or `REVIEWER`); `stage` ≥ 1. When `requires_human_approval=true` at least one approver is required.
+
+**Response 201**: full review plan body (same shape as `GET /review-plans/{id}`); `Location` header points to the new resource.
+
+### GET /review-plans/{id}
+
+Returns a single review plan in the caller's organization. 404 if missing or in another organization.
+
+### PUT /review-plans/{id} — Request Body *(ADMIN only)*
+
+Same shape as `POST` but every field is optional. When `approvers` is provided, the entire approver set is replaced atomically; omit it to keep the existing approvers.
+
+### DELETE /review-plans/{id} *(ADMIN only)*
+
+Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource still references the plan; reassign datasources to a different plan before deletion. Approver rows attached to the plan are removed inside the same transaction.
+
+### Review-plans Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the request body |
+| 403 | `FORBIDDEN` | Caller is not an `ADMIN` (mutations only) |
+| 404 | `REVIEW_PLAN_NOT_FOUND` | Plan does not exist or is in another organization |
+| 409 | `REVIEW_PLAN_IN_USE` | One or more datasources still reference the plan |
+| 422 | `ILLEGAL_REVIEW_PLAN` | Approver configuration invalid, name conflict, etc. |
+
 ---
 
 ## Admin Endpoints

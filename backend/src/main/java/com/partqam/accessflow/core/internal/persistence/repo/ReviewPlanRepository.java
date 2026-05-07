@@ -9,4 +9,11 @@ import java.util.UUID;
 public interface ReviewPlanRepository extends JpaRepository<ReviewPlanEntity, UUID> {
 
     List<ReviewPlanEntity> findAllByOrganization_Id(UUID organizationId);
+
+    List<ReviewPlanEntity> findAllByOrganization_IdOrderByNameAsc(UUID organizationId);
+
+    boolean existsByOrganization_IdAndNameIgnoreCase(UUID organizationId, String name);
+
+    boolean existsByOrganization_IdAndNameIgnoreCaseAndIdNot(UUID organizationId, String name,
+                                                             UUID id);
 }

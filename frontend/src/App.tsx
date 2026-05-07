@@ -15,6 +15,7 @@ import { UsersPage } from '@/pages/admin/UsersPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { AIConfigPage } from '@/pages/admin/AIConfigPage';
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
+import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 
 export function App() {
   const setupRequired = useSetupStore((s) => s.setupRequired);
@@ -72,6 +73,14 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <UsersPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/review-plans"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <ReviewPlansPage />
               </AuthGuard>
             }
           />

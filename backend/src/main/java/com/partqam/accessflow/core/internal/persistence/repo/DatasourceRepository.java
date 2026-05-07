@@ -23,6 +23,8 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
     boolean existsByOrganization_IdAndNameIgnoreCaseAndIdNot(UUID organizationId, String name,
                                                              UUID id);
 
+    boolean existsByReviewPlan_Id(UUID reviewPlanId);
+
     @Query("""
             select d from DatasourceEntity d
              where d.organization.id = :orgId

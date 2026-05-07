@@ -27,6 +27,7 @@ import {
   testConnection,
   updateDatasource,
 } from '@/api/datasources';
+import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type { Datasource, DatasourcePermission, UpdateDatasourceInput } from '@/types/api';
 
@@ -187,6 +188,11 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<UpdateDatasourceInput>();
 
+  const reviewPlansQuery = useQuery({
+    queryKey: reviewPlanKeys.lists(),
+    queryFn: listReviewPlans,
+  });
+
   const initialValues: UpdateDatasourceInput = {
     name: ds.name,
     host: ds.host,
@@ -198,6 +204,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     max_rows_per_query: ds.max_rows_per_query,
     require_review_writes: ds.require_review_writes,
     require_review_reads: ds.require_review_reads,
+    review_plan_id: ds.review_plan_id ?? null,
     ai_analysis_enabled: ds.ai_analysis_enabled,
     active: ds.active,
   };
@@ -296,13 +303,22 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             >
               <Input className="mono" type="number" />
             </Form.Item>
-            <Form.Item label={t('datasources.settings.label_review_plan')}>
-              {/* TODO(FE-XX): swap to plans Select once /review-plans ships. */}
-              <Input
-                className="mono"
-                value={ds.review_plan_id ?? ''}
-                disabled
-                placeholder={t('datasources.list.stat_plan_unknown')}
+            <Form.Item
+              label={t('datasources.settings.label_review_plan')}
+              name="review_plan_id"
+            >
+              <Select
+                allowClear
+                loading={reviewPlansQuery.isLoading}
+                placeholder={
+                  reviewPlansQuery.isLoading
+                    ? t('datasources.settings.review_plan_loading')
+                    : t('datasources.settings.review_plan_placeholder')
+                }
+                options={(reviewPlansQuery.data ?? []).map((plan) => ({
+                  value: plan.id,
+                  label: plan.name,
+                }))}
               />
             </Form.Item>
             <div />
