@@ -31,6 +31,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -246,6 +247,14 @@ class GlobalExceptionHandler {
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("actual", ex.actual().name());
         pd.setProperty("expected", ex.expected().name());
+        return pd;
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ProblemDetail handleNoResourceFound(NoResourceFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        pd.setProperty("error", "NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
 

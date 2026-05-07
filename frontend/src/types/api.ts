@@ -15,6 +15,7 @@ export type QueryType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type ChannelType = 'EMAIL' | 'SLACK' | 'WEBHOOK';
+export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'OLLAMA';
 
 export interface User {
   id: string;
@@ -23,8 +24,100 @@ export interface User {
   role: Role;
   auth_provider: AuthProvider;
   active: boolean;
-  last_login: string;
+  last_login_at: string | null;
   created_at: string;
+}
+
+export interface PageEnvelope<T> {
+  content: T[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export type UserPage = PageEnvelope<User>;
+
+export interface CreateUserInput {
+  email: string;
+  password: string;
+  display_name?: string | null;
+  role: Role;
+}
+
+export interface UpdateUserInput {
+  role?: Role;
+  active?: boolean;
+  display_name?: string | null;
+}
+
+export interface AiConfig {
+  id: string | null;
+  organization_id: string;
+  provider: AiProvider;
+  model: string;
+  endpoint: string | null;
+  api_key: string | null;
+  timeout_ms: number;
+  max_prompt_tokens: number;
+  max_completion_tokens: number;
+  enable_ai_default: boolean;
+  auto_approve_low: boolean;
+  block_critical: boolean;
+  include_schema: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateAiConfigInput {
+  provider?: AiProvider;
+  model?: string;
+  endpoint?: string | null;
+  api_key?: string | null;
+  timeout_ms?: number;
+  max_prompt_tokens?: number;
+  max_completion_tokens?: number;
+  enable_ai_default?: boolean;
+  auto_approve_low?: boolean;
+  block_critical?: boolean;
+  include_schema?: boolean;
+}
+
+export interface TestAiConfigResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
+}
+
+export interface SamlConfig {
+  id: string | null;
+  organization_id: string;
+  idp_metadata_url: string | null;
+  idp_entity_id: string | null;
+  sp_entity_id: string | null;
+  acs_url: string | null;
+  slo_url: string | null;
+  signing_cert_pem: string | null;
+  attr_email: string;
+  attr_display_name: string;
+  attr_role: string | null;
+  default_role: Role;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateSamlConfigInput {
+  idp_metadata_url?: string | null;
+  idp_entity_id?: string | null;
+  sp_entity_id?: string | null;
+  acs_url?: string | null;
+  slo_url?: string | null;
+  signing_cert_pem?: string | null;
+  attr_email?: string;
+  attr_display_name?: string;
+  attr_role?: string | null;
+  default_role?: Role;
+  active?: boolean;
 }
 
 export interface Datasource {
@@ -333,15 +426,37 @@ export interface ExecuteQueryResponse {
 
 export interface AuditEvent {
   id: string;
-  actor_id: string;
-  actor_name: string;
-  actor_email: string;
+  organization_id: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_display_name: string | null;
   action: string;
   resource_type: string;
-  resource_id: string;
-  ip_address: string;
-  user_agent: string;
+  resource_id: string | null;
+  metadata: Record<string, unknown>;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
+}
+
+export type AuditLogPage = PageEnvelope<AuditEvent>;
+
+export interface AuditLogFilters {
+  actor_id?: string;
+  action?: string;
+  resource_type?: string;
+  resource_id?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export interface UserListFilters {
+  page?: number;
+  size?: number;
+  sort?: string;
 }
 
 export interface DatasourcePermission {
@@ -362,29 +477,59 @@ export interface DatasourcePermission {
 }
 
 export interface NotificationChannelEmailConfig {
-  to: string[];
-  from: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user?: string;
+  smtp_password?: string;
+  smtp_tls?: boolean;
+  from_address: string;
+  from_name?: string;
 }
 export interface NotificationChannelSlackConfig {
-  webhook: string;
-  channel: string;
+  webhook_url: string;
+  channel?: string;
+  mention_users?: string[];
 }
 export interface NotificationChannelWebhookConfig {
   url: string;
-  secret: string;
-  signing: string;
+  secret?: string;
+  timeout_seconds?: number;
 }
+
+export type NotificationChannelConfig =
+  | NotificationChannelEmailConfig
+  | NotificationChannelSlackConfig
+  | NotificationChannelWebhookConfig;
 
 export interface NotificationChannel {
   id: string;
-  type: ChannelType;
+  organization_id: string;
+  channel_type: ChannelType;
   name: string;
   active: boolean;
-  config:
-    | NotificationChannelEmailConfig
-    | NotificationChannelSlackConfig
-    | NotificationChannelWebhookConfig;
-  last_used: string;
+  config: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CreateNotificationChannelInput {
+  name: string;
+  channel_type: ChannelType;
+  config: Record<string, unknown>;
+}
+
+export interface UpdateNotificationChannelInput {
+  name?: string;
+  active?: boolean;
+  config?: Record<string, unknown>;
+}
+
+export interface TestNotificationChannelInput {
+  email?: string;
+}
+
+export interface TestNotificationResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
 }
 
 export interface SchemaColumn {

@@ -9,6 +9,7 @@ import {
   ExperimentOutlined,
   BellOutlined,
   ApartmentOutlined,
+  IdcardOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
@@ -61,6 +62,17 @@ export function Sidebar({
     { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
     { id: 'ai', to: '/admin/ai-config', label: t('nav.ai_config'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
     { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
+    ...(edition === 'ENTERPRISE'
+      ? [
+          {
+            id: 'saml',
+            to: '/admin/saml',
+            label: t('nav.saml'),
+            icon: <IdcardOutlined />,
+            roles: ['ADMIN'] as Role[],
+          },
+        ]
+      : []),
   ];
 
   const items = NAV.filter((n) => n.roles.includes(user.role));

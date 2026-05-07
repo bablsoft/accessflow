@@ -161,6 +161,25 @@ class UserAdminServiceImplTest {
                 .isInstanceOf(UserNotFoundException.class);
     }
 
+    @Test
+    void findByIdsReturnsEmptyMapWhenIdsAreNullOrEmpty() {
+        assertThat(service.findByIds(orgId, null)).isEmpty();
+        assertThat(service.findByIds(orgId, List.of())).isEmpty();
+        verify(userRepository, never()).findAllByOrganization_IdAndIdIn(any(), any());
+    }
+
+    @Test
+    void findByIdsReturnsViewsKeyedById() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findAllByOrganization_IdAndIdIn(orgId, List.of(userId)))
+                .thenReturn(List.of(entity));
+
+        var result = service.findByIds(orgId, List.of(userId));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(userId).email()).isEqualTo("user@example.com");
+    }
+
     private UserEntity buildUser(UUID id, UUID organizationId, String email, UserRoleType role) {
         var org = new OrganizationEntity();
         org.setId(organizationId);

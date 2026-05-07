@@ -63,6 +63,32 @@ export function reviewErrorMessage(err: unknown): string {
   return i18n.t('errors.review_generic');
 }
 
+export function adminErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'EMAIL_ALREADY_EXISTS') return i18n.t('errors.email_already_exists');
+    if (code === 'USER_NOT_FOUND') return i18n.t('errors.user_not_found');
+    if (code === 'ILLEGAL_USER_OPERATION') return i18n.t('errors.illegal_user_operation_admin');
+    if (code === 'NOTIFICATION_CHANNEL_CONFIG_INVALID') {
+      return i18n.t('errors.notification_channel_config_invalid');
+    }
+    if (code === 'NOTIFICATION_CHANNEL_NOT_FOUND') {
+      return i18n.t('errors.notification_channel_not_found');
+    }
+    if (code === 'NOTIFICATION_DELIVERY_FAILED') {
+      return i18n.t('errors.notification_delivery_failed');
+    }
+    if (code === 'BAD_AUDIT_QUERY') return i18n.t('errors.bad_audit_query');
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.admin_generic');
+}
+
 export function reviewPlanErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

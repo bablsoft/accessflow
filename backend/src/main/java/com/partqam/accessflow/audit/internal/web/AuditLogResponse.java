@@ -11,6 +11,8 @@ public record AuditLogResponse(
         UUID id,
         UUID organizationId,
         UUID actorId,
+        String actorEmail,
+        String actorDisplayName,
         AuditAction action,
         String resourceType,
         UUID resourceId,
@@ -19,11 +21,13 @@ public record AuditLogResponse(
         String userAgent,
         Instant createdAt
 ) {
-    public static AuditLogResponse from(AuditLogView view) {
+    public static AuditLogResponse from(AuditLogView view, String actorEmail, String actorDisplayName) {
         return new AuditLogResponse(
                 view.id(),
                 view.organizationId(),
                 view.actorId(),
+                actorEmail,
+                actorDisplayName,
                 view.action(),
                 view.resourceType().dbValue(),
                 view.resourceId(),

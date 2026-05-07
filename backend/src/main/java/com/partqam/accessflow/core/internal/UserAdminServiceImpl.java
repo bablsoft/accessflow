@@ -18,7 +18,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -94,6 +98,20 @@ class UserAdminServiceImpl implements UserAdminService {
         var entity = loadInOrganization(id, organizationId);
         entity.setActive(false);
         return toView(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, UserView> findByIds(UUID organizationId, Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllByOrganization_IdAndIdIn(organizationId, ids).stream()
+                .collect(Collectors.toMap(
+                        UserEntity::getId,
+                        this::toView,
+                        (a, b) -> a,
+                        LinkedHashMap::new));
     }
 
     private UserEntity loadInOrganization(UUID id, UUID organizationId) {

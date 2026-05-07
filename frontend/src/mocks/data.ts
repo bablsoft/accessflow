@@ -20,24 +20,24 @@ const rand = makeRand(42);
 const pick = <T>(arr: readonly T[]): T => arr[Math.floor(rand() * arr.length)]!;
 
 export const USERS: User[] = [
-  { id: 'u-01', email: 'alice.chen@acme.com', display_name: 'Alice Chen', role: 'ANALYST', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T09:12:00Z', created_at: '2026-01-15T10:00:00Z' },
-  { id: 'u-02', email: 'marcus.holt@acme.com', display_name: 'Marcus Holt', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T08:44:00Z', created_at: '2026-01-15T10:00:00Z' },
-  { id: 'u-03', email: 'priya.raman@acme.com', display_name: 'Priya Raman', role: 'ADMIN', auth_provider: 'SAML', active: true, last_login: '2026-05-04T07:22:00Z', created_at: '2026-01-15T10:00:00Z' },
-  { id: 'u-04', email: 'jonas.weber@acme.com', display_name: 'Jonas Weber', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-03T18:01:00Z', created_at: '2026-02-02T11:30:00Z' },
-  { id: 'u-05', email: 'mei.tanaka@acme.com', display_name: 'Mei Tanaka', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T06:30:00Z', created_at: '2026-02-09T08:15:00Z' },
-  { id: 'u-06', email: 'david.okafor@acme.com', display_name: 'David Okafor', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-02T14:50:00Z', created_at: '2026-02-14T13:00:00Z' },
-  { id: 'u-07', email: 'sara.lopez@acme.com', display_name: 'Sara Lopez', role: 'READONLY', auth_provider: 'LOCAL', active: true, last_login: '2026-04-29T11:11:00Z', created_at: '2026-02-20T09:45:00Z' },
-  { id: 'u-08', email: 'tomas.novak@acme.com', display_name: 'Tomas Novak', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-01T16:25:00Z', created_at: '2026-03-01T10:20:00Z' },
-  { id: 'u-09', email: 'aisha.bello@acme.com', display_name: 'Aisha Bello', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T07:55:00Z', created_at: '2026-03-04T15:00:00Z' },
-  { id: 'u-10', email: 'lukas.berg@acme.com', display_name: 'Lukas Berg', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-03T20:18:00Z', created_at: '2026-03-08T11:10:00Z' },
-  { id: 'u-11', email: 'noor.ahmed@acme.com', display_name: 'Noor Ahmed', role: 'ADMIN', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T09:01:00Z', created_at: '2026-03-15T08:00:00Z' },
-  { id: 'u-12', email: 'kenji.sato@acme.com', display_name: 'Kenji Sato', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-04T05:30:00Z', created_at: '2026-03-21T14:30:00Z' },
-  { id: 'u-13', email: 'isabel.cruz@acme.com', display_name: 'Isabel Cruz', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-03T13:40:00Z', created_at: '2026-03-28T09:00:00Z' },
-  { id: 'u-14', email: 'oscar.fields@acme.com', display_name: 'Oscar Fields', role: 'READONLY', auth_provider: 'LOCAL', active: false, last_login: '2026-04-12T10:00:00Z', created_at: '2026-04-01T10:00:00Z' },
-  { id: 'u-15', email: 'hana.kim@acme.com', display_name: 'Hana Kim', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-04T08:00:00Z', created_at: '2026-04-08T10:00:00Z' },
-  { id: 'u-16', email: 'rafael.silva@acme.com', display_name: 'Rafael Silva', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login: '2026-05-04T07:14:00Z', created_at: '2026-04-12T10:00:00Z' },
-  { id: 'u-17', email: 'emma.larsen@acme.com', display_name: 'Emma Larsen', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-02T17:25:00Z', created_at: '2026-04-15T10:00:00Z' },
-  { id: 'u-18', email: 'yuki.matsuda@acme.com', display_name: 'Yuki Matsuda', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login: '2026-05-04T04:05:00Z', created_at: '2026-04-18T10:00:00Z' },
+  { id: 'u-01', email: 'alice.chen@acme.com', display_name: 'Alice Chen', role: 'ANALYST', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T09:12:00Z', created_at: '2026-01-15T10:00:00Z' },
+  { id: 'u-02', email: 'marcus.holt@acme.com', display_name: 'Marcus Holt', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T08:44:00Z', created_at: '2026-01-15T10:00:00Z' },
+  { id: 'u-03', email: 'priya.raman@acme.com', display_name: 'Priya Raman', role: 'ADMIN', auth_provider: 'SAML', active: true, last_login_at: '2026-05-04T07:22:00Z', created_at: '2026-01-15T10:00:00Z' },
+  { id: 'u-04', email: 'jonas.weber@acme.com', display_name: 'Jonas Weber', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-03T18:01:00Z', created_at: '2026-02-02T11:30:00Z' },
+  { id: 'u-05', email: 'mei.tanaka@acme.com', display_name: 'Mei Tanaka', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T06:30:00Z', created_at: '2026-02-09T08:15:00Z' },
+  { id: 'u-06', email: 'david.okafor@acme.com', display_name: 'David Okafor', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-02T14:50:00Z', created_at: '2026-02-14T13:00:00Z' },
+  { id: 'u-07', email: 'sara.lopez@acme.com', display_name: 'Sara Lopez', role: 'READONLY', auth_provider: 'LOCAL', active: true, last_login_at: '2026-04-29T11:11:00Z', created_at: '2026-02-20T09:45:00Z' },
+  { id: 'u-08', email: 'tomas.novak@acme.com', display_name: 'Tomas Novak', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-01T16:25:00Z', created_at: '2026-03-01T10:20:00Z' },
+  { id: 'u-09', email: 'aisha.bello@acme.com', display_name: 'Aisha Bello', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T07:55:00Z', created_at: '2026-03-04T15:00:00Z' },
+  { id: 'u-10', email: 'lukas.berg@acme.com', display_name: 'Lukas Berg', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-03T20:18:00Z', created_at: '2026-03-08T11:10:00Z' },
+  { id: 'u-11', email: 'noor.ahmed@acme.com', display_name: 'Noor Ahmed', role: 'ADMIN', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T09:01:00Z', created_at: '2026-03-15T08:00:00Z' },
+  { id: 'u-12', email: 'kenji.sato@acme.com', display_name: 'Kenji Sato', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-04T05:30:00Z', created_at: '2026-03-21T14:30:00Z' },
+  { id: 'u-13', email: 'isabel.cruz@acme.com', display_name: 'Isabel Cruz', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-03T13:40:00Z', created_at: '2026-03-28T09:00:00Z' },
+  { id: 'u-14', email: 'oscar.fields@acme.com', display_name: 'Oscar Fields', role: 'READONLY', auth_provider: 'LOCAL', active: false, last_login_at: '2026-04-12T10:00:00Z', created_at: '2026-04-01T10:00:00Z' },
+  { id: 'u-15', email: 'hana.kim@acme.com', display_name: 'Hana Kim', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-04T08:00:00Z', created_at: '2026-04-08T10:00:00Z' },
+  { id: 'u-16', email: 'rafael.silva@acme.com', display_name: 'Rafael Silva', role: 'REVIEWER', auth_provider: 'LOCAL', active: true, last_login_at: '2026-05-04T07:14:00Z', created_at: '2026-04-12T10:00:00Z' },
+  { id: 'u-17', email: 'emma.larsen@acme.com', display_name: 'Emma Larsen', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-02T17:25:00Z', created_at: '2026-04-15T10:00:00Z' },
+  { id: 'u-18', email: 'yuki.matsuda@acme.com', display_name: 'Yuki Matsuda', role: 'ANALYST', auth_provider: 'SAML', active: true, last_login_at: '2026-05-04T04:05:00Z', created_at: '2026-04-18T10:00:00Z' },
 ];
 
 export const DATASOURCES: Datasource[] = [
@@ -178,15 +178,17 @@ for (let i = 0; i < 80; i++) {
   const t = NOW - i * 1000 * 60 * Math.floor(rand() * 40 + 2);
   auditOut.push({
     id: `a-${10000 + i}`,
+    organization_id: 'org-demo',
     actor_id: actor.id,
-    actor_name: actor.display_name,
     actor_email: actor.email,
+    actor_display_name: actor.display_name,
     action: a.action,
     resource_type: a.resource_type,
     resource_id:
       a.resource_type === 'query_request' ? `q-${1000 + Math.floor(rand() * 60)}`
       : a.resource_type === 'datasource' ? pick(DATASOURCES).id
       : pick(USERS).id,
+    metadata: {},
     ip_address: `10.${Math.floor(rand() * 200)}.${Math.floor(rand() * 200)}.${Math.floor(rand() * 200)}`,
     user_agent: 'Mozilla/5.0 (Macintosh) AppleWebKit/537 Chrome/124',
     created_at: new Date(t).toISOString(),
@@ -238,12 +240,12 @@ for (const u of USERS) {
 export const PERMS: DatasourcePermission[] = permsOut;
 
 export const CHANNELS: NotificationChannel[] = [
-  { id: 'ch-01', type: 'EMAIL', name: 'Engineering On-Call', active: true, config: { to: ['oncall-eng@acme.com'], from: 'accessflow@acme.com' }, last_used: '2026-05-04T08:12:00Z' },
-  { id: 'ch-02', type: 'SLACK', name: '#data-access', active: true, config: { webhook: 'https://hooks.slack.com/services/T0***/B0***/***', channel: '#data-access' }, last_used: '2026-05-04T09:45:00Z' },
-  { id: 'ch-03', type: 'SLACK', name: '#data-access-prod', active: true, config: { webhook: 'https://hooks.slack.com/services/T0***/B1***/***', channel: '#data-access-prod' }, last_used: '2026-05-04T10:01:00Z' },
-  { id: 'ch-04', type: 'WEBHOOK', name: 'PagerDuty Integration', active: true, config: { url: 'https://events.pagerduty.com/integration/abc123/enqueue', secret: '***', signing: 'HMAC-SHA256' }, last_used: '2026-05-03T22:30:00Z' },
-  { id: 'ch-05', type: 'WEBHOOK', name: 'SIEM Forwarder', active: true, config: { url: 'https://siem.acme.internal/ingest', secret: '***', signing: 'HMAC-SHA256' }, last_used: '2026-05-04T07:00:00Z' },
-  { id: 'ch-06', type: 'EMAIL', name: 'DBA Team', active: false, config: { to: ['dba@acme.com'], from: 'accessflow@acme.com' }, last_used: '2026-04-10T11:00:00Z' },
+  { id: 'ch-01', organization_id: 'org-demo', channel_type: 'EMAIL', name: 'Engineering On-Call', active: true, config: { smtp_host: 'smtp.acme.com', smtp_port: 587, smtp_password: '********', from_address: 'accessflow@acme.com' }, created_at: '2026-05-01T08:12:00Z' },
+  { id: 'ch-02', organization_id: 'org-demo', channel_type: 'SLACK', name: '#data-access', active: true, config: { webhook_url: 'https://hooks.slack.com/services/T0***/B0***/***', channel: '#data-access' }, created_at: '2026-05-01T09:45:00Z' },
+  { id: 'ch-03', organization_id: 'org-demo', channel_type: 'SLACK', name: '#data-access-prod', active: true, config: { webhook_url: 'https://hooks.slack.com/services/T0***/B1***/***', channel: '#data-access-prod' }, created_at: '2026-05-01T10:01:00Z' },
+  { id: 'ch-04', organization_id: 'org-demo', channel_type: 'WEBHOOK', name: 'PagerDuty Integration', active: true, config: { url: 'https://events.pagerduty.com/integration/abc123/enqueue', secret: '********', timeout_seconds: 10 }, created_at: '2026-05-01T22:30:00Z' },
+  { id: 'ch-05', organization_id: 'org-demo', channel_type: 'WEBHOOK', name: 'SIEM Forwarder', active: true, config: { url: 'https://siem.acme.internal/ingest', secret: '********' }, created_at: '2026-05-01T07:00:00Z' },
+  { id: 'ch-06', organization_id: 'org-demo', channel_type: 'EMAIL', name: 'DBA Team', active: false, config: { smtp_host: 'smtp.acme.com', smtp_port: 587, smtp_password: '********', from_address: 'accessflow@acme.com' }, created_at: '2026-04-10T11:00:00Z' },
 ];
 
 export const DEMO_NOW = NOW;

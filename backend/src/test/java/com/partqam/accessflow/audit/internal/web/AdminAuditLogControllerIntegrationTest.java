@@ -116,6 +116,35 @@ class AdminAuditLogControllerIntegrationTest {
                 .isEqualTo("user");
         assertThat(result).bodyJson().extractingPath("$.content[0].ip_address").asString()
                 .startsWith("127.0.0.1");
+        assertThat(result).bodyJson().extractingPath("$.content[0].actor_email").asString()
+                .isEqualTo("analyst@example.com");
+        assertThat(result).bodyJson().extractingPath("$.content[0].actor_display_name").asString()
+                .isEqualTo("analyst@example.com");
+    }
+
+    @Test
+    void systemDrivenRowsHaveNullActorEnrichment() throws Exception {
+        auditLogService.record(new AuditEntry(
+                AuditAction.QUERY_AI_ANALYZED,
+                AuditResourceType.QUERY_REQUEST,
+                UUID.randomUUID(),
+                org.getId(),
+                null,
+                Map.of("risk", "LOW"),
+                null,
+                null));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        // Jackson drops nulls, so the absent fields confirm the null actor enrichment.
+        var body = result.getResponse().getContentAsString();
+        assertThat(body).doesNotContain("\"actor_id\"")
+                .doesNotContain("\"actor_email\"")
+                .doesNotContain("\"actor_display_name\"")
+                .contains("\"action\":\"QUERY_AI_ANALYZED\"");
     }
 
     @Test
