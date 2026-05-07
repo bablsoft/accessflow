@@ -145,6 +145,7 @@ com.partqam.accessflow/
 - Use `ResponseEntity` only when setting custom headers or non-default status codes; return concrete types otherwise.
 - Every controller method MUST have Springdoc `@Operation` and `@ApiResponse` annotations.
 - Request DTOs use Bean Validation annotations (`@NotNull`, `@Size`, `@Valid`, etc.).
+- **Validation parity rule:** Every Bean Validation constraint on a request DTO (`@NotBlank`, `@Email`, `@Size`, `@Pattern`, `@NotNull`, etc.) must have a matching client-side rule in the frontend form that submits to that endpoint. When you add, change, or remove a constraint on either side, update the other side in the same commit.
 - All API response envelopes follow the error format in `docs/04-api-spec.md`.
 
 #### Database & JPA
@@ -540,6 +541,7 @@ CI pipeline (`.github/workflows/frontend-ci.yml`):
 
 - Use Ant Design `Form` + `Form.Item`; do not manage form state manually with `useState`.
 - Mirror server-side validation rules in the form (e.g. `name` length 3–50, `host` non-empty) so users see errors before submit. The server remains the source of truth — surface its 400/422 responses field-level when `error.path` is present.
+- **Validation parity rule:** Every `Form.Item` rule must mirror the corresponding backend DTO Bean Validation constraint for that field — and vice versa. For example, a backend `@Size(min=8, max=128)` requires `{ min: 8, max: 128 }` on the frontend rule; a frontend `type: 'email'` requires `@Email` on the backend DTO. When adding or changing validation on either side, update the other side in the same change.
 - For runtime validation of API responses with non-trivial shapes (AI analysis, datasource schema), use `zod` (add the dep when first needed). Don't trust `as` casts.
 - Submit handlers are typed (`(values: SubmitQueryRequest) => Promise<void>`); never `any`.
 - Disable the submit button while pending; render a spinner inside the button, not a full-page loader.
