@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 
 record CreateNotificationChannelRequest(
-        @NotBlank String name,
-        @NotNull NotificationChannelType channelType,
-        @NotNull Map<String, Object> config) {
+        @NotBlank(message = "{validation.notification_name.required}") String name,
+        @NotNull(message = "{validation.notification_type.required}") NotificationChannelType channelType,
+        @NotNull(message = "{validation.notification_config.required}") Map<String, Object> config) {
 }

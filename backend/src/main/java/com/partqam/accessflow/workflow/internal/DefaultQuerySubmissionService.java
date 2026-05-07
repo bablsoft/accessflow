@@ -15,6 +15,8 @@ import com.partqam.accessflow.proxy.api.SqlParserService;
 import com.partqam.accessflow.workflow.api.QuerySubmissionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,18 +32,22 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final QueryRequestPersistenceService queryRequestPersistenceService;
     private final ApplicationEventPublisher eventPublisher;
+    private final MessageSource messageSource;
+
+    private String msg(String key) {
+        return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
+    }
 
     @Override
     @Transactional
     public QuerySubmissionResult submit(SubmissionInput input) {
         var parsed = sqlParserService.parse(input.sql());
         if (parsed.type() == QueryType.OTHER) {
-            throw new InvalidSqlException("Query type not supported");
+            throw new InvalidSqlException(msg("error.query_type_not_supported"));
         }
         var datasource = resolveDatasource(input);
         if (!datasource.active()) {
-            throw new DatasourceUnavailableException(
-                    "Datasource is inactive: " + datasource.id());
+            throw new DatasourceUnavailableException(msg("error.datasource_unavailable_inactive"));
         }
         if (!input.isAdmin()) {
             verifyPermission(input.submitterUserId(), datasource.id(), parsed.type());

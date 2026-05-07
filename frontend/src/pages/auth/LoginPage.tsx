@@ -8,6 +8,7 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { authErrorMessage } from '@/utils/apiErrors';
@@ -22,6 +23,7 @@ interface LoginFormValues {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const initialSetupSuccess =
@@ -56,7 +58,7 @@ export function LoginPage() {
 
   const samlLogin = () => {
     // SAML SSO is wired in a follow-up; FE-01 covers /auth/* local auth only.
-    setError('SAML SSO is not configured yet. Please sign in with email and password.');
+    setError(t('auth.login.saml_not_configured'));
   };
 
   return (
@@ -99,7 +101,7 @@ export function LoginPage() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
-              AccessFlow
+              {t('common.app_name')}
             </div>
             <div className="mono muted" style={{ fontSize: 10 }}>
               {edition.toLowerCase()} · v0.1.0
@@ -118,17 +120,17 @@ export function LoginPage() {
         >
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Sign in to your workspace
+              {t('auth.login.title')}
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
-              Enter your credentials to continue.
+              {t('auth.login.subtitle')}
             </div>
           </div>
 
           {setupSuccess && (
             <Alert
               type="success"
-              message="Admin created. Sign in to continue."
+              message={t('auth.login.setup_success_banner')}
               style={{ marginBottom: 16 }}
               showIcon
               closable
@@ -156,7 +158,7 @@ export function LoginPage() {
                 style={{ marginBottom: 16 }}
                 icon={<SafetyCertificateOutlined />}
               >
-                Continue with SAML SSO
+                {t('auth.login.saml_button')}
               </Button>
               <div
                 style={{
@@ -168,7 +170,7 @@ export function LoginPage() {
               >
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 <span className="muted mono" style={{ fontSize: 10 }}>
-                  OR
+                  {t('auth.login.or_divider')}
                 </span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
               </div>
@@ -188,17 +190,17 @@ export function LoginPage() {
           >
             <Form.Item
               name="email"
-              label="Email"
+              label={t('auth.login.email_label')}
               rules={[
-                { required: true, message: 'Email is required.' },
-                { type: 'email', message: 'Enter a valid email address.' },
+                { required: true, message: t('validation.email_required') },
+                { type: 'email', message: t('validation.email_invalid') },
               ]}
             >
               <Input
                 id="login-email"
                 type="email"
                 autoComplete="email"
-                placeholder="you@company.com"
+                placeholder={t('auth.login.email_placeholder')}
               />
             </Form.Item>
 
@@ -206,7 +208,7 @@ export function LoginPage() {
               name="password"
               label={
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <span>Password</span>
+                  <span>{t('auth.login.password_label')}</span>
                   <a
                     href="#"
                     className="muted"
@@ -218,8 +220,8 @@ export function LoginPage() {
                 </div>
               }
               rules={[
-                { required: true, message: 'Password is required.' },
-                { min: 8, max: 128, message: 'Password must be 8–128 characters.' },
+                { required: true, message: t('validation.password_required') },
+                { min: 8, max: 128, message: t('validation.password_size') },
               ]}
             >
               <Input
@@ -230,7 +232,7 @@ export function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
-                    aria-label={showPw ? 'Hide password' : 'Show password'}
+                    aria-label={showPw ? t('auth.login.hide_password') : t('auth.login.show_password')}
                     style={{
                       background: 'transparent',
                       border: 0,
@@ -252,7 +254,7 @@ export function LoginPage() {
               disabled={loading}
               icon={loading ? <LoadingOutlined /> : <ArrowRightOutlined />}
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? t('auth.login.submitting') : t('auth.login.submit')}
             </Button>
           </Form>
         </div>

@@ -183,6 +183,16 @@ com.partqam.accessflow/
 - A global `@ControllerAdvice` maps exceptions to `ProblemDetail` responses.
 - Never expose stack traces or internal details in API error responses.
 
+#### Internationalisation (i18n)
+
+- **Never hardcode user-facing strings in Java source.** All exception `detail` messages and validation messages must live in `src/main/resources/i18n/messages.properties`. Developer-facing log messages (SLF4J calls) may remain in code.
+- Bean Validation `message` attributes must use `{key}` syntax referencing a key in `messages.properties` — e.g. `@NotBlank(message = "{validation.email.required}")`. Never use inline English text as a `message` attribute value.
+- Exception handlers must resolve `ProblemDetail.detail` via `messageSource.getMessage(key, args, LocaleContextHolder.getLocale())`. Never pass `ex.getMessage()` from a constructor-built message as the detail string.
+- Service classes that throw exceptions with varying messages per call site must inject `MessageSource` and resolve the message at the `throw` site using `LocaleContextHolder.getLocale()`.
+- `SecurityExceptionHandler` (writes directly to `HttpServletResponse`) must use `request.getLocale()` — it cannot use `LocaleContextHolder`.
+- Message key naming convention: `error.<snake_case>` for exception messages; `validation.<field>.<rule>` for Bean Validation messages. Add the key to `messages.properties` in the same commit that adds the exception or constraint.
+- Adding a new language requires only a new `messages_<locale>.properties` file — no code changes.
+
 ---
 
 ### Configuration
@@ -545,6 +555,18 @@ CI pipeline (`.github/workflows/frontend-ci.yml`):
 - For runtime validation of API responses with non-trivial shapes (AI analysis, datasource schema), use `zod` (add the dep when first needed). Don't trust `as` casts.
 - Submit handlers are typed (`(values: SubmitQueryRequest) => Promise<void>`); never `any`.
 - Disable the submit button while pending; render a spinner inside the button, not a full-page loader.
+
+### Internationalisation (i18n)
+
+- **Never hardcode user-facing strings in JSX or TypeScript.** All visible text — form labels, placeholders, button labels, page titles, column headers, error messages, `aria-label` values — must come from the `t()` function provided by `react-i18next`.
+- React components use `const { t } = useTranslation();`. Plain utility functions (under `src/utils/`) that produce user-visible strings use `i18n.t()` imported from `src/i18n.ts`.
+- All English translations live in `src/locales/en.json`. Key convention: `<feature>.<screen>.<element>` (e.g. `auth.login.title`, `nav.editor`, `validation.email_required`). Adding a new language requires only a new `src/locales/<locale>.json` file and registering it in `src/i18n.ts`.
+- When adding a new user-visible string: add the key to `src/locales/en.json` first, then reference it with `t('the.key')`. Never inline an English string directly.
+- Plurals use the i18next `_one` / `_other` suffix convention, called with `t('key', { count: n })`.
+- `ConfigProvider` in `src/main.tsx` must receive `locale={enUS}` so built-in Ant Design text (DatePicker, Pagination, Table, etc.) is also localised.
+- `dayjs.locale('en')` must be called in `src/main.tsx` before the React tree mounts.
+- The i18n bootstrap (`import './i18n'`) must be the **first import** in `src/main.tsx`.
+- Type-safe keys: `src/i18n.d.ts` declares `CustomTypeOptions` so `t('nonexistent.key')` is a compile error. Do not disable or bypass this check.
 
 ### Loading, Empty, and Skeleton States
 

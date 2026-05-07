@@ -8,6 +8,7 @@ import {
   PlusOutlined,
   SendOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Pill } from '@/components/common/Pill';
 import { CHANNELS } from '@/mocks/data';
@@ -15,12 +16,13 @@ import { timeAgo } from '@/utils/dateFormat';
 import type { NotificationChannel } from '@/types/api';
 
 export function NotificationsPage() {
+  const { t } = useTranslation();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Notification channels"
-        subtitle="Where AccessFlow sends review events, approvals, and security alerts."
-        actions={<Button type="primary" icon={<PlusOutlined />}>Add channel</Button>}
+        title={t('admin.notifications.title')}
+        subtitle={t('admin.notifications.subtitle')}
+        actions={<Button type="primary" icon={<PlusOutlined />}>{t('admin.notifications.add_button')}</Button>}
       />
       <div
         style={{
@@ -42,6 +44,7 @@ export function NotificationsPage() {
 }
 
 function ChannelCard({ ch }: { ch: NotificationChannel }) {
+  const { t } = useTranslation();
   const icon = ch.type === 'EMAIL'
     ? <MailOutlined style={{ fontSize: 18 }} />
     : ch.type === 'SLACK'
@@ -125,11 +128,11 @@ function ChannelCard({ ch }: { ch: NotificationChannel }) {
         }}
       >
         <span className="mono muted" style={{ fontSize: 10 }}>
-          last sent · {timeAgo(ch.last_used)}
+          {t('admin.notifications.last_sent', { time: timeAgo(ch.last_used) })}
         </span>
         <div style={{ flex: 1 }} />
-        <Button size="small" icon={<PlayCircleOutlined />}>Test</Button>
-        <Button size="small" icon={<EditOutlined />}>Edit</Button>
+        <Button size="small" icon={<PlayCircleOutlined />}>{t('common.test')}</Button>
+        <Button size="small" icon={<EditOutlined />}>{t('common.edit')}</Button>
       </div>
     </div>
   );

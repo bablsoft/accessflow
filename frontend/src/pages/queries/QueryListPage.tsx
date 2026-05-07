@@ -4,6 +4,7 @@ import type { TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -20,6 +21,7 @@ const TYPES: QueryType[] = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DDL'];
 const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 export function QueryListPage() {
+  const { t } = useTranslation();
   const queries = useQueriesStore((s) => s.queries);
   const navigate = useNavigate();
 
@@ -67,9 +69,9 @@ export function QueryListPage() {
   );
 
   const cols: TableColumnsType<QueryRequest> = [
-    { title: 'ID', dataIndex: 'id', width: 110, render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v}</span> },
+    { title: t('queries.list.col_id'), dataIndex: 'id', width: 110, render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v}</span> },
     {
-      title: 'SQL',
+      title: t('queries.list.col_sql'),
       dataIndex: 'sql',
       ellipsis: true,
       render: (v: string) => (
@@ -87,12 +89,12 @@ export function QueryListPage() {
         </div>
       ),
     },
-    { title: 'Type', dataIndex: 'query_type', width: 80, render: (v: QueryType) => <QueryTypePill type={v} /> },
-    { title: 'Status', dataIndex: 'status', width: 130, render: (v: QueryStatus) => <StatusPill status={v} /> },
-    { title: 'Risk', dataIndex: 'risk_level', width: 130, render: (_v: RiskLevel, r) => <RiskPill level={r.risk_level} score={r.risk_score} /> },
-    { title: 'Datasource', dataIndex: 'datasource_name', width: 200, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
+    { title: t('queries.list.col_type'), dataIndex: 'query_type', width: 80, render: (v: QueryType) => <QueryTypePill type={v} /> },
+    { title: t('queries.list.col_status'), dataIndex: 'status', width: 130, render: (v: QueryStatus) => <StatusPill status={v} /> },
+    { title: t('queries.list.col_risk'), dataIndex: 'risk_level', width: 130, render: (_v: RiskLevel, r) => <RiskPill level={r.risk_level} score={r.risk_score} /> },
+    { title: t('queries.list.col_datasource'), dataIndex: 'datasource_name', width: 200, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
     {
-      title: 'Submitter',
+      title: t('queries.list.col_submitter'),
       dataIndex: 'submitter_name',
       width: 180,
       render: (v: string) => (
@@ -102,15 +104,15 @@ export function QueryListPage() {
         </div>
       ),
     },
-    { title: 'Created', dataIndex: 'created_at', width: 110, render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span> },
+    { title: t('queries.list.col_created'), dataIndex: 'created_at', width: 110, render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span> },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Query history"
-        subtitle="All queries you've submitted or have access to view."
-        actions={<Button icon={<DownloadOutlined />}>Export CSV</Button>}
+        title={t('queries.list.title')}
+        subtitle={t('queries.list.subtitle')}
+        actions={<Button icon={<DownloadOutlined />}>{t('common.export_csv')}</Button>}
       />
       <div
         style={{
@@ -125,7 +127,7 @@ export function QueryListPage() {
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Search SQL, ID or submitter…"
+          placeholder={t('queries.list.search_placeholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 260 }}
@@ -134,7 +136,7 @@ export function QueryListPage() {
           value={status}
           onChange={(v) => setStatus(v)}
           options={[
-            { value: 'all', label: 'All statuses' },
+            { value: 'all', label: t('queries.list.filter_all_statuses') },
             ...STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') })),
           ]}
           style={{ width: 160 }}
@@ -142,20 +144,20 @@ export function QueryListPage() {
         <Select
           value={type}
           onChange={(v) => setType(v)}
-          options={[{ value: 'all', label: 'All types' }, ...TYPES.map((t) => ({ value: t, label: t }))]}
+          options={[{ value: 'all', label: t('queries.list.filter_all_types') }, ...TYPES.map((tp) => ({ value: tp, label: tp }))]}
           style={{ width: 130 }}
         />
         <Select
           value={risk}
           onChange={(v) => setRisk(v)}
-          options={[{ value: 'all', label: 'All risk' }, ...RISKS.map((r) => ({ value: r, label: r }))]}
+          options={[{ value: 'all', label: t('queries.list.filter_all_risk') }, ...RISKS.map((r) => ({ value: r, label: r }))]}
           style={{ width: 130 }}
         />
         <Select
           value={submitter}
           onChange={(v) => setSubmitter(v)}
           options={[
-            { value: 'all', label: 'All submitters' },
+            { value: 'all', label: t('queries.list.filter_all_submitters') },
             ...submitters.map(([id, name]) => ({ value: id, label: name })),
           ]}
           style={{ width: 180 }}
@@ -164,7 +166,7 @@ export function QueryListPage() {
           value={datasource}
           onChange={(v) => setDatasource(v)}
           options={[
-            { value: 'all', label: 'All datasources' },
+            { value: 'all', label: t('queries.list.filter_all_datasources') },
             ...dsOpts.map(([id, name]) => ({ value: id, label: name })),
           ]}
           style={{ width: 200 }}
@@ -175,7 +177,7 @@ export function QueryListPage() {
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11 }}>
-          {filtered.length} of {queries.length}
+          {t('queries.list.count_label', { filtered: filtered.length, total: queries.length })}
         </span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>

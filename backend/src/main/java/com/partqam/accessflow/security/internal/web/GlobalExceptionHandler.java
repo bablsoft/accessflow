@@ -17,6 +17,9 @@ import com.partqam.accessflow.proxy.api.InvalidSqlException;
 import com.partqam.accessflow.proxy.api.PoolInitializationException;
 import com.partqam.accessflow.proxy.api.QueryExecutionFailedException;
 import com.partqam.accessflow.proxy.api.QueryExecutionTimeoutException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,14 +33,21 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 class GlobalExceptionHandler {
+
+    private final MessageSource messageSource;
+
+    private String msg(String key, Object... args) {
+        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         var fieldErrors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage,
                         (a, b) -> a));
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg("error.validation_failed"));
         pd.setProperty("error", "VALIDATION_ERROR");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("fields", fieldErrors);
@@ -46,7 +56,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     ProblemDetail handleAuthentication(AuthenticationException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.unauthorized"));
         pd.setProperty("error", "UNAUTHORIZED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -54,7 +64,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, msg("error.forbidden"));
         pd.setProperty("error", "FORBIDDEN");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -62,7 +72,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
     ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.email_already_exists"));
         pd.setProperty("error", "EMAIL_ALREADY_EXISTS");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -70,7 +80,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(SetupAlreadyCompletedException.class)
     ProblemDetail handleSetupAlreadyCompleted(SetupAlreadyCompletedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.setup_already_completed"));
         pd.setProperty("error", "SETUP_ALREADY_COMPLETED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -78,7 +88,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     ProblemDetail handleUserNotFound(UserNotFoundException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_not_found"));
         pd.setProperty("error", "USER_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -86,7 +96,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalUserOperationException.class)
     ProblemDetail handleIllegalUserOperation(IllegalUserOperationException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_user_operation"));
         pd.setProperty("error", "ILLEGAL_USER_OPERATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -94,7 +104,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceNotFoundException.class)
     ProblemDetail handleDatasourceNotFound(DatasourceNotFoundException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.datasource_not_found"));
         pd.setProperty("error", "DATASOURCE_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -102,7 +112,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceNameAlreadyExistsException.class)
     ProblemDetail handleDatasourceNameAlreadyExists(DatasourceNameAlreadyExistsException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.datasource_name_already_exists"));
         pd.setProperty("error", "DATASOURCE_NAME_ALREADY_EXISTS");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -111,7 +121,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(DatasourcePermissionAlreadyExistsException.class)
     ProblemDetail handleDatasourcePermissionAlreadyExists(
             DatasourcePermissionAlreadyExistsException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.datasource_permission_already_exists"));
         pd.setProperty("error", "DATASOURCE_PERMISSION_ALREADY_EXISTS");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -119,7 +129,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourcePermissionNotFoundException.class)
     ProblemDetail handleDatasourcePermissionNotFound(DatasourcePermissionNotFoundException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.datasource_permission_not_found"));
         pd.setProperty("error", "DATASOURCE_PERMISSION_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -127,7 +137,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceConnectionTestException.class)
     ProblemDetail handleDatasourceConnectionTest(DatasourceConnectionTestException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.datasource_connection_test_failed"));
         pd.setProperty("error", "DATASOURCE_CONNECTION_TEST_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -135,7 +145,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalDatasourcePermissionException.class)
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_permission"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -143,6 +153,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidSqlException.class)
     ProblemDetail handleInvalidSql(InvalidSqlException ex) {
+        // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "INVALID_SQL");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -151,7 +162,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(QueryExecutionTimeoutException.class)
     ProblemDetail handleQueryExecutionTimeout(QueryExecutionTimeoutException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.GATEWAY_TIMEOUT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.GATEWAY_TIMEOUT,
+                msg("error.query_execution_timeout", ex.timeout().toSeconds()));
         pd.setProperty("error", "QUERY_EXECUTION_TIMEOUT");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("timeoutSeconds", ex.timeout().toSeconds());
@@ -160,6 +172,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(QueryExecutionFailedException.class)
     ProblemDetail handleQueryExecutionFailed(QueryExecutionFailedException ex) {
+        // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "QUERY_EXECUTION_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -172,6 +185,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceUnavailableException.class)
     ProblemDetail handleDatasourceUnavailable(DatasourceUnavailableException ex) {
+        // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "DATASOURCE_UNAVAILABLE");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -180,6 +194,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PoolInitializationException.class)
     ProblemDetail handlePoolInitialization(PoolInitializationException ex) {
+        // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
         pd.setProperty("error", "POOL_INITIALIZATION_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -188,7 +203,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(QueryRequestNotFoundException.class)
     ProblemDetail handleQueryRequestNotFound(QueryRequestNotFoundException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.query_request_not_found"));
         pd.setProperty("error", "QUERY_REQUEST_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -196,7 +211,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalQueryStatusTransitionException.class)
     ProblemDetail handleIllegalQueryStatusTransition(IllegalQueryStatusTransitionException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.illegal_status_transition"));
         pd.setProperty("error", "ILLEGAL_STATUS_TRANSITION");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("actual", ex.actual().name());
@@ -206,8 +221,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleGeneral(Exception ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred");
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, msg("error.internal"));
         pd.setProperty("error", "INTERNAL_SERVER_ERROR");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

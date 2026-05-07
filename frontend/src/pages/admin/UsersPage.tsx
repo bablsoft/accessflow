@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Input, Select, Table } from 'antd';
 import { DownloadOutlined, MoreOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
 import { RolePill } from '@/components/common/RolePill';
@@ -9,6 +10,7 @@ import { USERS } from '@/mocks/data';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 
 export function UsersPage() {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const filtered = useMemo(
     () =>
@@ -23,12 +25,12 @@ export function UsersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Users"
-        subtitle={`${USERS.length} users in your organization`}
+        title={t('admin.users.title')}
+        subtitle={t('admin.users.subtitle_count', { count: USERS.length })}
         actions={
           <>
-            <Button icon={<DownloadOutlined />}>Export</Button>
-            <Button type="primary" icon={<PlusOutlined />}>Invite user</Button>
+            <Button icon={<DownloadOutlined />}>{t('common.export')}</Button>
+            <Button type="primary" icon={<PlusOutlined />}>{t('common.invite')}</Button>
           </>
         }
       />
@@ -43,7 +45,7 @@ export function UsersPage() {
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Search name or email…"
+          placeholder={t('admin.users.search_placeholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 280 }}
@@ -52,7 +54,7 @@ export function UsersPage() {
           defaultValue="all"
           style={{ width: 130 }}
           options={[
-            { value: 'all', label: 'All roles' },
+            { value: 'all', label: t('admin.users.filter_all_roles') },
             { value: 'ADMIN', label: 'ADMIN' },
             { value: 'REVIEWER', label: 'REVIEWER' },
             { value: 'ANALYST', label: 'ANALYST' },
@@ -63,7 +65,7 @@ export function UsersPage() {
           defaultValue="all"
           style={{ width: 150 }}
           options={[
-            { value: 'all', label: 'All providers' },
+            { value: 'all', label: t('admin.users.filter_all_providers') },
             { value: 'LOCAL', label: 'LOCAL' },
             { value: 'SAML', label: 'SAML' },
           ]}
@@ -77,7 +79,7 @@ export function UsersPage() {
           pagination={{ pageSize: 12 }}
           columns={[
             {
-              title: 'User',
+              title: t('admin.users.col_user'),
               render: (_v, u) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={u.display_name} size={28} />
@@ -88,36 +90,36 @@ export function UsersPage() {
                 </div>
               ),
             },
-            { title: 'Role', dataIndex: 'role', width: 110, render: (v) => <RolePill role={v} size="sm" /> },
+            { title: t('admin.users.col_role'), dataIndex: 'role', width: 110, render: (v) => <RolePill role={v} size="sm" /> },
             {
-              title: 'Auth',
+              title: t('admin.users.col_auth'),
               dataIndex: 'auth_provider',
               width: 110,
               render: (v) => <span className="mono" style={{ fontSize: 11 }}>{v}</span>,
             },
             {
-              title: 'Status',
+              title: t('admin.users.col_status'),
               dataIndex: 'active',
               width: 90,
               render: (v) =>
                 v ? (
                   <Pill fg="var(--risk-low)" bg="var(--risk-low-bg)" border="var(--risk-low-border)" withDot size="sm">
-                    active
+                    {t('admin.users.status_active')}
                   </Pill>
                 ) : (
                   <Pill fg="var(--fg-muted)" bg="var(--status-neutral-bg)" border="var(--status-neutral-border)" withDot size="sm">
-                    inactive
+                    {t('admin.users.status_inactive')}
                   </Pill>
                 ),
             },
             {
-              title: 'Last login',
+              title: t('admin.users.col_last_login'),
               dataIndex: 'last_login',
               width: 140,
               render: (v) => <span className="muted">{timeAgo(v)}</span>,
             },
             {
-              title: 'Created',
+              title: t('admin.users.col_created'),
               dataIndex: 'created_at',
               width: 140,
               render: (v) => <span className="muted">{fmtDate(v).split(',')[0]}</span>,

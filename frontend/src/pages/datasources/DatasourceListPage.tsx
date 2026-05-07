@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Button, Input } from 'antd';
 import { DatabaseOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Pill } from '@/components/common/Pill';
 import { DATASOURCES, PERMS, REVIEW_PLANS } from '@/mocks/data';
@@ -9,6 +10,7 @@ import { useQueriesStore } from '@/store/queriesStore';
 import type { Datasource } from '@/types/api';
 
 export function DatasourceListPage() {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const queries = useQueriesStore((s) => s.queries);
   const navigate = useNavigate();
@@ -20,9 +22,9 @@ export function DatasourceListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Datasources"
-        subtitle="Connected customer databases proxied through AccessFlow."
-        actions={<Button type="primary" icon={<PlusOutlined />}>Add datasource</Button>}
+        title={t('datasources.list.title')}
+        subtitle={t('datasources.list.subtitle')}
+        actions={<Button type="primary" icon={<PlusOutlined />}>{t('datasources.list.add_button')}</Button>}
       />
       <div
         style={{
@@ -35,14 +37,14 @@ export function DatasourceListPage() {
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Search datasources…"
+          placeholder={t('datasources.list.search_placeholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 280 }}
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
-          {filtered.length} of {DATASOURCES.length}
+          {t('datasources.list.count_label', { filtered: filtered.length, total: DATASOURCES.length })}
         </span>
       </div>
       <div
@@ -60,7 +62,7 @@ export function DatasourceListPage() {
           <DsCard
             key={ds.id}
             ds={ds}
-            queries={queries.filter((q) => q.datasource_id === ds.id).length}
+            queries={queries.filter((qr) => qr.datasource_id === ds.id).length}
             users={PERMS.filter((p) => p.datasource_id === ds.id).length}
             onOpen={() => navigate(`/datasources/${ds.id}/settings`)}
           />
@@ -78,6 +80,7 @@ interface CardProps {
 }
 
 function DsCard({ ds, queries, users, onOpen }: CardProps) {
+  const { t } = useTranslation();
   const plan = REVIEW_PLANS.find((p) => p.id === ds.plan)!;
   return (
     <div
@@ -169,9 +172,9 @@ function DsCard({ ds, queries, users, onOpen }: CardProps) {
           borderTop: '1px solid var(--border)',
         }}
       >
-        <Stat label="plan" value={plan.name.split(' ')[0]!} />
-        <Stat label="users" value={users} />
-        <Stat label="queries" value={queries} />
+        <Stat label={t('datasources.list.stat_plan')} value={plan.name.split(' ')[0]!} />
+        <Stat label={t('datasources.list.stat_users')} value={users} />
+        <Stat label={t('datasources.list.stat_queries')} value={queries} />
       </div>
     </div>
   );

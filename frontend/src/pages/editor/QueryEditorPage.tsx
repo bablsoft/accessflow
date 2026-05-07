@@ -7,6 +7,7 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import { SqlEditor } from '@/components/editor/SqlEditor';
@@ -28,6 +29,7 @@ WHERE id = 88210
 LIMIT 1;`;
 
 export function QueryEditorPage() {
+  const { t } = useTranslation();
   const datasources = DATASOURCES.filter((d) => d.active);
   const [dsId, setDsId] = useState(datasources[0]!.id);
   const [sql, setSql] = useState(DEFAULT_SQL);
@@ -48,11 +50,11 @@ export function QueryEditorPage() {
       return;
     }
     setAnalyzing(true);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setAnalysis(mockAnalyze(sql));
       setAnalyzing(false);
     }, 700);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [sql]);
 
   const handleSubmit = async () => {
@@ -64,7 +66,7 @@ export function QueryEditorPage() {
         justification,
       });
       message.success({
-        content: `Query submitted · ${created.id}`,
+        content: t('editor.submit_success', { id: created.id }),
         duration: 2.5,
       });
       navigate(`/queries/${created.id}`);
@@ -73,15 +75,17 @@ export function QueryEditorPage() {
     }
   };
 
+  const lineCount = (sql.match(/\n/g) ?? []).length + 1;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="SQL editor"
-        subtitle="Submit a query for AI and human review."
+        title={t('editor.title')}
+        subtitle={t('editor.subtitle')}
         actions={
           <>
             <Button icon={<FolderOpenOutlined />} onClick={() => navigate('/queries')}>
-              History
+              {t('editor.history_button')}
             </Button>
             <Button
               type="primary"
@@ -91,7 +95,7 @@ export function QueryEditorPage() {
               disabled={submitState !== 'idle' || !sql.trim()}
               onClick={handleSubmit}
             >
-              {submitState === 'submitting' ? 'Submitting' : 'Submit for review'}
+              {submitState === 'submitting' ? t('editor.submitting_button') : t('editor.submit_button')}
             </Button>
           </>
         }
@@ -110,11 +114,11 @@ export function QueryEditorPage() {
             </span>
             <span style={{ color: 'var(--fg-faint)' }}>·</span>
             <span className="mono muted" style={{ fontSize: 11 }}>
-              {(sql.match(/\n/g) ?? []).length + 1} lines
+              {t('editor.lines_count', { count: lineCount })}
             </span>
             <span style={{ color: 'var(--fg-faint)' }}>·</span>
             <span className="mono muted" style={{ fontSize: 11 }}>
-              {sql.length} chars
+              {t('editor.chars_count', { count: sql.length })}
             </span>
             <div style={{ flex: 1 }} />
             {analyzing ? (
@@ -127,7 +131,7 @@ export function QueryEditorPage() {
                   fontSize: 11,
                 }}
               >
-                <span className="spinner" /> AI analyzing…
+                <span className="spinner" /> {t('editor.ai_analyzing')}
               </span>
             ) : analysis ? (
               <RiskPill level={analysis.risk_level} score={analysis.risk_score} size="sm" />
@@ -137,7 +141,7 @@ export function QueryEditorPage() {
               icon={<ThunderboltOutlined />}
               onClick={() => setSql(formatSql(sql, ds.db_type))}
             >
-              Format <span className="kbd" style={{ marginLeft: 4 }}>⌘⇧F</span>
+              {t('editor.format_button')} <span className="kbd" style={{ marginLeft: 4 }}>⌘⇧F</span>
             </Button>
           </div>
           <div className="af-editor-body">
@@ -154,15 +158,15 @@ export function QueryEditorPage() {
                 className="muted"
                 style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
               >
-                Justification{' '}
+                {t('editor.justification_label')}{' '}
                 <span className="muted" style={{ fontWeight: 400 }}>
-                  · required for review
+                  {t('editor.justification_required_note')}
                 </span>
               </label>
               <Input.TextArea
                 value={justification}
                 onChange={(e) => setJustification(e.target.value)}
-                placeholder="Why are you running this query?"
+                placeholder={t('editor.justification_placeholder')}
                 rows={3}
               />
             </div>
@@ -174,4 +178,3 @@ export function QueryEditorPage() {
     </div>
   );
 }
-

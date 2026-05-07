@@ -11,6 +11,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -25,6 +26,7 @@ import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { approveQuery, cancelQuery, rejectQuery } from '@/api/queries';
 
 export function QueryDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const query = useQueriesStore((s) => s.queries.find((q) => q.id === id));
@@ -83,9 +85,9 @@ export function QueryDetailPage() {
   if (!query || !ds || !plan || !user) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <div className="muted">Query not found.</div>
+        <div className="muted">{t('queries.detail.not_found_message')}</div>
         <Button onClick={() => navigate('/queries')} style={{ marginTop: 12 }}>
-          Back to history
+          {t('queries.detail.back_to_history')}
         </Button>
       </div>
     );
@@ -101,21 +103,21 @@ export function QueryDetailPage() {
 
   const onApprove = async () => {
     await approveQuery(query.id, comment);
-    message.success('Approved · forwarded to execution');
+    message.success(t('queries.detail.on_approve_success'));
   };
   const onReject = async () => {
     await rejectQuery(query.id, comment);
-    message.error('Rejected · submitter notified');
+    message.error(t('queries.detail.on_reject_success'));
   };
   const onCancel = async () => {
     await cancelQuery(query.id);
-    message.info('Query cancelled');
+    message.info(t('queries.detail.on_cancel_success'));
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        breadcrumbs={['Queries', query.id]}
+        breadcrumbs={[t('queries.detail.breadcrumb_queries'), query.id]}
         title={
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
             <span className="mono">{query.id}</span>
@@ -124,19 +126,19 @@ export function QueryDetailPage() {
         }
         subtitle={
           <>
-            Submitted by <strong>{query.submitter_name}</strong> · {fmtDate(query.created_at)} ·{' '}
+            {t('queries.detail.submitted_by')} <strong>{query.submitter_name}</strong> · {fmtDate(query.created_at)} ·{' '}
             <span className="mono">{query.datasource_name}</span>
           </>
         }
         actions={
           <>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/queries')}>
-              Back
+              {t('common.back')}
             </Button>
-            <Button icon={<CopyOutlined />}>Duplicate</Button>
+            <Button icon={<CopyOutlined />}>{t('common.duplicate')}</Button>
             {canCancel && (
               <Button danger icon={<CloseOutlined />} onClick={onCancel}>
-                Cancel query
+                {t('queries.detail.cancel_query')}
               </Button>
             )}
           </>
@@ -154,18 +156,18 @@ export function QueryDetailPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <Card title="SQL" icon={<FileTextOutlined />} extra={<QueryTypePill type={query.query_type} />}>
+          <Card title={t('queries.detail.card_sql')} icon={<FileTextOutlined />} extra={<QueryTypePill type={query.query_type} />}>
             <div style={{ padding: 14 }}>
               <SqlBlock sql={query.sql} />
             </div>
           </Card>
 
-          <Card title="Justification" icon={<InfoCircleOutlined />}>
+          <Card title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
             <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>{query.justification}</div>
           </Card>
 
           <Card
-            title="AI analysis"
+            title={t('queries.detail.card_ai')}
             icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
             extra={
               <>
@@ -177,7 +179,7 @@ export function QueryDetailPage() {
             }
           >
             <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
-              {query.ai_summary || <span className="muted">Awaiting analysis…</span>}
+              {query.ai_summary || <span className="muted">{t('queries.detail.ai_awaiting')}</span>}
             </div>
             {query.ai_issues.length > 0 && (
               <div
@@ -189,7 +191,7 @@ export function QueryDetailPage() {
           </Card>
 
           {query.status === 'EXECUTED' && (
-            <Card title="Execution result" icon={<CheckOutlined style={{ color: 'var(--risk-low)' }} />}>
+            <Card title={t('queries.detail.card_execution')} icon={<CheckOutlined style={{ color: 'var(--risk-low)' }} />}>
               <div
                 style={{
                   padding: 14,
@@ -198,9 +200,9 @@ export function QueryDetailPage() {
                   gap: 16,
                 }}
               >
-                <Stat label="rows affected" value={fmtNum(query.rows_affected)} />
-                <Stat label="duration" value={`${query.duration_ms} ms`} />
-                <Stat label="completed" value={timeAgo(query.created_at)} />
+                <Stat label={t('queries.detail.stat_rows')} value={fmtNum(query.rows_affected)} />
+                <Stat label={t('queries.detail.stat_duration')} value={`${query.duration_ms} ms`} />
+                <Stat label={t('queries.detail.stat_completed')} value={timeAgo(query.created_at)} />
               </div>
             </Card>
           )}
@@ -215,26 +217,26 @@ export function QueryDetailPage() {
               }}
             >
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>
-                Your review is required
+                {t('queries.detail.review_required_title')}
               </div>
               <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-                Approve to forward to execution, reject to send back to submitter.
+                {t('queries.detail.review_required_subtitle')}
               </div>
               <Input.TextArea
                 rows={3}
-                placeholder="Optional comment for the submitter…"
+                placeholder={t('queries.detail.review_comment_placeholder')}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 style={{ marginBottom: 12 }}
               />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button type="primary" icon={<CheckOutlined />} onClick={onApprove}>
-                  Approve
+                  {t('common.approve')}
                 </Button>
                 <Button danger icon={<CloseOutlined />} onClick={onReject}>
-                  Reject
+                  {t('common.reject')}
                 </Button>
-                <Button icon={<EditOutlined />}>Request changes</Button>
+                <Button icon={<EditOutlined />}>{t('queries.detail.review_request_changes')}</Button>
               </div>
             </div>
           )}
@@ -300,6 +302,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Metadata({
   query, ds, planName,
 }: { query: import('@/types/api').QueryRequest; ds: { name: string; db_type: string }; planName: string }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -309,7 +312,7 @@ function Metadata({
         padding: 16,
       }}
     >
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Metadata</div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>{t('queries.detail.metadata_title')}</div>
       <div
         style={{
           display: 'flex',
