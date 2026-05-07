@@ -5,8 +5,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record SetupRequest(
-        @NotBlank @Size(max = 255) String organizationName,
-        @NotBlank @Email @Size(max = 255) String email,
-        @Size(max = 255) String displayName,
-        @NotBlank @Size(min = 8, max = 128) String password
+        @NotBlank(message = "{validation.org_name.required}")
+        @Size(max = 255, message = "{validation.display_name.max}") String organizationName,
+        @NotBlank(message = "{validation.email.required}")
+        @Email(message = "{validation.email.invalid}")
+        @Size(max = 255, message = "{validation.display_name.max}") String email,
+        @Size(max = 255, message = "{validation.display_name.max}") String displayName,
+        @NotBlank(message = "{validation.password.size}")
+        @Size(min = 8, max = 128, message = "{validation.password.size}") String password
 ) {}

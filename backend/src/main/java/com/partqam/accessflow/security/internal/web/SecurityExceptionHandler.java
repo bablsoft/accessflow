@@ -3,6 +3,7 @@ package com.partqam.accessflow.security.internal.web;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -21,17 +22,20 @@ import java.time.Instant;
 public class SecurityExceptionHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final MessageSource messageSource;
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
-        writeProblemDetail(response, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", authException.getMessage());
+        writeProblemDetail(response, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED",
+                messageSource.getMessage("error.unauthorized", null, request.getLocale()));
     }
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException {
-        writeProblemDetail(response, HttpStatus.FORBIDDEN, "FORBIDDEN", accessDeniedException.getMessage());
+        writeProblemDetail(response, HttpStatus.FORBIDDEN, "FORBIDDEN",
+                messageSource.getMessage("error.forbidden", null, request.getLocale()));
     }
 
     private void writeProblemDetail(HttpServletResponse response, HttpStatus status,

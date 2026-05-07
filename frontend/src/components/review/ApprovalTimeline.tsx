@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { timeAgo } from '@/utils/dateFormat';
 
 export interface TimelineStage {
@@ -13,6 +14,7 @@ export interface TimelineStage {
 }
 
 export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -22,7 +24,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
         padding: 16,
       }}
     >
-      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>Approval timeline</div>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{t('timeline.title')}</div>
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
         {stages.map((s, i) => {
           const last = i === stages.length - 1;

@@ -29,6 +29,11 @@ spring:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
 
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+
   jackson:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null

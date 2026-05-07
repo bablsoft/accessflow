@@ -8,11 +8,11 @@ import java.util.List;
 import java.util.UUID;
 
 public record CreatePermissionRequest(
-        @NotNull UUID userId,
+        @NotNull(message = "{validation.user_id.required}") UUID userId,
         Boolean canRead,
         Boolean canWrite,
         Boolean canDdl,
-        @Min(1) Integer rowLimitOverride,
+        @Min(value = 1, message = "{validation.row_limit.min}") Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
         Instant expiresAt

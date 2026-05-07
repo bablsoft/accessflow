@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DownOutlined, UpOutlined, WarningFilled } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { AiIssue } from '@/types/api';
 
 const sevColor = (s: AiIssue['severity']) => {
@@ -16,6 +17,7 @@ const sevColor = (s: AiIssue['severity']) => {
 };
 
 export function IssueCard({ issue }: { issue: AiIssue }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const c = sevColor(issue.severity);
   return (
@@ -82,7 +84,9 @@ export function IssueCard({ issue }: { issue: AiIssue }) {
             borderTop: '1px solid var(--border)',
           }}
         >
-          <div style={{ fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>Suggestion</div>
+          <div style={{ fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>
+            {t('ai_panel.issue_suggestion_label')}
+          </div>
           <div style={{ lineHeight: 1.5 }}>{issue.suggestion}</div>
         </div>
       )}

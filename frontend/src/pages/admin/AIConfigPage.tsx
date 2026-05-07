@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button, Form, Input, Switch } from 'antd';
 import { CheckOutlined, LoadingOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 
 const PROVIDERS = [
@@ -10,6 +11,7 @@ const PROVIDERS = [
 ] as const;
 
 export function AIConfigPage() {
+  const { t } = useTranslation();
   const [provider, setProvider] = useState<(typeof PROVIDERS)[number]['id']>('ANTHROPIC');
   const [model, setModel] = useState('claude-sonnet-4-20250514');
   const [testing, setTesting] = useState<'idle' | 'running' | 'ok'>('idle');
@@ -22,11 +24,11 @@ export function AIConfigPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="AI configuration"
-        subtitle="Configure the AI backend used for query risk analysis."
+        title={t('admin.ai_config.title')}
+        subtitle={t('admin.ai_config.subtitle')}
       />
       <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
-        <Section title="Provider">
+        <Section title={t('admin.ai_config.section_provider')}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {PROVIDERS.map((p) => (
               <button
@@ -51,12 +53,12 @@ export function AIConfigPage() {
             ))}
           </div>
         </Section>
-        <Section title="Connection">
+        <Section title={t('admin.ai_config.section_connection')}>
           <Grid>
-            <Form.Item label="Model">
+            <Form.Item label={t('admin.ai_config.label_model')}>
               <Input className="mono" value={model} onChange={(e) => setModel(e.target.value)} />
             </Form.Item>
-            <Form.Item label="API endpoint">
+            <Form.Item label={t('admin.ai_config.label_api_endpoint')}>
               <Input
                 className="mono"
                 defaultValue={
@@ -68,42 +70,42 @@ export function AIConfigPage() {
                 }
               />
             </Form.Item>
-            <Form.Item label="API key">
+            <Form.Item label={t('admin.ai_config.label_api_key')}>
               <Input.Password className="mono" defaultValue="sk-ant-••••••••••••••••••••" />
             </Form.Item>
-            <Form.Item label="Timeout (ms)">
+            <Form.Item label={t('admin.ai_config.label_timeout_ms')}>
               <Input className="mono" defaultValue="30000" />
             </Form.Item>
-            <Form.Item label="Max prompt tokens">
+            <Form.Item label={t('admin.ai_config.label_max_prompt_tokens')}>
               <Input className="mono" defaultValue="8000" />
             </Form.Item>
-            <Form.Item label="Max completion tokens">
+            <Form.Item label={t('admin.ai_config.label_max_completion_tokens')}>
               <Input className="mono" defaultValue="2000" />
             </Form.Item>
           </Grid>
         </Section>
-        <Section title="Behavior">
+        <Section title={t('admin.ai_config.section_behavior')}>
           <Grid>
-            <Form.Item label="Enable AI for new datasources by default" valuePropName="checked" initialValue>
+            <Form.Item label={t('admin.ai_config.label_enable_ai_default')} valuePropName="checked" initialValue>
               <Switch defaultChecked />
             </Form.Item>
-            <Form.Item label="Auto-approve LOW risk SELECT queries" valuePropName="checked">
+            <Form.Item label={t('admin.ai_config.label_auto_approve_low')} valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="Block CRITICAL risk queries from execution" valuePropName="checked">
+            <Form.Item label={t('admin.ai_config.label_block_critical')} valuePropName="checked">
               <Switch defaultChecked />
             </Form.Item>
-            <Form.Item label="Include schema in AI context" valuePropName="checked">
+            <Form.Item label={t('admin.ai_config.label_include_schema')} valuePropName="checked">
               <Switch defaultChecked />
             </Form.Item>
           </Grid>
         </Section>
-        <Section title="Cost & usage (last 30 days)">
+        <Section title={t('admin.ai_config.section_usage')}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-            <Stat label="analyses" value="2,847" />
-            <Stat label="prompt tokens" value="1.2M" />
-            <Stat label="completion tokens" value="412K" />
-            <Stat label="est. cost" value="$48.72" />
+            <Stat label={t('admin.ai_config.stat_analyses')} value="2,847" />
+            <Stat label={t('admin.ai_config.stat_prompt_tokens')} value="1.2M" />
+            <Stat label={t('admin.ai_config.stat_completion_tokens')} value="412K" />
+            <Stat label={t('admin.ai_config.stat_cost')} value="$48.72" />
           </div>
         </Section>
         <div
@@ -114,7 +116,7 @@ export function AIConfigPage() {
             borderTop: '1px solid var(--border)',
           }}
         >
-          <Button type="primary" icon={<CheckOutlined />}>Save</Button>
+          <Button type="primary" icon={<CheckOutlined />}>{t('common.save')}</Button>
           <Button
             icon={
               testing === 'running' ? (
@@ -127,7 +129,7 @@ export function AIConfigPage() {
             }
             onClick={onTest}
           >
-            {testing === 'ok' ? 'Test passed' : 'Send test prompt'}
+            {testing === 'ok' ? t('admin.ai_config.test_ok_button') : t('admin.ai_config.test_button')}
           </Button>
         </div>
       </div>

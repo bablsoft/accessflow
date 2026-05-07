@@ -12,6 +12,8 @@ import com.partqam.accessflow.proxy.api.UpdateExecutionResult;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -34,12 +36,17 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final JdbcResultRowMapper rowMapper;
     private final SqlExceptionTranslator sqlExceptionTranslator;
     private final Clock clock;
+    private final MessageSource messageSource;
+
+    private String msg(String key) {
+        return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
+    }
 
     @Override
     public QueryExecutionResult execute(QueryExecutionRequest request) {
         var descriptor = datasourceLookupService.findById(request.datasourceId())
                 .orElseThrow(() -> new DatasourceUnavailableException(
-                        "Datasource not found: " + request.datasourceId()));
+                        msg("error.datasource_unavailable_not_found")));
         var execProps = properties.execution();
         int effectiveMaxRows = clampMaxRows(request.maxRowsOverride(),
                 descriptor.maxRowsPerQuery(), execProps.maxRows());
@@ -62,7 +69,7 @@ class DefaultQueryExecutor implements QueryExecutor {
         } catch (SQLException ex) {
             log.debug("SQL execution failed for datasource {}: {}",
                     request.datasourceId(), ex.getMessage());
-            throw sqlExceptionTranslator.translate(ex, effectiveTimeout);
+            throw sqlExceptionTranslator.translate(ex, effectiveTimeout, LocaleContextHolder.getLocale());
         }
     }
 

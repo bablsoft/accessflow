@@ -8,6 +8,7 @@ import {
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ onOpenMobileNav }: TopbarProps) {
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const logout = useAuthStore((s) => s.logout);
   const edition = usePreferencesStore((s) => s.edition);
@@ -37,14 +39,14 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       <button
         className="af-icon-btn af-mobile-menu-btn"
         onClick={onOpenMobileNav}
-        aria-label="Open menu"
+        aria-label={t('common.open_menu')}
       >
         <MenuOutlined />
       </button>
       <div className="af-topbar-search">
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Search…"
+          placeholder={t('common.search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           suffix={<span className="kbd">⌘K</span>}
@@ -68,23 +70,23 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
           <button
             className={theme === 'light' ? 'on' : ''}
             onClick={() => setTheme('light')}
-            aria-label="Light theme"
+            aria-label={t('common.light_theme')}
           >
             <SunOutlined />
           </button>
           <button
             className={theme === 'dark' ? 'on' : ''}
             onClick={() => setTheme('dark')}
-            aria-label="Dark theme"
+            aria-label={t('common.dark_theme')}
           >
             <MoonOutlined />
           </button>
         </div>
       </div>
-      <button className="af-icon-btn hide-mobile" aria-label="Notifications">
+      <button className="af-icon-btn hide-mobile" aria-label={t('common.notifications')}>
         <BellOutlined />
       </button>
-      <button className="af-icon-btn" onClick={onLogout} aria-label="Sign out">
+      <button className="af-icon-btn" onClick={onLogout} aria-label={t('common.sign_out')}>
         <LogoutOutlined />
       </button>
     </header>

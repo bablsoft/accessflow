@@ -23,8 +23,10 @@
     "axios": "^1.16.0",
     "codemirror": "^6.0.2",
     "dayjs": "^1.11.20",
+    "i18next": "^26.0.10",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.7",
     "react-router-dom": "^7.15.0",
     "sql-formatter": "^15.7.3",
     "zustand": "^5.0.13"

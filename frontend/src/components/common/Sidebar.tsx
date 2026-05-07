@@ -12,6 +12,7 @@ import {
   RightOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
 import type { AuthUser } from '@/api/auth';
 import { Avatar } from './Avatar';
@@ -32,18 +33,6 @@ interface NavDivider {
 }
 type NavEntry = NavItem | NavDivider;
 
-const NAV: NavEntry[] = [
-  { id: 'editor', to: '/editor', label: 'Query editor', icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
-  { id: 'queries', to: '/queries', label: 'Query history', icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-  { id: 'reviews', to: '/reviews', label: 'Review queue', icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
-  { type: 'divider', label: 'Admin', roles: ['ADMIN'] },
-  { id: 'datasources', to: '/datasources', label: 'Datasources', icon: <DatabaseOutlined />, roles: ['ADMIN'] },
-  { id: 'users', to: '/admin/users', label: 'Users', icon: <TeamOutlined />, roles: ['ADMIN'] },
-  { id: 'audit', to: '/admin/audit-log', label: 'Audit log', icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
-  { id: 'ai', to: '/admin/ai-config', label: 'AI config', icon: <ExperimentOutlined />, roles: ['ADMIN'] },
-  { id: 'channels', to: '/admin/notifications', label: 'Notifications', icon: <BellOutlined />, roles: ['ADMIN'] },
-];
-
 interface SidebarProps {
   user: AuthUser;
   edition: 'COMMUNITY' | 'ENTERPRISE';
@@ -57,7 +46,21 @@ interface SidebarProps {
 export function Sidebar({
   user, edition, pendingCount, collapsed, onToggle, mobileOpen, onMobileClose,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const location = useLocation();
+
+  const NAV: NavEntry[] = [
+    { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
+    { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
+    { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
+    { type: 'divider', label: t('nav.admin_divider'), roles: ['ADMIN'] },
+    { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
+    { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
+    { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
+    { id: 'ai', to: '/admin/ai-config', label: t('nav.ai_config'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
+    { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
+  ];
+
   const items = NAV.filter((n) => n.roles.includes(user.role));
   return (
     <>
@@ -67,17 +70,17 @@ export function Sidebar({
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em' }}>
-                AccessFlow
+                {t('common.app_name')}
               </div>
               <div className="mono muted" style={{ fontSize: 9.5, textTransform: 'lowercase' }}>
                 {edition.toLowerCase()} · v0.1.0
               </div>
             </div>
           )}
-          <button className="af-sidebar-collapse-btn" onClick={onToggle} aria-label="Toggle sidebar">
+          <button className="af-sidebar-collapse-btn" onClick={onToggle} aria-label={t('common.toggle_sidebar')}>
             {collapsed ? <RightOutlined /> : <LeftOutlined />}
           </button>
-          <button className="af-icon-btn af-mobile-menu-btn" onClick={onMobileClose} aria-label="Close menu">
+          <button className="af-icon-btn af-mobile-menu-btn" onClick={onMobileClose} aria-label={t('common.close_menu')}>
             <CloseOutlined />
           </button>
         </div>

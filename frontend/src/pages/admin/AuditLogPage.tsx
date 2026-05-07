@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Drawer, Input, Select, Table } from 'antd';
 import { DownloadOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
 import { AUDIT } from '@/mocks/data';
@@ -15,6 +16,7 @@ const actionColor = (a: string): string => {
 };
 
 export function AuditLogPage() {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [action, setAction] = useState<string>('all');
   const [detail, setDetail] = useState<AuditEvent | null>(null);
@@ -39,12 +41,12 @@ export function AuditLogPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Audit log"
-        subtitle="Append-only, tamper-evident log of every action in the system."
+        title={t('admin.audit.title')}
+        subtitle={t('admin.audit.subtitle')}
         actions={
           <>
             <Button icon={<FilterOutlined />}>Advanced filters</Button>
-            <Button icon={<DownloadOutlined />}>Export</Button>
+            <Button icon={<DownloadOutlined />}>{t('common.export')}</Button>
           </>
         }
       />
@@ -59,7 +61,7 @@ export function AuditLogPage() {
       >
         <Input
           prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Search actor, action, resource…"
+          placeholder={t('admin.audit.search_placeholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ width: 280 }}
@@ -68,11 +70,11 @@ export function AuditLogPage() {
           value={action}
           onChange={setAction}
           style={{ width: 220 }}
-          options={[{ value: 'all', label: 'All actions' }, ...actions.map((a) => ({ value: a, label: a }))]}
+          options={[{ value: 'all', label: t('admin.audit.filter_all_actions') }, ...actions.map((a) => ({ value: a, label: a }))]}
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
-          {filtered.length} events
+          {t('admin.audit.count_label', { count: filtered.length })}
         </span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
@@ -87,13 +89,13 @@ export function AuditLogPage() {
           })}
           columns={[
             {
-              title: 'When',
+              title: t('admin.audit.col_when'),
               dataIndex: 'created_at',
               width: 120,
               render: (v) => <span className="muted">{timeAgo(v)}</span>,
             },
             {
-              title: 'Actor',
+              title: t('admin.audit.col_actor'),
               dataIndex: 'actor_name',
               width: 200,
               render: (v) => (
@@ -104,7 +106,7 @@ export function AuditLogPage() {
               ),
             },
             {
-              title: 'Action',
+              title: t('admin.audit.col_action'),
               dataIndex: 'action',
               width: 230,
               render: (v) => (
@@ -117,18 +119,18 @@ export function AuditLogPage() {
               ),
             },
             {
-              title: 'Resource',
+              title: t('admin.audit.col_resource'),
               dataIndex: 'resource_type',
               width: 150,
               render: (v) => <span className="mono" style={{ fontSize: 11.5 }}>{v}</span>,
             },
             {
-              title: 'Resource ID',
+              title: t('admin.audit.col_resource_id'),
               dataIndex: 'resource_id',
               render: (v) => <span className="mono muted" style={{ fontSize: 11.5 }}>{v}</span>,
             },
             {
-              title: 'IP',
+              title: t('admin.audit.col_ip'),
               dataIndex: 'ip_address',
               width: 130,
               render: (v) => <span className="mono muted" style={{ fontSize: 11.5 }}>{v}</span>,
@@ -139,7 +141,7 @@ export function AuditLogPage() {
       <Drawer
         open={!!detail}
         onClose={() => setDetail(null)}
-        title="Audit event detail"
+        title={t('admin.audit.drawer_title')}
         width={520}
       >
         {detail && (
@@ -154,7 +156,7 @@ export function AuditLogPage() {
                   marginBottom: 6,
                 }}
               >
-                Action
+                {t('admin.audit.section_action')}
               </div>
               <div
                 className="mono"
@@ -174,7 +176,7 @@ export function AuditLogPage() {
                 <Row k="created_at" v={fmtDate(detail.created_at)} />
               </div>
             </Card>
-            <Card title="metadata · JSON">
+            <Card title={t('admin.audit.section_metadata')}>
               <pre
                 style={{
                   margin: 0,

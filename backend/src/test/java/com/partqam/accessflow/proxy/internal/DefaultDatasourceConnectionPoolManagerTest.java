@@ -13,12 +13,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.context.MessageSource;
+
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,6 +35,7 @@ class DefaultDatasourceConnectionPoolManagerTest {
 
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock DatasourcePoolFactory poolFactory;
+    @Mock MessageSource messageSource;
 
     private DefaultDatasourceConnectionPoolManager manager;
 
@@ -41,7 +47,16 @@ class DefaultDatasourceConnectionPoolManagerTest {
 
     @BeforeEach
     void setUp() {
-        manager = new DefaultDatasourceConnectionPoolManager(datasourceLookupService, poolFactory);
+        lenient().when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenAnswer(inv -> {
+            String key = inv.getArgument(0);
+            return switch (key) {
+                case "error.datasource_unavailable_not_found" -> "Datasource not found in registry";
+                case "error.datasource_unavailable_inactive" -> "Datasource is not active";
+                case "error.pool_initialization_failed" -> "Failed to initialize connection pool";
+                default -> key;
+            };
+        });
+        manager = new DefaultDatasourceConnectionPoolManager(datasourceLookupService, poolFactory, messageSource);
     }
 
     @Test

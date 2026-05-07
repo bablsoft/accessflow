@@ -1,4 +1,5 @@
 import { CheckOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { AiAnalysis } from '@/types/api';
 import { IssueCard } from './IssueCard';
 import { fmtNum } from '@/utils/dateFormat';
@@ -19,6 +20,7 @@ const riskBg = (level: AiAnalysis['risk_level']) => {
 };
 
 export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -39,7 +41,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
         }}
       >
         <ThunderboltOutlined style={{ color: 'var(--accent)' }} />
-        <span style={{ fontWeight: 600, fontSize: 13 }}>AI analysis</span>
+        <span style={{ fontWeight: 600, fontSize: 13 }}>{t('ai_panel.title')}</span>
         {!aiEnabled && (
           <span
             className="mono muted"
@@ -52,7 +54,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
               border: '1px solid var(--border)',
             }}
           >
-            disabled
+            {t('ai_panel.disabled_badge')}
           </span>
         )}
       </div>
@@ -67,7 +69,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
           </div>
         ) : !analysis ? (
           <div className="muted" style={{ fontSize: 12, padding: '40px 0', textAlign: 'center' }}>
-            Start typing SQL — analysis will appear here.
+            {t('ai_panel.no_sql_prompt')}
           </div>
         ) : (
           <>
@@ -89,7 +91,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                     fontWeight: 500,
                   }}
                 >
-                  Risk score
+                  {t('ai_panel.risk_score_label')}
                 </span>
                 <span className="mono" style={{ fontSize: 13, fontWeight: 600 }}>
                   {analysis.risk_score}/100
@@ -140,7 +142,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                     marginBottom: 8,
                   }}
                 >
-                  {analysis.issues.length} issue{analysis.issues.length === 1 ? '' : 's'}
+                  {t('ai_panel.issues_count', { count: analysis.issues.length })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {analysis.issues.map((iss, i) => <IssueCard key={i} issue={iss} />)}
@@ -159,7 +161,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                   fontSize: 12,
                 }}
               >
-                <CheckOutlined /> No issues detected.
+                <CheckOutlined /> {t('ai_panel.no_issues')}
               </div>
             )}
 
@@ -174,7 +176,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                   marginBottom: 8,
                 }}
               >
-                Analysis metadata
+                {t('ai_panel.metadata_label')}
               </div>
               <div
                 style={{
@@ -186,19 +188,19 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="muted">provider</span>
+                  <span className="muted">{t('ai_panel.metadata_provider')}</span>
                   <span>anthropic</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="muted">model</span>
+                  <span className="muted">{t('ai_panel.metadata_model')}</span>
                   <span>claude-sonnet-4</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="muted">est. rows</span>
+                  <span className="muted">{t('ai_panel.metadata_est_rows')}</span>
                   <span>{fmtNum(analysis.affects_rows ?? 1)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="muted">tokens in/out</span>
+                  <span className="muted">{t('ai_panel.metadata_tokens')}</span>
                   <span>
                     {analysis.prompt_tokens}/{analysis.completion_tokens}
                   </span>

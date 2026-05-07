@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { LoadingOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { useSetupStore } from '@/store/setupStore';
 import * as authApi from '@/api/auth';
@@ -10,6 +11,7 @@ interface BootGateProps {
 }
 
 export function BootGate({ children }: BootGateProps) {
+  const { t } = useTranslation();
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export function BootGate({ children }: BootGateProps) {
         }
       } catch {
         if (!cancelled) {
-          setBootError('Could not reach the AccessFlow server. Please retry.');
+          setBootError(t('errors.server_unreachable'));
         }
       } finally {
         if (!cancelled) setReady(true);
@@ -39,7 +41,7 @@ export function BootGate({ children }: BootGateProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   if (!ready) {
     return (
@@ -90,7 +92,7 @@ export function BootGate({ children }: BootGateProps) {
             cursor: 'pointer',
           }}
         >
-          Retry
+          {t('common.retry')}
         </button>
       </div>
     );

@@ -7,7 +7,8 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record SubmitQueryRequestBody(
-        @NotNull UUID datasourceId,
-        @NotBlank @Size(max = 100_000) String sql,
-        @Size(max = 4000) String justification) {
+        @NotNull(message = "{validation.datasource_id.required}") UUID datasourceId,
+        @NotBlank(message = "{validation.sql.required}")
+        @Size(max = 100_000, message = "{validation.sql.max}") String sql,
+        @Size(max = 4000, message = "{validation.justification.max}") String justification) {
 }

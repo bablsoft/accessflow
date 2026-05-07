@@ -31,6 +31,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import org.springframework.context.MessageSource;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,8 +54,9 @@ class DefaultQueryExecutorTest {
     private final UUID datasourceId = UUID.randomUUID();
     private final DatasourceConnectionPoolManager poolManager = mock(DatasourceConnectionPoolManager.class);
     private final DatasourceLookupService lookupService = mock(DatasourceLookupService.class);
+    private final MessageSource messageSource = mock(MessageSource.class);
     private final JdbcResultRowMapper rowMapper = new JdbcResultRowMapper();
-    private final SqlExceptionTranslator translator = new SqlExceptionTranslator();
+    private final SqlExceptionTranslator translator = new SqlExceptionTranslator(messageSource);
     private final ProxyPoolProperties properties = new ProxyPoolProperties(
             null, null, null, null, null,
             new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000));
@@ -75,7 +78,7 @@ class DefaultQueryExecutorTest {
         when(poolManager.resolve(datasourceId)).thenReturn(dataSource);
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(2_000)));
         executor = new DefaultQueryExecutor(poolManager, lookupService, properties,
-                rowMapper, translator, clock);
+                rowMapper, translator, clock, messageSource);
     }
 
     @Test

@@ -2,6 +2,10 @@ package com.partqam.accessflow.proxy.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.partqam.accessflow.core.api.QueryType;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
@@ -12,11 +16,31 @@ import net.sf.jsqlparser.statement.drop.Drop;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.MessageSource;
+
+import java.util.Locale;
 
 class SqlParserServiceImplTest {
 
-    private final SqlParserServiceImpl service = new SqlParserServiceImpl();
+    private final MessageSource messageSource = mock(MessageSource.class);
+    private SqlParserServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenAnswer(inv -> {
+            String key = inv.getArgument(0);
+            return switch (key) {
+                case "error.sql_empty" -> "SQL must not be empty";
+                case "error.sql_parse_failed" -> "Failed to parse SQL";
+                case "error.sql_no_statement" -> "SQL must contain a statement";
+                case "error.sql_multiple_statements" -> "Multiple SQL statements are not allowed";
+                default -> key;
+            };
+        });
+        service = new SqlParserServiceImpl(messageSource);
+    }
 
     @Test
     void parsesSimpleSelect() {

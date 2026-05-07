@@ -2,6 +2,7 @@ import { App, Button, Tabs } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
@@ -15,6 +16,7 @@ import { approveQuery, rejectQuery } from '@/api/queries';
 import type { QueryRequest } from '@/types/api';
 
 export function ReviewQueuePage() {
+  const { t } = useTranslation();
   const queries = useQueriesStore((s) => s.queries);
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState('mine');
@@ -29,18 +31,18 @@ export function ReviewQueuePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title="Review queue"
-        subtitle="Queries awaiting your approval. Newest first."
-        actions={<Button icon={<ReloadOutlined />}>Refresh</Button>}
+        title={t('reviews.title')}
+        subtitle={t('reviews.subtitle')}
+        actions={<Button icon={<ReloadOutlined />}>{t('common.refresh')}</Button>}
       />
       <Tabs
         activeKey={tab}
         onChange={setTab}
         style={{ padding: '0 28px' }}
         items={[
-          { key: 'mine', label: `Assigned to you · ${Math.min(8, pending.length)}` },
-          { key: 'all', label: `All pending · ${pending.length}` },
-          { key: 'recent', label: 'Recently decided' },
+          { key: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, pending.length) }) },
+          { key: 'all', label: t('reviews.tab_all', { count: pending.length }) },
+          { key: 'recent', label: t('reviews.tab_recent') },
         ]}
       />
       <div
@@ -61,18 +63,18 @@ export function ReviewQueuePage() {
             onOpen={() => navigate(`/queries/${q.id}`)}
             onApprove={async () => {
               await approveQuery(q.id);
-              message.success('Approved · forwarded to execution');
+              message.success(t('reviews.on_approve'));
             }}
             onReject={async () => {
               await rejectQuery(q.id);
-              message.error('Rejected · submitter notified');
+              message.error(t('reviews.on_reject'));
             }}
           />
         ))}
         {list.length === 0 && (
           <EmptyState
-            title="All caught up"
-            description="No queries are waiting on you right now."
+            title={t('reviews.empty_title')}
+            description={t('reviews.empty_description')}
           />
         )}
       </div>
@@ -88,6 +90,7 @@ interface CardProps {
 }
 
 function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
+  const { t } = useTranslation();
   return (
     <div
       onClick={onOpen}
@@ -147,7 +150,7 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
             onReject();
           }}
         >
-          Reject
+          {t('common.reject')}
         </Button>
         <Button
           size="small"
@@ -158,7 +161,7 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
             onApprove();
           }}
         >
-          Approve
+          {t('common.approve')}
         </Button>
       </div>
     </div>

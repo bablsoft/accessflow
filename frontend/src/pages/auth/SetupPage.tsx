@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Form, Input } from 'antd';
 import { ArrowRightOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { submitSetup, type SetupRequest } from '@/api/setup';
 import { useSetupStore } from '@/store/setupStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
@@ -16,6 +17,7 @@ interface SetupFormValues {
 }
 
 export function SetupPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const setSetupRequired = useSetupStore((s) => s.setSetupRequired);
   const edition = usePreferencesStore((s) => s.edition);
@@ -84,7 +86,7 @@ export function SetupPage() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
-              AccessFlow
+              {t('common.app_name')}
             </div>
             <div className="mono muted" style={{ fontSize: 10 }}>
               {edition.toLowerCase()} · v0.1.0
@@ -103,11 +105,10 @@ export function SetupPage() {
         >
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Create the first admin
+              {t('auth.setup.title')}
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
-              No active admin user was found. Set up your organization and the first admin
-              account to get started.
+              {t('auth.setup.subtitle')}
             </div>
           </div>
 
@@ -130,59 +131,59 @@ export function SetupPage() {
             disabled={submitting}
           >
             <Form.Item
-              label="Organization name"
+              label={t('auth.setup.org_name_label')}
               name="organization_name"
               rules={[
-                { required: true, message: 'Organization name is required.' },
-                { max: 255, message: 'Must be at most 255 characters.' },
+                { required: true, message: t('validation.org_name_required') },
+                { max: 255, message: t('validation.field_max_255') },
               ]}
             >
-              <Input placeholder="Acme Inc." autoComplete="organization" />
+              <Input placeholder={t('auth.setup.org_name_placeholder')} autoComplete="organization" />
             </Form.Item>
 
             <Form.Item
-              label="Email"
+              label={t('auth.setup.email_label')}
               name="email"
               rules={[
-                { required: true, message: 'Email is required.' },
-                { type: 'email', message: 'Enter a valid email address.' },
-                { max: 255, message: 'Must be at most 255 characters.' },
+                { required: true, message: t('validation.email_required') },
+                { type: 'email', message: t('validation.email_invalid') },
+                { max: 255, message: t('validation.field_max_255') },
               ]}
             >
-              <Input type="email" placeholder="you@company.com" autoComplete="email" />
+              <Input type="email" placeholder={t('auth.setup.email_placeholder')} autoComplete="email" />
             </Form.Item>
 
             <Form.Item
-              label="Display name"
+              label={t('auth.setup.display_name_label')}
               name="display_name"
-              rules={[{ max: 255, message: 'Must be at most 255 characters.' }]}
+              rules={[{ max: 255, message: t('validation.field_max_255') }]}
             >
-              <Input placeholder="Optional" autoComplete="name" />
+              <Input placeholder={t('auth.setup.display_name_placeholder')} autoComplete="name" />
             </Form.Item>
 
             <Form.Item
-              label="Password"
+              label={t('auth.setup.password_label')}
               name="password"
               rules={[
-                { required: true, message: 'Password is required.' },
-                { min: 8, max: 128, message: 'Password must be 8–128 characters.' },
+                { required: true, message: t('validation.password_required') },
+                { min: 8, max: 128, message: t('validation.password_size') },
               ]}
             >
               <Input.Password autoComplete="new-password" />
             </Form.Item>
 
             <Form.Item
-              label="Confirm password"
+              label={t('auth.setup.confirm_password_label')}
               name="confirm_password"
               dependencies={['password']}
               rules={[
-                { required: true, message: 'Please confirm the password.' },
+                { required: true, message: t('validation.confirm_password_required') },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('password') === value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('Passwords do not match.'));
+                    return Promise.reject(new Error(t('validation.passwords_mismatch')));
                   },
                 }),
               ]}
@@ -198,7 +199,7 @@ export function SetupPage() {
               disabled={submitting}
               icon={submitting ? <LoadingOutlined /> : <ArrowRightOutlined />}
             >
-              {submitting ? 'Creating admin…' : 'Create admin'}
+              {submitting ? t('auth.setup.submitting') : t('auth.setup.submit')}
             </Button>
           </Form>
         </div>
@@ -211,7 +212,7 @@ export function SetupPage() {
             marginTop: 20,
           }}
         >
-          first-run setup · only available while no admin exists
+          {t('auth.setup.footer')}
         </div>
       </div>
     </div>

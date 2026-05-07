@@ -9,6 +9,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
 import { StatusPill } from '@/components/common/StatusPill';
@@ -20,6 +21,7 @@ import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { testConnection } from '@/api/datasources';
 
 export function DatasourceSettingsPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const ds = DATASOURCES.find((d) => d.id === id);
   const navigate = useNavigate();
@@ -29,9 +31,9 @@ export function DatasourceSettingsPage() {
   if (!ds) {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
-        <div className="muted">Datasource not found.</div>
+        <div className="muted">{t('datasources.settings.not_found_message')}</div>
         <Button onClick={() => navigate('/datasources')} style={{ marginTop: 12 }}>
-          Back to list
+          {t('datasources.settings.back_to_list')}
         </Button>
       </div>
     );
@@ -57,7 +59,7 @@ export function DatasourceSettingsPage() {
         actions={
           <>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/datasources')}>
-              Back
+              {t('datasources.settings.back_button')}
             </Button>
             <Button
               icon={
@@ -71,7 +73,7 @@ export function DatasourceSettingsPage() {
               }
               onClick={onTest}
             >
-              {testing === 'ok' ? 'Connected · 42ms' : 'Test connection'}
+              {testing === 'ok' ? t('datasources.settings.connection_ok', { ms: 42 }) : t('datasources.settings.test_connection')}
             </Button>
           </>
         }
@@ -81,13 +83,13 @@ export function DatasourceSettingsPage() {
         onChange={setTab}
         style={{ padding: '0 28px' }}
         items={[
-          { key: 'config', label: 'Configuration' },
+          { key: 'config', label: t('datasources.settings.tab_config') },
           {
             key: 'permissions',
-            label: `Permissions · ${PERMS.filter((p) => p.datasource_id === ds.id).length}`,
+            label: t('datasources.settings.tab_permissions', { count: PERMS.filter((p) => p.datasource_id === ds.id).length }),
           },
-          { key: 'schema', label: 'Schema' },
-          { key: 'activity', label: 'Activity' },
+          { key: 'schema', label: t('datasources.settings.tab_schema') },
+          { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
       />
       <div style={{ flex: 1, overflow: 'auto' }}>
@@ -101,6 +103,7 @@ export function DatasourceSettingsPage() {
 }
 
 function ConfigTab({ ds }: { ds: (typeof DATASOURCES)[number] }) {
+  const { t } = useTranslation();
   const [form] = Form.useForm();
   return (
     <div style={{ padding: 28, maxWidth: 800 }}>
@@ -123,44 +126,44 @@ function ConfigTab({ ds }: { ds: (typeof DATASOURCES)[number] }) {
           active: ds.active,
         }}
       >
-        <Section title="Connection">
+        <Section title={t('datasources.settings.section_connection')}>
           <Grid>
-            <Form.Item label="Name" name="name"><Input /></Form.Item>
-            <Form.Item label="Database type" name="db_type">
+            <Form.Item label={t('datasources.settings.label_name')} name="name"><Input /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_db_type')} name="db_type">
               <Select options={[{ value: 'POSTGRESQL' }, { value: 'MYSQL' }]} />
             </Form.Item>
-            <Form.Item label="Host" name="host"><Input /></Form.Item>
-            <Form.Item label="Port" name="port"><Input className="mono" /></Form.Item>
-            <Form.Item label="Database name" name="database_name"><Input /></Form.Item>
-            <Form.Item label="SSL mode" name="ssl_mode">
+            <Form.Item label={t('datasources.settings.label_host')} name="host"><Input /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_port')} name="port"><Input className="mono" /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_database_name')} name="database_name"><Input /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_ssl_mode')} name="ssl_mode">
               <Select options={[{ value: 'DISABLE' }, { value: 'REQUIRE' }, { value: 'VERIFY_CA' }, { value: 'VERIFY_FULL' }]} />
             </Form.Item>
-            <Form.Item label="Service account">
+            <Form.Item label={t('datasources.settings.label_service_account')}>
               <Input className="mono" defaultValue="accessflow_svc" />
             </Form.Item>
-            <Form.Item label="Password">
-              <Input.Password placeholder="Leave blank to keep existing" />
+            <Form.Item label={t('datasources.settings.label_password')}>
+              <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
             </Form.Item>
           </Grid>
         </Section>
-        <Section title="Limits & policies">
+        <Section title={t('datasources.settings.section_limits')}>
           <Grid>
-            <Form.Item label="Connection pool size" name="pool"><Input className="mono" /></Form.Item>
-            <Form.Item label="Max rows per query" name="max_rows"><Input className="mono" /></Form.Item>
-            <Form.Item label="Review plan" name="plan">
+            <Form.Item label={t('datasources.settings.label_pool_size')} name="pool"><Input className="mono" /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_max_rows')} name="max_rows"><Input className="mono" /></Form.Item>
+            <Form.Item label={t('datasources.settings.label_review_plan')} name="plan">
               <Select options={REVIEW_PLANS.map((p) => ({ value: p.id, label: p.name }))} />
             </Form.Item>
             <div />
-            <Form.Item label="Require review for writes" name="require_review_writes" valuePropName="checked">
+            <Form.Item label={t('datasources.settings.label_require_writes')} name="require_review_writes" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="Require review for reads" name="require_review_reads" valuePropName="checked">
+            <Form.Item label={t('datasources.settings.label_require_reads')} name="require_review_reads" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="Enable AI query analysis" name="ai_enabled" valuePropName="checked">
+            <Form.Item label={t('datasources.settings.label_ai_enabled')} name="ai_enabled" valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item label="Datasource active" name="active" valuePropName="checked">
+            <Form.Item label={t('datasources.settings.label_active')} name="active" valuePropName="checked">
               <Switch />
             </Form.Item>
           </Grid>
@@ -173,10 +176,10 @@ function ConfigTab({ ds }: { ds: (typeof DATASOURCES)[number] }) {
             borderTop: '1px solid var(--border)',
           }}
         >
-          <Button type="primary" icon={<CheckOutlined />}>Save changes</Button>
-          <Button>Cancel</Button>
+          <Button type="primary" icon={<CheckOutlined />}>{t('common.save_changes')}</Button>
+          <Button>{t('common.cancel')}</Button>
           <div style={{ flex: 1 }} />
-          <Button danger icon={<DeleteOutlined />}>Soft-delete datasource</Button>
+          <Button danger icon={<DeleteOutlined />}>{t('datasources.settings.soft_delete')}</Button>
         </div>
       </Form>
     </div>
@@ -197,6 +200,7 @@ function Grid({ children }: { children: React.ReactNode }) {
 }
 
 function PermissionMatrix({ dsId }: { dsId: string }) {
+  const { t } = useTranslation();
   const users = useMemo(() => USERS.filter((u) => u.active), []);
   const findPerm = (uid: string) =>
     PERMS.find((p) => p.datasource_id === dsId && p.user_id === uid);
@@ -212,12 +216,12 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
         }}
       >
         <div>
-          <div style={{ fontWeight: 600 }}>User permissions</div>
+          <div style={{ fontWeight: 600 }}>{t('datasources.settings.permissions_title')}</div>
           <div className="muted" style={{ fontSize: 12 }}>
-            Granular per-user grants for this datasource. Admins automatically have full access.
+            {t('datasources.settings.permissions_subtitle')}
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />}>Grant access</Button>
+        <Button type="primary" icon={<PlusOutlined />}>{t('datasources.settings.grant_access')}</Button>
       </div>
       <Table
         rowKey="id"
@@ -226,7 +230,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
         pagination={false}
         columns={[
           {
-            title: 'User',
+            title: t('datasources.settings.perm_col_user'),
             dataIndex: 'display_name',
             render: (_v, u) => (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -239,25 +243,25 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             ),
           },
           {
-            title: 'Read',
+            title: t('datasources.settings.perm_col_read'),
             width: 70,
             align: 'center',
             render: (_v, u) => <PermCell on={u.role === 'ADMIN' || !!findPerm(u.id)?.can_read} />,
           },
           {
-            title: 'Write',
+            title: t('datasources.settings.perm_col_write'),
             width: 70,
             align: 'center',
             render: (_v, u) => <PermCell on={u.role === 'ADMIN' || !!findPerm(u.id)?.can_write} />,
           },
           {
-            title: 'DDL',
+            title: t('datasources.settings.perm_col_ddl'),
             width: 70,
             align: 'center',
             render: (_v, u) => <PermCell on={u.role === 'ADMIN' || !!findPerm(u.id)?.can_ddl} />,
           },
           {
-            title: 'Row limit',
+            title: t('datasources.settings.perm_col_row_limit'),
             width: 110,
             render: (_v, u) => {
               if (u.role === 'ADMIN') return <span className="mono muted">∞</span>;
@@ -270,7 +274,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             },
           },
           {
-            title: 'Allowed schemas',
+            title: t('datasources.settings.perm_col_schemas'),
             render: (_v, u) => {
               if (u.role === 'ADMIN') return <span className="muted">all</span>;
               const p = findPerm(u.id);
@@ -282,14 +286,14 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             },
           },
           {
-            title: 'Expires',
+            title: t('datasources.settings.perm_col_expires'),
             width: 130,
             render: (_v, u) => {
               if (u.role === 'ADMIN') return <span>—</span>;
               const p = findPerm(u.id);
               return (
                 <span className="muted" style={{ fontSize: 12 }}>
-                  {p?.expires_at ? fmtDate(p.expires_at) : 'never'}
+                  {p?.expires_at ? fmtDate(p.expires_at) : t('datasources.settings.perm_never_expires')}
                 </span>
               );
             },
@@ -330,6 +334,7 @@ function PermCell({ on }: { on: boolean }) {
 }
 
 function SchemaTab({ dsId }: { dsId: string }) {
+  const { t } = useTranslation();
   const ds = DATASOURCES.find((d) => d.id === dsId)!;
   const schema = useMemo(() => buildMockSchema(ds), [ds]);
   return (
@@ -341,19 +346,19 @@ function SchemaTab({ dsId }: { dsId: string }) {
         pagination={false}
         columns={[
           {
-            title: 'Table',
+            title: t('datasources.settings.schema_col_table'),
             dataIndex: 'name',
             render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
           },
           {
-            title: 'Columns',
-            render: (_v, t) => <span className="mono muted">{t.columns.length}</span>,
+            title: t('datasources.settings.schema_col_columns'),
+            render: (_v, tb) => <span className="mono muted">{tb.columns.length}</span>,
           },
           {
-            title: 'Primary key',
-            render: (_v, t) => (
+            title: t('datasources.settings.schema_col_pk'),
+            render: (_v, tb) => (
               <span className="mono" style={{ fontSize: 12 }}>
-                {t.columns.find((c) => c.primary_key)?.name ?? '—'}
+                {tb.columns.find((c) => c.primary_key)?.name ?? '—'}
               </span>
             ),
           },
@@ -364,6 +369,7 @@ function SchemaTab({ dsId }: { dsId: string }) {
 }
 
 function ActivityTab({ dsId }: { dsId: string }) {
+  const { t } = useTranslation();
   const queries = useQueriesStore((s) =>
     s.queries.filter((q) => q.datasource_id === dsId).slice(0, 20),
   );
@@ -375,12 +381,12 @@ function ActivityTab({ dsId }: { dsId: string }) {
         dataSource={queries}
         pagination={false}
         columns={[
-          { title: 'ID', dataIndex: 'id', render: (v) => <span className="mono muted">{v}</span> },
-          { title: 'Type', dataIndex: 'query_type', render: (v) => <QueryTypePill type={v} size="sm" /> },
-          { title: 'Status', dataIndex: 'status', render: (v) => <StatusPill status={v} size="sm" /> },
-          { title: 'Submitter', dataIndex: 'submitter_name' },
+          { title: t('datasources.settings.activity_col_id'), dataIndex: 'id', render: (v) => <span className="mono muted">{v}</span> },
+          { title: t('datasources.settings.activity_col_type'), dataIndex: 'query_type', render: (v) => <QueryTypePill type={v} size="sm" /> },
+          { title: t('datasources.settings.activity_col_status'), dataIndex: 'status', render: (v) => <StatusPill status={v} size="sm" /> },
+          { title: t('datasources.settings.activity_col_submitter'), dataIndex: 'submitter_name' },
           {
-            title: 'When',
+            title: t('datasources.settings.activity_col_when'),
             dataIndex: 'created_at',
             render: (v) => <span className="muted">{timeAgo(v)}</span>,
           },
