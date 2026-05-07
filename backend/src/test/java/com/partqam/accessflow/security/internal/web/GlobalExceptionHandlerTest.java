@@ -5,6 +5,8 @@ import com.partqam.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.DatasourceNotFoundException;
 import com.partqam.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
+import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
@@ -168,6 +170,22 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(422);
         assertThat(pd.getProperties())
                 .containsEntry("error", "DATASOURCE_CONNECTION_TEST_FAILED");
+    }
+
+    @Test
+    void driverResolutionReturns422WithReasonAndDbType() {
+        var ex = new DriverResolutionException(DbType.MYSQL,
+                DriverResolutionException.Reason.OFFLINE_CACHE_MISS,
+                "missing in cache");
+
+        var pd = handler.handleDriverResolution(ex);
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getDetail()).isEqualTo("missing in cache");
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DATASOURCE_DRIVER_UNAVAILABLE")
+                .containsEntry("dbType", "MYSQL")
+                .containsEntry("reason", "OFFLINE_CACHE_MISS");
     }
 
     @Test

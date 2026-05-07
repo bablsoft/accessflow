@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="mariaFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7A8BAA"/>
+      <stop offset="100%" stop-color="#1F305F"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#mariaFill)" d="M55 16c-2 0-5 1-9 4-3 2-5 3-9 4-5 1-9 2-12 4-5 3-9 9-9 16 0 4 2 8 5 11l4 2c-1-3-1-6 1-9 3-4 8-7 14-7 6 0 11 1 14-2 4-3 5-9 5-15 0-4-1-7-4-8z"/>
+  <circle cx="48" cy="22" r="1.5" fill="#fff"/>
+</svg>

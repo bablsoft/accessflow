@@ -53,6 +53,7 @@ class DatasourceAdminServiceImplTest {
     @Mock ReviewPlanRepository reviewPlanRepository;
     @Mock CredentialEncryptionService encryptionService;
     @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
+    @Mock com.partqam.accessflow.core.api.DriverCatalogService driverCatalog;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks DatasourceAdminServiceImpl service;
 

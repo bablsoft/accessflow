@@ -96,7 +96,7 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
     {
       "code": "POSTGRESQL",
       "display_name": "PostgreSQL",
-      "icon_url": "/static/db-icons/postgresql.svg",
+      "icon_url": "/db-icons/postgresql.svg",
       "default_port": 5432,
       "default_ssl_mode": "VERIFY_FULL",
       "jdbc_url_template": "jdbc:postgresql://{host}:{port}/{database_name}",
@@ -105,9 +105,9 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
     {
       "code": "MYSQL",
       "display_name": "MySQL",
-      "icon_url": "/static/db-icons/mysql.svg",
+      "icon_url": "/db-icons/mysql.svg",
       "default_port": 3306,
-      "default_ssl_mode": "REQUIRED",
+      "default_ssl_mode": "REQUIRE",
       "jdbc_url_template": "jdbc:mysql://{host}:{port}/{database_name}",
       "driver_status": "AVAILABLE"
     }

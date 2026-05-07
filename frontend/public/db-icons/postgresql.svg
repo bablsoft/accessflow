@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5A8DBE"/>
+      <stop offset="100%" stop-color="#28547E"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#pgFill)" d="M50 16c-3.5-3-8-4-12-4-3 0-6 .8-8 2-2-.6-4.5-1-7-1-6 0-12 4-13 11-1 6 .5 12 3 18 1 3 3 6 5 7 1 .5 2 .5 3 0 1-.4 1.5-1.5 1-3-1-3-1-6 0-9 1-3 2-6 4-9-1 6-1 12 1 17 1 3 4 5 6 5 3 0 5-2 6-4 1-3 1-6 0-9 0-1 0-2 1-2s2 .5 2 2c0 3 0 6 1 9 1 2 3 4 6 4 4 0 7-3 8-7 1-4 0-9-3-13-3-3-3-7-1-9 1-1 2-2 3-2"/>
+  <circle cx="42" cy="22" r="1.5" fill="#fff"/>
+</svg>

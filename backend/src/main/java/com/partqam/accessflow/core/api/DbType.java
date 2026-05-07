@@ -2,5 +2,8 @@ package com.partqam.accessflow.core.api;
 
 public enum DbType {
     POSTGRESQL,
-    MYSQL
+    MYSQL,
+    MARIADB,
+    ORACLE,
+    MSSQL
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="mysqlFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00758F"/>
+      <stop offset="100%" stop-color="#003B4C"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#mysqlFill)" d="M8 36c0-12 9-22 22-22 8 0 14 4 18 9-3-1-6-2-9-1 2 2 4 5 4 9 0 7-5 13-12 13-2 0-3 0-5-1 3 4 8 6 13 6 1 0 2 0 3-1-2 3-7 5-12 5-12 0-22-7-22-17z"/>
+  <circle cx="22" cy="32" r="2" fill="#F29111"/>
+  <path stroke="#F29111" stroke-width="2" stroke-linecap="round" d="M22 32c4 4 9 5 14 5"/>
+</svg>

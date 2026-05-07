@@ -71,6 +71,10 @@ class DefaultQueryExecutorMysqlIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        var cacheDir = com.partqam.accessflow.proxy.internal.driver
+                .DriverCacheTestSupport.prepareCacheWithMysql();
+        registry.add("accessflow.drivers.cache-dir", cacheDir::toString);
+        registry.add("accessflow.drivers.offline", () -> "true");
     }
 
     @BeforeAll
