@@ -20,4 +20,16 @@ public interface QueryRequestLookupService {
      */
     Page<PendingReviewView> findPendingForReviewer(UUID organizationId, UUID reviewerUserId,
                                                    UserRoleType role, Pageable pageable);
+
+    /**
+     * Returns queries in the caller's organization matching the supplied filter, ordered by
+     * {@code created_at DESC}.
+     */
+    Page<QueryListItemView> findForOrganization(QueryListFilter filter, Pageable pageable);
+
+    /**
+     * Returns the full read-side view of a single query request, including its AI analysis.
+     * The query must belong to {@code organizationId} (org-scoped) — otherwise empty.
+     */
+    Optional<QueryDetailView> findDetailById(UUID queryRequestId, UUID organizationId);
 }

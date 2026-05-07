@@ -96,6 +96,96 @@ export interface QueryRequest {
   ai_issues: AiIssue[];
 }
 
+export interface UserRef {
+  id: string;
+  email: string;
+  display_name: string;
+}
+
+export interface DatasourceRef {
+  id: string;
+  name: string;
+}
+
+export interface QueryListItem {
+  id: string;
+  datasource: DatasourceRef;
+  submitted_by: UserRef;
+  query_type: QueryType;
+  status: QueryStatus;
+  risk_level: RiskLevel | null;
+  risk_score: number | null;
+  created_at: string;
+}
+
+export interface AiAnalysisDetail {
+  id: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  summary: string;
+  issues: AiIssue[];
+  missing_indexes_detected: boolean;
+  affects_row_estimate: number | null;
+  ai_provider: string;
+  ai_model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+export interface QueryDetail {
+  id: string;
+  datasource: DatasourceRef;
+  submitted_by: UserRef;
+  sql_text: string;
+  query_type: QueryType;
+  status: QueryStatus;
+  justification: string;
+  ai_analysis: AiAnalysisDetail | null;
+  rows_affected: number | null;
+  duration_ms: number | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaginatedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+  last: boolean;
+}
+
+export interface QueryResultColumn {
+  name: string;
+  type: string;
+}
+
+export interface QueryResultsPage {
+  columns: QueryResultColumn[];
+  rows: unknown[][];
+  row_count: number;
+  truncated: boolean;
+  page: number;
+  size: number;
+}
+
+export interface SubmitQueryResponse {
+  id: string;
+  status: QueryStatus;
+  ai_analysis: AiAnalysisDetail | null;
+  review_plan: unknown | null;
+  estimated_review_completion: string | null;
+}
+
+export interface ExecuteQueryResponse {
+  id: string;
+  status: QueryStatus;
+  rows_affected: number | null;
+  duration_ms: number | null;
+}
+
 export interface AuditEvent {
   id: string;
   actor_id: string;

@@ -42,4 +42,14 @@ public interface QueryRequestStateService {
                                                 String comment);
 
     List<ReviewDecisionSnapshot> listDecisions(UUID queryRequestId);
+
+    /**
+     * Atomically records the outcome of executing an {@code APPROVED} query: transitions to
+     * {@link QueryStatus#EXECUTED} or {@link QueryStatus#FAILED}, sets {@code rowsAffected},
+     * {@code executionDurationMs}, {@code errorMessage}, and execution timestamps.
+     *
+     * @throws IllegalQueryStatusTransitionException if the current status is not
+     *         {@link QueryStatus#APPROVED}.
+     */
+    void recordExecutionOutcome(RecordExecutionCommand command);
 }

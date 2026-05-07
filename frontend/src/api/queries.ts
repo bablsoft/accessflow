@@ -1,9 +1,18 @@
-import type { AiAnalysis, QueryRequest, QueryStatus } from '@/types/api';
-import { useQueriesStore } from '@/store/queriesStore';
-import { useAuthStore } from '@/store/authStore';
-import { DATASOURCES } from '@/mocks/data';
-import { mockAnalyze, deriveQueryType } from '@/mocks/analyzer';
-import { jittered } from '@/mocks/delay';
+import { apiClient } from './client';
+import type {
+  AiAnalysis,
+  ExecuteQueryResponse,
+  PaginatedResponse,
+  QueryDetail,
+  QueryListItem,
+  QueryResultsPage,
+  QueryStatus,
+  QueryType,
+  SubmitQueryResponse,
+} from '@/types/api';
+import { approveQueryMock, rejectQueryMock } from '@/mocks/reviewsMock';
+
+const BASE = '/api/v1/queries';
 
 export interface SubmitQueryInput {
   datasource_id: string;
@@ -11,100 +20,92 @@ export interface SubmitQueryInput {
   justification: string;
 }
 
-export async function listQueries(): Promise<QueryRequest[]> {
-  await jittered();
-  return useQueriesStore.getState().queries;
+export interface AnalyzeQueryInput {
+  datasource_id: string;
+  sql: string;
 }
 
-export async function getQuery(id: string): Promise<QueryRequest | null> {
-  await jittered(80, 200);
-  return useQueriesStore.getState().queries.find((q) => q.id === id) ?? null;
+export interface QueryListFilters {
+  status?: QueryStatus;
+  datasource_id?: string;
+  submitted_by?: string;
+  from?: string;
+  to?: string;
+  query_type?: QueryType;
+  page?: number;
+  size?: number;
 }
 
-export async function submitQuery(input: SubmitQueryInput): Promise<QueryRequest> {
-  await jittered(300, 600);
-  const user = useAuthStore.getState().user;
-  if (!user) throw new Error('not authenticated');
-  const ds = DATASOURCES.find((d) => d.id === input.datasource_id)!;
-  const id = `q-${Math.floor(Math.random() * 9000 + 1000)}-${Math.random().toString(36).slice(2, 5)}`;
-  const query_type = deriveQueryType(input.sql);
-  const created: QueryRequest = {
-    id,
-    datasource_id: ds.id,
-    datasource_name: ds.name,
-    db_type: ds.db_type,
-    submitted_by: user.id,
-    submitter_name: user.display_name,
-    submitter_email: user.email,
-    sql: input.sql,
-    query_type,
-    status: 'PENDING_AI',
-    risk_level: 'LOW',
-    risk_score: 0,
-    justification: input.justification,
-    created_at: new Date().toISOString(),
-    rows_affected: null,
-    duration_ms: null,
-    ai_summary: '',
-    ai_issues: [],
-  };
-  useQueriesStore.getState().upsert(created);
+export const queryKeys = {
+  all: ['queries'] as const,
+  lists: () => ['queries', 'list'] as const,
+  list: (filters: QueryListFilters) => ['queries', 'list', filters] as const,
+  details: () => ['queries', 'detail'] as const,
+  detail: (id: string) => ['queries', 'detail', id] as const,
+  results: (id: string, page: number, size: number) =>
+    ['queries', 'detail', id, 'results', page, size] as const,
+};
 
-  // Async analysis arrives ~1.8s later
-  setTimeout(() => {
-    const a = mockAnalyze(input.sql);
-    const requiresHuman =
-      (query_type !== 'SELECT' && ds.require_review_writes) ||
-      (query_type === 'SELECT' && ds.require_review_reads);
-    const next: Partial<QueryRequest> = {
-      risk_level: a.risk_level,
-      risk_score: a.risk_score,
-      ai_summary: a.summary,
-      ai_issues: a.issues,
-      status: requiresHuman ? 'PENDING_REVIEW' : 'APPROVED',
-    };
-    useQueriesStore.getState().patch(id, next);
-    if (next.status === 'APPROVED') {
-      // auto-execute when no human review required
-      setTimeout(() => {
-        useQueriesStore.getState().patch(id, {
-          status: 'EXECUTED',
-          rows_affected: Math.floor(Math.random() * 5000) + 1,
-          duration_ms: Math.floor(Math.random() * 800) + 50,
-        });
-      }, 1200);
-    }
-  }, 1800);
-
-  return created;
+export async function submitQuery(input: SubmitQueryInput): Promise<SubmitQueryResponse> {
+  const { data } = await apiClient.post<SubmitQueryResponse>(BASE, input);
+  return data;
 }
 
-export async function approveQuery(id: string, _comment?: string): Promise<void> {
-  await jittered(150, 350);
-  useQueriesStore.getState().patch(id, { status: 'APPROVED' });
-  setTimeout(() => {
-    useQueriesStore.getState().patch(id, {
-      status: 'EXECUTED',
-      rows_affected: Math.floor(Math.random() * 5000) + 1,
-      duration_ms: Math.floor(Math.random() * 800) + 50,
-    });
-  }, 1400);
+export async function listQueries(
+  filters: QueryListFilters = {},
+): Promise<PaginatedResponse<QueryListItem>> {
+  const { data } = await apiClient.get<PaginatedResponse<QueryListItem>>(BASE, {
+    params: toQueryParams(filters),
+  });
+  return data;
 }
 
-export async function rejectQuery(id: string, _comment?: string): Promise<void> {
-  await jittered(150, 350);
-  useQueriesStore.getState().patch(id, { status: 'REJECTED' });
+export async function getQuery(id: string): Promise<QueryDetail> {
+  const { data } = await apiClient.get<QueryDetail>(`${BASE}/${id}`);
+  return data;
 }
 
 export async function cancelQuery(id: string): Promise<void> {
-  await jittered(80, 200);
-  useQueriesStore.getState().patch(id, { status: 'CANCELLED' });
+  await apiClient.delete(`${BASE}/${id}`);
 }
 
-export async function analyzeOnly(sql: string): Promise<AiAnalysis> {
-  await jittered(400, 800);
-  return mockAnalyze(sql);
+export async function executeQuery(id: string): Promise<ExecuteQueryResponse> {
+  const { data } = await apiClient.post<ExecuteQueryResponse>(`${BASE}/${id}/execute`);
+  return data;
 }
+
+export async function getQueryResults(
+  id: string,
+  page = 0,
+  size = 100,
+): Promise<QueryResultsPage> {
+  const { data } = await apiClient.get<QueryResultsPage>(`${BASE}/${id}/results`, {
+    params: { page, size },
+  });
+  return data;
+}
+
+export async function analyzeOnly(input: AnalyzeQueryInput): Promise<AiAnalysis> {
+  const { data } = await apiClient.post<AiAnalysis>(`${BASE}/analyze`, input);
+  return data;
+}
+
+// TODO(FE-03): replace with real /reviews/{id}/approve and /reviews/{id}/reject calls.
+export const approveQuery = approveQueryMock;
+export const rejectQuery = rejectQueryMock;
 
 export const isPending = (s: QueryStatus): boolean =>
   s === 'PENDING_AI' || s === 'PENDING_REVIEW';
+
+function toQueryParams(filters: QueryListFilters): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  if (filters.status) params.status = filters.status;
+  if (filters.datasource_id) params.datasourceId = filters.datasource_id;
+  if (filters.submitted_by) params.submittedBy = filters.submitted_by;
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.query_type) params.queryType = filters.query_type;
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  return params;
+}

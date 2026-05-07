@@ -1,47 +1,71 @@
-import { App, Button, Tabs } from 'antd';
+import { App, Button, Skeleton, Tabs } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
-import { SqlBlock } from '@/components/common/SqlBlock';
-import { useQueriesStore } from '@/store/queriesStore';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
-import { approveQuery, rejectQuery } from '@/api/queries';
-import type { QueryRequest } from '@/types/api';
+import { approveQuery, listQueries, queryKeys, rejectQuery } from '@/api/queries';
+import type { QueryListItem } from '@/types/api';
 
 export function ReviewQueuePage() {
   const { t } = useTranslation();
-  const queries = useQueriesStore((s) => s.queries);
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState('mine');
   const { message } = App.useApp();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const pending = queries.filter(
-    (q) => q.status === 'PENDING_REVIEW' && q.submitted_by !== user?.id,
-  );
-  const list = tab === 'mine' ? pending.slice(0, 8) : pending;
+  const filters = { status: 'PENDING_REVIEW' as const, size: 50 };
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: queryKeys.list(filters),
+    queryFn: () => listQueries(filters),
+  });
+
+  const all = data?.content ?? [];
+  // Submitter cannot review their own query.
+  const reviewable = all.filter((q) => q.submitted_by.id !== user?.id);
+  const list = tab === 'mine' ? reviewable.slice(0, 8) : reviewable;
+
+  const approve = useMutation({
+    mutationFn: (id: string) => approveQuery(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      message.success(t('reviews.on_approve'));
+    },
+  });
+  const reject = useMutation({
+    mutationFn: (id: string) => rejectQuery(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      message.error(t('reviews.on_reject'));
+    },
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
         title={t('reviews.title')}
         subtitle={t('reviews.subtitle')}
-        actions={<Button icon={<ReloadOutlined />}>{t('common.refresh')}</Button>}
+        actions={
+          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+            {t('common.refresh')}
+          </Button>
+        }
       />
       <Tabs
         activeKey={tab}
         onChange={setTab}
         style={{ padding: '0 28px' }}
         items={[
-          { key: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, pending.length) }) },
-          { key: 'all', label: t('reviews.tab_all', { count: pending.length }) },
+          { key: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, reviewable.length) }) },
+          { key: 'all', label: t('reviews.tab_all', { count: reviewable.length }) },
           { key: 'recent', label: t('reviews.tab_recent') },
         ]}
       />
@@ -56,26 +80,26 @@ export function ReviewQueuePage() {
           alignContent: 'start',
         }}
       >
-        {list.map((q) => (
-          <ReviewCard
-            key={q.id}
-            query={q}
-            onOpen={() => navigate(`/queries/${q.id}`)}
-            onApprove={async () => {
-              await approveQuery(q.id);
-              message.success(t('reviews.on_approve'));
-            }}
-            onReject={async () => {
-              await rejectQuery(q.id);
-              message.error(t('reviews.on_reject'));
-            }}
-          />
-        ))}
-        {list.length === 0 && (
-          <EmptyState
-            title={t('reviews.empty_title')}
-            description={t('reviews.empty_description')}
-          />
+        {isLoading ? (
+          <Skeleton active paragraph={{ rows: 6 }} />
+        ) : (
+          <>
+            {list.map((q) => (
+              <ReviewCard
+                key={q.id}
+                query={q}
+                onOpen={() => navigate(`/queries/${q.id}`)}
+                onApprove={() => approve.mutate(q.id)}
+                onReject={() => reject.mutate(q.id)}
+              />
+            ))}
+            {list.length === 0 && (
+              <EmptyState
+                title={t('reviews.empty_title')}
+                description={t('reviews.empty_description')}
+              />
+            )}
+          </>
         )}
       </div>
     </div>
@@ -83,7 +107,7 @@ export function ReviewQueuePage() {
 }
 
 interface CardProps {
-  query: QueryRequest;
+  query: QueryListItem;
   onOpen: () => void;
   onApprove: () => void;
   onReject: () => void;
@@ -107,22 +131,22 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span className="mono muted" style={{ fontSize: 11 }}>
-          {query.id}
+          {query.id.slice(0, 8)}
         </span>
         <QueryTypePill type={query.query_type} size="sm" />
-        <RiskPill level={query.risk_level} score={query.risk_score} size="sm" />
+        {query.risk_level != null && query.risk_score != null && (
+          <RiskPill level={query.risk_level} score={query.risk_score} size="sm" />
+        )}
         <div style={{ flex: 1 }} />
         <span className="muted" style={{ fontSize: 11 }}>
           {timeAgo(query.created_at)}
         </span>
       </div>
-      <SqlBlock
-        sql={query.sql.length > 200 ? query.sql.slice(0, 200) + '…' : query.sql}
-        style={{ fontSize: 11.5, padding: 10, maxHeight: 100, overflow: 'hidden' }}
-      />
-      <div className="muted" style={{ fontSize: 12, lineHeight: 1.45 }}>
-        <strong style={{ color: 'var(--fg)' }}>Why:</strong> {query.justification.slice(0, 110)}
-        {query.justification.length > 110 ? '…' : ''}
+      <div
+        className="muted"
+        style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}
+      >
+        {query.id}
       </div>
       <div
         style={{
@@ -133,11 +157,11 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
           borderTop: '1px solid var(--border)',
         }}
       >
-        <Avatar name={query.submitter_name} size={22} />
+        <Avatar name={query.submitted_by.display_name} size={22} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 500 }}>{query.submitter_name}</div>
+          <div style={{ fontSize: 12, fontWeight: 500 }}>{query.submitted_by.display_name}</div>
           <div className="mono muted" style={{ fontSize: 10 }}>
-            {query.datasource_name}
+            {query.datasource.name}
           </div>
         </div>
         <div style={{ flex: 1 }} />

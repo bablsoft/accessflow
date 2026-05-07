@@ -7,6 +7,7 @@ import com.partqam.accessflow.core.api.QueryRequestStateService;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.RecordApprovalCommand;
 import com.partqam.accessflow.core.api.RecordDecisionResult;
+import com.partqam.accessflow.core.api.RecordExecutionCommand;
 import com.partqam.accessflow.core.api.ReviewDecisionSnapshot;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
@@ -99,6 +100,23 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         var inserted = persistDecision(entity, reviewerId, DecisionType.REQUESTED_CHANGES, comment,
                 stage);
         return new RecordDecisionResult(inserted.getId(), QueryStatus.PENDING_REVIEW, false);
+    }
+
+    @Override
+    @Transactional
+    public void recordExecutionOutcome(RecordExecutionCommand command) {
+        var entity = lockOrThrow(command.queryRequestId());
+        if (entity.getStatus() != QueryStatus.APPROVED) {
+            throw new IllegalQueryStatusTransitionException(command.queryRequestId(),
+                    entity.getStatus(), QueryStatus.APPROVED);
+        }
+        entity.setStatus(command.outcome());
+        entity.setRowsAffected(command.rowsAffected());
+        entity.setExecutionDurationMs(command.durationMs());
+        entity.setErrorMessage(command.errorMessage());
+        entity.setExecutionStartedAt(command.startedAt());
+        entity.setExecutionCompletedAt(command.completedAt());
+        queryRequestRepository.save(entity);
     }
 
     @Override
