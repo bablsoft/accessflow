@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -46,7 +47,7 @@ class DefaultDatasourceConnectionPoolManagerTest {
 
     @BeforeEach
     void setUp() {
-        when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenAnswer(inv -> {
+        lenient().when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenAnswer(inv -> {
             String key = inv.getArgument(0);
             return switch (key) {
                 case "error.datasource_unavailable_not_found" -> "Datasource not found in registry";

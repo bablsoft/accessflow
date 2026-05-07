@@ -24,6 +24,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
@@ -47,6 +48,7 @@ class DefaultQuerySubmissionServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock QueryRequestPersistenceService queryRequestPersistenceService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock MessageSource messageSource;
     @InjectMocks DefaultQuerySubmissionService service;
 
     private final UUID datasourceId = UUID.randomUUID();
