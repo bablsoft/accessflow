@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Input } from 'antd';
+import { Alert, Button, Form, Input } from 'antd';
 import {
   ArrowRightOutlined,
   EyeOutlined,
@@ -16,19 +16,23 @@ interface LoginLocationState {
   setupSuccess?: boolean;
 }
 
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const initialSetupSuccess =
     (location.state as LoginLocationState | null)?.setupSuccess === true;
-  const [email, setEmail] = useState(import.meta.env.DEV ? 'alice.chen@acme.com' : '');
-  const [password, setPassword] = useState(import.meta.env.DEV ? 'demo-password' : '');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupSuccess, setSetupSuccess] = useState(initialSetupSuccess);
   const login = useAuthStore((s) => s.login);
   const edition = usePreferencesStore((s) => s.edition);
+  const [form] = Form.useForm<LoginFormValues>();
 
   useEffect(() => {
     if (initialSetupSuccess) {
@@ -37,12 +41,11 @@ export function LoginPage() {
     }
   }, [initialSetupSuccess, location.pathname, navigate]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onFinish = async (values: LoginFormValues): Promise<void> => {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
+      await login(values.email, values.password);
       navigate('/editor');
     } catch (err) {
       setError(authErrorMessage(err));
@@ -172,60 +175,57 @@ export function LoginPage() {
             </>
           )}
 
-          <form onSubmit={submit}>
-            <div style={{ marginBottom: 14 }}>
-              <label
-                className="muted"
-                htmlFor="login-email"
-                style={{
-                  display: 'block',
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  marginBottom: 5,
-                }}
-              >
-                Email
-              </label>
+          <Form<LoginFormValues>
+            form={form}
+            layout="vertical"
+            onFinish={onFinish}
+            requiredMark={false}
+            disabled={loading}
+            initialValues={{
+              email: import.meta.env.DEV ? 'alice.chen@acme.com' : '',
+              password: import.meta.env.DEV ? 'demo-password' : '',
+            }}
+          >
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: 'Email is required.' },
+                { type: 'email', message: 'Enter a valid email address.' },
+              ]}
+            >
               <Input
                 id="login-email"
                 type="email"
                 autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
               />
-            </div>
-            <div style={{ marginBottom: 18 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: 5,
-                }}
-              >
-                <label
-                  className="muted"
-                  htmlFor="login-password"
-                  style={{ fontSize: 11.5, fontWeight: 500, margin: 0 }}
-                >
-                  Password
-                </label>
-                <a
-                  href="#"
-                  className="muted"
-                  style={{ fontSize: 11, textDecoration: 'none' }}
-                  onClick={(e) => e.preventDefault()}
-                >
-                  Forgot?
-                </a>
-              </div>
+            </Form.Item>
+
+            <Form.Item
+              name="password"
+              label={
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                  <span>Password</span>
+                  <a
+                    href="#"
+                    className="muted"
+                    style={{ fontSize: 11, textDecoration: 'none' }}
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    Forgot?
+                  </a>
+                </div>
+              }
+              rules={[
+                { required: true, message: 'Password is required.' },
+                { min: 8, max: 128, message: 'Password must be 8–128 characters.' },
+              ]}
+            >
               <Input
                 id="login-password"
                 type={showPw ? 'text' : 'password'}
                 autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 suffix={
                   <button
                     type="button"
@@ -242,7 +242,8 @@ export function LoginPage() {
                   </button>
                 }
               />
-            </div>
+            </Form.Item>
+
             <Button
               type="primary"
               size="large"
@@ -253,7 +254,7 @@ export function LoginPage() {
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
-          </form>
+          </Form>
         </div>
 
         <div
