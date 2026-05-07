@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import { ApartmentOutlined, RightOutlined } from '@ant-design/icons';
-import type { AiAnalysis, Datasource } from '@/types/api';
+import { useTranslation } from 'react-i18next';
+import type { AiAnalysis, Datasource, ReviewPlan } from '@/types/api';
 import { REVIEW_PLANS } from '@/mocks/data';
 
 interface Props {
@@ -9,7 +10,19 @@ interface Props {
 }
 
 export function ReviewPlanPreview({ ds, analysis }: Props) {
-  const plan = REVIEW_PLANS.find((p) => p.id === ds.plan)!;
+  const { t } = useTranslation();
+  // TODO(FE-XX): replace with useReviewPlans() once the /review-plans API ships.
+  const plan: ReviewPlan = REVIEW_PLANS.find((p) => p.id === ds.review_plan_id) ?? {
+    id: ds.review_plan_id ?? 'unknown',
+    name: t('editor.plan_unknown_name'),
+    description: t('editor.plan_unknown_description'),
+    requires_ai: ds.ai_analysis_enabled,
+    requires_human: true,
+    min_approvals: 1,
+    timeout_hours: 24,
+    auto_approve_reads: false,
+    channels: [],
+  };
   const willSkipHuman = plan.id === 'rp-light' && analysis?.risk_level === 'LOW';
   const stages: { label: string; detail: string }[] = [];
   if (plan.requires_ai) stages.push({ label: 'AI review', detail: 'anthropic · claude-sonnet-4' });

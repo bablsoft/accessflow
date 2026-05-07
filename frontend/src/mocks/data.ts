@@ -41,14 +41,14 @@ export const USERS: User[] = [
 ];
 
 export const DATASOURCES: Datasource[] = [
-  { id: 'ds-01', name: 'Production PostgreSQL', db_type: 'POSTGRESQL', host: 'db-prod.acme.internal', port: 5432, database_name: 'app_prod', ssl_mode: 'VERIFY_FULL', max_rows: 1000, require_review_writes: true, require_review_reads: false, ai_enabled: true, active: true, pool: 25, plan: 'rp-strict', created_at: '2026-01-15T10:00:00Z' },
-  { id: 'ds-02', name: 'Production MySQL', db_type: 'MYSQL', host: 'mysql-prod.acme.internal', port: 3306, database_name: 'commerce', ssl_mode: 'VERIFY_FULL', max_rows: 1000, require_review_writes: true, require_review_reads: false, ai_enabled: true, active: true, pool: 20, plan: 'rp-strict', created_at: '2026-01-15T10:00:00Z' },
-  { id: 'ds-03', name: 'Analytics Replica', db_type: 'POSTGRESQL', host: 'replica-01.acme.internal', port: 5432, database_name: 'analytics', ssl_mode: 'REQUIRE', max_rows: 50000, require_review_writes: true, require_review_reads: false, ai_enabled: true, active: true, pool: 50, plan: 'rp-readonly', created_at: '2026-01-20T10:00:00Z' },
-  { id: 'ds-04', name: 'Staging PostgreSQL', db_type: 'POSTGRESQL', host: 'db-stage.acme.internal', port: 5432, database_name: 'app_stage', ssl_mode: 'REQUIRE', max_rows: 5000, require_review_writes: false, require_review_reads: false, ai_enabled: true, active: true, pool: 10, plan: 'rp-light', created_at: '2026-01-22T10:00:00Z' },
-  { id: 'ds-05', name: 'Billing PostgreSQL', db_type: 'POSTGRESQL', host: 'db-billing.acme.internal', port: 5432, database_name: 'billing', ssl_mode: 'VERIFY_FULL', max_rows: 500, require_review_writes: true, require_review_reads: true, ai_enabled: true, active: true, pool: 15, plan: 'rp-strict', created_at: '2026-02-05T10:00:00Z' },
-  { id: 'ds-06', name: 'Marketing Warehouse', db_type: 'POSTGRESQL', host: 'warehouse.acme.internal', port: 5432, database_name: 'mkt_warehouse', ssl_mode: 'REQUIRE', max_rows: 100000, require_review_writes: true, require_review_reads: false, ai_enabled: false, active: true, pool: 30, plan: 'rp-readonly', created_at: '2026-02-18T10:00:00Z' },
-  { id: 'ds-07', name: 'Legacy Reporting MySQL', db_type: 'MYSQL', host: 'legacy-mysql.acme.internal', port: 3306, database_name: 'reporting_v1', ssl_mode: 'DISABLE', max_rows: 10000, require_review_writes: true, require_review_reads: false, ai_enabled: true, active: true, pool: 8, plan: 'rp-strict', created_at: '2026-03-04T10:00:00Z' },
-  { id: 'ds-08', name: 'Sandbox PG', db_type: 'POSTGRESQL', host: 'sandbox.acme.internal', port: 5432, database_name: 'sandbox', ssl_mode: 'DISABLE', max_rows: 10000, require_review_writes: false, require_review_reads: false, ai_enabled: true, active: false, pool: 5, plan: 'rp-light', created_at: '2026-03-15T10:00:00Z' },
+  { id: 'ds-01', organization_id: 'org-demo', name: 'Production PostgreSQL', db_type: 'POSTGRESQL', host: 'db-prod.acme.internal', port: 5432, database_name: 'app_prod', username: 'accessflow_svc', ssl_mode: 'VERIFY_FULL', max_rows_per_query: 1000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 25, review_plan_id: 'rp-strict', created_at: '2026-01-15T10:00:00Z' },
+  { id: 'ds-02', organization_id: 'org-demo', name: 'Production MySQL', db_type: 'MYSQL', host: 'mysql-prod.acme.internal', port: 3306, database_name: 'commerce', username: 'accessflow_svc', ssl_mode: 'VERIFY_FULL', max_rows_per_query: 1000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 20, review_plan_id: 'rp-strict', created_at: '2026-01-15T10:00:00Z' },
+  { id: 'ds-03', organization_id: 'org-demo', name: 'Analytics Replica', db_type: 'POSTGRESQL', host: 'replica-01.acme.internal', port: 5432, database_name: 'analytics', username: 'accessflow_svc', ssl_mode: 'REQUIRE', max_rows_per_query: 50000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 50, review_plan_id: 'rp-readonly', created_at: '2026-01-20T10:00:00Z' },
+  { id: 'ds-04', organization_id: 'org-demo', name: 'Staging PostgreSQL', db_type: 'POSTGRESQL', host: 'db-stage.acme.internal', port: 5432, database_name: 'app_stage', username: 'accessflow_svc', ssl_mode: 'REQUIRE', max_rows_per_query: 5000, require_review_writes: false, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 10, review_plan_id: 'rp-light', created_at: '2026-01-22T10:00:00Z' },
+  { id: 'ds-05', organization_id: 'org-demo', name: 'Billing PostgreSQL', db_type: 'POSTGRESQL', host: 'db-billing.acme.internal', port: 5432, database_name: 'billing', username: 'accessflow_svc', ssl_mode: 'VERIFY_FULL', max_rows_per_query: 500, require_review_writes: true, require_review_reads: true, ai_analysis_enabled: true, active: true, connection_pool_size: 15, review_plan_id: 'rp-strict', created_at: '2026-02-05T10:00:00Z' },
+  { id: 'ds-06', organization_id: 'org-demo', name: 'Marketing Warehouse', db_type: 'POSTGRESQL', host: 'warehouse.acme.internal', port: 5432, database_name: 'mkt_warehouse', username: 'accessflow_svc', ssl_mode: 'REQUIRE', max_rows_per_query: 100000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: false, active: true, connection_pool_size: 30, review_plan_id: 'rp-readonly', created_at: '2026-02-18T10:00:00Z' },
+  { id: 'ds-07', organization_id: 'org-demo', name: 'Legacy Reporting MySQL', db_type: 'MYSQL', host: 'legacy-mysql.acme.internal', port: 3306, database_name: 'reporting_v1', username: 'accessflow_svc', ssl_mode: 'DISABLE', max_rows_per_query: 10000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 8, review_plan_id: 'rp-strict', created_at: '2026-03-04T10:00:00Z' },
+  { id: 'ds-08', organization_id: 'org-demo', name: 'Sandbox PG', db_type: 'POSTGRESQL', host: 'sandbox.acme.internal', port: 5432, database_name: 'sandbox', username: 'accessflow_svc', ssl_mode: 'DISABLE', max_rows_per_query: 10000, require_review_writes: false, require_review_reads: false, ai_analysis_enabled: true, active: false, connection_pool_size: 5, review_plan_id: 'rp-light', created_at: '2026-03-15T10:00:00Z' },
 ];
 
 export const REVIEW_PLANS: ReviewPlan[] = [
@@ -194,22 +194,43 @@ for (let i = 0; i < 80; i++) {
 }
 export const AUDIT: AuditEvent[] = auditOut;
 
+const PERMS_CREATED_AT = '2026-01-15T10:00:00Z';
 const permsOut: DatasourcePermission[] = [];
 for (const u of USERS) {
   for (const d of DATASOURCES) {
     if (u.role === 'ADMIN') {
-      permsOut.push({ user_id: u.id, datasource_id: d.id, can_read: true, can_write: true, can_ddl: true, row_limit: null, allowed_schemas: null, allowed_tables: null, expires_at: null });
+      permsOut.push({
+        id: `perm-${u.id}-${d.id}`,
+        datasource_id: d.id,
+        user_id: u.id,
+        user_email: u.email,
+        user_display_name: u.display_name,
+        can_read: true,
+        can_write: true,
+        can_ddl: true,
+        row_limit_override: null,
+        allowed_schemas: null,
+        allowed_tables: null,
+        expires_at: null,
+        created_by: 'u-03',
+        created_at: PERMS_CREATED_AT,
+      });
     } else if (u.active && rand() > 0.45) {
       permsOut.push({
-        user_id: u.id,
+        id: `perm-${u.id}-${d.id}`,
         datasource_id: d.id,
+        user_id: u.id,
+        user_email: u.email,
+        user_display_name: u.display_name,
         can_read: true,
         can_write: u.role === 'REVIEWER' || (u.role === 'ANALYST' && rand() > 0.4),
         can_ddl: u.role === 'REVIEWER' && rand() > 0.7,
-        row_limit: rand() > 0.7 ? Math.floor(rand() * 5000 + 100) : null,
+        row_limit_override: rand() > 0.7 ? Math.floor(rand() * 5000 + 100) : null,
         allowed_schemas: rand() > 0.6 ? ['public'] : null,
         allowed_tables: null,
         expires_at: rand() > 0.85 ? '2026-09-30T23:59:59Z' : null,
+        created_by: 'u-03',
+        created_at: PERMS_CREATED_AT,
       });
     }
   }

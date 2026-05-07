@@ -15,8 +15,8 @@ import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { SchemaTree } from '@/components/editor/SchemaTree';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
-import { DATASOURCES } from '@/mocks/data';
-import { buildMockSchema } from '@/mocks/schema';
+import { datasourceKeys, listDatasources } from '@/api/datasources';
+import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatSql } from '@/utils/sqlFormat';
@@ -29,28 +29,38 @@ WHERE id = 88210
 LIMIT 1;`;
 
 const ANALYZE_DEBOUNCE_MS = 700;
+const EMPTY_SCHEMA = { schemas: [] };
 
 export function QueryEditorPage() {
   const { t } = useTranslation();
-  const datasources = DATASOURCES.filter((d) => d.active);
-  const [dsId, setDsId] = useState(datasources[0]!.id);
+  const datasourcesQuery = useQuery({
+    queryKey: datasourceKeys.list({ size: 100 }),
+    queryFn: () => listDatasources({ size: 100 }),
+  });
+  const datasources = useMemo(
+    () => (datasourcesQuery.data?.content ?? []).filter((d) => d.active),
+    [datasourcesQuery.data],
+  );
+  const [selectedDsId, setSelectedDsId] = useState<string | null>(null);
+  const dsId = selectedDsId ?? datasources[0]?.id ?? null;
+  const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState(DEFAULT_SQL);
   const [justification, setJustification] = useState(
     'Customer support ticket #8821 — investigating order stuck in processing status.',
   );
-  const ds = datasources.find((d) => d.id === dsId)!;
-  const schema = useMemo(() => buildMockSchema(ds), [ds]);
+  const schemaQuery = useSchemaIntrospect(ds?.id);
+  const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const debouncedSql = useDebouncedValue(sql, ANALYZE_DEBOUNCE_MS);
   const trimmedSql = debouncedSql.trim();
-  const enableAnalysis = trimmedSql.length > 0 && ds.ai_enabled;
+  const enableAnalysis = !!ds && trimmedSql.length > 0 && ds.ai_analysis_enabled;
 
   const analysisQuery = useQuery({
-    queryKey: ['queries', 'analyze', dsId, trimmedSql],
-    queryFn: () => analyzeOnly({ datasource_id: dsId, sql: debouncedSql }),
+    queryKey: ['queries', 'analyze', ds?.id, trimmedSql],
+    queryFn: () => analyzeOnly({ datasource_id: ds!.id, sql: debouncedSql }),
     enabled: enableAnalysis,
     staleTime: 60_000,
     retry: false,
@@ -59,7 +69,7 @@ export function QueryEditorPage() {
   const submitMutation = useMutation({
     mutationFn: () =>
       submitQuery({
-        datasource_id: dsId,
+        datasource_id: ds!.id,
         sql,
         justification,
       }),
@@ -81,6 +91,22 @@ export function QueryEditorPage() {
   const submitState = submitMutation.isPending ? 'submitting' : 'idle';
 
   const lineCount = (sql.match(/\n/g) ?? []).length + 1;
+
+  if (datasourcesQuery.isLoading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div className="muted">{t('datasources.list.loading')}</div>
+      </div>
+    );
+  }
+
+  if (!ds) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div className="muted">{t('datasources.list.empty')}</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -108,9 +134,8 @@ export function QueryEditorPage() {
       <div className="af-editor-grid">
         <SchemaTree
           ds={ds}
-          schema={schema}
           datasources={datasources}
-          onChangeDs={setDsId}
+          onChangeDs={setSelectedDsId}
         />
         <div className="af-editor-center">
           <div className="af-editor-toolbar">
@@ -178,7 +203,7 @@ export function QueryEditorPage() {
             <ReviewPlanPreview ds={ds} analysis={analysis} />
           </div>
         </div>
-        <AiHintPanel analyzing={analyzing} analysis={analysis} aiEnabled={ds.ai_enabled} />
+        <AiHintPanel analyzing={analyzing} analysis={analysis} aiEnabled={ds.ai_analysis_enabled} />
       </div>
     </div>
   );

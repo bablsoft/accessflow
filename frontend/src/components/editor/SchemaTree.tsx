@@ -6,19 +6,22 @@ import {
   DownOutlined,
   TableOutlined,
 } from '@ant-design/icons';
-import type { Datasource, DatasourceSchema } from '@/types/api';
+import { useTranslation } from 'react-i18next';
+import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
+import type { Datasource } from '@/types/api';
 
 interface SchemaTreeProps {
   ds: Datasource;
-  schema: DatasourceSchema;
   datasources: Datasource[];
   onChangeDs: (id: string) => void;
 }
 
-export function SchemaTree({ ds, schema, datasources, onChangeDs }: SchemaTreeProps) {
+export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ public: true });
   const [openTable, setOpenTable] = useState<string | null>(null);
+  const schemaQuery = useSchemaIntrospect(ds.id);
 
   return (
     <div
@@ -83,7 +86,17 @@ export function SchemaTree({ ds, schema, datasources, onChangeDs }: SchemaTreePr
           fontSize: 12,
         }}
       >
-        {schema.schemas.map((s) => {
+        {schemaQuery.isLoading && (
+          <div className="muted" style={{ padding: '8px 12px', fontSize: 11 }}>
+            {t('datasources.settings.schema_loading')}
+          </div>
+        )}
+        {schemaQuery.isError && (
+          <div className="muted" style={{ padding: '8px 12px', fontSize: 11, color: 'var(--risk-high)' }}>
+            {t('datasources.settings.schema_error')}
+          </div>
+        )}
+        {schemaQuery.data?.schemas.map((s) => {
           const open = expanded[s.name];
           return (
             <div key={s.name}>
