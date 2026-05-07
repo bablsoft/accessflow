@@ -11,6 +11,16 @@
 - Revocation: invalidated refresh tokens stored in Redis with TTL matching remaining lifetime
 - On access token expiry, frontend automatically calls `POST /auth/refresh` via Axios interceptor
 
+### WebSocket handshake
+
+The realtime endpoint at `/ws` is exempt from `JwtAuthenticationFilter` and authenticates the upgrade through `realtime/internal/ws/JwtHandshakeInterceptor` instead. Browsers do not allow custom headers on a WebSocket upgrade, so the access token is supplied as a query parameter: `ws://host/ws?token=<JWT>`.
+
+- The same RSA signing key, expiry rules, and token-type checks apply — there is **no separate WS token**.
+- The handshake interceptor calls the public `AccessTokenAuthenticator` (`security/api/`); on failure the upgrade is rejected with HTTP 403.
+- After the handshake, no further per-frame auth is performed — the validated `JwtClaims` are stored on the session for the lifetime of the connection.
+- The frontend reconnects whenever the access token rotates (after a `/auth/refresh` 200), so a long-running socket cannot outlive its credentials.
+- `/ws` is added to the `permitAll()` list in `SecurityConfiguration` because the handshake interceptor — not the JWT filter — is the auth boundary here.
+
 ### Enterprise Edition — SAML 2.0
 
 All Community JWT mechanisms remain in place. Additionally:

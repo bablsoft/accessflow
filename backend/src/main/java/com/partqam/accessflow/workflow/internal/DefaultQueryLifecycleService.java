@@ -18,8 +18,10 @@ import com.partqam.accessflow.proxy.api.UpdateExecutionResult;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService;
 import com.partqam.accessflow.workflow.api.QueryNotCancellableException;
 import com.partqam.accessflow.workflow.api.QueryNotExecutableException;
+import com.partqam.accessflow.workflow.events.QueryExecutedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
@@ -44,6 +46,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
+    private final ApplicationEventPublisher eventPublisher;
 
     private String msg(String key) {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
@@ -94,6 +97,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     command.callerOrganizationId(), Map.of(
                             "rows_affected", rowsAffected,
                             "duration_ms", durationMs));
+            eventPublisher.publishEvent(new QueryExecutedEvent(
+                    query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED));
             return new ExecutionOutcome(query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs);
         } catch (RuntimeException ex) {
             var completedAt = Instant.now();
@@ -105,6 +110,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var failureMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
             recordAudit(AuditAction.QUERY_FAILED, query.id(), command.callerUserId(),
                     command.callerOrganizationId(), Map.of("error", failureMessage));
+            eventPublisher.publishEvent(new QueryExecutedEvent(
+                    query.id(), null, durationMs, QueryStatus.FAILED));
             return new ExecutionOutcome(query.id(), QueryStatus.FAILED, null, durationMs);
         }
     }

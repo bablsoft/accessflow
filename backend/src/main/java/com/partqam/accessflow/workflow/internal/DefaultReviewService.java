@@ -19,6 +19,7 @@ import com.partqam.accessflow.workflow.api.ReviewService;
 import com.partqam.accessflow.workflow.api.ReviewerNotEligibleException;
 import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
 import com.partqam.accessflow.workflow.events.QueryRejectedEvent;
+import com.partqam.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -73,6 +74,10 @@ class DefaultReviewService implements ReviewService {
         if (result.resultingStatus() == QueryStatus.APPROVED && !result.wasIdempotentReplay()) {
             eventPublisher.publishEvent(new QueryApprovedEvent(queryRequestId, context.userId()));
         }
+        if (!result.wasIdempotentReplay()) {
+            eventPublisher.publishEvent(new ReviewDecisionMadeEvent(queryRequestId,
+                    prep.submitterId(), context.userId(), DecisionType.APPROVED, comment));
+        }
         return new DecisionOutcome(result.decisionId(), DecisionType.APPROVED,
                 result.resultingStatus(), result.wasIdempotentReplay());
     }
@@ -87,6 +92,10 @@ class DefaultReviewService implements ReviewService {
         if (result.resultingStatus() == QueryStatus.REJECTED && !result.wasIdempotentReplay()) {
             eventPublisher.publishEvent(new QueryRejectedEvent(queryRequestId, context.userId()));
         }
+        if (!result.wasIdempotentReplay()) {
+            eventPublisher.publishEvent(new ReviewDecisionMadeEvent(queryRequestId,
+                    prep.submitterId(), context.userId(), DecisionType.REJECTED, comment));
+        }
         return new DecisionOutcome(result.decisionId(), DecisionType.REJECTED,
                 result.resultingStatus(), result.wasIdempotentReplay());
     }
@@ -99,6 +108,11 @@ class DefaultReviewService implements ReviewService {
         var result = mapTransitionFailure(queryRequestId,
                 () -> queryRequestStateService.recordChangesRequested(queryRequestId,
                         context.userId(), prep.currentStage(), comment));
+        if (!result.wasIdempotentReplay()) {
+            eventPublisher.publishEvent(new ReviewDecisionMadeEvent(queryRequestId,
+                    prep.submitterId(), context.userId(), DecisionType.REQUESTED_CHANGES,
+                    comment));
+        }
         return new DecisionOutcome(result.decisionId(), DecisionType.REQUESTED_CHANGES,
                 result.resultingStatus(), result.wasIdempotentReplay());
     }
@@ -129,7 +143,7 @@ class DefaultReviewService implements ReviewService {
         if (!isApproverAtStage(plan, currentStage, context)) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
-        return new DecisionPreparation(plan, currentStage);
+        return new DecisionPreparation(plan, currentStage, view.submittedByUserId());
     }
 
     private static int currentStage(ReviewPlanSnapshot plan,
@@ -210,6 +224,7 @@ class DefaultReviewService implements ReviewService {
         }
     }
 
-    private record DecisionPreparation(ReviewPlanSnapshot plan, int currentStage) {
+    private record DecisionPreparation(ReviewPlanSnapshot plan, int currentStage,
+                                       UUID submitterId) {
     }
 }

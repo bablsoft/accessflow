@@ -20,6 +20,7 @@ import com.partqam.accessflow.workflow.api.QueryLifecycleService.CancelQueryComm
 import com.partqam.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
 import com.partqam.accessflow.workflow.api.QueryNotCancellableException;
 import com.partqam.accessflow.workflow.api.QueryNotExecutableException;
+import com.partqam.accessflow.workflow.events.QueryExecutedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.security.access.AccessDeniedException;
 import tools.jackson.databind.ObjectMapper;
@@ -55,6 +57,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock QueryExecutor queryExecutor;
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     DefaultQueryLifecycleService service;
 
@@ -73,7 +76,8 @@ class DefaultQueryLifecycleServiceTest {
                 queryExecutor,
                 auditLogService,
                 new ObjectMapper(),
-                messageSource);
+                messageSource,
+                eventPublisher);
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {

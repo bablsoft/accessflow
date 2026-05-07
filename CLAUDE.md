@@ -268,6 +268,7 @@ com.partqam.accessflow/
 6. **`@JsonIgnore` on all encrypted/sensitive fields** — entity-level, not just controller-level.
 7. **CORS** — only the configured `CORS_ALLOWED_ORIGIN` is allowed. No wildcard in production.
 8. **Refresh token cookies** — `HttpOnly; Secure; SameSite=Strict`.
+9. **WebSocket handshake auth** — `/ws` is exempt from `JwtAuthenticationFilter`; the upgrade is authenticated by `realtime/internal/ws/JwtHandshakeInterceptor`, which calls the public `AccessTokenAuthenticator` (`security/api/`) on the `?token=<JWT>` query param. Same RSA key, same expiry rules — never a separate WS token. Browsers cannot set custom headers on a WS upgrade, which is why this path exists.
 
 ---
 
