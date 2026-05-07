@@ -1,8 +1,10 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthGuard } from '@/components/common/AuthGuard';
 import { AppLayout } from '@/layouts/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
+import { SetupPage } from '@/pages/auth/SetupPage';
+import { useSetupStore } from '@/store/setupStore';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
@@ -15,9 +17,20 @@ import { AIConfigPage } from '@/pages/admin/AIConfigPage';
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 
 export function App() {
+  const setupRequired = useSetupStore((s) => s.setupRequired);
+  const location = useLocation();
+
+  if (setupRequired === true && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
+  }
+  if (setupRequired === false && location.pathname === '/setup') {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <AntdApp>
       <Routes>
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route
           element={

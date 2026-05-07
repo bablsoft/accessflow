@@ -34,7 +34,9 @@ export default defineConfig({
         'src/mocks/delay.ts',
         'src/api/auth.ts',
         'src/api/client.ts',
+        'src/api/setup.ts',
         'src/store/authStore.ts',
+        'src/store/setupStore.ts',
       ],
       exclude: [
         '**/__tests__/**',
