@@ -1,5 +1,7 @@
 package com.partqam.accessflow.core.internal;
 
+import com.partqam.accessflow.core.api.AiProviderType;
+import com.partqam.accessflow.core.api.QueryListFilter;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
 import com.partqam.accessflow.core.api.RiskLevel;
@@ -157,6 +159,130 @@ class DefaultQueryRequestLookupServiceTest {
     }
 
     @Test
+    void findForOrganizationMapsListItemsWithoutAiAnalysis() {
+        var orgId = UUID.randomUUID();
+        var entity = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_AI);
+        var pageable = PageRequest.of(0, 20);
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
+
+        var page = service.findForOrganization(
+                new QueryListFilter(orgId, null, null, null, null, null, null), pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        var item = page.getContent().get(0);
+        assertThat(item.id()).isEqualTo(entity.getId());
+        assertThat(item.datasourceName()).isEqualTo("ds");
+        assertThat(item.submittedByEmail()).isEqualTo("alice@example.com");
+        assertThat(item.submittedByDisplayName()).isEqualTo("Alice");
+        assertThat(item.aiRiskLevel()).isNull();
+        assertThat(item.aiRiskScore()).isNull();
+        assertThat(item.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(item.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void findForOrganizationIncludesRiskFieldsWhenAiAnalysisLinked() {
+        var orgId = UUID.randomUUID();
+        var entity = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_REVIEW);
+        var aiId = UUID.randomUUID();
+        entity.setAiAnalysisId(aiId);
+        var ai = new AiAnalysisEntity();
+        ai.setId(aiId);
+        ai.setRiskLevel(RiskLevel.MEDIUM);
+        ai.setRiskScore(42);
+        ai.setSummary("ok");
+
+        var pageable = PageRequest.of(0, 20);
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
+        when(aiAnalysisRepository.findById(aiId)).thenReturn(Optional.of(ai));
+
+        var item = service.findForOrganization(
+                new QueryListFilter(orgId, null, null, null, null, null, null), pageable)
+                .getContent().get(0);
+
+        assertThat(item.aiRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+        assertThat(item.aiRiskScore()).isEqualTo(42);
+    }
+
+    @Test
+    void findDetailByIdReturnsViewForOwningOrg() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.EXECUTED);
+        entity.setRowsAffected(5L);
+        entity.setExecutionDurationMs(99);
+        entity.setUpdatedAt(Instant.parse("2025-01-15T11:00:00Z"));
+        var aiId = UUID.randomUUID();
+        entity.setAiAnalysisId(aiId);
+        var ai = new AiAnalysisEntity();
+        ai.setId(aiId);
+        ai.setRiskLevel(RiskLevel.LOW);
+        ai.setRiskScore(10);
+        ai.setSummary("looks fine");
+        ai.setIssues("[]");
+        ai.setMissingIndexesDetected(false);
+        ai.setAffectsRowEstimate(1L);
+        ai.setAiProvider(AiProviderType.ANTHROPIC);
+        ai.setAiModel("claude-sonnet-4");
+        ai.setPromptTokens(120);
+        ai.setCompletionTokens(80);
+
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(aiAnalysisRepository.findById(aiId)).thenReturn(Optional.of(ai));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.id()).isEqualTo(queryId);
+        assertThat(detail.organizationId()).isEqualTo(orgId);
+        assertThat(detail.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(detail.rowsAffected()).isEqualTo(5L);
+        assertThat(detail.durationMs()).isEqualTo(99);
+        assertThat(detail.aiAnalysis()).isNotNull();
+        assertThat(detail.aiAnalysis().riskLevel()).isEqualTo(RiskLevel.LOW);
+        assertThat(detail.aiAnalysis().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
+        assertThat(detail.aiAnalysis().promptTokens()).isEqualTo(120);
+    }
+
+    @Test
+    void findDetailByIdLeavesAiAnalysisNullWhenNoAnalysisLinked() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.aiAnalysis()).isNull();
+        verifyNoInteractions(aiAnalysisRepository);
+    }
+
+    @Test
+    void findDetailByIdReturnsEmptyWhenOrgDoesNotMatch() {
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+
+        assertThat(service.findDetailById(queryId, UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findDetailByIdReturnsEmptyWhenQueryMissing() {
+        var queryId = UUID.randomUUID();
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.empty());
+
+        assertThat(service.findDetailById(queryId, UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
     void findPendingForReviewerMapsRepositoryPageToViews() {
         var orgId = UUID.randomUUID();
         var reviewerId = UUID.randomUUID();
@@ -191,6 +317,7 @@ class DefaultQueryRequestLookupServiceTest {
         var submitter = new UserEntity();
         submitter.setId(userId);
         submitter.setEmail(email);
+        submitter.setDisplayName("Alice");
 
         var entity = new QueryRequestEntity();
         entity.setId(queryId);
