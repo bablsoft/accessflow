@@ -1,18 +1,24 @@
 import { useMemo, useState } from 'react';
-import { Button, DatePicker, Input, Select, Table } from 'antd';
+import { Button, DatePicker, Input, Select, Skeleton, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { Avatar } from '@/components/common/Avatar';
-import { useQueriesStore } from '@/store/queriesStore';
+import { listQueries, queryKeys } from '@/api/queries';
 import { timeAgo } from '@/utils/dateFormat';
-import type { QueryRequest, QueryStatus, QueryType, RiskLevel } from '@/types/api';
+import type {
+  QueryListItem,
+  QueryStatus,
+  QueryType,
+  RiskLevel,
+} from '@/types/api';
 
 const STATUSES: QueryStatus[] = [
   'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'FAILED', 'CANCELLED',
@@ -20,91 +26,121 @@ const STATUSES: QueryStatus[] = [
 const TYPES: QueryType[] = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DDL'];
 const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
+const PAGE_SIZE = 20;
+
 export function QueryListPage() {
   const { t } = useTranslation();
-  const queries = useQueriesStore((s) => s.queries);
   const navigate = useNavigate();
 
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<QueryStatus | 'all'>('all');
   const [type, setType] = useState<QueryType | 'all'>('all');
   const [risk, setRisk] = useState<RiskLevel | 'all'>('all');
-  const [submitter, setSubmitter] = useState<string | 'all'>('all');
   const [datasource, setDatasource] = useState<string | 'all'>('all');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [page, setPage] = useState(0);
 
-  const submitters = useMemo(() => {
-    const m = new Map<string, string>();
-    queries.forEach((qr) => m.set(qr.submitted_by, qr.submitter_name));
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [queries]);
+  const filters = useMemo(
+    () => ({
+      status: status === 'all' ? undefined : status,
+      query_type: type === 'all' ? undefined : type,
+      datasource_id: datasource === 'all' ? undefined : datasource,
+      from: range?.[0] ? range[0].toISOString() : undefined,
+      to: range?.[1] ? range[1].endOf('day').toISOString() : undefined,
+      page,
+      size: PAGE_SIZE,
+    }),
+    [status, type, datasource, range, page],
+  );
+
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.list(filters),
+    queryFn: () => listQueries(filters),
+  });
+
+  const rows = useMemo(() => data?.content ?? [], [data]);
+
   const dsOpts = useMemo(() => {
     const m = new Map<string, string>();
-    queries.forEach((qr) => m.set(qr.datasource_id, qr.datasource_name));
+    rows.forEach((qr) => m.set(qr.datasource.id, qr.datasource.name));
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [queries]);
+  }, [rows]);
 
+  // Free-text + risk filter happen client-side over the current page (server has no full-text
+  // filter; risk lives on the embedded ai_analysis snapshot, which is also not server-filterable
+  // yet).
   const filtered = useMemo(
     () =>
-      queries.filter((qr) => {
-        if (status !== 'all' && qr.status !== status) return false;
-        if (type !== 'all' && qr.query_type !== type) return false;
+      rows.filter((qr) => {
         if (risk !== 'all' && qr.risk_level !== risk) return false;
-        if (submitter !== 'all' && qr.submitted_by !== submitter) return false;
-        if (datasource !== 'all' && qr.datasource_id !== datasource) return false;
-        if (range?.[0] && dayjs(qr.created_at).isBefore(range[0])) return false;
-        if (range?.[1] && dayjs(qr.created_at).isAfter(range[1].endOf('day'))) return false;
         if (q) {
           const n = q.toLowerCase();
           if (
-            !qr.sql.toLowerCase().includes(n) &&
-            !qr.submitter_name.toLowerCase().includes(n) &&
-            !qr.id.toLowerCase().includes(n)
-          )
+            !qr.id.toLowerCase().includes(n) &&
+            !qr.submitted_by.display_name.toLowerCase().includes(n) &&
+            !qr.submitted_by.email.toLowerCase().includes(n) &&
+            !qr.datasource.name.toLowerCase().includes(n)
+          ) {
             return false;
+          }
         }
         return true;
       }),
-    [queries, q, status, type, risk, submitter, datasource, range],
+    [rows, q, risk],
   );
 
-  const cols: TableColumnsType<QueryRequest> = [
-    { title: t('queries.list.col_id'), dataIndex: 'id', width: 110, render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v}</span> },
+  const cols: TableColumnsType<QueryListItem> = [
     {
-      title: t('queries.list.col_sql'),
-      dataIndex: 'sql',
-      ellipsis: true,
-      render: (v: string) => (
-        <div
-          className="mono"
-          style={{
-            fontSize: 12,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            maxWidth: 380,
-          }}
-        >
-          {v.replace(/\s+/g, ' ').slice(0, 100)}
-        </div>
+      title: t('queries.list.col_id'),
+      dataIndex: 'id',
+      width: 110,
+      render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v.slice(0, 8)}</span>,
+    },
+    {
+      title: t('queries.list.col_type'),
+      dataIndex: 'query_type',
+      width: 80,
+      render: (v: QueryType) => <QueryTypePill type={v} />,
+    },
+    {
+      title: t('queries.list.col_status'),
+      dataIndex: 'status',
+      width: 130,
+      render: (v: QueryStatus) => <StatusPill status={v} />,
+    },
+    {
+      title: t('queries.list.col_risk'),
+      width: 130,
+      render: (_v, r) =>
+        r.risk_level != null && r.risk_score != null ? (
+          <RiskPill level={r.risk_level} score={r.risk_score} />
+        ) : (
+          <span className="muted" style={{ fontSize: 11 }}>—</span>
+        ),
+    },
+    {
+      title: t('queries.list.col_datasource'),
+      width: 200,
+      render: (_v, r) => (
+        <span className="mono" style={{ fontSize: 12 }}>{r.datasource.name}</span>
       ),
     },
-    { title: t('queries.list.col_type'), dataIndex: 'query_type', width: 80, render: (v: QueryType) => <QueryTypePill type={v} /> },
-    { title: t('queries.list.col_status'), dataIndex: 'status', width: 130, render: (v: QueryStatus) => <StatusPill status={v} /> },
-    { title: t('queries.list.col_risk'), dataIndex: 'risk_level', width: 130, render: (_v: RiskLevel, r) => <RiskPill level={r.risk_level} score={r.risk_score} /> },
-    { title: t('queries.list.col_datasource'), dataIndex: 'datasource_name', width: 200, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
     {
       title: t('queries.list.col_submitter'),
-      dataIndex: 'submitter_name',
       width: 180,
-      render: (v: string) => (
+      render: (_v, r) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar name={v} size={20} />
-          <span style={{ fontSize: 12 }}>{v}</span>
+          <Avatar name={r.submitted_by.display_name} size={20} />
+          <span style={{ fontSize: 12 }}>{r.submitted_by.display_name}</span>
         </div>
       ),
     },
-    { title: t('queries.list.col_created'), dataIndex: 'created_at', width: 110, render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span> },
+    {
+      title: t('queries.list.col_created'),
+      dataIndex: 'created_at',
+      width: 110,
+      render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span>,
+    },
   ];
 
   return (
@@ -134,7 +170,7 @@ export function QueryListPage() {
         />
         <Select
           value={status}
-          onChange={(v) => setStatus(v)}
+          onChange={(v) => { setStatus(v); setPage(0); }}
           options={[
             { value: 'all', label: t('queries.list.filter_all_statuses') },
             ...STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') })),
@@ -143,28 +179,25 @@ export function QueryListPage() {
         />
         <Select
           value={type}
-          onChange={(v) => setType(v)}
-          options={[{ value: 'all', label: t('queries.list.filter_all_types') }, ...TYPES.map((tp) => ({ value: tp, label: tp }))]}
+          onChange={(v) => { setType(v); setPage(0); }}
+          options={[
+            { value: 'all', label: t('queries.list.filter_all_types') },
+            ...TYPES.map((tp) => ({ value: tp, label: tp })),
+          ]}
           style={{ width: 130 }}
         />
         <Select
           value={risk}
           onChange={(v) => setRisk(v)}
-          options={[{ value: 'all', label: t('queries.list.filter_all_risk') }, ...RISKS.map((r) => ({ value: r, label: r }))]}
+          options={[
+            { value: 'all', label: t('queries.list.filter_all_risk') },
+            ...RISKS.map((r) => ({ value: r, label: r })),
+          ]}
           style={{ width: 130 }}
         />
         <Select
-          value={submitter}
-          onChange={(v) => setSubmitter(v)}
-          options={[
-            { value: 'all', label: t('queries.list.filter_all_submitters') },
-            ...submitters.map(([id, name]) => ({ value: id, label: name })),
-          ]}
-          style={{ width: 180 }}
-        />
-        <Select
           value={datasource}
-          onChange={(v) => setDatasource(v)}
+          onChange={(v) => { setDatasource(v); setPage(0); }}
           options={[
             { value: 'all', label: t('queries.list.filter_all_datasources') },
             ...dsOpts.map(([id, name]) => ({ value: id, label: name })),
@@ -173,25 +206,43 @@ export function QueryListPage() {
         />
         <DatePicker.RangePicker
           value={range as [Dayjs | null, Dayjs | null]}
-          onChange={(v) => setRange(v as [Dayjs | null, Dayjs | null] | null)}
+          onChange={(v) => {
+            setRange(v as [Dayjs | null, Dayjs | null] | null);
+            setPage(0);
+          }}
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11 }}>
-          {t('queries.list.count_label', { filtered: filtered.length, total: queries.length })}
+          {t('queries.list.count_label', {
+            filtered: filtered.length,
+            total: data?.total_elements ?? 0,
+          })}
         </span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
-        <Table
-          rowKey="id"
-          dataSource={filtered}
-          columns={cols}
-          size="middle"
-          pagination={{ pageSize: 15, showSizeChanger: false }}
-          onRow={(record) => ({
-            onClick: () => navigate(`/queries/${record.id}`),
-            style: { cursor: 'pointer' },
-          })}
-        />
+        {isLoading ? (
+          <div style={{ padding: 16 }}>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </div>
+        ) : (
+          <Table
+            rowKey="id"
+            dataSource={filtered}
+            columns={cols}
+            size="middle"
+            pagination={{
+              current: page + 1,
+              pageSize: PAGE_SIZE,
+              total: data?.total_elements ?? 0,
+              showSizeChanger: false,
+              onChange: (p) => setPage(p - 1),
+            }}
+            onRow={(record) => ({
+              onClick: () => navigate(`/queries/${record.id}`),
+              style: { cursor: 'pointer' },
+            })}
+          />
+        )}
       </div>
     </div>
   );

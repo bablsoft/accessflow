@@ -101,7 +101,8 @@
     "lines_count_one": "{{count}} line",
     "lines_count_other": "{{count}} lines",
     "chars_count": "{{count}} chars",
-    "submit_success": "Query submitted · {{id}}"
+    "submit_success": "Query submitted · {{id}}",
+    "submit_error": "Could not submit query"
   },
   "ai_panel": {
     "title": "AI analysis",
@@ -159,7 +160,13 @@
       "cancel_query": "Cancel query",
       "on_approve_success": "Approved · forwarded to execution",
       "on_reject_success": "Rejected · submitter notified",
-      "on_cancel_success": "Query cancelled"
+      "on_cancel_success": "Query cancelled",
+      "execute_button": "Execute now",
+      "on_execute_success": "Query executed",
+      "on_execute_error": "Execution failed",
+      "card_results": "Results",
+      "results_unavailable": "Results not available yet",
+      "results_truncated": "{{count}} rows returned (truncated by datasource max_rows)"
     }
   },
   "reviews": {

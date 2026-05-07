@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { App, Button, Input } from 'antd';
 import {
   ThunderboltOutlined,
@@ -7,6 +7,7 @@ import {
   FolderOpenOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -16,9 +17,8 @@ import { SchemaTree } from '@/components/editor/SchemaTree';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
 import { DATASOURCES } from '@/mocks/data';
 import { buildMockSchema } from '@/mocks/schema';
-import { mockAnalyze } from '@/mocks/analyzer';
-import type { AiAnalysis } from '@/types/api';
-import { submitQuery } from '@/api/queries';
+import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatSql } from '@/utils/sqlFormat';
 import './editor.css';
 
@@ -28,6 +28,8 @@ FROM orders
 WHERE id = 88210
 LIMIT 1;`;
 
+const ANALYZE_DEBOUNCE_MS = 700;
+
 export function QueryEditorPage() {
   const { t } = useTranslation();
   const datasources = DATASOURCES.filter((d) => d.active);
@@ -36,44 +38,47 @@ export function QueryEditorPage() {
   const [justification, setJustification] = useState(
     'Customer support ticket #8821 — investigating order stuck in processing status.',
   );
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
-  const [submitState, setSubmitState] = useState<'idle' | 'submitting'>('idle');
   const ds = datasources.find((d) => d.id === dsId)!;
   const schema = useMemo(() => buildMockSchema(ds), [ds]);
   const { message } = App.useApp();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!sql.trim()) {
-      setAnalysis(null);
-      return;
-    }
-    setAnalyzing(true);
-    const timer = setTimeout(() => {
-      setAnalysis(mockAnalyze(sql));
-      setAnalyzing(false);
-    }, 700);
-    return () => clearTimeout(timer);
-  }, [sql]);
+  const debouncedSql = useDebouncedValue(sql, ANALYZE_DEBOUNCE_MS);
+  const trimmedSql = debouncedSql.trim();
+  const enableAnalysis = trimmedSql.length > 0 && ds.ai_enabled;
 
-  const handleSubmit = async () => {
-    setSubmitState('submitting');
-    try {
-      const created = await submitQuery({
+  const analysisQuery = useQuery({
+    queryKey: ['queries', 'analyze', dsId, trimmedSql],
+    queryFn: () => analyzeOnly({ datasource_id: dsId, sql: debouncedSql }),
+    enabled: enableAnalysis,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: () =>
+      submitQuery({
         datasource_id: dsId,
         sql,
         justification,
-      });
+      }),
+    onSuccess: (created) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
       message.success({
         content: t('editor.submit_success', { id: created.id }),
         duration: 2.5,
       });
       navigate(`/queries/${created.id}`);
-    } finally {
-      setSubmitState('idle');
-    }
-  };
+    },
+    onError: () => {
+      message.error(t('editor.submit_error'));
+    },
+  });
+
+  const analyzing = analysisQuery.isFetching;
+  const analysis = analysisQuery.data ?? null;
+  const submitState = submitMutation.isPending ? 'submitting' : 'idle';
 
   const lineCount = (sql.match(/\n/g) ?? []).length + 1;
 
@@ -93,7 +98,7 @@ export function QueryEditorPage() {
                 submitState === 'submitting' ? <LoadingOutlined /> : <PlayCircleOutlined />
               }
               disabled={submitState !== 'idle' || !sql.trim()}
-              onClick={handleSubmit}
+              onClick={() => submitMutation.mutate()}
             >
               {submitState === 'submitting' ? t('editor.submitting_button') : t('editor.submit_button')}
             </Button>

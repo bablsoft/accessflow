@@ -5,6 +5,7 @@ import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.RecordApprovalCommand;
+import com.partqam.accessflow.core.api.RecordExecutionCommand;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
@@ -198,6 +199,51 @@ class DefaultQueryRequestStateServiceTest {
         var captor = ArgumentCaptor.forClass(ReviewDecisionEntity.class);
         verify(reviewDecisionRepository).save(captor.capture());
         assertThat(captor.getValue().getDecision()).isEqualTo(DecisionType.REQUESTED_CHANGES);
+    }
+
+    @Test
+    void recordExecutionOutcomeWritesAllFieldsAndTransitionsToExecuted() {
+        query.setStatus(QueryStatus.APPROVED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+        var startedAt = java.time.Instant.parse("2026-05-07T10:00:00Z");
+        var completedAt = java.time.Instant.parse("2026-05-07T10:00:01Z");
+
+        service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.EXECUTED,
+                42L, 100, null, startedAt, completedAt));
+
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(query.getRowsAffected()).isEqualTo(42L);
+        assertThat(query.getExecutionDurationMs()).isEqualTo(100);
+        assertThat(query.getErrorMessage()).isNull();
+        assertThat(query.getExecutionStartedAt()).isEqualTo(startedAt);
+        assertThat(query.getExecutionCompletedAt()).isEqualTo(completedAt);
+        verify(queryRequestRepository).save(query);
+    }
+
+    @Test
+    void recordExecutionOutcomeStoresErrorMessageOnFailure() {
+        query.setStatus(QueryStatus.APPROVED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.FAILED,
+                null, 50, "connection refused",
+                java.time.Instant.now(), java.time.Instant.now()));
+
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.FAILED);
+        assertThat(query.getRowsAffected()).isNull();
+        assertThat(query.getErrorMessage()).isEqualTo("connection refused");
+    }
+
+    @Test
+    void recordExecutionOutcomeThrowsWhenStatusIsNotApproved() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThatThrownBy(() -> service.recordExecutionOutcome(new RecordExecutionCommand(
+                queryId, QueryStatus.EXECUTED, 1L, 10, null,
+                java.time.Instant.now(), java.time.Instant.now())))
+                .isInstanceOf(IllegalQueryStatusTransitionException.class);
+        verify(queryRequestRepository, never()).save(any());
     }
 
     @Test

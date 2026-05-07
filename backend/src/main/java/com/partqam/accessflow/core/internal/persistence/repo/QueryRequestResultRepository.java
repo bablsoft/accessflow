@@ -1,0 +1,10 @@
+package com.partqam.accessflow.core.internal.persistence.repo;
+
+import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestResultEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface QueryRequestResultRepository
+        extends JpaRepository<QueryRequestResultEntity, UUID> {
+}

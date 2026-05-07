@@ -300,6 +300,13 @@ Never use `if (edition.equals("enterprise"))` guards inside a shared bean — us
 
 **Coverage target: ≥ 90% line coverage** (enforced via JaCoCo — build fails below threshold).
 
+**Coverage parity rule — every concrete class ships with its own test class.** When you add a `Default*` implementation of an `*Service` interface, a `*Specifications` helper, a JPA entity / repository wrapper, a request/response DTO with mapping logic, or a record with non-trivial constructor validation, you must ship a dedicated test for it in the same change. **Do not assume coverage will arrive from upstream callers.** Controller integration tests almost always `@MockitoBean` the service interface (so the implementation is never executed); other services typically mock their collaborators too. The JaCoCo gate is a backstop, not a substitute — by the time it fires you may already have an under-tested class merged. Concretely:
+
+- New `Default*Service` → `Default*ServiceTest.java` with one `@Test` per public method, covering happy path, every documented exception, and every distinct branch (status guard, null-check, role-check). Mockito-driven, no Spring context.
+- New JPA `*Specifications` helper → unit test that mocks `Root`, `CriteriaQuery`, `CriteriaBuilder` and verifies each filter field independently AND the no-filter path (see `AuditLogSpecificationsTest` / `QueryRequestSpecificationsTest`).
+- New record/DTO with a static `from(...)` mapper or non-default constructor (validation, normalization) → a focused test of the mapper covering the null-input branch and any conditional logic.
+- Adding a new method to an existing service → extend the existing `*Test.java` in the same change, not in a follow-up. The PR author sets the line/branch coverage of the touched class; the JaCoCo gate just refuses to merge below 90/80.
+
 **Testcontainers setup** — use a shared `@TestConfiguration`:
 
 ```java
