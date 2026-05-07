@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Button, Input } from 'antd';
 import {
   ArrowRightOutlined,
@@ -7,20 +7,35 @@ import {
   SafetyCertificateOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { authErrorMessage } from '@/utils/apiErrors';
 
+interface LoginLocationState {
+  setupSuccess?: boolean;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialSetupSuccess =
+    (location.state as LoginLocationState | null)?.setupSuccess === true;
   const [email, setEmail] = useState(import.meta.env.DEV ? 'alice.chen@acme.com' : '');
   const [password, setPassword] = useState(import.meta.env.DEV ? 'demo-password' : '');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupSuccess, setSetupSuccess] = useState(initialSetupSuccess);
   const login = useAuthStore((s) => s.login);
   const edition = usePreferencesStore((s) => s.edition);
+
+  useEffect(() => {
+    if (initialSetupSuccess) {
+      // Clear the navigation state so a refresh doesn't re-show the banner.
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [initialSetupSuccess, location.pathname, navigate]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +121,17 @@ export function LoginPage() {
               Enter your credentials to continue.
             </div>
           </div>
+
+          {setupSuccess && (
+            <Alert
+              type="success"
+              message="Admin created. Sign in to continue."
+              style={{ marginBottom: 16 }}
+              showIcon
+              closable
+              onClose={() => setSetupSuccess(false)}
+            />
+          )}
 
           {error && (
             <Alert

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
-import { authErrorMessage } from '../apiErrors';
+import { authErrorMessage, setupErrorMessage } from '../apiErrors';
 
 const buildAxiosError = (status: number, data: unknown): AxiosError => {
   const response = {
@@ -42,5 +42,26 @@ describe('authErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(authErrorMessage(undefined)).toBe('Sign in failed. Please try again.');
     expect(authErrorMessage('weird')).toBe('Sign in failed. Please try again.');
+  });
+});
+
+describe('setupErrorMessage', () => {
+  it('maps SETUP_ALREADY_COMPLETED to a friendly hint', () => {
+    expect(setupErrorMessage(buildAxiosError(409, { error: 'SETUP_ALREADY_COMPLETED' })))
+      .toBe('Setup is already complete — please sign in.');
+  });
+
+  it('maps EMAIL_ALREADY_EXISTS to a duplicate-email message', () => {
+    expect(setupErrorMessage(buildAxiosError(409, { error: 'EMAIL_ALREADY_EXISTS' })))
+      .toBe('A user with that email already exists.');
+  });
+
+  it('falls back to ProblemDetail.title for unknown errors', () => {
+    expect(setupErrorMessage(buildAxiosError(500, { title: 'Server exploded' })))
+      .toBe('Server exploded');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(setupErrorMessage(undefined)).toBe('Could not complete setup. Please try again.');
   });
 });

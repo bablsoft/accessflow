@@ -10,6 +10,7 @@ import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
+import com.partqam.accessflow.core.api.SetupAlreadyCompletedException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
@@ -63,6 +64,14 @@ class GlobalExceptionHandler {
     ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         pd.setProperty("error", "EMAIL_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SetupAlreadyCompletedException.class)
+    ProblemDetail handleSetupAlreadyCompleted(SetupAlreadyCompletedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        pd.setProperty("error", "SETUP_ALREADY_COMPLETED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

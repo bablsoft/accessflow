@@ -6,7 +6,12 @@ interface RetriableConfig extends InternalAxiosRequestConfig {
   _retried?: boolean;
 }
 
-const AUTH_BYPASS_PATHS = ['/api/v1/auth/login', '/api/v1/auth/refresh'];
+const AUTH_BYPASS_PATHS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/setup',
+  '/api/v1/auth/setup-status',
+];
 
 const isAuthBypass = (url: string | undefined): boolean =>
   !!url && AUTH_BYPASS_PATHS.some((p) => url.endsWith(p));
