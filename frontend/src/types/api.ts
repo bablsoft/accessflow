@@ -29,21 +29,90 @@ export interface User {
 
 export interface Datasource {
   id: string;
+  organization_id: string;
   name: string;
   db_type: DbType;
   host: string;
   port: number;
   database_name: string;
+  username: string;
   ssl_mode: SslMode;
-  max_rows: number;
-  require_review_writes: boolean;
+  connection_pool_size: number;
+  max_rows_per_query: number;
   require_review_reads: boolean;
-  ai_enabled: boolean;
+  require_review_writes: boolean;
+  review_plan_id: string | null;
+  ai_analysis_enabled: boolean;
   active: boolean;
-  pool: number;
-  plan: string;
   created_at: string;
 }
+
+export interface ConnectionTestResult {
+  ok: boolean;
+  latency_ms: number;
+  message: string | null;
+}
+
+export interface CreateDatasourceInput {
+  name: string;
+  db_type: DbType;
+  host: string;
+  port: number;
+  database_name: string;
+  username: string;
+  password: string;
+  ssl_mode: SslMode;
+  connection_pool_size?: number;
+  max_rows_per_query?: number;
+  require_review_reads?: boolean;
+  require_review_writes?: boolean;
+  review_plan_id?: string | null;
+  ai_analysis_enabled?: boolean;
+}
+
+export interface UpdateDatasourceInput {
+  name?: string;
+  host?: string;
+  port?: number;
+  database_name?: string;
+  username?: string;
+  password?: string;
+  ssl_mode?: SslMode;
+  connection_pool_size?: number;
+  max_rows_per_query?: number;
+  require_review_reads?: boolean;
+  require_review_writes?: boolean;
+  review_plan_id?: string | null;
+  ai_analysis_enabled?: boolean;
+  active?: boolean;
+}
+
+export interface CreatePermissionInput {
+  user_id: string;
+  can_read?: boolean;
+  can_write?: boolean;
+  can_ddl?: boolean;
+  row_limit_override?: number | null;
+  allowed_schemas?: string[] | null;
+  allowed_tables?: string[] | null;
+  expires_at?: string | null;
+}
+
+export interface DatasourceTypeOption {
+  code: DbType | string;
+  display_name: string;
+  icon_url: string;
+  default_port: number;
+  default_ssl_mode: SslMode | string;
+  jdbc_url_template: string;
+  driver_status: 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
+}
+
+export interface DatasourceTypesResponse {
+  types: DatasourceTypeOption[];
+}
+
+export type DatasourcePage = PaginatedResponse<Datasource>;
 
 export interface ReviewPlan {
   id: string;
@@ -200,15 +269,20 @@ export interface AuditEvent {
 }
 
 export interface DatasourcePermission {
-  user_id: string;
+  id: string;
   datasource_id: string;
+  user_id: string;
+  user_email: string;
+  user_display_name: string;
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
-  row_limit: number | null;
+  row_limit_override: number | null;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
   expires_at: string | null;
+  created_by: string;
+  created_at: string;
 }
 
 export interface NotificationChannelEmailConfig {
@@ -240,7 +314,8 @@ export interface NotificationChannel {
 export interface SchemaColumn {
   name: string;
   type: string;
-  primary_key?: boolean;
+  nullable: boolean;
+  primary_key: boolean;
 }
 export interface SchemaTable {
   name: string;

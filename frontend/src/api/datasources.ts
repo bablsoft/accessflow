@@ -1,30 +1,100 @@
-import { jittered, sleep } from '@/mocks/delay';
-import { DATASOURCES, PERMS } from '@/mocks/data';
-import { buildMockSchema } from '@/mocks/schema';
-import type { Datasource, DatasourcePermission, DatasourceSchema } from '@/types/api';
+import { apiClient } from './client';
+import type {
+  ConnectionTestResult,
+  CreateDatasourceInput,
+  CreatePermissionInput,
+  Datasource,
+  DatasourcePage,
+  DatasourcePermission,
+  DatasourceSchema,
+  DatasourceTypesResponse,
+  UpdateDatasourceInput,
+} from '@/types/api';
 
-export async function listDatasources(): Promise<Datasource[]> {
-  await jittered();
-  return DATASOURCES;
+const BASE = '/api/v1/datasources';
+
+export interface DatasourceListFilters {
+  page?: number;
+  size?: number;
 }
 
-export async function getDatasource(id: string): Promise<Datasource | null> {
-  await jittered(80, 200);
-  return DATASOURCES.find((d) => d.id === id) ?? null;
+export const datasourceKeys = {
+  all: ['datasources'] as const,
+  lists: () => ['datasources', 'list'] as const,
+  list: (filters: DatasourceListFilters) => ['datasources', 'list', filters] as const,
+  details: () => ['datasources', 'detail'] as const,
+  detail: (id: string) => ['datasources', 'detail', id] as const,
+  schema: (id: string) => ['datasources', 'detail', id, 'schema'] as const,
+  permissions: (id: string) => ['datasources', 'detail', id, 'permissions'] as const,
+  types: () => ['datasources', 'types'] as const,
+};
+
+export async function listDatasources(
+  filters: DatasourceListFilters = {},
+): Promise<DatasourcePage> {
+  const params: Record<string, number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  const { data } = await apiClient.get<DatasourcePage>(BASE, { params });
+  return data;
+}
+
+export async function getDatasource(id: string): Promise<Datasource> {
+  const { data } = await apiClient.get<Datasource>(`${BASE}/${id}`);
+  return data;
+}
+
+export async function createDatasource(input: CreateDatasourceInput): Promise<Datasource> {
+  const { data } = await apiClient.post<Datasource>(BASE, input);
+  return data;
+}
+
+export async function updateDatasource(
+  id: string,
+  input: UpdateDatasourceInput,
+): Promise<Datasource> {
+  const { data } = await apiClient.put<Datasource>(`${BASE}/${id}`, input);
+  return data;
+}
+
+export async function deleteDatasource(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/${id}`);
+}
+
+export async function testConnection(id: string): Promise<ConnectionTestResult> {
+  const { data } = await apiClient.post<ConnectionTestResult>(`${BASE}/${id}/test`);
+  return data;
 }
 
 export async function getDatasourceSchema(id: string): Promise<DatasourceSchema> {
-  await jittered();
-  const ds = DATASOURCES.find((d) => d.id === id)!;
-  return buildMockSchema(ds);
+  const { data } = await apiClient.get<DatasourceSchema>(`${BASE}/${id}/schema`);
+  return data;
 }
 
-export async function listPermissions(dsId: string): Promise<DatasourcePermission[]> {
-  await jittered(80, 200);
-  return PERMS.filter((p) => p.datasource_id === dsId);
+export async function listPermissions(id: string): Promise<DatasourcePermission[]> {
+  const { data } = await apiClient.get<{ permissions: DatasourcePermission[] }>(
+    `${BASE}/${id}/permissions`,
+  );
+  return data.permissions;
 }
 
-export async function testConnection(_id: string): Promise<{ ok: true; latencyMs: number }> {
-  await sleep(900);
-  return { ok: true, latencyMs: 42 };
+export async function grantPermission(
+  id: string,
+  input: CreatePermissionInput,
+): Promise<DatasourcePermission> {
+  const { data } = await apiClient.post<DatasourcePermission>(
+    `${BASE}/${id}/permissions`,
+    input,
+  );
+  return data;
+}
+
+export async function revokePermission(id: string, permId: string): Promise<void> {
+  await apiClient.delete(`${BASE}/${id}/permissions/${permId}`);
+}
+
+// FE-07: backend endpoint not implemented yet; this wrapper will 404 until then.
+export async function getDatasourceTypes(): Promise<DatasourceTypesResponse> {
+  const { data } = await apiClient.get<DatasourceTypesResponse>(`${BASE}/types`);
+  return data;
 }

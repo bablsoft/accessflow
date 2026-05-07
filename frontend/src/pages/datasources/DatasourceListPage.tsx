@@ -2,22 +2,27 @@ import { useMemo, useState } from 'react';
 import { Button, Input } from 'antd';
 import { DatabaseOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Pill } from '@/components/common/Pill';
-import { DATASOURCES, PERMS, REVIEW_PLANS } from '@/mocks/data';
-import { useQueriesStore } from '@/store/queriesStore';
+import { datasourceKeys, listDatasources } from '@/api/datasources';
 import type { Datasource } from '@/types/api';
 
 export function DatasourceListPage() {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
-  const queries = useQueriesStore((s) => s.queries);
   const navigate = useNavigate();
-  const filtered = useMemo(
-    () => DATASOURCES.filter((d) => !q || d.name.toLowerCase().includes(q.toLowerCase())),
-    [q],
-  );
+  const datasourcesQuery = useQuery({
+    queryKey: datasourceKeys.list({ size: 100 }),
+    queryFn: () => listDatasources({ size: 100 }),
+  });
+  const datasourcesData = datasourcesQuery.data;
+  const total = datasourcesData?.total_elements ?? 0;
+  const filtered = useMemo(() => {
+    const list = datasourcesData?.content ?? [];
+    return list.filter((d) => !q || d.name.toLowerCase().includes(q.toLowerCase()));
+  }, [q, datasourcesData]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -44,7 +49,7 @@ export function DatasourceListPage() {
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
-          {t('datasources.list.count_label', { filtered: filtered.length, total: DATASOURCES.length })}
+          {t('datasources.list.count_label', { filtered: filtered.length, total })}
         </span>
       </div>
       <div
@@ -58,12 +63,25 @@ export function DatasourceListPage() {
           alignContent: 'start',
         }}
       >
+        {datasourcesQuery.isLoading && (
+          <div className="muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40 }}>
+            {t('datasources.list.loading')}
+          </div>
+        )}
+        {datasourcesQuery.isError && (
+          <div className="muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, color: 'var(--risk-high)' }}>
+            {t('datasources.list.error')}
+          </div>
+        )}
+        {datasourcesQuery.isSuccess && filtered.length === 0 && (
+          <div className="muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40 }}>
+            {t('datasources.list.empty')}
+          </div>
+        )}
         {filtered.map((ds) => (
           <DsCard
             key={ds.id}
             ds={ds}
-            queries={queries.filter((qr) => qr.datasource_id === ds.id).length}
-            users={PERMS.filter((p) => p.datasource_id === ds.id).length}
             onOpen={() => navigate(`/datasources/${ds.id}/settings`)}
           />
         ))}
@@ -74,14 +92,15 @@ export function DatasourceListPage() {
 
 interface CardProps {
   ds: Datasource;
-  queries: number;
-  users: number;
   onOpen: () => void;
 }
 
-function DsCard({ ds, queries, users, onOpen }: CardProps) {
+function DsCard({ ds, onOpen }: CardProps) {
   const { t } = useTranslation();
-  const plan = REVIEW_PLANS.find((p) => p.id === ds.plan)!;
+  // TODO(FE-XX): swap to useReviewPlans() once /review-plans ships.
+  const planLabel = ds.review_plan_id
+    ? ds.review_plan_id.slice(0, 8)
+    : t('datasources.list.stat_plan_unknown');
   return (
     <div
       onClick={onOpen}
@@ -152,7 +171,7 @@ function DsCard({ ds, queries, users, onOpen }: CardProps) {
         <Pill bg="var(--bg-sunken)" size="sm">
           SSL · {ds.ssl_mode}
         </Pill>
-        {ds.ai_enabled && (
+        {ds.ai_analysis_enabled && (
           <Pill
             fg="var(--accent)"
             bg="var(--accent-bg)"
@@ -165,36 +184,25 @@ function DsCard({ ds, queries, users, onOpen }: CardProps) {
       </div>
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 8,
           paddingTop: 12,
           borderTop: '1px solid var(--border)',
         }}
       >
-        <Stat label={t('datasources.list.stat_plan')} value={plan.name.split(' ')[0]!} />
-        <Stat label={t('datasources.list.stat_users')} value={users} />
-        <Stat label={t('datasources.list.stat_queries')} value={queries} />
+        <div
+          className="muted mono"
+          style={{
+            fontSize: 10,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            marginBottom: 4,
+          }}
+        >
+          {t('datasources.list.stat_plan')}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+          {planLabel}
+        </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <div
-        className="muted mono"
-        style={{
-          fontSize: 10,
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{value}</div>
     </div>
   );
 }
