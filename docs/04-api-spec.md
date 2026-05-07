@@ -827,6 +827,8 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
       "id": "uuid",
       "organization_id": "uuid",
       "actor_id": "uuid",
+      "actor_email": "alice@company.com",
+      "actor_display_name": "Alice",
       "action": "QUERY_SUBMITTED",
       "resource_type": "query_request",
       "resource_id": "uuid",
@@ -843,7 +845,124 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
 }
 ```
 
-`actor_id`, `ip_address`, `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion).
+`actor_id`, `actor_email`, `actor_display_name`, `ip_address`, and `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion). `actor_email`/`actor_display_name` are server-side joins on the `users` table within the caller's organization; if the actor was hard-deleted (or originated outside the org), only `actor_id` is returned.
+
+### GET /admin/ai-config
+
+Returns the current AI analyzer configuration for the caller's organization. The `api_key` field is replaced with the literal `"********"` whenever a non-empty key is stored, and is omitted entirely otherwise.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "provider": "ANTHROPIC",
+  "model": "claude-sonnet-4-20250514",
+  "endpoint": "https://api.anthropic.com/v1",
+  "api_key": "********",
+  "timeout_ms": 30000,
+  "max_prompt_tokens": 8000,
+  "max_completion_tokens": 2000,
+  "enable_ai_default": true,
+  "auto_approve_low": false,
+  "block_critical": true,
+  "include_schema": true,
+  "created_at": "2026-05-06T10:00:00Z",
+  "updated_at": "2026-05-06T10:00:00Z"
+}
+```
+
+If no row exists yet for the organization, a transient default snapshot is returned (driven by `accessflow.ai.provider`); persisting any change creates the row.
+
+### PUT /admin/ai-config
+
+Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence.
+
+**Request body:**
+```json
+{
+  "provider": "OPENAI",
+  "model": "gpt-4o",
+  "endpoint": "https://api.openai.com/v1",
+  "api_key": "sk-...",
+  "timeout_ms": 30000,
+  "max_prompt_tokens": 8000,
+  "max_completion_tokens": 2000,
+  "enable_ai_default": true,
+  "auto_approve_low": false,
+  "block_critical": true,
+  "include_schema": true
+}
+```
+
+Validation: `timeout_ms` ∈ [1000, 600000], `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000], `model` ≤ 100 chars, `endpoint` ≤ 500 chars, `api_key` ≤ 4096 chars.
+
+**Response 200:** Updated configuration (same shape as GET, `api_key` replaced with `"********"` if set).
+**Response 400:** Validation error.
+
+### POST /admin/ai-config/test
+
+Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the active `AiAnalyzerStrategy` and reports back. Used by the AI-config page's "Send test prompt" button.
+
+**Response 200:**
+```json
+{ "status": "OK", "detail": "AI provider responded with risk_level=LOW" }
+```
+**Response 200 (failure):**
+```json
+{ "status": "ERROR", "detail": "<provider error message>" }
+```
+
+### GET /admin/saml-config (Enterprise only)
+
+Returns the current SAML configuration for the caller's organization. Available only when the backend was started with `accessflow.edition=enterprise`; Community builds return 404. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "idp_metadata_url": "https://idp.example.com/metadata",
+  "idp_entity_id": "idp",
+  "sp_entity_id": "sp",
+  "acs_url": "https://app.example.com/saml/acs",
+  "slo_url": null,
+  "signing_cert_pem": "********",
+  "attr_email": "email",
+  "attr_display_name": "displayName",
+  "attr_role": "role",
+  "default_role": "ANALYST",
+  "active": false,
+  "created_at": "2026-05-06T10:00:00Z",
+  "updated_at": "2026-05-06T10:00:00Z"
+}
+```
+
+### PUT /admin/saml-config (Enterprise only)
+
+Partial update. Any omitted field is left unchanged. Sending `"signing_cert_pem": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` before persistence. Available only on Enterprise builds (404 on Community).
+
+**Request body:**
+```json
+{
+  "idp_metadata_url": "https://idp.example.com/metadata",
+  "idp_entity_id": "idp",
+  "sp_entity_id": "sp",
+  "acs_url": "https://app.example.com/saml/acs",
+  "slo_url": "https://app.example.com/saml/slo",
+  "signing_cert_pem": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
+  "attr_email": "email",
+  "attr_display_name": "displayName",
+  "attr_role": "role",
+  "default_role": "ANALYST",
+  "active": true
+}
+```
+
+Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs), attribute names ≤ 255 chars.
+
+**Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
+**Response 400:** Validation error.
 
 ---
 

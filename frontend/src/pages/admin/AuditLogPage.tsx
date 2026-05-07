@@ -1,42 +1,106 @@
 import { useMemo, useState } from 'react';
-import { Button, Drawer, Input, Select, Table } from 'antd';
-import { DownloadOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  Button,
+  DatePicker,
+  Drawer,
+  Input,
+  Select,
+  Skeleton,
+  Table,
+} from 'antd';
+import type { Dayjs } from 'dayjs';
+import { ReloadOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
-import { AUDIT } from '@/mocks/data';
+import { auditKeys, listAuditEvents } from '@/api/admin';
+import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
-import type { AuditEvent } from '@/types/api';
+import type { AuditEvent, AuditLogFilters } from '@/types/api';
+
+const PAGE_SIZE = 20;
+
+const RESOURCE_TYPES = [
+  'query_request',
+  'datasource',
+  'user',
+  'permission',
+  'review_plan',
+  'notification_channel',
+];
+
+const ACTIONS = [
+  'QUERY_SUBMITTED',
+  'QUERY_AI_ANALYZED',
+  'QUERY_AI_FAILED',
+  'QUERY_REVIEW_REQUESTED',
+  'QUERY_APPROVED',
+  'QUERY_REJECTED',
+  'QUERY_EXECUTED',
+  'QUERY_FAILED',
+  'QUERY_CANCELLED',
+  'DATASOURCE_CREATED',
+  'DATASOURCE_UPDATED',
+  'PERMISSION_GRANTED',
+  'PERMISSION_REVOKED',
+  'REVIEW_PLAN_CREATED',
+  'REVIEW_PLAN_UPDATED',
+  'REVIEW_PLAN_DELETED',
+  'USER_LOGIN',
+  'USER_LOGIN_FAILED',
+  'USER_CREATED',
+  'USER_DEACTIVATED',
+];
 
 const actionColor = (a: string): string => {
-  if (a.includes('REJECTED') || a.includes('FAILED') || a.includes('DEACTIVATED') || a.includes('REVOKED')) return 'var(--risk-crit)';
-  if (a.includes('APPROVED') || a.includes('EXECUTED') || a.includes('CREATED')) return 'var(--risk-low)';
+  if (
+    a.includes('REJECTED') ||
+    a.includes('FAILED') ||
+    a.includes('DEACTIVATED') ||
+    a.includes('REVOKED')
+  ) {
+    return 'var(--risk-crit)';
+  }
+  if (a.includes('APPROVED') || a.includes('EXECUTED') || a.includes('CREATED')) {
+    return 'var(--risk-low)';
+  }
   if (a.includes('LOGIN_FAILED')) return 'var(--risk-high)';
   return 'var(--fg)';
 };
 
 export function AuditLogPage() {
   const { t } = useTranslation();
-  const [q, setQ] = useState('');
+  const [page, setPage] = useState(0);
   const [action, setAction] = useState<string>('all');
+  const [resourceType, setResourceType] = useState<string>('all');
+  const [actorId, setActorId] = useState('');
+  const [resourceId, setResourceId] = useState('');
+  const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [detail, setDetail] = useState<AuditEvent | null>(null);
 
-  const actions = useMemo(() => [...new Set(AUDIT.map((a) => a.action))], []);
-  const filtered = useMemo(
-    () =>
-      AUDIT.filter((a) => {
-        if (action !== 'all' && a.action !== action) return false;
-        if (
-          q &&
-          !a.actor_name.toLowerCase().includes(q.toLowerCase()) &&
-          !a.action.toLowerCase().includes(q.toLowerCase()) &&
-          !a.resource_id.includes(q)
-        )
-          return false;
-        return true;
-      }),
-    [q, action],
+  const filters: AuditLogFilters = useMemo(
+    () => ({
+      page,
+      size: PAGE_SIZE,
+      sort: 'created_at,DESC',
+      action: action === 'all' ? undefined : action,
+      resource_type: resourceType === 'all' ? undefined : resourceType,
+      actor_id: actorId.trim() || undefined,
+      resource_id: resourceId.trim() || undefined,
+      from: range?.[0]?.toISOString(),
+      to: range?.[1]?.toISOString(),
+    }),
+    [page, action, resourceType, actorId, resourceId, range],
   );
+
+  const auditQuery = useQuery({
+    queryKey: auditKeys.list(filters),
+    queryFn: () => listAuditEvents(filters),
+  });
+
+  const events = auditQuery.data?.content ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -44,10 +108,9 @@ export function AuditLogPage() {
         title={t('admin.audit.title')}
         subtitle={t('admin.audit.subtitle')}
         actions={
-          <>
-            <Button icon={<FilterOutlined />}>Advanced filters</Button>
-            <Button icon={<DownloadOutlined />}>{t('common.export')}</Button>
-          </>
+          <Button icon={<ReloadOutlined />} onClick={() => auditQuery.refetch()}>
+            {t('common.refresh')}
+          </Button>
         }
       />
       <div
@@ -56,87 +119,172 @@ export function AuditLogPage() {
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-elev)',
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 8,
         }}
       >
-        <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder={t('admin.audit.search_placeholder')}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ width: 280 }}
-        />
         <Select
           value={action}
-          onChange={setAction}
+          onChange={(v) => {
+            setAction(v);
+            setPage(0);
+          }}
           style={{ width: 220 }}
-          options={[{ value: 'all', label: t('admin.audit.filter_all_actions') }, ...actions.map((a) => ({ value: a, label: a }))]}
+          options={[
+            { value: 'all', label: t('admin.audit.filter_all_actions') },
+            ...ACTIONS.map((a) => ({ value: a, label: a })),
+          ]}
+        />
+        <Select
+          value={resourceType}
+          onChange={(v) => {
+            setResourceType(v);
+            setPage(0);
+          }}
+          style={{ width: 200 }}
+          options={[
+            { value: 'all', label: t('admin.audit.filter_all_resources') },
+            ...RESOURCE_TYPES.map((r) => ({ value: r, label: r })),
+          ]}
+        />
+        <Input
+          placeholder={t('admin.audit.filter_actor_placeholder')}
+          value={actorId}
+          onChange={(e) => {
+            setActorId(e.target.value);
+            setPage(0);
+          }}
+          style={{ width: 240 }}
+          className="mono"
+        />
+        <Input
+          placeholder={t('admin.audit.filter_resource_id_placeholder')}
+          value={resourceId}
+          onChange={(e) => {
+            setResourceId(e.target.value);
+            setPage(0);
+          }}
+          style={{ width: 240 }}
+          className="mono"
+        />
+        <DatePicker.RangePicker
+          showTime
+          value={range as [Dayjs | null, Dayjs | null]}
+          onChange={(v) => {
+            setRange(v as [Dayjs | null, Dayjs | null] | null);
+            setPage(0);
+          }}
         />
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11, alignSelf: 'center' }}>
-          {t('admin.audit.count_label', { count: filtered.length })}
+          {t('admin.audit.count_label', {
+            count: auditQuery.data?.total_elements ?? 0,
+          })}
         </span>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
-        <Table
-          rowKey="id"
-          size="middle"
-          dataSource={filtered}
-          pagination={{ pageSize: 20 }}
-          onRow={(record) => ({
-            onClick: () => setDetail(record),
-            style: { cursor: 'pointer' },
-          })}
-          columns={[
-            {
-              title: t('admin.audit.col_when'),
-              dataIndex: 'created_at',
-              width: 120,
-              render: (v) => <span className="muted">{timeAgo(v)}</span>,
-            },
-            {
-              title: t('admin.audit.col_actor'),
-              dataIndex: 'actor_name',
-              width: 200,
-              render: (v) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Avatar name={v} size={20} />
-                  <span style={{ fontSize: 12 }}>{v}</span>
-                </div>
-              ),
-            },
-            {
-              title: t('admin.audit.col_action'),
-              dataIndex: 'action',
-              width: 230,
-              render: (v) => (
-                <span
-                  className="mono"
-                  style={{ fontSize: 11.5, fontWeight: 500, color: actionColor(v) }}
-                >
-                  {v}
-                </span>
-              ),
-            },
-            {
-              title: t('admin.audit.col_resource'),
-              dataIndex: 'resource_type',
-              width: 150,
-              render: (v) => <span className="mono" style={{ fontSize: 11.5 }}>{v}</span>,
-            },
-            {
-              title: t('admin.audit.col_resource_id'),
-              dataIndex: 'resource_id',
-              render: (v) => <span className="mono muted" style={{ fontSize: 11.5 }}>{v}</span>,
-            },
-            {
-              title: t('admin.audit.col_ip'),
-              dataIndex: 'ip_address',
-              width: 130,
-              render: (v) => <span className="mono muted" style={{ fontSize: 11.5 }}>{v}</span>,
-            },
-          ]}
-        />
+        {auditQuery.isLoading ? (
+          <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />
+        ) : auditQuery.isError ? (
+          <EmptyState
+            title={t('admin.audit.load_error')}
+            description={adminErrorMessage(auditQuery.error)}
+          />
+        ) : events.length === 0 ? (
+          <EmptyState title={t('admin.audit.title')} description={t('admin.audit.empty')} />
+        ) : (
+          <Table<AuditEvent>
+            rowKey="id"
+            size="middle"
+            dataSource={events}
+            pagination={{
+              pageSize: PAGE_SIZE,
+              current: page + 1,
+              total: auditQuery.data?.total_elements ?? 0,
+              onChange: (p) => setPage(p - 1),
+            }}
+            onRow={(record) => ({
+              onClick: () => setDetail(record),
+              style: { cursor: 'pointer' },
+            })}
+            columns={[
+              {
+                title: t('admin.audit.col_when'),
+                dataIndex: 'created_at',
+                width: 120,
+                render: (v) => <span className="muted">{timeAgo(v)}</span>,
+              },
+              {
+                title: t('admin.audit.col_actor'),
+                width: 220,
+                render: (_v, e) => {
+                  const name = e.actor_display_name ?? t('admin.audit.actor_unknown');
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Avatar name={name} size={20} />
+                      <div>
+                        <div style={{ fontSize: 12 }}>{name}</div>
+                        {e.actor_email && (
+                          <div className="mono muted" style={{ fontSize: 10 }}>
+                            {e.actor_email}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                },
+              },
+              {
+                title: t('admin.audit.col_action'),
+                dataIndex: 'action',
+                width: 230,
+                render: (v) => (
+                  <span
+                    className="mono"
+                    style={{ fontSize: 11.5, fontWeight: 500, color: actionColor(v) }}
+                  >
+                    {v}
+                  </span>
+                ),
+              },
+              {
+                title: t('admin.audit.col_resource'),
+                dataIndex: 'resource_type',
+                width: 150,
+                render: (v) => (
+                  <span className="mono" style={{ fontSize: 11.5 }}>
+                    {v}
+                  </span>
+                ),
+              },
+              {
+                title: t('admin.audit.col_resource_id'),
+                dataIndex: 'resource_id',
+                render: (v: string | null) =>
+                  v ? (
+                    <span className="mono muted" style={{ fontSize: 11.5 }}>
+                      {v}
+                    </span>
+                  ) : (
+                    <span className="muted">—</span>
+                  ),
+              },
+              {
+                title: t('admin.audit.col_ip'),
+                dataIndex: 'ip_address',
+                width: 130,
+                render: (v: string | null) =>
+                  v ? (
+                    <span className="mono muted" style={{ fontSize: 11.5 }}>
+                      {v}
+                    </span>
+                  ) : (
+                    <span className="muted">—</span>
+                  ),
+              },
+            ]}
+          />
+        )}
       </div>
       <Drawer
         open={!!detail}
@@ -168,11 +316,14 @@ export function AuditLogPage() {
             <Card>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <Row k="audit.id" v={detail.id} />
-                <Row k="actor.id" v={detail.actor_id} />
-                <Row k="actor.email" v={detail.actor_email} />
+                <Row k="organization_id" v={detail.organization_id} />
+                <Row k="actor.id" v={detail.actor_id ?? '—'} />
+                <Row k="actor.email" v={detail.actor_email ?? '—'} />
+                <Row k="actor.display_name" v={detail.actor_display_name ?? '—'} />
                 <Row k="resource.type" v={detail.resource_type} />
-                <Row k="resource.id" v={detail.resource_id} />
-                <Row k="ip" v={detail.ip_address} />
+                <Row k="resource.id" v={detail.resource_id ?? '—'} />
+                <Row k="ip" v={detail.ip_address ?? '—'} />
+                <Row k="user_agent" v={detail.user_agent ?? '—'} />
                 <Row k="created_at" v={fmtDate(detail.created_at)} />
               </div>
             </Card>
@@ -188,15 +339,7 @@ export function AuditLogPage() {
                   borderRadius: '0 0 var(--radius-md) var(--radius-md)',
                 }}
               >
-                {JSON.stringify(
-                  {
-                    resource_id: detail.resource_id,
-                    user_agent: detail.user_agent,
-                    organization_id: 'acme-001',
-                  },
-                  null,
-                  2,
-                )}
+                {JSON.stringify(detail.metadata ?? {}, null, 2)}
               </pre>
             </Card>
           </div>

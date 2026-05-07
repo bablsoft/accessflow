@@ -3,12 +3,16 @@ package com.partqam.accessflow.audit.internal.web;
 import com.partqam.accessflow.audit.api.AuditAction;
 import com.partqam.accessflow.audit.api.AuditLogQuery;
 import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditLogView;
 import com.partqam.accessflow.audit.api.AuditResourceType;
+import com.partqam.accessflow.core.api.UserAdminService;
+import com.partqam.accessflow.core.api.UserView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -22,6 +26,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -34,6 +41,7 @@ class AdminAuditLogController {
     private static final int MAX_PAGE_SIZE = 500;
 
     private final AuditLogService auditLogService;
+    private final UserAdminService userAdminService;
 
     @GetMapping
     @Operation(summary = "Query audit-log rows for the caller's organization with optional filters")
@@ -60,9 +68,28 @@ class AdminAuditLogController {
         }
         var resourceTypeEnum = parseResourceType(resourceType);
         var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
-        var page = auditLogService.query(organizationId, filter, pageable)
-                .map(AuditLogResponse::from);
-        return AuditLogPageResponse.from(page);
+        Page<AuditLogView> page = auditLogService.query(organizationId, filter, pageable);
+        Map<UUID, UserView> actors = lookupActors(organizationId, page);
+        return AuditLogPageResponse.from(page.map(view -> {
+            UserView actor = view.actorId() == null ? null : actors.get(view.actorId());
+            return AuditLogResponse.from(
+                    view,
+                    actor == null ? null : actor.email(),
+                    actor == null ? null : actor.displayName());
+        }));
+    }
+
+    private Map<UUID, UserView> lookupActors(UUID organizationId, Page<AuditLogView> page) {
+        Set<UUID> actorIds = new HashSet<>();
+        for (AuditLogView view : page.getContent()) {
+            if (view.actorId() != null) {
+                actorIds.add(view.actorId());
+            }
+        }
+        if (actorIds.isEmpty()) {
+            return Map.of();
+        }
+        return userAdminService.findByIds(organizationId, actorIds);
     }
 
     @ExceptionHandler(BadAuditQueryException.class)

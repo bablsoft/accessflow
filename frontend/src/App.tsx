@@ -16,10 +16,13 @@ import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { AIConfigPage } from '@/pages/admin/AIConfigPage';
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
+import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
+import { usePreferencesStore } from '@/store/preferencesStore';
 
 export function App() {
   const setupRequired = useSetupStore((s) => s.setupRequired);
   const location = useLocation();
+  const edition = usePreferencesStore((s) => s.edition);
 
   if (setupRequired === true && location.pathname !== '/setup') {
     return <Navigate to="/setup" replace />;
@@ -108,6 +111,16 @@ export function App() {
               </AuthGuard>
             }
           />
+          {edition === 'ENTERPRISE' && (
+            <Route
+              path="/admin/saml"
+              element={
+                <AuthGuard requireRole="ADMIN">
+                  <SamlConfigPage />
+                </AuthGuard>
+              }
+            />
+          )}
         </Route>
         <Route path="*" element={<Navigate to="/editor" replace />} />
       </Routes>

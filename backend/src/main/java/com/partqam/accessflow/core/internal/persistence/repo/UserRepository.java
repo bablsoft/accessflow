@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,4 +24,6 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     Page<UserEntity> findAllByOrganization_Id(UUID organizationId, Pageable pageable);
 
     List<UserEntity> findAllByOrganization_IdAndRole(UUID organizationId, UserRoleType role);
+
+    List<UserEntity> findAllByOrganization_IdAndIdIn(UUID organizationId, Collection<UUID> ids);
 }
