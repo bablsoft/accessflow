@@ -8,6 +8,7 @@ import com.partqam.accessflow.audit.api.RequestAuditContext;
 import com.partqam.accessflow.core.api.CreateDatasourceCommand;
 import com.partqam.accessflow.core.api.CreatePermissionCommand;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
+import com.partqam.accessflow.core.api.DriverCatalogService;
 import com.partqam.accessflow.core.api.UpdateDatasourceCommand;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.security.api.JwtClaims;
@@ -17,6 +18,7 @@ import com.partqam.accessflow.security.internal.web.model.CreatePermissionReques
 import com.partqam.accessflow.security.internal.web.model.DatabaseSchemaResponse;
 import com.partqam.accessflow.security.internal.web.model.DatasourcePageResponse;
 import com.partqam.accessflow.security.internal.web.model.DatasourceResponse;
+import com.partqam.accessflow.security.internal.web.model.DatasourceTypesResponse;
 import com.partqam.accessflow.security.internal.web.model.PermissionListResponse;
 import com.partqam.accessflow.security.internal.web.model.PermissionResponse;
 import com.partqam.accessflow.security.internal.web.model.UpdateDatasourceRequest;
@@ -55,6 +57,14 @@ class DatasourceController {
 
     private final DatasourceAdminService datasourceAdminService;
     private final AuditLogService auditLogService;
+    private final DriverCatalogService driverCatalogService;
+
+    @GetMapping("/types")
+    @Operation(summary = "List supported database types with driver resolution status")
+    @ApiResponse(responseCode = "200", description = "Catalog of database types")
+    DatasourceTypesResponse listTypes() {
+        return DatasourceTypesResponse.from(driverCatalogService.list());
+    }
 
     @GetMapping
     @Operation(summary = "List datasources accessible to the caller (paginated)")

@@ -69,6 +69,10 @@ accessflow:
       max-rows: 10000
       statement-timeout: 30s
       default-fetch-size: 1000
+  drivers:
+    cache-dir: ${ACCESSFLOW_DRIVER_CACHE:/var/lib/accessflow/drivers}
+    repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}
+    offline: ${ACCESSFLOW_DRIVERS_OFFLINE:false}
   ai:
     provider: ${AI_PROVIDER:anthropic}
   notifications:

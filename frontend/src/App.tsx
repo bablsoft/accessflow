@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthGuard } from '@/components/common/AuthGuard';
@@ -11,6 +12,10 @@ import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
 import { ReviewQueuePage } from '@/pages/reviews/ReviewQueuePage';
 import { DatasourceListPage } from '@/pages/datasources/DatasourceListPage';
 import { DatasourceSettingsPage } from '@/pages/datasources/DatasourceSettingsPage';
+
+const DatasourceCreateWizardPage = lazy(
+  () => import('@/pages/datasources/DatasourceCreateWizardPage'),
+);
 import { UsersPage } from '@/pages/admin/UsersPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { AIConfigPage } from '@/pages/admin/AIConfigPage';
@@ -60,6 +65,16 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <DatasourceListPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/datasources/new"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <DatasourceCreateWizardPage />
+                </Suspense>
               </AuthGuard>
             }
           />

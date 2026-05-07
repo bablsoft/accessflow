@@ -93,7 +93,6 @@ export async function revokePermission(id: string, permId: string): Promise<void
   await apiClient.delete(`${BASE}/${id}/permissions/${permId}`);
 }
 
-// FE-07: backend endpoint not implemented yet; this wrapper will 404 until then.
 export async function getDatasourceTypes(): Promise<DatasourceTypesResponse> {
   const { data } = await apiClient.get<DatasourceTypesResponse>(`${BASE}/types`);
   return data;

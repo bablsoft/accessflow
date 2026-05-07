@@ -5,6 +5,7 @@ import com.partqam.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.DatasourceNotFoundException;
 import com.partqam.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
+import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -144,6 +145,17 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.datasource_connection_test_failed"));
         pd.setProperty("error", "DATASOURCE_CONNECTION_TEST_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DriverResolutionException.class)
+    ProblemDetail handleDriverResolution(DriverResolutionException ex) {
+        // Message is resolved at throw site via MessageSource — see DefaultDriverCatalogService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "DATASOURCE_DRIVER_UNAVAILABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("dbType", ex.dbType().name());
+        pd.setProperty("reason", ex.reason().name());
         return pd;
     }
 

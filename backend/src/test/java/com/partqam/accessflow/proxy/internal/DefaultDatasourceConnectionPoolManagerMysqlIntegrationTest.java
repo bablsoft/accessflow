@@ -12,6 +12,7 @@ import com.partqam.accessflow.core.internal.persistence.repo.DatasourceUserPermi
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.proxy.api.DatasourceConnectionPoolManager;
+import com.partqam.accessflow.proxy.internal.driver.DriverCacheTestSupport;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -64,6 +65,9 @@ class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        var cacheDir = DriverCacheTestSupport.prepareCacheWithMysql();
+        registry.add("accessflow.drivers.cache-dir", cacheDir::toString);
+        registry.add("accessflow.drivers.offline", () -> "true");
     }
 
     @BeforeAll

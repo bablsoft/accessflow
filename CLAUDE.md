@@ -211,6 +211,9 @@ com.partqam.accessflow/
 | `REDIS_URL` | Redis for token revocation (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
+| `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `/var/lib/accessflow/drivers`). Mount as a persistent volume in production. |
+| `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
+| `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
 
 ---
 

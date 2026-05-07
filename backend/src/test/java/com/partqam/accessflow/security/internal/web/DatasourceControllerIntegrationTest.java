@@ -72,6 +72,9 @@ class DatasourceControllerIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        var cacheDir = com.partqam.accessflow.proxy.internal.driver
+                .DriverCacheTestSupport.prepareCacheWithMysql();
+        registry.add("accessflow.drivers.cache-dir", cacheDir::toString);
     }
 
     @AfterEach
@@ -195,6 +198,26 @@ class DatasourceControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(401);
+    }
+
+    @Test
+    void listTypesReturnsCatalogForAllSupportedDbTypes() {
+        var result = mvc.get().uri("/api/v1/datasources/types")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
+                .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL");
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.code=='POSTGRESQL')].driver_status").asArray()
+                .containsExactly("READY");
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.code=='POSTGRESQL')].default_port").asArray()
+                .containsExactly(5432);
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.code=='POSTGRESQL')].jdbc_url_template").asArray()
+                .containsExactly("jdbc:postgresql://{host}:{port}/{database_name}");
     }
 
     @Test

@@ -80,10 +80,18 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
+          Customer-DB JDBC drivers (MySQL, MariaDB, Oracle, MSSQL, …) are NOT bundled.
+          They are resolved on demand from the configured Maven repository, verified by
+          SHA-256, cached locally, and loaded into a per-DbType URLClassLoader. See
+          docs/05-backend.md → "Dynamic JDBC Driver Loading".
+          The org.postgresql:postgresql dependency above is the AccessFlow internal-DB
+          driver and stays bundled.
+        -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
         <dependency>

@@ -3,8 +3,10 @@ package com.partqam.accessflow.proxy.internal;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
 import com.partqam.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.DriverCatalogService;
 import com.partqam.accessflow.core.api.JdbcCoordinates;
 import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
+import com.partqam.accessflow.core.api.ResolvedDriver;
 import com.partqam.accessflow.core.api.SslMode;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -15,6 +17,7 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.sql.Driver;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,6 +37,8 @@ class DatasourcePoolFactoryTest {
     private CredentialEncryptionService encryptionService;
     private JdbcCoordinatesFactory coordinatesFactory;
     private ProxyPoolProperties properties;
+    private DriverCatalogService driverCatalog;
+    private ClassLoader perTypeClassLoader;
     private DatasourcePoolFactory factory;
 
     private final UUID datasourceId = UUID.randomUUID();
@@ -46,6 +51,7 @@ class DatasourcePoolFactoryTest {
     void setUp() {
         encryptionService = mock(CredentialEncryptionService.class);
         coordinatesFactory = mock(JdbcCoordinatesFactory.class);
+        driverCatalog = mock(DriverCatalogService.class);
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
                 Duration.ZERO, "accessflow-ds-", null);
@@ -54,7 +60,12 @@ class DatasourcePoolFactoryTest {
                         "jdbc:postgresql://h:5432/appdb?sslmode=disable",
                         "org.postgresql.Driver", "svc"));
         when(encryptionService.decrypt("ENC(secret)")).thenReturn("plaintext");
-        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties);
+        perTypeClassLoader = new ClassLoader(getClass().getClassLoader()) {};
+        when(driverCatalog.resolve(DbType.POSTGRESQL))
+                .thenReturn(new ResolvedDriver(mock(Driver.class), perTypeClassLoader,
+                        "org.postgresql.Driver"));
+        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
+                driverCatalog);
     }
 
     @Test
@@ -110,7 +121,8 @@ class DatasourcePoolFactoryTest {
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
                 Duration.ofSeconds(2), "accessflow-ds-", null);
-        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties);
+        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
+                driverCatalog);
 
         var captured = new AtomicReference<HikariConfig>();
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
@@ -120,6 +132,22 @@ class DatasourcePoolFactoryTest {
             factory.createPool(descriptor);
 
             assertThat(captured.get().getLeakDetectionThreshold()).isEqualTo(2_000L);
+        }
+    }
+
+    @Test
+    void createPoolSwapsContextClassLoaderForHikariInstantiation() {
+        var observed = new AtomicReference<ClassLoader>();
+        try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> observed.set(Thread.currentThread().getContextClassLoader()))) {
+
+            var prior = Thread.currentThread().getContextClassLoader();
+
+            factory.createPool(descriptor);
+
+            assertThat(observed.get()).isSameAs(perTypeClassLoader);
+            assertThat(Thread.currentThread().getContextClassLoader()).isSameAs(prior);
         }
     }
 }

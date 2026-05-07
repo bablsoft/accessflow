@@ -13,6 +13,7 @@ import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.DatasourcePermissionView;
 import com.partqam.accessflow.core.api.DatasourceView;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.DriverCatalogService;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
 import com.partqam.accessflow.core.api.SslMode;
@@ -39,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -70,6 +70,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final ReviewPlanRepository reviewPlanRepository;
     private final CredentialEncryptionService encryptionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
+    private final DriverCatalogService driverCatalog;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -233,11 +234,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional(readOnly = true)
     public ConnectionTestResult test(UUID id, UUID organizationId) {
         var entity = loadInOrganization(id, organizationId);
+        var resolved = driverCatalog.resolve(entity.getDbType());
         var url = buildJdbcUrl(entity);
         var props = jdbcProperties(entity);
         var start = System.currentTimeMillis();
-        DriverManager.setLoginTimeout(CONNECTION_TIMEOUT_SECONDS);
-        try (var connection = DriverManager.getConnection(url, props);
+        try (var connection = resolved.driver().connect(url, props);
              var stmt = connection.createStatement();
              var rs = stmt.executeQuery("SELECT 1")) {
             rs.next();
@@ -268,10 +269,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     private DatabaseSchemaView introspect(UUID id, DatasourceEntity entity) {
+        var resolved = driverCatalog.resolve(entity.getDbType());
         var url = buildJdbcUrl(entity);
         var props = jdbcProperties(entity);
-        DriverManager.setLoginTimeout(CONNECTION_TIMEOUT_SECONDS);
-        try (var connection = DriverManager.getConnection(url, props)) {
+        try (var connection = resolved.driver().connect(url, props)) {
             return readSchema(connection, entity.getDbType());
         } catch (SQLException e) {
             log.warn("Schema introspection failed for datasource {}: {}", id, e.getMessage());

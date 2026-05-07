@@ -1,7 +1,7 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
 export type AuthProvider = 'LOCAL' | 'SAML';
 export type Edition = 'COMMUNITY' | 'ENTERPRISE';
-export type DbType = 'POSTGRESQL' | 'MYSQL';
+export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =
   | 'PENDING_AI'
@@ -191,14 +191,16 @@ export interface CreatePermissionInput {
   expires_at?: string | null;
 }
 
+export type DriverStatus = 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
+
 export interface DatasourceTypeOption {
-  code: DbType | string;
+  code: DbType;
   display_name: string;
   icon_url: string;
   default_port: number;
-  default_ssl_mode: SslMode | string;
+  default_ssl_mode: SslMode;
   jdbc_url_template: string;
-  driver_status: 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
+  driver_status: DriverStatus;
 }
 
 export interface DatasourceTypesResponse {

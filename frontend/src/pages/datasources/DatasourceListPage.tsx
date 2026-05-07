@@ -29,7 +29,15 @@ export function DatasourceListPage() {
       <PageHeader
         title={t('datasources.list.title')}
         subtitle={t('datasources.list.subtitle')}
-        actions={<Button type="primary" icon={<PlusOutlined />}>{t('datasources.list.add_button')}</Button>}
+        actions={
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/datasources/new')}
+          >
+            {t('datasources.list.add_button')}
+          </Button>
+        }
       />
       <div
         style={{
