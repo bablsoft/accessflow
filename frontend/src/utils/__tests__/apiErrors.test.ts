@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
-import { authErrorMessage, setupErrorMessage } from '../apiErrors';
+import {
+  authErrorMessage,
+  reviewErrorMessage,
+  reviewPlanErrorMessage,
+  setupErrorMessage,
+} from '../apiErrors';
 
 const buildAxiosError = (status: number, data: unknown): AxiosError => {
   const response = {
@@ -63,5 +68,53 @@ describe('setupErrorMessage', () => {
 
   it('returns a generic fallback for unknown values', () => {
     expect(setupErrorMessage(undefined)).toBe('Could not complete setup. Please try again.');
+  });
+});
+
+describe('reviewErrorMessage', () => {
+  it('maps 403 FORBIDDEN to the self-approval message', () => {
+    expect(reviewErrorMessage(buildAxiosError(403, { error: 'FORBIDDEN' })))
+      .toBe('You cannot review a query you submitted yourself.');
+  });
+
+  it('maps REVIEWER_NOT_ELIGIBLE', () => {
+    expect(reviewErrorMessage(buildAxiosError(403, { error: 'REVIEWER_NOT_ELIGIBLE' })))
+      .toBe('You are not an approver at this stage.');
+  });
+
+  it('maps QUERY_NOT_PENDING_REVIEW', () => {
+    expect(reviewErrorMessage(buildAxiosError(409, { error: 'QUERY_NOT_PENDING_REVIEW' })))
+      .toBe('This query is no longer pending review.');
+  });
+
+  it('falls back to ProblemDetail.title', () => {
+    expect(reviewErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(reviewErrorMessage(undefined))
+      .toBe('Could not record the review decision. Please try again.');
+  });
+});
+
+describe('reviewPlanErrorMessage', () => {
+  it('maps REVIEW_PLAN_IN_USE', () => {
+    expect(reviewPlanErrorMessage(buildAxiosError(409, { error: 'REVIEW_PLAN_IN_USE' })))
+      .toBe('This review plan is attached to a datasource and cannot be deleted.');
+  });
+
+  it('maps REVIEW_PLAN_NOT_FOUND', () => {
+    expect(reviewPlanErrorMessage(buildAxiosError(404, { error: 'REVIEW_PLAN_NOT_FOUND' })))
+      .toBe('Review plan not found.');
+  });
+
+  it('maps ILLEGAL_REVIEW_PLAN', () => {
+    expect(reviewPlanErrorMessage(buildAxiosError(422, { error: 'ILLEGAL_REVIEW_PLAN' })))
+      .toBe('That review plan configuration is not allowed.');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(reviewPlanErrorMessage(undefined))
+      .toBe('Could not save the review plan. Please try again.');
   });
 });

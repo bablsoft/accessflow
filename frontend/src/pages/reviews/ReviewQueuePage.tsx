@@ -11,8 +11,16 @@ import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
-import { approveQuery, listQueries, queryKeys, rejectQuery } from '@/api/queries';
-import type { QueryListItem } from '@/types/api';
+import { queryKeys } from '@/api/queries';
+import {
+  approveQuery,
+  listPendingReviews,
+  rejectQuery,
+  reviewKeys,
+  type PendingReviewsFilters,
+} from '@/api/reviews';
+import { reviewErrorMessage } from '@/utils/apiErrors';
+import type { PendingReviewItem } from '@/types/api';
 
 export function ReviewQueuePage() {
   const { t } = useTranslation();
@@ -22,30 +30,39 @@ export function ReviewQueuePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const filters = { status: 'PENDING_REVIEW' as const, size: 50 };
+  const filters: PendingReviewsFilters = { size: 50 };
   const { data, isLoading, refetch } = useQuery({
-    queryKey: queryKeys.list(filters),
-    queryFn: () => listQueries(filters),
+    queryKey: reviewKeys.pendingFor(filters),
+    queryFn: () => listPendingReviews(filters),
   });
 
   const all = data?.content ?? [];
-  // Submitter cannot review their own query.
+  // Defense-in-depth: backend already excludes the caller's own queries (self-approval is 403),
+  // but we filter client-side too so a stale cache never offers an action that will fail.
   const reviewable = all.filter((q) => q.submitted_by.id !== user?.id);
   const list = tab === 'mine' ? reviewable.slice(0, 8) : reviewable;
 
+  const invalidateAfterDecision = (queryId: string) => {
+    void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.detail(queryId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+  };
+
   const approve = useMutation({
     mutationFn: (id: string) => approveQuery(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+    onSuccess: (_, id) => {
+      invalidateAfterDecision(id);
       message.success(t('reviews.on_approve'));
     },
+    onError: (err) => message.error(reviewErrorMessage(err)),
   });
   const reject = useMutation({
     mutationFn: (id: string) => rejectQuery(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+    onSuccess: (_, id) => {
+      invalidateAfterDecision(id);
       message.error(t('reviews.on_reject'));
     },
+    onError: (err) => message.error(reviewErrorMessage(err)),
   });
 
   return (
@@ -87,7 +104,7 @@ export function ReviewQueuePage() {
             {list.map((q) => (
               <ReviewCard
                 key={q.id}
-                query={q}
+                item={q}
                 onOpen={() => navigate(`/queries/${q.id}`)}
                 onApprove={() => approve.mutate(q.id)}
                 onReject={() => reject.mutate(q.id)}
@@ -107,14 +124,15 @@ export function ReviewQueuePage() {
 }
 
 interface CardProps {
-  query: QueryListItem;
+  item: PendingReviewItem;
   onOpen: () => void;
   onApprove: () => void;
   onReject: () => void;
 }
 
-function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
+function ReviewCard({ item, onOpen, onApprove, onReject }: CardProps) {
   const { t } = useTranslation();
+  const ai = item.ai_analysis;
   return (
     <div
       onClick={onOpen}
@@ -131,22 +149,17 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span className="mono muted" style={{ fontSize: 11 }}>
-          {query.id.slice(0, 8)}
+          {item.id.slice(0, 8)}
         </span>
-        <QueryTypePill type={query.query_type} size="sm" />
-        {query.risk_level != null && query.risk_score != null && (
-          <RiskPill level={query.risk_level} score={query.risk_score} size="sm" />
-        )}
+        <QueryTypePill type={item.query_type} size="sm" />
+        {ai && <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" />}
         <div style={{ flex: 1 }} />
         <span className="muted" style={{ fontSize: 11 }}>
-          {timeAgo(query.created_at)}
+          {timeAgo(item.created_at)}
         </span>
       </div>
-      <div
-        className="muted"
-        style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}
-      >
-        {query.id}
+      <div className="muted" style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+        {item.id}
       </div>
       <div
         style={{
@@ -157,11 +170,11 @@ function ReviewCard({ query, onOpen, onApprove, onReject }: CardProps) {
           borderTop: '1px solid var(--border)',
         }}
       >
-        <Avatar name={query.submitted_by.display_name} size={22} />
+        <Avatar name={item.submitted_by.email} size={22} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 500 }}>{query.submitted_by.display_name}</div>
+          <div style={{ fontSize: 12, fontWeight: 500 }}>{item.submitted_by.email}</div>
           <div className="mono muted" style={{ fontSize: 10 }}>
-            {query.datasource.name}
+            {item.datasource.name}
           </div>
         </div>
         <div style={{ flex: 1 }} />

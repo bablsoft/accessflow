@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { ApartmentOutlined, RightOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { AiAnalysis, Datasource, ReviewPlan } from '@/types/api';
+import type { AiAnalysis, Datasource, DemoReviewPlan } from '@/types/api';
 import { REVIEW_PLANS } from '@/mocks/data';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 export function ReviewPlanPreview({ ds, analysis }: Props) {
   const { t } = useTranslation();
   // TODO(FE-XX): replace with useReviewPlans() once the /review-plans API ships.
-  const plan: ReviewPlan = REVIEW_PLANS.find((p) => p.id === ds.review_plan_id) ?? {
+  const plan: DemoReviewPlan = REVIEW_PLANS.find((p) => p.id === ds.review_plan_id) ?? {
     id: ds.review_plan_id ?? 'unknown',
     name: t('editor.plan_unknown_name'),
     description: t('editor.plan_unknown_description'),

@@ -6,7 +6,7 @@ import type {
   QueryRequest,
   QueryStatus,
   QueryType,
-  ReviewPlan,
+  DemoReviewPlan,
   RiskLevel,
   User,
 } from '@/types/api';
@@ -51,7 +51,7 @@ export const DATASOURCES: Datasource[] = [
   { id: 'ds-08', organization_id: 'org-demo', name: 'Sandbox PG', db_type: 'POSTGRESQL', host: 'sandbox.acme.internal', port: 5432, database_name: 'sandbox', username: 'accessflow_svc', ssl_mode: 'DISABLE', max_rows_per_query: 10000, require_review_writes: false, require_review_reads: false, ai_analysis_enabled: true, active: false, connection_pool_size: 5, review_plan_id: 'rp-light', created_at: '2026-03-15T10:00:00Z' },
 ];
 
-export const REVIEW_PLANS: ReviewPlan[] = [
+export const REVIEW_PLANS: DemoReviewPlan[] = [
   { id: 'rp-strict', name: 'Strict (production)', description: 'AI review + 2 human approvers (sequential)', requires_ai: true, requires_human: true, min_approvals: 2, timeout_hours: 24, auto_approve_reads: false, channels: ['email', 'slack'] },
   { id: 'rp-readonly', name: 'Read-only with AI', description: 'AI review only on SELECT, single approver on writes', requires_ai: true, requires_human: true, min_approvals: 1, timeout_hours: 12, auto_approve_reads: true, channels: ['slack'] },
   { id: 'rp-light', name: 'Light review', description: 'AI review only — auto-approve if LOW risk', requires_ai: true, requires_human: false, min_approvals: 0, timeout_hours: 4, auto_approve_reads: true, channels: ['slack'] },

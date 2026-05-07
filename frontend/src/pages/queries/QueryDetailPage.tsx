@@ -24,15 +24,14 @@ import { IssueCard } from '@/components/editor/IssueCard';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
+import { cancelQuery, executeQuery, getQuery, isPending, queryKeys } from '@/api/queries';
 import {
   approveQuery,
-  cancelQuery,
-  executeQuery,
-  getQuery,
-  isPending,
-  queryKeys,
   rejectQuery,
-} from '@/api/queries';
+  requestChanges,
+  reviewKeys,
+} from '@/api/reviews';
+import { reviewErrorMessage } from '@/utils/apiErrors';
 import type { QueryDetail } from '@/types/api';
 
 export function QueryDetailPage() {
@@ -73,20 +72,40 @@ export function QueryDetailPage() {
     },
   });
 
+  const invalidateAfterDecision = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.detail(id!) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
+  };
+
   const approveMutation = useMutation({
-    mutationFn: () => approveQuery(id!, comment),
+    mutationFn: () => approveQuery(id!, comment.trim() || undefined),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.detail(id!) });
+      invalidateAfterDecision();
+      setComment('');
       message.success(t('queries.detail.on_approve_success'));
     },
+    onError: (err) => message.error(reviewErrorMessage(err)),
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => rejectQuery(id!, comment),
+    mutationFn: () => rejectQuery(id!, comment.trim() || undefined),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.detail(id!) });
+      invalidateAfterDecision();
+      setComment('');
       message.error(t('queries.detail.on_reject_success'));
     },
+    onError: (err) => message.error(reviewErrorMessage(err)),
+  });
+
+  const requestChangesMutation = useMutation({
+    mutationFn: () => requestChanges(id!, comment.trim()),
+    onSuccess: () => {
+      invalidateAfterDecision();
+      setComment('');
+      message.success(t('queries.detail.on_request_changes_success'));
+    },
+    onError: (err) => message.error(reviewErrorMessage(err)),
   });
 
   const stages: TimelineStage[] = useMemo(() => {
@@ -292,7 +311,25 @@ export function QueryDetailPage() {
                 >
                   {t('common.reject')}
                 </Button>
-                <Button icon={<EditOutlined />}>{t('queries.detail.review_request_changes')}</Button>
+                <Button
+                  icon={<EditOutlined />}
+                  loading={requestChangesMutation.isPending}
+                  disabled={!comment.trim()}
+                  title={
+                    comment.trim()
+                      ? undefined
+                      : t('queries.detail.review_request_changes_required')
+                  }
+                  onClick={() => {
+                    if (!comment.trim()) {
+                      message.error(t('queries.detail.review_request_changes_required'));
+                      return;
+                    }
+                    requestChangesMutation.mutate();
+                  }}
+                >
+                  {t('queries.detail.review_request_changes')}
+                </Button>
               </div>
             </div>
           )}

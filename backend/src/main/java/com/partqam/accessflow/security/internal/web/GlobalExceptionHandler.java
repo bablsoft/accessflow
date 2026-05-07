@@ -8,8 +8,11 @@ import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
+import com.partqam.accessflow.core.api.IllegalReviewPlanException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
+import com.partqam.accessflow.core.api.ReviewPlanInUseException;
+import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
 import com.partqam.accessflow.core.api.SetupAlreadyCompletedException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
@@ -147,6 +150,33 @@ class GlobalExceptionHandler {
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_permission"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ReviewPlanNotFoundException.class)
+    ProblemDetail handleReviewPlanNotFound(ReviewPlanNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.review_plan_not_found"));
+        pd.setProperty("error", "REVIEW_PLAN_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ReviewPlanInUseException.class)
+    ProblemDetail handleReviewPlanInUse(ReviewPlanInUseException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.review_plan_in_use"));
+        pd.setProperty("error", "REVIEW_PLAN_IN_USE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalReviewPlanException.class)
+    ProblemDetail handleIllegalReviewPlan(IllegalReviewPlanException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.illegal_review_plan"));
+        pd.setProperty("error", "ILLEGAL_REVIEW_PLAN");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

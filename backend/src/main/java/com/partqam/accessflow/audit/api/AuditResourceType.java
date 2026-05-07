@@ -10,6 +10,7 @@ public enum AuditResourceType {
     DATASOURCE("datasource"),
     USER("user"),
     PERMISSION("permission"),
+    REVIEW_PLAN("review_plan"),
     NOTIFICATION_CHANNEL("notification_channel");
 
     private final String dbValue;

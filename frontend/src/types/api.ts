@@ -114,7 +114,48 @@ export interface DatasourceTypesResponse {
 
 export type DatasourcePage = PaginatedResponse<Datasource>;
 
+/**
+ * Server-aligned review plan shape returned by `GET /api/v1/review-plans` and friends.
+ * Field names match the backend snake_case JSON contract.
+ */
+export interface ReviewPlanApprover {
+  user_id: string | null;
+  role: 'ADMIN' | 'REVIEWER' | null;
+  stage: number;
+}
+
 export interface ReviewPlan {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  requires_ai_review: boolean;
+  requires_human_approval: boolean;
+  min_approvals_required: number;
+  approval_timeout_hours: number;
+  auto_approve_reads: boolean;
+  notify_channels: string[];
+  approvers: ReviewPlanApprover[];
+  created_at: string;
+}
+
+export interface ReviewPlanWriteRequest {
+  name?: string;
+  description?: string | null;
+  requires_ai_review?: boolean;
+  requires_human_approval?: boolean;
+  min_approvals_required?: number;
+  approval_timeout_hours?: number;
+  auto_approve_reads?: boolean;
+  notify_channels?: string[];
+  approvers?: ReviewPlanApprover[];
+}
+
+/**
+ * Demo-only minimal shape used by `src/mocks/data.ts` and the editor preview while the real
+ * `/review-plans` API is wired in. Will be removed once those callers are migrated.
+ */
+export interface DemoReviewPlan {
   id: string;
   name: string;
   description: string;
@@ -124,6 +165,41 @@ export interface ReviewPlan {
   timeout_hours: number;
   auto_approve_reads: boolean;
   channels: string[];
+}
+
+export interface PendingReviewItem {
+  id: string;
+  datasource: { id: string; name: string };
+  submitted_by: { id: string; email: string };
+  sql_text: string;
+  query_type: QueryType;
+  justification: string;
+  ai_analysis: {
+    id: string;
+    risk_level: RiskLevel;
+    risk_score: number;
+    summary: string;
+  } | null;
+  current_stage: number;
+  created_at: string;
+}
+
+export interface PendingReviewsPage {
+  content: PendingReviewItem[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export type ReviewDecisionType = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
+
+export interface ReviewDecisionResult {
+  query_request_id: string;
+  decision_id: string;
+  decision: ReviewDecisionType;
+  resulting_status: QueryStatus;
+  idempotent_replay: boolean;
 }
 
 export interface AiIssue {

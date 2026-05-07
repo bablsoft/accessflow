@@ -11,4 +11,6 @@ public interface ReviewPlanApproverRepository extends JpaRepository<ReviewPlanAp
     List<ReviewPlanApproverEntity> findAllByReviewPlan_Id(UUID reviewPlanId);
 
     List<ReviewPlanApproverEntity> findAllByReviewPlan_IdOrderByStageAsc(UUID reviewPlanId);
+
+    void deleteAllByReviewPlan_Id(UUID reviewPlanId);
 }
