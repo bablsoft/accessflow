@@ -29,12 +29,12 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
           const isDanger = !!(s.rejected || s.failed);
-          const dotColor = s.done
-            ? 'var(--risk-low)'
-            : s.active
-              ? 'var(--accent)'
-              : isDanger
-                ? 'var(--risk-crit)'
+          const dotColor = isDanger
+            ? 'var(--risk-crit)'
+            : s.done
+              ? 'var(--risk-low)'
+              : s.active
+                ? 'var(--accent)'
                 : s.cancelled
                   ? 'var(--fg-muted)'
                   : 'var(--border-strong)';
