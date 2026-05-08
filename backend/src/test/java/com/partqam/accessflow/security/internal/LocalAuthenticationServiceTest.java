@@ -52,7 +52,7 @@ class LocalAuthenticationServiceTest {
                 jwtService, refreshTokenStore, props);
         activeUser = new UserView(userId, "alice@example.com", "Alice",
                 UserRoleType.ANALYST, orgId, true, AuthProviderType.LOCAL, "hashed",
-                null, null);
+                null, null, null);
     }
 
     @Test
@@ -92,7 +92,7 @@ class LocalAuthenticationServiceTest {
     void loginWithInactiveUserThrows() {
         var inactiveUser = new UserView(userId, "alice@example.com", "Alice",
                 UserRoleType.ANALYST, orgId, false, AuthProviderType.LOCAL, "hashed",
-                null, null);
+                null, null, null);
         when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(inactiveUser));
 
         assertThatThrownBy(() -> service.login(new LoginCommand("alice@example.com", "secret")))

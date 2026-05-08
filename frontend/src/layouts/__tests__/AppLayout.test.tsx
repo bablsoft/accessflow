@@ -37,6 +37,7 @@ const reviewerUser: AuthUser = {
   email: 'reviewer@example.com',
   display_name: 'Test Reviewer',
   role: 'REVIEWER',
+  preferred_language: null,
 };
 
 const adminUser: AuthUser = {
@@ -44,6 +45,7 @@ const adminUser: AuthUser = {
   email: 'admin@example.com',
   display_name: 'Test Admin',
   role: 'ADMIN',
+  preferred_language: null,
 };
 
 const analystUser: AuthUser = {
@@ -51,6 +53,7 @@ const analystUser: AuthUser = {
   email: 'analyst@example.com',
   display_name: 'Test Analyst',
   role: 'ANALYST',
+  preferred_language: null,
 };
 
 function emptyPage(): PendingReviewsPage {

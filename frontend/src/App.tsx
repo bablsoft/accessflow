@@ -22,6 +22,7 @@ import { AIConfigPage } from '@/pages/admin/AIConfigPage';
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
+import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 import { usePreferencesStore } from '@/store/preferencesStore';
 
 export function App() {
@@ -123,6 +124,14 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <NotificationsPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/languages"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <LanguagesConfigPage />
               </AuthGuard>
             }
           />

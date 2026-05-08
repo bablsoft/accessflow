@@ -39,6 +39,36 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+.af-language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.af-language-switcher:hover {
+  color: var(--fg);
+  background: var(--bg-elev);
+}
+.af-language-switcher .anticon {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+}
+.af-language-switcher-code {
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+}
+
 @media (max-width: 900px) {
   .hide-tablet {
     display: none !important;

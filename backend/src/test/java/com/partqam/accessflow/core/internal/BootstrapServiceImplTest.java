@@ -60,7 +60,7 @@ class BootstrapServiceImplTest {
                     CreateUserCommand cmd = inv.getArgument(0);
                     return new UserView(createdUserId, cmd.email(), cmd.displayName(),
                             cmd.role(), cmd.organizationId(), true,
-                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null);
+                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null, null);
                 });
 
         var result = service.performSetup(new SetupCommand(
@@ -94,7 +94,7 @@ class BootstrapServiceImplTest {
                     CreateUserCommand cmd = inv.getArgument(0);
                     return new UserView(UUID.randomUUID(), cmd.email(), cmd.displayName(),
                             cmd.role(), cmd.organizationId(), true,
-                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null);
+                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null, null);
                 });
 
         service.performSetup(new SetupCommand("Acme", "x@y.z", "X", "h"));
@@ -115,7 +115,7 @@ class BootstrapServiceImplTest {
                     CreateUserCommand cmd = inv.getArgument(0);
                     return new UserView(UUID.randomUUID(), cmd.email(), cmd.displayName(),
                             cmd.role(), cmd.organizationId(), true,
-                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null);
+                            AuthProviderType.LOCAL, cmd.passwordHash(), null, null, null);
                 });
 
         service.performSetup(new SetupCommand("Widgets & Co!", "x@y.z", "X", "h"));

@@ -214,9 +214,17 @@ The wizard is the only entry point that materializes a datasource; `DatasourceLi
 ### Topbar (`components/common/Topbar.tsx`)
 
 The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the
-notification bell, and a sign-out button. It deliberately has no global search input and
-no community/enterprise edition selector — the edition is a build-time setting derived
-from `VITE_APP_EDITION` and read-only at runtime.
+[language switcher](#language-switcher), the notification bell, and a sign-out button. It
+deliberately has no global search input and no community/enterprise edition selector — the
+edition is a build-time setting derived from `VITE_APP_EDITION` and read-only at runtime.
+
+### Language switcher
+
+`components/common/LanguageSwitcher.tsx` is a dropdown next to the theme toggle. It calls `GET /me/localization` (TanStack Query, key `['localization', 'me']`) to discover the org-admin's allow-list, and its menu lists only those languages by display name. On select it optimistically updates `preferencesStore.language` (which is what i18next, dayjs, and the Ant Design `ConfigProvider locale` all subscribe to in `main.tsx`) and fires `PUT /me/localization` to persist the choice on the server. On 4xx the mutation surfaces a toast via `errors.languages_save_error` but does not roll back the optimistic update — i18next has already switched and rolling back would be jarring; the user can re-select.
+
+The seven supported locales (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`) are bundled at build time in `src/locales/*.json`. Adding a new language is a single new JSON file plus an entry in `SUPPORTED_LANGUAGES`/`LANGUAGE_DISPLAY_NAMES` in `src/i18n.ts`. Translations missing from a non-English locale fall back to English at runtime via i18next's `fallbackLng`.
+
+`/admin/languages` is the admin counterpart: `LanguagesConfigPage` renders three controls — multi-select for `available_languages`, single-select for `default_language` (filtered to that allow-list), single-select for `ai_review_language` (full seven-language list, independent of user choice). On save it `PUT`s `/admin/localization-config` and invalidates both `['localization', 'admin']` and `['localization', 'me']` so the topbar switcher picks up the new allow-list immediately.
 
 `NotificationBell` (in the same folder) wraps an Ant Design `<Badge>` + `<Dropdown>`
 around the bell icon. It uses TanStack Query for the unread count
@@ -344,6 +352,7 @@ VITE_APP_EDITION=community         # community | enterprise
 /admin/audit-log                    → AuditLogPage
 /admin/ai-config                    → AIConfigPage
 /admin/notifications                → NotificationsPage
+/admin/languages                    → LanguagesConfigPage
 /admin/saml                         → SamlConfigPage (Enterprise)
 ```
 

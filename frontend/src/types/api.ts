@@ -26,7 +26,27 @@ export interface User {
   auth_provider: AuthProvider;
   active: boolean;
   last_login_at: string | null;
+  preferred_language: string | null;
   created_at: string;
+}
+
+export interface LocalizationConfig {
+  organization_id: string;
+  available_languages: string[];
+  default_language: string;
+  ai_review_language: string;
+}
+
+export interface UpdateLocalizationConfigInput {
+  available_languages: string[];
+  default_language: string;
+  ai_review_language: string;
+}
+
+export interface MeLocalization {
+  available_languages: string[];
+  default_language: string;
+  current_language: string;
 }
 
 export interface PageEnvelope<T> {

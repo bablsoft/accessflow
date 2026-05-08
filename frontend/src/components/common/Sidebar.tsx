@@ -10,6 +10,7 @@ import {
   BellOutlined,
   ApartmentOutlined,
   IdcardOutlined,
+  GlobalOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
@@ -63,6 +64,7 @@ export function Sidebar({
     { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
     { id: 'ai', to: '/admin/ai-config', label: t('nav.ai_config'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
     { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
+    { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
     ...(edition === 'ENTERPRISE'
       ? [
           {

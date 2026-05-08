@@ -40,6 +40,7 @@ class JwtServiceImplTest {
                 AuthProviderType.LOCAL,
                 null,
                 null,
+                null,
                 null
         );
     }

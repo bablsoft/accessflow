@@ -101,7 +101,7 @@ class QueryAnalysisControllerIntegrationTest {
         analystToken = jwtService.generateAccessToken(new com.partqam.accessflow.core.api.UserView(
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(), analyst.getRole(),
                 org.getId(), true, AuthProviderType.LOCAL, analyst.getPasswordHash(),
-                null, java.time.Instant.now()));
+                null, null, java.time.Instant.now()));
     }
 
     @AfterEach

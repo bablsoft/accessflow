@@ -145,7 +145,7 @@ class AuthController {
     private LoginResponse toLoginResponse(com.partqam.accessflow.security.api.AuthResult result) {
         var user = result.user();
         var summary = new UserSummary(user.id(), user.email(), user.displayName(),
-                user.role().name());
+                user.role().name(), user.preferredLanguage());
         return new LoginResponse(result.accessToken(), result.tokenType(), result.expiresIn(), summary);
     }
 

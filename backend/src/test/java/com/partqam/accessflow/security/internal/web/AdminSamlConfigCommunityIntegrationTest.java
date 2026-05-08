@@ -95,6 +95,7 @@ class AdminSamlConfigCommunityIntegrationTest {
                 admin.getAuthProvider(),
                 admin.getPasswordHash(),
                 admin.getLastLoginAt(),
+                admin.getPreferredLanguage(),
                 admin.getCreatedAt());
         adminToken = jwtService.generateAccessToken(view);
     }

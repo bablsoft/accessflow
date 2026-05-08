@@ -2,6 +2,7 @@ package com.partqam.accessflow.ai.internal;
 
 import com.partqam.accessflow.core.api.DatabaseSchemaView;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.SupportedLanguage;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
@@ -40,13 +41,17 @@ class SystemPromptRenderer {
             Schema context: %s
             SQL to analyze:
             %s
+            Respond in: %s. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.
             """;
 
-    String render(String sql, DbType dbType, String schemaContext) {
+    String render(String sql, DbType dbType, String schemaContext, String language) {
         var schemaText = (schemaContext == null || schemaContext.isBlank())
                 ? "(no schema introspection available)"
                 : schemaContext;
-        return TEMPLATE.formatted(dbType.name(), schemaText, sql);
+        var displayName = SupportedLanguage.fromCode(language)
+                .map(SupportedLanguage::displayName)
+                .orElse(SupportedLanguage.EN.displayName());
+        return TEMPLATE.formatted(dbType.name(), schemaText, sql, displayName);
     }
 
     String describeSchema(DatabaseSchemaView schema) {

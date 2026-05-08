@@ -9,9 +9,11 @@ import com.partqam.accessflow.core.api.AiAnalysisPersistenceService;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
 import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.partqam.accessflow.core.api.LocalizationConfigService;
 import com.partqam.accessflow.core.api.PersistAiAnalysisCommand;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.RiskLevel;
+import com.partqam.accessflow.core.api.SupportedLanguage;
 import com.partqam.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.partqam.accessflow.core.events.AiAnalysisFailedEvent;
 import org.slf4j.Logger;
@@ -38,6 +40,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final QueryRequestLookupService queryRequestLookupService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
+    private final LocalizationConfigService localizationConfigService;
     private final ApplicationEventPublisher eventPublisher;
     private final String configuredModel;
 
@@ -50,6 +53,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                              QueryRequestLookupService queryRequestLookupService,
                              DatasourceUserPermissionLookupService permissionLookupService,
                              AiAnalysisPersistenceService aiAnalysisPersistenceService,
+                             LocalizationConfigService localizationConfigService,
                              ApplicationEventPublisher eventPublisher,
                              @Value("${spring.ai.anthropic.chat.options.model:" + UNKNOWN_MODEL + "}") String configuredModel) {
         this.strategy = strategy;
@@ -61,6 +65,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         this.queryRequestLookupService = queryRequestLookupService;
         this.permissionLookupService = permissionLookupService;
         this.aiAnalysisPersistenceService = aiAnalysisPersistenceService;
+        this.localizationConfigService = localizationConfigService;
         this.eventPublisher = eventPublisher;
         this.configuredModel = (configuredModel == null || configuredModel.isBlank()) ? UNKNOWN_MODEL : configuredModel;
     }
@@ -75,7 +80,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
         var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
-        return strategy.analyze(sql, descriptor.dbType(), schemaContext);
+        return strategy.analyze(sql, descriptor.dbType(), schemaContext, resolveLanguage(organizationId));
     }
 
     @Override
@@ -105,7 +110,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }
         try {
-            var result = strategy.analyze(snapshot.sqlText(), dbType, schemaContext);
+            var result = strategy.analyze(snapshot.sqlText(), dbType, schemaContext,
+                    resolveLanguage(snapshot.organizationId()));
             var issuesJson = responseParser.issuesAsJson(result.issues());
             var command = new PersistAiAnalysisCommand(
                     result.aiProvider(), result.aiModel(), result.riskScore(), result.riskLevel(),
@@ -116,6 +122,18 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         } catch (AiAnalysisException | AiAnalysisParseException e) {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
             persistFailureAndPublish(queryRequestId, e.getMessage());
+        }
+    }
+
+    private String resolveLanguage(UUID organizationId) {
+        if (organizationId == null) {
+            return SupportedLanguage.EN.code();
+        }
+        try {
+            return localizationConfigService.getOrDefault(organizationId).aiReviewLanguage();
+        } catch (RuntimeException e) {
+            log.warn("Failed to resolve AI review language for org {}: {}", organizationId, e.getMessage());
+            return SupportedLanguage.EN.code();
         }
     }
 

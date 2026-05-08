@@ -3,6 +3,7 @@ package com.partqam.accessflow.ai.internal.web;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
 import com.partqam.accessflow.ai.api.AiConfigService;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.SupportedLanguage;
 import com.partqam.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -57,7 +58,8 @@ class AdminAiConfigController {
     @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
     TestAiConfigResponse test() {
         try {
-            var result = aiAnalyzerStrategy.analyze(TEST_SQL, DbType.POSTGRESQL, null);
+            var result = aiAnalyzerStrategy.analyze(TEST_SQL, DbType.POSTGRESQL, null,
+                    SupportedLanguage.EN.code());
             return TestAiConfigResponse.ok("AI provider responded with risk_level=" + result.riskLevel());
         } catch (RuntimeException ex) {
             log.warn("AI test prompt failed", ex);

@@ -309,7 +309,7 @@ class RealtimeEventDispatcherTest {
     private UserView activeUser(UUID id, String email) {
         return new UserView(id, email, "Display " + email, UserRoleType.REVIEWER,
                 organizationId, true, AuthProviderType.LOCAL, null,
-                Instant.now(), Instant.now());
+                Instant.now(), null, Instant.now());
     }
 
     private DatasourceView datasourceView(String name) {
