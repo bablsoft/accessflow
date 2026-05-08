@@ -247,5 +247,3 @@ export const CHANNELS: NotificationChannel[] = [
   { id: 'ch-05', organization_id: 'org-demo', channel_type: 'WEBHOOK', name: 'SIEM Forwarder', active: true, config: { url: 'https://siem.acme.internal/ingest', secret: '********' }, created_at: '2026-05-01T07:00:00Z' },
   { id: 'ch-06', organization_id: 'org-demo', channel_type: 'EMAIL', name: 'DBA Team', active: false, config: { smtp_host: 'smtp.acme.com', smtp_port: 587, smtp_password: '********', from_address: 'accessflow@acme.com' }, created_at: '2026-04-10T11:00:00Z' },
 ];
-
-export const DEMO_NOW = NOW;
