@@ -63,74 +63,101 @@ export function LanguagesConfigPage() {
     });
   };
 
-  if (cfgQuery.isLoading) {
+  if (cfgQuery.isLoading || !cfgQuery.data) {
+    if (cfgQuery.isError) {
+      return (
+        <EmptyState
+          title={t('admin.languages.load_error')}
+          description={adminErrorMessage(cfgQuery.error)}
+        />
+      );
+    }
     return (
-      <>
-        <PageHeader title={t('admin.languages.title')} subtitle={t('admin.languages.subtitle')} />
+      <div style={{ padding: 28 }}>
         <Skeleton active paragraph={{ rows: 6 }} />
-      </>
-    );
-  }
-
-  if (cfgQuery.isError) {
-    return (
-      <>
-        <PageHeader title={t('admin.languages.title')} subtitle={t('admin.languages.subtitle')} />
-        <EmptyState title={t('admin.languages.load_error')} />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('admin.languages.title')} subtitle={t('admin.languages.subtitle')} />
-      <Form<LanguagesFormValues>
-        form={form}
-        layout="vertical"
-        onFinish={onSave}
-        initialValues={{
-          available_languages: ['en' as Language],
-          default_language: 'en' as Language,
-          ai_review_language: 'en' as Language,
-        }}
-      >
-        <Form.Item
-          label={t('admin.languages.section_user_languages')}
-          extra={t('admin.languages.section_user_languages_help')}
-          name="available_languages"
-          rules={[{ required: true, message: t('errors.languages_save_error'), type: 'array', min: 1 }]}
+      <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
+        <Form<LanguagesFormValues>
+          form={form}
+          layout="vertical"
+          onFinish={onSave}
+          initialValues={{
+            available_languages: ['en' as Language],
+            default_language: 'en' as Language,
+            ai_review_language: 'en' as Language,
+          }}
         >
-          <AvailableLanguagesField />
-        </Form.Item>
+          <Section title={t('admin.languages.section_user_languages')}>
+            <Form.Item
+              extra={t('admin.languages.section_user_languages_help')}
+              name="available_languages"
+              rules={[
+                {
+                  required: true,
+                  message: t('errors.languages_save_error'),
+                  type: 'array',
+                  min: 1,
+                },
+              ]}
+            >
+              <AvailableLanguagesField />
+            </Form.Item>
 
-        <Form.Item
-          label={t('admin.languages.label_default_language')}
-          name="default_language"
-          dependencies={['available_languages']}
-          rules={[{ required: true, message: t('errors.languages_save_error') }]}
-        >
-          <DefaultLanguageSelect />
-        </Form.Item>
+            <Form.Item
+              label={t('admin.languages.label_default_language')}
+              name="default_language"
+              dependencies={['available_languages']}
+              rules={[{ required: true, message: t('errors.languages_save_error') }]}
+            >
+              <DefaultLanguageSelect />
+            </Form.Item>
+          </Section>
 
-        <Form.Item
-          label={t('admin.languages.section_ai_language')}
-          extra={t('admin.languages.section_ai_language_help')}
-          name="ai_review_language"
-          rules={[{ required: true, message: t('errors.languages_save_error') }]}
-        >
-          <Select<Language>
-            options={SUPPORTED_LANGUAGES.map((code) => ({
-              value: code,
-              label: `${LANGUAGE_DISPLAY_NAMES[code]} (${code})`,
-            }))}
-          />
-        </Form.Item>
+          <Section title={t('admin.languages.section_ai_language')}>
+            <Form.Item
+              extra={t('admin.languages.section_ai_language_help')}
+              name="ai_review_language"
+              rules={[{ required: true, message: t('errors.languages_save_error') }]}
+            >
+              <Select<Language>
+                options={SUPPORTED_LANGUAGES.map((code) => ({
+                  value: code,
+                  label: `${LANGUAGE_DISPLAY_NAMES[code]} (${code})`,
+                }))}
+              />
+            </Form.Item>
+          </Section>
 
-        <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
-          {t('admin.languages.save_button')}
-        </Button>
-      </Form>
-    </>
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              paddingTop: 16,
+              borderTop: '1px solid var(--border)',
+            }}
+          >
+            <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
+              {t('admin.languages.save_button')}
+            </Button>
+          </div>
+        </Form>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 14 }}>{title}</div>
+      {children}
+    </div>
   );
 }
 

@@ -59,8 +59,9 @@ export function LanguageSwitcher() {
     <Dropdown menu={{ items, selectedKeys: [language] }} trigger={['click']}>
       <button
         type="button"
-        className="af-icon-btn af-language-switcher"
+        className="af-language-switcher"
         aria-label={t('common.language')}
+        title={current}
       >
         <GlobalOutlined />
         <span className="af-language-switcher-code">{current}</span>
