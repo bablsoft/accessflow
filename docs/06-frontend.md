@@ -181,7 +181,7 @@ Full detail view for any query:
 - SQL text in read-only CodeMirror block with syntax highlighting
 - `AiAnalysisAccordion` — expandable section showing risk score, all issues with suggestions
 - `ApprovalTimeline` — visual timeline of review stages and decisions with reviewer comments
-- Execution result section (if executed): rows affected, duration, timestamp
+- Execution result section (if executed): rows affected, duration, timestamp. `QueryResultsTable` reads `column.restricted` from each `QueryResultColumn` returned by `GET /queries/{id}/results`; restricted columns render a lock icon + tooltip in the header and muted styling on cells (the value is already `"***"` from the backend — the frontend never has the raw value).
 - Cancel button (if query is in `PENDING_*` status and viewer is the submitter)
 - When `status === 'TIMED_OUT'`, a warning callout above the SQL block names the review plan, the configured `approval_timeout_hours`, and how long ago the timeout fired. The metadata sidebar surfaces `plan` / `timeout.hours` for any query whose datasource has a review plan, regardless of status. Status-pill colour and label come from `statusColors.ts` (`TIMED_OUT` → warn-amber palette, label "TIMED OUT").
 
@@ -201,7 +201,8 @@ The wizard is the only entry point that materializes a datasource; `DatasourceLi
 
 - Connection config form with live test button (`POST /datasources/{id}/test`)
 - Schema explorer with table/column tree
-- `PermissionMatrix` — table of all users × (can_read, can_write, can_ddl, row_limit, allowed_tables, expires_at)
+- `PermissionMatrix` — table of all users × (can_read, can_write, can_ddl, row_limit, allowed_schemas, restricted columns count, expires_at). Restricted columns render as `"N columns"` with a hover tooltip listing the fully-qualified names; `"—"` when none.
+- `GrantAccessModal` includes a `restricted_columns` multi-select populated from the datasource's introspected schema (`flattenSchemaToColumns` in `src/utils/schemaColumns.ts`). Help text explains that values are masked in results and the AI reviewer is informed but does not auto-reject.
 - Review plan assignment and row limit configuration
 
 ### AuditLogPage *(ADMIN)*

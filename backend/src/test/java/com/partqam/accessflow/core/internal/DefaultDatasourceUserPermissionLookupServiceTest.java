@@ -36,6 +36,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         entity.setCanDdl(false);
         entity.setAllowedSchemas(new String[] {"public", "reporting"});
         entity.setAllowedTables(new String[] {"users", "orders"});
+        entity.setRestrictedColumns(new String[] {"public.users.ssn", "public.users.email"});
         entity.setExpiresAt(expiresAt);
 
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
@@ -53,6 +54,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(view.canDdl()).isFalse();
         assertThat(view.allowedSchemas()).containsExactly("public", "reporting");
         assertThat(view.allowedTables()).containsExactly("users", "orders");
+        assertThat(view.restrictedColumns()).containsExactly("public.users.ssn", "public.users.email");
         assertThat(view.expiresAt()).isEqualTo(expiresAt);
     }
 
@@ -71,6 +73,7 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
 
         assertThat(view.allowedSchemas()).isEmpty();
         assertThat(view.allowedTables()).isEmpty();
+        assertThat(view.restrictedColumns()).isEmpty();
         assertThat(view.expiresAt()).isNull();
     }
 

@@ -3,6 +3,8 @@ package com.partqam.accessflow.workflow.internal;
 import com.partqam.accessflow.audit.api.AuditAction;
 import com.partqam.accessflow.audit.api.AuditEntry;
 import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.partqam.accessflow.core.api.DatasourceUserPermissionView;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.QueryRequestSnapshot;
@@ -12,6 +14,7 @@ import com.partqam.accessflow.core.api.QueryResultPersistenceService.SaveResultC
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
 import com.partqam.accessflow.core.api.RecordExecutionCommand;
+import com.partqam.accessflow.proxy.api.QueryExecutionRequest;
 import com.partqam.accessflow.proxy.api.QueryExecutor;
 import com.partqam.accessflow.proxy.api.ResultColumn;
 import com.partqam.accessflow.proxy.api.SelectExecutionResult;
@@ -55,6 +58,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QueryExecutor queryExecutor;
+    @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
@@ -74,6 +78,7 @@ class DefaultQueryLifecycleServiceTest {
                 queryRequestStateService,
                 queryResultPersistenceService,
                 queryExecutor,
+                permissionLookupService,
                 auditLogService,
                 new ObjectMapper(),
                 messageSource,
@@ -214,6 +219,54 @@ class DefaultQueryLifecycleServiceTest {
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_EXECUTED);
+    }
+
+    @Test
+    void executePassesRestrictedColumnsFromPermissionToExecutor() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        var permissionView = new DatasourceUserPermissionView(
+                UUID.randomUUID(), submitterId, datasourceId, true, false, false,
+                List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null);
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.of(permissionView));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4", false),
+                        new ResultColumn("ssn", 12, "varchar", true)),
+                List.of(List.of(1, "***")),
+                1L, false, Duration.ofMillis(50)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().restrictedColumns())
+                .containsExactly("public.users.ssn", "public.users.email");
+
+        var saveCaptor = ArgumentCaptor.forClass(SaveResultCommand.class);
+        verify(queryResultPersistenceService).save(saveCaptor.capture());
+        assertThat(saveCaptor.getValue().columnsJson())
+                .contains("\"name\":\"ssn\"")
+                .contains("\"restricted\":true")
+                .contains("\"restricted\":false");
+    }
+
+    @Test
+    void executePassesEmptyRestrictedColumnsWhenNoPermissionFound() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.empty());
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, false, Duration.ofMillis(20)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().restrictedColumns()).isEmpty();
     }
 
     @Test

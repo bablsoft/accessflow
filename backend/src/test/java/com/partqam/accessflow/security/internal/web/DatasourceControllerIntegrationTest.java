@@ -379,6 +379,40 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void grantPermissionPersistsRestrictedColumns() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,
+                         "restricted_columns":["public.users.ssn","public.users.email"]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.restricted_columns").asArray()
+                .containsExactly("public.users.ssn", "public.users.email");
+    }
+
+    @Test
+    void grantPermissionRejectsBlankRestrictedColumn() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","can_read":true,
+                         "restricted_columns":["public.users.ssn", "  "]}
+                        """.formatted(analyst.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
     void grantDuplicatePermissionReturns409() {
         var ds = saveDatasource(primaryOrg, "DS");
         savePermission(ds, analyst, admin, true, false, false);

@@ -8,6 +8,7 @@ import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
 import com.partqam.accessflow.core.api.AiAnalysisPersistenceService;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
+import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.partqam.accessflow.core.api.PersistAiAnalysisCommand;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.RiskLevel;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -34,6 +36,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final DatasourceLookupService datasourceLookupService;
     private final DatasourceAdminService datasourceAdminService;
     private final QueryRequestLookupService queryRequestLookupService;
+    private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final ApplicationEventPublisher eventPublisher;
     private final String configuredModel;
@@ -45,6 +48,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                              DatasourceLookupService datasourceLookupService,
                              DatasourceAdminService datasourceAdminService,
                              QueryRequestLookupService queryRequestLookupService,
+                             DatasourceUserPermissionLookupService permissionLookupService,
                              AiAnalysisPersistenceService aiAnalysisPersistenceService,
                              ApplicationEventPublisher eventPublisher,
                              @Value("${spring.ai.anthropic.chat.options.model:" + UNKNOWN_MODEL + "}") String configuredModel) {
@@ -55,6 +59,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         this.datasourceLookupService = datasourceLookupService;
         this.datasourceAdminService = datasourceAdminService;
         this.queryRequestLookupService = queryRequestLookupService;
+        this.permissionLookupService = permissionLookupService;
         this.aiAnalysisPersistenceService = aiAnalysisPersistenceService;
         this.eventPublisher = eventPublisher;
         this.configuredModel = (configuredModel == null || configuredModel.isBlank()) ? UNKNOWN_MODEL : configuredModel;
@@ -66,7 +71,10 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         var descriptor = datasourceLookupService.findById(datasourceId)
                 .orElseThrow(() -> new AiAnalysisException("Datasource not found: " + datasourceId));
         var schemaView = datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, isAdmin);
-        var schemaContext = promptRenderer.describeSchema(schemaView);
+        var restrictedColumns = permissionLookupService.findFor(userId, datasourceId)
+                .map(p -> p.restrictedColumns())
+                .orElse(List.of());
+        var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
         return strategy.analyze(sql, descriptor.dbType(), schemaContext);
     }
 
@@ -85,10 +93,14 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             persistFailureAndPublish(queryRequestId, "Datasource not found: " + datasourceId);
             return;
         }
+        var restrictedColumns = permissionLookupService
+                .findFor(snapshot.submittedByUserId(), datasourceId)
+                .map(p -> p.restrictedColumns())
+                .orElse(List.of());
         String schemaContext = null;
         try {
             var schemaView = datasourceAdminService.introspectSchemaForSystem(datasourceId, snapshot.organizationId());
-            schemaContext = promptRenderer.describeSchema(schemaView);
+            schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
         } catch (RuntimeException e) {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }

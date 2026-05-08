@@ -26,13 +26,22 @@ import java.util.UUID;
 @Component
 class JdbcResultRowMapper {
 
+    static final String MASKED_VALUE = "***";
+
     private static final Logger log = LoggerFactory.getLogger(JdbcResultRowMapper.class);
     private static final String BASE64_PREFIX = "base64:";
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration)
             throws SQLException {
+        return materialize(rs, maxRows, dbType, duration, List.of());
+    }
+
+    SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration,
+                                      List<String> restrictedColumns)
+            throws SQLException {
         var metadata = rs.getMetaData();
-        var columns = describeColumns(metadata);
+        var matcher = RestrictedColumnMatcher.build(metadata, restrictedColumns);
+        var columns = describeColumns(metadata, matcher);
         var rows = new ArrayList<List<Object>>();
         boolean truncated = false;
         while (rs.next()) {
@@ -40,12 +49,13 @@ class JdbcResultRowMapper {
                 truncated = true;
                 break;
             }
-            rows.add(readRow(rs, metadata, dbType));
+            rows.add(readRow(rs, metadata, dbType, matcher));
         }
         return new SelectExecutionResult(columns, rows, rows.size(), truncated, duration);
     }
 
-    private List<ResultColumn> describeColumns(ResultSetMetaData metadata) throws SQLException {
+    private List<ResultColumn> describeColumns(ResultSetMetaData metadata,
+                                               RestrictedColumnMatcher matcher) throws SQLException {
         var count = metadata.getColumnCount();
         var columns = new ArrayList<ResultColumn>(count);
         for (int i = 1; i <= count; i++) {
@@ -54,18 +64,22 @@ class JdbcResultRowMapper {
                 label = metadata.getColumnName(i);
             }
             columns.add(new ResultColumn(label, metadata.getColumnType(i),
-                    metadata.getColumnTypeName(i)));
+                    metadata.getColumnTypeName(i), matcher.isRestricted(i)));
         }
         return columns;
     }
 
-    private List<Object> readRow(ResultSet rs, ResultSetMetaData metadata, DbType dbType)
-            throws SQLException {
+    private List<Object> readRow(ResultSet rs, ResultSetMetaData metadata, DbType dbType,
+                                 RestrictedColumnMatcher matcher) throws SQLException {
         var count = metadata.getColumnCount();
         var values = new ArrayList<>(count);
         for (int i = 1; i <= count; i++) {
-            values.add(readValue(rs, i, metadata.getColumnType(i),
-                    metadata.getColumnTypeName(i), dbType));
+            if (matcher.isRestricted(i)) {
+                values.add(rs.getObject(i) == null && rs.wasNull() ? null : MASKED_VALUE);
+            } else {
+                values.add(readValue(rs, i, metadata.getColumnType(i),
+                        metadata.getColumnTypeName(i), dbType));
+            }
         }
         return values;
     }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Alert, Skeleton, Table } from 'antd';
+import { Alert, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
+import { LockOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getQueryResults, queryKeys } from '@/api/queries';
@@ -39,12 +40,25 @@ export function QueryResultsTable({ queryId }: Props) {
     title: (
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>
         {col.name} <span className="muted">{col.type}</span>
+        {col.restricted ? (
+          <Tooltip title={t('queries.detail.column_masked_tooltip')}>
+            <LockOutlined
+              aria-label={t('queries.detail.column_masked_tooltip')}
+              style={{ marginLeft: 6, color: 'var(--af-color-warning, #d97706)' }}
+            />
+          </Tooltip>
+        ) : null}
       </span>
     ),
     dataIndex: String(idx),
     key: String(idx),
     ellipsis: true,
-    render: (value: unknown) => formatCell(value),
+    render: (value: unknown) => {
+      if (col.restricted) {
+        return <span className="muted mono">{formatCell(value)}</span>;
+      }
+      return formatCell(value);
+    },
   }));
 
   const dataSource = data.rows.map((row, rowIdx) => {

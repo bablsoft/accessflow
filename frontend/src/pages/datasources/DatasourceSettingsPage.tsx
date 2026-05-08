@@ -12,6 +12,7 @@ import {
   Switch,
   Table,
   Tabs,
+  Tooltip,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -33,6 +34,7 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
+import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
 import {
   datasourceKeys,
@@ -544,6 +546,22 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             ),
           },
           {
+            title: t('datasources.settings.perm_col_restricted_columns'),
+            render: (_v, p) => {
+              const cols = p.restricted_columns ?? [];
+              if (cols.length === 0) {
+                return <span className="muted">{t('datasources.settings.perm_no_restrictions')}</span>;
+              }
+              return (
+                <Tooltip title={cols.join(', ')}>
+                  <span style={{ fontSize: 12 }}>
+                    {t('datasources.settings.perm_restricted_count', { count: cols.length })}
+                  </span>
+                </Tooltip>
+              );
+            },
+          },
+          {
             title: t('datasources.settings.perm_col_expires'),
             width: 130,
             render: (_v, p) => (
@@ -581,6 +599,7 @@ interface GrantFormValues {
   row_limit_override?: number | null;
   allowed_schemas?: string[];
   allowed_tables?: string[];
+  restricted_columns?: string[];
   expires_at?: Dayjs | null;
 }
 
@@ -653,6 +672,11 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
     return opts;
   }, [schemaQuery.data, selectedSchemas]);
 
+  const restrictedColumnOptions = useMemo(
+    () => flattenSchemaToColumns(schemaQuery.data?.schemas ?? []),
+    [schemaQuery.data],
+  );
+
   const grantMutation = useMutation({
     mutationFn: (input: CreatePermissionInput) => grantPermission(dsId, input),
     onSuccess: () => {
@@ -684,6 +708,10 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
       allowed_tables:
         values.allowed_tables && values.allowed_tables.length > 0
           ? values.allowed_tables
+          : null,
+      restricted_columns:
+        values.restricted_columns && values.restricted_columns.length > 0
+          ? values.restricted_columns
           : null,
       expires_at: values.expires_at ? values.expires_at.toISOString() : null,
     };
@@ -802,6 +830,21 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
             loading={schemaQuery.isLoading}
             options={tableOptions}
             optionFilterProp="label"
+          />
+        </Form.Item>
+        <Form.Item
+          name="restricted_columns"
+          label={t('datasources.settings.grant_columns_label')}
+          extra={t('datasources.settings.grant_columns_help')}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('datasources.settings.grant_columns_placeholder')}
+            loading={schemaQuery.isLoading}
+            options={restrictedColumnOptions}
+            optionFilterProp="label"
+            allowClear
           />
         </Form.Item>
         <Form.Item
