@@ -37,6 +37,7 @@ import {
   datasourceKeys,
   deleteDatasource,
   getDatasource,
+  getDatasourceSchema,
   grantPermission,
   listPermissions,
   revokePermission,
@@ -591,11 +592,20 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<GrantFormValues>();
+  const selectedSchemas = Form.useWatch('allowed_schemas', form);
 
   const usersQuery = useQuery({
     queryKey: userKeys.list({ size: 100 }),
     queryFn: () => listUsers({ size: 100 }),
     enabled: open,
+  });
+
+  const schemaQuery = useQuery({
+    queryKey: datasourceKeys.schema(dsId),
+    queryFn: () => getDatasourceSchema(dsId),
+    enabled: open,
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 
   useEffect(() => {
@@ -610,6 +620,34 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
       (usersQuery.data?.content ?? []).filter((u) => u.active && !taken.has(u.id)),
     [usersQuery.data, taken],
   );
+
+  const schemaOptions = useMemo(
+    () =>
+      (schemaQuery.data?.schemas ?? []).map((s) => ({
+        value: s.name,
+        label: s.name,
+      })),
+    [schemaQuery.data],
+  );
+
+  const tableOptions = useMemo(() => {
+    const schemas = schemaQuery.data?.schemas ?? [];
+    const filter =
+      selectedSchemas && selectedSchemas.length > 0
+        ? new Set(selectedSchemas)
+        : null;
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    for (const s of schemas) {
+      if (filter && !filter.has(s.name)) continue;
+      for (const tb of s.tables) {
+        if (seen.has(tb.name)) continue;
+        seen.add(tb.name);
+        opts.push({ value: tb.name, label: tb.name });
+      }
+    }
+    return opts;
+  }, [schemaQuery.data, selectedSchemas]);
 
   const grantMutation = useMutation({
     mutationFn: (input: CreatePermissionInput) => grantPermission(dsId, input),
@@ -689,7 +727,7 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
             }
             options={eligible.map((u) => ({
               value: u.id,
-              label: `${u.display_name} (${u.email})`,
+              label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
             }))}
           />
         </Form.Item>
@@ -743,6 +781,9 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
             mode="tags"
             tokenSeparators={[',', ' ']}
             placeholder={t('datasources.settings.grant_schemas_placeholder')}
+            loading={schemaQuery.isLoading}
+            options={schemaOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
@@ -754,6 +795,9 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
             mode="tags"
             tokenSeparators={[',', ' ']}
             placeholder={t('datasources.settings.grant_tables_placeholder')}
+            loading={schemaQuery.isLoading}
+            options={tableOptions}
+            optionFilterProp="label"
           />
         </Form.Item>
         <Form.Item
