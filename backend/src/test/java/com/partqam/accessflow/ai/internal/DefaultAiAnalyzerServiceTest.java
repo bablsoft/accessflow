@@ -13,6 +13,8 @@ import com.partqam.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
 import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.LocalizationConfigService;
+import com.partqam.accessflow.core.api.LocalizationConfigView;
 import com.partqam.accessflow.core.api.PersistAiAnalysisCommand;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.QueryRequestSnapshot;
@@ -52,6 +54,7 @@ class DefaultAiAnalyzerServiceTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
+    @Mock LocalizationConfigService localizationConfigService;
     @Mock ApplicationEventPublisher eventPublisher;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
@@ -70,7 +73,10 @@ class DefaultAiAnalyzerServiceTest {
     void setUp() {
         service = new DefaultAiAnalyzerService(strategy, properties, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
-                permissionLookupService, aiAnalysisPersistenceService, eventPublisher, "model-x");
+                permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
+                eventPublisher, "model-x");
+        org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
+                .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
     }
 
     private DatasourceConnectionDescriptor descriptor(DbType dbType) {
@@ -96,7 +102,7 @@ class DefaultAiAnalyzerServiceTest {
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
                 .thenReturn(schemaView());
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any())).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any(), any())).thenReturn(sampleResult());
 
         var result = service.analyzePreview(datasourceId, "SELECT 1", userId, organizationId, false);
 
@@ -128,7 +134,7 @@ class DefaultAiAnalyzerServiceTest {
                 List.of(), List.of(), List.of("public.users.ssn"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture()))
+        when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(), any()))
                 .thenReturn(sampleResult());
 
         service.analyzePreview(datasourceId, "SELECT ssn FROM users", userId, organizationId, false);
@@ -153,7 +159,7 @@ class DefaultAiAnalyzerServiceTest {
                 List.of(), List.of(), List.of("public.users.email"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        when(strategy.analyze(any(), eq(DbType.POSTGRESQL), contextCaptor.capture())).thenReturn(sampleResult());
+        when(strategy.analyze(any(), eq(DbType.POSTGRESQL), contextCaptor.capture(), any())).thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
         service.analyzeSubmittedQuery(queryRequestId);
@@ -168,7 +174,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any())).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any())).thenReturn(sampleResult());
         var newAnalysisId = UUID.randomUUID();
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(newAnalysisId);
 
@@ -199,7 +205,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any())).thenThrow(new AiAnalysisException("provider down"));
+        when(strategy.analyze(any(), any(), any(), any())).thenThrow(new AiAnalysisException("provider down"));
 
         service.analyzeSubmittedQuery(queryRequestId);
 
@@ -227,7 +233,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any())).thenThrow(new AiAnalysisParseException("bad json"));
+        when(strategy.analyze(any(), any(), any(), any())).thenThrow(new AiAnalysisParseException("bad json"));
 
         service.analyzeSubmittedQuery(queryRequestId);
 
@@ -242,12 +248,12 @@ class DefaultAiAnalyzerServiceTest {
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
                 .thenThrow(new RuntimeException("connection refused"));
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null))).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any())).thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
         service.analyzeSubmittedQuery(queryRequestId);
 
-        verify(strategy).analyze("SELECT 1", DbType.POSTGRESQL, null);
+        verify(strategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any());
         verify(eventPublisher).publishEvent(any(AiAnalysisCompletedEvent.class));
     }
 

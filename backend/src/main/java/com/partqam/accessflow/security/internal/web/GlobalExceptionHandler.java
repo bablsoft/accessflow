@@ -8,13 +8,16 @@ import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.partqam.accessflow.core.api.IllegalLocalizationConfigException;
 import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.IllegalReviewPlanException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
+import com.partqam.accessflow.core.api.LanguageNotInAllowedListException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.ReviewPlanInUseException;
 import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
 import com.partqam.accessflow.core.api.SetupAlreadyCompletedException;
+import com.partqam.accessflow.core.api.UnsupportedLanguageException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
@@ -261,6 +264,39 @@ class GlobalExceptionHandler {
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("actual", ex.actual().name());
         pd.setProperty("expected", ex.expected().name());
+        return pd;
+    }
+
+    @ExceptionHandler(UnsupportedLanguageException.class)
+    ProblemDetail handleUnsupportedLanguage(UnsupportedLanguageException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.unsupported_language"));
+        pd.setProperty("error", "UNSUPPORTED_LANGUAGE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        if (ex.code() != null) {
+            pd.setProperty("language", ex.code());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(LanguageNotInAllowedListException.class)
+    ProblemDetail handleLanguageNotInAllowedList(LanguageNotInAllowedListException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.language_not_in_allowed_list"));
+        pd.setProperty("error", "LANGUAGE_NOT_IN_ALLOWED_LIST");
+        pd.setProperty("timestamp", Instant.now().toString());
+        if (ex.code() != null) {
+            pd.setProperty("language", ex.code());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalLocalizationConfigException.class)
+    ProblemDetail handleIllegalLocalizationConfig(IllegalLocalizationConfigException ex) {
+        // Message resolved at throw site via MessageSource
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_LOCALIZATION_CONFIG");
+        pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
 

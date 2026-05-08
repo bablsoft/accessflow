@@ -55,7 +55,7 @@ class AnthropicAnalyzerStrategyTest {
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse(SUCCESS_JSON, 250, 80, "claude-sonnet-4-20250514"));
 
-        var result = strategy.analyze("DELETE FROM users", DbType.POSTGRESQL, "public.users(id int pk)");
+        var result = strategy.analyze("DELETE FROM users", DbType.POSTGRESQL, "public.users(id int pk)", "es");
 
         assertThat(result.riskScore()).isEqualTo(85);
         assertThat(result.riskLevel()).isEqualTo(RiskLevel.HIGH);
@@ -74,13 +74,14 @@ class AnthropicAnalyzerStrategyTest {
         assertThat(user.getText()).contains("DELETE FROM users");
         assertThat(user.getText()).contains("Database type: POSTGRESQL");
         assertThat(user.getText()).contains("public.users(id int pk)");
+        assertThat(user.getText()).contains("Respond in: Español");
     }
 
     @Test
     void analyzeWrapsRuntimeExceptionAsAnalysisException() {
         when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("upstream"));
 
-        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null))
+        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en"))
                 .isInstanceOf(AiAnalysisException.class)
                 .hasMessageContaining("upstream");
     }
@@ -89,7 +90,7 @@ class AnthropicAnalyzerStrategyTest {
     void analyzeFailsWhenResponseIsNull() {
         when(chatModel.call(any(Prompt.class))).thenReturn(null);
 
-        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null))
+        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en"))
                 .isInstanceOf(AiAnalysisException.class)
                 .hasMessageContaining("empty response");
     }
@@ -99,7 +100,7 @@ class AnthropicAnalyzerStrategyTest {
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse("   ", 1, 1, "claude-sonnet-4-20250514"));
 
-        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null))
+        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en"))
                 .isInstanceOf(AiAnalysisException.class)
                 .hasMessageContaining("empty message");
     }
@@ -109,7 +110,7 @@ class AnthropicAnalyzerStrategyTest {
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse("not valid json", 10, 5, "claude-sonnet-4-20250514"));
 
-        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null))
+        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en"))
                 .isInstanceOf(AiAnalysisParseException.class);
     }
 
@@ -119,7 +120,7 @@ class AnthropicAnalyzerStrategyTest {
         var responseWithoutMetadata = new ChatResponse(List.of(generation));
         when(chatModel.call(any(Prompt.class))).thenReturn(responseWithoutMetadata);
 
-        var result = strategy.analyze("SELECT 1", DbType.POSTGRESQL, null);
+        var result = strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en");
 
         assertThat(result.promptTokens()).isZero();
         assertThat(result.completionTokens()).isZero();

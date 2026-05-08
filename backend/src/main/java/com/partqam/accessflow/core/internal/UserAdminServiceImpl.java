@@ -134,6 +134,7 @@ class UserAdminServiceImpl implements UserAdminService {
                 entity.getAuthProvider(),
                 entity.getPasswordHash(),
                 entity.getLastLoginAt(),
+                entity.getPreferredLanguage(),
                 entity.getCreatedAt()
         );
     }

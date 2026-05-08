@@ -94,6 +94,7 @@ class MethodSecurityIntegrationTest {
                 AuthProviderType.LOCAL,
                 null,
                 null,
+                null,
                 null
         ));
         for (var path : ALL_PATHS) {

@@ -97,7 +97,7 @@ class QuerySubmissionControllerIntegrationTest {
         analystToken = jwtService.generateAccessToken(new com.partqam.accessflow.core.api.UserView(
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(), analyst.getRole(),
                 org.getId(), true, AuthProviderType.LOCAL, analyst.getPasswordHash(),
-                null, Instant.now()));
+                null, null, Instant.now()));
     }
 
     @AfterEach

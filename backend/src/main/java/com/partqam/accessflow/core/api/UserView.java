@@ -13,5 +13,6 @@ public record UserView(
         AuthProviderType authProvider,
         String passwordHash,
         Instant lastLoginAt,
+        String preferredLanguage,
         Instant createdAt
 ) {}

@@ -24,7 +24,8 @@
     "toggle_sidebar": "Toggle sidebar",
     "light_theme": "Light theme",
     "dark_theme": "Dark theme",
-    "retry": "Retry"
+    "retry": "Retry",
+    "language": "Language"
   },
   "nav": {
     "editor": "Query editor",
@@ -37,7 +38,8 @@
     "audit": "Audit log",
     "ai_config": "AI config",
     "notifications": "Notifications",
-    "saml": "SAML / SSO"
+    "saml": "SAML / SSO",
+    "languages": "Languages"
   },
   "auth": {
     "login": {
@@ -106,7 +108,11 @@
     "datasource_permission_already_exists": "This user already has a permission row for this datasource.",
     "illegal_datasource_permission": "That user is not part of your organization.",
     "datasource_grant_generic": "Failed to grant access. Please try again.",
-    "admin_generic": "Could not complete the request. Please try again."
+    "admin_generic": "Could not complete the request. Please try again.",
+    "unsupported_language": "Language is not supported.",
+    "language_not_in_allowed_list": "That language is not in the organization's allowed languages.",
+    "languages_load_error": "Failed to load language configuration.",
+    "languages_save_error": "Failed to save language configuration."
   },
   "editor": {
     "title": "SQL editor",
@@ -507,6 +513,18 @@
       "load_error": "Failed to load SAML configuration",
       "save_success": "SAML configuration saved",
       "save_button": "Save"
+    },
+    "languages": {
+      "title": "Languages",
+      "subtitle": "Pick which languages users can choose, the default for new accounts, and the language the AI analyzer responds in.",
+      "section_user_languages": "User-facing languages",
+      "section_user_languages_help": "Users can pick their UI language from this list.",
+      "label_default_language": "Default language",
+      "section_ai_language": "AI review language",
+      "section_ai_language_help": "AI analysis summaries and suggestions are produced in this language for every query in the org. Risk levels stay in English.",
+      "save_button": "Save",
+      "save_success": "Language settings saved",
+      "load_error": "Failed to load language configuration"
     },
     "review_plans": {
       "title": "Review plans",

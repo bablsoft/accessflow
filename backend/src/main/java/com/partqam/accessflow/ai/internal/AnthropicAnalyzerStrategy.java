@@ -40,8 +40,8 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
     private final AiResponseParser responseParser;
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext) {
-        var userPrompt = promptRenderer.render(sql, dbType, schemaContext);
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language) {
+        var userPrompt = promptRenderer.render(sql, dbType, schemaContext, language);
         var prompt = new Prompt(List.of(
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
                 new UserMessage(userPrompt)));

@@ -14,7 +14,7 @@ class SystemPromptRendererTest {
 
     @Test
     void rendersTemplateWithSubstitutions() {
-        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, "public.users(id int pk)");
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, "public.users(id int pk)", "en");
 
         assertThat(prompt).contains("Database type: POSTGRESQL");
         assertThat(prompt).contains("Schema context: public.users(id int pk)");
@@ -22,20 +22,42 @@ class SystemPromptRendererTest {
         assertThat(prompt).contains("SELECT 1");
         assertThat(prompt).contains("\"risk_score\":");
         assertThat(prompt).contains("\"risk_level\":");
+        assertThat(prompt).contains("Respond in: English");
     }
 
     @Test
     void substitutesFallbackWhenSchemaIsNull() {
-        var prompt = renderer.render("SELECT 1", DbType.MYSQL, null);
+        var prompt = renderer.render("SELECT 1", DbType.MYSQL, null, "en");
 
         assertThat(prompt).contains("Schema context: (no schema introspection available)");
     }
 
     @Test
     void substitutesFallbackWhenSchemaIsBlank() {
-        var prompt = renderer.render("SELECT 1", DbType.MYSQL, "   ");
+        var prompt = renderer.render("SELECT 1", DbType.MYSQL, "   ", "en");
 
         assertThat(prompt).contains("Schema context: (no schema introspection available)");
+    }
+
+    @Test
+    void rendersWithSpanishDirective() {
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, null, "es");
+
+        assertThat(prompt).contains("Respond in: Español");
+    }
+
+    @Test
+    void rendersFallsBackToEnglishWhenLanguageUnknown() {
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, null, "xx");
+
+        assertThat(prompt).contains("Respond in: English");
+    }
+
+    @Test
+    void rendersFallsBackToEnglishWhenLanguageNull() {
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, null, null);
+
+        assertThat(prompt).contains("Respond in: English");
     }
 
     @Test
@@ -123,7 +145,7 @@ class SystemPromptRendererTest {
 
     @Test
     void renderTemplateExplainsRestrictedColumnPolicy() {
-        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, "public.users(ssn text *RESTRICTED*)");
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, "public.users(ssn text *RESTRICTED*)", "en");
 
         assertThat(prompt).contains("RESTRICTED_COLUMN_ACCESS");
         assertThat(prompt).contains("masked at the proxy layer");

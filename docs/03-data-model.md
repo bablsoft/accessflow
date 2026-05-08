@@ -38,6 +38,7 @@ Platform users. Can be created locally or auto-provisioned via SAML (Enterprise)
 | `role` | ENUM: `ADMIN` \| `REVIEWER` \| `ANALYST` \| `READONLY` |
 | `is_active` | BOOLEAN DEFAULT true |
 | `last_login_at` | TIMESTAMPTZ |
+| `preferred_language` | VARCHAR(20) — BCP-47 code (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`); nullable, falls back to the org default |
 | `created_at` | TIMESTAMPTZ |
 
 ---
@@ -321,6 +322,25 @@ CREATE INDEX idx_user_notifications_user_created
 CREATE INDEX idx_user_notifications_user_unread
     ON user_notifications(user_id) WHERE is_read = FALSE;
 ```
+
+---
+
+## localization_config
+
+Org-singleton localization settings: which UI languages users in the organization may pick from, the default language for new accounts, and the language the AI analyzer responds in for every query in the org. One row per organization.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` UNIQUE |
+| `available_languages` | TEXT[] NOT NULL — non-empty array of BCP-47 codes (subset of `en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`) |
+| `default_language` | VARCHAR(20) NOT NULL — must be a member of `available_languages` (CHECK constraint) |
+| `ai_review_language` | VARCHAR(20) NOT NULL — any supported BCP-47 code; independent of the user-facing allow-list |
+| `version` | BIGINT — optimistic locking |
+| `created_at` | TIMESTAMPTZ |
+| `updated_at` | TIMESTAMPTZ |
+
+When no row exists for an organization, `LocalizationConfigService.getOrDefault` returns a transient view with `available_languages = [en]`, `default_language = en`, `ai_review_language = en` so the system has sane defaults out of the box.
 
 ---
 

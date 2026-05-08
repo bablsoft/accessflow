@@ -203,7 +203,7 @@ class AdminAiConfigControllerIntegrationTest {
                 "claude-sonnet-4-20250514",
                 12,
                 34);
-        when(aiAnalyzerStrategy.analyze(any(), any(), any())).thenReturn(fakeResult);
+        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any())).thenReturn(fakeResult);
 
         var result = mvc.post().uri("/api/v1/admin/ai-config/test")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
@@ -212,12 +212,12 @@ class AdminAiConfigControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("OK");
         assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("LOW");
-        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null));
+        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), eq("en"));
     }
 
     @Test
     void testEndpointReturnsErrorWhenAnalyzerThrows() {
-        when(aiAnalyzerStrategy.analyze(any(), any(), any()))
+        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("provider unreachable"));
 
         var result = mvc.post().uri("/api/v1/admin/ai-config/test")
@@ -274,6 +274,7 @@ class AdminAiConfigControllerIntegrationTest {
                 entity.getAuthProvider(),
                 entity.getPasswordHash(),
                 entity.getLastLoginAt(),
+                entity.getPreferredLanguage(),
                 entity.getCreatedAt());
         return jwtService.generateAccessToken(view);
     }

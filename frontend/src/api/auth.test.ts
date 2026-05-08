@@ -13,6 +13,7 @@ const userPayload = {
   email: 'a@b.com',
   display_name: 'A',
   role: 'ANALYST' as const,
+  preferred_language: null,
 };
 
 describe('api/auth', () => {

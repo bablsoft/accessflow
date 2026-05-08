@@ -47,10 +47,13 @@
     "id": "uuid",
     "email": "alice@company.com",
     "display_name": "Alice",
-    "role": "ANALYST"
+    "role": "ANALYST",
+    "preferred_language": "es"
   }
 }
 ```
+
+`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`).
 
 The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
 
@@ -954,6 +957,76 @@ Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the active `
 { "status": "ERROR", "detail": "<provider error message>" }
 ```
 
+### Localization Config (`/admin/localization-config`) *(ADMIN only)*
+
+Per-organization language settings: the user-facing allow-list, the default language for new accounts, and the language the AI analyzer responds in. Every code is BCP-47 (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`).
+
+#### GET /admin/localization-config
+
+Returns the current configuration. When the org has never set one explicitly, returns a transient default with English as the sole available, default, and AI-review language.
+
+**Response 200:**
+```json
+{
+  "organization_id": "uuid",
+  "available_languages": ["en", "es", "fr"],
+  "default_language": "en",
+  "ai_review_language": "es"
+}
+```
+
+#### PUT /admin/localization-config
+
+Atomic upsert. Validation:
+- `available_languages` must be non-empty and every entry must be a supported BCP-47 code.
+- `default_language` must be a supported code **and** a member of `available_languages`.
+- `ai_review_language` must be a supported code (independent of the user-facing allow-list).
+
+**Request:**
+```json
+{
+  "available_languages": ["en", "es", "fr"],
+  "default_language": "en",
+  "ai_review_language": "es"
+}
+```
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `UNSUPPORTED_LANGUAGE` | 400 | An entry is not a recognised BCP-47 code |
+| `ILLEGAL_LOCALIZATION_CONFIG` | 400 | Empty allow-list or `default_language` not in `available_languages` |
+
+### Me Localization (`/me/localization`)
+
+Available to any authenticated user. Returns the org allow-list plus the caller's current preferred language; lets the user change their preference.
+
+#### GET /me/localization
+
+**Response 200:**
+```json
+{
+  "available_languages": ["en", "es"],
+  "default_language": "en",
+  "current_language": "en"
+}
+```
+
+`current_language` is the user's `preferred_language` when set, otherwise the org's `default_language`.
+
+#### PUT /me/localization
+
+**Request:**
+```json
+{ "language": "es" }
+```
+
+**Response 200** has the same shape as GET. Errors:
+| Code | Status | Cause |
+|---|---|---|
+| `UNSUPPORTED_LANGUAGE` | 400 | Not a recognised BCP-47 code |
+| `LANGUAGE_NOT_IN_ALLOWED_LIST` | 400 | Code is not in the org's `available_languages` |
+
 ### GET /admin/saml-config (Enterprise only)
 
 Returns the current SAML configuration for the caller's organization. Available only when the backend was started with `accessflow.edition=enterprise`; Community builds return 404. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
@@ -1136,3 +1209,6 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DATASOURCE_UNAVAILABLE` | 422 | `DatasourceUnavailableException` | Datasource is missing or marked inactive. |
 | `POOL_INITIALIZATION_FAILED` | 503 | `PoolInitializationException` | HikariCP could not open a pool to the customer database (bad credentials, host unreachable, etc.). |
 | `USER_NOTIFICATION_NOT_FOUND` | 404 | `UserNotificationNotFoundException` | The notification id does not belong to the authenticated caller. |
+| `UNSUPPORTED_LANGUAGE` | 400 | `UnsupportedLanguageException` | A BCP-47 code in a localization request is not one of the seven supported languages. Body includes `language`. |
+| `LANGUAGE_NOT_IN_ALLOWED_LIST` | 400 | `LanguageNotInAllowedListException` | User attempted to pick a language that is not in the org's `available_languages`. Body includes `language`. |
+| `ILLEGAL_LOCALIZATION_CONFIG` | 400 | `IllegalLocalizationConfigException` | Empty `available_languages`, or `default_language` not in `available_languages`. |

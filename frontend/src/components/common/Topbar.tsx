@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { useNavigate } from 'react-router-dom';
+import { LanguageSwitcher } from './LanguageSwitcher';
 import { NotificationBell } from './NotificationBell';
 import './topbar.css';
 
@@ -50,6 +51,7 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
           </button>
         </div>
       </div>
+      <LanguageSwitcher />
       <NotificationBell />
       <button className="af-icon-btn" onClick={onLogout} aria-label={t('common.sign_out')}>
         <LogoutOutlined />

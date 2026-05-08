@@ -465,6 +465,7 @@ class ReviewPlanControllerIntegrationTest {
                 entity.getAuthProvider(),
                 entity.getPasswordHash(),
                 entity.getLastLoginAt(),
+                entity.getPreferredLanguage(),
                 entity.getCreatedAt());
         return jwtService.generateAccessToken(view);
     }

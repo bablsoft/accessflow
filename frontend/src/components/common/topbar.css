@@ -39,6 +39,28 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+.af-language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.af-language-switcher:hover {
+  color: var(--fg);
+  background: var(--bg-elev);
+}
+.af-language-switcher-code {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 @media (max-width: 900px) {
   .hide-tablet {
     display: none !important;
