@@ -104,7 +104,7 @@ describe('api/admin', () => {
       to: '2026-05-08T00:00:00Z',
       page: 1,
       size: 50,
-      sort: 'created_at,DESC',
+      sort: 'createdAt,DESC',
     });
     expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log', {
       params: {
@@ -116,7 +116,7 @@ describe('api/admin', () => {
         to: '2026-05-08T00:00:00Z',
         page: 1,
         size: 50,
-        sort: 'created_at,DESC',
+        sort: 'createdAt,DESC',
       },
     });
   });
