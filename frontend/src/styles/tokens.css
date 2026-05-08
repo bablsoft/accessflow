@@ -31,6 +31,9 @@
   --bg-overlay: rgba(0, 0, 0, 0.4);
   --bg-sidebar: #ffffff;
 
+  --avatar-bg-l: 0.92;
+  --avatar-fg-l: 0.35;
+
   --border: #e7e7ea;
   --border-strong: #d4d4d8;
   --border-focus: #6366f1;
@@ -101,14 +104,17 @@
   --bg-overlay: rgba(0, 0, 0, 0.6);
   --bg-sidebar: #0c0c0e;
 
+  --avatar-bg-l: 0.32;
+  --avatar-fg-l: 0.85;
+
   --border: #232328;
   --border-strong: #2e2e35;
   --border-focus: #818cf8;
 
   --fg: #fafafa;
-  --fg-muted: #a1a1aa;
-  --fg-subtle: #71717a;
-  --fg-faint: #52525b;
+  --fg-muted: #d4d4d8;
+  --fg-subtle: #a1a1aa;
+  --fg-faint: #8b8b94;
   --fg-inverse: #09090b;
 
   --accent: #818cf8;
@@ -155,7 +161,7 @@
   --sql-keyword: #c4b5fd;
   --sql-string: #86efac;
   --sql-number: #fdba74;
-  --sql-comment: #52525b;
+  --sql-comment: #8b8b94;
   --sql-fn: #93c5fd;
   --sql-table: #f9a8d4;
   --sql-op: #a1a1aa;

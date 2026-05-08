@@ -71,9 +71,9 @@ export const darkTheme: ThemeConfig = {
     colorBorder: '#232328',
     colorBorderSecondary: '#1c1c20',
     colorText: '#fafafa',
-    colorTextSecondary: '#a1a1aa',
-    colorTextTertiary: '#71717a',
-    colorTextQuaternary: '#52525b',
+    colorTextSecondary: '#d4d4d8',
+    colorTextTertiary: '#a1a1aa',
+    colorTextQuaternary: '#8b8b94',
   },
   components: {
     Layout: {
@@ -86,7 +86,7 @@ export const darkTheme: ThemeConfig = {
       itemSelectedBg: '#232328',
       itemHoverBg: '#1c1c20',
       itemSelectedColor: '#fafafa',
-      itemColor: '#a1a1aa',
+      itemColor: '#d4d4d8',
     },
   },
 };
