@@ -2,12 +2,14 @@ package com.partqam.accessflow.workflow.internal.web;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.partqam.accessflow.core.api.AiProviderType;
+import com.partqam.accessflow.core.api.DecisionType;
 import com.partqam.accessflow.core.api.QueryDetailView;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
 import com.partqam.accessflow.core.api.RiskLevel;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /** Response body for {@code GET /queries/{id}}. */
@@ -25,6 +27,7 @@ public record QueryDetailResponse(
         String errorMessage,
         String reviewPlanName,
         Integer approvalTimeoutHours,
+        List<ReviewDecisionDetail> reviewDecisions,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -44,6 +47,7 @@ public record QueryDetailResponse(
                 view.errorMessage(),
                 view.reviewPlanName(),
                 view.approvalTimeoutHours(),
+                view.reviewDecisions().stream().map(ReviewDecisionDetail::from).toList(),
                 view.createdAt(),
                 view.updatedAt());
     }
@@ -78,5 +82,33 @@ public record QueryDetailResponse(
                     src.promptTokens(),
                     src.completionTokens());
         }
+    }
+
+    public record ReviewDecisionDetail(
+            UUID id,
+            ReviewerRef reviewer,
+            DecisionType decision,
+            String comment,
+            int stage,
+            Instant decidedAt) {
+
+        static ReviewDecisionDetail from(QueryDetailView.ReviewDecisionView src) {
+            return new ReviewDecisionDetail(
+                    src.id(),
+                    new ReviewerRef(
+                            src.reviewer().id(),
+                            src.reviewer().email(),
+                            src.reviewer().displayName()),
+                    src.decision(),
+                    src.comment(),
+                    src.stage(),
+                    src.decidedAt());
+        }
+    }
+
+    public record ReviewerRef(
+            UUID id,
+            String email,
+            String displayName) {
     }
 }

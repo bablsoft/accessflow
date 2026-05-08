@@ -33,6 +33,7 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
+import { userDisplay } from '@/utils/userDisplay';
 import {
   datasourceKeys,
   deleteDatasource,
@@ -493,15 +494,18 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
           {
             title: t('datasources.settings.perm_col_user'),
             dataIndex: 'user_display_name',
-            render: (_v, p) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Avatar name={p.user_display_name} size={24} />
-                <div>
-                  <div style={{ fontSize: 13 }}>{p.user_display_name}</div>
-                  <div className="mono muted" style={{ fontSize: 11 }}>{p.user_email}</div>
+            render: (_v, p) => {
+              const label = userDisplay(p.user_display_name, p.user_email);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Avatar name={label} size={24} />
+                  <div>
+                    <div style={{ fontSize: 13 }}>{label}</div>
+                    <div className="mono muted" style={{ fontSize: 11 }}>{p.user_email}</div>
+                  </div>
                 </div>
-              </div>
-            ),
+              );
+            },
           },
           {
             title: t('datasources.settings.perm_col_read'),
@@ -937,7 +941,7 @@ function ActivityTab({ dsId }: { dsId: string }) {
             { title: t('datasources.settings.activity_col_status'), dataIndex: 'status', render: (v) => <StatusPill status={v} size="sm" /> },
             {
               title: t('datasources.settings.activity_col_submitter'),
-              dataIndex: ['submitted_by', 'display_name'],
+              render: (_v, row) => userDisplay(row.submitted_by.display_name, row.submitted_by.email),
             },
             {
               title: t('datasources.settings.activity_col_when'),

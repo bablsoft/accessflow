@@ -28,12 +28,13 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
-          const dotColor = s.done
-            ? 'var(--risk-low)'
-            : s.active
-              ? 'var(--accent)'
-              : s.rejected || s.failed
-                ? 'var(--risk-crit)'
+          const isDanger = !!(s.rejected || s.failed);
+          const dotColor = isDanger
+            ? 'var(--risk-crit)'
+            : s.done
+              ? 'var(--risk-low)'
+              : s.active
+                ? 'var(--accent)'
                 : s.cancelled
                   ? 'var(--fg-muted)'
                   : 'var(--border-strong)';
@@ -85,8 +86,23 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                   />
                 )}
               </div>
-              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{s.label}</div>
-              <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: isDanger ? 'var(--risk-crit)' : undefined,
+                }}
+              >
+                {s.label}
+              </div>
+              <div
+                className={isDanger ? undefined : 'muted'}
+                style={{
+                  fontSize: 11.5,
+                  marginTop: 2,
+                  color: isDanger ? 'var(--risk-crit)' : undefined,
+                }}
+              >
                 {s.who}
                 {s.time && <> · {timeAgo(s.time)}</>}
               </div>

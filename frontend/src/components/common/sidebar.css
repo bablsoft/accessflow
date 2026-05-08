@@ -15,11 +15,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 16px;
+  height: 52px;
+  padding: 0 16px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--border);
 }
 .af-sidebar.collapsed .af-sidebar-brand {
-  padding: 12px 8px;
+  padding: 0 8px;
   gap: 0;
   justify-content: center;
 }

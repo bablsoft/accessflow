@@ -13,6 +13,7 @@ import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { Avatar } from '@/components/common/Avatar';
 import { listQueries, queryKeys } from '@/api/queries';
 import { timeAgo } from '@/utils/dateFormat';
+import { userDisplay } from '@/utils/userDisplay';
 import type {
   QueryListItem,
   QueryStatus,
@@ -128,12 +129,15 @@ export function QueryListPage() {
     {
       title: t('queries.list.col_submitter'),
       width: 180,
-      render: (_v, r) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Avatar name={r.submitted_by.display_name} size={20} />
-          <span style={{ fontSize: 12 }}>{r.submitted_by.display_name}</span>
-        </div>
-      ),
+      render: (_v, r) => {
+        const label = userDisplay(r.submitted_by.display_name, r.submitted_by.email);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Avatar name={label} size={20} />
+            <span style={{ fontSize: 12 }}>{label}</span>
+          </div>
+        );
+      },
     },
     {
       title: t('queries.list.col_created'),

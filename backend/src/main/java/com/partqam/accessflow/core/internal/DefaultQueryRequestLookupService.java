@@ -10,8 +10,10 @@ import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
+import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
+import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +31,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     private final QueryRequestRepository queryRequestRepository;
     private final AiAnalysisRepository aiAnalysisRepository;
+    private final ReviewDecisionRepository reviewDecisionRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -121,6 +124,11 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 ? aiAnalysisRepository.findById(entity.getAiAnalysisId()).orElse(null)
                 : null;
         var plan = entity.getDatasource().getReviewPlan();
+        var decisions = reviewDecisionRepository
+                .findAllByQueryRequest_IdOrderByDecidedAtAsc(entity.getId())
+                .stream()
+                .map(DefaultQueryRequestLookupService::toReviewDecisionView)
+                .toList();
         return new QueryDetailView(
                 entity.getId(),
                 entity.getDatasource().getId(),
@@ -139,8 +147,23 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getErrorMessage(),
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
+                decisions,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
+    }
+
+    private static QueryDetailView.ReviewDecisionView toReviewDecisionView(ReviewDecisionEntity entity) {
+        var reviewer = entity.getReviewer();
+        return new QueryDetailView.ReviewDecisionView(
+                entity.getId(),
+                new QueryDetailView.ReviewerRef(
+                        reviewer.getId(),
+                        reviewer.getEmail(),
+                        reviewer.getDisplayName()),
+                entity.getDecision(),
+                entity.getComment(),
+                entity.getStage(),
+                entity.getDecidedAt());
     }
 
     private static QueryDetailView.AiAnalysisDetail toAnalysisDetail(AiAnalysisEntity entity) {

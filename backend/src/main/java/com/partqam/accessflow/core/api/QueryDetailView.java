@@ -1,6 +1,7 @@
 package com.partqam.accessflow.core.api;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,7 @@ public record QueryDetailView(
         String errorMessage,
         String reviewPlanName,
         Integer approvalTimeoutHours,
+        List<ReviewDecisionView> reviewDecisions,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -40,5 +42,20 @@ public record QueryDetailView(
             String aiModel,
             int promptTokens,
             int completionTokens) {
+    }
+
+    public record ReviewDecisionView(
+            UUID id,
+            ReviewerRef reviewer,
+            DecisionType decision,
+            String comment,
+            int stage,
+            Instant decidedAt) {
+    }
+
+    public record ReviewerRef(
+            UUID id,
+            String email,
+            String displayName) {
     }
 }

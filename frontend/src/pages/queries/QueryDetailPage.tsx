@@ -33,6 +33,7 @@ import {
   reviewKeys,
 } from '@/api/reviews';
 import { reviewErrorMessage } from '@/utils/apiErrors';
+import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
 
 export function QueryDetailPage() {
@@ -368,7 +369,7 @@ function buildStages(query: QueryDetail): TimelineStage[] {
   const out: TimelineStage[] = [
     {
       label: 'Submitted',
-      who: query.submitted_by.display_name,
+      who: userDisplay(query.submitted_by.display_name, query.submitted_by.email),
       time: query.created_at,
       done: true,
     },
@@ -393,9 +394,21 @@ function buildStages(query: QueryDetail): TimelineStage[] {
         : query.status === 'TIMED_OUT'
         ? 'Timed out'
         : 'Human review';
+    let reviewerWho: string;
+    if (query.status === 'REJECTED') {
+      const decisions = query.review_decisions ?? [];
+      const lastReject = [...decisions]
+        .reverse()
+        .find((d) => d.decision === 'REJECTED');
+      reviewerWho = lastReject
+        ? userDisplay(lastReject.reviewer.display_name, lastReject.reviewer.email)
+        : '—';
+    } else {
+      reviewerWho = reviewDone ? '—' : 'awaiting reviewer';
+    }
     out.push({
       label: reviewLabel,
-      who: reviewDone ? '—' : 'awaiting reviewer',
+      who: reviewerWho,
       time: reviewDone ? query.updated_at : null,
       done: reviewDone,
       active: query.status === 'PENDING_REVIEW',
@@ -403,23 +416,25 @@ function buildStages(query: QueryDetail): TimelineStage[] {
       detail: null,
     });
   }
-  out.push({
-    label:
-      query.status === 'FAILED'
-        ? 'Execution failed'
-        : query.status === 'CANCELLED'
-        ? 'Cancelled'
-        : 'Execute',
-    who: query.status === 'EXECUTED' ? `proxy → ${query.datasource.name}` : '—',
-    time: query.status === 'EXECUTED' ? query.updated_at : null,
-    done: query.status === 'EXECUTED',
-    failed: query.status === 'FAILED',
-    cancelled: query.status === 'CANCELLED',
-    detail:
-      query.status === 'EXECUTED' && query.duration_ms != null
-        ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
-        : null,
-  });
+  if (query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {
+    out.push({
+      label:
+        query.status === 'FAILED'
+          ? 'Execution failed'
+          : query.status === 'CANCELLED'
+          ? 'Cancelled'
+          : 'Execute',
+      who: query.status === 'EXECUTED' ? `proxy → ${query.datasource.name}` : '—',
+      time: query.status === 'EXECUTED' ? query.updated_at : null,
+      done: query.status === 'EXECUTED',
+      failed: query.status === 'FAILED',
+      cancelled: query.status === 'CANCELLED',
+      detail:
+        query.status === 'EXECUTED' && query.duration_ms != null
+          ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
+          : null,
+    });
+  }
   return out;
 }
 

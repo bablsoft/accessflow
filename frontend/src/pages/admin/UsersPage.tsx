@@ -35,6 +35,7 @@ import {
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
+import { userDisplay } from '@/utils/userDisplay';
 import type { CreateUserInput, Role, UpdateUserInput, User } from '@/types/api';
 
 interface InviteFormValues {
@@ -219,17 +220,20 @@ export function UsersPage() {
             columns={[
               {
                 title: t('admin.users.col_user'),
-                render: (_v, u) => (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Avatar name={u.display_name} size={28} />
-                    <div>
-                      <div style={{ fontSize: 13 }}>{u.display_name}</div>
-                      <div className="mono muted" style={{ fontSize: 11 }}>
-                        {u.email}
+                render: (_v, u) => {
+                  const label = userDisplay(u.display_name, u.email);
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Avatar name={label} size={28} />
+                      <div>
+                        <div style={{ fontSize: 13 }}>{label}</div>
+                        <div className="mono muted" style={{ fontSize: 11 }}>
+                          {u.email}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ),
+                  );
+                },
               },
               {
                 title: t('admin.users.col_role'),

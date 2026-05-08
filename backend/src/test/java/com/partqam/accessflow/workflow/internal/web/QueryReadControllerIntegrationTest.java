@@ -191,6 +191,7 @@ class QueryReadControllerIntegrationTest {
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", null, 0L, 12, null,
                 "Prod plan", 24,
+                List.of(),
                 Instant.parse("2026-05-01T10:00:00Z"),
                 Instant.parse("2026-05-01T10:00:30Z"));
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
@@ -216,7 +217,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 admin.getId(), admin.getEmail(), admin.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
-                null, null, null, null, null, Instant.now(), Instant.now());
+                null, null, null, null, null, List.of(), Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -235,7 +236,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
-                null, null, null, null, null, Instant.now(), Instant.now());
+                null, null, null, null, null, List.of(), Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -345,7 +346,8 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT id,name FROM users", QueryType.SELECT, QueryStatus.EXECUTED,
-                "x", null, 3L, 12, null, null, null, Instant.now(), Instant.now());
+                "x", null, 3L, 12, null, null, null,
+                List.of(), Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -375,7 +377,8 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
-                "x", null, null, null, null, null, null, Instant.now(), Instant.now());
+                "x", null, null, null, null, null, null,
+                List.of(), Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
         when(queryResultPersistenceService.find(qid)).thenReturn(Optional.empty());
@@ -393,7 +396,8 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
-                "x", null, 1L, 5, null, null, null, Instant.now(), Instant.now());
+                "x", null, 1L, 5, null, null, null,
+                List.of(), Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 

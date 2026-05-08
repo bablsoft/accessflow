@@ -18,6 +18,7 @@ import { Avatar } from '@/components/common/Avatar';
 import { auditKeys, listAuditEvents } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
+import { userDisplay } from '@/utils/userDisplay';
 import type { AuditEvent, AuditLogFilters } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -218,7 +219,8 @@ export function AuditLogPage() {
                 title: t('admin.audit.col_actor'),
                 width: 220,
                 render: (_v, e) => {
-                  const name = e.actor_display_name ?? t('admin.audit.actor_unknown');
+                  const name = userDisplay(e.actor_display_name, e.actor_email)
+                    || t('admin.audit.actor_unknown');
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Avatar name={name} size={20} />

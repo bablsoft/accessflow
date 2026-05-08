@@ -357,6 +357,15 @@ export interface AiAnalysisDetail {
   completion_tokens: number;
 }
 
+export interface ReviewDecisionDetail {
+  id: string;
+  reviewer: UserRef;
+  decision: ReviewDecisionType;
+  comment: string | null;
+  stage: number;
+  decided_at: string;
+}
+
 export interface QueryDetail {
   id: string;
   datasource: DatasourceRef;
@@ -371,6 +380,7 @@ export interface QueryDetail {
   error_message: string | null;
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
+  review_decisions: ReviewDecisionDetail[];
   created_at: string;
   updated_at: string;
 }

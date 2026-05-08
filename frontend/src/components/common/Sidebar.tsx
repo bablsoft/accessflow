@@ -17,6 +17,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
 import type { AuthUser } from '@/api/auth';
+import { userDisplay } from '@/utils/userDisplay';
 import { Avatar } from './Avatar';
 import './sidebar.css';
 
@@ -132,33 +133,38 @@ export function Sidebar({
           })}
         </nav>
         <div className="af-sidebar-footer">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              justifyContent: collapsed ? 'center' : 'flex-start',
-            }}
-            title={collapsed ? `${user.display_name} · ${user.role}` : undefined}
-          >
-            <Avatar name={user.display_name} size={28} />
-            {!collapsed && (
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {user.display_name}
-                </div>
-                <div className="mono muted" style={{ fontSize: 10 }}>{user.role}</div>
+          {(() => {
+            const label = userDisplay(user.display_name, user.email);
+            return (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                }}
+                title={collapsed ? `${label} · ${user.role}` : undefined}
+              >
+                <Avatar name={label} size={28} />
+                {!collapsed && (
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {label}
+                    </div>
+                    <div className="mono muted" style={{ fontSize: 10 }}>{user.role}</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       </aside>
       <div
