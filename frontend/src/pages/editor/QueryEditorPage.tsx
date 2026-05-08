@@ -200,7 +200,7 @@ export function QueryEditorPage() {
                 rows={3}
               />
             </div>
-            <ReviewPlanPreview ds={ds} analysis={analysis} />
+            <ReviewPlanPreview ds={ds} />
           </div>
         </div>
         <AiHintPanel analyzing={analyzing} analysis={analysis} aiEnabled={ds.ai_analysis_enabled} />

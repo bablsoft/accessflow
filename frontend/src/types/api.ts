@@ -247,22 +247,6 @@ export interface ReviewPlanWriteRequest {
   approvers?: ReviewPlanApprover[];
 }
 
-/**
- * Demo-only minimal shape used by `src/mocks/data.ts` and the editor preview while the real
- * `/review-plans` API is wired in. Will be removed once those callers are migrated.
- */
-export interface DemoReviewPlan {
-  id: string;
-  name: string;
-  description: string;
-  requires_ai: boolean;
-  requires_human: boolean;
-  min_approvals: number;
-  timeout_hours: number;
-  auto_approve_reads: boolean;
-  channels: string[];
-}
-
 export interface PendingReviewItem {
   id: string;
   datasource: { id: string; name: string };

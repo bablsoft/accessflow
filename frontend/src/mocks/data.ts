@@ -3,7 +3,6 @@ import type {
   Datasource,
   DatasourcePermission,
   NotificationChannel,
-  DemoReviewPlan,
   User,
 } from '@/types/api';
 
@@ -45,12 +44,6 @@ export const DATASOURCES: Datasource[] = [
   { id: 'ds-06', organization_id: 'org-demo', name: 'Marketing Warehouse', db_type: 'POSTGRESQL', host: 'warehouse.acme.internal', port: 5432, database_name: 'mkt_warehouse', username: 'accessflow_svc', ssl_mode: 'REQUIRE', max_rows_per_query: 100000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: false, active: true, connection_pool_size: 30, review_plan_id: 'rp-readonly', created_at: '2026-02-18T10:00:00Z' },
   { id: 'ds-07', organization_id: 'org-demo', name: 'Legacy Reporting MySQL', db_type: 'MYSQL', host: 'legacy-mysql.acme.internal', port: 3306, database_name: 'reporting_v1', username: 'accessflow_svc', ssl_mode: 'DISABLE', max_rows_per_query: 10000, require_review_writes: true, require_review_reads: false, ai_analysis_enabled: true, active: true, connection_pool_size: 8, review_plan_id: 'rp-strict', created_at: '2026-03-04T10:00:00Z' },
   { id: 'ds-08', organization_id: 'org-demo', name: 'Sandbox PG', db_type: 'POSTGRESQL', host: 'sandbox.acme.internal', port: 5432, database_name: 'sandbox', username: 'accessflow_svc', ssl_mode: 'DISABLE', max_rows_per_query: 10000, require_review_writes: false, require_review_reads: false, ai_analysis_enabled: true, active: false, connection_pool_size: 5, review_plan_id: 'rp-light', created_at: '2026-03-15T10:00:00Z' },
-];
-
-export const REVIEW_PLANS: DemoReviewPlan[] = [
-  { id: 'rp-strict', name: 'Strict (production)', description: 'AI review + 2 human approvers (sequential)', requires_ai: true, requires_human: true, min_approvals: 2, timeout_hours: 24, auto_approve_reads: false, channels: ['email', 'slack'] },
-  { id: 'rp-readonly', name: 'Read-only with AI', description: 'AI review only on SELECT, single approver on writes', requires_ai: true, requires_human: true, min_approvals: 1, timeout_hours: 12, auto_approve_reads: true, channels: ['slack'] },
-  { id: 'rp-light', name: 'Light review', description: 'AI review only — auto-approve if LOW risk', requires_ai: true, requires_human: false, min_approvals: 0, timeout_hours: 4, auto_approve_reads: true, channels: ['slack'] },
 ];
 
 const NOW = new Date('2026-05-04T10:30:00Z').getTime();
