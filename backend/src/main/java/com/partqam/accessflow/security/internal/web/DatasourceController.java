@@ -230,6 +230,7 @@ class DatasourceController {
                 request.rowLimitOverride(),
                 request.allowedSchemas(),
                 request.allowedTables(),
+                request.restrictedColumns(),
                 request.expiresAt());
         var view = datasourceAdminService.grantPermission(id, caller.organizationId(),
                 caller.userId(), command);

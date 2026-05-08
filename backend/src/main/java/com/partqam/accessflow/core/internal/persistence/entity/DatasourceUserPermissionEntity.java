@@ -54,6 +54,10 @@ public class DatasourceUserPermissionEntity {
     @Column(name = "allowed_tables", columnDefinition = "text[]")
     private String[] allowedTables;
 
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "restricted_columns", columnDefinition = "text[]")
+    private String[] restrictedColumns;
+
     @Column(name = "expires_at")
     private Instant expiresAt;
 

@@ -86,6 +86,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `row_limit_override` | INTEGER nullable — overrides datasource default |
 | `allowed_schemas` | TEXT[] — null means all schemas permitted |
 | `allowed_tables` | TEXT[] — null means all tables permitted |
+| `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |

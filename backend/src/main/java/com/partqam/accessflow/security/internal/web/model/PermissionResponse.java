@@ -18,6 +18,7 @@ public record PermissionResponse(
         Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
+        List<String> restrictedColumns,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt
@@ -35,6 +36,7 @@ public record PermissionResponse(
                 view.rowLimitOverride(),
                 view.allowedSchemas(),
                 view.allowedTables(),
+                view.restrictedColumns(),
                 view.expiresAt(),
                 view.createdBy(),
                 view.createdAt());

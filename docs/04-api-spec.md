@@ -283,6 +283,7 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
       "row_limit_override": null,
       "allowed_schemas": ["public"],
       "allowed_tables": null,
+      "restricted_columns": ["public.users.ssn"],
       "expires_at": null,
       "created_by": "uuid",
       "created_at": "2026-05-04T10:15:00Z"
@@ -290,6 +291,8 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
   ]
 }
 ```
+
+`restricted_columns` is a list of fully-qualified `schema.table.column` strings (case-insensitive). Values for these columns are masked with `"***"` in SELECT result rows, and the AI analyzer is told that the SQL touches restricted columns (informational — never auto-rejects). Null or empty means no column restrictions.
 
 ### POST /datasources/{id}/permissions — Request Body
 
@@ -302,9 +305,12 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
   "row_limit_override": 1000,
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
+  "restricted_columns": ["public.users.ssn", "public.users.email"],
   "expires_at": "2026-12-31T23:59:59Z"
 }
 ```
+
+`restricted_columns` is optional. Each entry must be non-blank.
 
 **Response 201:** Permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/{permId}`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
@@ -419,6 +425,24 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 ```
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
+
+### GET /queries/{id}/results — Response 200
+
+```json
+{
+  "columns": [
+    { "name": "id", "type": "int4", "restricted": false },
+    { "name": "ssn", "type": "varchar", "restricted": true }
+  ],
+  "rows": [[1, "***"], [2, "***"]],
+  "row_count": 2,
+  "truncated": false,
+  "page": 0,
+  "size": 100
+}
+```
+
+`columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
 
 ### POST /queries/analyze — Request Body
 

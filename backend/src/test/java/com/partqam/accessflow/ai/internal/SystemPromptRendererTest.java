@@ -70,4 +70,62 @@ class SystemPromptRendererTest {
 
         assertThat(text).isEqualTo("public.a(x int)\npublic.b(y int)");
     }
+
+    @Test
+    void describeSchemaAnnotatesFullyQualifiedRestrictedColumn() {
+        var schema = new DatabaseSchemaView(List.of(
+                new DatabaseSchemaView.Schema("public", List.of(
+                        new DatabaseSchemaView.Table("users", List.of(
+                                new DatabaseSchemaView.Column("id", "uuid", false, true),
+                                new DatabaseSchemaView.Column("ssn", "text", true, false)))))));
+
+        var text = renderer.describeSchema(schema, List.of("public.users.ssn"));
+
+        assertThat(text).contains("ssn text *RESTRICTED*");
+        assertThat(text).doesNotContain("id uuid pk not null *RESTRICTED*");
+    }
+
+    @Test
+    void describeSchemaMatchesRestrictedColumnByTableQualifiedName() {
+        var schema = new DatabaseSchemaView(List.of(
+                new DatabaseSchemaView.Schema("sales", List.of(
+                        new DatabaseSchemaView.Table("orders", List.of(
+                                new DatabaseSchemaView.Column("amount", "numeric", true, false)))))));
+
+        var text = renderer.describeSchema(schema, List.of("orders.amount"));
+
+        assertThat(text).contains("amount numeric *RESTRICTED*");
+    }
+
+    @Test
+    void describeSchemaMatchesRestrictedColumnByBareName() {
+        var schema = new DatabaseSchemaView(List.of(
+                new DatabaseSchemaView.Schema("public", List.of(
+                        new DatabaseSchemaView.Table("users", List.of(
+                                new DatabaseSchemaView.Column("password", "text", true, false)))))));
+
+        var text = renderer.describeSchema(schema, List.of("password"));
+
+        assertThat(text).contains("password text *RESTRICTED*");
+    }
+
+    @Test
+    void describeSchemaIgnoresBlankAndNullEntries() {
+        var schema = new DatabaseSchemaView(List.of(
+                new DatabaseSchemaView.Schema("public", List.of(
+                        new DatabaseSchemaView.Table("users", List.of(
+                                new DatabaseSchemaView.Column("email", "text", true, false)))))));
+
+        var text = renderer.describeSchema(schema, java.util.Arrays.asList("", "  ", null));
+
+        assertThat(text).doesNotContain("*RESTRICTED*");
+    }
+
+    @Test
+    void renderTemplateExplainsRestrictedColumnPolicy() {
+        var prompt = renderer.render("SELECT 1", DbType.POSTGRESQL, "public.users(ssn text *RESTRICTED*)");
+
+        assertThat(prompt).contains("RESTRICTED_COLUMN_ACCESS");
+        assertThat(prompt).contains("masked at the proxy layer");
+    }
 }

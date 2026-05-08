@@ -3,6 +3,7 @@ package com.partqam.accessflow.proxy.api;
 import com.partqam.accessflow.core.api.QueryType;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -11,7 +12,8 @@ public record QueryExecutionRequest(
         String sql,
         QueryType queryType,
         Integer maxRowsOverride,
-        Duration statementTimeoutOverride) {
+        Duration statementTimeoutOverride,
+        List<String> restrictedColumns) {
 
     public QueryExecutionRequest {
         Objects.requireNonNull(datasourceId, "datasourceId");
@@ -26,5 +28,11 @@ public record QueryExecutionRequest(
                 && (statementTimeoutOverride.isNegative() || statementTimeoutOverride.isZero())) {
             throw new IllegalArgumentException("statementTimeoutOverride must be positive");
         }
+        restrictedColumns = restrictedColumns == null ? List.of() : List.copyOf(restrictedColumns);
+    }
+
+    public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
+                                 Integer maxRowsOverride, Duration statementTimeoutOverride) {
+        this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride, List.of());
     }
 }

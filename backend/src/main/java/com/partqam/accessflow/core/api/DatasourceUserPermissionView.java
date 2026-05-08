@@ -13,5 +13,6 @@ public record DatasourceUserPermissionView(
         boolean canDdl,
         List<String> allowedSchemas,
         List<String> allowedTables,
+        List<String> restrictedColumns,
         Instant expiresAt) {
 }

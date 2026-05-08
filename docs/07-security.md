@@ -84,8 +84,21 @@ Are allowed_schemas / allowed_tables set?
   YES → validate query AST touches only permitted objects
   Violation → 403
          ↓
+Are restricted_columns set?
+  YES → AI analyzer is told which columns are sensitive (informational — never auto-rejects)
+        SELECT result rows have those values replaced with "***" before persistence
+         ↓
   PROCEED to review plan
 ```
+
+### Column-level restrictions
+
+`datasource_user_permissions.restricted_columns` is a `TEXT[]` of fully-qualified `schema.table.column` entries. This is a **defense-in-depth, value-masking** control — not a primary access boundary:
+
+- Restricted columns can still be referenced in SQL (WHERE, JOIN, GROUP BY, etc.). The system does not reject the query; it masks the value in the SELECT response and informs the AI reviewer.
+- Masking happens in `JdbcResultRowMapper` before rows are added to the in-memory result and before they are written to `query_request_results.rows`. The raw value never lands in our database. The sentinel is `"***"`; `null` stays `null`.
+- The AI analyzer renders `*RESTRICTED*` markers next to flagged columns in the schema context and is instructed to emit `RESTRICTED_COLUMN_ACCESS` issues (severity `LOW`) — the workflow state machine ignores this category for auto-rejection logic.
+- For high-confidentiality data where the value must never be retrievable at all, prefer an `allowed_tables` denial or a database-side view that excludes the column.
 
 ---
 

@@ -316,6 +316,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setRowLimitOverride(command.rowLimitOverride());
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
+        entity.setRestrictedColumns(toArray(command.restrictedColumns()));
         entity.setExpiresAt(command.expiresAt());
         entity.setCreatedBy(grantedBy);
         return toPermissionView(permissionRepository.save(entity));
@@ -377,6 +378,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getRowLimitOverride(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
+                toList(entity.getRestrictedColumns()),
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());

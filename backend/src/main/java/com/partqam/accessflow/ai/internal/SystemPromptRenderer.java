@@ -4,6 +4,11 @@ import com.partqam.accessflow.core.api.DatabaseSchemaView;
 import com.partqam.accessflow.core.api.DbType;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
 @Component
 class SystemPromptRenderer {
 
@@ -29,6 +34,8 @@ class SystemPromptRenderer {
               "affects_row_estimate": <integer or null>
             }
 
+            Columns marked *RESTRICTED* in the schema context are sensitive and the values returned for them are masked at the proxy layer. If the SQL references any *RESTRICTED* column (in SELECT, WHERE, JOIN, ORDER BY, INSERT, UPDATE, or DELETE), add an issue with category="RESTRICTED_COLUMN_ACCESS" and severity="LOW" summarizing which restricted columns are touched. Do NOT raise the overall risk_level above MEDIUM solely for this reason — this is informational, not a blocker.
+
             Database type: %s
             Schema context: %s
             SQL to analyze:
@@ -43,9 +50,14 @@ class SystemPromptRenderer {
     }
 
     String describeSchema(DatabaseSchemaView schema) {
+        return describeSchema(schema, List.of());
+    }
+
+    String describeSchema(DatabaseSchemaView schema, List<String> restrictedColumns) {
         if (schema == null || schema.schemas() == null || schema.schemas().isEmpty()) {
             return null;
         }
+        var restricted = parseRestricted(restrictedColumns);
         var sb = new StringBuilder();
         for (var s : schema.schemas()) {
             for (var t : s.tables()) {
@@ -63,10 +75,68 @@ class SystemPromptRenderer {
                     if (!c.nullable()) {
                         sb.append(" not null");
                     }
+                    if (isRestricted(restricted, s.name(), t.name(), c.name())) {
+                        sb.append(" *RESTRICTED*");
+                    }
                 }
                 sb.append(")\n");
             }
         }
         return sb.toString().stripTrailing();
+    }
+
+    private static Restricted parseRestricted(List<String> entries) {
+        var fq = new HashSet<String>();
+        var tq = new HashSet<String>();
+        var bare = new HashSet<String>();
+        if (entries == null) {
+            return new Restricted(fq, tq, bare);
+        }
+        for (var entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            var trimmed = entry.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            var parts = trimmed.toLowerCase(Locale.ROOT).split("\\.");
+            switch (parts.length) {
+                case 1 -> bare.add(parts[0]);
+                case 2 -> {
+                    tq.add(parts[0] + "." + parts[1]);
+                    bare.add(parts[1]);
+                }
+                default -> {
+                    fq.add(parts[parts.length - 3] + "." + parts[parts.length - 2]
+                            + "." + parts[parts.length - 1]);
+                    tq.add(parts[parts.length - 2] + "." + parts[parts.length - 1]);
+                    bare.add(parts[parts.length - 1]);
+                }
+            }
+        }
+        return new Restricted(fq, tq, bare);
+    }
+
+    private static boolean isRestricted(Restricted restricted, String schema, String table,
+                                        String column) {
+        if (column == null) {
+            return false;
+        }
+        var c = column.toLowerCase(Locale.ROOT);
+        if (schema != null && table != null
+                && restricted.fullyQualified.contains(schema.toLowerCase(Locale.ROOT) + "."
+                        + table.toLowerCase(Locale.ROOT) + "." + c)) {
+            return true;
+        }
+        if (table != null
+                && restricted.tableQualified.contains(table.toLowerCase(Locale.ROOT) + "." + c)) {
+            return true;
+        }
+        return restricted.bare.contains(c);
+    }
+
+    private record Restricted(Set<String> fullyQualified, Set<String> tableQualified,
+                              Set<String> bare) {
     }
 }

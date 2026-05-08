@@ -16,6 +16,7 @@ public record DatasourcePermissionView(
         Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
+        List<String> restrictedColumns,
         Instant expiresAt,
         UUID createdBy,
         Instant createdAt

@@ -12,5 +12,6 @@ public record CreatePermissionCommand(
         Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,
+        List<String> restrictedColumns,
         Instant expiresAt
 ) {}

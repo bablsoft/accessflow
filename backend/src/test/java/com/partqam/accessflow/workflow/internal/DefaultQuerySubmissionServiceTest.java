@@ -214,7 +214,7 @@ class DefaultQuerySubmissionServiceTest {
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl,
-                        List.of(), List.of(), expiresAt)));
+                        List.of(), List.of(), List.of(), expiresAt)));
     }
 
     private UUID stubPersist() {

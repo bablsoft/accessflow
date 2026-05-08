@@ -547,6 +547,80 @@ class JdbcResultRowMapperTest {
         verify(array, times(1)).free();
     }
 
+    @Test
+    void restrictedColumnIsMaskedAndFlagged() throws SQLException {
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(2);
+        when(metadata.getColumnLabel(1)).thenReturn("id");
+        when(metadata.getColumnLabel(2)).thenReturn("ssn");
+        when(metadata.getColumnType(1)).thenReturn(Types.INTEGER);
+        when(metadata.getColumnType(2)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("int4");
+        when(metadata.getColumnTypeName(2)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getSchemaName(2)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+        when(metadata.getTableName(2)).thenReturn("users");
+
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getObject(1)).thenReturn(7);
+        when(rs.getInt(1)).thenReturn(7);
+        when(rs.getObject(2)).thenReturn("123-45-6789");
+        when(rs.wasNull()).thenReturn(false);
+
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of("public.users.ssn"));
+
+        assertThat(result.columns()).hasSize(2);
+        assertThat(result.columns().get(0).restricted()).isFalse();
+        assertThat(result.columns().get(1).restricted()).isTrue();
+
+        var row = result.rows().getFirst();
+        assertThat(row.get(0)).isEqualTo(7);
+        assertThat(row.get(1)).isEqualTo("***");
+    }
+
+    @Test
+    void restrictedColumnNullValueStaysNull() throws SQLException {
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("ssn");
+        when(metadata.getColumnType(1)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getObject(1)).thenReturn(null);
+        when(rs.wasNull()).thenReturn(true);
+
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of("public.users.ssn"));
+
+        assertThat(result.rows().getFirst().getFirst()).isNull();
+        assertThat(result.columns().getFirst().restricted()).isTrue();
+    }
+
+    @Test
+    void emptyRestrictedColumnsLeavesValuesUnchanged() throws SQLException {
+        var metadata = singleColumnMeta("ssn", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getObject(1)).thenReturn("payload");
+        when(rs.getString(1)).thenReturn("payload");
+        when(rs.wasNull()).thenReturn(false);
+
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO, List.of());
+
+        assertThat(result.rows().getFirst().getFirst()).isEqualTo("payload");
+        assertThat(result.columns().getFirst().restricted()).isFalse();
+    }
+
     private static ResultSetMetaData singleColumnMeta(String name, int type, String typeName)
             throws SQLException {
         var metadata = mock(ResultSetMetaData.class);

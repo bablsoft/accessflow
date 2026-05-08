@@ -4,6 +4,7 @@ import com.partqam.accessflow.audit.api.AuditAction;
 import com.partqam.accessflow.audit.api.AuditEntry;
 import com.partqam.accessflow.audit.api.AuditLogService;
 import com.partqam.accessflow.audit.api.AuditResourceType;
+import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.QueryRequestSnapshot;
@@ -31,6 +32,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,6 +45,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final QueryRequestStateService queryRequestStateService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryExecutor queryExecutor;
+    private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -78,8 +81,13 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         }
         var startedAt = Instant.now();
         try {
+            var restrictedColumns = permissionLookupService
+                    .findFor(query.submittedByUserId(), query.datasourceId())
+                    .map(p -> p.restrictedColumns())
+                    .orElse(List.of());
             var result = queryExecutor.execute(new QueryExecutionRequest(
-                    query.datasourceId(), query.sqlText(), query.queryType(), null, null));
+                    query.datasourceId(), query.sqlText(), query.queryType(), null, null,
+                    restrictedColumns));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;
@@ -132,6 +140,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             ObjectNode node = columnsArray.addObject();
             node.put("name", column.name());
             node.put("type", column.typeName());
+            node.put("restricted", column.restricted());
         }
         var rowsArray = objectMapper.valueToTree(select.rows());
         queryResultPersistenceService.save(new QueryResultPersistenceService.SaveResultCommand(

@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -62,7 +63,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
                 statement.setFetchSize(Math.min(effectiveMaxRows + 1, execProps.defaultFetchSize()));
                 if (request.queryType() == QueryType.SELECT) {
-                    return runSelect(statement, effectiveMaxRows, descriptor.dbType(), start);
+                    return runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
+                            request.restrictedColumns());
                 }
                 return runUpdate(statement, start);
             }
@@ -74,11 +76,12 @@ class DefaultQueryExecutor implements QueryExecutor {
     }
 
     private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
-                                           DbType dbType, Instant start) throws SQLException {
+                                           DbType dbType, Instant start,
+                                           List<String> restrictedColumns) throws SQLException {
         statement.setMaxRows(effectiveMaxRows + 1);
         try (var resultSet = statement.executeQuery()) {
             return rowMapper.materialize(resultSet, effectiveMaxRows, dbType,
-                    durationSince(start));
+                    durationSince(start), restrictedColumns);
         }
     }
 

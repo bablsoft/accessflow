@@ -35,6 +35,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 entity.isCanDdl(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
+                toList(entity.getRestrictedColumns()),
                 entity.getExpiresAt());
     }
 

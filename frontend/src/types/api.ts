@@ -189,6 +189,7 @@ export interface CreatePermissionInput {
   row_limit_override?: number | null;
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
+  restricted_columns?: string[] | null;
   expires_at?: string | null;
 }
 
@@ -397,6 +398,7 @@ export interface PaginatedResponse<T> {
 export interface QueryResultColumn {
   name: string;
   type: string;
+  restricted?: boolean;
 }
 
 export interface QueryResultsPage {
@@ -470,6 +472,7 @@ export interface DatasourcePermission {
   row_limit_override: number | null;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
+  restricted_columns: string[] | null;
   expires_at: string | null;
   created_by: string;
   created_at: string;

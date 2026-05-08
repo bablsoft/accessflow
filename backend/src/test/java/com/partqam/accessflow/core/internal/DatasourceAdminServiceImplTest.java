@@ -263,7 +263,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null);
+                null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -275,7 +275,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null);
+                null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -294,7 +294,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null);
+                null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(DatasourcePermissionAlreadyExistsException.class);
     }
@@ -320,7 +320,7 @@ class DatasourceAdminServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new CreatePermissionCommand(userId, true, true, false, 500,
-                List.of("public"), List.of("orders"), null);
+                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null);
         var view = service.grantPermission(datasourceId, orgId, adminId, command);
 
         assertThat(view.userId()).isEqualTo(userId);
@@ -330,6 +330,7 @@ class DatasourceAdminServiceImplTest {
         assertThat(view.canDdl()).isFalse();
         assertThat(view.allowedSchemas()).containsExactly("public");
         assertThat(view.allowedTables()).containsExactly("orders");
+        assertThat(view.restrictedColumns()).containsExactly("public.orders.ssn");
         assertThat(view.rowLimitOverride()).isEqualTo(500);
         assertThat(view.createdBy()).isEqualTo(adminId);
     }

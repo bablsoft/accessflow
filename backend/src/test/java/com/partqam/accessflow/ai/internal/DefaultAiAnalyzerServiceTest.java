@@ -11,6 +11,7 @@ import com.partqam.accessflow.core.api.DatabaseSchemaView;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
 import com.partqam.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
+import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.PersistAiAnalysisCommand;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
@@ -49,6 +50,7 @@ class DefaultAiAnalyzerServiceTest {
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock QueryRequestLookupService queryRequestLookupService;
+    @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock ApplicationEventPublisher eventPublisher;
 
@@ -68,7 +70,7 @@ class DefaultAiAnalyzerServiceTest {
     void setUp() {
         service = new DefaultAiAnalyzerService(strategy, properties, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
-                aiAnalysisPersistenceService, eventPublisher, "model-x");
+                permissionLookupService, aiAnalysisPersistenceService, eventPublisher, "model-x");
     }
 
     private DatasourceConnectionDescriptor descriptor(DbType dbType) {
@@ -110,6 +112,53 @@ class DefaultAiAnalyzerServiceTest {
         assertThatThrownBy(() -> service.analyzePreview(datasourceId, "SELECT 1", userId, organizationId, false))
                 .isInstanceOf(AiAnalysisException.class)
                 .hasMessageContaining("Datasource not found");
+    }
+
+    @Test
+    void analyzePreviewIncludesRestrictedColumnMarkerInSchemaContext() {
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
+                .thenReturn(new com.partqam.accessflow.core.api.DatabaseSchemaView(List.of(
+                        new com.partqam.accessflow.core.api.DatabaseSchemaView.Schema("public", List.of(
+                                new com.partqam.accessflow.core.api.DatabaseSchemaView.Table("users", List.of(
+                                        new com.partqam.accessflow.core.api.DatabaseSchemaView.Column(
+                                                "ssn", "text", true, false))))))));
+        var permission = new com.partqam.accessflow.core.api.DatasourceUserPermissionView(
+                UUID.randomUUID(), userId, datasourceId, true, false, false,
+                List.of(), List.of(), List.of("public.users.ssn"), null);
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
+        ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
+        when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture()))
+                .thenReturn(sampleResult());
+
+        service.analyzePreview(datasourceId, "SELECT ssn FROM users", userId, organizationId, false);
+
+        assertThat(contextCaptor.getValue()).contains("ssn text *RESTRICTED*");
+    }
+
+    @Test
+    void analyzeSubmittedQueryIncludesRestrictedColumnMarker() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
+                .thenReturn(new com.partqam.accessflow.core.api.DatabaseSchemaView(List.of(
+                        new com.partqam.accessflow.core.api.DatabaseSchemaView.Schema("public", List.of(
+                                new com.partqam.accessflow.core.api.DatabaseSchemaView.Table("users", List.of(
+                                        new com.partqam.accessflow.core.api.DatabaseSchemaView.Column(
+                                                "email", "text", true, false))))))));
+        var permission = new com.partqam.accessflow.core.api.DatasourceUserPermissionView(
+                UUID.randomUUID(), userId, datasourceId, true, false, false,
+                List.of(), List.of(), List.of("public.users.email"), null);
+        when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
+        ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
+        when(strategy.analyze(any(), eq(DbType.POSTGRESQL), contextCaptor.capture())).thenReturn(sampleResult());
+        when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        assertThat(contextCaptor.getValue()).contains("email text *RESTRICTED*");
     }
 
     @Test
