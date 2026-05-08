@@ -131,7 +131,7 @@ Initial supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. Se
 |-------|------|-------------|
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
-| `sort` | string | e.g. `name,asc` (Spring Data sort syntax) |
+| `sort` | string | e.g. `name,asc` (Spring Data sort syntax — uses **JPA property names** (camelCase Java field names), not column names) |
 
 **Response 200:**
 ```json
@@ -819,7 +819,7 @@ Per-type behavior:
 | `to` | ISO datetime | Exclusive upper bound on `created_at` |
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 500). Requests over the cap get `400 BAD_AUDIT_QUERY` |
-| `sort` | string | Spring Data sort syntax; default `created_at,DESC` |
+| `sort` | string | Spring Data sort syntax; default `createdAt,DESC`. Allowed properties: `createdAt`, `action`, `resourceType`. Other values return 400 `BAD_AUDIT_QUERY`. |
 
 Returns rows scoped to the caller's organization only. ADMIN role required (otherwise 403).
 

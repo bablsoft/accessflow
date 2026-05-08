@@ -199,6 +199,81 @@ class AdminAuditLogControllerIntegrationTest {
     }
 
     @Test
+    void defaultSortOrdersByCreatedAtDesc() throws InterruptedException {
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_LOGIN,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                analyst.getId(),
+                Map.of("seq", "1"),
+                null,
+                null));
+        Thread.sleep(5);
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_CREATED,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                admin.getId(),
+                Map.of("seq", "2"),
+                null,
+                null));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[0].action").asString()
+                .isEqualTo("USER_CREATED");
+        assertThat(result).bodyJson().extractingPath("$.content[1].action").asString()
+                .isEqualTo("USER_LOGIN");
+    }
+
+    @Test
+    void explicitCamelCaseSortIsAccepted() {
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_LOGIN,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                analyst.getId(),
+                Map.of(),
+                null,
+                null));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log?sort=createdAt,DESC")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+    }
+
+    @Test
+    void snakeCaseSortIs400BadAuditQuery() {
+        var result = mvc.get().uri("/api/v1/admin/audit-log?sort=created_at,DESC")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("BAD_AUDIT_QUERY");
+    }
+
+    @Test
+    void unsupportedSortPropertyIs400BadAuditQuery() {
+        var result = mvc.get().uri("/api/v1/admin/audit-log?sort=metadata,asc")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("BAD_AUDIT_QUERY");
+    }
+
+    @Test
     void filterByActionWorks() {
         auditLogService.record(new AuditEntry(
                 AuditAction.USER_LOGIN,

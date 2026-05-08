@@ -84,7 +84,7 @@ export function AuditLogPage() {
     () => ({
       page,
       size: PAGE_SIZE,
-      sort: 'created_at,DESC',
+      sort: 'createdAt,DESC',
       action: action === 'all' ? undefined : action,
       resource_type: resourceType === 'all' ? undefined : resourceType,
       actor_id: actorId.trim() || undefined,

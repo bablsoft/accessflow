@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,8 @@ import java.util.UUID;
 class AdminAuditLogController {
 
     private static final int MAX_PAGE_SIZE = 500;
+    private static final Set<String> ALLOWED_SORT_PROPERTIES =
+            Set.of("createdAt", "action", "resourceType");
 
     private final AuditLogService auditLogService;
     private final UserAdminService userAdminService;
@@ -62,10 +66,12 @@ class AdminAuditLogController {
             @Parameter(description = "Exclusive upper bound on createdAt")
             @RequestParam(required = false) Instant to,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
         if (pageable.getPageSize() > MAX_PAGE_SIZE) {
             throw new BadAuditQueryException("Page size cannot exceed " + MAX_PAGE_SIZE);
         }
+        validateSort(pageable.getSort());
         var resourceTypeEnum = parseResourceType(resourceType);
         var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
         Page<AuditLogView> page = auditLogService.query(organizationId, filter, pageable);
@@ -97,6 +103,14 @@ class AdminAuditLogController {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         pd.setProperty("error", "BAD_AUDIT_QUERY");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(pd);
+    }
+
+    private static void validateSort(Sort sort) {
+        for (Sort.Order order : sort) {
+            if (!ALLOWED_SORT_PROPERTIES.contains(order.getProperty())) {
+                throw new BadAuditQueryException("Invalid sort property: " + order.getProperty());
+            }
+        }
     }
 
     private static AuditResourceType parseResourceType(String value) {
