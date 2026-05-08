@@ -72,10 +72,10 @@ export async function getDatasourceSchema(id: string): Promise<DatasourceSchema>
 }
 
 export async function listPermissions(id: string): Promise<DatasourcePermission[]> {
-  const { data } = await apiClient.get<{ permissions: DatasourcePermission[] }>(
+  const { data } = await apiClient.get<{ content: DatasourcePermission[] }>(
     `${BASE}/${id}/permissions`,
   );
-  return data.permissions;
+  return data.content;
 }
 
 export async function grantPermission(

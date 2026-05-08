@@ -89,6 +89,25 @@ export function adminErrorMessage(err: unknown): string {
   return i18n.t('errors.admin_generic');
 }
 
+export function datasourceGrantErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'DATASOURCE_PERMISSION_ALREADY_EXISTS') {
+      return i18n.t('errors.datasource_permission_already_exists');
+    }
+    if (code === 'ILLEGAL_DATASOURCE_PERMISSION') {
+      return i18n.t('errors.illegal_datasource_permission');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.datasource_grant_generic');
+}
+
 export function reviewPlanErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

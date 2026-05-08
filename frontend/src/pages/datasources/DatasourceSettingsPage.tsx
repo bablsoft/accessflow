@@ -1,5 +1,18 @@
-import { useState } from 'react';
-import { App, Button, Form, Input, Select, Skeleton, Switch, Table, Tabs } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  App,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Skeleton,
+  Switch,
+  Table,
+  Tabs,
+} from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -9,6 +22,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { isAxiosError } from 'axios';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -18,19 +32,28 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
+import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import {
   datasourceKeys,
   deleteDatasource,
   getDatasource,
+  grantPermission,
   listPermissions,
   revokePermission,
   testConnection,
   updateDatasource,
 } from '@/api/datasources';
+import { listUsers, userKeys } from '@/api/admin';
 import { listQueries, queryKeys, type QueryListFilters } from '@/api/queries';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
-import type { Datasource, DatasourcePermission, UpdateDatasourceInput } from '@/types/api';
+import type {
+  CreatePermissionInput,
+  Datasource,
+  DatasourcePermission,
+  UpdateDatasourceInput,
+  User,
+} from '@/types/api';
 
 export function DatasourceSettingsPage() {
   const { t } = useTranslation();
@@ -399,6 +422,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
+  const [grantOpen, setGrantOpen] = useState(false);
 
   const permissionsQuery = useQuery({
     queryKey: datasourceKeys.permissions(dsId),
@@ -416,13 +440,6 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
       message.error(t('datasources.settings.revoke_error'));
     },
   });
-
-  const onGrantPlaceholder = () => {
-    modal.info({
-      title: t('datasources.settings.grant_unavailable_title'),
-      content: t('datasources.settings.grant_unavailable_body'),
-    });
-  };
 
   const onRevoke = (perm: DatasourcePermission) => {
     modal.confirm({
@@ -451,10 +468,20 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             {t('datasources.settings.permissions_subtitle')}
           </div>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={onGrantPlaceholder}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setGrantOpen(true)}
+        >
           {t('datasources.settings.grant_access')}
         </Button>
       </div>
+      <GrantAccessModal
+        open={grantOpen}
+        dsId={dsId}
+        existingUserIds={permissions.map((p) => p.user_id)}
+        onClose={() => setGrantOpen(false)}
+      />
       <Table<DatasourcePermission>
         rowKey="id"
         size="middle"
@@ -538,6 +565,222 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
         ]}
       />
     </div>
+  );
+}
+
+interface GrantFormValues {
+  user_id: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  row_limit_override?: number | null;
+  allowed_schemas?: string[];
+  allowed_tables?: string[];
+  expires_at?: Dayjs | null;
+}
+
+interface GrantAccessModalProps {
+  open: boolean;
+  dsId: string;
+  existingUserIds: string[];
+  onClose: () => void;
+}
+
+function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessModalProps) {
+  const { t } = useTranslation();
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<GrantFormValues>();
+
+  const usersQuery = useQuery({
+    queryKey: userKeys.list({ size: 100 }),
+    queryFn: () => listUsers({ size: 100 }),
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (open) {
+      form.resetFields();
+    }
+  }, [open, form]);
+
+  const taken = useMemo(() => new Set(existingUserIds), [existingUserIds]);
+  const eligible: User[] = useMemo(
+    () =>
+      (usersQuery.data?.content ?? []).filter((u) => u.active && !taken.has(u.id)),
+    [usersQuery.data, taken],
+  );
+
+  const grantMutation = useMutation({
+    mutationFn: (input: CreatePermissionInput) => grantPermission(dsId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: datasourceKeys.permissions(dsId) });
+      message.success(t('datasources.settings.grant_success'));
+      onClose();
+    },
+    onError: (err) => {
+      message.error(datasourceGrantErrorMessage(err));
+    },
+  });
+
+  const onFinish = (values: GrantFormValues) => {
+    if (!values.can_read && !values.can_write && !values.can_ddl) {
+      message.error(t('datasources.settings.grant_at_least_one_perm'));
+      return;
+    }
+    const payload: CreatePermissionInput = {
+      user_id: values.user_id,
+      can_read: values.can_read,
+      can_write: values.can_write,
+      can_ddl: values.can_ddl,
+      row_limit_override:
+        typeof values.row_limit_override === 'number' ? values.row_limit_override : null,
+      allowed_schemas:
+        values.allowed_schemas && values.allowed_schemas.length > 0
+          ? values.allowed_schemas
+          : null,
+      allowed_tables:
+        values.allowed_tables && values.allowed_tables.length > 0
+          ? values.allowed_tables
+          : null,
+      expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+    };
+    grantMutation.mutate(payload);
+  };
+
+  return (
+    <Modal
+      open={open}
+      title={t('datasources.settings.grant_modal_title')}
+      onCancel={onClose}
+      onOk={() => form.submit()}
+      okText={t('datasources.settings.grant_submit')}
+      cancelText={t('common.cancel')}
+      confirmLoading={grantMutation.isPending}
+      destroyOnHidden
+      width={520}
+    >
+      <Form<GrantFormValues>
+        form={form}
+        layout="vertical"
+        initialValues={{
+          can_read: true,
+          can_write: false,
+          can_ddl: false,
+        }}
+        onFinish={onFinish}
+      >
+        <Form.Item
+          name="user_id"
+          label={t('datasources.settings.grant_user_label')}
+          rules={[
+            { required: true, message: t('datasources.settings.grant_user_required') },
+          ]}
+        >
+          <Select<string>
+            showSearch
+            optionFilterProp="label"
+            placeholder={t('datasources.settings.grant_user_placeholder')}
+            loading={usersQuery.isLoading}
+            notFoundContent={
+              usersQuery.isLoading
+                ? t('datasources.settings.grant_user_loading')
+                : t('datasources.settings.grant_user_empty')
+            }
+            options={eligible.map((u) => ({
+              value: u.id,
+              label: `${u.display_name} (${u.email})`,
+            }))}
+          />
+        </Form.Item>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          <Form.Item
+            name="can_read"
+            label={t('datasources.settings.grant_perm_read_label')}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="can_write"
+            label={t('datasources.settings.grant_perm_write_label')}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="can_ddl"
+            label={t('datasources.settings.grant_perm_ddl_label')}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+        </div>
+        <Form.Item
+          name="row_limit_override"
+          label={t('datasources.settings.grant_row_limit_label')}
+          extra={t('datasources.settings.grant_row_limit_help')}
+          rules={[
+            {
+              type: 'number',
+              min: 1,
+              message: t('datasources.settings.grant_row_limit_min'),
+            },
+          ]}
+        >
+          <InputNumber
+            min={1}
+            style={{ width: '100%' }}
+            placeholder={t('datasources.settings.grant_row_limit_placeholder')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="allowed_schemas"
+          label={t('datasources.settings.grant_schemas_label')}
+          extra={t('datasources.settings.grant_schemas_help')}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('datasources.settings.grant_schemas_placeholder')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="allowed_tables"
+          label={t('datasources.settings.grant_tables_label')}
+          extra={t('datasources.settings.grant_tables_help')}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('datasources.settings.grant_tables_placeholder')}
+          />
+        </Form.Item>
+        <Form.Item
+          name="expires_at"
+          label={t('datasources.settings.grant_expires_label')}
+          extra={t('datasources.settings.grant_expires_help')}
+          rules={[
+            {
+              validator: (_rule, value: Dayjs | null | undefined) => {
+                if (value && value.isBefore(dayjs())) {
+                  return Promise.reject(
+                    new Error(t('datasources.settings.grant_expires_future')),
+                  );
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
+          <DatePicker
+            showTime
+            style={{ width: '100%' }}
+            placeholder={t('datasources.settings.grant_expires_placeholder')}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 }
 

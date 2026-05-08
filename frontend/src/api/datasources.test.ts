@@ -148,8 +148,8 @@ describe('api/datasources', () => {
     expect(result.schemas[0]!.tables[0]!.columns[0]!.primary_key).toBe(true);
   });
 
-  it('listPermissions unwraps the { permissions } envelope', async () => {
-    get.mockResolvedValueOnce({ data: { permissions: [permissionFixture] } });
+  it('listPermissions unwraps the { content } envelope', async () => {
+    get.mockResolvedValueOnce({ data: { content: [permissionFixture] } });
     const result = await datasourcesApi.listPermissions('ds-1');
     expect(get).toHaveBeenCalledWith('/api/v1/datasources/ds-1/permissions');
     expect(result).toEqual([permissionFixture]);
