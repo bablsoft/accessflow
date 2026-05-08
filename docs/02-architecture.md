@@ -60,7 +60,8 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 | Auth (Enterprise) | SAML 2.0 via Spring Security SAML extension |
 | Containerization | Docker, Docker Compose 2.x |
 | Kubernetes | Helm 3 chart with ConfigMap/Secret templating |
-| Message Queue | Redis Streams (optional, for async review fanout) |
+| Cache / Locks | Redis (JWT refresh-token revocation, ShedLock distributed locks for `@Scheduled` jobs) |
+| Background scheduling | Spring `@Scheduled` + ShedLock-on-Redis — safe for horizontally-scaled deployments (only one node runs each tick). See [05-backend.md → Scheduled jobs and clustering](05-backend.md#scheduled-jobs-and-clustering). |
 | AI Backends | OpenAI API, Anthropic Claude API, Ollama (self-hosted) — admin configurable |
 
 ---

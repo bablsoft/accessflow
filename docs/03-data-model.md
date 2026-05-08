@@ -105,10 +105,20 @@ Defines an approval policy. Assigned to datasources.
 | `requires_ai_review` | BOOLEAN DEFAULT true |
 | `requires_human_approval` | BOOLEAN DEFAULT true |
 | `min_approvals_required` | INTEGER DEFAULT 1 |
-| `approval_timeout_hours` | INTEGER DEFAULT 24 — auto-reject on timeout |
+| `approval_timeout_hours` | INTEGER DEFAULT 24 — see *Approval timeout* below |
 | `auto_approve_reads` | BOOLEAN DEFAULT false — bypass review for SELECT |
 | `notify_channels` | TEXT[] — values: `email` \| `slack` \| `webhook` |
 | `created_at` | TIMESTAMPTZ |
+
+### Approval timeout
+
+`QueryTimeoutJob` (workflow module) scans every `accessflow.workflow.timeout-poll-interval`
+(default 5 minutes). Any `query_requests` row in `PENDING_REVIEW` whose
+`created_at + approval_timeout_hours` is in the past is auto-transitioned to `REJECTED` and a
+`QueryTimedOutEvent` is published. **No `review_decisions` row is inserted** — auto-rejections are
+distinguished from manual rejections by the `audit_log.metadata.auto_rejected = true` flag (with
+`reason = "approval_timeout"`). The job uses ShedLock-on-Redis so only one node in a cluster runs
+each tick. See [05-backend.md → Scheduled jobs and clustering](05-backend.md#scheduled-jobs-and-clustering).
 
 ---
 
@@ -152,7 +162,7 @@ The central entity. Represents a single SQL submission through the platform.
 
 ```
 PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
-                           ↘ REJECTED
+                           ↘ REJECTED  (manual or timeout-driven, see review_plans → Approval timeout)
            ↘ PENDING_REVIEW (if no AI)
 PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED → FAILED (on execution error)

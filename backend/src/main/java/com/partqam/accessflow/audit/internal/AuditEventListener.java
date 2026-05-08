@@ -12,6 +12,7 @@ import com.partqam.accessflow.core.events.AiAnalysisFailedEvent;
 import com.partqam.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.partqam.accessflow.core.events.QueryAutoApprovedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -95,6 +96,27 @@ class AuditEventListener {
                         Map.of(),
                         null,
                         null));
+    }
+
+    @ApplicationModuleListener
+    void onQueryTimedOut(QueryTimedOutEvent event) {
+        recordSafely(AuditAction.QUERY_REJECTED, event.queryRequestId(),
+                () -> queryRequestLookupService.findById(event.queryRequestId()),
+                snapshot -> {
+                    var metadata = new HashMap<String, Object>();
+                    metadata.put("auto_rejected", true);
+                    metadata.put("reason", "approval_timeout");
+                    metadata.put("timeout_hours", event.approvalTimeoutHours());
+                    return new AuditEntry(
+                            AuditAction.QUERY_REJECTED,
+                            AuditResourceType.QUERY_REQUEST,
+                            snapshot.id(),
+                            snapshot.organizationId(),
+                            null,
+                            metadata,
+                            null,
+                            null);
+                });
     }
 
     @ApplicationModuleListener

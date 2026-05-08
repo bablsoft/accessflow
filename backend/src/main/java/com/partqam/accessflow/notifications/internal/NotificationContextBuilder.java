@@ -91,7 +91,7 @@ class NotificationContextBuilder {
                                                   UserView submitter) {
         return switch (eventType) {
             case QUERY_SUBMITTED -> reviewersForLowestStage(plan, snapshot);
-            case QUERY_APPROVED, QUERY_REJECTED -> submitter != null
+            case QUERY_APPROVED, QUERY_REJECTED, REVIEW_TIMEOUT -> submitter != null
                     ? List.of(toRecipient(submitter))
                     : List.of();
             case AI_HIGH_RISK -> userQueryService

@@ -62,6 +62,9 @@ accessflow:
       statement-timeout: 30s             # JDBC setQueryTimeout default
       default-fetch-size: 1000           # JDBC setFetchSize hint
 
+  workflow:
+    timeout-poll-interval: PT5M          # QueryTimeoutJob cadence (ISO-8601 duration)
+
   redis:
     url: ${REDIS_URL:redis://localhost:6379}
 ```
@@ -281,6 +284,30 @@ Decision rules:
 
 Terminal transitions publish `QueryApprovedEvent` / `QueryRejectedEvent` (in `workflow.events`) for the audit and notifications modules to subscribe to.
 
+### Approval timeout (auto-rejection)
+
+`QueryTimeoutJob` (`workflow.internal.scheduled`) runs on a `@Scheduled(fixedDelayString = "${accessflow.workflow.timeout-poll-interval:PT5M}")` cadence. Each tick:
+
+1. Calls `QueryRequestLookupService.findTimedOutPendingReviewIds(now)` — a native SQL join over `query_requests → datasources → review_plans` that returns any `PENDING_REVIEW` row whose `created_at + INTERVAL approval_timeout_hours` is before now.
+2. For each id, calls `QueryRequestStateService.markTimedOut(id)`, which acquires the same pessimistic write lock as manual decisions, transitions `PENDING_REVIEW → REJECTED`, and publishes `QueryStatusChangedEvent` and `QueryTimedOutEvent` (both in `core.events`).
+3. Logs a summary: `"Auto-rejected N queries due to approval timeout (scanned M)"`.
+
+`markTimedOut` does **not** insert a `review_decisions` row — auto-rejections carry no reviewer. The audit trail is provided by `AuditEventListener.onQueryTimedOut`, which writes a `QUERY_REJECTED` audit row with `metadata = { auto_rejected: true, reason: "approval_timeout", timeout_hours: N }`. The notifications module dispatches the new `NotificationEventType.REVIEW_TIMEOUT` (currently sharing the rejection email/Slack template — a dedicated template is tracked under [accessflow#101](https://github.com/partqam/accessflow/issues/101)).
+
+The job is idempotent: a row already in `REJECTED` (because a manual decision raced the timeout, or the job ran twice) is observed by `markTimedOut`, which returns `false` without re-publishing events.
+
+### Scheduled jobs and clustering
+
+`@EnableScheduling` is activated in `WorkflowConfiguration`. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider` (configured in `RedisLockProviderConfiguration`), which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
+
+This makes horizontal scaling safe: when the AccessFlow backend runs as multiple replicas (Kubernetes Deployment with `replicas > 1`, or any process supervisor that runs N instances against the same Postgres + Redis), only one replica wins the lock per tick and runs the job. The other replicas observe the lock and skip — they will see no PENDING_REVIEW rows that match by the time their own next tick fires, because the winner already drained them.
+
+| Job | Module | Lock name | Cadence property | Default |
+|-----|--------|-----------|------------------|---------|
+| `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
+
+To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules.
+
 ---
 
 ## AI Query Analyzer Service
@@ -495,6 +522,10 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 
 <!-- Redis -->
 <dependency>spring-boot-starter-data-redis</dependency>
+
+<!-- Distributed scheduler locks (clustered-deployment safety for @Scheduled jobs) -->
+<dependency>net.javacrumbs.shedlock:shedlock-spring</dependency>
+<dependency>net.javacrumbs.shedlock:shedlock-provider-redis-spring</dependency>
 
 <!-- SAML (Enterprise module only) -->
 <dependency>org.springframework.security:spring-security-saml2-service-provider</dependency>

@@ -159,6 +159,17 @@ class DefaultQueryRequestLookupServiceTest {
     }
 
     @Test
+    void findTimedOutPendingReviewIdsDelegatesToRepository() {
+        var now = Instant.now();
+        var id1 = UUID.randomUUID();
+        var id2 = UUID.randomUUID();
+        when(queryRequestRepository.findTimedOutPendingReviewIds(now))
+                .thenReturn(List.of(id1, id2));
+
+        assertThat(service.findTimedOutPendingReviewIds(now)).containsExactly(id1, id2);
+    }
+
+    @Test
     void findForOrganizationMapsListItemsWithoutAiAnalysis() {
         var orgId = UUID.randomUUID();
         var entity = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),

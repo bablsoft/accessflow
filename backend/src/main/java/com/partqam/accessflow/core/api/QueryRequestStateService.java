@@ -52,4 +52,15 @@ public interface QueryRequestStateService {
      *         {@link QueryStatus#APPROVED}.
      */
     void recordExecutionOutcome(RecordExecutionCommand command);
+
+    /**
+     * Auto-rejects a query whose review plan's {@code approval_timeout_hours} has elapsed.
+     * Transitions {@code PENDING_REVIEW → REJECTED} and returns {@code true} when the transition
+     * fires. Idempotent: returns {@code false} (without throwing) if the row is no longer in
+     * {@code PENDING_REVIEW} — a manual decision may have raced the timeout job.
+     *
+     * <p>No {@code review_decisions} row is inserted; the audit trail is carried by the published
+     * {@code QueryTimedOutEvent} and the standard {@code QueryStatusChangedEvent}.
+     */
+    boolean markTimedOut(UUID queryRequestId);
 }

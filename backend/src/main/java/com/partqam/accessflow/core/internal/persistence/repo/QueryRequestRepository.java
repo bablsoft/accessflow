@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,4 +47,14 @@ public interface QueryRequestRepository
                                                     @Param("userId") UUID userId,
                                                     @Param("role") UserRoleType role,
                                                     Pageable pageable);
+
+    @Query(value = """
+            SELECT q.id
+            FROM query_requests q
+            JOIN datasources d ON q.datasource_id = d.id
+            JOIN review_plans rp ON d.review_plan_id = rp.id
+            WHERE q.status = 'PENDING_REVIEW'::query_status
+              AND q.created_at + (rp.approval_timeout_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findTimedOutPendingReviewIds(@Param("now") Instant now);
 }
