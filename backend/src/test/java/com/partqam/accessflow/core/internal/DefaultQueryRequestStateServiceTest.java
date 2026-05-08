@@ -6,8 +6,11 @@ import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.RecordApprovalCommand;
 import com.partqam.accessflow.core.api.RecordExecutionCommand;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
+import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
+import com.partqam.accessflow.core.internal.persistence.entity.ReviewPlanEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
@@ -312,6 +315,84 @@ class DefaultQueryRequestStateServiceTest {
         service.recordChangesRequested(queryId, reviewerId, 1, "fix");
 
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markTimedOutTransitionsPendingReviewToRejected() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        attachReviewPlan(48);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        boolean transitioned = service.markTimedOut(queryId);
+
+        assertThat(transitioned).isTrue();
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.REJECTED);
+        verify(queryRequestRepository).save(query);
+    }
+
+    @Test
+    void markTimedOutPublishesStatusChangedAndQueryTimedOutEvents() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        attachReviewPlan(72);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.markTimedOut(queryId);
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, org.mockito.Mockito.times(2)).publishEvent(captor.capture());
+        var statusChanged = (QueryStatusChangedEvent) captor.getAllValues().get(0);
+        var timedOut = (QueryTimedOutEvent) captor.getAllValues().get(1);
+        assertThat(statusChanged.oldStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(statusChanged.newStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(timedOut.queryRequestId()).isEqualTo(queryId);
+        assertThat(timedOut.approvalTimeoutHours()).isEqualTo(72);
+    }
+
+    @Test
+    void markTimedOutReturnsFalseWhenNoLongerPendingReview() {
+        query.setStatus(QueryStatus.APPROVED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        boolean transitioned = service.markTimedOut(queryId);
+
+        assertThat(transitioned).isFalse();
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.APPROVED);
+        verify(queryRequestRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markTimedOutThrowsWhenQueryMissing() {
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.markTimedOut(queryId))
+                .isInstanceOf(QueryRequestNotFoundException.class);
+    }
+
+    @Test
+    void markTimedOutEmitsZeroTimeoutHoursWhenPlanIsNull() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        var datasource = new DatasourceEntity();
+        datasource.setReviewPlan(null);
+        query.setDatasource(datasource);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.markTimedOut(queryId);
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, org.mockito.Mockito.times(2)).publishEvent(captor.capture());
+        var timedOut = (QueryTimedOutEvent) captor.getAllValues().get(1);
+        assertThat(timedOut.approvalTimeoutHours()).isZero();
+    }
+
+    private void attachReviewPlan(int approvalTimeoutHours) {
+        var plan = new ReviewPlanEntity();
+        plan.setId(UUID.randomUUID());
+        plan.setApprovalTimeoutHours(approvalTimeoutHours);
+        var datasource = new DatasourceEntity();
+        datasource.setId(UUID.randomUUID());
+        datasource.setReviewPlan(plan);
+        query.setDatasource(datasource);
     }
 
     @Test

@@ -2,10 +2,11 @@ package com.partqam.accessflow.notifications.internal;
 
 import com.partqam.accessflow.core.api.RiskLevel;
 import com.partqam.accessflow.core.events.AiAnalysisCompletedEvent;
-import com.partqam.accessflow.notifications.api.NotificationEventType;
-import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
 import com.partqam.accessflow.core.events.QueryAutoApprovedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
+import com.partqam.accessflow.notifications.api.NotificationEventType;
+import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
 import com.partqam.accessflow.workflow.events.QueryRejectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,11 @@ class NotificationListener {
     void onQueryRejected(QueryRejectedEvent event) {
         safeDispatch(NotificationEventType.QUERY_REJECTED, event.queryRequestId(),
                 event.reviewerId(), null);
+    }
+
+    @ApplicationModuleListener
+    void onQueryTimedOut(QueryTimedOutEvent event) {
+        safeDispatch(NotificationEventType.REVIEW_TIMEOUT, event.queryRequestId(), null, null);
     }
 
     @ApplicationModuleListener

@@ -18,6 +18,7 @@ import com.partqam.accessflow.core.events.AiAnalysisFailedEvent;
 import com.partqam.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.partqam.accessflow.core.events.QueryAutoApprovedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -108,6 +109,26 @@ class AuditEventListenerTest {
         assertThat(entry.action()).isEqualTo(AuditAction.QUERY_APPROVED);
         assertThat(entry.actorId()).isNull();
         assertThat(entry.metadata()).containsEntry("auto_approved", true);
+    }
+
+    @Test
+    void onQueryTimedOutRecordsRejectedWithAutoMetadata() {
+        var queryId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryTimedOut(new QueryTimedOutEvent(queryId, 24));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_REJECTED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(entry.resourceId()).isEqualTo(queryId);
+        assertThat(entry.organizationId()).isEqualTo(organizationId);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.metadata()).containsEntry("auto_rejected", true);
+        assertThat(entry.metadata()).containsEntry("reason", "approval_timeout");
+        assertThat(entry.metadata()).containsEntry("timeout_hours", 24);
     }
 
     @Test

@@ -22,6 +22,7 @@
         <java.version>25</java.version>
         <spring-modulith.version>2.0.6</spring-modulith.version>
         <spring-ai.version>2.0.0-M5</spring-ai.version>
+        <shedlock.version>7.7.0</shedlock.version>
     </properties>
 
     <dependencyManagement>
@@ -127,6 +128,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-redis-spring</artifactId>
+            <version>${shedlock.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

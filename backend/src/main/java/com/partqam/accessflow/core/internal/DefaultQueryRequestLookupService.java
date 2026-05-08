@@ -17,6 +17,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,6 +41,12 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     public Optional<PendingReviewView> findPendingReview(UUID queryRequestId) {
         return queryRequestRepository.findById(queryRequestId)
                 .map(this::toPendingReviewView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findTimedOutPendingReviewIds(Instant now) {
+        return queryRequestRepository.findTimedOutPendingReviewIds(now);
     }
 
     @Override

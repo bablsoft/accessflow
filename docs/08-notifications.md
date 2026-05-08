@@ -21,7 +21,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
-| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` | All ADMIN users | deferred — no scheduler implemented yet |
+| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter (admin fan-out tracked under [accessflow#102](https://github.com/partqam/accessflow/issues/102)) | implemented — currently reuses the `QUERY_REJECTED` email/Slack template; a dedicated template is tracked under [accessflow#101](https://github.com/partqam/accessflow/issues/101) |
 
 `AI_HIGH_RISK` only fires for `RiskLevel.CRITICAL`; lower risk levels still surface via the standard `QUERY_SUBMITTED` notification.
 

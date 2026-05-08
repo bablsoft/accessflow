@@ -2,10 +2,11 @@ package com.partqam.accessflow.notifications.internal;
 
 import com.partqam.accessflow.core.api.RiskLevel;
 import com.partqam.accessflow.core.events.AiAnalysisCompletedEvent;
-import com.partqam.accessflow.notifications.api.NotificationEventType;
-import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
 import com.partqam.accessflow.core.events.QueryAutoApprovedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
+import com.partqam.accessflow.notifications.api.NotificationEventType;
+import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
 import com.partqam.accessflow.workflow.events.QueryRejectedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,14 @@ class NotificationListenerTest {
         listener.onQueryRejected(new QueryRejectedEvent(id, reviewer));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_REJECTED), eq(id),
                 eq(reviewer), isNull());
+    }
+
+    @Test
+    void timedOutDispatchesReviewTimeoutWithoutReviewer() {
+        var id = UUID.randomUUID();
+        listener.onQueryTimedOut(new QueryTimedOutEvent(id, 24));
+        verify(dispatcher).dispatch(eq(NotificationEventType.REVIEW_TIMEOUT), eq(id),
+                isNull(), isNull());
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.partqam.accessflow.core.api.RecordDecisionResult;
 import com.partqam.accessflow.core.api.RecordExecutionCommand;
 import com.partqam.accessflow.core.api.ReviewDecisionSnapshot;
 import com.partqam.accessflow.core.events.QueryStatusChangedEvent;
+import com.partqam.accessflow.core.events.QueryTimedOutEvent;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
@@ -128,6 +129,23 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         entity.setExecutionCompletedAt(command.completedAt());
         queryRequestRepository.save(entity);
         publishStatusChanged(entity, previous, command.outcome());
+    }
+
+    @Override
+    @Transactional
+    public boolean markTimedOut(UUID queryRequestId) {
+        var entity = lockOrThrow(queryRequestId);
+        if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {
+            return false;
+        }
+        var plan = entity.getDatasource().getReviewPlan();
+        var timeoutHours = plan != null ? plan.getApprovalTimeoutHours() : 0;
+        var previous = entity.getStatus();
+        entity.setStatus(QueryStatus.REJECTED);
+        queryRequestRepository.save(entity);
+        publishStatusChanged(entity, previous, QueryStatus.REJECTED);
+        eventPublisher.publishEvent(new QueryTimedOutEvent(queryRequestId, timeoutHours));
+        return true;
     }
 
     @Override

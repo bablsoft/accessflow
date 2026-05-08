@@ -127,7 +127,7 @@ class EmailNotificationStrategy implements NotificationChannelStrategy {
         return switch (eventType) {
             case QUERY_SUBMITTED -> "email/query-ready-for-review";
             case QUERY_APPROVED -> "email/query-approved";
-            case QUERY_REJECTED -> "email/query-rejected";
+            case QUERY_REJECTED, REVIEW_TIMEOUT -> "email/query-rejected";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case TEST -> null;
         };
@@ -138,6 +138,8 @@ class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_SUBMITTED -> "[AccessFlow] Query awaiting review on " + ctx.datasourceName();
             case QUERY_APPROVED -> "[AccessFlow] Query approved on " + ctx.datasourceName();
             case QUERY_REJECTED -> "[AccessFlow] Query rejected on " + ctx.datasourceName();
+            case REVIEW_TIMEOUT -> "[AccessFlow] Query auto-rejected (review timeout) on "
+                    + ctx.datasourceName();
             case AI_HIGH_RISK -> "[AccessFlow] High-risk query flagged on " + ctx.datasourceName();
             case TEST -> "AccessFlow notification test";
         };

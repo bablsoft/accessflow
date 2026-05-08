@@ -81,6 +81,10 @@ accessflow:
       first: PT30S
       second: PT2M
       third: PT10M
+  workflow:
+    # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
+    # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.
+    timeout-poll-interval: ${ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL:PT5M}
 
 springdoc:
   api-docs:

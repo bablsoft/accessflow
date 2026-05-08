@@ -208,7 +208,8 @@ com.partqam.accessflow/
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
 | `AI_PROVIDER` | `anthropic` \| `openai` \| `ollama` (default: `anthropic`) |
 | `AI_API_KEY` | API key for OpenAI or Anthropic |
-| `REDIS_URL` | Redis for token revocation (default: `redis://localhost:6379`) |
+| `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
+| `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `/var/lib/accessflow/drivers`). Mount as a persistent volume in production. |
@@ -258,6 +259,17 @@ com.partqam.accessflow/
   ```
 
   Illegal transitions must throw a domain exception, not silently succeed.
+
+---
+
+### Scheduled Jobs (clustered-safe)
+
+- `@EnableScheduling` is enabled in `workflow/internal/config/WorkflowConfiguration`. Place new `@Configuration` toggles in the owning module's `internal/config/` package.
+- **Every `@Scheduled` method MUST also carry `@SchedulerLock`** with a unique short camelCase `name`, plus `lockAtMostFor` and `lockAtLeastFor`. The Redis-backed `LockProvider` (`workflow/internal/config/RedisLockProviderConfiguration`) reuses the existing `RedisConnectionFactory`. Without the annotation, multi-replica deployments would run the job once per replica per tick.
+- Job classes live under `<module>/internal/scheduled/`. They MUST take long-lived dependencies via constructor injection (`@RequiredArgsConstructor`) and MUST swallow per-row `RuntimeException`s with `log.error(...)` so one bad row does not abort the batch.
+- Cadence is configured via a property under the owning module's namespace (e.g. `accessflow.workflow.timeout-poll-interval`). Use `@Scheduled(fixedDelayString = "${...:PT5M}")` with an ISO-8601 `Duration` default — never a hard-coded number of seconds.
+- Document each job in [docs/05-backend.md → "Scheduled jobs and clustering"](docs/05-backend.md#scheduled-jobs-and-clustering) (job name, lock name, cadence property, default).
+- Long-running mutations called from a job MUST go through a public `core.api` service interface — workflow may not depend on `core.internal`.
 
 ---
 
