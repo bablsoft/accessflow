@@ -318,7 +318,7 @@ class DefaultQueryRequestStateServiceTest {
     }
 
     @Test
-    void markTimedOutTransitionsPendingReviewToRejected() {
+    void markTimedOutTransitionsPendingReviewToTimedOut() {
         query.setStatus(QueryStatus.PENDING_REVIEW);
         attachReviewPlan(48);
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
@@ -326,7 +326,7 @@ class DefaultQueryRequestStateServiceTest {
         boolean transitioned = service.markTimedOut(queryId);
 
         assertThat(transitioned).isTrue();
-        assertThat(query.getStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.TIMED_OUT);
         verify(queryRequestRepository).save(query);
     }
 
@@ -343,9 +343,22 @@ class DefaultQueryRequestStateServiceTest {
         var statusChanged = (QueryStatusChangedEvent) captor.getAllValues().get(0);
         var timedOut = (QueryTimedOutEvent) captor.getAllValues().get(1);
         assertThat(statusChanged.oldStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
-        assertThat(statusChanged.newStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(statusChanged.newStatus()).isEqualTo(QueryStatus.TIMED_OUT);
         assertThat(timedOut.queryRequestId()).isEqualTo(queryId);
         assertThat(timedOut.approvalTimeoutHours()).isEqualTo(72);
+    }
+
+    @Test
+    void markTimedOutReturnsFalseWhenAlreadyTimedOut() {
+        query.setStatus(QueryStatus.TIMED_OUT);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        boolean transitioned = service.markTimedOut(queryId);
+
+        assertThat(transitioned).isFalse();
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.TIMED_OUT);
+        verify(queryRequestRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

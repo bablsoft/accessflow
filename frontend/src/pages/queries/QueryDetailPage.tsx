@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Skeleton } from 'antd';
+import { Alert, App, Button, Input, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
+  ClockCircleOutlined,
   CloseOutlined,
   CopyOutlined,
   EditOutlined,
@@ -198,6 +199,26 @@ export function QueryDetailPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {query.status === 'TIMED_OUT' && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<ClockCircleOutlined />}
+              message={t('queries.detail.timeout_title')}
+              description={
+                query.review_plan_name
+                  ? t('queries.detail.timeout_body_with_plan', {
+                      plan: query.review_plan_name,
+                      hours: query.approval_timeout_hours ?? '?',
+                      when: timeAgo(query.updated_at),
+                    })
+                  : t('queries.detail.timeout_body_without_plan', {
+                      hours: query.approval_timeout_hours ?? '?',
+                      when: timeAgo(query.updated_at),
+                    })
+              }
+            />
+          )}
           <Card title={t('queries.detail.card_sql')} icon={<FileTextOutlined />} extra={<QueryTypePill type={query.query_type} />}>
             <div style={{ padding: 14 }}>
               <SqlBlock sql={query.sql_text} />
@@ -359,21 +380,27 @@ function buildStages(query: QueryDetail): TimelineStage[] {
       ? `${query.ai_analysis.ai_provider.toLowerCase()} / ${query.ai_analysis.ai_model}`
       : 'pending',
     time: query.ai_analysis ? query.created_at : null,
-    done: ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'FAILED'].includes(query.status),
+    done: ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(query.status),
     active: query.status === 'PENDING_AI',
     detail: query.ai_analysis
       ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
       : 'analyzing…',
   });
   if (query.status !== 'APPROVED' || query.duration_ms == null) {
-    const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED'].includes(query.status);
+    const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT'].includes(query.status);
+    const reviewLabel =
+      query.status === 'REJECTED'
+        ? 'Rejected'
+        : query.status === 'TIMED_OUT'
+        ? 'Timed out'
+        : 'Human review';
     out.push({
-      label: query.status === 'REJECTED' ? 'Rejected' : 'Human review',
+      label: reviewLabel,
       who: reviewDone ? '—' : 'awaiting reviewer',
       time: reviewDone ? query.updated_at : null,
       done: reviewDone,
       active: query.status === 'PENDING_REVIEW',
-      rejected: query.status === 'REJECTED',
+      rejected: query.status === 'REJECTED' || query.status === 'TIMED_OUT',
       detail: null,
     });
   }
@@ -471,6 +498,10 @@ function Metadata({ query }: { query: QueryDetail }) {
         <Row k="query.id" v={query.id} />
         <Row k="query.type" v={query.query_type} />
         <Row k="datasource" v={query.datasource.name} />
+        {query.review_plan_name && <Row k="plan" v={query.review_plan_name} />}
+        {query.approval_timeout_hours != null && (
+          <Row k="timeout.hours" v={String(query.approval_timeout_hours)} />
+        )}
         <Row k="created" v={fmtDate(query.created_at)} />
         <Row k="updated" v={fmtDate(query.updated_at)} />
         {query.rows_affected != null && <Row k="rows" v={fmtNum(query.rows_affected)} />}

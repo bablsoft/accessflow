@@ -23,6 +23,8 @@ public record QueryDetailResponse(
         Long rowsAffected,
         Integer durationMs,
         String errorMessage,
+        String reviewPlanName,
+        Integer approvalTimeoutHours,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -40,6 +42,8 @@ public record QueryDetailResponse(
                 view.rowsAffected(),
                 view.durationMs(),
                 view.errorMessage(),
+                view.reviewPlanName(),
+                view.approvalTimeoutHours(),
                 view.createdAt(),
                 view.updatedAt());
     }

@@ -85,7 +85,7 @@ const SQL_SAMPLES: SqlSample[] = [
 const STATUSES: QueryStatus[] = [
   'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED',
   'EXECUTED', 'EXECUTED', 'EXECUTED', 'CANCELLED', 'FAILED',
-  'PENDING_REVIEW', 'PENDING_REVIEW',
+  'PENDING_REVIEW', 'TIMED_OUT',
 ];
 const JUSTIFICATIONS = [
   'Customer support ticket #8821 — order stuck in processing.',

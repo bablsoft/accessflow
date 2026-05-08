@@ -114,11 +114,14 @@ Defines an approval policy. Assigned to datasources.
 
 `QueryTimeoutJob` (workflow module) scans every `accessflow.workflow.timeout-poll-interval`
 (default 5 minutes). Any `query_requests` row in `PENDING_REVIEW` whose
-`created_at + approval_timeout_hours` is in the past is auto-transitioned to `REJECTED` and a
-`QueryTimedOutEvent` is published. **No `review_decisions` row is inserted** — auto-rejections are
-distinguished from manual rejections by the `audit_log.metadata.auto_rejected = true` flag (with
-`reason = "approval_timeout"`). The job uses ShedLock-on-Redis so only one node in a cluster runs
-each tick. See [05-backend.md → Scheduled jobs and clustering](05-backend.md#scheduled-jobs-and-clustering).
+`created_at + approval_timeout_hours` is in the past is auto-transitioned to the dedicated
+`TIMED_OUT` terminal status and a `QueryTimedOutEvent` is published. **No `review_decisions` row
+is inserted.** The status field is the authoritative signal for distinguishing auto-rejections from
+manual rejections (manual rejections land in `REJECTED`); the audit listener still emits a
+`QUERY_REJECTED` audit row with metadata `{auto_rejected: true, reason: "approval_timeout",
+timeout_hours: N}` for backward compatibility with external audit consumers. The job uses
+ShedLock-on-Redis so only one node in a cluster runs each tick. See
+[05-backend.md → Scheduled jobs and clustering](05-backend.md#scheduled-jobs-and-clustering).
 
 ---
 
@@ -147,7 +150,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `submitted_by` | FK → `users` |
 | `sql_text` | TEXT — the raw submitted SQL |
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER` |
-| `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
+| `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
 | `execution_started_at` | TIMESTAMPTZ nullable |
@@ -162,7 +165,8 @@ The central entity. Represents a single SQL submission through the platform.
 
 ```
 PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
-                           ↘ REJECTED  (manual or timeout-driven, see review_plans → Approval timeout)
+                           ↘ REJECTED   (manual reviewer rejection)
+                           ↘ TIMED_OUT  (approval-timeout auto-reject, see review_plans → Approval timeout)
            ↘ PENDING_REVIEW (if no AI)
 PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED → FAILED (on execution error)

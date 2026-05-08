@@ -188,7 +188,11 @@
       "on_execute_error": "Execution failed",
       "card_results": "Results",
       "results_unavailable": "Results not available yet",
-      "results_truncated": "{{count}} rows returned (truncated by datasource max_rows)"
+      "results_truncated": "{{count}} rows returned (truncated by datasource max_rows)",
+      "timeout_title": "Auto-rejected by approval timeout",
+      "timeout_body_with_plan": "Plan \"{{plan}}\" requires approval within {{hours}}h. Timed out {{when}}.",
+      "timeout_body_without_plan": "Approval window of {{hours}}h elapsed without a decision. Timed out {{when}}.",
+      "timeline_timed_out": "Timed out"
     }
   },
   "reviews": {

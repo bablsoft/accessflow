@@ -9,6 +9,7 @@ export type QueryStatus =
   | 'APPROVED'
   | 'EXECUTED'
   | 'REJECTED'
+  | 'TIMED_OUT'
   | 'FAILED'
   | 'CANCELLED';
 export type QueryType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
@@ -384,6 +385,8 @@ export interface QueryDetail {
   rows_affected: number | null;
   duration_ms: number | null;
   error_message: string | null;
+  review_plan_name: string | null;
+  approval_timeout_hours: number | null;
   created_at: string;
   updated_at: string;
 }

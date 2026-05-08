@@ -398,10 +398,14 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
     "affects_row_estimate": 1
   },
   "review_decisions": [],
+  "review_plan_name": "Production reviews",
+  "approval_timeout_hours": 24,
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
 }
 ```
+
+`status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
 
 ### POST /queries/analyze — Request Body
 
