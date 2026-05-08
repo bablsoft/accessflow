@@ -1,4 +1,3 @@
-import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { DriverStatusBadge } from './DriverStatusBadge';
 import type { DatasourceTypeOption, DbType } from '@/types/api';
@@ -27,16 +26,13 @@ export function DatasourceTypeSelector({
       }}
     >
       {types.map((option) => {
-        const disabled = option.driver_status === 'UNAVAILABLE';
         const selected = selectedCode === option.code;
-        const card = (
+        return (
           <button
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-disabled={disabled}
-            disabled={disabled}
-            onClick={() => !disabled && onSelect(option)}
+            onClick={() => onSelect(option)}
             key={option.code}
             style={{
               all: 'unset',
@@ -47,8 +43,7 @@ export function DatasourceTypeSelector({
               borderRadius: 'var(--radius-md)',
               border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
               background: selected ? 'var(--accent-bg)' : 'var(--bg-elev)',
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              opacity: disabled ? 0.55 : 1,
+              cursor: 'pointer',
               transition: 'border-color 0.15s, background 0.15s',
             }}
           >
@@ -79,17 +74,6 @@ export function DatasourceTypeSelector({
               <DriverStatusBadge status={option.driver_status} size="sm" />
             </div>
           </button>
-        );
-
-        return disabled ? (
-          <Tooltip
-            key={option.code}
-            title={t('datasources.create.driver_status_unavailable_tooltip')}
-          >
-            <div>{card}</div>
-          </Tooltip>
-        ) : (
-          card
         );
       })}
     </div>

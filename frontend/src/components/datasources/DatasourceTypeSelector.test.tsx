@@ -57,12 +57,13 @@ describe('DatasourceTypeSelector', () => {
     expect(onSelect).toHaveBeenCalledWith(types[0]);
   });
 
-  it('disables UNAVAILABLE cards and does not invoke onSelect', () => {
+  it('keeps UNAVAILABLE cards selectable so the user can attempt driver resolution', () => {
     const onSelect = vi.fn();
     render(<DatasourceTypeSelector types={types} selectedCode={null} onSelect={onSelect} />);
     const oracleCard = screen.getByText('Oracle Database').closest('button')!;
-    expect(oracleCard).toBeDisabled();
+    expect(oracleCard).not.toBeDisabled();
+    expect(oracleCard.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(oracleCard);
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith(types[2]);
   });
 });
