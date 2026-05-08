@@ -301,7 +301,7 @@ class DefaultQueryRequestLookupServiceTest {
                 "alice@example.com", QueryStatus.PENDING_REVIEW);
         var pageable = PageRequest.of(0, 20);
         when(queryRequestRepository.findPendingForReviewer(eq(orgId), eq(reviewerId),
-                eq(UserRoleType.REVIEWER), any()))
+                eq(UserRoleType.REVIEWER), eq(QueryStatus.PENDING_REVIEW), any()))
                 .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
 
         var page = service.findPendingForReviewer(orgId, reviewerId, UserRoleType.REVIEWER,
@@ -311,7 +311,7 @@ class DefaultQueryRequestLookupServiceTest {
         assertThat(page.getContent()).hasSize(1);
         assertThat(page.getContent().get(0).queryRequestId()).isEqualTo(entity.getId());
         verify(queryRequestRepository).findPendingForReviewer(orgId, reviewerId,
-                UserRoleType.REVIEWER, pageable);
+                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW, pageable);
     }
 
     private static QueryRequestEntity entityWith(UUID queryId, UUID datasourceId,
