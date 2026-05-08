@@ -8,10 +8,6 @@
   background: var(--bg-elev);
   flex-shrink: 0;
 }
-.af-topbar-search {
-  flex: 0 1 320px;
-  min-width: 0;
-}
 .af-topbar-pills {
   display: flex;
   align-items: center;

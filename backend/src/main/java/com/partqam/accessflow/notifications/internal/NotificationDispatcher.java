@@ -7,10 +7,14 @@ import com.partqam.accessflow.notifications.internal.persistence.repo.Notificati
 import com.partqam.accessflow.notifications.internal.strategy.NotificationChannelStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.EnumMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -27,13 +31,19 @@ class NotificationDispatcher {
 
     private final NotificationContextBuilder contextBuilder;
     private final NotificationChannelRepository channelRepository;
+    private final UserNotificationService userNotificationService;
+    private final ObjectMapper objectMapper;
     private final Map<NotificationChannelType, NotificationChannelStrategy> strategies;
 
     NotificationDispatcher(NotificationContextBuilder contextBuilder,
                            NotificationChannelRepository channelRepository,
+                           UserNotificationService userNotificationService,
+                           ObjectMapper objectMapper,
                            List<NotificationChannelStrategy> strategyBeans) {
         this.contextBuilder = contextBuilder;
         this.channelRepository = channelRepository;
+        this.userNotificationService = userNotificationService;
+        this.objectMapper = objectMapper;
         var map = new EnumMap<NotificationChannelType, NotificationChannelStrategy>(
                 NotificationChannelType.class);
         for (NotificationChannelStrategy strategy : strategyBeans) {
@@ -51,6 +61,7 @@ class NotificationDispatcher {
             return;
         }
         var ctx = contextOpt.get();
+        recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
         if (channels.isEmpty()) {
             log.debug("No active channels for event {} on query {}", eventType, queryRequestId);
@@ -69,6 +80,61 @@ class NotificationDispatcher {
                         eventType, channel.getId(), channel.getChannelType(), ex);
             }
         }
+    }
+
+    private void recordInAppNotifications(NotificationContext ctx) {
+        if (ctx.eventType() == NotificationEventType.TEST) {
+            return;
+        }
+        if (ctx.recipients() == null || ctx.recipients().isEmpty()) {
+            return;
+        }
+        Set<UUID> recipientIds = new LinkedHashSet<>();
+        for (RecipientView r : ctx.recipients()) {
+            if (r.userId() != null) {
+                recipientIds.add(r.userId());
+            }
+        }
+        if (recipientIds.isEmpty()) {
+            return;
+        }
+        try {
+            userNotificationService.recordForUsers(
+                    ctx.eventType(),
+                    recipientIds,
+                    ctx.organizationId(),
+                    ctx.queryRequestId(),
+                    buildPayload(ctx));
+        } catch (RuntimeException ex) {
+            log.error("Failed to persist in-app notifications for event {} on query {}",
+                    ctx.eventType(), ctx.queryRequestId(), ex);
+        }
+    }
+
+    private String buildPayload(NotificationContext ctx) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        if (ctx.queryRequestId() != null) {
+            payload.put("query_id", ctx.queryRequestId().toString());
+        }
+        if (ctx.datasourceName() != null) {
+            payload.put("datasource", ctx.datasourceName());
+        }
+        if (ctx.submitterEmail() != null) {
+            payload.put("submitter", ctx.submitterEmail());
+        }
+        if (ctx.submitterDisplayName() != null) {
+            payload.put("submitter_name", ctx.submitterDisplayName());
+        }
+        if (ctx.riskLevel() != null) {
+            payload.put("risk_level", ctx.riskLevel().name());
+        }
+        if (ctx.reviewerDisplayName() != null) {
+            payload.put("reviewer", ctx.reviewerDisplayName());
+        }
+        if (ctx.reviewerComment() != null) {
+            payload.put("reviewer_comment", ctx.reviewerComment());
+        }
+        return payload.toString();
     }
 
     private List<NotificationChannelEntity> resolveChannels(NotificationEventType eventType,

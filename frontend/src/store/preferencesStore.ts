@@ -10,7 +10,6 @@ interface PreferencesState {
   edition: Edition;
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
-  setEdition: (e: Edition) => void;
 }
 
 const initialTheme = (): ThemeMode => {
@@ -32,7 +31,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
-      setEdition: (edition) => set({ edition }),
     }),
     { name: 'af-preferences' },
   ),

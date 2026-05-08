@@ -128,8 +128,7 @@ accessflow-ui/
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   ├── notificationStore.ts     # In-app toast notifications queue
-│   │   └── preferencesStore.ts      # Editor theme, font size, etc.
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, edition (env-driven, read-only)
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -211,6 +210,23 @@ The wizard is the only entry point that materializes a datasource; `DatasourceLi
 - Filters: date range picker, user selector, action type multi-select
 - Row click opens `AuditDetailDrawer` with full metadata JSON
 
+### Topbar (`components/common/Topbar.tsx`)
+
+The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the
+notification bell, and a sign-out button. It deliberately has no global search input and
+no community/enterprise edition selector — the edition is a build-time setting derived
+from `VITE_APP_EDITION` and read-only at runtime.
+
+`NotificationBell` (in the same folder) wraps an Ant Design `<Badge>` + `<Dropdown>`
+around the bell icon. It uses TanStack Query for the unread count
+(`['notifications','unread-count']`, polled every 60 s) and lazy-loads the inbox list
+(`['notifications','list',{page,size}]`) when the dropdown opens. Mutations for mark-read,
+mark-all-read, and delete invalidate both keys on success. Clicking a row navigates to
+`/queries/{query_id}` when the payload has one and marks the row read in the same handler.
+The `notification.created` WebSocket event triggers default invalidations (see the WS
+default-invalidations table) so the badge and list update in near-real-time without
+polling.
+
 ---
 
 ## SQL Editor Component
@@ -288,6 +304,7 @@ useEffect(() =>
 | `ai.analysis_complete` | `['queries','detail',query_id]`                                             |
 | `review.new_request`   | `['reviews','pending']`                                                     |
 | `review.decision_made` | `['reviews','pending']` and `['queries','detail',query_id]`                 |
+| `notification.created` | `['notifications','list']` and `['notifications','unread-count']`           |
 
 #### Reconnection
 

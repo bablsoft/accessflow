@@ -163,6 +163,10 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
         if (queryId) this.queryClient.invalidateQueries({ queryKey: ['queries', 'detail', queryId] });
         break;
+      case 'notification.created':
+        this.queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
+        this.queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+        break;
     }
   }
 }

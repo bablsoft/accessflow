@@ -167,6 +167,25 @@ describe('websocketManager', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ['queries', 'list'] });
   });
 
+  it('default invalidation fires for notification.created', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'notification.created',
+      timestamp: 'now',
+      data: {
+        notification_id: 'n1',
+        event_type: 'QUERY_APPROVED',
+        query_id: null,
+        created_at: '2026-05-08T10:00:00Z',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications', 'list'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
+  });
+
   it('default invalidations fire for review.new_request and review.decision_made', () => {
     const { client, spy } = makeQueryClient();
     websocketManager.bindQueryClient(client);

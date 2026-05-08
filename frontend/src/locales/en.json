@@ -543,5 +543,23 @@
       "select_user_placeholder": "(any of the role)",
       "select_role_placeholder": "ANY"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "mark_all_read": "Mark all as read",
+    "mark_read": "Mark as read",
+    "delete": "Delete notification",
+    "loading": "Loading…",
+    "error": "Failed to load notifications.",
+    "events": {
+      "QUERY_SUBMITTED": "{{submitter}} submitted a query on {{datasource}}",
+      "QUERY_SUBMITTED_no_submitter": "New query awaiting review on {{datasource}}",
+      "QUERY_APPROVED": "Your query on {{datasource}} was approved",
+      "QUERY_REJECTED": "Your query on {{datasource}} was rejected",
+      "REVIEW_TIMEOUT": "Your query on {{datasource}} timed out awaiting review",
+      "AI_HIGH_RISK": "AI flagged a high-risk query on {{datasource}}",
+      "fallback": "New notification"
+    }
   }
 }

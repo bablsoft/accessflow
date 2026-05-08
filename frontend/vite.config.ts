@@ -34,6 +34,7 @@ export default defineConfig({
         'src/api/auth.ts',
         'src/api/client.ts',
         'src/api/datasources.ts',
+        'src/api/notifications.ts',
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',
         'src/api/setup.ts',

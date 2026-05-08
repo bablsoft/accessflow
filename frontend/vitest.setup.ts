@@ -19,3 +19,15 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     }),
   });
 }
+
+// jsdom does not implement ResizeObserver, used by Ant Design's Dropdown,
+// List virtualization, and a few other rc-component primitives.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class ResizeObserverPolyfill {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserverPolyfill })
+    .ResizeObserver = ResizeObserverPolyfill;
+}

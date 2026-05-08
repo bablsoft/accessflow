@@ -292,6 +292,37 @@ Stores notification channel configurations (email, Slack, webhook).
 
 ---
 
+## user_notifications
+
+In-app notification inbox rows, persisted per recipient. Each domain event that the
+notifications module dispatches also writes one row per recipient here so the bell-icon
+inbox can show history, unread counts, and act on individual entries. The
+`event_type` mirrors `notification_event_type` (`QUERY_SUBMITTED`, `QUERY_APPROVED`,
+`QUERY_REJECTED`, `REVIEW_TIMEOUT`, `AI_HIGH_RISK`); `TEST` events are skipped.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `user_id` | FK → `users` ON DELETE CASCADE — recipient |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `event_type` | VARCHAR(64) — one of the `NotificationEventType` values |
+| `query_request_id` | FK → `query_requests` ON DELETE CASCADE, nullable |
+| `payload` | JSONB — denormalised render context (datasource name, submitter, risk_level, reviewer comment, etc.) |
+| `is_read` | BOOLEAN DEFAULT false |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+| `read_at` | TIMESTAMPTZ, nullable |
+
+Indexes:
+
+```sql
+CREATE INDEX idx_user_notifications_user_created
+    ON user_notifications(user_id, created_at DESC);
+CREATE INDEX idx_user_notifications_user_unread
+    ON user_notifications(user_id) WHERE is_read = FALSE;
+```
+
+---
+
 ## saml_configurations *(Enterprise only)*
 
 Stores SAML 2.0 Identity Provider configuration for an organization.
