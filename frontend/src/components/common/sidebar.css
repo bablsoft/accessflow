@@ -116,7 +116,7 @@
 }
 .af-sidebar-badge {
   background: var(--accent);
-  color: white;
+  color: var(--accent-fg);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;

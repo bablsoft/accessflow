@@ -29,6 +29,7 @@ export default defineConfig({
       // for them.
       include: [
         'src/utils/**/*.ts',
+        'src/theme/**/*.ts',
         'src/mocks/delay.ts',
         'src/api/admin.ts',
         'src/api/auth.ts',

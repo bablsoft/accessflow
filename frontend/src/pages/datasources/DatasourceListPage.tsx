@@ -126,8 +126,14 @@ function DsCard({ ds, onOpen }: CardProps) {
             width: 36,
             height: 36,
             borderRadius: 8,
-            background: ds.db_type === 'POSTGRESQL' ? '#dbeafe' : '#fef3c7',
-            color: ds.db_type === 'POSTGRESQL' ? '#1e40af' : '#92400e',
+            background:
+              ds.db_type === 'POSTGRESQL'
+                ? 'var(--status-info-bg)'
+                : 'var(--status-warn-bg)',
+            color:
+              ds.db_type === 'POSTGRESQL'
+                ? 'var(--status-info)'
+                : 'var(--status-warn)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
