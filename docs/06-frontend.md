@@ -84,7 +84,7 @@ accessflow-ui/
 │   │
 │   ├── realtime/
 │   │   ├── websocketManager.ts     # Framework-free singleton: connect/reconnect/dispatch
-│   │   └── RealtimeBridge.tsx      # Mounts the manager once at the app root
+│   │   └── RealtimeBridge.tsx      # Mounted by AppLayout (under AuthGuard) so /login does not connect
 │   │
 │   ├── hooks/
 │   │   ├── useQueryRequest.ts      # CRUD + status polling for a query request
@@ -259,7 +259,9 @@ interface AuthStore {
 
 ### WebSocket Hook
 
-The connection itself is owned by `<RealtimeBridge />` mounted once at the app root in `src/main.tsx`. It reads `accessToken` from `authStore`, opens `${VITE_WS_URL}?token=<JWT>` on auth, reconnects with exponential backoff, and disconnects on logout. The bridge also wires **default `queryClient.invalidateQueries`** for the standard event/key mapping (see table below) — most callers don't need to subscribe at all; they just observe their existing TanStack queries refetching.
+The connection itself is owned by `<RealtimeBridge />`, mounted inside `AppLayout` so it only runs under `AuthGuard` — the WebSocket module is never imported by the `/login` or `/setup` routes, and no connection is attempted before authentication. It reads `accessToken` from `authStore`, opens `${VITE_WS_URL}?token=<JWT>` on auth, reconnects with exponential backoff, and disconnects on logout (when `AppLayout` unmounts). The bridge also wires **default `queryClient.invalidateQueries`** for the standard event/key mapping (see table below) — most callers don't need to subscribe at all; they just observe their existing TanStack queries refetching.
+
+Detail and list views (`QueryDetailPage`, `ReviewQueuePage`, etc.) **do not poll** — they rely on these WS-driven invalidations, with the manager's exponential backoff covering transient disconnects. A reload restores state if the WS is permanently unreachable.
 
 For event-specific side effects (e.g. a toast on a new review request), subscribe inside a component:
 

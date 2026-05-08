@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Sidebar } from '@/components/common/Sidebar';
 import { Topbar } from '@/components/common/Topbar';
+import { RealtimeBridge } from '@/realtime/RealtimeBridge';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { listQueries, queryKeys } from '@/api/queries';
@@ -33,6 +34,7 @@ export function AppLayout() {
 
   return (
     <div className="af-app-shell">
+      <RealtimeBridge />
       <Sidebar
         user={user}
         edition={edition}
