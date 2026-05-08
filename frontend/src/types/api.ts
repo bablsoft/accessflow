@@ -538,3 +538,36 @@ export interface SchemaNamespace {
 export interface DatasourceSchema {
   schemas: SchemaNamespace[];
 }
+
+export type UserNotificationEventType =
+  | 'QUERY_SUBMITTED'
+  | 'QUERY_APPROVED'
+  | 'QUERY_REJECTED'
+  | 'REVIEW_TIMEOUT'
+  | 'AI_HIGH_RISK';
+
+export interface UserNotificationPayload {
+  query_id?: string;
+  datasource?: string;
+  submitter?: string;
+  submitter_name?: string;
+  risk_level?: RiskLevel;
+  reviewer?: string;
+  reviewer_comment?: string;
+}
+
+export interface UserNotification {
+  id: string;
+  event_type: UserNotificationEventType;
+  query_request_id: string | null;
+  payload: UserNotificationPayload;
+  read: boolean;
+  created_at: string;
+  read_at: string | null;
+}
+
+export type UserNotificationPage = PageEnvelope<UserNotification>;
+
+export interface UnreadCountResponse {
+  count: number;
+}

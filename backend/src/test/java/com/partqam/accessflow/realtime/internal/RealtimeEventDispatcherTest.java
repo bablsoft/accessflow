@@ -22,6 +22,10 @@ import com.partqam.accessflow.core.api.UserView;
 import com.partqam.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
 import com.partqam.accessflow.core.events.QueryStatusChangedEvent;
+import com.partqam.accessflow.notifications.api.NotificationEventType;
+import com.partqam.accessflow.notifications.api.UserNotificationLookupService;
+import com.partqam.accessflow.notifications.api.UserNotificationView;
+import com.partqam.accessflow.notifications.events.UserNotificationCreatedEvent;
 import com.partqam.accessflow.realtime.internal.ws.SessionRegistry;
 import com.partqam.accessflow.workflow.events.QueryExecutedEvent;
 import com.partqam.accessflow.workflow.events.ReviewDecisionMadeEvent;
@@ -56,6 +60,7 @@ class RealtimeEventDispatcherTest {
     @Mock UserQueryService userQueryService;
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
+    @Mock UserNotificationLookupService userNotificationLookupService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-07T10:00:00Z"),
@@ -73,7 +78,8 @@ class RealtimeEventDispatcherTest {
     void setUp() {
         dispatcher = new RealtimeEventDispatcher(sessionRegistry, objectMapper,
                 queryRequestLookupService, reviewPlanLookupService, userQueryService,
-                datasourceAdminService, aiAnalysisLookupService, clock);
+                datasourceAdminService, aiAnalysisLookupService, userNotificationLookupService,
+                clock);
     }
 
     @Test
@@ -215,6 +221,58 @@ class RealtimeEventDispatcherTest {
 
         var envelope = captureEnvelope(submitterId);
         assertThat(envelope.get("data").get("comment").isNull()).isTrue();
+    }
+
+    @Test
+    void onUserNotificationCreatedPushesEnvelopeToRecipient() throws Exception {
+        var notificationId = UUID.randomUUID();
+        var recipientId = UUID.randomUUID();
+        when(userNotificationLookupService.findById(notificationId))
+                .thenReturn(Optional.of(new UserNotificationView(
+                        notificationId, recipientId, organizationId,
+                        NotificationEventType.QUERY_APPROVED, queryId,
+                        "{\"datasource\":\"prod\"}", false,
+                        Instant.parse("2026-05-08T09:00:00Z"), null)));
+
+        dispatcher.onUserNotificationCreated(
+                new UserNotificationCreatedEvent(notificationId, recipientId));
+
+        var envelope = captureEnvelope(recipientId);
+        assertThat(envelope.get("event").asText()).isEqualTo("notification.created");
+        var data = envelope.get("data");
+        assertThat(data.get("notification_id").asText()).isEqualTo(notificationId.toString());
+        assertThat(data.get("event_type").asText()).isEqualTo("QUERY_APPROVED");
+        assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
+        assertThat(data.get("created_at").asText()).isEqualTo("2026-05-08T09:00:00Z");
+    }
+
+    @Test
+    void onUserNotificationCreatedSkipsWhenLookupMisses() {
+        var notificationId = UUID.randomUUID();
+        var recipientId = UUID.randomUUID();
+        when(userNotificationLookupService.findById(notificationId)).thenReturn(Optional.empty());
+
+        dispatcher.onUserNotificationCreated(
+                new UserNotificationCreatedEvent(notificationId, recipientId));
+
+        verifyNoInteractions(sessionRegistry);
+    }
+
+    @Test
+    void onUserNotificationCreatedRendersNullQueryIdAsJsonNull() throws Exception {
+        var notificationId = UUID.randomUUID();
+        var recipientId = UUID.randomUUID();
+        when(userNotificationLookupService.findById(notificationId))
+                .thenReturn(Optional.of(new UserNotificationView(
+                        notificationId, recipientId, organizationId,
+                        NotificationEventType.AI_HIGH_RISK, null, "{}", false,
+                        Instant.parse("2026-05-08T09:00:00Z"), null)));
+
+        dispatcher.onUserNotificationCreated(
+                new UserNotificationCreatedEvent(notificationId, recipientId));
+
+        var envelope = captureEnvelope(recipientId);
+        assertThat(envelope.get("data").get("query_id").isNull()).isTrue();
     }
 
     @Test

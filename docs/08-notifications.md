@@ -196,3 +196,45 @@ POST /api/v1/admin/notification-channels
 ```
 
 The `config.smtp_password_encrypted` and `config.secret` fields are AES-256 encrypted before being stored in the database. They are never returned in GET responses — only a masked placeholder is shown.
+
+---
+
+## In-app Inbox
+
+In addition to fanning the same domain events out to admin-configured email/Slack/webhook
+channels, the dispatcher persists one row per recipient in the [`user_notifications`](03-data-model.md#user_notifications)
+table so the bell-icon UI in the topbar can render history, unread counts, and act on
+individual entries. This persistence pipeline is independent of channel configuration —
+users still receive in-app notifications when no external channel is set up.
+
+**Recipients** are resolved per event type and mirror the channel-routing logic already
+in `NotificationContextBuilder`:
+
+| Event | Recipients |
+|-------|-----------|
+| `QUERY_SUBMITTED` | Eligible reviewers at the lowest stage of the datasource's review plan, excluding the submitter |
+| `QUERY_APPROVED` | The original submitter |
+| `QUERY_REJECTED` | The original submitter |
+| `REVIEW_TIMEOUT` | The original submitter |
+| `AI_HIGH_RISK` | All active org admins |
+| `TEST` | Skipped — never persisted to the inbox |
+
+**Persistence flow.** `NotificationDispatcher` first calls `userNotificationService.recordForUsers(...)`
+with the recipients pulled from `NotificationContext.recipients()`, then continues with
+the existing channel fan-out. Each persisted row publishes a `UserNotificationCreatedEvent`,
+which `realtime/internal/RealtimeEventDispatcher` translates into a `notification.created`
+WebSocket envelope sent to the recipient's open sessions. Persistence failures are
+logged and swallowed so they cannot affect the workflow state machine or external channel
+delivery.
+
+**REST contract** (full details in [`docs/04-api-spec.md`](04-api-spec.md#notification-endpoints)):
+
+- `GET /api/v1/notifications` — paginated inbox for the caller
+- `GET /api/v1/notifications/unread-count` — bell badge count
+- `POST /api/v1/notifications/{id}/read` — mark single notification as read
+- `POST /api/v1/notifications/read-all` — mark all unread as read
+- `DELETE /api/v1/notifications/{id}` — delete a notification
+
+The frontend (`NotificationBell` in `frontend/src/components/common/`) consumes these
+endpoints via TanStack Query and invalidates the `['notifications', 'list']` and
+`['notifications', 'unread-count']` keys on every `notification.created` WS event.

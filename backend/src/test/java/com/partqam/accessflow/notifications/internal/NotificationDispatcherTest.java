@@ -9,11 +9,13 @@ import com.partqam.accessflow.notifications.internal.persistence.repo.Notificati
 import com.partqam.accessflow.notifications.internal.strategy.NotificationChannelStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +31,7 @@ class NotificationDispatcherTest {
 
     private NotificationContextBuilder contextBuilder;
     private NotificationChannelRepository channelRepository;
+    private UserNotificationService userNotificationService;
     private NotificationChannelStrategy emailStrategy;
     private NotificationChannelStrategy webhookStrategy;
     private NotificationDispatcher dispatcher;
@@ -40,11 +43,13 @@ class NotificationDispatcherTest {
     void setUp() {
         contextBuilder = mock(NotificationContextBuilder.class);
         channelRepository = mock(NotificationChannelRepository.class);
+        userNotificationService = mock(UserNotificationService.class);
         emailStrategy = mock(NotificationChannelStrategy.class);
         when(emailStrategy.supports()).thenReturn(NotificationChannelType.EMAIL);
         webhookStrategy = mock(NotificationChannelStrategy.class);
         when(webhookStrategy.supports()).thenReturn(NotificationChannelType.WEBHOOK);
         dispatcher = new NotificationDispatcher(contextBuilder, channelRepository,
+                userNotificationService, new ObjectMapper(),
                 List.of(emailStrategy, webhookStrategy));
     }
 
@@ -124,7 +129,7 @@ class NotificationDispatcherTest {
     void unknownStrategyTypeIsSkipped() {
         // Build a dispatcher with NO registered strategies.
         var emptyDispatcher = new NotificationDispatcher(contextBuilder, channelRepository,
-                List.of());
+                userNotificationService, new ObjectMapper(), List.of());
         whenContextBuilds();
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(contextBuilder.lookupPlanChannelIds(datasourceId))
@@ -137,9 +142,77 @@ class NotificationDispatcherTest {
         verify(emailStrategy, never()).deliver(any(), any());
     }
 
+    @Test
+    void persistsInAppNotificationsForReviewers() {
+        var reviewerA = UUID.randomUUID();
+        var reviewerB = UUID.randomUUID();
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_SUBMITTED,
+                        List.of(new RecipientView(reviewerA, "a@x", "A"),
+                                new RecipientView(reviewerB, "b@x", "B")))));
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
+
+        dispatcher.dispatch(NotificationEventType.QUERY_SUBMITTED, queryRequestId, null, null);
+
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.QUERY_SUBMITTED),
+                eq(Set.of(reviewerA, reviewerB)),
+                eq(orgId),
+                eq(queryRequestId),
+                any());
+    }
+
+    @Test
+    void skipsTestEventForInAppPersistence() {
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.TEST,
+                        List.of(new RecipientView(UUID.randomUUID(), "x@x", "X")))));
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
+
+        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null);
+
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void persistenceFailureIsSwallowed() {
+        var reviewer = UUID.randomUUID();
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_APPROVED,
+                        List.of(new RecipientView(reviewer, "a@x", "A")))));
+        doThrow(new RuntimeException("db down"))
+                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any());
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of(emailCh.getId()));
+        when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
+                .thenReturn(List.of(emailCh));
+
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+
+        // Channels still receive the event even though in-app persistence failed.
+        verify(emailStrategy).deliver(any(), eq(emailCh));
+    }
+
     private void whenContextBuilds() {
         when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
                 .thenReturn(Optional.of(sampleContext()));
+    }
+
+    private NotificationContext sampleContextWithRecipients(NotificationEventType type,
+                                                            List<RecipientView> recipients) {
+        return new NotificationContext(
+                type,
+                orgId, queryRequestId, QueryType.SELECT,
+                "SELECT 1", "SELECT 1", "SELECT 1",
+                RiskLevel.LOW, 10, "ok",
+                datasourceId, "ds",
+                UUID.randomUUID(), "submit@example.com", "Sub",
+                null, null, null, null,
+                URI.create("https://app.example.test/queries/x"),
+                recipients, Instant.now());
     }
 
     private NotificationChannelEntity channel(NotificationChannelType type) {

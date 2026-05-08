@@ -11,6 +11,8 @@ import com.partqam.accessflow.core.api.UserView;
 import com.partqam.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
 import com.partqam.accessflow.core.events.QueryStatusChangedEvent;
+import com.partqam.accessflow.notifications.api.UserNotificationLookupService;
+import com.partqam.accessflow.notifications.events.UserNotificationCreatedEvent;
 import com.partqam.accessflow.realtime.internal.ws.SessionRegistry;
 import com.partqam.accessflow.workflow.events.QueryExecutedEvent;
 import com.partqam.accessflow.workflow.events.ReviewDecisionMadeEvent;
@@ -45,6 +47,7 @@ class RealtimeEventDispatcher {
     private final UserQueryService userQueryService;
     private final DatasourceAdminService datasourceAdminService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
+    private final UserNotificationLookupService userNotificationLookupService;
     private final Clock clock;
 
     @Autowired
@@ -54,10 +57,11 @@ class RealtimeEventDispatcher {
                             ReviewPlanLookupService reviewPlanLookupService,
                             UserQueryService userQueryService,
                             DatasourceAdminService datasourceAdminService,
-                            AiAnalysisLookupService aiAnalysisLookupService) {
+                            AiAnalysisLookupService aiAnalysisLookupService,
+                            UserNotificationLookupService userNotificationLookupService) {
         this(sessionRegistry, objectMapper, queryRequestLookupService, reviewPlanLookupService,
                 userQueryService, datasourceAdminService, aiAnalysisLookupService,
-                Clock.systemUTC());
+                userNotificationLookupService, Clock.systemUTC());
     }
 
     // Package-private constructor for tests that need a fixed clock.
@@ -68,6 +72,7 @@ class RealtimeEventDispatcher {
                             UserQueryService userQueryService,
                             DatasourceAdminService datasourceAdminService,
                             AiAnalysisLookupService aiAnalysisLookupService,
+                            UserNotificationLookupService userNotificationLookupService,
                             Clock clock) {
         this.sessionRegistry = sessionRegistry;
         this.objectMapper = objectMapper;
@@ -76,6 +81,7 @@ class RealtimeEventDispatcher {
         this.userQueryService = userQueryService;
         this.datasourceAdminService = datasourceAdminService;
         this.aiAnalysisLookupService = aiAnalysisLookupService;
+        this.userNotificationLookupService = userNotificationLookupService;
         this.clock = clock;
     }
 
@@ -170,6 +176,28 @@ class RealtimeEventDispatcher {
     }
 
     @ApplicationModuleListener
+    void onUserNotificationCreated(UserNotificationCreatedEvent event) {
+        safe("notification.created", event.notificationId(), () -> {
+            var note = userNotificationLookupService.findById(event.notificationId()).orElse(null);
+            if (note == null) {
+                log.debug("notification.created: notification {} not found, skipping push",
+                        event.notificationId());
+                return;
+            }
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("notification_id", note.id().toString());
+            data.put("event_type", note.eventType().name());
+            if (note.queryRequestId() != null) {
+                data.put("query_id", note.queryRequestId().toString());
+            } else {
+                data.putNull("query_id");
+            }
+            data.put("created_at", note.createdAt().toString());
+            sendTo(event.userId(), "notification.created", data);
+        });
+    }
+
+    @ApplicationModuleListener
     void onReviewDecisionMade(ReviewDecisionMadeEvent event) {
         safe("review.decision_made", event.queryRequestId(), () -> {
             var reviewerEmail = userQueryService.findById(event.reviewerId())
@@ -248,11 +276,11 @@ class RealtimeEventDispatcher {
         }
     }
 
-    private void safe(String eventName, UUID queryRequestId, Runnable body) {
+    private void safe(String eventName, UUID subjectId, Runnable body) {
         try {
             body.run();
         } catch (RuntimeException ex) {
-            log.error("Realtime dispatch for {} on query {} failed", eventName, queryRequestId, ex);
+            log.error("Realtime dispatch for {} on subject {} failed", eventName, subjectId, ex);
         }
     }
 }

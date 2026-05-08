@@ -45,4 +45,12 @@ class NotificationExceptionsTest {
         assertThat(ex.getMessage()).isEqualTo("upstream");
         assertThat(ex.getCause()).isSameAs(cause);
     }
+
+    @Test
+    void userNotificationNotFoundExposesIdAndMessage() {
+        var id = UUID.randomUUID();
+        var ex = new UserNotificationNotFoundException(id);
+        assertThat(ex.notificationId()).isEqualTo(id);
+        assertThat(ex.getMessage()).contains(id.toString());
+    }
 }

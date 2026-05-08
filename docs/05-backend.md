@@ -458,6 +458,7 @@ Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so t
 | `ai.analysis_complete`  | `AiAnalysisCompletedEvent` (in `core/events/`)            | submitter            |
 | `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
 | `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
+| `notification.created`  | `UserNotificationCreatedEvent` (in `notifications/events/`) | the recipient user |
 
 `QueryStatusChangedEvent` is published from the single chokepoint `DefaultQueryRequestStateService.transitionTo(...)` and the explicit decision/execution paths in the same service — every status mutation funnels through entity save in this service.
 

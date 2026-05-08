@@ -1,0 +1,67 @@
+.af-notif-panel {
+  width: 360px;
+  max-height: 480px;
+  overflow-y: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+.af-notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.af-notif-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.af-notif-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+.af-notif-list .ant-list-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.af-notif-list .ant-list-item:hover {
+  background: var(--bg-sunken);
+}
+.af-notif-row.unread {
+  background: var(--bg-sunken);
+}
+.af-notif-row-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.af-notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #1677ff);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.af-notif-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.af-notif-message {
+  font-size: 13px;
+  color: var(--fg);
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+.af-notif-time {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}

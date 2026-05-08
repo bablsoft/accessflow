@@ -1,11 +1,12 @@
-import type { QueryStatus, RiskLevel } from './api';
+import type { QueryStatus, RiskLevel, UserNotificationEventType } from './api';
 
 export type WsEventName =
   | 'query.status_changed'
   | 'review.new_request'
   | 'review.decision_made'
   | 'query.executed'
-  | 'ai.analysis_complete';
+  | 'ai.analysis_complete'
+  | 'notification.created';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
 
@@ -37,6 +38,12 @@ export interface WsEventPayloadMap {
     risk_level: RiskLevel | null;
     risk_score: number | null;
   };
+  'notification.created': {
+    notification_id: string;
+    event_type: UserNotificationEventType;
+    query_id: string | null;
+    created_at: string;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -51,4 +58,5 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'review.decision_made',
   'query.executed',
   'ai.analysis_complete',
+  'notification.created',
 ];

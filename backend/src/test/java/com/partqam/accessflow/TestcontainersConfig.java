@@ -13,7 +13,7 @@ public final class TestcontainersConfig {
     @ServiceConnection
     @SuppressWarnings("resource")
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine")
-            .withCommand("postgres", "-c", "max_connections=300");
+            .withCommand("postgres", "-c", "max_connections=500");
 
     @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")

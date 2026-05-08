@@ -970,6 +970,72 @@ Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs)
 
 ---
 
+## Notification Endpoints
+
+In-app notification inbox for the authenticated caller. All endpoints require a valid JWT;
+no role is required — every authenticated user can read and manage their own inbox.
+
+| Method | Path | Status |
+|--------|------|--------|
+| `GET` | `/notifications` | Paginated list of the caller's notifications, newest first |
+| `GET` | `/notifications/unread-count` | Unread count for the bell badge |
+| `POST` | `/notifications/{id}/read` | Mark a single notification as read (404 if not the caller's) |
+| `POST` | `/notifications/read-all` | Mark every unread notification as read |
+| `DELETE` | `/notifications/{id}` | Delete a notification (404 if not the caller's) |
+
+### GET /notifications — Query Parameters
+
+`page` (default 0), `size` (default 20, max 100).
+
+### GET /notifications — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "event_type": "QUERY_APPROVED",
+      "query_request_id": "uuid",
+      "payload": {
+        "query_id": "uuid",
+        "datasource": "orders-prod",
+        "submitter": "alice@acme.com",
+        "submitter_name": "Alice",
+        "risk_level": "LOW",
+        "reviewer": "Bob",
+        "reviewer_comment": "looks good"
+      },
+      "read": false,
+      "created_at": "2026-05-08T10:00:00Z",
+      "read_at": null
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1,
+  "last": true
+}
+```
+
+`event_type` is one of `QUERY_SUBMITTED` \| `QUERY_APPROVED` \| `QUERY_REJECTED` \|
+`REVIEW_TIMEOUT` \| `AI_HIGH_RISK`. The `payload` keys are best-effort context for the
+client to render a human-readable message and link — UIs must treat individual keys as
+optional.
+
+### GET /notifications/unread-count — Response 200
+
+```json
+{ "count": 3 }
+```
+
+### POST /notifications/{id}/read, POST /notifications/read-all, DELETE /notifications/{id}
+
+All return 204 on success. `404 USER_NOTIFICATION_NOT_FOUND` if the id does not belong to
+the caller.
+
+---
+
 ## WebSocket Events
 
 **Endpoint:** `ws://host/ws`  
@@ -984,6 +1050,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `review.decision_made` | Reviewer approved/rejected submitter's query | `query_id`, `decision`, `reviewer`, `comment` |
 | `query.executed` | Execution completed | `query_id`, `rows_affected`, `duration_ms` |
 | `ai.analysis_complete` | AI analysis finished | `query_id`, `risk_level`, `risk_score` |
+| `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
 
 ### WebSocket Message Format
 
@@ -1031,3 +1098,4 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `QUERY_EXECUTION_TIMEOUT` | 504 | `QueryExecutionTimeoutException` | Query exceeded the configured statement timeout. Body includes `timeoutSeconds`. |
 | `DATASOURCE_UNAVAILABLE` | 422 | `DatasourceUnavailableException` | Datasource is missing or marked inactive. |
 | `POOL_INITIALIZATION_FAILED` | 503 | `PoolInitializationException` | HikariCP could not open a pool to the customer database (bad credentials, host unreachable, etc.). |
+| `USER_NOTIFICATION_NOT_FOUND` | 404 | `UserNotificationNotFoundException` | The notification id does not belong to the authenticated caller. |

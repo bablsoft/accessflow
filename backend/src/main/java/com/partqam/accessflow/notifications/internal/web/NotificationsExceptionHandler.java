@@ -3,6 +3,7 @@ package com.partqam.accessflow.notifications.internal.web;
 import com.partqam.accessflow.notifications.api.NotificationChannelConfigException;
 import com.partqam.accessflow.notifications.api.NotificationChannelNotFoundException;
 import com.partqam.accessflow.notifications.api.NotificationDeliveryException;
+import com.partqam.accessflow.notifications.api.UserNotificationNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -43,6 +44,14 @@ class NotificationsExceptionHandler {
     ProblemDetail handleDelivery(NotificationDeliveryException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, msg("error.notification_delivery_failed"));
         pd.setProperty("error", "NOTIFICATION_DELIVERY_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserNotificationNotFoundException.class)
+    ProblemDetail handleUserNotificationNotFound(UserNotificationNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_notification_not_found"));
+        pd.setProperty("error", "USER_NOTIFICATION_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

@@ -1,18 +1,9 @@
-import { useState } from 'react';
-import { Input, Select } from 'antd';
-import {
-  SearchOutlined,
-  BellOutlined,
-  LogoutOutlined,
-  MenuOutlined,
-  SunOutlined,
-  MoonOutlined,
-} from '@ant-design/icons';
+import { LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { useNavigate } from 'react-router-dom';
-import { DevUserSwitcher } from './DevUserSwitcher';
+import { NotificationBell } from './NotificationBell';
 import './topbar.css';
 
 interface TopbarProps {
@@ -21,10 +12,7 @@ interface TopbarProps {
 
 export function Topbar({ onOpenMobileNav }: TopbarProps) {
   const { t } = useTranslation();
-  const [search, setSearch] = useState('');
   const logout = useAuthStore((s) => s.logout);
-  const edition = usePreferencesStore((s) => s.edition);
-  const setEdition = usePreferencesStore((s) => s.setEdition);
   const theme = usePreferencesStore((s) => s.theme);
   const setTheme = usePreferencesStore((s) => s.setTheme);
   const navigate = useNavigate();
@@ -43,29 +31,8 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       >
         <MenuOutlined />
       </button>
-      <div className="af-topbar-search">
-        <Input
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder={t('common.search_placeholder')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          suffix={<span className="kbd">⌘K</span>}
-        />
-      </div>
       <div style={{ flex: 1 }} />
       <div className="af-topbar-pills">
-        {import.meta.env.DEV && <DevUserSwitcher />}
-        <Select
-          size="small"
-          value={edition}
-          className="hide-tablet"
-          onChange={setEdition}
-          style={{ width: 120 }}
-          options={[
-            { value: 'COMMUNITY', label: 'Community' },
-            { value: 'ENTERPRISE', label: 'Enterprise' },
-          ]}
-        />
         <div className="af-theme-toggle">
           <button
             className={theme === 'light' ? 'on' : ''}
@@ -83,9 +50,7 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
           </button>
         </div>
       </div>
-      <button className="af-icon-btn hide-mobile" aria-label={t('common.notifications')}>
-        <BellOutlined />
-      </button>
+      <NotificationBell />
       <button className="af-icon-btn" onClick={onLogout} aria-label={t('common.sign_out')}>
         <LogoutOutlined />
       </button>
