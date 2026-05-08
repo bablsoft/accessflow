@@ -252,7 +252,8 @@ com.partqam.accessflow/
 
   ```
   PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
-                             ↘ REJECTED
+                             ↘ REJECTED   (manual reviewer rejection)
+                             ↘ TIMED_OUT  (approval-timeout auto-reject by QueryTimeoutJob)
              ↘ PENDING_REVIEW (if AI not required)
   PENDING_REVIEW → CANCELLED (submitter only)
   APPROVED → FAILED (execution error)

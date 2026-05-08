@@ -5,6 +5,7 @@ public enum QueryStatus {
     PENDING_REVIEW,
     APPROVED,
     REJECTED,
+    TIMED_OUT,
     EXECUTED,
     FAILED,
     CANCELLED

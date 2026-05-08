@@ -203,7 +203,7 @@ class QueryTimeoutJobIntegrationTest {
         job.run();
 
         var query = queryRequestRepository.findById(queryRequestId).orElseThrow();
-        assertThat(query.getStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.TIMED_OUT);
 
         // No review_decisions row should be inserted for a timeout — that's the design.
         assertThat(reviewDecisionRepository
@@ -222,8 +222,8 @@ class QueryTimeoutJobIntegrationTest {
         job.run();
 
         var query = queryRequestRepository.findById(queryRequestId).orElseThrow();
-        assertThat(query.getStatus()).isEqualTo(QueryStatus.REJECTED);
-        // Only the first invocation transitions; the second tick sees REJECTED and does nothing.
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.TIMED_OUT);
+        // Only the first invocation transitions; the second tick sees TIMED_OUT and does nothing.
         assertThat(capturedEvents.events).hasSize(1);
     }
 

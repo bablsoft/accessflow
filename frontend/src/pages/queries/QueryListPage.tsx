@@ -21,7 +21,7 @@ import type {
 } from '@/types/api';
 
 const STATUSES: QueryStatus[] = [
-  'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'FAILED', 'CANCELLED',
+  'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED', 'CANCELLED',
 ];
 const TYPES: QueryType[] = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'DDL'];
 const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];

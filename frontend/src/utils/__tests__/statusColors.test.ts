@@ -9,16 +9,21 @@ describe('statusColor', () => {
     ['APPROVED', 'var(--risk-low)'],
     ['EXECUTED', 'var(--risk-low)'],
     ['REJECTED', 'var(--risk-crit)'],
+    ['TIMED_OUT', 'var(--status-warn)'],
     ['FAILED', 'var(--risk-crit)'],
     ['CANCELLED', 'var(--fg-muted)'],
   ])('maps %s to the expected fg token', (status, fg) => {
     expect(statusColor(status).fg).toBe(fg);
   });
 
+  it('TIMED_OUT is visually distinct from REJECTED', () => {
+    expect(statusColor('TIMED_OUT').fg).not.toBe(statusColor('REJECTED').fg);
+  });
+
   it('returns a complete triple for every status', () => {
     const statuses: QueryStatus[] = [
       'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED',
-      'REJECTED', 'FAILED', 'CANCELLED',
+      'REJECTED', 'TIMED_OUT', 'FAILED', 'CANCELLED',
     ];
     for (const s of statuses) {
       const c = statusColor(s);
@@ -37,5 +42,9 @@ describe('statusLabel', () => {
 
   it('returns single-word statuses unchanged', () => {
     expect(statusLabel('APPROVED')).toBe('APPROVED');
+  });
+
+  it('formats TIMED_OUT with a space', () => {
+    expect(statusLabel('TIMED_OUT')).toBe('TIMED OUT');
   });
 });

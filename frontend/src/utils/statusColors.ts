@@ -12,9 +12,11 @@ export const statusColor = (status: QueryStatus): ColorTriple => {
     case 'REJECTED':
     case 'FAILED':
       return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'TIMED_OUT':
+      return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
     case 'CANCELLED':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };
 
-export const statusLabel = (s: QueryStatus): string => s.replace('_', ' ');
+export const statusLabel = (s: QueryStatus): string => s.replaceAll('_', ' ');

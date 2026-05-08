@@ -141,9 +141,9 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         var plan = entity.getDatasource().getReviewPlan();
         var timeoutHours = plan != null ? plan.getApprovalTimeoutHours() : 0;
         var previous = entity.getStatus();
-        entity.setStatus(QueryStatus.REJECTED);
+        entity.setStatus(QueryStatus.TIMED_OUT);
         queryRequestRepository.save(entity);
-        publishStatusChanged(entity, previous, QueryStatus.REJECTED);
+        publishStatusChanged(entity, previous, QueryStatus.TIMED_OUT);
         eventPublisher.publishEvent(new QueryTimedOutEvent(queryRequestId, timeoutHours));
         return true;
     }

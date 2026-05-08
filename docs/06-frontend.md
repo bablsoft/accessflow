@@ -184,6 +184,7 @@ Full detail view for any query:
 - `ApprovalTimeline` — visual timeline of review stages and decisions with reviewer comments
 - Execution result section (if executed): rows affected, duration, timestamp
 - Cancel button (if query is in `PENDING_*` status and viewer is the submitter)
+- When `status === 'TIMED_OUT'`, a warning callout above the SQL block names the review plan, the configured `approval_timeout_hours`, and how long ago the timeout fired. The metadata sidebar surfaces `plan` / `timeout.hours` for any query whose datasource has a review plan, regardless of status. Status-pill colour and label come from `statusColors.ts` (`TIMED_OUT` → warn-amber palette, label "TIMED OUT").
 
 ### DatasourceCreateWizardPage *(ADMIN)*
 

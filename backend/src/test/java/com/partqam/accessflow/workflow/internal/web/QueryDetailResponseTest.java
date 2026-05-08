@@ -29,6 +29,7 @@ class QueryDetailResponseTest {
                 submitterId, "alice@example.com", "Alice",
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", ai, 5L, 99, null,
+                "Prod plan", 24,
                 Instant.parse("2026-05-01T10:00:00Z"),
                 Instant.parse("2026-05-01T10:00:30Z"));
 
@@ -45,6 +46,8 @@ class QueryDetailResponseTest {
         assertThat(response.rowsAffected()).isEqualTo(5L);
         assertThat(response.durationMs()).isEqualTo(99);
         assertThat(response.errorMessage()).isNull();
+        assertThat(response.reviewPlanName()).isEqualTo("Prod plan");
+        assertThat(response.approvalTimeoutHours()).isEqualTo(24);
         assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-05-01T10:00:00Z"));
         assertThat(response.updatedAt()).isEqualTo(Instant.parse("2026-05-01T10:00:30Z"));
 
@@ -69,11 +72,14 @@ class QueryDetailResponseTest {
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI,
                 "x", null, null, null, null,
+                null, null,
                 Instant.now(), Instant.now());
 
         var response = QueryDetailResponse.from(view);
 
         assertThat(response.aiAnalysis()).isNull();
+        assertThat(response.reviewPlanName()).isNull();
+        assertThat(response.approvalTimeoutHours()).isNull();
     }
 
     @Test
@@ -86,6 +92,7 @@ class QueryDetailResponseTest {
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
                 "x", ai, null, null, null,
+                null, null,
                 Instant.now(), Instant.now());
 
         var response = QueryDetailResponse.from(view);

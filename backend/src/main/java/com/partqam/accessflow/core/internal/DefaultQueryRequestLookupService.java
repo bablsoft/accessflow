@@ -118,6 +118,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
         var aiAnalysis = entity.getAiAnalysisId() != null
                 ? aiAnalysisRepository.findById(entity.getAiAnalysisId()).orElse(null)
                 : null;
+        var plan = entity.getDatasource().getReviewPlan();
         return new QueryDetailView(
                 entity.getId(),
                 entity.getDatasource().getId(),
@@ -134,6 +135,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getRowsAffected(),
                 entity.getExecutionDurationMs(),
                 entity.getErrorMessage(),
+                plan != null ? plan.getName() : null,
+                plan != null ? plan.getApprovalTimeoutHours() : null,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
