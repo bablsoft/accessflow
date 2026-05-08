@@ -6,6 +6,7 @@ import com.partqam.accessflow.core.api.QueryListFilter;
 import com.partqam.accessflow.core.api.QueryListItemView;
 import com.partqam.accessflow.core.api.QueryRequestLookupService;
 import com.partqam.accessflow.core.api.QueryRequestSnapshot;
+import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
@@ -55,7 +56,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                                                           UUID reviewerUserId, UserRoleType role,
                                                           Pageable pageable) {
         return queryRequestRepository
-                .findPendingForReviewer(organizationId, reviewerUserId, role, pageable)
+                .findPendingForReviewer(organizationId, reviewerUserId, role,
+                        QueryStatus.PENDING_REVIEW, pageable)
                 .map(this::toPendingReviewView);
     }
 

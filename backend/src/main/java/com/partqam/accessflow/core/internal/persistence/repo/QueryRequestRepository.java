@@ -38,7 +38,7 @@ public interface QueryRequestRepository
               join q.datasource d
               join d.reviewPlan rp
               join ReviewPlanApproverEntity rpa on rpa.reviewPlan = rp
-            where q.status = com.partqam.accessflow.core.api.QueryStatus.PENDING_REVIEW
+            where q.status = :status
               and d.organization.id = :orgId
               and q.submittedBy.id <> :userId
               and (rpa.user.id = :userId or rpa.role = :role)
@@ -46,6 +46,7 @@ public interface QueryRequestRepository
     Page<QueryRequestEntity> findPendingForReviewer(@Param("orgId") UUID orgId,
                                                     @Param("userId") UUID userId,
                                                     @Param("role") UserRoleType role,
+                                                    @Param("status") QueryStatus status,
                                                     Pageable pageable);
 
     @Query(value = """
