@@ -3,6 +3,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import {
   adminErrorMessage,
   authErrorMessage,
+  datasourceGrantErrorMessage,
   reviewErrorMessage,
   reviewPlanErrorMessage,
   setupErrorMessage,
@@ -156,6 +157,46 @@ describe('adminErrorMessage', () => {
 
   it('returns a generic fallback for unknown values', () => {
     expect(adminErrorMessage(undefined)).toBe('Could not complete the request. Please try again.');
+  });
+});
+
+describe('datasourceGrantErrorMessage', () => {
+  it('maps DATASOURCE_PERMISSION_ALREADY_EXISTS', () => {
+    expect(
+      datasourceGrantErrorMessage(
+        buildAxiosError(409, { error: 'DATASOURCE_PERMISSION_ALREADY_EXISTS' }),
+      ),
+    ).toBe('This user already has a permission row for this datasource.');
+  });
+
+  it('maps ILLEGAL_DATASOURCE_PERMISSION', () => {
+    expect(
+      datasourceGrantErrorMessage(
+        buildAxiosError(422, { error: 'ILLEGAL_DATASOURCE_PERMISSION' }),
+      ),
+    ).toBe('That user is not part of your organization.');
+  });
+
+  it('falls back to ProblemDetail.title', () => {
+    expect(datasourceGrantErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
+  });
+
+  it('falls back to ProblemDetail.detail', () => {
+    expect(datasourceGrantErrorMessage(buildAxiosError(500, { detail: 'why' }))).toBe('why');
+  });
+
+  it('falls back to the axios error message', () => {
+    const err = new AxiosError('Network Error');
+    expect(datasourceGrantErrorMessage(err)).toBe('Network Error');
+  });
+
+  it('handles non-axios errors', () => {
+    expect(datasourceGrantErrorMessage(new Error('boom'))).toBe('boom');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(datasourceGrantErrorMessage(undefined))
+      .toBe('Failed to grant access. Please try again.');
   });
 });
 
