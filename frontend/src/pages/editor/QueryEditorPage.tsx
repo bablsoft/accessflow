@@ -22,12 +22,6 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { formatSql } from '@/utils/sqlFormat';
 import './editor.css';
 
-const DEFAULT_SQL = `-- Customer support ticket #8821: order stuck in 'processing'
-SELECT id, status, total_cents, customer_id, created_at
-FROM orders
-WHERE id = 88210
-LIMIT 1;`;
-
 const ANALYZE_DEBOUNCE_MS = 700;
 const EMPTY_SCHEMA = { schemas: [] };
 
@@ -44,10 +38,8 @@ export function QueryEditorPage() {
   const [selectedDsId, setSelectedDsId] = useState<string | null>(null);
   const dsId = selectedDsId ?? datasources[0]?.id ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
-  const [sql, setSql] = useState(DEFAULT_SQL);
-  const [justification, setJustification] = useState(
-    'Customer support ticket #8821 — investigating order stuck in processing status.',
-  );
+  const [sql, setSql] = useState('');
+  const [justification, setJustification] = useState('');
   const schemaQuery = useSchemaIntrospect(ds?.id);
   const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const { message } = App.useApp();
