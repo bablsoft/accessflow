@@ -6,7 +6,7 @@ import { Topbar } from '@/components/common/Topbar';
 import { RealtimeBridge } from '@/realtime/RealtimeBridge';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { listQueries, queryKeys } from '@/api/queries';
+import { listPendingReviews, reviewKeys } from '@/api/reviews';
 import './app-layout.css';
 
 export function AppLayout() {
@@ -17,11 +17,12 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  const pendingFilters = { status: 'PENDING_REVIEW' as const, page: 0, size: 1 };
+  const isReviewer = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
+  const pendingFilters = { size: 1 };
   const { data } = useQuery({
-    queryKey: queryKeys.list(pendingFilters),
-    queryFn: () => listQueries(pendingFilters),
-    enabled: !!user,
+    queryKey: reviewKeys.pendingFor(pendingFilters),
+    queryFn: () => listPendingReviews(pendingFilters),
+    enabled: !!user && isReviewer,
     refetchInterval: 30_000,
   });
   const pendingCount = data?.total_elements ?? 0;

@@ -1,17 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { AuthUser } from '@/api/auth';
+import type { PendingReviewsPage } from '@/types/api';
 
-const { listQueriesMock } = vi.hoisted(() => ({
-  listQueriesMock: vi.fn(),
+const { listPendingReviewsMock } = vi.hoisted(() => ({
+  listPendingReviewsMock: vi.fn(),
 }));
 
-vi.mock('@/api/queries', async () => {
-  const actual = await vi.importActual<typeof import('@/api/queries')>('@/api/queries');
-  return { ...actual, listQueries: listQueriesMock };
+vi.mock('@/api/reviews', async () => {
+  const actual = await vi.importActual<typeof import('@/api/reviews')>('@/api/reviews');
+  return { ...actual, listPendingReviews: listPendingReviewsMock };
 });
 
 vi.mock('@/realtime/RealtimeBridge', () => ({
@@ -19,7 +20,9 @@ vi.mock('@/realtime/RealtimeBridge', () => ({
 }));
 
 vi.mock('@/components/common/Sidebar', () => ({
-  Sidebar: () => <aside data-testid="sidebar-mock" />,
+  Sidebar: ({ pendingCount }: { pendingCount: number }) => (
+    <aside data-testid="sidebar-mock" data-pending-count={pendingCount} />
+  ),
 }));
 
 vi.mock('@/components/common/Topbar', () => ({
@@ -29,12 +32,34 @@ vi.mock('@/components/common/Topbar', () => ({
 const { useAuthStore } = await import('@/store/authStore');
 const { AppLayout } = await import('../AppLayout');
 
-const authedUser: AuthUser = {
+const reviewerUser: AuthUser = {
   id: 'u-1',
   email: 'reviewer@example.com',
   display_name: 'Test Reviewer',
   role: 'REVIEWER',
 };
+
+const adminUser: AuthUser = {
+  id: 'u-2',
+  email: 'admin@example.com',
+  display_name: 'Test Admin',
+  role: 'ADMIN',
+};
+
+const analystUser: AuthUser = {
+  id: 'u-3',
+  email: 'analyst@example.com',
+  display_name: 'Test Analyst',
+  role: 'ANALYST',
+};
+
+function emptyPage(): PendingReviewsPage {
+  return { content: [], page: 0, size: 1, total_elements: 0, total_pages: 0 };
+}
+
+function pageWithTotal(total: number): PendingReviewsPage {
+  return { content: [], page: 0, size: 1, total_elements: total, total_pages: 1 };
+}
 
 function wrap(node: ReactNode) {
   const client = new QueryClient({
@@ -55,8 +80,9 @@ function wrap(node: ReactNode) {
 
 describe('AppLayout', () => {
   beforeEach(() => {
-    listQueriesMock.mockResolvedValue({ items: [], total_elements: 0, page: 0, size: 1 });
-    useAuthStore.setState({ user: authedUser, accessToken: 'jwt-test' });
+    listPendingReviewsMock.mockReset();
+    listPendingReviewsMock.mockResolvedValue(emptyPage());
+    useAuthStore.setState({ user: reviewerUser, accessToken: 'jwt-test' });
   });
 
   it('mounts RealtimeBridge so the WS connection is scoped to AuthGuard', () => {
@@ -74,5 +100,32 @@ describe('AppLayout', () => {
     const { container } = render(wrap(<AppLayout />));
     expect(container.querySelector('.af-app-shell')).toBeNull();
     expect(screen.queryByTestId('realtime-bridge-sentinel')).toBeNull();
+  });
+
+  it('feeds the sidebar badge from /reviews/pending total_elements for a REVIEWER', async () => {
+    listPendingReviewsMock.mockResolvedValue(pageWithTotal(3));
+    render(wrap(<AppLayout />));
+    await waitFor(() => {
+      expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('3');
+    });
+    expect(listPendingReviewsMock).toHaveBeenCalledWith({ size: 1 });
+  });
+
+  it('feeds the sidebar badge from /reviews/pending for an ADMIN', async () => {
+    useAuthStore.setState({ user: adminUser, accessToken: 'jwt-test' });
+    listPendingReviewsMock.mockResolvedValue(pageWithTotal(2));
+    render(wrap(<AppLayout />));
+    await waitFor(() => {
+      expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('2');
+    });
+  });
+
+  it('does not call /reviews/pending for a non-reviewer role (no review nav, no 403)', async () => {
+    useAuthStore.setState({ user: analystUser, accessToken: 'jwt-test' });
+    render(wrap(<AppLayout />));
+    expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('0');
+    // Give react-query a tick to confirm it didn't fire.
+    await Promise.resolve();
+    expect(listPendingReviewsMock).not.toHaveBeenCalled();
   });
 });
