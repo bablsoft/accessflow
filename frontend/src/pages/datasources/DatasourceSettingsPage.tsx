@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Select, Switch, Table, Tabs } from 'antd';
+import { App, Button, Form, Input, Select, Skeleton, Switch, Table, Tabs } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -14,9 +14,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
+import { EmptyState } from '@/components/common/EmptyState';
 import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
-import { useQueriesStore } from '@/store/queriesStore';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import {
   datasourceKeys,
@@ -27,6 +27,7 @@ import {
   testConnection,
   updateDatasource,
 } from '@/api/datasources';
+import { listQueries, queryKeys, type QueryListFilters } from '@/api/queries';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type { Datasource, DatasourcePermission, UpdateDatasourceInput } from '@/types/api';
@@ -623,28 +624,42 @@ function SchemaTab({ dsId }: { dsId: string }) {
 
 function ActivityTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
-  const queries = useQueriesStore((s) =>
-    s.queries.filter((q) => q.datasource_id === dsId).slice(0, 20),
-  );
+  const filters: QueryListFilters = { datasource_id: dsId, size: 20 };
+  const queriesQuery = useQuery({
+    queryKey: queryKeys.list(filters),
+    queryFn: () => listQueries(filters),
+  });
+  const rows = queriesQuery.data?.content ?? [];
   return (
     <div style={{ padding: 28 }}>
-      <Table
-        rowKey="id"
-        size="middle"
-        dataSource={queries}
-        pagination={false}
-        columns={[
-          { title: t('datasources.settings.activity_col_id'), dataIndex: 'id', render: (v) => <span className="mono muted">{v}</span> },
-          { title: t('datasources.settings.activity_col_type'), dataIndex: 'query_type', render: (v) => <QueryTypePill type={v} size="sm" /> },
-          { title: t('datasources.settings.activity_col_status'), dataIndex: 'status', render: (v) => <StatusPill status={v} size="sm" /> },
-          { title: t('datasources.settings.activity_col_submitter'), dataIndex: 'submitter_name' },
-          {
-            title: t('datasources.settings.activity_col_when'),
-            dataIndex: 'created_at',
-            render: (v) => <span className="muted">{timeAgo(v)}</span>,
-          },
-        ]}
-      />
+      {queriesQuery.isLoading ? (
+        <Skeleton active paragraph={{ rows: 6 }} />
+      ) : queriesQuery.isError ? (
+        <EmptyState title={t('datasources.settings.activity_load_error')} />
+      ) : rows.length === 0 ? (
+        <EmptyState title={t('datasources.settings.activity_empty')} />
+      ) : (
+        <Table
+          rowKey="id"
+          size="middle"
+          dataSource={rows}
+          pagination={false}
+          columns={[
+            { title: t('datasources.settings.activity_col_id'), dataIndex: 'id', render: (v: string) => <span className="mono muted">{v}</span> },
+            { title: t('datasources.settings.activity_col_type'), dataIndex: 'query_type', render: (v) => <QueryTypePill type={v} size="sm" /> },
+            { title: t('datasources.settings.activity_col_status'), dataIndex: 'status', render: (v) => <StatusPill status={v} size="sm" /> },
+            {
+              title: t('datasources.settings.activity_col_submitter'),
+              dataIndex: ['submitted_by', 'display_name'],
+            },
+            {
+              title: t('datasources.settings.activity_col_when'),
+              dataIndex: 'created_at',
+              render: (v: string) => <span className="muted">{timeAgo(v)}</span>,
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -3,11 +3,7 @@ import type {
   Datasource,
   DatasourcePermission,
   NotificationChannel,
-  QueryRequest,
-  QueryStatus,
-  QueryType,
   DemoReviewPlan,
-  RiskLevel,
   User,
 } from '@/types/api';
 
@@ -57,101 +53,7 @@ export const REVIEW_PLANS: DemoReviewPlan[] = [
   { id: 'rp-light', name: 'Light review', description: 'AI review only — auto-approve if LOW risk', requires_ai: true, requires_human: false, min_approvals: 0, timeout_hours: 4, auto_approve_reads: true, channels: ['slack'] },
 ];
 
-interface SqlSample {
-  sql: string;
-  type: QueryType;
-  risk: RiskLevel;
-  score: number;
-}
-
-const SQL_SAMPLES: SqlSample[] = [
-  { sql: "SELECT id, email, display_name FROM users WHERE last_login_at > NOW() - INTERVAL '7 days' ORDER BY last_login_at DESC LIMIT 100;", type: 'SELECT', risk: 'LOW', score: 12 },
-  { sql: "UPDATE orders SET status = 'shipped', shipped_at = NOW() WHERE id = 88210;", type: 'UPDATE', risk: 'LOW', score: 18 },
-  { sql: "DELETE FROM sessions WHERE expires_at < NOW() - INTERVAL '30 days';", type: 'DELETE', risk: 'MEDIUM', score: 45 },
-  { sql: 'SELECT * FROM customers;', type: 'SELECT', risk: 'HIGH', score: 78 },
-  { sql: "UPDATE pricing_rules SET discount_pct = 15 WHERE region = 'EU';", type: 'UPDATE', risk: 'MEDIUM', score: 52 },
-  { sql: "INSERT INTO feature_flags (key, enabled, rollout_pct) VALUES ('new_checkout', true, 25);", type: 'INSERT', risk: 'LOW', score: 22 },
-  { sql: "DELETE FROM audit_events WHERE created_at < '2024-01-01';", type: 'DELETE', risk: 'CRITICAL', score: 91 },
-  { sql: 'ALTER TABLE orders ADD COLUMN refund_reason TEXT;', type: 'DDL', risk: 'HIGH', score: 72 },
-  { sql: "SELECT customer_id, SUM(total_cents) FROM orders WHERE created_at > '2026-01-01' GROUP BY customer_id ORDER BY 2 DESC LIMIT 50;", type: 'SELECT', risk: 'LOW', score: 15 },
-  { sql: "UPDATE users SET email_verified = true WHERE email LIKE '%@acme.com';", type: 'UPDATE', risk: 'MEDIUM', score: 48 },
-  { sql: "SELECT o.id, c.email, o.total_cents, o.status FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.created_at > NOW() - INTERVAL '24 hours';", type: 'SELECT', risk: 'LOW', score: 20 },
-  { sql: 'DROP TABLE legacy_user_imports;', type: 'DDL', risk: 'CRITICAL', score: 94 },
-  { sql: "UPDATE subscriptions SET cancelled_at = NOW() WHERE customer_id = 'cus_8821';", type: 'UPDATE', risk: 'LOW', score: 19 },
-  { sql: 'SELECT product_id, COUNT(*) AS purchases FROM order_items GROUP BY product_id ORDER BY 2 DESC LIMIT 20;', type: 'SELECT', risk: 'LOW', score: 14 },
-  { sql: "INSERT INTO promo_codes (code, percent_off, expires_at) VALUES ('SUMMER26', 20, '2026-09-01');", type: 'INSERT', risk: 'LOW', score: 11 },
-];
-
-const STATUSES: QueryStatus[] = [
-  'PENDING_AI', 'PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED',
-  'EXECUTED', 'EXECUTED', 'EXECUTED', 'CANCELLED', 'FAILED',
-  'PENDING_REVIEW', 'TIMED_OUT',
-];
-const JUSTIFICATIONS = [
-  'Customer support ticket #8821 — order stuck in processing.',
-  'Quarterly retention report for marketing team.',
-  'Cleaning up expired session rows per data retention policy.',
-  'Investigating spike in failed payments since Friday.',
-  'Adding refund_reason column for new returns workflow (TKT-9112).',
-  'Backfilling email_verified flag for internal users.',
-  'EU pricing update per finance review (rev-2026-Q2).',
-  'Manual cancellation requested by account exec for VIP customer.',
-  'Ad-hoc analysis: top products YTD.',
-  'Routine cleanup of legacy import staging table — confirmed unused.',
-  'Promo code launch — SUMMER26 campaign.',
-  'Weekly cohort retention pull for product analytics.',
-];
-
-function aiSummaryFor(s: SqlSample): string {
-  if (s.risk === 'LOW') return 'Single-statement query with bounded scope. No issues detected. Estimated row impact within safe limits.';
-  if (s.risk === 'MEDIUM') return 'Query passes structural checks but operates on multiple rows or shared columns. Suggest reviewing scope before approval.';
-  if (s.risk === 'HIGH') return 'Query may return or modify a large number of rows. Consider narrowing the projection and adding LIMIT.';
-  return 'CRITICAL: this statement is destructive and affects production data without sufficient guardrails. Strongly recommend manual review by a senior engineer.';
-}
-function aiIssuesFor(s: SqlSample) {
-  const out: { severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'; category: string; message: string; suggestion: string }[] = [];
-  if (s.sql.includes('SELECT *')) out.push({ severity: 'HIGH', category: 'SELECT_STAR', message: 'SELECT * returns all columns including potentially sensitive data', suggestion: 'Specify only the columns you need: id, email, display_name' });
-  if (s.sql.includes('DROP TABLE')) out.push({ severity: 'CRITICAL', category: 'DESTRUCTIVE_DDL', message: 'DROP TABLE is irreversible and will permanently destroy data', suggestion: 'Take a backup snapshot first; consider RENAME to a quarantine schema instead' });
-  if (s.sql.includes('DELETE') && s.sql.includes('< ')) out.push({ severity: 'MEDIUM', category: 'BULK_DELETE', message: 'Range-bounded DELETE may affect a large number of rows', suggestion: 'Run a SELECT COUNT(*) first to confirm scope' });
-  if (s.sql.toLowerCase().includes("like '%")) out.push({ severity: 'MEDIUM', category: 'NON_SARGABLE', message: 'Leading-wildcard LIKE prevents index usage', suggestion: 'Consider a trigram index or refactor the predicate' });
-  if (!s.sql.toLowerCase().includes('limit') && s.type === 'SELECT' && !s.sql.includes('=')) out.push({ severity: 'MEDIUM', category: 'NO_LIMIT', message: 'SELECT has no LIMIT clause and could return millions of rows', suggestion: 'Add LIMIT 1000 or a more selective WHERE' });
-  if (s.sql.includes('ALTER TABLE')) out.push({ severity: 'HIGH', category: 'SCHEMA_CHANGE', message: 'ALTER TABLE may take a long lock on the target table', suggestion: 'Schedule during a maintenance window; consider pg_repack/online DDL' });
-  return out;
-}
-
 const NOW = new Date('2026-05-04T10:30:00Z').getTime();
-
-const rawQueries: QueryRequest[] = [];
-for (let i = 0; i < 60; i++) {
-  const sample = pick(SQL_SAMPLES);
-  const status = (i < 12 ? STATUSES[i] : pick(STATUSES))!;
-  const submitter = pick(USERS.filter((u) => u.role !== 'READONLY' && u.active));
-  const ds = pick(DATASOURCES.filter((d) => d.active));
-  const created = NOW - i * 1000 * 60 * Math.floor(rand() * 80 + 5);
-  const id = `q-${(1000 + i).toString()}`;
-  rawQueries.push({
-    id,
-    datasource_id: ds.id,
-    datasource_name: ds.name,
-    db_type: ds.db_type,
-    submitted_by: submitter.id,
-    submitter_name: submitter.display_name,
-    submitter_email: submitter.email,
-    sql: sample.sql,
-    query_type: sample.type,
-    status,
-    risk_level: sample.risk,
-    risk_score: sample.score,
-    justification: pick(JUSTIFICATIONS),
-    created_at: new Date(created).toISOString(),
-    rows_affected: status === 'EXECUTED' ? Math.floor(rand() * 5000) : null,
-    duration_ms: status === 'EXECUTED' ? Math.floor(rand() * 800 + 20) : null,
-    ai_summary: aiSummaryFor(sample),
-    ai_issues: aiIssuesFor(sample),
-  });
-}
-
-export const QUERIES: QueryRequest[] = rawQueries;
 
 const AUDIT_ACTIONS = [
   { action: 'QUERY_SUBMITTED', resource_type: 'query_request' },
