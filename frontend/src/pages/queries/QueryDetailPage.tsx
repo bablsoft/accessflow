@@ -33,6 +33,7 @@ import {
   reviewKeys,
 } from '@/api/reviews';
 import { reviewErrorMessage } from '@/utils/apiErrors';
+import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
 
 export function QueryDetailPage() {
@@ -368,7 +369,7 @@ function buildStages(query: QueryDetail): TimelineStage[] {
   const out: TimelineStage[] = [
     {
       label: 'Submitted',
-      who: query.submitted_by.display_name,
+      who: userDisplay(query.submitted_by.display_name, query.submitted_by.email),
       time: query.created_at,
       done: true,
     },
@@ -393,9 +394,21 @@ function buildStages(query: QueryDetail): TimelineStage[] {
         : query.status === 'TIMED_OUT'
         ? 'Timed out'
         : 'Human review';
+    let reviewerWho: string;
+    if (query.status === 'REJECTED') {
+      const decisions = query.review_decisions ?? [];
+      const lastReject = [...decisions]
+        .reverse()
+        .find((d) => d.decision === 'REJECTED');
+      reviewerWho = lastReject
+        ? userDisplay(lastReject.reviewer.display_name, lastReject.reviewer.email)
+        : '—';
+    } else {
+      reviewerWho = reviewDone ? '—' : 'awaiting reviewer';
+    }
     out.push({
       label: reviewLabel,
-      who: reviewDone ? '—' : 'awaiting reviewer',
+      who: reviewerWho,
       time: reviewDone ? query.updated_at : null,
       done: reviewDone,
       active: query.status === 'PENDING_REVIEW',

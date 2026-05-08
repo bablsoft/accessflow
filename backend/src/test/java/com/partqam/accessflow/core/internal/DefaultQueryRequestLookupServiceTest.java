@@ -1,6 +1,7 @@
 package com.partqam.accessflow.core.internal;
 
 import com.partqam.accessflow.core.api.AiProviderType;
+import com.partqam.accessflow.core.api.DecisionType;
 import com.partqam.accessflow.core.api.QueryListFilter;
 import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
@@ -10,9 +11,11 @@ import com.partqam.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.QueryRequestEntity;
+import com.partqam.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestRepository;
+import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +41,7 @@ class DefaultQueryRequestLookupServiceTest {
 
     @Mock QueryRequestRepository queryRequestRepository;
     @Mock AiAnalysisRepository aiAnalysisRepository;
+    @Mock ReviewDecisionRepository reviewDecisionRepository;
     @InjectMocks DefaultQueryRequestLookupService service;
 
     @Test
@@ -247,6 +251,8 @@ class DefaultQueryRequestLookupServiceTest {
 
         when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
         when(aiAnalysisRepository.findById(aiId)).thenReturn(Optional.of(ai));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
 
         var detail = service.findDetailById(queryId, orgId).orElseThrow();
 
@@ -259,6 +265,7 @@ class DefaultQueryRequestLookupServiceTest {
         assertThat(detail.aiAnalysis().riskLevel()).isEqualTo(RiskLevel.LOW);
         assertThat(detail.aiAnalysis().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
         assertThat(detail.aiAnalysis().promptTokens()).isEqualTo(120);
+        assertThat(detail.reviewDecisions()).isEmpty();
     }
 
     @Test
@@ -268,11 +275,72 @@ class DefaultQueryRequestLookupServiceTest {
         var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
                 "alice@example.com", QueryStatus.PENDING_AI);
         when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
 
         var detail = service.findDetailById(queryId, orgId).orElseThrow();
 
         assertThat(detail.aiAnalysis()).isNull();
         verifyNoInteractions(aiAnalysisRepository);
+    }
+
+    @Test
+    void findDetailByIdMapsReviewDecisionsWithReviewerRefInDecidedAtOrder() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.REJECTED);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+
+        var reviewer1 = newReviewer("first@example.com", "First Reviewer");
+        var reviewer2 = newReviewer("second@example.com", "");
+        var decision1 = newDecision(entity, reviewer1, DecisionType.REQUESTED_CHANGES,
+                "needs LIMIT", 1, Instant.parse("2025-01-15T10:30:00Z"));
+        var decision2 = newDecision(entity, reviewer2, DecisionType.REJECTED,
+                "still unsafe", 2, Instant.parse("2025-01-15T11:15:00Z"));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of(decision1, decision2));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.reviewDecisions()).hasSize(2);
+        var first = detail.reviewDecisions().get(0);
+        assertThat(first.id()).isEqualTo(decision1.getId());
+        assertThat(first.reviewer().id()).isEqualTo(reviewer1.getId());
+        assertThat(first.reviewer().email()).isEqualTo("first@example.com");
+        assertThat(first.reviewer().displayName()).isEqualTo("First Reviewer");
+        assertThat(first.decision()).isEqualTo(DecisionType.REQUESTED_CHANGES);
+        assertThat(first.comment()).isEqualTo("needs LIMIT");
+        assertThat(first.stage()).isEqualTo(1);
+        assertThat(first.decidedAt()).isEqualTo(Instant.parse("2025-01-15T10:30:00Z"));
+
+        var second = detail.reviewDecisions().get(1);
+        assertThat(second.reviewer().email()).isEqualTo("second@example.com");
+        assertThat(second.reviewer().displayName()).isEmpty();
+        assertThat(second.decision()).isEqualTo(DecisionType.REJECTED);
+        assertThat(second.stage()).isEqualTo(2);
+    }
+
+    private static UserEntity newReviewer(String email, String displayName) {
+        var user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setEmail(email);
+        user.setDisplayName(displayName);
+        return user;
+    }
+
+    private static ReviewDecisionEntity newDecision(QueryRequestEntity query, UserEntity reviewer,
+                                                    DecisionType decision, String comment,
+                                                    int stage, Instant decidedAt) {
+        var entity = new ReviewDecisionEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setQueryRequest(query);
+        entity.setReviewer(reviewer);
+        entity.setDecision(decision);
+        entity.setComment(comment);
+        entity.setStage(stage);
+        entity.setDecidedAt(decidedAt);
+        return entity;
     }
 
     @Test

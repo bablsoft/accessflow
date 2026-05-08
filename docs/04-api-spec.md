@@ -397,7 +397,20 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
     "missing_indexes_detected": false,
     "affects_row_estimate": 1
   },
-  "review_decisions": [],
+  "review_decisions": [
+    {
+      "id": "uuid",
+      "reviewer": {
+        "id": "uuid",
+        "email": "bob@company.com",
+        "display_name": "Bob"
+      },
+      "decision": "REJECTED",
+      "comment": "Need a WHERE clause",
+      "stage": 1,
+      "decided_at": "2025-01-15T10:00:45Z"
+    }
+  ],
   "review_plan_name": "Production reviews",
   "approval_timeout_hours": 24,
   "created_at": "2025-01-15T10:00:00Z",
