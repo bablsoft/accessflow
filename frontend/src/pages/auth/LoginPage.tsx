@@ -183,10 +183,6 @@ export function LoginPage() {
             onFinish={onFinish}
             requiredMark={false}
             disabled={loading}
-            initialValues={{
-              email: import.meta.env.DEV ? 'alice.chen@acme.com' : '',
-              password: import.meta.env.DEV ? 'demo-password' : '',
-            }}
           >
             <Form.Item
               name="email"
@@ -257,17 +253,6 @@ export function LoginPage() {
               {loading ? t('auth.login.submitting') : t('auth.login.submit')}
             </Button>
           </Form>
-        </div>
-
-        <div
-          className="muted mono"
-          style={{
-            fontSize: 11,
-            textAlign: 'center',
-            marginTop: 20,
-          }}
-        >
-          deployment · acme.accessflow.internal · region eu-west-1
         </div>
       </div>
     </div>
