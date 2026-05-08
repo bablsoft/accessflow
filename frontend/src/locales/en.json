@@ -121,8 +121,10 @@
     "chars_count": "{{count}} chars",
     "submit_success": "Query submitted · {{id}}",
     "submit_error": "Could not submit query",
-    "plan_unknown_name": "Default review plan",
-    "plan_unknown_description": "Plan details unavailable until the review-plans API ships."
+    "review_plan_preview": {
+      "empty_title": "No review plan attached",
+      "empty_description": "This datasource has no review plan. Submit will go straight to execution policy."
+    }
   },
   "ai_panel": {
     "title": "AI analysis",
