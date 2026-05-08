@@ -25,7 +25,7 @@ import { IssueCard } from '@/components/editor/IssueCard';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
-import { cancelQuery, executeQuery, getQuery, isPending, queryKeys } from '@/api/queries';
+import { cancelQuery, executeQuery, getQuery, queryKeys } from '@/api/queries';
 import {
   approveQuery,
   rejectQuery,
@@ -48,7 +48,6 @@ export function QueryDetailPage() {
     queryKey: queryKeys.detail(id ?? ''),
     queryFn: () => getQuery(id!),
     enabled: !!id,
-    refetchInterval: (q) => (q.state.data && isPending(q.state.data.status) ? 5000 : false),
   });
 
   const cancelMutation = useMutation({

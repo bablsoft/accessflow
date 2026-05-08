@@ -9,7 +9,6 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/en';
 import { App } from './App';
 import { BootGate } from './components/common/BootGate';
-import { RealtimeBridge } from './realtime/RealtimeBridge';
 import { darkTheme, lightTheme } from './theme/antdTheme';
 import { usePreferencesStore } from './store/preferencesStore';
 import './styles/globals.css';
@@ -30,7 +29,6 @@ function ThemedApp() {
   return (
     <ConfigProvider theme={theme === 'dark' ? darkTheme : lightTheme} locale={enUS}>
       <BootGate>
-        <RealtimeBridge />
         <App />
       </BootGate>
     </ConfigProvider>
