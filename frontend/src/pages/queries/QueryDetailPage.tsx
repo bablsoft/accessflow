@@ -416,23 +416,25 @@ function buildStages(query: QueryDetail): TimelineStage[] {
       detail: null,
     });
   }
-  out.push({
-    label:
-      query.status === 'FAILED'
-        ? 'Execution failed'
-        : query.status === 'CANCELLED'
-        ? 'Cancelled'
-        : 'Execute',
-    who: query.status === 'EXECUTED' ? `proxy → ${query.datasource.name}` : '—',
-    time: query.status === 'EXECUTED' ? query.updated_at : null,
-    done: query.status === 'EXECUTED',
-    failed: query.status === 'FAILED',
-    cancelled: query.status === 'CANCELLED',
-    detail:
-      query.status === 'EXECUTED' && query.duration_ms != null
-        ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
-        : null,
-  });
+  if (query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {
+    out.push({
+      label:
+        query.status === 'FAILED'
+          ? 'Execution failed'
+          : query.status === 'CANCELLED'
+          ? 'Cancelled'
+          : 'Execute',
+      who: query.status === 'EXECUTED' ? `proxy → ${query.datasource.name}` : '—',
+      time: query.status === 'EXECUTED' ? query.updated_at : null,
+      done: query.status === 'EXECUTED',
+      failed: query.status === 'FAILED',
+      cancelled: query.status === 'CANCELLED',
+      detail:
+        query.status === 'EXECUTED' && query.duration_ms != null
+          ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
+          : null,
+    });
+  }
   return out;
 }
 
