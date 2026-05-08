@@ -62,8 +62,9 @@ export function NotificationBell() {
       markRead.mutate(item.id);
     }
     setOpen(false);
-    if (item.query_request_id) {
-      navigate(`/queries/${item.query_request_id}`);
+    const target = routeForNotification(item);
+    if (target) {
+      navigate(target);
     }
   };
 
@@ -172,6 +173,14 @@ function renderMessage(
     default:
       return t('notifications.events.fallback');
   }
+}
+
+export function routeForNotification(item: UserNotification): string | null {
+  // Reviewer-targeted: lands on the review queue, not the submitter-only detail page.
+  if (item.event_type === 'QUERY_SUBMITTED') {
+    return '/reviews';
+  }
+  return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }
 
 function formatRelative(iso: string, locale: string): string {

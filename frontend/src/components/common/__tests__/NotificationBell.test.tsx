@@ -93,6 +93,35 @@ describe('NotificationBell', () => {
     });
   });
 
+  it('clicking a QUERY_SUBMITTED row navigates to /reviews, not /queries/{id}', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'n2',
+          event_type: 'QUERY_SUBMITTED',
+          query_request_id: 'q-99',
+          payload: { datasource: 'orders-prod', submitter: 'alice@acme.com' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/orders-prod/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('n2'));
+    expect(navigateMock).toHaveBeenCalledWith('/reviews');
+    expect(navigateMock).not.toHaveBeenCalledWith('/queries/q-99');
+  });
+
   it('clicking an unread row marks it read and navigates to the linked query', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });
     markNotificationReadMock.mockResolvedValue(undefined);
