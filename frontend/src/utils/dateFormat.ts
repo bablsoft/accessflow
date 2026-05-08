@@ -1,8 +1,4 @@
-import { DEMO_NOW } from '@/mocks/data';
-
-// The demo uses a frozen reference "now" so timestamps in seed data render
-// stably across reloads. AF-FE-10 swaps this for Date.now() once integrated.
-const referenceNow = (): number => DEMO_NOW;
+const referenceNow = (): number => Date.now();
 
 export function timeAgo(iso: string | number | Date): string {
   const d = new Date(iso);
