@@ -331,6 +331,8 @@
       "activity_col_status": "Status",
       "activity_col_submitter": "Submitter",
       "activity_col_when": "When",
+      "activity_empty": "No queries have been submitted against this datasource yet.",
+      "activity_load_error": "Failed to load recent queries",
       "not_found_message": "Datasource not found.",
       "back_to_list": "Back to list"
     }
