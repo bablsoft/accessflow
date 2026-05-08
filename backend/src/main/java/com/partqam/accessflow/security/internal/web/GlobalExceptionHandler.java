@@ -22,6 +22,7 @@ import com.partqam.accessflow.proxy.api.PoolInitializationException;
 import com.partqam.accessflow.proxy.api.QueryExecutionFailedException;
 import com.partqam.accessflow.proxy.api.QueryExecutionTimeoutException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,7 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
+@Slf4j
 class GlobalExceptionHandler {
 
     private final MessageSource messageSource;
@@ -272,6 +274,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ProblemDetail handleGeneral(Exception ex) {
+        log.error("Unhandled exception bubbled to GlobalExceptionHandler", ex);
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, msg("error.internal"));
         pd.setProperty("error", "INTERNAL_SERVER_ERROR");
         pd.setProperty("timestamp", Instant.now().toString());
