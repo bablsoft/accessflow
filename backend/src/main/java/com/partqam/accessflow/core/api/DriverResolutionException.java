@@ -6,6 +6,7 @@ public final class DriverResolutionException extends RuntimeException {
         OFFLINE_CACHE_MISS,
         DOWNLOAD_FAILED,
         CHECKSUM_MISMATCH,
+        CACHE_NOT_WRITABLE,
         UNAVAILABLE
     }
 

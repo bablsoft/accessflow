@@ -3,6 +3,7 @@ import { AxiosError, type AxiosResponse } from 'axios';
 import {
   adminErrorMessage,
   authErrorMessage,
+  datasourceCreateErrorMessage,
   datasourceGrantErrorMessage,
   isTotpInvalidError,
   isTotpRequiredError,
@@ -261,6 +262,74 @@ describe('profileErrorMessage', () => {
 
   it('returns a generic fallback for unknown values', () => {
     expect(profileErrorMessage(undefined)).toBe('Could not update your profile. Please try again.');
+  });
+});
+
+describe('datasourceCreateErrorMessage', () => {
+  it('maps CACHE_NOT_WRITABLE with admin-actionable copy mentioning ACCESSFLOW_DRIVER_CACHE', () => {
+    const msg = datasourceCreateErrorMessage(buildAxiosError(422, {
+      error: 'DATASOURCE_DRIVER_UNAVAILABLE',
+      reason: 'CACHE_NOT_WRITABLE',
+      dbType: 'MYSQL',
+      detail: 'path: /var/lib/accessflow/drivers',
+    }));
+    expect(msg).toContain('ACCESSFLOW_DRIVER_CACHE');
+    expect(msg).toContain('path: /var/lib/accessflow/drivers');
+  });
+
+  it('maps OFFLINE_CACHE_MISS with hint about offline mode', () => {
+    const msg = datasourceCreateErrorMessage(buildAxiosError(422, {
+      error: 'DATASOURCE_DRIVER_UNAVAILABLE',
+      reason: 'OFFLINE_CACHE_MISS',
+      dbType: 'MYSQL',
+      detail: 'expected file: mysql-connector-j-9.7.0.jar',
+    }));
+    expect(msg).toContain('ACCESSFLOW_DRIVERS_OFFLINE');
+    expect(msg).toContain('MYSQL');
+  });
+
+  it('maps DOWNLOAD_FAILED with hint about Maven mirror', () => {
+    const msg = datasourceCreateErrorMessage(buildAxiosError(422, {
+      error: 'DATASOURCE_DRIVER_UNAVAILABLE',
+      reason: 'DOWNLOAD_FAILED',
+      dbType: 'ORACLE',
+      detail: 'HTTP status 403',
+    }));
+    expect(msg).toContain('ACCESSFLOW_DRIVERS_REPOSITORY_URL');
+    expect(msg).toContain('ORACLE');
+  });
+
+  it('maps CHECKSUM_MISMATCH with integrity message', () => {
+    const msg = datasourceCreateErrorMessage(buildAxiosError(422, {
+      error: 'DATASOURCE_DRIVER_UNAVAILABLE',
+      reason: 'CHECKSUM_MISMATCH',
+      dbType: 'MSSQL',
+      detail: 'expected abc got def',
+    }));
+    expect(msg).toContain('integrity');
+    expect(msg).toContain('MSSQL');
+  });
+
+  it('falls back to UNAVAILABLE for unknown reasons', () => {
+    const msg = datasourceCreateErrorMessage(buildAxiosError(422, {
+      error: 'DATASOURCE_DRIVER_UNAVAILABLE',
+      reason: 'UNAVAILABLE',
+      dbType: 'MARIADB',
+      detail: 'unknown',
+    }));
+    expect(msg).toContain('MARIADB');
+    expect(msg).toContain('cannot be loaded');
+  });
+
+  it('returns null for unrelated errors so caller can fall through', () => {
+    expect(datasourceCreateErrorMessage(undefined)).toBeNull();
+  });
+
+  it('uses ProblemDetail title for non-driver 4xx', () => {
+    expect(datasourceCreateErrorMessage(buildAxiosError(409, {
+      error: 'DATASOURCE_NAME_ALREADY_EXISTS',
+      title: 'A datasource with this name already exists',
+    }))).toBe('A datasource with this name already exists');
   });
 });
 

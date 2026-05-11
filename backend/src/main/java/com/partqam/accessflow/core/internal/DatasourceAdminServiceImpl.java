@@ -110,6 +110,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 command.organizationId(), command.name())) {
             throw new DatasourceNameAlreadyExistsException(command.name());
         }
+        driverCatalog.resolve(command.dbType());
         var entity = new DatasourceEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganization(organizationRepository.getReferenceById(command.organizationId()));

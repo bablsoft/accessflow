@@ -270,6 +270,7 @@ export interface DatasourceTypeOption {
   default_ssl_mode: SslMode;
   jdbc_url_template: string;
   driver_status: DriverStatus;
+  bundled: boolean;
 }
 
 export interface DatasourceTypesResponse {

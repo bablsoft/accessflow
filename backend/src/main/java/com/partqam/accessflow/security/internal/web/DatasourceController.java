@@ -84,6 +84,7 @@ class DatasourceController {
     @ApiResponse(responseCode = "201", description = "Datasource created")
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "409", description = "A datasource with this name already exists")
+    @ApiResponse(responseCode = "422", description = "JDBC driver for the selected db_type cannot be resolved")
     ResponseEntity<DatasourceResponse> createDatasource(
             @Valid @RequestBody CreateDatasourceRequest request,
             Authentication authentication,

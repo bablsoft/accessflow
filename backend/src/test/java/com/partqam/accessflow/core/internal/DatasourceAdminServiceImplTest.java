@@ -8,6 +8,7 @@ import com.partqam.accessflow.core.api.DatasourceNotFoundException;
 import com.partqam.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.DbType;
+import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
 import com.partqam.accessflow.core.api.SslMode;
@@ -39,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -101,6 +103,47 @@ class DatasourceAdminServiceImplTest {
                 null, null, null, null, null, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
         verify(datasourceRepository, never()).save(any());
+        verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void createResolvesDriverBeforePersisting() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Analytics"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
+                "db.example.com", 3306, "appdb", "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, null);
+        service.create(command);
+
+        var inOrder = inOrder(driverCatalog, datasourceRepository, encryptionService);
+        inOrder.verify(driverCatalog).resolve(DbType.MYSQL);
+        inOrder.verify(encryptionService).encrypt("pw");
+        inOrder.verify(datasourceRepository).save(any(DatasourceEntity.class));
+    }
+
+    @Test
+    void createPropagatesDriverResolutionExceptionAndDoesNotPersist() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Analytics"))
+                .thenReturn(false);
+        when(driverCatalog.resolve(DbType.MYSQL)).thenThrow(new DriverResolutionException(
+                DbType.MYSQL, DriverResolutionException.Reason.CHECKSUM_MISMATCH, "boom"));
+
+        var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
+                "db.example.com", 3306, "appdb", "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(DriverResolutionException.class);
+        verify(datasourceRepository, never()).save(any());
+        verify(encryptionService, never()).encrypt(any());
+        verify(organizationRepository, never()).getReferenceById(any(UUID.class));
     }
 
     @Test

@@ -16,7 +16,7 @@ class DatasourceTypeResponseTest {
     void mapsAllFieldsFromDriverTypeInfo() {
         var info = new DriverTypeInfo(DbType.POSTGRESQL, "PostgreSQL", "/db-icons/postgresql.svg",
                 5432, SslMode.VERIFY_FULL,
-                "jdbc:postgresql://{host}:{port}/{database_name}", DriverStatus.READY);
+                "jdbc:postgresql://{host}:{port}/{database_name}", DriverStatus.READY, true);
 
         var response = DatasourceTypeResponse.from(info);
 
@@ -28,16 +28,29 @@ class DatasourceTypeResponseTest {
         assertThat(response.jdbcUrlTemplate())
                 .isEqualTo("jdbc:postgresql://{host}:{port}/{database_name}");
         assertThat(response.driverStatus()).isEqualTo(DriverStatus.READY);
+        assertThat(response.bundled()).isTrue();
+    }
+
+    @Test
+    void mapsBundledFalseForExternalDrivers() {
+        var info = new DriverTypeInfo(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
+                SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
+                DriverStatus.AVAILABLE, false);
+
+        var response = DatasourceTypeResponse.from(info);
+
+        assertThat(response.bundled()).isFalse();
+        assertThat(response.driverStatus()).isEqualTo(DriverStatus.AVAILABLE);
     }
 
     @Test
     void typesResponseWrapsListInCanonicalOrder() {
         var infoA = new DriverTypeInfo(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
-                DriverStatus.AVAILABLE);
+                DriverStatus.AVAILABLE, false);
         var infoB = new DriverTypeInfo(DbType.MARIADB, "MariaDB", "/db-icons/mariadb.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mariadb://{host}:{port}/{database_name}",
-                DriverStatus.UNAVAILABLE);
+                DriverStatus.UNAVAILABLE, false);
 
         var response = DatasourceTypesResponse.from(List.of(infoA, infoB));
 

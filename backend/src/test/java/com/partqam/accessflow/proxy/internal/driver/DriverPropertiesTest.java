@@ -13,7 +13,11 @@ class DriverPropertiesTest {
     void appliesDefaultsForNullFields() {
         var props = new DriverProperties(null, null, false);
 
-        assertThat(props.cacheDir()).isEqualTo(Paths.get("/var/lib/accessflow/drivers"));
+        var home = System.getProperty("user.home");
+        var expected = home == null || home.isBlank()
+                ? Paths.get(".accessflow", "drivers")
+                : Paths.get(home, ".accessflow", "drivers");
+        assertThat(props.cacheDir()).isEqualTo(expected);
         assertThat(props.repositoryUrl()).isEqualTo("https://repo1.maven.org/maven2");
         assertThat(props.offline()).isFalse();
     }

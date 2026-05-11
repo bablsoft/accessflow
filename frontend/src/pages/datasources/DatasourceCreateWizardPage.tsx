@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Select } from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, Select } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import {
   testConnection,
 } from '@/api/datasources';
 import { setupProgressKeys } from '@/api/admin';
+import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
@@ -96,8 +97,8 @@ export default function DatasourceCreateWizardPage() {
     },
     onError: (err: unknown) => {
       const fallback = t('datasources.create.save_error');
-      const detail = extractDetail(err);
-      message.error(detail ?? fallback);
+      const mapped = datasourceCreateErrorMessage(err);
+      message.error(mapped ?? extractDetail(err) ?? fallback);
     },
   });
 
@@ -116,7 +117,8 @@ export default function DatasourceCreateWizardPage() {
       setTestResult(result);
     },
     onError: (err: unknown) => {
-      setTestError(extractDetail(err) ?? t('datasources.create.test_failure_unknown'));
+      const mapped = datasourceCreateErrorMessage(err);
+      setTestError(mapped ?? extractDetail(err) ?? t('datasources.create.test_failure_unknown'));
     },
   });
 
@@ -164,11 +166,20 @@ export default function DatasourceCreateWizardPage() {
         );
       }
       return (
-        <DatasourceTypeSelector
-          types={typesQuery.data.types}
-          selectedCode={selectedType?.code ?? null}
-          onSelect={handleSelectType}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Alert
+            type="info"
+            showIcon
+            closable={false}
+            message={t('datasources.create.driver_policy_callout_title')}
+            description={t('datasources.create.driver_policy_callout_body')}
+          />
+          <DatasourceTypeSelector
+            types={typesQuery.data.types}
+            selectedCode={selectedType?.code ?? null}
+            onSelect={handleSelectType}
+          />
+        </div>
       );
     }
     if (currentStep === 'connection' && selectedType) {
@@ -242,6 +253,15 @@ export default function DatasourceCreateWizardPage() {
               />
             </Form.Item>
           </div>
+          {selectedType.code === 'MYSQL' && previewValues?.ssl_mode === 'DISABLE' && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginTop: 8 }}
+              message={t('datasources.create.mysql_public_key_retrieval_title')}
+              description={t('datasources.create.mysql_public_key_retrieval_body')}
+            />
+          )}
           <div style={{ marginTop: 8 }}>
             <JdbcUrlPreview
               template={previewedTemplate}

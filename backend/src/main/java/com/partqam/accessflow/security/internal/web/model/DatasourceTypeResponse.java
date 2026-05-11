@@ -12,7 +12,8 @@ public record DatasourceTypeResponse(
         int defaultPort,
         SslMode defaultSslMode,
         String jdbcUrlTemplate,
-        DriverStatus driverStatus) {
+        DriverStatus driverStatus,
+        boolean bundled) {
 
     public static DatasourceTypeResponse from(DriverTypeInfo info) {
         return new DatasourceTypeResponse(
@@ -22,6 +23,7 @@ public record DatasourceTypeResponse(
                 info.defaultPort(),
                 info.defaultSslMode(),
                 info.jdbcUrlTemplate(),
-                info.driverStatus());
+                info.driverStatus(),
+                info.bundled());
     }
 }
