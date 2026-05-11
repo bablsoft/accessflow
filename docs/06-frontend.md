@@ -109,7 +109,7 @@ accessflow-ui/
 │   │   │   └── QueryEditorPage.tsx   # Full SQL editor with submit flow
 │   │   │
 │   │   ├── queries/
-│   │   │   ├── QueryListPage.tsx     # Paginated query history
+│   │   │   ├── QueryListPage.tsx     # Paginated query history (with CSV export)
 │   │   │   └── QueryDetailPage.tsx   # Full detail view for a single query
 │   │   │
 │   │   ├── reviews/
@@ -370,7 +370,7 @@ VITE_APP_EDITION=community         # community | enterprise
 /auth/saml/callback                 → SamlCallbackPage (Enterprise)
 
 /editor                             → QueryEditorPage
-/queries                            → QueryListPage
+/queries                            → QueryListPage  (header **Export CSV** button hits `GET /queries/export.csv` with the active server-side filters — `status`, `datasource_id`, `submitted_by`, `from`, `to`, `query_type`. Client-only filters on the page, namely the free-text search and risk-level select, are not sent because the backend has no equivalent filter; this matches the behaviour of the list endpoint itself. The mutation downloads via a temporary `<a>` element and shows a warning toast when the response carries `X-AccessFlow-Export-Truncated: true`.)
 /queries/:id                        → QueryDetailPage
 /reviews                            → ReviewQueuePage
 /profile                            → ProfilePage

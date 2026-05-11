@@ -183,7 +183,9 @@
       "col_datasource": "Datasource",
       "col_submitter": "Submitter",
       "col_created": "Created",
-      "count_label": "{{filtered}} of {{total}}"
+      "count_label": "{{filtered}} of {{total}}",
+      "export_failed": "Export failed. Please try again.",
+      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set."
     },
     "detail": {
       "breadcrumb_queries": "Queries",

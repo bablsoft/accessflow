@@ -395,6 +395,33 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 
+### GET /queries/export.csv — CSV export
+
+Streams a CSV of query requests matching the same filter set as `GET /queries`, minus pagination
+(`page`, `size` are ignored if supplied). Authorization is identical to `GET /queries`: non-admin
+callers see only their own queries; admins may pass `submitted_by` to scope to a specific user.
+Results are ordered by `created_at DESC`.
+
+**Query parameters** (all optional): `status`, `datasource_id`, `submitted_by` (admin-only
+override), `from`, `to`, `query_type` — same semantics as `GET /queries`.
+
+**Response**:
+- `200 OK`
+- `Content-Type: text/csv; charset=utf-8`
+- `Content-Disposition: attachment; filename="queries-YYYYMMDD-HHmmss.csv"` (UTC timestamp).
+- `X-AccessFlow-Export-Truncated: true` is set when the filter matches more than 50,000 rows;
+  the body stops at 50,000 and the client should advise the user to apply tighter filters.
+
+**Body** — RFC 4180 CSV with the header row:
+
+```
+id,created_at,query_type,status,ai_risk_level,ai_risk_score,datasource_id,datasource_name,submitter_email,submitter_display_name
+```
+
+Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_level` and
+`ai_risk_score` are empty when no AI analysis has been recorded for the query. The SQL text is
+**not** included — fetch `GET /queries/{id}` for the full SQL on a per-query basis.
+
 ### GET /queries/{id} — Response
 
 ```json

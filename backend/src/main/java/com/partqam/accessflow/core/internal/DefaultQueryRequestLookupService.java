@@ -16,6 +16,7 @@ import com.partqam.accessflow.core.internal.persistence.repo.QueryRequestReposit
 import com.partqam.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +71,43 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     public Page<QueryListItemView> findForOrganization(QueryListFilter filter, Pageable pageable) {
         var spec = QueryRequestSpecifications.forFilter(filter);
         return queryRequestRepository.findAll(spec, pageable).map(this::toListItemView);
+    }
+
+    private static final int STREAM_PAGE_SIZE = 500;
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countForOrganization(QueryListFilter filter) {
+        return queryRequestRepository.count(QueryRequestSpecifications.forFilter(filter));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void streamForOrganization(QueryListFilter filter, int maxRows,
+                                      Consumer<QueryListItemView> consumer) {
+        if (maxRows <= 0) {
+            return;
+        }
+        var spec = QueryRequestSpecifications.forFilter(filter);
+        int emitted = 0;
+        int pageIndex = 0;
+        while (emitted < maxRows) {
+            int remaining = maxRows - emitted;
+            int pageSize = Math.min(STREAM_PAGE_SIZE, remaining);
+            var page = queryRequestRepository.findAll(spec,
+                    PageRequest.of(pageIndex, pageSize));
+            for (var entity : page.getContent()) {
+                consumer.accept(toListItemView(entity));
+                emitted++;
+                if (emitted >= maxRows) {
+                    return;
+                }
+            }
+            if (!page.hasNext()) {
+                return;
+            }
+            pageIndex++;
+        }
     }
 
     @Override

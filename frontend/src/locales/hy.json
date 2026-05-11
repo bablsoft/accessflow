@@ -168,7 +168,9 @@
       "col_datasource": "Տվյալների աղբյուր",
       "col_submitter": "Ներկայացնող",
       "col_created": "Ստեղծվել է",
-      "count_label": "{{filtered}} / {{total}}"
+      "count_label": "{{filtered}} / {{total}}",
+      "export_failed": "Արտահանումը ձախողվեց։ Կրկին փորձեք։",
+      "export_truncated": "Արտահանումը կրճատվել է 50,000 տողի։ Կիրառեք ավելի խիստ զտիչներ՝ ամբողջական արդյունքը ստանալու համար։"
     },
     "detail": {
       "breadcrumb_queries": "Հարցումներ",

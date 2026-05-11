@@ -50,6 +50,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -161,6 +162,79 @@ class QueryReadControllerIntegrationTest {
                 .asString().isEqualTo(analyst.getEmail());
         assertThat(response).bodyJson().extractingPath("$.content[0].datasource.name")
                 .asString().isEqualTo("Prod PG");
+    }
+
+    // ── GET /api/v1/queries/export.csv ──────────────────────────────────────────
+
+    @Test
+    void exportCsvReturnsHeaderRowOnlyWhenServiceEmitsNothing() throws Exception {
+        when(queryRequestLookupService.countForOrganization(any())).thenReturn(0L);
+        doNothing().when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
+
+        var response = mvc.get().uri("/api/v1/queries/export.csv?status=PENDING_REVIEW")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response.getResponse().getContentType()).startsWith("text/csv");
+        var disposition = response.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION);
+        assertThat(disposition).startsWith("attachment; filename=\"queries-").endsWith(".csv\"");
+        assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated")).isNull();
+        assertThat(response.getResponse().getContentAsString())
+                .isEqualTo("id,created_at,query_type,status,ai_risk_level,ai_risk_score,"
+                        + "datasource_id,datasource_name,submitter_email,"
+                        + "submitter_display_name\r\n");
+    }
+
+    @Test
+    void exportCsvIncludesDataRowsForEmittedViews() throws Exception {
+        var dsId = UUID.randomUUID();
+        var qid = UUID.randomUUID();
+        var view = new QueryListItemView(qid, dsId, "Prod, PG", analyst.getId(),
+                analyst.getEmail(), "Alice \"the\" Analyst",
+                QueryType.SELECT, QueryStatus.EXECUTED, RiskLevel.LOW, 12,
+                Instant.parse("2026-05-01T10:00:00Z"));
+        when(queryRequestLookupService.countForOrganization(any())).thenReturn(1L);
+        doAnswer(invocation -> {
+            java.util.function.Consumer<QueryListItemView> consumer = invocation.getArgument(2);
+            consumer.accept(view);
+            return null;
+        }).when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
+
+        var response = mvc.get().uri("/api/v1/queries/export.csv")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        var body = response.getResponse().getContentAsString();
+        assertThat(body).startsWith("id,created_at,");
+        // Datasource name has a comma → must be quoted. Display name has quotes → quotes doubled.
+        assertThat(body).contains("\"Prod, PG\"");
+        assertThat(body).contains("\"Alice \"\"the\"\" Analyst\"");
+        assertThat(body).contains(qid.toString());
+        assertThat(body).contains("EXECUTED");
+        assertThat(body).contains("LOW");
+        assertThat(body).contains(analyst.getEmail());
+    }
+
+    @Test
+    void exportCsvSetsTruncatedHeaderWhenCountExceedsCap() {
+        when(queryRequestLookupService.countForOrganization(any())).thenReturn(50_001L);
+        doNothing().when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
+
+        var response = mvc.get().uri("/api/v1/queries/export.csv")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated"))
+                .isEqualTo("true");
+    }
+
+    @Test
+    void exportCsvReturns401WithoutToken() {
+        var response = mvc.get().uri("/api/v1/queries/export.csv").exchange();
+        assertThat(response).hasStatus(401);
     }
 
     @Test

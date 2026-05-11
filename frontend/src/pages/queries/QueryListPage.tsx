@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Button, DatePicker, Input, Select, Skeleton, Table } from 'antd';
+import { App, Button, DatePicker, Input, Select, Skeleton, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { Avatar } from '@/components/common/Avatar';
-import { listQueries, queryKeys } from '@/api/queries';
+import { exportQueriesCsv, listQueries, queryKeys } from '@/api/queries';
 import { timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
 import type {
@@ -32,6 +32,7 @@ const PAGE_SIZE = 20;
 export function QueryListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { message } = App.useApp();
 
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<QueryStatus | 'all'>('all');
@@ -57,6 +58,26 @@ export function QueryListPage() {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.list(filters),
     queryFn: () => listQueries(filters),
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportQueriesCsv(filters),
+    onSuccess: ({ blob, filename, truncated }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (truncated) {
+        message.warning(t('queries.list.export_truncated'));
+      }
+    },
+    onError: () => {
+      message.error(t('queries.list.export_failed'));
+    },
   });
 
   const rows = useMemo(() => data?.content ?? [], [data]);
@@ -152,7 +173,15 @@ export function QueryListPage() {
       <PageHeader
         title={t('queries.list.title')}
         subtitle={t('queries.list.subtitle')}
-        actions={<Button icon={<DownloadOutlined />}>{t('common.export_csv')}</Button>}
+        actions={
+          <Button
+            icon={<DownloadOutlined />}
+            loading={exportMutation.isPending}
+            onClick={() => exportMutation.mutate()}
+          >
+            {t('common.export_csv')}
+          </Button>
+        }
       />
       <div
         style={{

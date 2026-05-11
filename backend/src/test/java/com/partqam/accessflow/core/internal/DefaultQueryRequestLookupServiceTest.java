@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -359,6 +361,103 @@ class DefaultQueryRequestLookupServiceTest {
         when(queryRequestRepository.findById(queryId)).thenReturn(Optional.empty());
 
         assertThat(service.findDetailById(queryId, UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void countForOrganizationDelegatesToRepositorySpecCount() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        when(queryRequestRepository.count(any(org.springframework.data.jpa.domain.Specification.class)))
+                .thenReturn(42L);
+
+        assertThat(service.countForOrganization(filter)).isEqualTo(42L);
+        verify(queryRequestRepository)
+                .count(any(org.springframework.data.jpa.domain.Specification.class));
+    }
+
+    @Test
+    void streamForOrganizationEmitsAllRowsWhenUnderCap() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var e1 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "a@example.com", QueryStatus.EXECUTED);
+        var e2 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "b@example.com", QueryStatus.PENDING_AI);
+
+        // Single page returned by the repository — no further pages.
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(e1, e2), PageRequest.of(0, 500), 2));
+
+        var collected = new ArrayList<UUID>();
+        service.streamForOrganization(filter, 100, view -> collected.add(view.id()));
+
+        assertThat(collected).containsExactly(e1.getId(), e2.getId());
+    }
+
+    @Test
+    void streamForOrganizationStopsAtMaxRows() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var e1 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "a@example.com", QueryStatus.EXECUTED);
+        var e2 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "b@example.com", QueryStatus.PENDING_AI);
+        var e3 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "c@example.com", QueryStatus.PENDING_REVIEW);
+
+        // Repository returns three rows on a single page, but the service should only emit two.
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(e1, e2, e3), PageRequest.of(0, 2), 3));
+
+        var collected = new ArrayList<UUID>();
+        service.streamForOrganization(filter, 2, view -> collected.add(view.id()));
+
+        assertThat(collected).containsExactly(e1.getId(), e2.getId());
+        // Only one repository call: the in-loop check on `emitted >= maxRows` short-circuits
+        // before pagination would advance.
+        verify(queryRequestRepository, times(1)).findAll(
+                any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void streamForOrganizationEmitsNothingWhenMaxRowsZero() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+
+        var collected = new ArrayList<UUID>();
+        service.streamForOrganization(filter, 0, view -> collected.add(view.id()));
+
+        assertThat(collected).isEmpty();
+        verifyNoInteractions(queryRequestRepository);
+    }
+
+    @Test
+    void streamForOrganizationAdvancesAcrossPagesUntilExhausted() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var e1 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "a@example.com", QueryStatus.EXECUTED);
+        var e2 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "b@example.com", QueryStatus.PENDING_AI);
+
+        // First page reports hasNext=true (totalElements=2 on a page of 1); second page returns
+        // the remaining row and reports hasNext=false. Use a generous totalElements so PageImpl
+        // computes hasNext correctly.
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(e1), PageRequest.of(0, 1), 2))
+                .thenReturn(new PageImpl<>(List.of(e2), PageRequest.of(1, 1), 2));
+
+        var collected = new ArrayList<UUID>();
+        service.streamForOrganization(filter, 100, view -> collected.add(view.id()));
+
+        assertThat(collected).containsExactly(e1.getId(), e2.getId());
+        verify(queryRequestRepository, times(2)).findAll(
+                any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class));
     }
 
     @Test

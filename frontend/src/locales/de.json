@@ -168,7 +168,9 @@
       "col_datasource": "Datenquelle",
       "col_submitter": "Einreicher",
       "col_created": "Erstellt",
-      "count_label": "{{filtered}} von {{total}}"
+      "count_label": "{{filtered}} von {{total}}",
+      "export_failed": "Export fehlgeschlagen. Bitte erneut versuchen.",
+      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verfeinern Sie die Filter, um alle Ergebnisse zu erfassen."
     },
     "detail": {
       "breadcrumb_queries": "Abfragen",

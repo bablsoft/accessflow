@@ -71,6 +71,11 @@ All Community JWT mechanisms remain in place. Additionally:
 
 **Key rule:** A user can never approve their own query request, regardless of role.
 
+**CSV export of query history** (`GET /queries/export.csv`) reuses the same org-scoping and
+submitter rules as `GET /queries`: non-admin callers receive only their own queries; admins may
+override `submitted_by` to scope to a specific user. No additional role is required, and the
+endpoint never returns SQL text — only the metadata fields already visible on the list page.
+
 ---
 
 ## Datasource-Level Access Control
