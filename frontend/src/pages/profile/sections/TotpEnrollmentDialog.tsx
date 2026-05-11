@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { confirmTotp, enrollTotp, meKeys } from '@/api/me';
 import type { TotpEnrollment } from '@/types/api';
-import { profileErrorMessage } from '@/utils/apiErrors';
+import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
 interface TotpEnrollmentDialogProps {
   open: boolean;
@@ -20,7 +21,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
   const [code, setCode] = useState('');
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [savedAck, setSavedAck] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
 
   const enrollMutation = useMutation({
     mutationFn: () => enrollTotp(),
@@ -28,7 +29,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       setEnrollment(data);
       setError(null);
     },
-    onError: (err) => setError(profileErrorMessage(err)),
+    onError: (err) => setError({ message: profileErrorMessage(err), traceId: apiErrorTraceId(err) }),
   });
 
   const confirmMutation = useMutation({
@@ -38,7 +39,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       setError(null);
       setStep(2);
     },
-    onError: (err) => setError(profileErrorMessage(err)),
+    onError: (err) => setError({ message: profileErrorMessage(err), traceId: apiErrorTraceId(err) }),
   });
 
   useEffect(() => {
@@ -94,7 +95,8 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       {error && (
         <Alert
           type="error"
-          message={error}
+          message={error.message}
+          description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
           style={{ marginBottom: 16 }}
           showIcon
           closable

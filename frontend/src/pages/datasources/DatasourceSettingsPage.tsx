@@ -34,6 +34,7 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
 import {
@@ -685,7 +686,7 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
       onClose();
     },
     onError: (err) => {
-      message.error(datasourceGrantErrorMessage(err));
+      showApiError(message, err, datasourceGrantErrorMessage);
     },
   });
 

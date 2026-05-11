@@ -11,6 +11,7 @@ import {
   updateAdminLocalizationConfig,
 } from '@/api/localization';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { LANGUAGE_DISPLAY_NAMES, SUPPORTED_LANGUAGES, type Language } from '@/i18n';
 import type { UpdateLocalizationConfigInput } from '@/types/api';
 
@@ -52,7 +53,7 @@ export function LanguagesConfigPage() {
       void queryClient.invalidateQueries({ queryKey: localizationKeys.me() });
       message.success(t('admin.languages.save_success'));
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const onSave = (values: LanguagesFormValues) => {

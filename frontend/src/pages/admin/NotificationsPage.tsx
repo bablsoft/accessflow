@@ -32,6 +32,7 @@ import {
   updateChannel,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
 import type {
   ChannelType,
@@ -81,7 +82,7 @@ export function NotificationsPage() {
       message.success(t('admin.notifications.create_success'));
       setCreating(false);
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const updateMutation = useMutation({
@@ -92,7 +93,7 @@ export function NotificationsPage() {
       message.success(t('admin.notifications.update_success'));
       setEditing(null);
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const testMutation = useMutation({
@@ -102,7 +103,7 @@ export function NotificationsPage() {
       message.success(t('admin.notifications.test_success'));
       setTestEmailOpenFor(null);
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const channels = channelsQuery.data ?? [];

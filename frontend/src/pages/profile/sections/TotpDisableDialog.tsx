@@ -3,7 +3,8 @@ import { Alert, App, Button, Form, Input, Modal } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { disableTotp, meKeys } from '@/api/me';
-import { profileErrorMessage } from '@/utils/apiErrors';
+import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
 interface TotpDisableDialogProps {
   open: boolean;
@@ -19,7 +20,7 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<DisableValues>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: (values: DisableValues) =>
@@ -31,7 +32,7 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
       form.resetFields();
       onClose();
     },
-    onError: (err) => setError(profileErrorMessage(err)),
+    onError: (err) => setError({ message: profileErrorMessage(err), traceId: apiErrorTraceId(err) }),
   });
 
   return (
@@ -57,7 +58,8 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
         {error && (
           <Alert
             type="error"
-            message={error}
+            message={error.message}
+            description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
             style={{ marginBottom: 16 }}
             showIcon
             closable

@@ -14,6 +14,7 @@ import {
 } from '@/api/datasources';
 import { setupProgressKeys } from '@/api/admin';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
@@ -97,8 +98,9 @@ export default function DatasourceCreateWizardPage() {
     },
     onError: (err: unknown) => {
       const fallback = t('datasources.create.save_error');
-      const mapped = datasourceCreateErrorMessage(err);
-      message.error(mapped ?? extractDetail(err) ?? fallback);
+      showApiError(message, err, (e) =>
+        datasourceCreateErrorMessage(e) ?? extractDetail(e) ?? fallback,
+      );
     },
   });
 
