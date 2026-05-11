@@ -118,4 +118,16 @@ class DefaultTotpVerificationServiceTest {
         // No backup codes set
         assertThat(service.verify(userId, "NOPE")).isFalse();
     }
+
+    @Test
+    void verifyReturnsFalseWhenBackupBlobIsMalformedJson() {
+        user.setTotpBackupCodesEncrypted("enc-corrupted");
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(encryptionService.decrypt("enc-secret")).thenReturn("secret-xyz");
+        when(totpCodec.verifyCode("secret-xyz", "BACKUP")).thenReturn(false);
+        when(encryptionService.decrypt("enc-corrupted")).thenReturn("{not valid json");
+
+        assertThat(service.verify(userId, "BACKUP")).isFalse();
+    }
+
 }

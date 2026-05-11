@@ -39,6 +39,8 @@ class MeProfileControllerIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
+    @Autowired com.partqam.accessflow.core.api.CredentialEncryptionService encryptionService;
+    @Autowired com.partqam.accessflow.core.internal.totp.TotpCodec totpCodec;
 
     private MockMvcTester mvc;
     private UserEntity user;
@@ -171,6 +173,80 @@ class MeProfileControllerIntegrationTest {
                 .exchange();
         assertThat(result).hasStatus(422);
         assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("TOTP_INVALID_CODE");
+    }
+
+    @Test
+    void confirmTotpWithValidCodeEnables2faAndReturnsBackupCodes() throws Exception {
+        // Begin enrollment and capture the secret.
+        var enrollResult = mvc.post().uri("/api/v1/me/totp/enroll")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token).exchange();
+        var enrollBody = enrollResult.getResponse().getContentAsString();
+        var secret = enrollBody.replaceAll(".*\"secret\":\"([^\"]+)\".*", "$1");
+
+        // Compute a valid 6-digit TOTP for the current 30-second window.
+        var validCode = generateCode(secret, java.time.Instant.now().getEpochSecond() / 30);
+
+        var result = mvc.post().uri("/api/v1/me/totp/confirm")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"" + validCode + "\"}")
+                .exchange();
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.backup_codes").asArray().hasSize(10);
+        assertThat(userRepository.findById(user.getId()).orElseThrow().isTotpEnabled()).isTrue();
+    }
+
+    @Test
+    void enrollTotpRejectedWhenAlreadyEnabled() {
+        user.setTotpEnabled(true);
+        user.setTotpSecretEncrypted(encryptionService.encrypt("JBSWY3DPEHPK3PXP"));
+        userRepository.save(user);
+
+        var result = mvc.post().uri("/api/v1/me/totp/enroll")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .exchange();
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("TOTP_ALREADY_ENABLED");
+    }
+
+    @Test
+    void disableTotpWithCorrectPasswordSucceedsAndClearsState() {
+        user.setTotpEnabled(true);
+        user.setTotpSecretEncrypted(encryptionService.encrypt("JBSWY3DPEHPK3PXP"));
+        user.setTotpBackupCodesEncrypted(encryptionService.encrypt("[\"h:c1\",\"h:c2\"]"));
+        userRepository.save(user);
+
+        var result = mvc.post().uri("/api/v1/me/totp/disable")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"current_password\":\"Password123!\"}")
+                .exchange();
+        assertThat(result).hasStatus(204);
+        var reloaded = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(reloaded.isTotpEnabled()).isFalse();
+        assertThat(reloaded.getTotpSecretEncrypted()).isNull();
+        assertThat(reloaded.getTotpBackupCodesEncrypted()).isNull();
+    }
+
+    @Test
+    void changePasswordOnSamlAccountReturns422() {
+        user.setAuthProvider(AuthProviderType.SAML);
+        user.setPasswordHash(null);
+        userRepository.save(user);
+
+        var result = mvc.post().uri("/api/v1/me/password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"current_password\":\"x12345678\",\"new_password\":\"NewPassword456!\"}")
+                .exchange();
+        assertThat(result).hasStatus(422);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("PASSWORD_CHANGE_NOT_ALLOWED");
+    }
+
+    private String generateCode(String secret, long timeBucket) throws Exception {
+        var generator = new dev.samstevens.totp.code.DefaultCodeGenerator();
+        return generator.generate(secret, timeBucket);
     }
 
     @Test

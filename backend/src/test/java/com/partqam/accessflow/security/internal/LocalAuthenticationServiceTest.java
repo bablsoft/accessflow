@@ -159,6 +159,42 @@ class LocalAuthenticationServiceTest {
     }
 
     @Test
+    void refreshWithMissingUserThrowsBadCredentials() {
+        var claims = new JwtClaims(userId, "alice@example.com", UserRoleType.ANALYST, orgId);
+        when(refreshTokenStore.isRevoked("old-refresh")).thenReturn(false);
+        when(jwtService.parseRefreshToken("old-refresh")).thenReturn(claims);
+        when(userQueryService.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.refresh("old-refresh"))
+                .isInstanceOf(BadCredentialsException.class);
+        verify(refreshTokenStore, never()).store(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void refreshWithInactiveUserThrowsDisabled() {
+        var claims = new JwtClaims(userId, "alice@example.com", UserRoleType.ANALYST, orgId);
+        var inactiveUser = new UserView(userId, "alice@example.com", "Alice",
+                UserRoleType.ANALYST, orgId, false, AuthProviderType.LOCAL, "hashed",
+                null, null, false, null);
+        when(refreshTokenStore.isRevoked("old-refresh")).thenReturn(false);
+        when(jwtService.parseRefreshToken("old-refresh")).thenReturn(claims);
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(inactiveUser));
+
+        assertThatThrownBy(() -> service.refresh("old-refresh"))
+                .isInstanceOf(DisabledException.class);
+    }
+
+    @Test
+    void refreshWithInvalidJwtThrowsBadCredentials() throws Exception {
+        when(refreshTokenStore.isRevoked("bad-refresh")).thenReturn(false);
+        when(jwtService.parseRefreshToken("bad-refresh"))
+                .thenThrow(new com.partqam.accessflow.security.internal.jwt.JwtValidationException("malformed"));
+
+        assertThatThrownBy(() -> service.refresh("bad-refresh"))
+                .isInstanceOf(BadCredentialsException.class);
+    }
+
+    @Test
     void refreshWithRevokedTokenThrows() {
         when(refreshTokenStore.isRevoked("bad-token")).thenReturn(true);
 
