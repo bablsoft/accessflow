@@ -110,6 +110,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 command.organizationId(), command.name())) {
             throw new DatasourceNameAlreadyExistsException(command.name());
         }
+        driverCatalog.resolve(command.dbType());
         var entity = new DatasourceEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganization(organizationRepository.getReferenceById(command.organizationId()));
@@ -240,7 +241,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         var start = System.currentTimeMillis();
         try (var connection = resolved.driver().connect(url, props);
              var stmt = connection.createStatement();
-             var rs = stmt.executeQuery("SELECT 1")) {
+             var rs = stmt.executeQuery(probeSql(entity.getDbType()))) {
             rs.next();
             var latency = System.currentTimeMillis() - start;
             return new ConnectionTestResult(true, latency, "ok");
@@ -382,6 +383,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getExpiresAt(),
                 entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
                 entity.getCreatedAt());
+    }
+
+    static String probeSql(DbType dbType) {
+        // Oracle rejects bare SELECT 1 with ORA-00923 — every SELECT must have a FROM.
+        return dbType == DbType.ORACLE ? "SELECT 1 FROM DUAL" : "SELECT 1";
     }
 
     private String buildJdbcUrl(DatasourceEntity entity) {

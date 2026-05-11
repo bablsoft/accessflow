@@ -37,6 +37,8 @@ class DefaultDriverCatalogServiceTest {
                 Locale.getDefault(), "download-failed-{0}-{1}-{2}");
         messageSource.addMessage("error.datasource_driver_unavailable.checksum_mismatch",
                 Locale.getDefault(), "checksum-mismatch-{0}-{1}-{2}");
+        messageSource.addMessage("error.datasource_driver_unavailable.cache_not_writable",
+                Locale.getDefault(), "cache-not-writable-{0}-{1}");
         messageSource.addMessage("error.datasource_driver_unavailable.unavailable",
                 Locale.getDefault(), "unavailable-{0}");
     }
@@ -50,6 +52,22 @@ class DefaultDriverCatalogServiceTest {
                 .filter(t -> t.code() == DbType.POSTGRESQL)
                 .findFirst().orElseThrow();
         assertThat(info.driverStatus()).isEqualTo(DriverStatus.READY);
+        assertThat(info.bundled()).isTrue();
+    }
+
+    @Test
+    void externalDriversReportedAsNotBundled() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource);
+
+        var infos = service.list();
+
+        assertThat(infos)
+                .filteredOn(t -> t.code() != DbType.POSTGRESQL)
+                .extracting(t -> t.bundled())
+                .containsOnly(false);
+        assertThat(infos).extracting(t -> t.code())
+                .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL);
     }
 
     @Test
@@ -97,6 +115,26 @@ class DefaultDriverCatalogServiceTest {
         assertThat(resolved.driver()).isNotNull();
         assertThat(resolved.driverClassName()).isEqualTo("org.postgresql.Driver");
         assertThat(resolved.classLoader()).isSameAs(getClass().getClassLoader());
+    }
+
+    @Test
+    void resolveThrowsCacheNotWritableWhenCacheDirCannotBeCreated() throws IOException {
+        // Create a regular file at the cache path so createDirectories fails.
+        var bogus = cacheDir.resolve("not-a-dir");
+        Files.write(bogus, new byte[]{0x00});
+        var props = new DriverProperties(bogus.resolve("nested"),
+                "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource);
+
+        assertThatThrownBy(() -> service.resolve(DbType.MYSQL))
+                .isInstanceOf(DriverResolutionException.class)
+                .satisfies(ex -> {
+                    var dre = (DriverResolutionException) ex;
+                    assertThat(dre.dbType()).isEqualTo(DbType.MYSQL);
+                    assertThat(dre.reason())
+                            .isEqualTo(DriverResolutionException.Reason.CACHE_NOT_WRITABLE);
+                    assertThat(dre.getMessage()).contains("cache-not-writable");
+                });
     }
 
     @Test

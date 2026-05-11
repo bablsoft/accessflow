@@ -50,8 +50,11 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
     }
 
     private static String mysqlSslParam(SslMode sslMode) {
+        // MySQL 8+ defaults to caching_sha2_password, which exchanges the password over
+        // an RSA-encrypted channel. With TLS off, the driver needs the server's public
+        // key — which it refuses to fetch unless allowPublicKeyRetrieval=true is set.
         return switch (sslMode) {
-            case DISABLE -> "useSSL=false";
+            case DISABLE -> "useSSL=false&allowPublicKeyRetrieval=true";
             case REQUIRE -> "useSSL=true&requireSSL=true";
             case VERIFY_CA, VERIFY_FULL -> "useSSL=true&verifyServerCertificate=true";
         };

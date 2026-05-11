@@ -71,7 +71,11 @@ export function DatasourceTypeSelector({
               {t(`datasources.create.type_description.${option.code.toLowerCase()}`)}
             </div>
             <div>
-              <DriverStatusBadge status={option.driver_status} size="sm" />
+              <DriverStatusBadge
+                status={option.driver_status}
+                bundled={option.bundled}
+                size="sm"
+              />
             </div>
           </button>
         );

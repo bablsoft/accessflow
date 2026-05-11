@@ -106,7 +106,8 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 entry.defaultPort(),
                 entry.defaultSslMode(),
                 entry.jdbcUrlTemplate(),
-                status);
+                status,
+                entry.bundled());
     }
 
     private ResolvedDriver resolveBundled(DriverRegistryEntry entry) {
@@ -169,8 +170,9 @@ class DefaultDriverCatalogService implements DriverCatalogService {
         } catch (IOException e) {
             throw new DriverResolutionException(
                     entry.dbType(),
-                    DriverResolutionException.Reason.UNAVAILABLE,
-                    msg("error.datasource_driver_unavailable.unavailable", entry.dbType().name()),
+                    DriverResolutionException.Reason.CACHE_NOT_WRITABLE,
+                    msg("error.datasource_driver_unavailable.cache_not_writable",
+                            entry.dbType().name(), properties.cacheDir().toString()),
                     e);
         }
     }

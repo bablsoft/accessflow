@@ -7,5 +7,6 @@ public record DriverTypeInfo(
         int defaultPort,
         SslMode defaultSslMode,
         String jdbcUrlTemplate,
-        DriverStatus driverStatus) {
+        DriverStatus driverStatus,
+        boolean bundled) {
 }

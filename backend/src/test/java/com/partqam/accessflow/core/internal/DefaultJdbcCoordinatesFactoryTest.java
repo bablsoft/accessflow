@@ -41,7 +41,8 @@ class DefaultJdbcCoordinatesFactoryTest {
     void mysqlUrlWithDisableSsl() {
         var coords = factory.from(DbType.MYSQL, "h", 3306, "appdb", "svc", SslMode.DISABLE);
 
-        assertThat(coords.url()).isEqualTo("jdbc:mysql://h:3306/appdb?useSSL=false");
+        assertThat(coords.url())
+                .isEqualTo("jdbc:mysql://h:3306/appdb?useSSL=false&allowPublicKeyRetrieval=true");
         assertThat(coords.driverClassName()).isEqualTo("com.mysql.cj.jdbc.Driver");
     }
 

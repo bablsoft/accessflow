@@ -10,12 +10,20 @@ public record DriverProperties(Path cacheDir, String repositoryUrl, boolean offl
 
     public DriverProperties {
         if (cacheDir == null) {
-            cacheDir = Paths.get("/var/lib/accessflow/drivers");
+            cacheDir = defaultCacheDir();
         }
         if (repositoryUrl == null || repositoryUrl.isBlank()) {
             repositoryUrl = "https://repo1.maven.org/maven2";
         }
         repositoryUrl = stripTrailingSlash(repositoryUrl);
+    }
+
+    private static Path defaultCacheDir() {
+        var home = System.getProperty("user.home");
+        if (home == null || home.isBlank()) {
+            return Paths.get(".accessflow", "drivers");
+        }
+        return Paths.get(home, ".accessflow", "drivers");
     }
 
     private static String stripTrailingSlash(String url) {

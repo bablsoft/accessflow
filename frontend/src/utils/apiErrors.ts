@@ -5,6 +5,8 @@ interface ProblemDetail {
   title?: string;
   detail?: string;
   error?: string;
+  reason?: string;
+  dbType?: string;
 }
 
 export function authErrorMessage(err: unknown): string {
@@ -139,6 +141,48 @@ export function datasourceGrantErrorMessage(err: unknown): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.datasource_grant_generic');
+}
+
+export function datasourceCreateErrorMessage(err: unknown): string | null {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    if (body?.error === 'DATASOURCE_DRIVER_UNAVAILABLE') {
+      const dbType = body.dbType ?? '';
+      switch (body.reason) {
+        case 'OFFLINE_CACHE_MISS':
+          return i18n.t('errors.driver_unavailable.offline_cache_miss', {
+            dbType,
+            detail: body.detail ?? '',
+          });
+        case 'CACHE_NOT_WRITABLE':
+          return i18n.t('errors.driver_unavailable.cache_not_writable', {
+            dbType,
+            detail: body.detail ?? '',
+          });
+        case 'DOWNLOAD_FAILED':
+          return i18n.t('errors.driver_unavailable.download_failed', {
+            dbType,
+            detail: body.detail ?? '',
+          });
+        case 'CHECKSUM_MISMATCH':
+          return i18n.t('errors.driver_unavailable.checksum_mismatch', {
+            dbType,
+            detail: body.detail ?? '',
+          });
+        default:
+          return i18n.t('errors.driver_unavailable.unavailable', {
+            dbType,
+            detail: body.detail ?? '',
+          });
+      }
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return null;
 }
 
 export function reviewPlanErrorMessage(err: unknown): string {

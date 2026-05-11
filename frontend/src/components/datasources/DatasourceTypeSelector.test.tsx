@@ -12,6 +12,7 @@ const types: DatasourceTypeOption[] = [
     default_ssl_mode: 'VERIFY_FULL',
     jdbc_url_template: 'jdbc:postgresql://{host}:{port}/{database_name}',
     driver_status: 'READY',
+    bundled: true,
   },
   {
     code: 'MYSQL',
@@ -21,6 +22,7 @@ const types: DatasourceTypeOption[] = [
     default_ssl_mode: 'REQUIRE',
     jdbc_url_template: 'jdbc:mysql://{host}:{port}/{database_name}',
     driver_status: 'AVAILABLE',
+    bundled: false,
   },
   {
     code: 'ORACLE',
@@ -30,6 +32,7 @@ const types: DatasourceTypeOption[] = [
     default_ssl_mode: 'REQUIRE',
     jdbc_url_template: 'jdbc:oracle:thin:@//{host}:{port}/{database_name}',
     driver_status: 'UNAVAILABLE',
+    bundled: false,
   },
 ];
 
@@ -39,7 +42,7 @@ describe('DatasourceTypeSelector', () => {
     expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
     expect(screen.getByText('MySQL')).toBeInTheDocument();
     expect(screen.getByText('Oracle Database')).toBeInTheDocument();
-    expect(screen.getByText('Driver ready')).toBeInTheDocument();
+    expect(screen.getByText('Bundled')).toBeInTheDocument();
     expect(screen.getByText('Will download')).toBeInTheDocument();
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
   });
