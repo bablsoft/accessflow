@@ -249,11 +249,11 @@
       "driver_status_available": "Will download",
       "driver_status_unavailable": "Unavailable",
       "type_description": {
-        "postgresql": "Open-source relational database. Native JDBC driver bundled with AccessFlow.",
+        "postgresql": "Open-source relational database. Driver bundled with AccessFlow.",
         "mysql": "Widely used open-source relational database from Oracle.",
         "mariadb": "Community-developed MySQL fork.",
-        "oracle": "Oracle Database with the official thin JDBC driver.",
-        "mssql": "Microsoft SQL Server with the official Microsoft JDBC driver."
+        "oracle": "Oracle Database with the official driver.",
+        "mssql": "Microsoft SQL Server with the official Microsoft driver."
       },
       "field_name": "Name",
       "field_name_placeholder": "Production PostgreSQL",
@@ -263,10 +263,10 @@
       "field_username": "Username",
       "field_password": "Password",
       "field_ssl_mode": "SSL mode",
-      "jdbc_preview_label": "JDBC URL preview",
+      "connection_url_preview_label": "Connection URL preview",
       "test_button": "Test connection",
       "test_resolving_driver": "Resolving driver…",
-      "test_resolving_driver_hint": "Downloading and verifying the JDBC driver. This only happens the first time.",
+      "test_resolving_driver_hint": "Downloading and verifying the driver. This only happens the first time.",
       "test_success": "Connected · {{ms}} ms",
       "test_failure": "Connection failed",
       "test_failure_unknown": "The connection could not be established. Check the credentials or network reachability.",

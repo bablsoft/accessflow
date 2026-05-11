@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Button, Input } from 'antd';
-import { DatabaseOutlined, PlusOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Pill } from '@/components/common/Pill';
+import { DatasourceIcon } from '@/components/datasources/DatasourceIcon';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import type { Datasource } from '@/types/api';
 
@@ -121,27 +122,16 @@ function DsCard({ ds, onOpen }: CardProps) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-        <div
+        <DatasourceIcon
+          dbType={ds.db_type}
+          size={36}
           style={{
-            width: 36,
-            height: 36,
             borderRadius: 8,
-            background:
-              ds.db_type === 'POSTGRESQL'
-                ? 'var(--status-info-bg)'
-                : 'var(--status-warn-bg)',
-            color:
-              ds.db_type === 'POSTGRESQL'
-                ? 'var(--status-info)'
-                : 'var(--status-warn)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            background: 'var(--bg-sunken)',
+            padding: 4,
             flexShrink: 0,
           }}
-        >
-          <DatabaseOutlined style={{ fontSize: 18 }} />
-        </div>
+        />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{ds.name}</div>
           <div
