@@ -16,3 +16,14 @@
   display: flex;
   flex-direction: column;
 }
+/* Page-content slot: pages that set height: 100% on their root anchor to this
+   wrapper's height (the remaining space after the setup-progress widget).
+   Without it, height: 100% resolves to the full af-app-content height and the
+   widget gets pushed off the visible area. */
+.af-app-content-page {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

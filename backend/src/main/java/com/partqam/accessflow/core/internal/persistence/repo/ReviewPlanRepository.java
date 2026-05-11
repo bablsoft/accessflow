@@ -12,6 +12,8 @@ public interface ReviewPlanRepository extends JpaRepository<ReviewPlanEntity, UU
 
     List<ReviewPlanEntity> findAllByOrganization_IdOrderByNameAsc(UUID organizationId);
 
+    boolean existsByOrganization_Id(UUID organizationId);
+
     boolean existsByOrganization_IdAndNameIgnoreCase(UUID organizationId, String name);
 
     boolean existsByOrganization_IdAndNameIgnoreCaseAndIdNot(UUID organizationId, String name,

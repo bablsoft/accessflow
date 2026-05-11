@@ -211,6 +211,25 @@ The wizard is the only entry point that materializes a datasource; `DatasourceLi
 - Filters: date range picker, user selector, action type multi-select
 - Row click opens `AuditDetailDrawer` with full metadata JSON
 
+### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
+
+A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: returns `null` unless the current user is an `ADMIN` and every step is either configured server-side or skipped client-side. Non-admins and tenants that have finished onboarding never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`).
+
+The widget shows three numbered rows in this order:
+
+1. **Create a review plan** → `/admin/review-plans`
+2. **Add your first datasource** → `/datasources/new`
+3. **Configure the AI provider** → `/admin/ai-config`
+
+Review plan is first because every datasource references a plan; AI is last because it is the most likely step to be skipped on a fresh install. Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once all three are accounted for, the widget hides entirely.
+
+State lives in `preferencesStore`:
+
+- `setupProgressCollapsed` — collapse/expand state of the checklist body.
+- `setupProgressSkipped: SetupStepId[]` — the IDs the admin marked skipped. Persisted to `localStorage` via Zustand `persist`, so the choice survives reloads but is intentionally per-browser (not per-org) since skipping is a UX nudge, not a policy.
+
+The relevant mutations (create datasource, create review plan, save AI config) invalidate `setupProgressKeys.current()` on success so the widget reacts immediately when an admin completes a step the real way.
+
 ### Topbar (`components/common/Topbar.tsx`)
 
 The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the

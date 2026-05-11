@@ -72,6 +72,15 @@ export interface UpdateUserInput {
   display_name?: string | null;
 }
 
+export interface SetupProgress {
+  datasources_configured: boolean;
+  review_plans_configured: boolean;
+  ai_provider_configured: boolean;
+  completed_steps: number;
+  total_steps: number;
+  complete: boolean;
+}
+
 export interface AiConfig {
   id: string | null;
   organization_id: string;

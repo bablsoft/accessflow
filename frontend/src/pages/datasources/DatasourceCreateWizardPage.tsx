@@ -12,6 +12,7 @@ import {
   getDatasourceTypes,
   testConnection,
 } from '@/api/datasources';
+import { setupProgressKeys } from '@/api/admin';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
@@ -90,6 +91,7 @@ export default function DatasourceCreateWizardPage() {
     onSuccess: (created) => {
       setCreatedDatasourceId(created.id);
       queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       setCurrentStep('test');
     },
     onError: (err: unknown) => {

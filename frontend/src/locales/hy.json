@@ -384,6 +384,21 @@
     }
   },
   "admin": {
+    "setup_progress": {
+      "title": "Ավարտեք AccessFlow-ի կարգավորումը",
+      "subtitle": "Ավարտեք այս քայլերը, որպեսզի սկսեք հարցումները վերանայել։",
+      "step_datasources_label": "Ավելացրեք ձեր առաջին տվյալների աղբյուրը",
+      "step_review_plans_label": "Ստեղծեք վերանայման ծրագիր",
+      "step_ai_provider_label": "Կարգավորեք AI մատակարարը",
+      "step_action_setup": "Կարգավորել",
+      "step_action_skip": "Բաց թողնել",
+      "step_action_undo_skip": "Հետ վերադարձնել բացթողումը",
+      "step_status_done": "Կատարված է",
+      "step_status_skipped": "Բաց թողնված է",
+      "progress_aria": "Կարգավորման ընթացքը",
+      "expand": "Ցույց տալ կարգավորման ցանկը",
+      "collapse": "Թաքցնել կարգավորման ցանկը"
+    },
     "users": {
       "title": "Օգտատերեր",
       "subtitle_count": "Ձեր կազմակերպությունում {{count}} օգտատեր կա",

@@ -384,6 +384,21 @@
     }
   },
   "admin": {
+    "setup_progress": {
+      "title": "Завершите настройку AccessFlow",
+      "subtitle": "Выполните эти шаги, чтобы начать проверять запросы.",
+      "step_datasources_label": "Добавьте первый источник данных",
+      "step_review_plans_label": "Создайте план проверки",
+      "step_ai_provider_label": "Настройте AI-провайдера",
+      "step_action_setup": "Настроить",
+      "step_action_skip": "Пропустить",
+      "step_action_undo_skip": "Отменить пропуск",
+      "step_status_done": "Готово",
+      "step_status_skipped": "Пропущено",
+      "progress_aria": "Ход настройки",
+      "expand": "Показать список настройки",
+      "collapse": "Скрыть список настройки"
+    },
     "users": {
       "title": "Пользователи",
       "subtitle_count": "В вашей организации {{count}} пользователей",
