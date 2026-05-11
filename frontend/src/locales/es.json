@@ -168,7 +168,9 @@
       "col_datasource": "Fuente de datos",
       "col_submitter": "Autor",
       "col_created": "Creado",
-      "count_label": "{{filtered}} de {{total}}"
+      "count_label": "{{filtered}} de {{total}}",
+      "export_failed": "La exportación falló. Inténtelo de nuevo.",
+      "export_truncated": "Exportación limitada a 50.000 filas. Aplique filtros más estrictos para obtener el conjunto completo."
     },
     "detail": {
       "breadcrumb_queries": "Consultas",

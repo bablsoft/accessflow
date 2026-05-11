@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public interface QueryRequestLookupService {
 
@@ -35,6 +36,21 @@ public interface QueryRequestLookupService {
      * {@code created_at DESC}.
      */
     Page<QueryListItemView> findForOrganization(QueryListFilter filter, Pageable pageable);
+
+    /**
+     * Returns the total number of queries matching the supplied filter, scoped to the caller's
+     * organization. Used by the CSV export endpoint to decide whether the safety-capped stream
+     * will truncate the result set.
+     */
+    long countForOrganization(QueryListFilter filter);
+
+    /**
+     * Streams queries matching the supplied filter to {@code consumer} in {@code created_at DESC}
+     * order, stopping once {@code maxRows} have been emitted. The implementation paginates
+     * internally so the JPA session is bounded and memory stays flat regardless of result size.
+     */
+    void streamForOrganization(QueryListFilter filter, int maxRows,
+                               Consumer<QueryListItemView> consumer);
 
     /**
      * Returns the full read-side view of a single query request, including its AI analysis.

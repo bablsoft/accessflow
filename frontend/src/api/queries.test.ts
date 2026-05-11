@@ -117,6 +117,55 @@ describe('api/queries', () => {
     });
   });
 
+  it('exportQueriesCsv requests blob from /export.csv with server-side filters only', async () => {
+    const blob = new Blob(['id\r\n'], { type: 'text/csv' });
+    get.mockResolvedValueOnce({
+      data: blob,
+      headers: {
+        'content-disposition': 'attachment; filename="queries-20260511-120000.csv"',
+        'x-accessflow-export-truncated': 'false',
+      },
+    });
+
+    const result = await queriesApi.exportQueriesCsv({
+      status: 'PENDING_REVIEW',
+      datasource_id: 'ds-1',
+      page: 3,
+      size: 50,
+    });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/queries/export.csv', {
+      params: { status: 'PENDING_REVIEW', datasourceId: 'ds-1' },
+      responseType: 'blob',
+    });
+    expect(result.blob).toBe(blob);
+    expect(result.filename).toBe('queries-20260511-120000.csv');
+    expect(result.truncated).toBe(false);
+  });
+
+  it('exportQueriesCsv reports truncation when header is true', async () => {
+    get.mockResolvedValueOnce({
+      data: new Blob(['x']),
+      headers: {
+        'content-disposition': 'attachment; filename="queries-20260511-120000.csv"',
+        'x-accessflow-export-truncated': 'true',
+      },
+    });
+
+    const result = await queriesApi.exportQueriesCsv();
+    expect(result.truncated).toBe(true);
+  });
+
+  it('exportQueriesCsv falls back to a generated filename when Content-Disposition is absent', async () => {
+    get.mockResolvedValueOnce({
+      data: new Blob(['x']),
+      headers: {},
+    });
+    const result = await queriesApi.exportQueriesCsv();
+    expect(result.filename).toMatch(/^queries-\d{8}-\d{6}\.csv$/);
+    expect(result.truncated).toBe(false);
+  });
+
   it('isPending matches PENDING_* statuses', () => {
     expect(queriesApi.isPending('PENDING_AI')).toBe(true);
     expect(queriesApi.isPending('PENDING_REVIEW')).toBe(true);

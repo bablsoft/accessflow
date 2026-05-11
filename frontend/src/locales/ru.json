@@ -168,7 +168,9 @@
       "col_datasource": "Источник данных",
       "col_submitter": "Автор",
       "col_created": "Создан",
-      "count_label": "{{filtered}} из {{total}}"
+      "count_label": "{{filtered}} из {{total}}",
+      "export_failed": "Ошибка экспорта. Попробуйте ещё раз.",
+      "export_truncated": "Экспорт обрезан до 50 000 строк. Уточните фильтры, чтобы получить полный набор."
     },
     "detail": {
       "breadcrumb_queries": "Запросы",

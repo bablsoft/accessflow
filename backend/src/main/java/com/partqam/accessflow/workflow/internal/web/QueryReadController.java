@@ -8,6 +8,7 @@ import com.partqam.accessflow.core.api.QueryStatus;
 import com.partqam.accessflow.core.api.QueryType;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.security.api.JwtClaims;
+import com.partqam.accessflow.workflow.api.QueryCsvExportService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
@@ -18,7 +19,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -48,6 +52,7 @@ class QueryReadController {
     private final QueryRequestLookupService queryRequestLookupService;
     private final QueryLifecycleService queryLifecycleService;
     private final QueryResultPersistenceService queryResultPersistenceService;
+    private final QueryCsvExportService queryCsvExportService;
     private final ObjectMapper objectMapper;
 
     @GetMapping
@@ -73,12 +78,49 @@ class QueryReadController {
                     "Page size cannot exceed " + MAX_PAGE_SIZE);
         }
         var caller = (JwtClaims) authentication.getPrincipal();
-        var effectiveSubmitter = caller.role() == UserRoleType.ADMIN ? submittedBy : caller.userId();
-        var filter = new QueryListFilter(caller.organizationId(), effectiveSubmitter,
-                datasourceId, status, queryType, from, to);
+        var filter = buildFilter(caller, status, datasourceId, submittedBy, queryType, from, to);
         var page = queryRequestLookupService.findForOrganization(filter, pageable)
                 .map(QueryListItem::from);
         return QueryListPageResponse.from(page);
+    }
+
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    @Operation(summary = "Export query requests as CSV (same filter set as GET /queries)")
+    @ApiResponse(responseCode = "200", description = "CSV body of query rows")
+    ResponseEntity<byte[]> exportCsv(
+            @Parameter(description = "Filter by status enum value")
+            @RequestParam(required = false) QueryStatus status,
+            @Parameter(description = "Filter by datasource id")
+            @RequestParam(required = false) UUID datasourceId,
+            @Parameter(description = "Filter by submitter user id (admin-only override)")
+            @RequestParam(required = false) UUID submittedBy,
+            @Parameter(description = "Inclusive lower bound on createdAt")
+            @RequestParam(required = false) Instant from,
+            @Parameter(description = "Exclusive upper bound on createdAt")
+            @RequestParam(required = false) Instant to,
+            @Parameter(description = "Filter by query_type")
+            @RequestParam(required = false) QueryType queryType,
+            Authentication authentication) {
+        var caller = (JwtClaims) authentication.getPrincipal();
+        var filter = buildFilter(caller, status, datasourceId, submittedBy, queryType, from, to);
+        var export = queryCsvExportService.exportQueries(filter);
+
+        var headers = new HttpHeaders();
+        headers.setContentType(new MediaType("text", "csv", StandardCharsets.UTF_8));
+        headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + export.filename() + "\"");
+        if (export.truncated()) {
+            headers.add("X-AccessFlow-Export-Truncated", "true");
+        }
+        return ResponseEntity.ok().headers(headers).body(export.body());
+    }
+
+    private static QueryListFilter buildFilter(JwtClaims caller, QueryStatus status,
+                                               UUID datasourceId, UUID submittedBy,
+                                               QueryType queryType, Instant from, Instant to) {
+        var effectiveSubmitter = caller.role() == UserRoleType.ADMIN ? submittedBy : caller.userId();
+        return new QueryListFilter(caller.organizationId(), effectiveSubmitter, datasourceId,
+                status, queryType, from, to);
     }
 
     @GetMapping("/{id}")

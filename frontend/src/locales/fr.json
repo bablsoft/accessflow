@@ -168,7 +168,9 @@
       "col_datasource": "Source de données",
       "col_submitter": "Auteur",
       "col_created": "Créée",
-      "count_label": "{{filtered}} sur {{total}}"
+      "count_label": "{{filtered}} sur {{total}}",
+      "export_failed": "Échec de l’export. Veuillez réessayer.",
+      "export_truncated": "Export limité à 50 000 lignes. Affinez les filtres pour récupérer l’ensemble des résultats."
     },
     "detail": {
       "breadcrumb_queries": "Requêtes",

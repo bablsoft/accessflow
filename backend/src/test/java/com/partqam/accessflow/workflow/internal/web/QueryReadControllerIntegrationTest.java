@@ -18,6 +18,8 @@ import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.security.internal.jwt.JwtService;
+import com.partqam.accessflow.core.api.QueryListFilter;
+import com.partqam.accessflow.workflow.api.QueryCsvExportService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService.ExecutionOutcome;
 import com.partqam.accessflow.workflow.api.QueryNotCancellableException;
@@ -36,6 +38,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
@@ -52,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
@@ -67,6 +71,7 @@ class QueryReadControllerIntegrationTest {
     @MockitoBean QueryRequestLookupService queryRequestLookupService;
     @MockitoBean QueryLifecycleService queryLifecycleService;
     @MockitoBean QueryResultPersistenceService queryResultPersistenceService;
+    @MockitoBean QueryCsvExportService queryCsvExportService;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -161,6 +166,85 @@ class QueryReadControllerIntegrationTest {
                 .asString().isEqualTo(analyst.getEmail());
         assertThat(response).bodyJson().extractingPath("$.content[0].datasource.name")
                 .asString().isEqualTo("Prod PG");
+    }
+
+    // ── GET /api/v1/queries/export.csv ──────────────────────────────────────────
+
+    @Test
+    void exportCsvWritesServiceBodyAndContentDispositionHeader() throws Exception {
+        var csv = "id,created_at\r\n11111111-1111-1111-1111-111111111111,2026-05-11T10:00:00Z\r\n"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(csv,
+                        "queries-20260511-100000.csv", false));
+
+        var response = mvc.get().uri("/api/v1/queries/export.csv?status=PENDING_REVIEW")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response.getResponse().getContentType()).startsWith("text/csv");
+        assertThat(response.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("attachment; filename=\"queries-20260511-100000.csv\"");
+        assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated")).isNull();
+        assertThat(response.getResponse().getContentAsString())
+                .isEqualTo("id,created_at\r\n11111111-1111-1111-1111-111111111111,"
+                        + "2026-05-11T10:00:00Z\r\n");
+    }
+
+    @Test
+    void exportCsvForwardsTruncationFlagAsHeader() {
+        var csv = "id\r\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(csv,
+                        "queries-20260511-100000.csv", true));
+
+        var response = mvc.get().uri("/api/v1/queries/export.csv")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated"))
+                .isEqualTo("true");
+    }
+
+    @Test
+    void exportCsvScopesFilterToCallerForNonAdmin() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+
+        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + UUID.randomUUID())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        // Non-admin caller: the submittedBy query param is ignored and overridden with caller id.
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(analyst.getId());
+        assertThat(captor.getValue().organizationId()).isEqualTo(org.getId());
+    }
+
+    @Test
+    void exportCsvLetsAdminOverrideSubmitter() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+        var target = UUID.randomUUID();
+
+        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + target)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(target);
+    }
+
+    @Test
+    void exportCsvReturns401WithoutToken() {
+        var response = mvc.get().uri("/api/v1/queries/export.csv").exchange();
+        assertThat(response).hasStatus(401);
     }
 
     @Test

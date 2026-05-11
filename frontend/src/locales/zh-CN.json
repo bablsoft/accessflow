@@ -168,7 +168,9 @@
       "col_datasource": "数据源",
       "col_submitter": "提交者",
       "col_created": "创建时间",
-      "count_label": "{{filtered}} / {{total}}"
+      "count_label": "{{filtered}} / {{total}}",
+      "export_failed": "导出失败,请重试。",
+      "export_truncated": "导出已截断至 50,000 行。请应用更严格的过滤条件以获取完整结果。"
     },
     "detail": {
       "breadcrumb_queries": "查询",

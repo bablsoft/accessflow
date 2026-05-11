@@ -89,6 +89,31 @@ export async function analyzeOnly(input: AnalyzeQueryInput): Promise<AiAnalysis>
   return data;
 }
 
+export interface QueryExportResult {
+  blob: Blob;
+  filename: string;
+  truncated: boolean;
+}
+
+export async function exportQueriesCsv(
+  filters: QueryListFilters = {},
+): Promise<QueryExportResult> {
+  const response = await apiClient.get<Blob>(`${BASE}/export.csv`, {
+    params: toQueryParams(stripPagination(filters)),
+    responseType: 'blob',
+  });
+  const disposition = response.headers['content-disposition'];
+  const filename =
+    parseContentDispositionFilename(typeof disposition === 'string' ? disposition : undefined) ??
+    defaultExportFilename();
+  const truncatedHeader = response.headers['x-accessflow-export-truncated'];
+  return {
+    blob: response.data,
+    filename,
+    truncated: typeof truncatedHeader === 'string' && truncatedHeader.toLowerCase() === 'true',
+  };
+}
+
 export const isPending = (s: QueryStatus): boolean =>
   s === 'PENDING_AI' || s === 'PENDING_REVIEW';
 
@@ -103,4 +128,26 @@ function toQueryParams(filters: QueryListFilters): Record<string, string | numbe
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
   return params;
+}
+
+function stripPagination(filters: QueryListFilters): QueryListFilters {
+  const next: QueryListFilters = { ...filters };
+  delete next.page;
+  delete next.size;
+  return next;
+}
+
+function parseContentDispositionFilename(header: string | undefined): string | null {
+  if (!header) return null;
+  const match = /filename="([^"]+)"/i.exec(header);
+  return match?.[1] ?? null;
+}
+
+function defaultExportFilename(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp =
+    `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}` +
+    `-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
+  return `queries-${stamp}.csv`;
 }
