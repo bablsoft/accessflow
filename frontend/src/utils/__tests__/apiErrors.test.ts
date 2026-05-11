@@ -4,6 +4,9 @@ import {
   adminErrorMessage,
   authErrorMessage,
   datasourceGrantErrorMessage,
+  isTotpInvalidError,
+  isTotpRequiredError,
+  profileErrorMessage,
   reviewErrorMessage,
   reviewPlanErrorMessage,
   setupErrorMessage,
@@ -197,6 +200,67 @@ describe('datasourceGrantErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(datasourceGrantErrorMessage(undefined))
       .toBe('Failed to grant access. Please try again.');
+  });
+});
+
+describe('isTotpRequiredError / isTotpInvalidError', () => {
+  it('detects TOTP_REQUIRED', () => {
+    expect(isTotpRequiredError(buildAxiosError(401, { error: 'TOTP_REQUIRED' }))).toBe(true);
+    expect(isTotpRequiredError(buildAxiosError(401, { error: 'OTHER' }))).toBe(false);
+    expect(isTotpRequiredError(new Error('not axios'))).toBe(false);
+  });
+
+  it('detects TOTP_INVALID', () => {
+    expect(isTotpInvalidError(buildAxiosError(401, { error: 'TOTP_INVALID' }))).toBe(true);
+    expect(isTotpInvalidError(buildAxiosError(401, { error: 'OTHER' }))).toBe(false);
+    expect(isTotpInvalidError(new Error('not axios'))).toBe(false);
+  });
+});
+
+describe('authErrorMessage TOTP branches', () => {
+  it('maps TOTP_REQUIRED', () => {
+    expect(authErrorMessage(buildAxiosError(401, { error: 'TOTP_REQUIRED' })))
+      .toBe('Enter the code from your authenticator app to continue.');
+  });
+
+  it('maps TOTP_INVALID', () => {
+    expect(authErrorMessage(buildAxiosError(401, { error: 'TOTP_INVALID' })))
+      .toBe('That verification code is not valid. Please try again.');
+  });
+});
+
+describe('profileErrorMessage', () => {
+  it('maps PASSWORD_INCORRECT', () => {
+    expect(profileErrorMessage(buildAxiosError(422, { error: 'PASSWORD_INCORRECT' })))
+      .toBe('The current password is incorrect.');
+  });
+
+  it('maps PASSWORD_CHANGE_NOT_ALLOWED', () => {
+    expect(profileErrorMessage(buildAxiosError(422, { error: 'PASSWORD_CHANGE_NOT_ALLOWED' })))
+      .toBe('Password change is not allowed for this account.');
+  });
+
+  it('maps TOTP_NOT_ENABLED, TOTP_ALREADY_ENABLED, TOTP_INVALID_CODE', () => {
+    expect(profileErrorMessage(buildAxiosError(422, { error: 'TOTP_NOT_ENABLED' })))
+      .toBe('Two-factor authentication is not enabled.');
+    expect(profileErrorMessage(buildAxiosError(422, { error: 'TOTP_ALREADY_ENABLED' })))
+      .toBe('Two-factor authentication is already enabled.');
+    expect(profileErrorMessage(buildAxiosError(422, { error: 'TOTP_INVALID_CODE' })))
+      .toBe('That verification code is not valid.');
+  });
+
+  it('falls back to ProblemDetail.title or .detail or message', () => {
+    expect(profileErrorMessage(buildAxiosError(500, { title: 'T' }))).toBe('T');
+    expect(profileErrorMessage(buildAxiosError(500, { detail: 'D' }))).toBe('D');
+    expect(profileErrorMessage(new AxiosError('Net'))).toBe('Net');
+  });
+
+  it('handles non-axios errors', () => {
+    expect(profileErrorMessage(new Error('boom'))).toBe('boom');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(profileErrorMessage(undefined)).toBe('Could not update your profile. Please try again.');
   });
 });
 

@@ -10,6 +10,9 @@ interface ProblemDetail {
 export function authErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;
+    const code = ax.response?.data?.error;
+    if (code === 'TOTP_INVALID') return i18n.t('errors.totp_invalid');
+    if (code === 'TOTP_REQUIRED') return i18n.t('errors.totp_required');
     if (ax.response?.status === 401) return i18n.t('errors.auth_invalid');
     const body = ax.response?.data;
     if (body?.title) return body.title;
@@ -18,6 +21,36 @@ export function authErrorMessage(err: unknown): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.auth_generic');
+}
+
+export function isTotpRequiredError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  const ax = err as AxiosError<ProblemDetail>;
+  return ax.response?.data?.error === 'TOTP_REQUIRED';
+}
+
+export function isTotpInvalidError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  const ax = err as AxiosError<ProblemDetail>;
+  return ax.response?.data?.error === 'TOTP_INVALID';
+}
+
+export function profileErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const code = ax.response?.data?.error;
+    if (code === 'PASSWORD_INCORRECT') return i18n.t('errors.password_incorrect');
+    if (code === 'PASSWORD_CHANGE_NOT_ALLOWED') return i18n.t('errors.password_change_not_allowed');
+    if (code === 'TOTP_NOT_ENABLED') return i18n.t('errors.totp_not_enabled');
+    if (code === 'TOTP_ALREADY_ENABLED') return i18n.t('errors.totp_already_enabled');
+    if (code === 'TOTP_INVALID_CODE') return i18n.t('errors.totp_invalid_code');
+    const body = ax.response?.data;
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.profile_generic');
 }
 
 export function setupErrorMessage(err: unknown): string {

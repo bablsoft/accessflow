@@ -1,4 +1,12 @@
-import { LogoutOutlined, MenuOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons';
+import {
+  DownOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+  MoonOutlined,
+  SunOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import { Dropdown, type MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
@@ -13,6 +21,7 @@ interface TopbarProps {
 
 export function Topbar({ onOpenMobileNav }: TopbarProps) {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const theme = usePreferencesStore((s) => s.theme);
   const setTheme = usePreferencesStore((s) => s.setTheme);
@@ -22,6 +31,22 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
     await logout();
     navigate('/login');
   };
+
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: t('user_menu.profile'),
+      onClick: () => navigate('/profile'),
+    },
+    { type: 'divider' },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: t('user_menu.sign_out'),
+      onClick: onLogout,
+    },
+  ];
 
   return (
     <header className="af-topbar">
@@ -53,9 +78,17 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       </div>
       <LanguageSwitcher />
       <NotificationBell />
-      <button className="af-icon-btn" onClick={onLogout} aria-label={t('common.sign_out')}>
-        <LogoutOutlined />
-      </button>
+      <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+        <button
+          className="af-user-menu-trigger"
+          aria-label={t('user_menu.open')}
+          type="button"
+        >
+          <UserOutlined />
+          <span className="af-user-menu-name">{user?.display_name ?? user?.email ?? ''}</span>
+          <DownOutlined style={{ fontSize: 10 }} />
+        </button>
+      </Dropdown>
     </header>
   );
 }

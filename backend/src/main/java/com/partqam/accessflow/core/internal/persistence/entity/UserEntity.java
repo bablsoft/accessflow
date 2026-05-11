@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -64,6 +65,17 @@ public class UserEntity {
 
     @Column(name = "preferred_language", length = 20)
     private String preferredLanguage;
+
+    @JsonIgnore
+    @Column(name = "totp_secret_encrypted", length = 512)
+    private String totpSecretEncrypted;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled = false;
+
+    @JsonIgnore
+    @Column(name = "totp_backup_codes_encrypted", columnDefinition = "TEXT")
+    private String totpBackupCodesEncrypted;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

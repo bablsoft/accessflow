@@ -11,7 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { authErrorMessage } from '@/utils/apiErrors';
+import { authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 
 interface LoginLocationState {
   setupSuccess?: boolean;
@@ -21,6 +21,12 @@ interface LoginFormValues {
   email: string;
   password: string;
 }
+
+interface TotpFormValues {
+  totp_code: string;
+}
+
+type Stage = 'CREDENTIALS' | 'TOTP';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -32,9 +38,12 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setupSuccess, setSetupSuccess] = useState(initialSetupSuccess);
+  const [stage, setStage] = useState<Stage>('CREDENTIALS');
+  const [pendingCredentials, setPendingCredentials] = useState<LoginFormValues | null>(null);
   const login = useAuthStore((s) => s.login);
   const edition = usePreferencesStore((s) => s.edition);
   const [form] = Form.useForm<LoginFormValues>();
+  const [totpForm] = Form.useForm<TotpFormValues>();
 
   useEffect(() => {
     if (initialSetupSuccess) {
@@ -43,17 +52,44 @@ export function LoginPage() {
     }
   }, [initialSetupSuccess, location.pathname, navigate]);
 
-  const onFinish = async (values: LoginFormValues): Promise<void> => {
+  const onCredentialsFinish = async (values: LoginFormValues): Promise<void> => {
     setError(null);
     setLoading(true);
     try {
       await login(values.email, values.password);
       navigate('/editor');
     } catch (err) {
+      if (isTotpRequiredError(err)) {
+        setPendingCredentials(values);
+        setStage('TOTP');
+        setError(null);
+      } else {
+        setError(authErrorMessage(err));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onTotpFinish = async (values: TotpFormValues): Promise<void> => {
+    if (!pendingCredentials) return;
+    setError(null);
+    setLoading(true);
+    try {
+      await login(pendingCredentials.email, pendingCredentials.password, values.totp_code);
+      navigate('/editor');
+    } catch (err) {
       setError(authErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  const backToCredentials = () => {
+    setStage('CREDENTIALS');
+    setError(null);
+    setPendingCredentials(null);
+    totpForm.resetFields();
   };
 
   const samlLogin = () => {
@@ -120,10 +156,10 @@ export function LoginPage() {
         >
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {t('auth.login.title')}
+              {stage === 'TOTP' ? t('totp_login.title') : t('auth.login.title')}
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
-              {t('auth.login.subtitle')}
+              {stage === 'TOTP' ? t('totp_login.subtitle') : t('auth.login.subtitle')}
             </div>
           </div>
 
@@ -149,7 +185,7 @@ export function LoginPage() {
             />
           )}
 
-          {edition === 'ENTERPRISE' && (
+          {stage === 'CREDENTIALS' && edition === 'ENTERPRISE' && (
             <>
               <Button
                 size="large"
@@ -177,82 +213,131 @@ export function LoginPage() {
             </>
           )}
 
-          <Form<LoginFormValues>
-            form={form}
-            layout="vertical"
-            onFinish={onFinish}
-            requiredMark={false}
-            disabled={loading}
-          >
-            <Form.Item
-              name="email"
-              label={t('auth.login.email_label')}
-              rules={[
-                { required: true, message: t('validation.email_required') },
-                { type: 'email', message: t('validation.email_invalid') },
-              ]}
-            >
-              <Input
-                id="login-email"
-                type="email"
-                autoComplete="email"
-                placeholder={t('auth.login.email_placeholder')}
-              />
-            </Form.Item>
-
-            <Form.Item
-              name="password"
-              label={
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                  <span>{t('auth.login.password_label')}</span>
-                  <a
-                    href="#"
-                    className="muted"
-                    style={{ fontSize: 11, textDecoration: 'none' }}
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    Forgot?
-                  </a>
-                </div>
-              }
-              rules={[
-                { required: true, message: t('validation.password_required') },
-                { min: 8, max: 128, message: t('validation.password_size') },
-              ]}
-            >
-              <Input
-                id="login-password"
-                type={showPw ? 'text' : 'password'}
-                autoComplete="current-password"
-                suffix={
-                  <button
-                    type="button"
-                    onClick={() => setShowPw(!showPw)}
-                    aria-label={showPw ? t('auth.login.hide_password') : t('auth.login.show_password')}
-                    style={{
-                      background: 'transparent',
-                      border: 0,
-                      color: 'var(--fg-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {showPw ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                  </button>
-                }
-              />
-            </Form.Item>
-
-            <Button
-              type="primary"
-              size="large"
-              block
-              htmlType="submit"
+          {stage === 'CREDENTIALS' && (
+            <Form<LoginFormValues>
+              form={form}
+              layout="vertical"
+              onFinish={onCredentialsFinish}
+              requiredMark={false}
               disabled={loading}
-              icon={loading ? <LoadingOutlined /> : <ArrowRightOutlined />}
             >
-              {loading ? t('auth.login.submitting') : t('auth.login.submit')}
-            </Button>
-          </Form>
+              <Form.Item
+                name="email"
+                label={t('auth.login.email_label')}
+                rules={[
+                  { required: true, message: t('validation.email_required') },
+                  { type: 'email', message: t('validation.email_invalid') },
+                ]}
+              >
+                <Input
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder={t('auth.login.email_placeholder')}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="password"
+                label={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>{t('auth.login.password_label')}</span>
+                    <a
+                      href="#"
+                      className="muted"
+                      style={{ fontSize: 11, textDecoration: 'none' }}
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      Forgot?
+                    </a>
+                  </div>
+                }
+                rules={[
+                  { required: true, message: t('validation.password_required') },
+                  { min: 8, max: 128, message: t('validation.password_size') },
+                ]}
+              >
+                <Input
+                  id="login-password"
+                  type={showPw ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(!showPw)}
+                      aria-label={showPw ? t('auth.login.hide_password') : t('auth.login.show_password')}
+                      style={{
+                        background: 'transparent',
+                        border: 0,
+                        color: 'var(--fg-muted)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {showPw ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                    </button>
+                  }
+                />
+              </Form.Item>
+
+              <Button
+                type="primary"
+                size="large"
+                block
+                htmlType="submit"
+                disabled={loading}
+                icon={loading ? <LoadingOutlined /> : <ArrowRightOutlined />}
+              >
+                {loading ? t('auth.login.submitting') : t('auth.login.submit')}
+              </Button>
+            </Form>
+          )}
+
+          {stage === 'TOTP' && (
+            <Form<TotpFormValues>
+              form={totpForm}
+              layout="vertical"
+              onFinish={onTotpFinish}
+              requiredMark={false}
+              disabled={loading}
+            >
+              <Form.Item
+                name="totp_code"
+                label={t('totp_login.code_label')}
+                rules={[
+                  { required: true, message: t('validation.totp_code_required') },
+                  { pattern: /^\d{6}$/, message: t('validation.totp_code_pattern') },
+                ]}
+              >
+                <Input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  autoFocus
+                  placeholder="123456"
+                  style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: 18, letterSpacing: 4 }}
+                />
+              </Form.Item>
+              <Button
+                type="primary"
+                size="large"
+                block
+                htmlType="submit"
+                disabled={loading}
+                icon={loading ? <LoadingOutlined /> : <ArrowRightOutlined />}
+              >
+                {loading ? t('totp_login.submitting') : t('totp_login.submit')}
+              </Button>
+              <Button
+                type="link"
+                block
+                onClick={backToCredentials}
+                disabled={loading}
+                style={{ marginTop: 8 }}
+              >
+                {t('totp_login.back')}
+              </Button>
+            </Form>
+          )}
         </div>
       </div>
     </div>

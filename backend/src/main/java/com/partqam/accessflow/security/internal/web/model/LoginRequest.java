@@ -8,5 +8,6 @@ public record LoginRequest(
         @NotBlank(message = "{validation.email.required}")
         @Email(message = "{validation.email.invalid}") String email,
         @NotBlank(message = "{validation.password.size}")
-        @Size(min = 8, max = 128, message = "{validation.password.size}") String password
+        @Size(min = 8, max = 128, message = "{validation.password.size}") String password,
+        String totpCode
 ) {}

@@ -192,7 +192,7 @@ class NotificationContextBuilderTest {
                 .thenReturn(Optional.of(plan(List.of(new ApproverRule(reviewerId, null, 1)), List.of())));
         var inactive = new UserView(reviewerId, "rev@example.com", "Rev",
                 UserRoleType.REVIEWER, orgId, false, AuthProviderType.LOCAL,
-                "h", null, null, Instant.now());
+                "h", null, null, false, Instant.now());
         when(userQuery.findById(reviewerId)).thenReturn(Optional.of(inactive));
 
         var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
@@ -230,7 +230,7 @@ class NotificationContextBuilderTest {
         var adminA = user(UUID.randomUUID(), "a@example.com", UserRoleType.ADMIN);
         var adminB = user(UUID.randomUUID(), "b@example.com", UserRoleType.ADMIN);
         var inactive = new UserView(UUID.randomUUID(), "c@example.com", "C",
-                UserRoleType.ADMIN, orgId, false, AuthProviderType.LOCAL, "h", null, null, Instant.now());
+                UserRoleType.ADMIN, orgId, false, AuthProviderType.LOCAL, "h", null, null, false, Instant.now());
         when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
                 .thenReturn(List.of(adminA, adminB, inactive));
 
@@ -310,7 +310,7 @@ class NotificationContextBuilderTest {
 
     private UserView user(UUID id, String email, UserRoleType role) {
         return new UserView(id, email, "Bob", role, orgId, true, AuthProviderType.LOCAL,
-                "hash", null, null, Instant.now());
+                "hash", null, null, false, Instant.now());
     }
 
     private DatasourceView datasourceView() {

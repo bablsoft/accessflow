@@ -11,6 +11,18 @@
 - Revocation: invalidated refresh tokens stored in Redis with TTL matching remaining lifetime
 - On access token expiry, frontend automatically calls `POST /auth/refresh` via Axios interceptor
 
+### Two-factor authentication (TOTP)
+
+Every LOCAL user can opt in to TOTP-based 2FA from `/profile`. SAML-provisioned users authenticate through their IdP and cannot enrol locally — they rely on the IdP's MFA controls instead.
+
+- **Standard:** RFC 6238 TOTP, SHA-1, 6 digits, 30-second window. Implemented via `dev.samstevens.totp:totp` (current pin: 1.7.1) — re-verify against the latest stable on each bump.
+- **Secret storage:** the shared secret is AES-256-GCM encrypted on the user row (`users.totp_secret_encrypted`, `@JsonIgnore`) via the existing `CredentialEncryptionService`. The plaintext exists only inside `DefaultTotpVerificationService.verify`, never on a response.
+- **Enrolment flow:** `POST /me/totp/enroll` generates the secret and an otpauth URL (issuer `AccessFlow`, label `<email>`) plus a base64-PNG QR data URI. `totp_enabled` stays false until `POST /me/totp/confirm` proves possession by verifying a 6-digit code; the same call returns 10 single-use backup recovery codes (plaintext, **once**) and persists them as bcrypt hashes inside an AES-encrypted JSON array.
+- **Login enforcement:** `LocalAuthenticationService.login` rejects 2FA-enabled accounts that present no `totp_code` with HTTP 401 `TOTP_REQUIRED`. A valid 6-digit code OR an unused backup code unlocks the session; a backup code is removed from the encrypted blob on first successful use.
+- **Disable:** `POST /me/totp/disable` requires the caller's current password, then clears the secret, `totp_enabled`, and the backup-codes blob. All refresh tokens are revoked on disable (via `SessionRevocationService`).
+- **Password change side effect:** `POST /me/password` also revokes all refresh tokens, forcing the user to sign in again on every device.
+- **Replay & rate limiting:** the underlying TOTP library tolerates the immediately preceding 30-second window for clock skew; outside that, replays are rejected. There is no application-level lockout yet — that's a deferred item.
+
 ### WebSocket handshake
 
 The realtime endpoint at `/ws` is exempt from `JwtAuthenticationFilter` and authenticates the upgrade through `realtime/internal/ws/JwtHandshakeInterceptor` instead. Browsers do not allow custom headers on a WebSocket upgrade, so the access token is supplied as a query parameter: `ws://host/ws?token=<JWT>`.

@@ -304,6 +304,6 @@ class ReviewControllerIntegrationTest {
         return jwtService.generateAccessToken(new com.partqam.accessflow.core.api.UserView(
                 user.getId(), user.getEmail(), user.getDisplayName(), user.getRole(),
                 org.getId(), true, AuthProviderType.LOCAL, user.getPasswordHash(),
-                null, null, Instant.now()));
+                null, null, false, Instant.now()));
     }
 }

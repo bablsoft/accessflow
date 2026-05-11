@@ -41,6 +41,7 @@ class JwtServiceImplTest {
                 null,
                 null,
                 null,
+                false,
                 null
         );
     }

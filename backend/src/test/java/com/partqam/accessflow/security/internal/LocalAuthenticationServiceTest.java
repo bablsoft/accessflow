@@ -1,11 +1,14 @@
 package com.partqam.accessflow.security.internal;
 
 import com.partqam.accessflow.core.api.AuthProviderType;
+import com.partqam.accessflow.core.api.TotpVerificationService;
 import com.partqam.accessflow.core.api.UserQueryService;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.core.api.UserView;
 import com.partqam.accessflow.security.api.LoginCommand;
 import com.partqam.accessflow.security.api.JwtClaims;
+import com.partqam.accessflow.security.api.TotpAuthenticationException;
+import com.partqam.accessflow.security.api.TotpRequiredException;
 import com.partqam.accessflow.security.internal.config.JwtProperties;
 import com.partqam.accessflow.security.internal.jwt.JwtService;
 import com.partqam.accessflow.security.internal.token.RefreshTokenStore;
@@ -39,6 +42,7 @@ class LocalAuthenticationServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtService jwtService;
     @Mock RefreshTokenStore refreshTokenStore;
+    @Mock TotpVerificationService totpVerificationService;
 
     private LocalAuthenticationService service;
     private UserView activeUser;
@@ -49,10 +53,10 @@ class LocalAuthenticationServiceTest {
     void setUp() {
         var props = new JwtProperties("", Duration.ofMinutes(15), Duration.ofDays(7));
         service = new LocalAuthenticationService(userQueryService, passwordEncoder,
-                jwtService, refreshTokenStore, props);
+                jwtService, refreshTokenStore, props, totpVerificationService);
         activeUser = new UserView(userId, "alice@example.com", "Alice",
                 UserRoleType.ANALYST, orgId, true, AuthProviderType.LOCAL, "hashed",
-                null, null, null);
+                null, null, false, null);
     }
 
     @Test
@@ -89,10 +93,49 @@ class LocalAuthenticationServiceTest {
     }
 
     @Test
+    void loginWith2faRequiredAndNoCodeThrowsTotpRequired() {
+        when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("secret", "hashed")).thenReturn(true);
+        when(totpVerificationService.isEnabled(userId)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.login(new LoginCommand("alice@example.com", "secret")))
+                .isInstanceOf(TotpRequiredException.class);
+        verify(refreshTokenStore, never()).store(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void loginWith2faAndInvalidCodeThrowsTotpAuthentication() {
+        when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("secret", "hashed")).thenReturn(true);
+        when(totpVerificationService.isEnabled(userId)).thenReturn(true);
+        when(totpVerificationService.verify(userId, "000000")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.login(
+                new LoginCommand("alice@example.com", "secret", "000000")))
+                .isInstanceOf(TotpAuthenticationException.class);
+        verify(refreshTokenStore, never()).store(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void loginWith2faAndValidCodeSucceeds() {
+        when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(activeUser));
+        when(passwordEncoder.matches("secret", "hashed")).thenReturn(true);
+        when(totpVerificationService.isEnabled(userId)).thenReturn(true);
+        when(totpVerificationService.verify(userId, "123456")).thenReturn(true);
+        when(jwtService.generateAccessToken(activeUser)).thenReturn("access-token");
+        when(jwtService.generateRefreshToken(activeUser)).thenReturn("refresh-token");
+
+        var result = service.login(new LoginCommand("alice@example.com", "secret", "123456"));
+
+        assertThat(result.accessToken()).isEqualTo("access-token");
+        verify(refreshTokenStore).store(eq("refresh-token"), eq(userId.toString()), anyLong());
+    }
+
+    @Test
     void loginWithInactiveUserThrows() {
         var inactiveUser = new UserView(userId, "alice@example.com", "Alice",
                 UserRoleType.ANALYST, orgId, false, AuthProviderType.LOCAL, "hashed",
-                null, null, null);
+                null, null, false, null);
         when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(inactiveUser));
 
         assertThatThrownBy(() -> service.login(new LoginCommand("alice@example.com", "secret")))

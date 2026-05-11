@@ -257,6 +257,7 @@ class AdminNotificationChannelControllerIntegrationTest {
                 entity.getPasswordHash(),
                 entity.getLastLoginAt(),
                 entity.getPreferredLanguage(),
+                entity.isTotpEnabled(),
                 entity.getCreatedAt());
         return jwtService.generateAccessToken(view);
     }

@@ -25,3 +25,4 @@ build/
 *.key
 .env
 .env.local
+frontend/.claude/

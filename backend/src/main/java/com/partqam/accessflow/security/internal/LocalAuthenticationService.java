@@ -1,10 +1,13 @@
 package com.partqam.accessflow.security.internal;
 
+import com.partqam.accessflow.core.api.TotpVerificationService;
 import com.partqam.accessflow.core.api.UserQueryService;
 import com.partqam.accessflow.core.api.UserView;
 import com.partqam.accessflow.security.api.AuthResult;
 import com.partqam.accessflow.security.api.AuthenticationService;
 import com.partqam.accessflow.security.api.LoginCommand;
+import com.partqam.accessflow.security.api.TotpAuthenticationException;
+import com.partqam.accessflow.security.api.TotpRequiredException;
 import com.partqam.accessflow.security.internal.config.JwtProperties;
 import com.partqam.accessflow.security.internal.jwt.JwtService;
 import com.partqam.accessflow.security.internal.jwt.JwtValidationException;
@@ -13,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ public class LocalAuthenticationService implements AuthenticationService {
     private final JwtService jwtService;
     private final RefreshTokenStore refreshTokenStore;
     private final JwtProperties jwtProperties;
+    private final TotpVerificationService totpVerificationService;
 
     @Override
     public AuthResult login(LoginCommand command) {
@@ -40,6 +43,16 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (user.passwordHash() == null
                 || !passwordEncoder.matches(command.password(), user.passwordHash())) {
             throw new BadCredentialsException("Invalid credentials");
+        }
+
+        if (totpVerificationService.isEnabled(user.id())) {
+            var totpCode = command.totpCode();
+            if (totpCode == null || totpCode.isBlank()) {
+                throw new TotpRequiredException("Two-factor authentication required");
+            }
+            if (!totpVerificationService.verify(user.id(), totpCode)) {
+                throw new TotpAuthenticationException("Invalid verification code");
+            }
         }
 
         return issueTokenPair(user);

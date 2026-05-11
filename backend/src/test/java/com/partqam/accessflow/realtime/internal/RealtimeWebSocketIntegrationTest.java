@@ -147,7 +147,7 @@ class RealtimeWebSocketIntegrationTest {
         return new UserView(user.getId(), user.getEmail(), user.getDisplayName(),
                 user.getRole(), user.getOrganization().getId(), user.isActive(),
                 user.getAuthProvider(), user.getPasswordHash(),
-                null, user.getPreferredLanguage(), Instant.now());
+                null, user.getPreferredLanguage(), user.isTotpEnabled(), Instant.now());
     }
 
     private WebSocketHandler silentHandler() {

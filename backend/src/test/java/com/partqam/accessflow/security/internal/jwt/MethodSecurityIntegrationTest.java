@@ -95,6 +95,7 @@ class MethodSecurityIntegrationTest {
                 null,
                 null,
                 null,
+                false,
                 null
         ));
         for (var path : ALL_PATHS) {

@@ -56,7 +56,8 @@ apiClient.interceptors.response.use(
       !original ||
       error.response?.status !== 401 ||
       original._retried ||
-      isRefreshUrl(original.url)
+      isRefreshUrl(original.url) ||
+      isAuthBypass(original.url)
     ) {
       return Promise.reject(error);
     }

@@ -19,6 +19,8 @@ const sessionPayload = {
     email: 'a@b.com',
     display_name: 'A',
     role: 'ANALYST' as const,
+    auth_provider: 'LOCAL' as const,
+    totp_enabled: false,
     preferred_language: null,
   },
 };

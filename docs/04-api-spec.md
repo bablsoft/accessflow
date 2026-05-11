@@ -33,9 +33,12 @@
 ```json
 {
   "email": "alice@company.com",
-  "password": "secret"
+  "password": "secret",
+  "totp_code": "123456"
 }
 ```
+
+`totp_code` is optional. Omit it on the first attempt; supply it (the 6-digit TOTP from the user's authenticator app, or one of the single-use backup codes returned during enrolment) on the second attempt when the server responds with `TOTP_REQUIRED`.
 
 **Response 200:**
 ```json
@@ -48,16 +51,21 @@
     "email": "alice@company.com",
     "display_name": "Alice",
     "role": "ANALYST",
+    "auth_provider": "LOCAL",
+    "totp_enabled": false,
     "preferred_language": "es"
   }
 }
 ```
 
-`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`).
+`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`.
 
 The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
 
-**Response 401:** Invalid credentials, disabled account, or unknown email.
+**Response 401 codes:**
+- `UNAUTHORIZED` — invalid credentials, disabled account, or unknown email.
+- `TOTP_REQUIRED` — credentials are valid and the account has 2FA enabled; the client must re-submit with `totp_code`.
+- `TOTP_INVALID` — credentials are valid but the supplied `totp_code` (or backup code) did not verify.
 
 ### POST /auth/refresh
 
@@ -1027,6 +1035,123 @@ Available to any authenticated user. Returns the org allow-list plus the caller'
 |---|---|---|
 | `UNSUPPORTED_LANGUAGE` | 400 | Not a recognised BCP-47 code |
 | `LANGUAGE_NOT_IN_ALLOWED_LIST` | 400 | Code is not in the org's `available_languages` |
+
+### Me Profile (`/me`, `/me/profile`, `/me/password`, `/me/totp/*`)
+
+Self-service profile, password, and TOTP endpoints. Available to any authenticated user — no role check.
+
+#### GET /me
+
+Returns the caller's profile.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "email": "alice@company.com",
+  "display_name": "Alice",
+  "role": "ANALYST",
+  "auth_provider": "LOCAL",
+  "totp_enabled": false,
+  "preferred_language": "es"
+}
+```
+
+#### PUT /me/profile
+
+Updates the caller's display name. SAML and LOCAL users may both rename themselves here.
+
+**Request:**
+```json
+{ "display_name": "Alice Smith" }
+```
+
+Validation: `display_name` is required and at most 255 characters.
+
+**Response 200:** Same shape as `GET /me`.
+
+#### POST /me/password
+
+Changes the caller's password after verifying the current one. **LOCAL accounts only** — SAML users authenticate via their IdP and receive `PASSWORD_CHANGE_NOT_ALLOWED`. On success the server revokes **all** refresh tokens for the user (other sessions are signed out).
+
+**Request:**
+```json
+{ "current_password": "OldPassword1!", "new_password": "NewPassword2!" }
+```
+
+Both fields are required; `new_password` must be 8–128 characters.
+
+**Response 204:** No content.
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `PASSWORD_INCORRECT` | 422 | `current_password` does not match the stored hash |
+| `PASSWORD_CHANGE_NOT_ALLOWED` | 422 | Account is SAML-provisioned (no local password) |
+
+#### POST /me/totp/enroll
+
+Begins TOTP enrolment. Generates a new secret (overwrites any prior unconfirmed secret), stores it encrypted on the user row, and returns the otpauth URL plus a base64-PNG QR data URI so the SPA can show the scan widget without an extra round trip. `totp_enabled` is **not** flipped until `/me/totp/confirm` succeeds.
+
+**Response 200:**
+```json
+{
+  "secret": "JBSWY3DPEHPK3PXP",
+  "otpauth_url": "otpauth://totp/AccessFlow:alice@company.com?secret=...&issuer=AccessFlow",
+  "qr_data_uri": "data:image/png;base64,iVBOR..."
+}
+```
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `TOTP_ALREADY_ENABLED` | 422 | 2FA is already enabled — disable it first to re-enrol |
+| `PASSWORD_CHANGE_NOT_ALLOWED` | 422 | Account is SAML-provisioned (no local 2FA path) |
+
+#### POST /me/totp/confirm
+
+Confirms enrolment by verifying a 6-digit TOTP. On success the server flips `totp_enabled` to `true`, generates 10 single-use recovery codes, returns them once in plaintext, and stores them as bcrypt hashes in an encrypted JSON blob.
+
+**Request:**
+```json
+{ "code": "123456" }
+```
+
+`code` must match `^\d{6}$`.
+
+**Response 200:**
+```json
+{
+  "backup_codes": ["1a2b-3c4d", "5e6f-7g8h", "..."]
+}
+```
+
+Backup codes are never returned again — the client must persist them now (download/copy to a password manager). At login time the user may present a backup code in place of the TOTP; each code is consumed on first successful use.
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `TOTP_INVALID_CODE` | 422 | The 6-digit code did not verify against the stored secret |
+| `TOTP_ALREADY_ENABLED` | 422 | 2FA is already enabled |
+| `TOTP_NOT_ENABLED` | 422 | No enrolment in progress — call `/me/totp/enroll` first |
+
+#### POST /me/totp/disable
+
+Disables 2FA after confirming the caller's password. Clears `totp_secret_encrypted`, `totp_enabled`, and `totp_backup_codes_encrypted`, then revokes all refresh tokens.
+
+**Request:**
+```json
+{ "current_password": "OldPassword1!" }
+```
+
+**Response 204:** No content.
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `TOTP_NOT_ENABLED` | 422 | 2FA is not currently enabled |
+| `PASSWORD_INCORRECT` | 422 | `current_password` does not match the stored hash |
+| `PASSWORD_CHANGE_NOT_ALLOWED` | 422 | Account is SAML-provisioned |
 
 ### GET /admin/saml-config (Enterprise only)
 

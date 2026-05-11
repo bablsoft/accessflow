@@ -424,8 +424,9 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 
    | Controller | Action |
    |---|---|
-   | `AuthController.login` | `USER_LOGIN`, `USER_LOGIN_FAILED` |
+   | `AuthController.login` | `USER_LOGIN`, `USER_LOGIN_FAILED`, `USER_LOGIN_TOTP_FAILED` |
    | `AdminUserController` | `USER_CREATED`, `USER_DEACTIVATED` |
+   | `MeProfileController` | `USER_PROFILE_UPDATED`, `USER_PASSWORD_CHANGED`, `USER_TOTP_ENABLED`, `USER_TOTP_DISABLED` |
    | `DatasourceController` | `DATASOURCE_CREATED`, `DATASOURCE_UPDATED`, `PERMISSION_GRANTED`, `PERMISSION_REVOKED` |
    | `QuerySubmissionController` | `QUERY_SUBMITTED` |
    | `ReviewController` | `QUERY_APPROVED`, `QUERY_REJECTED` |
@@ -457,6 +458,20 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 - **Separate audit-writer DB user** with INSERT-only privilege — deployment-level, tracked as a follow-up issue.
 - **`QUERY_EXECUTED` / `QUERY_FAILED` audit** — depends on the proxy executor wiring `APPROVED → EXECUTED` / `APPROVED → FAILED` status transitions, which it does not yet do. Tracked as a follow-up issue.
 - **`QUERY_CANCELLED` audit** — depends on a cancel endpoint, which does not yet exist. Tracked as a follow-up issue.
+
+---
+
+## Self-service Profile and 2FA
+
+Lives in `core/` (services) and `security/internal/web/` (REST surface). Endpoints: `GET /me`, `PUT /me/profile`, `POST /me/password`, `POST /me/totp/{enroll,confirm,disable}` — see `docs/04-api-spec.md` for the full contract.
+
+- `core/api/UserProfileService` is the public service interface; `core/internal/DefaultUserProfileService` is the only implementation.
+- `core/internal/totp/TotpCodec` wraps the `dev.samstevens.totp` library (secret generation, code verification, QR data URI, recovery-code generation). Issuer is hard-coded to `AccessFlow`; account-name in the otpauth URL is the user's email.
+- `core/api/TotpVerificationService` (implemented by `DefaultTotpVerificationService`) is consumed by `LocalAuthenticationService.login` at sign-in to verify a 6-digit TOTP **or** consume a single-use backup recovery code. Backup codes are stored as a JSON array of bcrypt hashes, AES-256-GCM-encrypted via the existing `CredentialEncryptionService`; verified codes are removed from the array on use.
+- The TOTP shared secret is AES-256-GCM-encrypted on the user row (`totp_secret_encrypted`, `@JsonIgnore`). It is decrypted briefly inside the verification service and never returned to the API surface.
+- Password change and 2FA disable revoke **all** of the user's refresh tokens. The bridge is `core/api/SessionRevocationService`, implemented by `security/internal/DefaultSessionRevocationService` (delegates to `RefreshTokenStore.revokeAllForUser`). Keeping the interface in `core.api` keeps modulith boundaries clean — `core.internal` never references `security.internal`.
+- Login flow change: `LocalAuthenticationService.login` runs the password check first, then `totpVerificationService.isEnabled(userId)`. If 2FA is enabled it requires `LoginCommand.totpCode`. Missing code → `TotpRequiredException` (mapped to 401 `TOTP_REQUIRED`); bad code → `TotpAuthenticationException` (401 `TOTP_INVALID`). Both extend Spring's `AuthenticationException` so existing filters keep working; `GlobalExceptionHandler` has dedicated mappers that produce stable error codes the frontend switches on.
+- SAML-authenticated accounts (`auth_provider = SAML`) cannot change their password or enrol in 2FA — `DefaultUserProfileService` short-circuits with `PasswordChangeNotAllowedException` for those paths. They may still update their display name via `PUT /me/profile`.
 
 ---
 

@@ -14,5 +14,6 @@ public record UserView(
         String passwordHash,
         Instant lastLoginAt,
         String preferredLanguage,
+        boolean totpEnabled,
         Instant createdAt
 ) {}

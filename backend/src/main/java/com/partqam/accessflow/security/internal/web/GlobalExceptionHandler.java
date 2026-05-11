@@ -13,6 +13,11 @@ import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.IllegalReviewPlanException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
 import com.partqam.accessflow.core.api.LanguageNotInAllowedListException;
+import com.partqam.accessflow.core.api.PasswordChangeNotAllowedException;
+import com.partqam.accessflow.core.api.PasswordIncorrectException;
+import com.partqam.accessflow.core.api.TotpAlreadyEnabledException;
+import com.partqam.accessflow.core.api.TotpInvalidCodeException;
+import com.partqam.accessflow.core.api.TotpNotEnabledException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.ReviewPlanInUseException;
 import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
@@ -20,6 +25,8 @@ import com.partqam.accessflow.core.api.SetupAlreadyCompletedException;
 import com.partqam.accessflow.core.api.UnsupportedLanguageException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
+import com.partqam.accessflow.security.api.TotpAuthenticationException;
+import com.partqam.accessflow.security.api.TotpRequiredException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
 import com.partqam.accessflow.proxy.api.PoolInitializationException;
 import com.partqam.accessflow.proxy.api.QueryExecutionFailedException;
@@ -64,10 +71,71 @@ class GlobalExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(TotpRequiredException.class)
+    ProblemDetail handleTotpRequired(TotpRequiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.totp_required"));
+        pd.setProperty("error", "TOTP_REQUIRED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TotpAuthenticationException.class)
+    ProblemDetail handleTotpAuthentication(TotpAuthenticationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.totp_invalid"));
+        pd.setProperty("error", "TOTP_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     ProblemDetail handleAuthentication(AuthenticationException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.unauthorized"));
         pd.setProperty("error", "UNAUTHORIZED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordIncorrectException.class)
+    ProblemDetail handlePasswordIncorrect(PasswordIncorrectException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.password_incorrect"));
+        pd.setProperty("error", "PASSWORD_INCORRECT");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordChangeNotAllowedException.class)
+    ProblemDetail handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.password_change_not_allowed"));
+        pd.setProperty("error", "PASSWORD_CHANGE_NOT_ALLOWED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TotpNotEnabledException.class)
+    ProblemDetail handleTotpNotEnabled(TotpNotEnabledException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.totp_not_enabled"));
+        pd.setProperty("error", "TOTP_NOT_ENABLED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TotpAlreadyEnabledException.class)
+    ProblemDetail handleTotpAlreadyEnabled(TotpAlreadyEnabledException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.totp_already_enabled"));
+        pd.setProperty("error", "TOTP_ALREADY_ENABLED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TotpInvalidCodeException.class)
+    ProblemDetail handleTotpInvalidCode(TotpInvalidCodeException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.totp_invalid_code"));
+        pd.setProperty("error", "TOTP_INVALID_CODE");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

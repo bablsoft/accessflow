@@ -37,6 +37,8 @@ const reviewerUser: AuthUser = {
   email: 'reviewer@example.com',
   display_name: 'Test Reviewer',
   role: 'REVIEWER',
+  auth_provider: 'LOCAL',
+  totp_enabled: false,
   preferred_language: null,
 };
 
@@ -45,6 +47,8 @@ const adminUser: AuthUser = {
   email: 'admin@example.com',
   display_name: 'Test Admin',
   role: 'ADMIN',
+  auth_provider: 'LOCAL',
+  totp_enabled: false,
   preferred_language: null,
 };
 
@@ -53,6 +57,8 @@ const analystUser: AuthUser = {
   email: 'analyst@example.com',
   display_name: 'Test Analyst',
   role: 'ANALYST',
+  auth_provider: 'LOCAL',
+  totp_enabled: false,
   preferred_language: null,
 };
 
