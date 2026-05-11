@@ -51,4 +51,13 @@ class DriverRegistryTest {
         assertThat(entry.mavenPath()).matches(
                 "com/mysql/mysql-connector-j/\\d+\\.\\d+\\.\\d+/mysql-connector-j-\\d+\\.\\d+\\.\\d+\\.jar");
     }
+
+    @Test
+    void everyDbTypeResolvesToItsOwnIcon() {
+        assertThat(DriverRegistry.require(DbType.POSTGRESQL).iconUrl()).isEqualTo("/db-icons/postgresql.svg");
+        assertThat(DriverRegistry.require(DbType.MYSQL).iconUrl()).isEqualTo("/db-icons/mysql.svg");
+        assertThat(DriverRegistry.require(DbType.MARIADB).iconUrl()).isEqualTo("/db-icons/mariadb.svg");
+        assertThat(DriverRegistry.require(DbType.ORACLE).iconUrl()).isEqualTo("/db-icons/oracle.svg");
+        assertThat(DriverRegistry.require(DbType.MSSQL).iconUrl()).isEqualTo("/db-icons/mssql.svg");
+    }
 }

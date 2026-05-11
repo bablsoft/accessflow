@@ -74,7 +74,7 @@ final class DriverRegistry {
         map.put(DbType.ORACLE, new DriverRegistryEntry(
                 DbType.ORACLE,
                 "Oracle Database",
-                "/db-icons/generic.svg",
+                "/db-icons/oracle.svg",
                 1521,
                 SslMode.REQUIRE,
                 "jdbc:oracle:thin:@//{host}:{port}/{database_name}",
@@ -87,7 +87,7 @@ final class DriverRegistry {
         map.put(DbType.MSSQL, new DriverRegistryEntry(
                 DbType.MSSQL,
                 "Microsoft SQL Server",
-                "/db-icons/generic.svg",
+                "/db-icons/mssql.svg",
                 1433,
                 SslMode.REQUIRE,
                 "jdbc:sqlserver://{host}:{port};databaseName={database_name}",

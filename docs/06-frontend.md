@@ -30,12 +30,13 @@ accessflow-ui/
 ├── public/
 │   ├── favicon.svg
 │   └── db-icons/                   # SVG logos shown in DatasourceTypeSelector
-│       ├── postgresql.svg
-│       ├── mysql.svg
-│       ├── mariadb.svg
-│       ├── oracle.svg              # Generic icon if vendor mark license unclear
-│       ├── mssql.svg               # Generic icon if vendor mark license unclear
-│       └── generic.svg             # Fallback for any UNAVAILABLE / unknown type
+│       ├── LICENSE                 # Devicon MIT licence + attribution preamble
+│       ├── postgresql.svg          # Devicon (MIT)
+│       ├── mysql.svg               # Devicon (MIT)
+│       ├── mariadb.svg             # Devicon (MIT)
+│       ├── oracle.svg              # Devicon (MIT)
+│       ├── mssql.svg               # Devicon (MIT)
+│       └── generic.svg             # AccessFlow original — fallback for UNAVAILABLE / unknown type
 ├── src/
 │   ├── api/                        # Axios client instances, one per domain
 │   │   ├── client.ts               # Base Axios instance with JWT interceptor
@@ -195,7 +196,7 @@ Three-step flow at `/datasources/new` for adding a new datasource. Replaces a fl
 
 The wizard is the only entry point that materializes a datasource; `DatasourceListPage` links to it via a "New datasource" button.
 
-**Logo asset licensing.** PostgreSQL, MySQL, and MariaDB publish permissively licensed marks that can be checked into `frontend/public/db-icons/` directly. Oracle and Microsoft SQL Server marks are trademarked and their reuse rules are not blanket-permissive; if licensing review is inconclusive at PR time, fall back to the bundled `generic.svg` for those entries rather than shipping a vendor mark we are not entitled to use.
+**Logo asset licensing.** All five database type icons (`postgresql.svg`, `mysql.svg`, `mariadb.svg`, `oracle.svg`, `mssql.svg`) are sourced verbatim from [Devicon](https://devicon.dev/) pinned to release [v2.17.0](https://github.com/devicons/devicon/releases/tag/v2.17.0) and redistributed under the MIT licence. The licence text and attribution preamble live in `frontend/public/db-icons/LICENSE` — keep them next to the SVGs and update the preamble when the pinned tag is bumped. `generic.svg` is original AccessFlow artwork and remains as the fallback for any future `DbType` added before its icon has been vendored.
 
 ### DatasourceSettingsPage *(ADMIN)*
 
