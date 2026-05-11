@@ -366,13 +366,14 @@ VITE_APP_EDITION=community         # community | enterprise
 ## Routing Structure
 
 ```
-/login                              → LoginPage
+/login                              → LoginPage (also renders the TOTP verification stage)
 /auth/saml/callback                 → SamlCallbackPage (Enterprise)
 
 /editor                             → QueryEditorPage
 /queries                            → QueryListPage
 /queries/:id                        → QueryDetailPage
 /reviews                            → ReviewQueuePage
+/profile                            → ProfilePage
 
 /datasources                        → DatasourceListPage
 /datasources/new                    → DatasourceCreateWizardPage
@@ -386,4 +387,24 @@ VITE_APP_EDITION=community         # community | enterprise
 /admin/saml                         → SamlConfigPage (Enterprise)
 ```
 
-All routes except `/login` and `/auth/saml/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`.
+All routes except `/login` and `/auth/saml/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+
+### Profile page and 2FA
+
+`/profile` is composed of three Ant Design cards in `src/pages/profile/`:
+
+- `DisplayNameForm` — Ant `Form` with a single input bound to `useMutation(updateProfile)`. On success it invalidates `meKeys.current` and patches `authStore.user.display_name` so the top-bar reflects the new name immediately.
+- `ChangePasswordForm` — current / new / confirm fields (`min: 8, max: 128`). Hidden when `profile.auth_provider === 'SAML'`. On success the backend revokes all refresh tokens; the frontend explicitly calls `authStore.clear()` and navigates to `/login` so the user can re-authenticate cleanly.
+- `TwoFactorSection` — branches on `profile.totp_enabled`. Enabled state shows a "Disable 2FA" button that opens `TotpDisableDialog` (password challenge). Disabled state opens `TotpEnrollmentDialog`, a 3-step `Steps` modal: (1) render the backend-supplied `qr_data_uri` in an `<img>` plus the raw secret for manual entry, (2) collect a 6-digit code and `POST /me/totp/confirm`, (3) display the 10 backup recovery codes with copy-to-clipboard and an explicit "I've saved these" acknowledgement before closing. SAML accounts see an info alert instead.
+
+### Two-stage TOTP login
+
+`LoginPage` is a single component with a `stage: 'CREDENTIALS' | 'TOTP'` flag.
+
+1. The user submits email and password. The frontend calls `authStore.login(email, password)`.
+2. If the backend returns `401 { error: 'TOTP_REQUIRED' }` the form switches to the TOTP stage (email and password stay in component state, never persisted) and renders a single 6-digit input.
+3. On second submit, `authStore.login(email, password, totpCode)` re-posts to `/auth/login`. `TOTP_INVALID` keeps the form on the TOTP stage with an inline error; success navigates to `/editor` as usual. A "Back to sign-in" link returns to stage 1.
+
+The Axios response interceptor in `api/client.ts` skips the auto-refresh path for `/auth/*` URLs so the `TOTP_REQUIRED` 401 reaches the LoginPage component without being absorbed.
+
+The Topbar replaces the standalone logout button with an Ant `Dropdown` whose menu items are **Profile settings** (`/profile`) and **Sign out**. On narrow viewports the display-name pill collapses to the icon via `topbar.css`.

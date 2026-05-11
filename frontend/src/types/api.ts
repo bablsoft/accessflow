@@ -25,9 +25,47 @@ export interface User {
   role: Role;
   auth_provider: AuthProvider;
   active: boolean;
+  totp_enabled: boolean;
   last_login_at: string | null;
   preferred_language: string | null;
   created_at: string;
+}
+
+export interface MeProfile {
+  id: string;
+  email: string;
+  display_name: string;
+  role: Role;
+  auth_provider: AuthProvider;
+  totp_enabled: boolean;
+  preferred_language: string | null;
+}
+
+export interface UpdateProfileInput {
+  display_name: string;
+}
+
+export interface ChangePasswordInput {
+  current_password: string;
+  new_password: string;
+}
+
+export interface TotpEnrollment {
+  secret: string;
+  otpauth_url: string;
+  qr_data_uri: string;
+}
+
+export interface ConfirmTotpInput {
+  code: string;
+}
+
+export interface TotpConfirmationResponse {
+  backup_codes: string[];
+}
+
+export interface DisableTotpInput {
+  current_password: string;
 }
 
 export interface LocalizationConfig {

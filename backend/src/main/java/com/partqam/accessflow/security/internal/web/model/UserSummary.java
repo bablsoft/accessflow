@@ -7,5 +7,7 @@ public record UserSummary(
         String email,
         String displayName,
         String role,
+        String authProvider,
+        boolean totpEnabled,
         String preferredLanguage
 ) {}

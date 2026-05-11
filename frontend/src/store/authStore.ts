@@ -8,7 +8,7 @@ interface AuthState {
   accessToken: string | null;
   setSession: (payload: LoginPayload) => void;
   clear: () => void;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, totpCode?: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: () => boolean;
 }
@@ -27,8 +27,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: payload.user, accessToken: payload.access_token });
   },
   clear: () => set({ user: null, accessToken: null }),
-  login: async (email, password) => {
-    const payload = await authApi.login(email, password);
+  login: async (email, password, totpCode) => {
+    const payload = await authApi.login(email, password, totpCode);
     applyPreferredLanguage(payload.user);
     set({ user: payload.user, accessToken: payload.access_token });
   },

@@ -30,7 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
-@SpringBootTest
+@SpringBootTest(properties = "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 @ImportTestcontainers(TestcontainersConfig.class)
 class AuthControllerIntegrationTest {
 
@@ -38,6 +38,7 @@ class AuthControllerIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired com.partqam.accessflow.core.api.CredentialEncryptionService encryptionService;
 
     private MockMvcTester mvc;
 
@@ -176,6 +177,46 @@ class AuthControllerIntegrationTest {
             }
         }
         throw new AssertionError("refresh_token not found in: " + setCookieHeader);
+    }
+
+    @Test
+    void loginWith2faEnabledAndNoCodeReturns401TotpRequired() {
+        enableTotpOnTestUser();
+
+        var result = mvc.post().uri("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email":"%s","password":"%s"}
+                        """.formatted(EMAIL, PASSWORD))
+                .exchange();
+
+        assertThat(result).hasStatus(401);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("TOTP_REQUIRED");
+    }
+
+    @Test
+    void loginWith2faEnabledAndBadCodeReturns401TotpInvalid() {
+        enableTotpOnTestUser();
+
+        var result = mvc.post().uri("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email":"%s","password":"%s","totp_code":"000000"}
+                        """.formatted(EMAIL, PASSWORD))
+                .exchange();
+
+        assertThat(result).hasStatus(401);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("TOTP_INVALID");
+    }
+
+    private void enableTotpOnTestUser() {
+        var user = userRepository.findByEmail(EMAIL).orElseThrow();
+        user.setTotpEnabled(true);
+        // Encrypt a real (base32) secret so the decrypt step in DefaultTotpVerificationService
+        // doesn't blow up on malformed ciphertext. The negative-path tests only need the
+        // verifier to reach the "not matching" branch — they don't need a valid code.
+        user.setTotpSecretEncrypted(encryptionService.encrypt("JBSWY3DPEHPK3PXP"));
+        userRepository.save(user);
     }
 
     @Test

@@ -51,6 +51,7 @@ class UserQueryServiceImpl implements UserQueryService {
                 entity.getPasswordHash(),
                 entity.getLastLoginAt(),
                 entity.getPreferredLanguage(),
+                entity.isTotpEnabled(),
                 entity.getCreatedAt()
         );
     }

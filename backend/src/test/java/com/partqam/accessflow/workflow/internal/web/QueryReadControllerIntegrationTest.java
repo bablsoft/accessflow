@@ -125,7 +125,7 @@ class QueryReadControllerIntegrationTest {
         return jwtService.generateAccessToken(new UserView(
                 user.getId(), user.getEmail(), user.getDisplayName(), user.getRole(),
                 org.getId(), true, AuthProviderType.LOCAL, user.getPasswordHash(),
-                null, user.getPreferredLanguage(), Instant.now()));
+                null, user.getPreferredLanguage(), user.isTotpEnabled(), Instant.now()));
     }
 
     @AfterEach

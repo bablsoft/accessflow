@@ -39,7 +39,8 @@
     "ai_config": "AI config",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
-    "languages": "Languages"
+    "languages": "Languages",
+    "profile": "Profile settings"
   },
   "auth": {
     "login": {
@@ -81,7 +82,13 @@
     "confirm_password_required": "Please confirm the password.",
     "passwords_mismatch": "Passwords do not match.",
     "org_name_required": "Organization name is required.",
-    "field_max_255": "Must be at most 255 characters."
+    "field_max_255": "Must be at most 255 characters.",
+    "display_name_required": "Display name is required.",
+    "current_password_required": "Current password is required.",
+    "new_password_required": "New password is required.",
+    "new_password_size": "Password must be 8–128 characters.",
+    "totp_code_required": "Verification code is required.",
+    "totp_code_pattern": "Enter the 6-digit code from your authenticator."
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -112,7 +119,15 @@
     "unsupported_language": "Language is not supported.",
     "language_not_in_allowed_list": "That language is not in the organization's allowed languages.",
     "languages_load_error": "Failed to load language configuration.",
-    "languages_save_error": "Failed to save language configuration."
+    "languages_save_error": "Failed to save language configuration.",
+    "totp_required": "Enter the code from your authenticator app to continue.",
+    "totp_invalid": "That verification code is not valid. Please try again.",
+    "totp_invalid_code": "That verification code is not valid.",
+    "password_incorrect": "The current password is incorrect.",
+    "password_change_not_allowed": "Password change is not allowed for this account.",
+    "totp_not_enabled": "Two-factor authentication is not enabled.",
+    "totp_already_enabled": "Two-factor authentication is already enabled.",
+    "profile_generic": "Could not update your profile. Please try again."
   },
   "editor": {
     "title": "SQL editor",
@@ -602,5 +617,69 @@
       "AI_HIGH_RISK": "AI flagged a high-risk query on {{datasource}}",
       "fallback": "New notification"
     }
+  },
+  "profile": {
+    "title": "Profile settings",
+    "subtitle": "Manage your display name, password, and two-factor authentication.",
+    "display_name": {
+      "title": "Profile",
+      "subtitle": "How your name appears across AccessFlow.",
+      "label": "Display name",
+      "placeholder": "Your name",
+      "save": "Save",
+      "saved": "Profile updated."
+    },
+    "password": {
+      "title": "Password",
+      "subtitle": "Choose a strong password you don't use elsewhere.",
+      "current_label": "Current password",
+      "new_label": "New password",
+      "confirm_label": "Confirm new password",
+      "save": "Update password",
+      "saved": "Password updated. You'll be signed out of other sessions.",
+      "saml_disabled": "Password is managed by your SAML identity provider."
+    },
+    "totp": {
+      "title": "Two-factor authentication",
+      "subtitle_disabled": "Add a second step to sign-in using an authenticator app.",
+      "subtitle_enabled": "Two-factor authentication is enabled on this account.",
+      "enabled_badge": "Enabled",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "saml_disabled": "Two-factor authentication is managed by your SAML identity provider.",
+      "enroll_title": "Enable two-factor authentication",
+      "step_scan": "Scan the QR code",
+      "step_scan_help": "Open Google Authenticator, 1Password, or any TOTP app and scan this code.",
+      "manual_secret_label": "Or enter this secret manually:",
+      "step_verify": "Enter the 6-digit code",
+      "step_verify_help": "Confirm setup by entering the code your authenticator shows.",
+      "verify_placeholder": "123456",
+      "verify_button": "Verify and continue",
+      "step_codes": "Save your backup codes",
+      "backup_codes_help": "Store these recovery codes somewhere safe. Each can be used once if you lose access to your authenticator.",
+      "backup_codes_saved": "I've saved these codes",
+      "copy_codes": "Copy codes",
+      "codes_copied": "Backup codes copied to clipboard.",
+      "done": "Done",
+      "next": "Next",
+      "back": "Back",
+      "disable_title": "Disable two-factor authentication",
+      "disable_help": "Enter your password to confirm.",
+      "disable_button": "Disable 2FA",
+      "disabled_success": "Two-factor authentication disabled."
+    }
+  },
+  "totp_login": {
+    "title": "Two-factor authentication",
+    "subtitle": "Enter the 6-digit code from your authenticator app.",
+    "code_label": "Verification code",
+    "submit": "Verify and sign in",
+    "submitting": "Verifying…",
+    "back": "Back to sign-in"
+  },
+  "user_menu": {
+    "open": "Open user menu",
+    "profile": "Profile settings",
+    "sign_out": "Sign out"
   }
 }

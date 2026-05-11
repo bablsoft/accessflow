@@ -53,10 +53,10 @@ describe('Topbar', () => {
     expect(screen.queryByText(/enterprise/i)).toBeNull();
   });
 
-  it('renders the notification bell, sign-out button, and theme toggle', () => {
+  it('renders the notification bell, user menu trigger, and theme toggle', () => {
     render(wrap(<Topbar onOpenMobileNav={vi.fn()} />));
     expect(screen.getByLabelText('Notifications')).toBeInTheDocument();
-    expect(screen.getByLabelText('Sign out')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open user menu')).toBeInTheDocument();
     expect(screen.getByLabelText('Light theme')).toBeInTheDocument();
     expect(screen.getByLabelText('Dark theme')).toBeInTheDocument();
   });

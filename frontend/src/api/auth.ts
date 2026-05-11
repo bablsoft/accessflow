@@ -1,11 +1,13 @@
 import { apiClient } from './client';
-import type { Role } from '@/types/api';
+import type { AuthProvider, Role } from '@/types/api';
 
 export interface AuthUser {
   id: string;
   email: string;
   display_name: string;
   role: Role;
+  auth_provider: AuthProvider;
+  totp_enabled: boolean;
   preferred_language: string | null;
 }
 
@@ -22,11 +24,14 @@ interface RawLoginResponse {
   user: AuthUser;
 }
 
-export async function login(email: string, password: string): Promise<LoginPayload> {
-  const { data } = await apiClient.post<RawLoginResponse>('/api/v1/auth/login', {
-    email,
-    password,
-  });
+export async function login(
+  email: string,
+  password: string,
+  totpCode?: string,
+): Promise<LoginPayload> {
+  const body: { email: string; password: string; totp_code?: string } = { email, password };
+  if (totpCode) body.totp_code = totpCode;
+  const { data } = await apiClient.post<RawLoginResponse>('/api/v1/auth/login', body);
   return { access_token: data.access_token, expires_in: data.expires_in, user: data.user };
 }
 

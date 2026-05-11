@@ -10,6 +10,8 @@ import com.partqam.accessflow.core.api.SetupCommand;
 import com.partqam.accessflow.core.api.UserQueryService;
 import com.partqam.accessflow.security.api.AuthenticationService;
 import com.partqam.accessflow.security.api.LoginCommand;
+import com.partqam.accessflow.security.api.TotpAuthenticationException;
+import com.partqam.accessflow.security.api.TotpRequiredException;
 import com.partqam.accessflow.security.internal.web.model.LoginRequest;
 import com.partqam.accessflow.security.internal.web.model.LoginResponse;
 import com.partqam.accessflow.security.internal.web.model.SetupRequest;
@@ -94,13 +96,21 @@ class AuthController {
                                         HttpServletResponse response) {
         var context = RequestAuditContext.from(httpRequest);
         try {
-            var result = authenticationService.login(new LoginCommand(request.email(), request.password()));
+            var result = authenticationService.login(
+                    new LoginCommand(request.email(), request.password(), request.totpCode()));
             setRefreshCookie(response, result.refreshToken(), REFRESH_COOKIE_MAX_AGE);
             recordLoginAudit(AuditAction.USER_LOGIN, request.email(), result.user().id(),
                     result.user().organizationId(), context);
             return ResponseEntity.ok(toLoginResponse(result));
+        } catch (TotpRequiredException ex) {
+            throw ex;
+        } catch (TotpAuthenticationException ex) {
+            recordLoginFailureAudit(AuditAction.USER_LOGIN_TOTP_FAILED, request.email(), context,
+                    ex.getMessage());
+            throw ex;
         } catch (AuthenticationException ex) {
-            recordLoginFailureAudit(request.email(), context, ex.getMessage());
+            recordLoginFailureAudit(AuditAction.USER_LOGIN_FAILED, request.email(), context,
+                    ex.getMessage());
             throw ex;
         }
     }
@@ -145,7 +155,8 @@ class AuthController {
     private LoginResponse toLoginResponse(com.partqam.accessflow.security.api.AuthResult result) {
         var user = result.user();
         var summary = new UserSummary(user.id(), user.email(), user.displayName(),
-                user.role().name(), user.preferredLanguage());
+                user.role().name(), user.authProvider().name(), user.totpEnabled(),
+                user.preferredLanguage());
         return new LoginResponse(result.accessToken(), result.tokenType(), result.expiresIn(), summary);
     }
 
@@ -189,13 +200,14 @@ class AuthController {
         }
     }
 
-    private void recordLoginFailureAudit(String email, RequestAuditContext context, String reason) {
+    private void recordLoginFailureAudit(AuditAction action, String email,
+                                         RequestAuditContext context, String reason) {
         try {
             var user = userQueryService.findByEmail(email).orElse(null);
             if (user == null) {
                 // Without a user we have no organization to scope the row to. Skipping is the
                 // pragmatic choice — multi-tenant attribution requires the email match a row.
-                log.info("USER_LOGIN_FAILED for unknown email; skipping audit");
+                log.info("{} for unknown email; skipping audit", action);
                 return;
             }
             var metadata = new HashMap<String, Object>();
@@ -204,7 +216,7 @@ class AuthController {
                 metadata.put("reason", reason);
             }
             auditLogService.record(new AuditEntry(
-                    AuditAction.USER_LOGIN_FAILED,
+                    action,
                     AuditResourceType.USER,
                     user.id(),
                     user.organizationId(),
@@ -213,7 +225,7 @@ class AuthController {
                     context.ipAddress(),
                     context.userAgent()));
         } catch (RuntimeException ex) {
-            log.error("Audit write failed for USER_LOGIN_FAILED on email {}", email, ex);
+            log.error("Audit write failed for {} on email {}", action, email, ex);
         }
     }
 }

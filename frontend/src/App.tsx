@@ -23,6 +23,7 @@ import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
+import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { usePreferencesStore } from '@/store/preferencesStore';
 
 export function App() {
@@ -50,6 +51,7 @@ export function App() {
           }
         >
           <Route path="/" element={<Navigate to="/editor" replace />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editor" element={<QueryEditorPage />} />
           <Route path="/queries" element={<QueryListPage />} />
           <Route path="/queries/:id" element={<QueryDetailPage />} />

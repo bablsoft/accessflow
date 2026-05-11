@@ -14,6 +14,7 @@ public record AdminUserResponse(
         UserRoleType role,
         AuthProviderType authProvider,
         boolean active,
+        boolean totpEnabled,
         Instant lastLoginAt,
         Instant createdAt
 ) {
@@ -25,6 +26,7 @@ public record AdminUserResponse(
                 view.role(),
                 view.authProvider(),
                 view.active(),
+                view.totpEnabled(),
                 view.lastLoginAt(),
                 view.createdAt()
         );

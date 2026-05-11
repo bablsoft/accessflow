@@ -38,6 +38,8 @@ const adminUser = {
   email: 'admin@example.com',
   display_name: 'Ada',
   role: 'ADMIN' as const,
+  auth_provider: 'LOCAL' as const,
+  totp_enabled: false,
   preferred_language: 'en',
 };
 
@@ -46,6 +48,8 @@ const analystUser = {
   email: 'al@example.com',
   display_name: 'Al',
   role: 'ANALYST' as const,
+  auth_provider: 'LOCAL' as const,
+  totp_enabled: false,
   preferred_language: 'en',
 };
 
