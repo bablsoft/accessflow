@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
 import {
   adminErrorMessage,
+  apiErrorTraceId,
   authErrorMessage,
   datasourceCreateErrorMessage,
   datasourceGrantErrorMessage,
@@ -330,6 +331,26 @@ describe('datasourceCreateErrorMessage', () => {
       error: 'DATASOURCE_NAME_ALREADY_EXISTS',
       title: 'A datasource with this name already exists',
     }))).toBe('A datasource with this name already exists');
+  });
+});
+
+describe('apiErrorTraceId', () => {
+  it('returns the traceId from a ProblemDetail body', () => {
+    expect(apiErrorTraceId(buildAxiosError(500, { traceId: 'abc-123' }))).toBe('abc-123');
+  });
+
+  it('returns undefined when the body has no traceId', () => {
+    expect(apiErrorTraceId(buildAxiosError(500, { title: 'Boom' }))).toBeUndefined();
+  });
+
+  it('returns undefined when response is missing', () => {
+    expect(apiErrorTraceId(new AxiosError('Network error'))).toBeUndefined();
+  });
+
+  it('returns undefined for non-axios errors', () => {
+    expect(apiErrorTraceId(new Error('boom'))).toBeUndefined();
+    expect(apiErrorTraceId(undefined)).toBeUndefined();
+    expect(apiErrorTraceId('weird')).toBeUndefined();
   });
 });
 

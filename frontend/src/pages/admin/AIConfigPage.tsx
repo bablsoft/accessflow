@@ -13,6 +13,7 @@ import {
   updateAiConfig,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { AiProvider, UpdateAiConfigInput } from '@/types/api';
 
 const PROVIDERS: { id: AiProvider; label: string; desc: string; defaultModel: string; defaultEndpoint: string }[] = [
@@ -75,7 +76,7 @@ export function AIConfigPage() {
       void queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       message.success(t('admin.ai_config.save_success'));
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const testMutation = useMutation({
@@ -93,7 +94,7 @@ export function AIConfigPage() {
     },
     onError: (err) => {
       setTesting('idle');
-      message.error(adminErrorMessage(err));
+      showApiError(message, err, adminErrorMessage);
     },
   });
 

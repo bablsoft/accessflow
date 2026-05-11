@@ -34,6 +34,7 @@ import {
   userKeys,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
 import type { CreateUserInput, Role, UpdateUserInput, User } from '@/types/api';
@@ -81,7 +82,7 @@ export function UsersPage() {
       message.success(t('admin.users.create_success'));
       setInviting(false);
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const updateMutation = useMutation({
@@ -92,7 +93,7 @@ export function UsersPage() {
       message.success(t('admin.users.update_success'));
       setEditing(null);
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const deactivateMutation = useMutation({
@@ -101,7 +102,7 @@ export function UsersPage() {
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
       message.success(t('admin.users.deactivate_success'));
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   // Server-side pagination + sort. Role / provider / search filters are applied client-side

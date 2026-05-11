@@ -20,6 +20,7 @@ import {
   type PendingReviewsFilters,
 } from '@/api/reviews';
 import { reviewErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { PendingReviewItem } from '@/types/api';
 
 export function ReviewQueuePage() {
@@ -54,7 +55,7 @@ export function ReviewQueuePage() {
       invalidateAfterDecision(id);
       message.success(t('reviews.on_approve'));
     },
-    onError: (err) => message.error(reviewErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
   const reject = useMutation({
     mutationFn: (id: string) => rejectQuery(id),
@@ -62,7 +63,7 @@ export function ReviewQueuePage() {
       invalidateAfterDecision(id);
       message.error(t('reviews.on_reject'));
     },
-    onError: (err) => message.error(reviewErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
   return (

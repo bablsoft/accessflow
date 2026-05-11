@@ -3,6 +3,7 @@ package com.partqam.accessflow.security.internal.web;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -45,6 +46,10 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
         var pd = ProblemDetail.forStatusAndDetail(status, message);
         pd.setProperty("error", errorCode);
         pd.setProperty("timestamp", Instant.now().toString());
+        var traceId = MDC.get("traceId");
+        if (traceId != null && !traceId.isBlank()) {
+            pd.setProperty("traceId", traceId);
+        }
         objectMapper.writeValue(response.getOutputStream(), pd);
     }
 }

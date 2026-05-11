@@ -33,6 +33,7 @@ import {
   reviewKeys,
 } from '@/api/reviews';
 import { reviewErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
 
@@ -86,7 +87,7 @@ export function QueryDetailPage() {
       setComment('');
       message.success(t('queries.detail.on_approve_success'));
     },
-    onError: (err) => message.error(reviewErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
   const rejectMutation = useMutation({
@@ -96,7 +97,7 @@ export function QueryDetailPage() {
       setComment('');
       message.error(t('queries.detail.on_reject_success'));
     },
-    onError: (err) => message.error(reviewErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
   const requestChangesMutation = useMutation({
@@ -106,7 +107,7 @@ export function QueryDetailPage() {
       setComment('');
       message.success(t('queries.detail.on_request_changes_success'));
     },
-    onError: (err) => message.error(reviewErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
   const stages: TimelineStage[] = useMemo(() => {

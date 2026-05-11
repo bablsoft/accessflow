@@ -31,6 +31,7 @@ import {
 } from '@/api/reviewPlans';
 import { setupProgressKeys } from '@/api/admin';
 import { reviewPlanErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { ReviewPlan, ReviewPlanWriteRequest } from '@/types/api';
 
 interface ApproverFormRow {
@@ -110,7 +111,7 @@ export function ReviewPlansPage() {
       message.success(t('admin.review_plans.create_success'));
       closeModal();
     },
-    onError: (err) => message.error(reviewPlanErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewPlanErrorMessage),
   });
 
   const updateMutation = useMutation({
@@ -121,7 +122,7 @@ export function ReviewPlansPage() {
       message.success(t('admin.review_plans.update_success'));
       closeModal();
     },
-    onError: (err) => message.error(reviewPlanErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewPlanErrorMessage),
   });
 
   const deleteMutation = useMutation({
@@ -130,7 +131,7 @@ export function ReviewPlansPage() {
       void queryClient.invalidateQueries({ queryKey: reviewPlanKeys.all });
       message.success(t('admin.review_plans.delete_success'));
     },
-    onError: (err) => message.error(reviewPlanErrorMessage(err)),
+    onError: (err) => showApiError(message, err, reviewPlanErrorMessage),
   });
 
   const onFinish = (values: PlanFormValues) => {

@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { meKeys, updateProfile } from '@/api/me';
 import type { MeProfile } from '@/types/api';
-import { profileErrorMessage } from '@/utils/apiErrors';
+import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { useAuthStore } from '@/store/authStore';
 
 interface DisplayNameFormValues {
@@ -20,7 +21,7 @@ export function DisplayNameForm({ profile }: DisplayNameFormProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<DisplayNameFormValues>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
   const updateAuthUser = useAuthStore((s) => s.user);
   const setSession = useAuthStore((s) => s.setSession);
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -45,7 +46,7 @@ export function DisplayNameForm({ profile }: DisplayNameFormProps) {
       }
       message.success(t('profile.display_name.saved'));
     },
-    onError: (err) => setError(profileErrorMessage(err)),
+    onError: (err) => setError({ message: profileErrorMessage(err), traceId: apiErrorTraceId(err) }),
   });
 
   return (
@@ -59,7 +60,8 @@ export function DisplayNameForm({ profile }: DisplayNameFormProps) {
       {error && (
         <Alert
           type="error"
-          message={error}
+          message={error.message}
+          description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
           style={{ marginBottom: 16 }}
           showIcon
           closable

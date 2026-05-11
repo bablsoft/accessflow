@@ -11,7 +11,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
+import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
 interface LoginLocationState {
   setupSuccess?: boolean;
@@ -36,7 +37,7 @@ export function LoginPage() {
     (location.state as LoginLocationState | null)?.setupSuccess === true;
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
   const [setupSuccess, setSetupSuccess] = useState(initialSetupSuccess);
   const [stage, setStage] = useState<Stage>('CREDENTIALS');
   const [pendingCredentials, setPendingCredentials] = useState<LoginFormValues | null>(null);
@@ -64,7 +65,7 @@ export function LoginPage() {
         setStage('TOTP');
         setError(null);
       } else {
-        setError(authErrorMessage(err));
+        setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });
       }
     } finally {
       setLoading(false);
@@ -79,7 +80,7 @@ export function LoginPage() {
       await login(pendingCredentials.email, pendingCredentials.password, values.totp_code);
       navigate('/editor');
     } catch (err) {
-      setError(authErrorMessage(err));
+      setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export function LoginPage() {
 
   const samlLogin = () => {
     // SAML SSO is wired in a follow-up; FE-01 covers /auth/* local auth only.
-    setError(t('auth.login.saml_not_configured'));
+    setError({ message: t('auth.login.saml_not_configured') });
   };
 
   return (
@@ -177,7 +178,8 @@ export function LoginPage() {
           {error && (
             <Alert
               type="error"
-              message={error}
+              message={error.message}
+              description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
               style={{ marginBottom: 16 }}
               showIcon
               closable

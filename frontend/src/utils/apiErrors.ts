@@ -7,6 +7,14 @@ interface ProblemDetail {
   error?: string;
   reason?: string;
   dbType?: string;
+  traceId?: string;
+}
+
+export function apiErrorTraceId(err: unknown): string | undefined {
+  if (axios.isAxiosError(err)) {
+    return (err as AxiosError<ProblemDetail>).response?.data?.traceId;
+  }
+  return undefined;
 }
 
 export function authErrorMessage(err: unknown): string {

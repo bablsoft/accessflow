@@ -306,6 +306,7 @@ kubectl create secret generic accessflow-ai-key \
 | `SAML_KEYSTORE_PATH` | Enterprise | — | Path to SAML keystore JKS |
 | `SAML_KEYSTORE_PASSWORD` | Enterprise | — | SAML keystore password |
 | `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
+| `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
 
 ---
 

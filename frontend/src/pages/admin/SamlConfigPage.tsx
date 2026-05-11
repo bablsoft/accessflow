@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { getSamlConfig, samlConfigKeys, updateSamlConfig } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { Role, UpdateSamlConfigInput } from '@/types/api';
 
 const MASK = '********';
@@ -60,7 +61,7 @@ export function SamlConfigPage() {
       void queryClient.invalidateQueries({ queryKey: samlConfigKeys.all });
       message.success(t('admin.saml.save_success'));
     },
-    onError: (err) => message.error(adminErrorMessage(err)),
+    onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
   const onFinish = (values: SamlFormValues) => {

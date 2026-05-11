@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { submitSetup, type SetupRequest } from '@/api/setup';
 import { useSetupStore } from '@/store/setupStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { setupErrorMessage } from '@/utils/apiErrors';
+import { apiErrorTraceId, setupErrorMessage } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
 interface SetupFormValues {
   organization_name: string;
@@ -22,7 +23,7 @@ export function SetupPage() {
   const setSetupRequired = useSetupStore((s) => s.setSetupRequired);
   const edition = usePreferencesStore((s) => s.edition);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
   const [form] = Form.useForm<SetupFormValues>();
 
   const onFinish = async (values: SetupFormValues): Promise<void> => {
@@ -40,7 +41,7 @@ export function SetupPage() {
       setSetupRequired(false);
       navigate('/login', { state: { setupSuccess: true } });
     } catch (err) {
-      setError(setupErrorMessage(err));
+      setError({ message: setupErrorMessage(err), traceId: apiErrorTraceId(err) });
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +116,8 @@ export function SetupPage() {
           {error && (
             <Alert
               type="error"
-              message={error}
+              message={error.message}
+              description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
               style={{ marginBottom: 16 }}
               showIcon
               closable

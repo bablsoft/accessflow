@@ -4,7 +4,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { changePassword } from '@/api/me';
-import { profileErrorMessage } from '@/utils/apiErrors';
+import { apiErrorTraceId, profileErrorMessage } from '@/utils/apiErrors';
+import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { useAuthStore } from '@/store/authStore';
 
 interface ChangePasswordFormValues {
@@ -19,7 +20,7 @@ export function ChangePasswordForm() {
   const navigate = useNavigate();
   const clearAuth = useAuthStore((s) => s.clear);
   const [form] = Form.useForm<ChangePasswordFormValues>();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: (values: ChangePasswordFormValues) =>
@@ -35,7 +36,7 @@ export function ChangePasswordForm() {
       clearAuth();
       navigate('/login', { replace: true });
     },
-    onError: (err) => setError(profileErrorMessage(err)),
+    onError: (err) => setError({ message: profileErrorMessage(err), traceId: apiErrorTraceId(err) }),
   });
 
   return (
@@ -48,7 +49,8 @@ export function ChangePasswordForm() {
       {error && (
         <Alert
           type="error"
-          message={error}
+          message={error.message}
+          description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
           style={{ marginBottom: 16 }}
           showIcon
           closable

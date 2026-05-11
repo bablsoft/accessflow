@@ -134,7 +134,10 @@
     "password_change_not_allowed": "Password change is not allowed for this account.",
     "totp_not_enabled": "Two-factor authentication is not enabled.",
     "totp_already_enabled": "Two-factor authentication is already enabled.",
-    "profile_generic": "Could not update your profile. Please try again."
+    "profile_generic": "Could not update your profile. Please try again.",
+    "trace_id_label": "Trace ID",
+    "trace_id_copy": "Copy trace ID",
+    "trace_id_copied": "Trace ID copied"
   },
   "editor": {
     "title": "SQL editor",
