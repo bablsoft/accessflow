@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { JdbcUrlPreview } from './JdbcUrlPreview';
 
 describe('JdbcUrlPreview', () => {
-  it('substitutes host, port, and database into the template', () => {
+  it('strips the jdbc: prefix and substitutes host, port, and database', () => {
     render(
       <JdbcUrlPreview
         template="jdbc:postgresql://{host}:{port}/{database_name}"
@@ -13,7 +13,7 @@ describe('JdbcUrlPreview', () => {
       />,
     );
     expect(
-      screen.getByText('jdbc:postgresql://db.internal:5432/appdb'),
+      screen.getByText('postgresql://db.internal:5432/appdb'),
     ).toBeInTheDocument();
   });
 
@@ -27,7 +27,7 @@ describe('JdbcUrlPreview', () => {
       />,
     );
     expect(
-      screen.getByText('jdbc:mysql://{host}:{port}/{database_name}'),
+      screen.getByText('mysql://{host}:{port}/{database_name}'),
     ).toBeInTheDocument();
   });
 
@@ -41,7 +41,22 @@ describe('JdbcUrlPreview', () => {
       />,
     );
     expect(
-      screen.getByText('jdbc:sqlserver://sqlserver:1433;databaseName=erp'),
+      screen.getByText('sqlserver://sqlserver:1433;databaseName=erp'),
+    ).toBeInTheDocument();
+  });
+
+  it('never surfaces the jdbc: prefix to the user', () => {
+    render(
+      <JdbcUrlPreview
+        template="jdbc:oracle:thin:@//{host}:{port}/{database_name}"
+        host="oracle"
+        port={1521}
+        databaseName="orcl"
+      />,
+    );
+    expect(screen.queryByText(/^jdbc:/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText('oracle:thin:@//oracle:1521/orcl'),
     ).toBeInTheDocument();
   });
 });

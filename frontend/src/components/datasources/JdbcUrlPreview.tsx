@@ -11,6 +11,7 @@ interface JdbcUrlPreviewProps {
 export function JdbcUrlPreview({ template, host, port, databaseName }: JdbcUrlPreviewProps) {
   const { t } = useTranslation();
   const url = template
+    .replace(/^jdbc:/, '')
     .replace('{host}', host && host.length > 0 ? host : '{host}')
     .replace('{port}', port != null && !Number.isNaN(port) ? String(port) : '{port}')
     .replace(
@@ -36,7 +37,7 @@ export function JdbcUrlPreview({ template, host, port, databaseName }: JdbcUrlPr
           marginBottom: 4,
         }}
       >
-        {t('datasources.create.jdbc_preview_label')}
+        {t('datasources.create.connection_url_preview_label')}
       </div>
       <Typography.Paragraph
         copyable
