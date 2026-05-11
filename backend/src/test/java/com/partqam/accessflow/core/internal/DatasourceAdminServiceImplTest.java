@@ -470,4 +470,17 @@ class DatasourceAdminServiceImplTest {
         entity.setActive(true);
         return entity;
     }
+
+    @Test
+    void probeSqlUsesFromDualForOracle() {
+        assertThat(DatasourceAdminServiceImpl.probeSql(DbType.ORACLE)).isEqualTo("SELECT 1 FROM DUAL");
+    }
+
+    @Test
+    void probeSqlUsesPlainSelectOneForOtherDbTypes() {
+        assertThat(DatasourceAdminServiceImpl.probeSql(DbType.POSTGRESQL)).isEqualTo("SELECT 1");
+        assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MYSQL)).isEqualTo("SELECT 1");
+        assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MARIADB)).isEqualTo("SELECT 1");
+        assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MSSQL)).isEqualTo("SELECT 1");
+    }
 }
