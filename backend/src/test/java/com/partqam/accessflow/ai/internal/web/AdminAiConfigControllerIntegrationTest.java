@@ -5,6 +5,11 @@ import com.partqam.accessflow.ai.api.AiAnalysisException;
 import com.partqam.accessflow.ai.api.AiAnalysisResult;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.partqam.accessflow.audit.api.AuditAction;
+import com.partqam.accessflow.audit.api.AuditLogQuery;
+import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditResourceType;
+import org.springframework.data.domain.PageRequest;
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.AuthProviderType;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
@@ -56,6 +61,7 @@ class AdminAiConfigControllerIntegrationTest {
     @Autowired AiConfigRepository repository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
+    @Autowired AuditLogService auditLogService;
     @MockitoBean AiAnalyzerStrategy aiAnalyzerStrategy;
 
     private MockMvcTester mvc;
@@ -203,7 +209,7 @@ class AdminAiConfigControllerIntegrationTest {
                 "claude-sonnet-4-20250514",
                 12,
                 34);
-        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any())).thenReturn(fakeResult);
+        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any(), any())).thenReturn(fakeResult);
 
         var result = mvc.post().uri("/api/v1/admin/ai-config/test")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
@@ -212,12 +218,13 @@ class AdminAiConfigControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("OK");
         assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("LOW");
-        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), eq("en"));
+        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), eq("en"),
+                eq(org.getId()));
     }
 
     @Test
     void testEndpointReturnsErrorWhenAnalyzerThrows() {
-        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any()))
+        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("provider unreachable"));
 
         var result = mvc.post().uri("/api/v1/admin/ai-config/test")
@@ -237,6 +244,48 @@ class AdminAiConfigControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void putEmitsAuditRowWhenProviderAndKeyChange() {
+        var body = "{\"provider\":\"OPENAI\",\"model\":\"gpt-4o\",\"api_key\":\"sk-test\"}";
+        var put = mvc.put().uri("/api/v1/admin/ai-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(put).hasStatus(200);
+
+        var page = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
+                        null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(page.getContent()).hasSize(1);
+        var entry = page.getContent().get(0);
+        assertThat(entry.action()).isEqualTo(AuditAction.AI_CONFIG_UPDATED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.AI_CONFIG);
+        assertThat(entry.actorId()).isEqualTo(admin.getId());
+        assertThat(entry.metadata()).containsEntry("old_provider", "ANTHROPIC");
+        assertThat(entry.metadata()).containsEntry("new_provider", "OPENAI");
+        assertThat(entry.metadata()).containsEntry("new_model", "gpt-4o");
+        assertThat(entry.metadata()).containsEntry("api_key_changed", true);
+    }
+
+    @Test
+    void putDoesNotEmitAuditRowForUnchangedRequest() {
+        var body = "{\"api_key\":\"********\",\"enable_ai_default\":true}";
+        var put = mvc.put().uri("/api/v1/admin/ai-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(put).hasStatus(200);
+
+        var page = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
+                        null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(page.getContent()).isEmpty();
     }
 
     @Test

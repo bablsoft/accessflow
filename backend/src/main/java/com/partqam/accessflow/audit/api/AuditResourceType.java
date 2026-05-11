@@ -11,7 +11,8 @@ public enum AuditResourceType {
     USER("user"),
     PERMISSION("permission"),
     REVIEW_PLAN("review_plan"),
-    NOTIFICATION_CHANNEL("notification_channel");
+    NOTIFICATION_CHANNEL("notification_channel"),
+    AI_CONFIG("ai_config");
 
     private final String dbValue;
 

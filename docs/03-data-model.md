@@ -222,6 +222,34 @@ Stores the result of an AI analysis run for a query request.
 
 ---
 
+## ai_config
+
+Per-organization AI analyzer settings. One row per organization (uniqueness on
+`organization_id`). The active `AiAnalyzerStrategy` delegate is built on demand by
+`AiAnalyzerStrategyHolder` from this row; changes are picked up at runtime via an
+`AiConfigUpdatedEvent`. See [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations`, UNIQUE |
+| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` |
+| `model` | VARCHAR(100) — provider-specific model name |
+| `endpoint` | VARCHAR(500) nullable — base URL override |
+| `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
+| `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
+| `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
+| `max_completion_tokens` | INTEGER — CHECK 100–200000 |
+| `enable_ai_default` | BOOLEAN — whether AI runs on submissions by default |
+| `auto_approve_low` | BOOLEAN — auto-approve LOW-risk queries |
+| `block_critical` | BOOLEAN — auto-reject CRITICAL-risk queries |
+| `include_schema` | BOOLEAN — include schema introspection in the prompt |
+| `version` | BIGINT — optimistic locking |
+| `created_at` | TIMESTAMPTZ |
+| `updated_at` | TIMESTAMPTZ |
+
+---
+
 ## review_decisions
 
 Records a reviewer's decision on a query request.
@@ -278,6 +306,7 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | `USER_LOGIN_FAILED` | Failed login attempt |
 | `USER_CREATED` | New user created |
 | `USER_DEACTIVATED` | User account deactivated |
+| `AI_CONFIG_UPDATED` | Admin updates `ai_config` row via `PUT /admin/ai-config`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `api_key_changed`). |
 
 ---
 

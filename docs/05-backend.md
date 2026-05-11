@@ -331,23 +331,48 @@ The `AiAnalyzerService` (`accessflow-ai` module) is pluggable via a strategy int
 
 ```java
 public interface AiAnalyzerStrategy {
-    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                             String language, UUID organizationId);
 }
 ```
 
 `schemaContext` is an opaque, provider-renderable description of the target schema (for example,
 the output of `SystemPromptRenderer.describeSchema(...)`). It may be `null` or empty when
 introspection is unavailable, in which case the prompt substitutes `(no schema introspection
-available)`.
+available)`. `language` is the BCP-47 language code (see *Response language*). `organizationId`
+scopes provider lookup to that org's `ai_config` row.
 
-Implementations call providers through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M5`):
-- `AnthropicAnalyzerStrategy` — uses Spring AI's auto-configured `ChatModel` from `spring-ai-starter-model-anthropic` (default; landed in AF-14).
-- `OpenAiAnalyzerStrategy` — `spring-ai-starter-model-openai` (planned).
-- `OllamaAnalyzerStrategy` — `spring-ai-starter-model-ollama` (planned).
+Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
+them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
+autowired `AiAnalyzerStrategy` bean, from the per-org `ai_config` row using Spring AI 2.0
+(`spring-ai-bom:2.0.0-M6` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
 
-Provider settings (model, API key, base URL, max tokens, timeouts) live under Spring AI's namespace, e.g. `spring.ai.anthropic.api-key`, `spring.ai.anthropic.chat.options.model`. The accessflow-level toggle `accessflow.ai.provider` selects which strategy bean activates.
+- `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
+  provider / model / endpoint / API key / timeout. Default boot model: `claude-sonnet-4-20250514`.
+- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Default boot model: `gpt-4o`.
+- `OllamaAnalyzerStrategy` — `OllamaChatModel`. Keyless; needs only `endpoint` (default
+  `http://localhost:11434`).
 
-Active strategy selected via `accessflow.ai.provider` config. Runtime swap via `PUT /admin/ai-config` (triggers bean refresh) is planned in a follow-up issue.
+### Runtime strategy refresh
+
+`AiAnalyzerStrategyHolder` caches one delegate per organization (`Map<UUID, AiAnalyzerStrategy>`).
+On a successful `PUT /api/v1/admin/ai-config`, `DefaultAiConfigService` publishes an
+`AiConfigUpdatedEvent`. The holder consumes it via `@ApplicationModuleListener` (so it fires
+after the transaction commits) and evicts the cached entry for that org — the next `analyze(...)`
+call rebuilds the delegate from the new row. No application restart, no Spring context refresh.
+
+If the looked-up `ai_config` row has no API key set (and the provider needs one — Anthropic /
+OpenAI), the holder throws `AiAnalysisException` whose message is resolved via `MessageSource`
+(`error.ai.not_configured` in `i18n/messages.properties`). The smoke endpoint `POST
+/admin/ai-config/test` surfaces that text as the `detail` of `{"status":"ERROR", ...}`.
+
+### No yaml-driven AI config
+
+`spring.ai.anthropic.*`, `spring.ai.openai.*`, `spring.ai.ollama.*` and `accessflow.ai.provider`
+are **not** read. `application.yml` sets `spring.ai.model.{chat,embedding,image,audio.speech,
+audio.transcription,moderation}=none` to disable every Spring AI startup auto-config — the
+context still holds `AnthropicApi` / `OpenAIClient` / `OllamaApi` classes on the classpath, but
+no `ChatModel` is auto-built. All connection settings come from the DB row via the holder.
 
 Two entry points:
 - `AiAnalyzerService.analyzePreview(...)` — synchronous, used by `POST /api/v1/queries/analyze`. No
