@@ -1,47 +1,118 @@
 package com.partqam.accessflow.ai.internal;
 
+import com.partqam.accessflow.ai.api.AiConfigInUseException;
+import com.partqam.accessflow.ai.api.AiConfigNameAlreadyExistsException;
+import com.partqam.accessflow.ai.api.AiConfigNotFoundException;
 import com.partqam.accessflow.ai.api.AiConfigService;
 import com.partqam.accessflow.ai.api.AiConfigView;
+import com.partqam.accessflow.ai.api.CreateAiConfigCommand;
 import com.partqam.accessflow.ai.api.UpdateAiConfigCommand;
 import com.partqam.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
-import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
+import com.partqam.accessflow.core.api.DatasourceLookupService;
+import com.partqam.accessflow.core.api.DatasourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 class DefaultAiConfigService implements AiConfigService {
 
-    static final AiProviderType BOOT_DEFAULT_PROVIDER = AiProviderType.ANTHROPIC;
-
     private final AiConfigRepository repository;
     private final CredentialEncryptionService encryptionService;
+    private final DatasourceLookupService datasourceLookupService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
-    public AiConfigView getOrDefault(UUID organizationId) {
-        return repository.findByOrganizationId(organizationId)
-                .map(this::toView)
-                .orElseGet(() -> defaultView(organizationId));
+    public List<AiConfigView> list(UUID organizationId) {
+        var entities = repository.findAllByOrganizationIdOrderByNameAsc(organizationId);
+        if (entities.isEmpty()) {
+            return List.of();
+        }
+        var ids = new HashSet<UUID>(entities.size());
+        for (var e : entities) {
+            ids.add(e.getId());
+        }
+        var counts = datasourceLookupService.countsByAiConfigIds(ids);
+        return entities.stream()
+                .map(e -> toView(e, counts.getOrDefault(e.getId(), 0)))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AiConfigView get(UUID id, UUID organizationId) {
+        var entity = loadInOrganization(id, organizationId);
+        var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(entity.getId()))
+                .getOrDefault(entity.getId(), 0);
+        return toView(entity, inUse);
     }
 
     @Override
     @Transactional
-    public AiConfigView update(UUID organizationId, UpdateAiConfigCommand command) {
-        var entity = repository.findByOrganizationId(organizationId)
-                .orElseGet(() -> seed(organizationId));
+    public AiConfigView create(UUID organizationId, CreateAiConfigCommand command) {
+        var trimmedName = trim(command.name());
+        if (trimmedName == null || trimmedName.isBlank()) {
+            throw new IllegalArgumentException("AI config name is required");
+        }
+        if (repository.existsByOrganizationIdAndNameIgnoreCase(organizationId, trimmedName)) {
+            throw new AiConfigNameAlreadyExistsException(trimmedName);
+        }
+        var entity = new AiConfigEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(organizationId);
+        entity.setName(trimmedName);
+        entity.setProvider(command.provider());
+        entity.setModel(command.model());
+        entity.setEndpoint(blankToNull(command.endpoint()));
+        if (command.apiKey() != null && !command.apiKey().isBlank()) {
+            entity.setApiKeyEncrypted(encryptionService.encrypt(command.apiKey()));
+        }
+        if (command.timeoutMs() != null) {
+            entity.setTimeoutMs(command.timeoutMs());
+        }
+        if (command.maxPromptTokens() != null) {
+            entity.setMaxPromptTokens(command.maxPromptTokens());
+        }
+        if (command.maxCompletionTokens() != null) {
+            entity.setMaxCompletionTokens(command.maxCompletionTokens());
+        }
+        var now = Instant.now();
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        var saved = repository.save(entity);
+        return toView(saved, 0);
+    }
+
+    @Override
+    @Transactional
+    public AiConfigView update(UUID id, UUID organizationId, UpdateAiConfigCommand command) {
+        var entity = loadInOrganization(id, organizationId);
         var oldProvider = entity.getProvider();
         var oldModel = entity.getModel();
         var oldCiphertext = entity.getApiKeyEncrypted();
+        if (command.name() != null) {
+            var trimmedName = trim(command.name());
+            if (trimmedName == null || trimmedName.isBlank()) {
+                throw new IllegalArgumentException("AI config name must not be blank");
+            }
+            if (!trimmedName.equalsIgnoreCase(entity.getName())
+                    && repository.existsByOrganizationIdAndNameIgnoreCaseAndIdNot(organizationId, trimmedName, id)) {
+                throw new AiConfigNameAlreadyExistsException(trimmedName);
+            }
+            entity.setName(trimmedName);
+        }
         if (command.provider() != null) {
             entity.setProvider(command.provider());
         }
@@ -49,7 +120,7 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setModel(command.model());
         }
         if (command.endpoint() != null) {
-            entity.setEndpoint(command.endpoint().isBlank() ? null : command.endpoint());
+            entity.setEndpoint(blankToNull(command.endpoint()));
         }
         applyApiKey(entity, command.apiKey());
         if (command.timeoutMs() != null) {
@@ -61,18 +132,6 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.maxCompletionTokens() != null) {
             entity.setMaxCompletionTokens(command.maxCompletionTokens());
         }
-        if (command.enableAiDefault() != null) {
-            entity.setEnableAiDefault(command.enableAiDefault());
-        }
-        if (command.autoApproveLow() != null) {
-            entity.setAutoApproveLow(command.autoApproveLow());
-        }
-        if (command.blockCritical() != null) {
-            entity.setBlockCritical(command.blockCritical());
-        }
-        if (command.includeSchema() != null) {
-            entity.setIncludeSchema(command.includeSchema());
-        }
         entity.setUpdatedAt(Instant.now());
         var saved = repository.save(entity);
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
@@ -81,10 +140,27 @@ class DefaultAiConfigService implements AiConfigService {
                 || apiKeyChanged
                 || hasConnectivityChange(command)) {
             eventPublisher.publishEvent(new AiConfigUpdatedEvent(
-                    organizationId, oldProvider, saved.getProvider(),
+                    saved.getId(), oldProvider, saved.getProvider(),
                     oldModel, saved.getModel(), apiKeyChanged));
         }
-        return toView(saved);
+        var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(saved.getId()))
+                .getOrDefault(saved.getId(), 0);
+        return toView(saved, inUse);
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id, UUID organizationId) {
+        var entity = loadInOrganization(id, organizationId);
+        var refs = datasourceLookupService.findRefsByAiConfigId(entity.getId());
+        if (!refs.isEmpty()) {
+            var converted = refs.stream()
+                    .map(r -> new AiConfigInUseException.DatasourceRef(r.id(), r.name()))
+                    .toList();
+            throw new AiConfigInUseException(entity.getId(), converted);
+        }
+        repository.delete(entity);
+        eventPublisher.publishEvent(new AiConfigDeletedEvent(entity.getId()));
     }
 
     private boolean hasConnectivityChange(UpdateAiConfigCommand command) {
@@ -104,42 +180,16 @@ class DefaultAiConfigService implements AiConfigService {
         entity.setApiKeyEncrypted(encryptionService.encrypt(submitted));
     }
 
-    private AiConfigEntity seed(UUID organizationId) {
-        var entity = new AiConfigEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setOrganizationId(organizationId);
-        var defaults = defaultsFor(BOOT_DEFAULT_PROVIDER);
-        entity.setProvider(defaults.provider());
-        entity.setModel(defaults.model());
-        entity.setEndpoint(defaults.endpoint());
-        return entity;
+    private AiConfigEntity loadInOrganization(UUID id, UUID organizationId) {
+        return repository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new AiConfigNotFoundException(id));
     }
 
-    private AiConfigView defaultView(UUID organizationId) {
-        var defaults = defaultsFor(BOOT_DEFAULT_PROVIDER);
-        var now = Instant.now();
-        return new AiConfigView(
-                null,
-                organizationId,
-                defaults.provider(),
-                defaults.model(),
-                defaults.endpoint(),
-                false,
-                30_000,
-                8_000,
-                2_000,
-                true,
-                false,
-                true,
-                true,
-                now,
-                now);
-    }
-
-    private AiConfigView toView(AiConfigEntity entity) {
+    private static AiConfigView toView(AiConfigEntity entity, int inUseCount) {
         return new AiConfigView(
                 entity.getId(),
                 entity.getOrganizationId(),
+                entity.getName(),
                 entity.getProvider(),
                 entity.getModel(),
                 entity.getEndpoint(),
@@ -147,23 +197,19 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getTimeoutMs(),
                 entity.getMaxPromptTokens(),
                 entity.getMaxCompletionTokens(),
-                entity.isEnableAiDefault(),
-                entity.isAutoApproveLow(),
-                entity.isBlockCritical(),
-                entity.isIncludeSchema(),
+                inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
 
-    private static ProviderDefaults defaultsFor(AiProviderType provider) {
-        return switch (provider) {
-            case OPENAI -> new ProviderDefaults(AiProviderType.OPENAI, "gpt-4o", "https://api.openai.com/v1");
-            case ANTHROPIC -> new ProviderDefaults(AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514",
-                    "https://api.anthropic.com/v1");
-            case OLLAMA -> new ProviderDefaults(AiProviderType.OLLAMA, "llama3.1:70b", "http://localhost:11434/api");
-        };
+    private static String trim(String value) {
+        return value == null ? null : value.trim();
     }
 
-    private record ProviderDefaults(AiProviderType provider, String model, String endpoint) {
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.isBlank() ? null : value;
     }
 }

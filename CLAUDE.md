@@ -481,7 +481,9 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 /datasources/:id/settings      → DatasourceSettingsPage
 /admin/users                   → UsersPage
 /admin/audit-log               → AuditLogPage
-/admin/ai-config               → AIConfigPage
+/admin/ai-configs              → AiConfigListPage
+/admin/ai-configs/new          → AiConfigCreateWizardPage
+/admin/ai-configs/:id          → AiConfigEditPage
 /admin/notifications           → NotificationsPage
 /admin/saml                    → SamlConfigPage (Enterprise — render only if features.saml_enabled)
 ```

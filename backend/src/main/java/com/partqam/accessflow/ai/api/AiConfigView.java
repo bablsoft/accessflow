@@ -12,6 +12,7 @@ import java.util.UUID;
 public record AiConfigView(
         UUID id,
         UUID organizationId,
+        String name,
         AiProviderType provider,
         String model,
         String endpoint,
@@ -19,10 +20,7 @@ public record AiConfigView(
         int timeoutMs,
         int maxPromptTokens,
         int maxCompletionTokens,
-        boolean enableAiDefault,
-        boolean autoApproveLow,
-        boolean blockCritical,
-        boolean includeSchema,
+        int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
 }

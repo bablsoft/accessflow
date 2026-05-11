@@ -3,6 +3,7 @@ import type {
   AiConfig,
   AuditLogFilters,
   AuditLogPage,
+  CreateAiConfigInput,
   CreateNotificationChannelInput,
   CreateUserInput,
   NotificationChannel,
@@ -23,7 +24,7 @@ import type {
 const USERS_BASE = '/api/v1/admin/users';
 const AUDIT_BASE = '/api/v1/admin/audit-log';
 const CHANNELS_BASE = '/api/v1/admin/notification-channels';
-const AI_CONFIG_BASE = '/api/v1/admin/ai-config';
+const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
 
@@ -50,7 +51,9 @@ export const notificationChannelKeys = {
 
 export const aiConfigKeys = {
   all: ['aiConfig'] as const,
-  current: () => ['aiConfig', 'current'] as const,
+  lists: () => ['aiConfig', 'list'] as const,
+  details: () => ['aiConfig', 'detail'] as const,
+  detail: (id: string) => ['aiConfig', 'detail', id] as const,
 };
 
 export const samlConfigKeys = {
@@ -143,20 +146,34 @@ export async function testChannel(
   return data;
 }
 
-// ── AI config ─────────────────────────────────────────────────────────────────
+// ── AI configs ────────────────────────────────────────────────────────────────
 
-export async function getAiConfig(): Promise<AiConfig> {
-  const { data } = await apiClient.get<AiConfig>(AI_CONFIG_BASE);
+export async function listAiConfigs(): Promise<AiConfig[]> {
+  const { data } = await apiClient.get<AiConfig[]>(AI_CONFIGS_BASE);
   return data;
 }
 
-export async function updateAiConfig(input: UpdateAiConfigInput): Promise<AiConfig> {
-  const { data } = await apiClient.put<AiConfig>(AI_CONFIG_BASE, input);
+export async function getAiConfig(id: string): Promise<AiConfig> {
+  const { data } = await apiClient.get<AiConfig>(`${AI_CONFIGS_BASE}/${id}`);
   return data;
 }
 
-export async function testAiConfig(): Promise<TestAiConfigResult> {
-  const { data } = await apiClient.post<TestAiConfigResult>(`${AI_CONFIG_BASE}/test`);
+export async function createAiConfig(input: CreateAiConfigInput): Promise<AiConfig> {
+  const { data } = await apiClient.post<AiConfig>(AI_CONFIGS_BASE, input);
+  return data;
+}
+
+export async function updateAiConfig(id: string, input: UpdateAiConfigInput): Promise<AiConfig> {
+  const { data } = await apiClient.put<AiConfig>(`${AI_CONFIGS_BASE}/${id}`, input);
+  return data;
+}
+
+export async function deleteAiConfig(id: string): Promise<void> {
+  await apiClient.delete(`${AI_CONFIGS_BASE}/${id}`);
+}
+
+export async function testAiConfig(id: string): Promise<TestAiConfigResult> {
+  const { data } = await apiClient.post<TestAiConfigResult>(`${AI_CONFIGS_BASE}/${id}/test`);
   return data;
 }
 

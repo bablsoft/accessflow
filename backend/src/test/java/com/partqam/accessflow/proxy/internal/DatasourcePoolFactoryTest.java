@@ -45,7 +45,7 @@ class DatasourcePoolFactoryTest {
     private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor descriptor = new DatasourceConnectionDescriptor(
             datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-            "ENC(secret)", SslMode.DISABLE, 15, 1000, true);
+            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, true);
 
     @BeforeEach
     void setUp() {

@@ -159,26 +159,54 @@ describe('api/admin', () => {
     });
   });
 
-  // ── AI config ─────────────────────────────────────────────────────────────
-  it('getAiConfig GETs /admin/ai-config', async () => {
-    get.mockResolvedValueOnce({ data: { provider: 'ANTHROPIC' } });
-    await adminApi.getAiConfig();
-    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-config');
+  // ── AI configs ────────────────────────────────────────────────────────────
+  it('listAiConfigs GETs /admin/ai-configs', async () => {
+    get.mockResolvedValueOnce({ data: [] });
+    await adminApi.listAiConfigs();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-configs');
+  });
+
+  it('getAiConfig GETs /admin/ai-configs/{id}', async () => {
+    get.mockResolvedValueOnce({ data: { id: 'a-1', provider: 'ANTHROPIC' } });
+    await adminApi.getAiConfig('a-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1');
+  });
+
+  it('createAiConfig POSTs to /admin/ai-configs', async () => {
+    post.mockResolvedValueOnce({ data: { id: 'a-1' } });
+    await adminApi.createAiConfig({
+      name: 'Prod',
+      provider: 'ANTHROPIC',
+      model: 'claude-sonnet-4-20250514',
+      api_key: 'sk-test',
+    });
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-configs', {
+      name: 'Prod',
+      provider: 'ANTHROPIC',
+      model: 'claude-sonnet-4-20250514',
+      api_key: 'sk-test',
+    });
   });
 
   it('updateAiConfig PUTs the body', async () => {
-    put.mockResolvedValueOnce({ data: { provider: 'OPENAI' } });
-    await adminApi.updateAiConfig({ provider: 'OPENAI', model: 'gpt-4o' });
-    expect(put).toHaveBeenCalledWith('/api/v1/admin/ai-config', {
+    put.mockResolvedValueOnce({ data: { id: 'a-1', provider: 'OPENAI' } });
+    await adminApi.updateAiConfig('a-1', { provider: 'OPENAI', model: 'gpt-4o' });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1', {
       provider: 'OPENAI',
       model: 'gpt-4o',
     });
   });
 
-  it('testAiConfig POSTs /admin/ai-config/test', async () => {
+  it('deleteAiConfig DELETEs /admin/ai-configs/{id}', async () => {
+    del.mockResolvedValueOnce({ data: undefined });
+    await adminApi.deleteAiConfig('a-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1');
+  });
+
+  it('testAiConfig POSTs /admin/ai-configs/{id}/test', async () => {
     post.mockResolvedValueOnce({ data: { status: 'OK', detail: 'ok' } });
-    await adminApi.testAiConfig();
-    expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-config/test');
+    await adminApi.testAiConfig('a-1');
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/test');
   });
 
   // ── SAML config ───────────────────────────────────────────────────────────
@@ -217,7 +245,9 @@ describe('api/admin', () => {
   });
 
   it('aiConfigKeys / samlConfigKeys produce stable factory output', () => {
-    expect(adminApi.aiConfigKeys.current()).toEqual(['aiConfig', 'current']);
+    expect(adminApi.aiConfigKeys.all).toEqual(['aiConfig']);
+    expect(adminApi.aiConfigKeys.lists()).toEqual(['aiConfig', 'list']);
+    expect(adminApi.aiConfigKeys.detail('a-1')).toEqual(['aiConfig', 'detail', 'a-1']);
     expect(adminApi.samlConfigKeys.current()).toEqual(['samlConfig', 'current']);
   });
 

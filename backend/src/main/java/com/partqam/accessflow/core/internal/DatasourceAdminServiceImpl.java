@@ -16,6 +16,7 @@ import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.DriverCatalogService;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
+import com.partqam.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.partqam.accessflow.core.api.SslMode;
 import com.partqam.accessflow.core.api.UpdateDatasourceCommand;
 import com.partqam.accessflow.core.events.DatasourceConfigChangedEvent;
@@ -137,6 +138,12 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.aiAnalysisEnabled() != null) {
             entity.setAiAnalysisEnabled(command.aiAnalysisEnabled());
         }
+        if (command.aiConfigId() != null) {
+            entity.setAiConfigId(command.aiConfigId());
+        }
+        if (entity.isAiAnalysisEnabled() && entity.getAiConfigId() == null) {
+            throw new MissingAiConfigForDatasourceException();
+        }
         if (command.reviewPlanId() != null) {
             entity.setReviewPlan(reviewPlanRepository.getReferenceById(command.reviewPlanId()));
         }
@@ -189,6 +196,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
         if (command.aiAnalysisEnabled() != null) {
             entity.setAiAnalysisEnabled(command.aiAnalysisEnabled());
+        }
+        if (Boolean.TRUE.equals(command.clearAiConfig())) {
+            entity.setAiConfigId(null);
+        }
+        if (command.aiConfigId() != null) {
+            entity.setAiConfigId(command.aiConfigId());
+        }
+        if (entity.isAiAnalysisEnabled() && entity.getAiConfigId() == null) {
+            throw new MissingAiConfigForDatasourceException();
         }
         if (command.reviewPlanId() != null) {
             entity.setReviewPlan(reviewPlanRepository.getReferenceById(command.reviewPlanId()));
@@ -361,6 +377,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.isRequireReviewWrites(),
                 entity.getReviewPlan() != null ? entity.getReviewPlan().getId() : null,
                 entity.isAiAnalysisEnabled(),
+                entity.getAiConfigId(),
                 entity.isActive(),
                 entity.getCreatedAt());
     }

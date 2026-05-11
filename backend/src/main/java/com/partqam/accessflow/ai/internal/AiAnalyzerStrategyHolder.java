@@ -3,8 +3,8 @@ package com.partqam.accessflow.ai.internal;
 import com.partqam.accessflow.ai.api.AiAnalysisException;
 import com.partqam.accessflow.ai.api.AiAnalysisResult;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
-import com.partqam.accessflow.ai.api.AiConfigService;
-import com.partqam.accessflow.ai.api.AiConfigView;
+import com.partqam.accessflow.ai.api.AiConfigNotFoundException;
+import com.partqam.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
 import com.partqam.accessflow.core.api.DbType;
@@ -22,11 +22,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Single autowired {@link AiAnalyzerStrategy} bean. Resolves the per-org {@code ai_config} row,
- * builds a provider-specific delegate (Anthropic / OpenAI / Ollama) the first time an org calls
- * {@code analyze(...)}, and caches it. {@link AiConfigUpdatedEvent} evicts the cached delegate for
- * the org after the {@code DefaultAiConfigService.update(...)} transaction commits, so the next
- * call rebuilds against the new row — no application restart needed.
+ * Single autowired {@link AiAnalyzerStrategy} bean. Resolves the per-row {@code ai_config} entity,
+ * builds a provider-specific delegate (Anthropic / OpenAI / Ollama) the first time a config is
+ * referenced, and caches it. {@link AiConfigUpdatedEvent} / {@link AiConfigDeletedEvent} evict
+ * cached delegates after the originating transaction commits, so the next call rebuilds against
+ * the new state — no application restart needed.
  */
 @Service
 @RequiredArgsConstructor
@@ -37,7 +37,6 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private static final String DEFAULT_OPENAI_BASE_URL = "https://api.openai.com";
     private static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 
-    private final AiConfigService aiConfigService;
     private final AiConfigRepository aiConfigRepository;
     private final CredentialEncryptionService encryptionService;
     private final SystemPromptRenderer promptRenderer;
@@ -49,64 +48,72 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID organizationId) {
-        var delegate = cache.computeIfAbsent(organizationId, key -> {
-            var view = aiConfigService.getOrDefault(key);
-            log.debug("Building AI analyzer delegate for org={} provider={} model={}",
-                    key, view.provider(), view.model());
-            return buildDelegate(view);
+                                    UUID aiConfigId) {
+        if (aiConfigId == null) {
+            throw notConfigured();
+        }
+        var delegate = cache.computeIfAbsent(aiConfigId, key -> {
+            var entity = aiConfigRepository.findById(key)
+                    .orElseThrow(() -> new AiConfigNotFoundException(key));
+            log.debug("Building AI analyzer delegate for ai_config={} provider={} model={}",
+                    key, entity.getProvider(), entity.getModel());
+            return buildDelegate(entity);
         });
-        return delegate.analyze(sql, dbType, schemaContext, language, organizationId);
+        return delegate.analyze(sql, dbType, schemaContext, language, aiConfigId);
     }
 
     @ApplicationModuleListener
     void onConfigUpdated(AiConfigUpdatedEvent event) {
-        var removed = cache.remove(event.organizationId());
+        var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
-            log.info("Evicted AI analyzer delegate for org={} (provider {} -> {}, model {} -> {}, api_key_changed={})",
-                    event.organizationId(), event.oldProvider(), event.newProvider(),
+            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={})",
+                    event.aiConfigId(), event.oldProvider(), event.newProvider(),
                     event.oldModel(), event.newModel(), event.apiKeyChanged());
         }
     }
 
-    private AiAnalyzerStrategy buildDelegate(AiConfigView view) {
-        return switch (view.provider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(view), promptRenderer, responseParser);
-            case OPENAI -> new OpenAiAnalyzerStrategy(buildOpenAiChatModel(view), promptRenderer, responseParser);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(view), promptRenderer, responseParser);
+    @ApplicationModuleListener
+    void onConfigDeleted(AiConfigDeletedEvent event) {
+        var removed = cache.remove(event.aiConfigId());
+        if (removed != null) {
+            log.info("Evicted AI analyzer delegate for deleted ai_config={}", event.aiConfigId());
+        }
+    }
+
+    private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
+        return switch (entity.getProvider()) {
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser);
+            case OPENAI -> new OpenAiAnalyzerStrategy(buildOpenAiChatModel(entity), promptRenderer, responseParser);
+            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser);
         };
     }
 
-    private ChatModel buildAnthropicChatModel(AiConfigView view) {
-        var apiKey = requireApiKey(view);
-        var baseUrl = baseUrlOrDefault(view, DEFAULT_ANTHROPIC_BASE_URL);
-        return chatModelFactory.anthropic(apiKey, baseUrl, view.model(),
-                view.maxCompletionTokens(), view.timeoutMs());
+    private ChatModel buildAnthropicChatModel(AiConfigEntity entity) {
+        var apiKey = requireApiKey(entity);
+        var baseUrl = baseUrlOrDefault(entity, DEFAULT_ANTHROPIC_BASE_URL);
+        return chatModelFactory.anthropic(apiKey, baseUrl, entity.getModel(),
+                entity.getMaxCompletionTokens(), entity.getTimeoutMs());
     }
 
-    private ChatModel buildOpenAiChatModel(AiConfigView view) {
-        var apiKey = requireApiKey(view);
-        var baseUrl = baseUrlOrDefault(view, DEFAULT_OPENAI_BASE_URL);
-        return chatModelFactory.openAi(apiKey, baseUrl, view.model(),
-                view.maxCompletionTokens(), view.timeoutMs());
+    private ChatModel buildOpenAiChatModel(AiConfigEntity entity) {
+        var apiKey = requireApiKey(entity);
+        var baseUrl = baseUrlOrDefault(entity, DEFAULT_OPENAI_BASE_URL);
+        return chatModelFactory.openAi(apiKey, baseUrl, entity.getModel(),
+                entity.getMaxCompletionTokens(), entity.getTimeoutMs());
     }
 
-    private ChatModel buildOllamaChatModel(AiConfigView view) {
-        var baseUrl = baseUrlOrDefault(view, DEFAULT_OLLAMA_BASE_URL);
-        return chatModelFactory.ollama(baseUrl, view.model(), view.maxCompletionTokens());
+    private ChatModel buildOllamaChatModel(AiConfigEntity entity) {
+        var baseUrl = baseUrlOrDefault(entity, DEFAULT_OLLAMA_BASE_URL);
+        return chatModelFactory.ollama(baseUrl, entity.getModel(), entity.getMaxCompletionTokens());
     }
 
-    private String baseUrlOrDefault(AiConfigView view, String fallback) {
-        return (view.endpoint() == null || view.endpoint().isBlank()) ? fallback : view.endpoint();
+    private String baseUrlOrDefault(AiConfigEntity entity, String fallback) {
+        var endpoint = entity.getEndpoint();
+        return (endpoint == null || endpoint.isBlank()) ? fallback : endpoint;
     }
 
-    private String requireApiKey(AiConfigView view) {
-        if (view.id() == null) {
-            throw notConfigured();
-        }
-        var ciphertext = aiConfigRepository.findByOrganizationId(view.organizationId())
-                .map(e -> e.getApiKeyEncrypted())
-                .orElse(null);
+    private String requireApiKey(AiConfigEntity entity) {
+        var ciphertext = entity.getApiKeyEncrypted();
         if (ciphertext == null || ciphertext.isBlank()) {
             throw notConfigured();
         }

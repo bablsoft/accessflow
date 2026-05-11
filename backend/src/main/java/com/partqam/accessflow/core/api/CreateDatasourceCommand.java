@@ -17,5 +17,6 @@ public record CreateDatasourceCommand(
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
         UUID reviewPlanId,
-        Boolean aiAnalysisEnabled
+        Boolean aiAnalysisEnabled,
+        UUID aiConfigId
 ) {}

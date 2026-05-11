@@ -83,6 +83,9 @@ public class DatasourceEntity {
     @Column(name = "ai_analysis_enabled", nullable = false)
     private boolean aiAnalysisEnabled = true;
 
+    @Column(name = "ai_config_id")
+    private UUID aiConfigId;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

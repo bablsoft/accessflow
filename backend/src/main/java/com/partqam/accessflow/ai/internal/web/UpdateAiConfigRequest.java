@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
 record UpdateAiConfigRequest(
+        @Size(min = 1, max = 255, message = "{validation.ai_config.name.size}") String name,
         AiProviderType provider,
         @Size(max = 100, message = "{validation.ai_config.model.max}") String model,
         @Size(max = 500, message = "{validation.ai_config.endpoint.max}") String endpoint,
@@ -16,24 +17,17 @@ record UpdateAiConfigRequest(
         @Min(value = 100, message = "{validation.ai_config.max_prompt_tokens.range}")
         @Max(value = 200000, message = "{validation.ai_config.max_prompt_tokens.range}") Integer maxPromptTokens,
         @Min(value = 100, message = "{validation.ai_config.max_completion_tokens.range}")
-        @Max(value = 200000, message = "{validation.ai_config.max_completion_tokens.range}") Integer maxCompletionTokens,
-        Boolean enableAiDefault,
-        Boolean autoApproveLow,
-        Boolean blockCritical,
-        Boolean includeSchema) {
+        @Max(value = 200000, message = "{validation.ai_config.max_completion_tokens.range}") Integer maxCompletionTokens) {
 
     UpdateAiConfigCommand toCommand() {
         return new UpdateAiConfigCommand(
+                name,
                 provider,
                 model,
                 endpoint,
                 apiKey,
                 timeoutMs,
                 maxPromptTokens,
-                maxCompletionTokens,
-                enableAiDefault,
-                autoApproveLow,
-                blockCritical,
-                includeSchema);
+                maxCompletionTokens);
     }
 }

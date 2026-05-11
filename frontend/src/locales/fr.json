@@ -36,10 +36,10 @@
     "users": "Utilisateurs",
     "review_plans": "Plans de revue",
     "audit": "Journal d'audit",
-    "ai_config": "Configuration IA",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
-    "languages": "Langues"
+    "languages": "Langues",
+    "ai_configs": "AI configurations"
   },
   "auth": {
     "login": {
@@ -293,7 +293,12 @@
       "save_error": "Échec de la création de la source",
       "types_loading": "Chargement des types de base…",
       "types_error_title": "Impossible de charger les types de base",
-      "types_error_body": "Le endpoint /datasources/types n'a pas répondu. Recharge la page ou vérifie les logs du backend."
+      "types_error_body": "Le endpoint /datasources/types n'a pas répondu. Recharge la page ou vérifie les logs du backend.",
+      "field_ai_analysis_enabled": "Enable AI analysis",
+      "field_ai_config": "AI configuration",
+      "field_ai_config_placeholder": "Pick an AI configuration",
+      "field_ai_config_required": "Select an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     },
     "settings": {
       "back_button": "Retour",
@@ -398,7 +403,11 @@
       "activity_empty": "Aucune requête n'a encore été soumise sur cette source.",
       "activity_load_error": "Impossible de charger les requêtes récentes",
       "not_found_message": "Source de données introuvable.",
-      "back_to_list": "Retour à la liste"
+      "back_to_list": "Retour à la liste",
+      "label_ai_config": "AI configuration",
+      "ai_config_placeholder": "Pick an AI configuration",
+      "ai_config_required": "Pick an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     }
   },
   "admin": {
@@ -473,28 +482,6 @@
       "section_action": "Action",
       "section_metadata": "métadonnées · JSON",
       "actor_unknown": "(système)"
-    },
-    "ai_config": {
-      "title": "Configuration IA",
-      "subtitle": "Configure le backend IA utilisé pour l'analyse de risque des requêtes.",
-      "section_provider": "Fournisseur",
-      "section_connection": "Connexion",
-      "section_behavior": "Comportement",
-      "label_model": "Modèle",
-      "label_api_endpoint": "Endpoint API",
-      "label_api_key": "Clé API",
-      "label_timeout_ms": "Timeout (ms)",
-      "label_max_prompt_tokens": "Max tokens du prompt",
-      "label_max_completion_tokens": "Max tokens de réponse",
-      "label_enable_ai_default": "Activer l'IA par défaut sur les nouvelles sources",
-      "label_auto_approve_low": "Approuver automatiquement les SELECT à risque LOW",
-      "label_block_critical": "Bloquer les requêtes à risque CRITICAL",
-      "label_include_schema": "Inclure le schéma dans le contexte IA",
-      "load_error": "Impossible de charger la configuration IA",
-      "save_success": "Configuration IA enregistrée",
-      "test_button": "Envoyer un prompt de test",
-      "test_ok_button": "Test réussi",
-      "test_failed": "Échec du test : {{detail}}"
     },
     "notifications": {
       "title": "Canaux de notification",
@@ -601,6 +588,55 @@
       "validation_user_or_role": "Chaque ligne d'approbateur a besoin d'un utilisateur ou d'un rôle.",
       "select_user_placeholder": "(n'importe qui dans le rôle)",
       "select_role_placeholder": "TOUT"
+    },
+    "ai_configs": {
+      "title": "AI configurations",
+      "subtitle": "Configure as many AI providers as you need. Each datasource binds to one.",
+      "add_button": "Add AI configuration",
+      "empty_title": "No AI configurations yet",
+      "empty_body": "Add an AI configuration to enable risk analysis on a datasource.",
+      "load_error": "Failed to load AI configurations",
+      "column_name": "Name",
+      "column_provider": "Provider",
+      "column_model": "Model",
+      "column_in_use": "In use",
+      "column_actions": "Actions",
+      "in_use_count_one": "{{count}} datasource",
+      "in_use_count_other": "{{count}} datasources",
+      "action_edit": "Edit",
+      "action_test": "Test",
+      "action_delete": "Delete",
+      "delete_confirm_title": "Delete AI configuration?",
+      "delete_confirm_body": "This will remove the configuration named {{name}}.",
+      "delete_in_use_title": "Cannot delete — still in use",
+      "delete_in_use_body": "Unbind these datasources first:",
+      "delete_success": "AI configuration deleted",
+      "save_success": "AI configuration saved",
+      "test_ok": "Test passed",
+      "test_ok_button": "Test passed",
+      "test_button": "Send test prompt",
+      "test_failed_title": "Test failed",
+      "test_failed": "Test failed: {{detail}}",
+      "edit_title": "Edit · {{name}}",
+      "field_name": "Configuration name",
+      "field_model": "Model",
+      "field_endpoint": "API endpoint",
+      "field_api_key": "API key",
+      "field_timeout_ms": "Timeout (ms)",
+      "field_max_prompt_tokens": "Max prompt tokens",
+      "field_max_completion_tokens": "Max completion tokens",
+      "name_required": "Configuration name is required",
+      "api_key_required": "API key is required for this provider",
+      "wizard": {
+        "title": "New AI configuration",
+        "subtitle": "Pick a provider, fill in the connection details, and run a test prompt.",
+        "step_provider": "Provider",
+        "step_connection": "Connection",
+        "step_test": "Test",
+        "save_and_test": "Save and continue",
+        "test_button": "Send test prompt",
+        "finish": "Done"
+      }
     }
   },
   "notifications": {

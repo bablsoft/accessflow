@@ -220,7 +220,7 @@ The widget shows three numbered rows in this order:
 
 1. **Create a review plan** → `/admin/review-plans`
 2. **Add your first datasource** → `/datasources/new`
-3. **Configure the AI provider** → `/admin/ai-config`
+3. **Configure the AI provider** → `/admin/ai-configs/new`
 
 Review plan is first because every datasource references a plan; AI is last because it is the most likely step to be skipped on a fresh install. Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once all three are accounted for, the widget hides entirely.
 
@@ -381,7 +381,9 @@ VITE_APP_EDITION=community         # community | enterprise
 
 /admin/users                        → UsersPage
 /admin/audit-log                    → AuditLogPage
-/admin/ai-config                    → AIConfigPage
+/admin/ai-configs                   → AiConfigListPage
+/admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard)
+/admin/ai-configs/:id               → AiConfigEditPage
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
 /admin/saml                         → SamlConfigPage (Enterprise)

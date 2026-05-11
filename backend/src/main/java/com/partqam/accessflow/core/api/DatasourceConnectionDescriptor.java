@@ -19,5 +19,7 @@ public record DatasourceConnectionDescriptor(
         SslMode sslMode,
         int connectionPoolSize,
         int maxRowsPerQuery,
+        boolean aiAnalysisEnabled,
+        UUID aiConfigId,
         boolean active) {
 }

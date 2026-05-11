@@ -24,5 +24,7 @@ public record UpdateDatasourceRequest(
         Boolean requireReviewWrites,
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
+        UUID aiConfigId,
+        Boolean clearAiConfig,
         Boolean active
 ) {}

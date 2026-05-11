@@ -315,6 +315,6 @@ class RealtimeEventDispatcherTest {
     private DatasourceView datasourceView(String name) {
         return new DatasourceView(datasourceId, organizationId, name, DbType.POSTGRESQL,
                 "localhost", 5432, "db", "user", SslMode.DISABLE, 5, 1000,
-                false, true, null, true, true, Instant.now());
+                false, true, null, true, null, true, Instant.now());
     }
 }

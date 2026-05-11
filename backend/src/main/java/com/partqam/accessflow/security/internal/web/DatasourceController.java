@@ -105,7 +105,8 @@ class DatasourceController {
                 request.requireReviewReads(),
                 request.requireReviewWrites(),
                 request.reviewPlanId(),
-                request.aiAnalysisEnabled());
+                request.aiAnalysisEnabled(),
+                request.aiConfigId());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, httpRequest, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -154,6 +155,8 @@ class DatasourceController {
                 request.requireReviewWrites(),
                 request.reviewPlanId(),
                 request.aiAnalysisEnabled(),
+                request.aiConfigId(),
+                request.clearAiConfig(),
                 request.active());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,

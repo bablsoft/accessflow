@@ -4,12 +4,12 @@ import com.partqam.accessflow.TestcontainersConfig;
 import com.partqam.accessflow.ai.api.AiAnalysisException;
 import com.partqam.accessflow.ai.api.AiAnalysisResult;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
+import com.partqam.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.partqam.accessflow.audit.api.AuditAction;
 import com.partqam.accessflow.audit.api.AuditLogQuery;
 import com.partqam.accessflow.audit.api.AuditLogService;
 import com.partqam.accessflow.audit.api.AuditResourceType;
-import org.springframework.data.domain.PageRequest;
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.AuthProviderType;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
@@ -18,8 +18,10 @@ import com.partqam.accessflow.core.api.EditionType;
 import com.partqam.accessflow.core.api.RiskLevel;
 import com.partqam.accessflow.core.api.UserRoleType;
 import com.partqam.accessflow.core.api.UserView;
+import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
+import com.partqam.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.security.internal.jwt.JwtService;
@@ -29,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -37,27 +40,27 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.util.List;
-
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
-class AdminAiConfigControllerIntegrationTest {
+class AdminAiConfigsControllerIntegrationTest {
 
     @Autowired WebApplicationContext context;
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired DatasourceRepository datasourceRepository;
     @Autowired AiConfigRepository repository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
@@ -88,6 +91,7 @@ class AdminAiConfigControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
+        datasourceRepository.deleteAll();
         repository.deleteAll();
         userRepository.deleteAll();
         organizationRepository.deleteAll();
@@ -107,139 +111,163 @@ class AdminAiConfigControllerIntegrationTest {
 
     @AfterEach
     void cleanup() {
+        datasourceRepository.deleteAll();
         repository.deleteAll();
     }
 
     @Test
-    void getReturnsDefaultConfigBeforeAnyUpdate() throws Exception {
-        var result = mvc.get().uri("/api/v1/admin/ai-config")
+    void listReturnsConfigsForCallerOrg() {
+        seedConfig("First", AiProviderType.ANTHROPIC, "ENC(k)");
+        seedConfig("Second", AiProviderType.OPENAI, null);
+
+        var result = mvc.get().uri("/api/v1/admin/ai-configs")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .exchange();
 
         assertThat(result).hasStatus(200);
-        assertThat(result).bodyJson().extractingPath("$.provider").asString().isEqualTo("ANTHROPIC");
-        assertThat(result).bodyJson().extractingPath("$.enable_ai_default").asBoolean().isTrue();
-        // api_key is absent (null) on default config — Jackson drops null fields.
-        assertThat(result.getResponse().getContentAsString()).doesNotContain("\"api_key\"");
+        assertThat(result).bodyJson().extractingPath("$[0].name").asString().isEqualTo("First");
+        assertThat(result).bodyJson().extractingPath("$[1].name").asString().isEqualTo("Second");
     }
 
     @Test
-    void putPersistsConfigAndMasksApiKeyOnReadback() {
-        var body = "{\"provider\":\"OPENAI\",\"model\":\"gpt-4o-mini\",\"api_key\":\"sk-test\","
-                + "\"timeout_ms\":15000,\"max_prompt_tokens\":4000,\"max_completion_tokens\":1500,"
-                + "\"enable_ai_default\":true,\"auto_approve_low\":true,"
-                + "\"block_critical\":true,\"include_schema\":false}";
+    void createReturns201AndAuditRow() {
+        var body = """
+                {
+                  "name": "ClaudeProd",
+                  "provider": "ANTHROPIC",
+                  "model": "claude-sonnet-4-20250514",
+                  "endpoint": "https://api.anthropic.com",
+                  "api_key": "sk-test"
+                }""";
 
-        var put = mvc.put().uri("/api/v1/admin/ai-config")
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body)
                 .exchange();
-        assertThat(put).hasStatus(200);
-        assertThat(put).bodyJson().extractingPath("$.provider").asString().isEqualTo("OPENAI");
-        assertThat(put).bodyJson().extractingPath("$.api_key").asString().isEqualTo("********");
 
-        var get = mvc.get().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .exchange();
-        assertThat(get).bodyJson().extractingPath("$.model").asString().isEqualTo("gpt-4o-mini");
-        assertThat(get).bodyJson().extractingPath("$.timeout_ms").asNumber().isEqualTo(15000);
-        assertThat(get).bodyJson().extractingPath("$.api_key").asString().isEqualTo("********");
-        assertThat(get).bodyJson().extractingPath("$.include_schema").asBoolean().isFalse();
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.name").asString().isEqualTo("ClaudeProd");
+        assertThat(result).bodyJson().extractingPath("$.api_key").asString().isEqualTo("********");
 
-        var stored = repository.findByOrganizationId(org.getId()).orElseThrow();
-        assertThat(stored.getApiKeyEncrypted()).isNotNull();
-        assertThat(encryptionService.decrypt(stored.getApiKeyEncrypted())).isEqualTo("sk-test");
+        var audits = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.AI_CONFIG_CREATED, AuditResourceType.AI_CONFIG,
+                        null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(audits.getContent()).hasSize(1);
     }
 
     @Test
-    void putWithMaskedApiKeyPreservesExistingCipher() {
-        // First write a real key.
-        var firstBody = "{\"api_key\":\"sk-original\",\"model\":\"claude-sonnet-4-20250514\"}";
-        var first = mvc.put().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(firstBody)
-                .exchange();
-        assertThat(first).hasStatus(200);
-        var originalCipher = repository.findByOrganizationId(org.getId()).orElseThrow().getApiKeyEncrypted();
+    void createDuplicateNameReturns409() {
+        seedConfig("Existing", AiProviderType.ANTHROPIC, null);
+        var body = """
+                {
+                  "name": "existing",
+                  "provider": "OPENAI",
+                  "model": "gpt-4o"
+                }""";
 
-        // Update without changing the key.
-        var update = "{\"api_key\":\"********\",\"model\":\"claude-sonnet-4-20250514\"}";
-        var second = mvc.put().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(update)
-                .exchange();
-        assertThat(second).hasStatus(200);
-
-        var afterCipher = repository.findByOrganizationId(org.getId()).orElseThrow().getApiKeyEncrypted();
-        assertThat(afterCipher).isEqualTo(originalCipher);
-    }
-
-    @Test
-    void rejectsTimeoutBelowRange() {
-        var body = "{\"timeout_ms\":10}";
-        var result = mvc.put().uri("/api/v1/admin/ai-config")
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body)
                 .exchange();
-        assertThat(result).hasStatus(400);
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("AI_CONFIG_NAME_ALREADY_EXISTS");
     }
 
     @Test
-    void analystForbidden() {
-        var get = mvc.get().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+    void updateChangesFieldsAndWritesAudit() {
+        var existing = seedConfig("Initial", AiProviderType.ANTHROPIC, "ENC(k)");
+        var body = """
+                {
+                  "name": "Renamed",
+                  "model": "claude-sonnet-4-20250514",
+                  "api_key": "********"
+                }""";
+
+        var result = mvc.put().uri("/api/v1/admin/ai-configs/" + existing.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
                 .exchange();
-        assertThat(get).hasStatus(403);
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.name").asString().isEqualTo("Renamed");
+
+        var audits = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
+                        null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(audits.getContent()).hasSize(1);
     }
 
     @Test
-    void testEndpointReturnsOkWhenAnalyzerSucceeds() {
-        var fakeResult = new AiAnalysisResult(
-                10,
-                RiskLevel.LOW,
-                "ok",
-                List.of(),
-                false,
-                null,
-                AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514",
-                12,
-                34);
-        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any(), any())).thenReturn(fakeResult);
+    void deleteReturns204AndAudit() {
+        var existing = seedConfig("Doomed", AiProviderType.ANTHROPIC, null);
 
-        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+        var result = mvc.delete().uri("/api/v1/admin/ai-configs/" + existing.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(204);
+        assertThat(repository.findById(existing.getId())).isEmpty();
+
+        var audits = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.AI_CONFIG_DELETED, AuditResourceType.AI_CONFIG,
+                        null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(audits.getContent()).hasSize(1);
+    }
+
+    @Test
+    void deleteWhenBoundToDatasourceReturns409WithReferences() {
+        var existing = seedConfig("Bound", AiProviderType.ANTHROPIC, "ENC(k)");
+        seedDatasource("primary-db", existing.getId());
+
+        var result = mvc.delete().uri("/api/v1/admin/ai-configs/" + existing.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("AI_CONFIG_IN_USE");
+        assertThat(result).bodyJson().extractingPath("$.boundDatasources[0].name").asString().isEqualTo("primary-db");
+    }
+
+    @Test
+    void testProbeUsesStrategyAndReportsOk() throws Exception {
+        var existing = seedConfig("Probe", AiProviderType.ANTHROPIC, "ENC(k)");
+        when(aiAnalyzerStrategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any(), anyString(),
+                eq(existing.getId())))
+                .thenReturn(new AiAnalysisResult(10, RiskLevel.LOW, "ok",
+                        java.util.List.of(), false, null, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 1, 1));
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs/" + existing.getId() + "/test")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .exchange();
 
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("OK");
-        assertThat(result).bodyJson().extractingPath("$.detail").asString().contains("LOW");
-        verify(aiAnalyzerStrategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), eq("en"),
-                eq(org.getId()));
     }
 
     @Test
-    void testEndpointReturnsErrorWhenAnalyzerThrows() {
-        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any(), any()))
-                .thenThrow(new AiAnalysisException("provider unreachable"));
+    void testProbeReportsErrorWhenStrategyThrows() {
+        var existing = seedConfig("Probe", AiProviderType.ANTHROPIC, "ENC(k)");
+        when(aiAnalyzerStrategy.analyze(any(), any(), any(), any(), eq(existing.getId())))
+                .thenThrow(new AiAnalysisException("provider down"));
 
-        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+        var result = mvc.post().uri("/api/v1/admin/ai-configs/" + existing.getId() + "/test")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .exchange();
 
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.status").asString().isEqualTo("ERROR");
-        assertThat(result).bodyJson().extractingPath("$.detail").asString()
-                .isEqualTo("provider unreachable");
     }
 
     @Test
-    void testEndpointForbiddenForNonAdmin() {
-        var result = mvc.post().uri("/api/v1/admin/ai-config/test")
+    void forbidsNonAdminCallers() {
+        var result = mvc.get().uri("/api/v1/admin/ai-configs")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
                 .exchange();
 
@@ -247,56 +275,42 @@ class AdminAiConfigControllerIntegrationTest {
     }
 
     @Test
-    void putEmitsAuditRowWhenProviderAndKeyChange() {
-        var body = "{\"provider\":\"OPENAI\",\"model\":\"gpt-4o\",\"api_key\":\"sk-test\"}";
-        var put = mvc.put().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body)
-                .exchange();
-        assertThat(put).hasStatus(200);
+    void rejectsUnauthenticatedCallers() {
+        var result = mvc.get().uri("/api/v1/admin/ai-configs").exchange();
 
-        var page = auditLogService.query(org.getId(),
-                new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
-                        null, null, null),
-                PageRequest.of(0, 10));
-        assertThat(page.getContent()).hasSize(1);
-        var entry = page.getContent().get(0);
-        assertThat(entry.action()).isEqualTo(AuditAction.AI_CONFIG_UPDATED);
-        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.AI_CONFIG);
-        assertThat(entry.actorId()).isEqualTo(admin.getId());
-        assertThat(entry.metadata()).containsEntry("old_provider", "ANTHROPIC");
-        assertThat(entry.metadata()).containsEntry("new_provider", "OPENAI");
-        assertThat(entry.metadata()).containsEntry("new_model", "gpt-4o");
-        assertThat(entry.metadata()).containsEntry("api_key_changed", true);
+        assertThat(result).hasStatus(401);
     }
 
-    @Test
-    void putDoesNotEmitAuditRowForUnchangedRequest() {
-        var body = "{\"api_key\":\"********\",\"enable_ai_default\":true}";
-        var put = mvc.put().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body)
-                .exchange();
-        assertThat(put).hasStatus(200);
-
-        var page = auditLogService.query(org.getId(),
-                new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
-                        null, null, null),
-                PageRequest.of(0, 10));
-        assertThat(page.getContent()).isEmpty();
+    private AiConfigEntity seedConfig(String name, AiProviderType provider, String ciphertext) {
+        var entity = new AiConfigEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(org.getId());
+        entity.setName(name);
+        entity.setProvider(provider);
+        entity.setModel("test-model");
+        entity.setEndpoint("https://example.com");
+        entity.setApiKeyEncrypted(ciphertext);
+        entity.setCreatedAt(Instant.now());
+        entity.setUpdatedAt(Instant.now());
+        return repository.save(entity);
     }
 
-    @Test
-    void putRejectsModelOver100Chars() {
-        var body = "{\"model\":\"" + "x".repeat(101) + "\"}";
-        var result = mvc.put().uri("/api/v1/admin/ai-config")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body)
-                .exchange();
-        assertThat(result).hasStatus(400);
+    private DatasourceEntity seedDatasource(String name, UUID aiConfigId) {
+        var entity = new DatasourceEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganization(org);
+        entity.setName(name);
+        entity.setDbType(DbType.POSTGRESQL);
+        entity.setHost("h");
+        entity.setPort(5432);
+        entity.setDatabaseName("db");
+        entity.setUsername("u");
+        entity.setPasswordEncrypted("ENC");
+        entity.setAiAnalysisEnabled(true);
+        entity.setAiConfigId(aiConfigId);
+        entity.setActive(true);
+        entity.setCreatedAt(Instant.now());
+        return datasourceRepository.save(entity);
     }
 
     private UserEntity saveUser(String email, UserRoleType role) {

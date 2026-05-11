@@ -36,7 +36,7 @@ class OpenAiAnalyzerStrategy implements AiAnalyzerStrategy {
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID organizationId) {
+                                    UUID aiConfigId) {
         var userPrompt = promptRenderer.render(sql, dbType, schemaContext, language);
         var prompt = new Prompt(List.of(
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
