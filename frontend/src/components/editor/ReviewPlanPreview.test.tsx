@@ -36,6 +36,7 @@ const baseDatasource: Datasource = {
   require_review_writes: true,
   review_plan_id: 'rp-1',
   ai_analysis_enabled: true,
+  ai_config_id: null,
   active: true,
   created_at: '2026-05-01T00:00:00Z',
 };

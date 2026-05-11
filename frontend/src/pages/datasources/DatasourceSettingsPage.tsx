@@ -48,7 +48,7 @@ import {
   testConnection,
   updateDatasource,
 } from '@/api/datasources';
-import { listUsers, userKeys } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
 import { listQueries, queryKeys, type QueryListFilters } from '@/api/queries';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
@@ -235,8 +235,14 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     require_review_reads: ds.require_review_reads,
     review_plan_id: ds.review_plan_id ?? null,
     ai_analysis_enabled: ds.ai_analysis_enabled,
+    ai_config_id: ds.ai_config_id ?? null,
     active: ds.active,
   };
+
+  const aiConfigsQuery = useQuery({
+    queryKey: aiConfigKeys.lists(),
+    queryFn: listAiConfigs,
+  });
 
   const updateMutation = useMutation({
     mutationFn: (values: UpdateDatasourceInput) => updateDatasource(ds.id, values),
@@ -254,6 +260,10 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     const body: UpdateDatasourceInput = { ...values };
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
+    }
+    if (body.ai_analysis_enabled === false) {
+      body.clear_ai_config = true;
+      body.ai_config_id = null;
     }
     updateMutation.mutate(body);
   };
@@ -371,6 +381,38 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               valuePropName="checked"
             >
               <Switch />
+            </Form.Item>
+            <Form.Item
+              shouldUpdate={(prev, next) => prev.ai_analysis_enabled !== next.ai_analysis_enabled}
+              noStyle
+            >
+              {({ getFieldValue }) => (
+                <Form.Item
+                  label={t('datasources.settings.label_ai_config')}
+                  name="ai_config_id"
+                  rules={[
+                    {
+                      required: getFieldValue('ai_analysis_enabled') === true,
+                      message: t('datasources.settings.ai_config_required'),
+                    },
+                  ]}
+                  extra={
+                    <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
+                      {t('datasources.settings.add_ai_config_link')}
+                    </a>
+                  }
+                >
+                  <Select
+                    allowClear
+                    disabled={!getFieldValue('ai_analysis_enabled')}
+                    placeholder={t('datasources.settings.ai_config_placeholder')}
+                    options={(aiConfigsQuery.data ?? []).map((c) => ({
+                      value: c.id,
+                      label: `${c.name} · ${c.provider}`,
+                    }))}
+                  />
+                </Form.Item>
+              )}
             </Form.Item>
             <Form.Item
               label={t('datasources.settings.label_active')}

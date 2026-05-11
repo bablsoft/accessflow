@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, App, Button, Form, Input, InputNumber, Select } from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, Select, Switch } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import {
   getDatasourceTypes,
   testConnection,
 } from '@/api/datasources';
-import { setupProgressKeys } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
@@ -37,6 +37,8 @@ interface ConnectionFormValues {
   username: string;
   password: string;
   ssl_mode: SslMode;
+  ai_analysis_enabled: boolean;
+  ai_config_id: string | null;
 }
 
 const SSL_MODES: SslMode[] = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
@@ -56,6 +58,11 @@ export default function DatasourceCreateWizardPage() {
   const typesQuery = useQuery({
     queryKey: datasourceKeys.types(),
     queryFn: getDatasourceTypes,
+  });
+
+  const aiConfigsQuery = useQuery({
+    queryKey: aiConfigKeys.lists(),
+    queryFn: listAiConfigs,
   });
 
   const previewValues = Form.useWatch([], form);
@@ -87,6 +94,8 @@ export default function DatasourceCreateWizardPage() {
         username: values.username,
         password: values.password,
         ssl_mode: values.ssl_mode,
+        ai_analysis_enabled: values.ai_analysis_enabled,
+        ai_config_id: values.ai_analysis_enabled ? values.ai_config_id : null,
       };
       return createDatasource(input);
     },
@@ -194,6 +203,8 @@ export default function DatasourceCreateWizardPage() {
           initialValues={{
             port: selectedType.default_port,
             ssl_mode: selectedType.default_ssl_mode,
+            ai_analysis_enabled: true,
+            ai_config_id: null,
           }}
         >
           <div
@@ -264,6 +275,50 @@ export default function DatasourceCreateWizardPage() {
               description={t('datasources.create.mysql_public_key_retrieval_body')}
             />
           )}
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 16,
+              borderTop: '1px solid var(--border)',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 12,
+            }}
+          >
+            <Form.Item
+              label={t('datasources.create.field_ai_analysis_enabled')}
+              name="ai_analysis_enabled"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label={t('datasources.create.field_ai_config')}
+              name="ai_config_id"
+              dependencies={['ai_analysis_enabled']}
+              rules={[
+                ({ getFieldValue }) => ({
+                  required: getFieldValue('ai_analysis_enabled') === true,
+                  message: t('datasources.create.field_ai_config_required'),
+                }),
+              ]}
+              extra={
+                <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
+                  {t('datasources.create.add_ai_config_link')}
+                </a>
+              }
+            >
+              <Select
+                allowClear
+                disabled={!previewValues?.ai_analysis_enabled}
+                placeholder={t('datasources.create.field_ai_config_placeholder')}
+                options={(aiConfigsQuery.data ?? []).map((c) => ({
+                  value: c.id,
+                  label: `${c.name} · ${c.provider}`,
+                }))}
+              />
+            </Form.Item>
+          </div>
           <div style={{ marginTop: 8 }}>
             <JdbcUrlPreview
               template={previewedTemplate}
@@ -305,6 +360,7 @@ export default function DatasourceCreateWizardPage() {
     testResult,
     testError,
     testMutation,
+    aiConfigsQuery.data,
     t,
     submitConnectionForm,
     handleSelectType,

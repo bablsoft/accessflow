@@ -19,6 +19,7 @@ public record DatasourceView(
         boolean requireReviewWrites,
         UUID reviewPlanId,
         boolean aiAnalysisEnabled,
+        UUID aiConfigId,
         boolean active,
         Instant createdAt
 ) {}

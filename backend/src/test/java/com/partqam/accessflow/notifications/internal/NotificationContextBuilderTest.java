@@ -316,7 +316,7 @@ class NotificationContextBuilderTest {
     private DatasourceView datasourceView() {
         return new DatasourceView(datasourceId, orgId, "Production", DbType.POSTGRESQL,
                 "host", 5432, "db", "user", SslMode.DISABLE, 5, 1000,
-                false, true, UUID.randomUUID(), true, true, Instant.now());
+                false, true, UUID.randomUUID(), true, null, true, Instant.now());
     }
 
     private ReviewPlanSnapshot plan(List<ApproverRule> rules, List<UUID> notifyChannelIds) {

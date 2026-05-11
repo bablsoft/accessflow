@@ -931,64 +931,98 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
 
 `actor_id`, `actor_email`, `actor_display_name`, `ip_address`, and `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion). `actor_email`/`actor_display_name` are server-side joins on the `users` table within the caller's organization; if the actor was hard-deleted (or originated outside the org), only `actor_id` is returned.
 
-### GET /admin/ai-config
+### AI Configurations (`/admin/ai-configs`) *(ADMIN only)*
 
-Returns the current AI analyzer configuration for the caller's organization. The `api_key` field is replaced with the literal `"********"` whenever a non-empty key is stored, and is omitted entirely otherwise.
+Per-organization AI provider configurations. An org can have many; each datasource binds to one via `datasources.ai_config_id`. The `api_key` field is replaced with the literal `"********"` whenever a non-empty key is stored, and is omitted otherwise.
+
+#### GET /admin/ai-configs
+
+Returns all AI configurations for the caller's organization, sorted by name. `in_use_count` is the number of datasources that currently reference each row.
 
 **Response 200:**
 ```json
-{
-  "id": "uuid",
-  "organization_id": "uuid",
-  "provider": "ANTHROPIC",
-  "model": "claude-sonnet-4-20250514",
-  "endpoint": "https://api.anthropic.com/v1",
-  "api_key": "********",
-  "timeout_ms": 30000,
-  "max_prompt_tokens": 8000,
-  "max_completion_tokens": 2000,
-  "enable_ai_default": true,
-  "auto_approve_low": false,
-  "block_critical": true,
-  "include_schema": true,
-  "created_at": "2026-05-06T10:00:00Z",
-  "updated_at": "2026-05-06T10:00:00Z"
-}
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "name": "ClaudeProd",
+    "provider": "ANTHROPIC",
+    "model": "claude-sonnet-4-20250514",
+    "endpoint": "https://api.anthropic.com/v1",
+    "api_key": "********",
+    "timeout_ms": 30000,
+    "max_prompt_tokens": 8000,
+    "max_completion_tokens": 2000,
+    "in_use_count": 2,
+    "created_at": "2026-05-06T10:00:00Z",
+    "updated_at": "2026-05-06T10:00:00Z"
+  }
+]
 ```
 
-If no row exists yet for the organization, a transient default snapshot is returned (ANTHROPIC / `claude-sonnet-4-20250514`, no API key — `apiKeyMasked` is `false` and `api_key` is omitted from the response). Persisting any change via PUT creates the row.
+#### GET /admin/ai-configs/{id}
 
-### PUT /admin/ai-config
+Returns a single configuration. **404** if the id does not belong to the caller's organization.
 
-Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence.
+#### POST /admin/ai-configs
 
-A successful PUT triggers a runtime refresh of the active `AiAnalyzerStrategy` for the caller's organization — the next call to `POST /queries/analyze`, `POST /admin/ai-config/test`, or the AI analysis listener uses the new provider / model / key without an application restart. An `AI_CONFIG_UPDATED` audit row is written whenever any of `provider`, `model`, or the API key changes; the `metadata` JSONB carries only the fields that actually changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `api_key_changed`).
+Creates a new AI configuration.
 
 **Request body:**
 ```json
 {
+  "name": "OpenAI prod",
   "provider": "OPENAI",
   "model": "gpt-4o",
   "endpoint": "https://api.openai.com/v1",
   "api_key": "sk-...",
   "timeout_ms": 30000,
   "max_prompt_tokens": 8000,
-  "max_completion_tokens": 2000,
-  "enable_ai_default": true,
-  "auto_approve_low": false,
-  "block_critical": true,
-  "include_schema": true
+  "max_completion_tokens": 2000
 }
 ```
 
-Validation: `timeout_ms` ∈ [1000, 600000], `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000], `model` ≤ 100 chars, `endpoint` ≤ 500 chars, `api_key` ≤ 4096 chars.
+Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA}; `model` non-blank ≤ 100; `endpoint` ≤ 500; `api_key` ≤ 4096; `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
 
-**Response 200:** Updated configuration (same shape as GET, `api_key` replaced with `"********"` if set).
+**Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
 **Response 400:** Validation error.
+**Response 409:** Another configuration in this organization already uses that name (`error: AI_CONFIG_NAME_ALREADY_EXISTS`).
 
-### POST /admin/ai-config/test
+Writes an `AI_CONFIG_CREATED` audit row.
 
-Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the active `AiAnalyzerStrategy` and reports back. Used by the AI-config page's "Send test prompt" button.
+#### PUT /admin/ai-configs/{id}
+
+Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence.
+
+A successful PUT triggers a runtime refresh of the cached `AiAnalyzerStrategy` delegate for that `ai_config` row — the next call uses the new provider / model / key without an application restart. An `AI_CONFIG_UPDATED` audit row is written when any of `name`, `provider`, `model`, or the API key changes; the `metadata` JSONB carries only the fields that actually changed.
+
+**Request body:** Same shape as POST, all fields optional.
+
+**Response 200:** Updated configuration.
+**Response 404:** Configuration not found in this organization.
+**Response 409:** Another configuration in this organization already uses the new name.
+
+#### DELETE /admin/ai-configs/{id}
+
+Deletes the configuration if no datasource references it.
+
+**Response 204:** Deleted (writes an `AI_CONFIG_DELETED` audit row).
+**Response 404:** Not found.
+**Response 409:** Configuration is still bound to one or more datasources (`error: AI_CONFIG_IN_USE`). The body's `boundDatasources` field lists the references:
+```json
+{
+  "error": "AI_CONFIG_IN_USE",
+  "detail": "This AI configuration is bound to one or more datasources and cannot be deleted",
+  "boundDatasources": [
+    { "id": "ds-uuid", "name": "primary-db" }
+  ]
+}
+```
+Unbind first (switch the datasource to a different config or disable `ai_analysis_enabled`) before retrying.
+
+#### POST /admin/ai-configs/{id}/test
+
+Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the named configuration and reports back.
 
 **Response 200:**
 ```json

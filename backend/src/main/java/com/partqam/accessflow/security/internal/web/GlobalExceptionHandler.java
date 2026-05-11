@@ -8,6 +8,7 @@ import com.partqam.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.partqam.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.partqam.accessflow.core.api.IllegalLocalizationConfigException;
 import com.partqam.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.partqam.accessflow.core.api.IllegalReviewPlanException;
@@ -364,6 +365,15 @@ class GlobalExceptionHandler {
         // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_LOCALIZATION_CONFIG");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(MissingAiConfigForDatasourceException.class)
+    ProblemDetail handleMissingAiConfigForDatasource(MissingAiConfigForDatasourceException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.datasource.ai_config_required"));
+        pd.setProperty("error", "AI_CONFIG_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

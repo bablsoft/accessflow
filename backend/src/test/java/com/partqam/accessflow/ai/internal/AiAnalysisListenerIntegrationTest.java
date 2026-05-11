@@ -61,6 +61,7 @@ class AiAnalysisListenerIntegrationTest {
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired QueryRequestRepository queryRequestRepository;
     @Autowired AiAnalysisRepository aiAnalysisRepository;
+    @Autowired com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository aiConfigRepository;
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired JdbcTemplate jdbcTemplate;
 
@@ -103,6 +104,15 @@ class AiAnalysisListenerIntegrationTest {
         user.setOrganization(org);
         userRepository.save(user);
 
+        var aiConfig = new com.partqam.accessflow.ai.internal.persistence.entity.AiConfigEntity();
+        aiConfig.setId(UUID.randomUUID());
+        aiConfig.setOrganizationId(org.getId());
+        aiConfig.setName("Primary AI");
+        aiConfig.setProvider(com.partqam.accessflow.core.api.AiProviderType.ANTHROPIC);
+        aiConfig.setModel("claude-sonnet-4-20250514");
+        aiConfig.setApiKeyEncrypted(encryptionService.encrypt("sk-test"));
+        aiConfigRepository.save(aiConfig);
+
         var ds = new DatasourceEntity();
         ds.setId(UUID.randomUUID());
         ds.setOrganization(org);
@@ -119,6 +129,7 @@ class AiAnalysisListenerIntegrationTest {
         ds.setRequireReviewReads(false);
         ds.setRequireReviewWrites(true);
         ds.setAiAnalysisEnabled(true);
+        ds.setAiConfigId(aiConfig.getId());
         ds.setActive(true);
         datasourceRepository.save(ds);
 
@@ -140,6 +151,7 @@ class AiAnalysisListenerIntegrationTest {
         aiAnalysisRepository.deleteAll();
         queryRequestRepository.deleteAll();
         datasourceRepository.deleteAll();
+        aiConfigRepository.deleteAll();
         userRepository.deleteAll();
         organizationRepository.deleteAll();
     }

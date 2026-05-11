@@ -36,10 +36,10 @@
     "users": "用户",
     "review_plans": "审核计划",
     "audit": "审计日志",
-    "ai_config": "AI 配置",
     "notifications": "通知",
     "saml": "SAML / SSO",
-    "languages": "语言"
+    "languages": "语言",
+    "ai_configs": "AI configurations"
   },
   "auth": {
     "login": {
@@ -293,7 +293,12 @@
       "save_error": "创建数据源失败",
       "types_loading": "正在加载数据库类型…",
       "types_error_title": "无法加载数据库类型",
-      "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。"
+      "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。",
+      "field_ai_analysis_enabled": "Enable AI analysis",
+      "field_ai_config": "AI configuration",
+      "field_ai_config_placeholder": "Pick an AI configuration",
+      "field_ai_config_required": "Select an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     },
     "settings": {
       "back_button": "返回",
@@ -398,7 +403,11 @@
       "activity_empty": "尚未对此数据源提交任何查询。",
       "activity_load_error": "加载最近查询失败",
       "not_found_message": "未找到数据源。",
-      "back_to_list": "返回列表"
+      "back_to_list": "返回列表",
+      "label_ai_config": "AI configuration",
+      "ai_config_placeholder": "Pick an AI configuration",
+      "ai_config_required": "Pick an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     }
   },
   "admin": {
@@ -473,28 +482,6 @@
       "section_action": "操作",
       "section_metadata": "元数据 · JSON",
       "actor_unknown": "（系统）"
-    },
-    "ai_config": {
-      "title": "AI 配置",
-      "subtitle": "配置用于查询风险分析的 AI 后端。",
-      "section_provider": "提供方",
-      "section_connection": "连接",
-      "section_behavior": "行为",
-      "label_model": "模型",
-      "label_api_endpoint": "API 端点",
-      "label_api_key": "API 密钥",
-      "label_timeout_ms": "超时（毫秒）",
-      "label_max_prompt_tokens": "提示最大 tokens",
-      "label_max_completion_tokens": "响应最大 tokens",
-      "label_enable_ai_default": "新数据源默认启用 AI",
-      "label_auto_approve_low": "自动批准 LOW 风险的 SELECT 查询",
-      "label_block_critical": "阻止 CRITICAL 风险查询执行",
-      "label_include_schema": "在 AI 上下文中包含模式",
-      "load_error": "加载 AI 配置失败",
-      "save_success": "已保存 AI 配置",
-      "test_button": "发送测试提示",
-      "test_ok_button": "测试通过",
-      "test_failed": "测试失败：{{detail}}"
     },
     "notifications": {
       "title": "通知通道",
@@ -601,6 +588,55 @@
       "validation_user_or_role": "每个审批行需要一个用户或一个角色。",
       "select_user_placeholder": "（角色中的任何人）",
       "select_role_placeholder": "任意"
+    },
+    "ai_configs": {
+      "title": "AI configurations",
+      "subtitle": "Configure as many AI providers as you need. Each datasource binds to one.",
+      "add_button": "Add AI configuration",
+      "empty_title": "No AI configurations yet",
+      "empty_body": "Add an AI configuration to enable risk analysis on a datasource.",
+      "load_error": "Failed to load AI configurations",
+      "column_name": "Name",
+      "column_provider": "Provider",
+      "column_model": "Model",
+      "column_in_use": "In use",
+      "column_actions": "Actions",
+      "in_use_count_one": "{{count}} datasource",
+      "in_use_count_other": "{{count}} datasources",
+      "action_edit": "Edit",
+      "action_test": "Test",
+      "action_delete": "Delete",
+      "delete_confirm_title": "Delete AI configuration?",
+      "delete_confirm_body": "This will remove the configuration named {{name}}.",
+      "delete_in_use_title": "Cannot delete — still in use",
+      "delete_in_use_body": "Unbind these datasources first:",
+      "delete_success": "AI configuration deleted",
+      "save_success": "AI configuration saved",
+      "test_ok": "Test passed",
+      "test_ok_button": "Test passed",
+      "test_button": "Send test prompt",
+      "test_failed_title": "Test failed",
+      "test_failed": "Test failed: {{detail}}",
+      "edit_title": "Edit · {{name}}",
+      "field_name": "Configuration name",
+      "field_model": "Model",
+      "field_endpoint": "API endpoint",
+      "field_api_key": "API key",
+      "field_timeout_ms": "Timeout (ms)",
+      "field_max_prompt_tokens": "Max prompt tokens",
+      "field_max_completion_tokens": "Max completion tokens",
+      "name_required": "Configuration name is required",
+      "api_key_required": "API key is required for this provider",
+      "wizard": {
+        "title": "New AI configuration",
+        "subtitle": "Pick a provider, fill in the connection details, and run a test prompt.",
+        "step_provider": "Provider",
+        "step_connection": "Connection",
+        "step_test": "Test",
+        "save_and_test": "Save and continue",
+        "test_button": "Send test prompt",
+        "finish": "Done"
+      }
     }
   },
   "notifications": {

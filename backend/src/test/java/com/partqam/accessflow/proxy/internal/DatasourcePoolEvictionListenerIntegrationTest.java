@@ -108,7 +108,7 @@ class DatasourcePoolEvictionListenerIntegrationTest {
 
         adminService.update(ds.getId(), org.getId(), new UpdateDatasourceCommand(
                 null, customerDb.getHost(), customerDb.getMappedPort(5432), null, null, null,
-                null, 5, null, null, null, null, null, null));
+                null, 5, null, null, null, null, null, null, null, null));
 
         assertThat(pool.isClosed()).isTrue();
         var fresh = manager.resolve(ds.getId());

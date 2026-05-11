@@ -122,7 +122,7 @@ class DatasourceControllerIntegrationTest {
                           "max_rows_per_query": 500,
                           "require_review_reads": false,
                           "require_review_writes": true,
-                          "ai_analysis_enabled": true
+                          "ai_analysis_enabled": false
                         }
                         """)
                 .exchange();
@@ -540,7 +540,7 @@ class DatasourceControllerIntegrationTest {
         ds.setMaxRowsPerQuery(1000);
         ds.setRequireReviewReads(false);
         ds.setRequireReviewWrites(true);
-        ds.setAiAnalysisEnabled(true);
+        ds.setAiAnalysisEnabled(false);
         ds.setActive(true);
         return datasourceRepository.save(ds);
     }

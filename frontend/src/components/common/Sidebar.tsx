@@ -62,7 +62,7 @@ export function Sidebar({
     { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
     { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
     { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
-    { id: 'ai', to: '/admin/ai-config', label: t('nav.ai_config'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
+    { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
     { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
     { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
     ...(edition === 'ENTERPRISE'

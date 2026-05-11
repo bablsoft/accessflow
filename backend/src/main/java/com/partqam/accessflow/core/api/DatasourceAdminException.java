@@ -6,7 +6,8 @@ public sealed class DatasourceAdminException extends RuntimeException
                 DatasourcePermissionAlreadyExistsException,
                 DatasourcePermissionNotFoundException,
                 DatasourceConnectionTestException,
-                IllegalDatasourcePermissionException {
+                IllegalDatasourcePermissionException,
+                MissingAiConfigForDatasourceException {
 
     protected DatasourceAdminException(String message) {
         super(message);

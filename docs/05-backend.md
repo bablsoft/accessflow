@@ -339,12 +339,13 @@ public interface AiAnalyzerStrategy {
 `schemaContext` is an opaque, provider-renderable description of the target schema (for example,
 the output of `SystemPromptRenderer.describeSchema(...)`). It may be `null` or empty when
 introspection is unavailable, in which case the prompt substitutes `(no schema introspection
-available)`. `language` is the BCP-47 language code (see *Response language*). `organizationId`
-scopes provider lookup to that org's `ai_config` row.
+available)`. `language` is the BCP-47 language code (see *Response language*). `aiConfigId`
+identifies the specific `ai_config` row to use — resolved upstream from the datasource's
+`ai_config_id` binding.
 
 Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
 them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
-autowired `AiAnalyzerStrategy` bean, from the per-org `ai_config` row using Spring AI 2.0
+autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring AI 2.0
 (`spring-ai-bom:2.0.0-M6` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
@@ -355,16 +356,36 @@ autowired `AiAnalyzerStrategy` bean, from the per-org `ai_config` row using Spri
 
 ### Runtime strategy refresh
 
-`AiAnalyzerStrategyHolder` caches one delegate per organization (`Map<UUID, AiAnalyzerStrategy>`).
-On a successful `PUT /api/v1/admin/ai-config`, `DefaultAiConfigService` publishes an
-`AiConfigUpdatedEvent`. The holder consumes it via `@ApplicationModuleListener` (so it fires
-after the transaction commits) and evicts the cached entry for that org — the next `analyze(...)`
-call rebuilds the delegate from the new row. No application restart, no Spring context refresh.
+`AiAnalyzerStrategyHolder` caches one delegate per `ai_config` row (`Map<UUID aiConfigId,
+AiAnalyzerStrategy>`). On a successful `PUT /api/v1/admin/ai-configs/{id}`,
+`DefaultAiConfigService` publishes an `AiConfigUpdatedEvent`. On `DELETE`, it publishes an
+`AiConfigDeletedEvent`. Both are consumed via `@ApplicationModuleListener` (so they fire after
+the transaction commits) and the cached delegate for that id is evicted — the next
+`analyze(...)` call rebuilds against the new (or absent) row. No application restart, no
+Spring context refresh.
+
+The analyzer service resolves which row to use by reading
+`DatasourceConnectionDescriptor.aiConfigId` from `DatasourceLookupService.findById(...)`. If
+the datasource has `ai_analysis_enabled = false` or `ai_config_id is null`, the listener
+silently skips and the editor preview rejects with `AiAnalysisException`. Admins are
+prevented from saving an inconsistent state — `DatasourceAdminServiceImpl.create/update`
+throws `MissingAiConfigForDatasourceException` (HTTP 422) when AI analysis is enabled but no
+config is bound, and `IllegalAiConfigBindingException` (HTTP 422) when the requested
+`ai_config_id` belongs to a different organization.
 
 If the looked-up `ai_config` row has no API key set (and the provider needs one — Anthropic /
 OpenAI), the holder throws `AiAnalysisException` whose message is resolved via `MessageSource`
 (`error.ai.not_configured` in `i18n/messages.properties`). The smoke endpoint `POST
-/admin/ai-config/test` surfaces that text as the `detail` of `{"status":"ERROR", ...}`.
+/admin/ai-configs/{id}/test` surfaces that text as the `detail` of `{"status":"ERROR", ...}`.
+
+### Setup progress
+
+`DefaultSetupProgressService` reports `ai_provider_configured = true` when at least one
+active datasource in the org has `ai_analysis_enabled = true` and `ai_config_id` populated,
+and the bound `ai_config` row is "usable" (provider `OLLAMA` — keyless — or a non-blank API
+key is stored). This signal flows through `AiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)`,
+which composes `DatasourceLookupService.findActiveAiAnalysisAiConfigIdsByOrganization(orgId)`
+with `AiConfigRepository.findAllById(ids)`.
 
 ### No yaml-driven AI config
 

@@ -23,6 +23,7 @@ public record DatasourceResponse(
         boolean requireReviewWrites,
         UUID reviewPlanId,
         boolean aiAnalysisEnabled,
+        UUID aiConfigId,
         boolean active,
         Instant createdAt
 ) {
@@ -43,6 +44,7 @@ public record DatasourceResponse(
                 view.requireReviewWrites(),
                 view.reviewPlanId(),
                 view.aiAnalysisEnabled(),
+                view.aiConfigId(),
                 view.active(),
                 view.createdAt());
     }

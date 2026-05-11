@@ -10,6 +10,7 @@ import java.util.UUID;
 record AiConfigResponse(
         UUID id,
         UUID organizationId,
+        String name,
         AiProviderType provider,
         String model,
         String endpoint,
@@ -17,10 +18,7 @@ record AiConfigResponse(
         int timeoutMs,
         int maxPromptTokens,
         int maxCompletionTokens,
-        boolean enableAiDefault,
-        boolean autoApproveLow,
-        boolean blockCritical,
-        boolean includeSchema,
+        int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -28,6 +26,7 @@ record AiConfigResponse(
         return new AiConfigResponse(
                 view.id(),
                 view.organizationId(),
+                view.name(),
                 view.provider(),
                 view.model(),
                 view.endpoint(),
@@ -35,10 +34,7 @@ record AiConfigResponse(
                 view.timeoutMs(),
                 view.maxPromptTokens(),
                 view.maxCompletionTokens(),
-                view.enableAiDefault(),
-                view.autoApproveLow(),
-                view.blockCritical(),
-                view.includeSchema(),
+                view.inUseCount(),
                 view.createdAt(),
                 view.updatedAt());
     }

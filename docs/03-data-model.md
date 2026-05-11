@@ -68,6 +68,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `require_review_writes` | BOOLEAN DEFAULT true — force review for INSERT/UPDATE/DELETE |
 | `review_plan_id` | FK → `review_plans` |
 | `ai_analysis_enabled` | BOOLEAN DEFAULT true |
+| `ai_config_id` | FK → `ai_config(id)` NULL, ON DELETE SET NULL — which AI configuration runs analysis for this datasource. Required (and enforced by the service layer) when `ai_analysis_enabled = true`. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
@@ -224,15 +225,18 @@ Stores the result of an AI analysis run for a query request.
 
 ## ai_config
 
-Per-organization AI analyzer settings. One row per organization (uniqueness on
-`organization_id`). The active `AiAnalyzerStrategy` delegate is built on demand by
-`AiAnalyzerStrategyHolder` from this row; changes are picked up at runtime via an
-`AiConfigUpdatedEvent`. See [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service).
+Per-organization AI provider configurations. Many rows per organization — admins create
+as many configurations as they need, and each datasource binds to a single configuration via
+`datasources.ai_config_id`. The active `AiAnalyzerStrategy` delegate is built on demand by
+`AiAnalyzerStrategyHolder` from the bound row; changes are picked up at runtime via an
+`AiConfigUpdatedEvent` / `AiConfigDeletedEvent`. See [docs/05-backend.md → "AI Query
+Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
-| `organization_id` | FK → `organizations`, UNIQUE |
+| `organization_id` | FK → `organizations` (not unique — many configs per org) |
+| `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
 | `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` |
 | `model` | VARCHAR(100) — provider-specific model name |
 | `endpoint` | VARCHAR(500) nullable — base URL override |
@@ -240,13 +244,13 @@ Per-organization AI analyzer settings. One row per organization (uniqueness on
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
 | `max_completion_tokens` | INTEGER — CHECK 100–200000 |
-| `enable_ai_default` | BOOLEAN — whether AI runs on submissions by default |
-| `auto_approve_low` | BOOLEAN — auto-approve LOW-risk queries |
-| `block_critical` | BOOLEAN — auto-reject CRITICAL-risk queries |
-| `include_schema` | BOOLEAN — include schema introspection in the prompt |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
+
+Deletion is rejected (HTTP 409 `AI_CONFIG_IN_USE`) while any datasource still references the
+row. Unbind first (by switching the datasource to a different config or disabling
+`ai_analysis_enabled`) before deleting.
 
 ---
 
@@ -306,7 +310,9 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | `USER_LOGIN_FAILED` | Failed login attempt |
 | `USER_CREATED` | New user created |
 | `USER_DEACTIVATED` | User account deactivated |
-| `AI_CONFIG_UPDATED` | Admin updates `ai_config` row via `PUT /admin/ai-config`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `api_key_changed`). |
+| `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
+| `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`). |
+| `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
 
 ---
 

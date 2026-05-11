@@ -2,13 +2,18 @@ package com.partqam.accessflow.core.internal;
 
 import com.partqam.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
+import com.partqam.accessflow.core.api.DatasourceRef;
 import com.partqam.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -24,6 +29,43 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
                 .map(DefaultDatasourceLookupService::toDescriptor);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourceRef> findRefsByAiConfigId(UUID aiConfigId) {
+        if (aiConfigId == null) {
+            return List.of();
+        }
+        return datasourceRepository.findAllByAiConfigId(aiConfigId).stream()
+                .map(d -> new DatasourceRef(d.getId(), d.getName()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, Integer> countsByAiConfigIds(Set<UUID> aiConfigIds) {
+        if (aiConfigIds == null || aiConfigIds.isEmpty()) {
+            return Map.of();
+        }
+        var rows = datasourceRepository.countByAiConfigIdIn(aiConfigIds);
+        var counts = new HashMap<UUID, Integer>(rows.size());
+        for (var row : rows) {
+            var id = (UUID) row[0];
+            var count = ((Number) row[1]).intValue();
+            counts.put(id, count);
+        }
+        return counts;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<UUID> findActiveAiAnalysisAiConfigIdsByOrganization(UUID organizationId) {
+        if (organizationId == null) {
+            return Set.of();
+        }
+        return Set.copyOf(datasourceRepository
+                .findActiveAiAnalysisAiConfigIdsByOrganization(organizationId));
+    }
+
     private static DatasourceConnectionDescriptor toDescriptor(DatasourceEntity entity) {
         return new DatasourceConnectionDescriptor(
                 entity.getId(),
@@ -37,6 +79,8 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
                 entity.getSslMode(),
                 entity.getConnectionPoolSize(),
                 entity.getMaxRowsPerQuery(),
+                entity.isAiAnalysisEnabled(),
+                entity.getAiConfigId(),
                 entity.isActive());
     }
 }

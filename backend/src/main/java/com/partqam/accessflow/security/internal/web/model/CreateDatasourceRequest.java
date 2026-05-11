@@ -33,5 +33,6 @@ public record CreateDatasourceRequest(
         Boolean requireReviewReads,
         Boolean requireReviewWrites,
         UUID reviewPlanId,
-        Boolean aiAnalysisEnabled
+        Boolean aiAnalysisEnabled,
+        UUID aiConfigId
 ) {}

@@ -227,6 +227,6 @@ class DefaultQuerySubmissionServiceTest {
         return new DatasourceView(
                 datasourceId, organizationId, "test", DbType.POSTGRESQL,
                 "localhost", 5432, "appdb", "svc", SslMode.DISABLE, 5, 1000,
-                false, false, null, true, active, Instant.now());
+                false, false, null, true, null, active, Instant.now());
     }
 }

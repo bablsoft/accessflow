@@ -28,8 +28,11 @@ public class AiConfigEntity {
     @Id
     private UUID id;
 
-    @Column(name = "organization_id", nullable = false, unique = true)
+    @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
+
+    @Column(nullable = false, length = 255)
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
@@ -54,18 +57,6 @@ public class AiConfigEntity {
 
     @Column(name = "max_completion_tokens", nullable = false)
     private int maxCompletionTokens = 2_000;
-
-    @Column(name = "enable_ai_default", nullable = false)
-    private boolean enableAiDefault = true;
-
-    @Column(name = "auto_approve_low", nullable = false)
-    private boolean autoApproveLow = false;
-
-    @Column(name = "block_critical", nullable = false)
-    private boolean blockCritical = true;
-
-    @Column(name = "include_schema", nullable = false)
-    private boolean includeSchema = true;
 
     @Version
     @Column(nullable = false)

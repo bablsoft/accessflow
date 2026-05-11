@@ -5,11 +5,11 @@ import com.partqam.accessflow.ai.api.AiAnalysisParseException;
 import com.partqam.accessflow.ai.api.AiAnalysisResult;
 import com.partqam.accessflow.ai.api.AiAnalyzerService;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
-import com.partqam.accessflow.ai.api.AiConfigService;
-import com.partqam.accessflow.ai.api.AiConfigView;
+import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.partqam.accessflow.core.api.AiAnalysisPersistenceService;
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.DatasourceAdminService;
+import com.partqam.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.partqam.accessflow.core.api.DatasourceLookupService;
 import com.partqam.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.partqam.accessflow.core.api.LocalizationConfigService;
@@ -36,7 +36,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private static final String UNKNOWN_MODEL = "unknown";
 
     private final AiAnalyzerStrategy strategy;
-    private final AiConfigService aiConfigService;
+    private final AiConfigRepository aiConfigRepository;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
     private final DatasourceLookupService datasourceLookupService;
@@ -52,13 +52,25 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                                            UUID organizationId, boolean isAdmin) {
         var descriptor = datasourceLookupService.findById(datasourceId)
                 .orElseThrow(() -> new AiAnalysisException("Datasource not found: " + datasourceId));
+        requireAnalysisEnabled(descriptor);
+        var aiConfigId = requireBoundAiConfig(descriptor);
+        verifySameOrg(aiConfigId, descriptor.organizationId());
         var schemaView = datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, isAdmin);
         var restrictedColumns = permissionLookupService.findFor(userId, datasourceId)
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
         var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
-        return strategy.analyze(sql, descriptor.dbType(), schemaContext, resolveLanguage(organizationId),
-                organizationId);
+        return strategy.analyze(sql, descriptor.dbType(), schemaContext,
+                resolveLanguage(organizationId), aiConfigId);
+    }
+
+    private void verifySameOrg(UUID aiConfigId, UUID datasourceOrgId) {
+        var orgMatches = aiConfigRepository.findById(aiConfigId)
+                .map(e -> e.getOrganizationId().equals(datasourceOrgId))
+                .orElse(false);
+        if (!orgMatches) {
+            throw new AiAnalysisException("AI configuration does not belong to this organization");
+        }
     }
 
     @Override
@@ -69,12 +81,22 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             return;
         }
         var datasourceId = snapshot.datasourceId();
-        var dbType = datasourceLookupService.findById(datasourceId)
-                .map(d -> d.dbType())
-                .orElse(null);
-        if (dbType == null) {
-            persistFailureAndPublish(queryRequestId, snapshot.organizationId(),
+        var descriptor = datasourceLookupService.findById(datasourceId).orElse(null);
+        if (descriptor == null) {
+            persistFailureAndPublish(queryRequestId, null,
                     "Datasource not found: " + datasourceId);
+            return;
+        }
+        if (!descriptor.aiAnalysisEnabled()) {
+            log.info("AI analysis skipped for query {} — datasource {} has ai_analysis_enabled=false",
+                    queryRequestId, datasourceId);
+            return;
+        }
+        if (descriptor.aiConfigId() == null) {
+            log.warn("AI analysis skipped for query {} — datasource {} has no ai_config bound",
+                    queryRequestId, datasourceId);
+            persistFailureAndPublish(queryRequestId, null,
+                    "No AI configuration bound to datasource " + datasourceId);
             return;
         }
         var restrictedColumns = permissionLookupService
@@ -89,8 +111,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }
         try {
-            var result = strategy.analyze(snapshot.sqlText(), dbType, schemaContext,
-                    resolveLanguage(snapshot.organizationId()), snapshot.organizationId());
+            var result = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
+                    resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
             var issuesJson = responseParser.issuesAsJson(result.issues());
             var command = new PersistAiAnalysisCommand(
                     result.aiProvider(), result.aiModel(), result.riskScore(), result.riskLevel(),
@@ -100,8 +122,22 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId, result.riskLevel()));
         } catch (AiAnalysisException | AiAnalysisParseException e) {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
-            persistFailureAndPublish(queryRequestId, snapshot.organizationId(), e.getMessage());
+            persistFailureAndPublish(queryRequestId, descriptor.aiConfigId(), e.getMessage());
         }
+    }
+
+    private void requireAnalysisEnabled(DatasourceConnectionDescriptor descriptor) {
+        if (!descriptor.aiAnalysisEnabled()) {
+            throw new AiAnalysisException("AI analysis is disabled for this datasource");
+        }
+    }
+
+    private UUID requireBoundAiConfig(DatasourceConnectionDescriptor descriptor) {
+        var aiConfigId = descriptor.aiConfigId();
+        if (aiConfigId == null) {
+            throw new AiAnalysisException("No AI configuration bound to this datasource");
+        }
+        return aiConfigId;
     }
 
     private String resolveLanguage(UUID organizationId) {
@@ -116,8 +152,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         }
     }
 
-    private void persistFailureAndPublish(UUID queryRequestId, UUID organizationId, String reason) {
-        var fallback = resolveSentinelConfig(organizationId);
+    private void persistFailureAndPublish(UUID queryRequestId, UUID aiConfigId, String reason) {
+        var fallback = resolveSentinelConfig(aiConfigId);
         var command = new PersistAiAnalysisCommand(
                 fallback.provider(), fallback.model(), 100, RiskLevel.CRITICAL,
                 "AI analysis failed: " + reason, "[]", false, null, 0, 0);
@@ -130,17 +166,21 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         eventPublisher.publishEvent(new AiAnalysisFailedEvent(queryRequestId, reason));
     }
 
-    private SentinelConfig resolveSentinelConfig(UUID organizationId) {
-        if (organizationId == null) {
+    private SentinelConfig resolveSentinelConfig(UUID aiConfigId) {
+        if (aiConfigId == null) {
             return new SentinelConfig(AiProviderType.ANTHROPIC, UNKNOWN_MODEL);
         }
         try {
-            AiConfigView view = aiConfigService.getOrDefault(organizationId);
-            var model = (view.model() == null || view.model().isBlank()) ? UNKNOWN_MODEL : view.model();
-            return new SentinelConfig(view.provider(), model);
+            return aiConfigRepository.findById(aiConfigId)
+                    .map(e -> {
+                        var model = (e.getModel() == null || e.getModel().isBlank())
+                                ? UNKNOWN_MODEL : e.getModel();
+                        return new SentinelConfig(e.getProvider(), model);
+                    })
+                    .orElse(new SentinelConfig(AiProviderType.ANTHROPIC, UNKNOWN_MODEL));
         } catch (RuntimeException e) {
-            log.warn("Failed to resolve AI config for org {} when recording sentinel failure: {}",
-                    organizationId, e.getMessage());
+            log.warn("Failed to resolve AI config {} when recording sentinel failure: {}",
+                    aiConfigId, e.getMessage());
             return new SentinelConfig(AiProviderType.ANTHROPIC, UNKNOWN_MODEL);
         }
     }

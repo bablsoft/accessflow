@@ -120,8 +120,9 @@ export interface SetupProgress {
 }
 
 export interface AiConfig {
-  id: string | null;
+  id: string;
   organization_id: string;
+  name: string;
   provider: AiProvider;
   model: string;
   endpoint: string | null;
@@ -129,15 +130,24 @@ export interface AiConfig {
   timeout_ms: number;
   max_prompt_tokens: number;
   max_completion_tokens: number;
-  enable_ai_default: boolean;
-  auto_approve_low: boolean;
-  block_critical: boolean;
-  include_schema: boolean;
+  in_use_count: number;
   created_at: string;
   updated_at: string;
 }
 
+export interface CreateAiConfigInput {
+  name: string;
+  provider: AiProvider;
+  model: string;
+  endpoint?: string | null;
+  api_key?: string | null;
+  timeout_ms?: number;
+  max_prompt_tokens?: number;
+  max_completion_tokens?: number;
+}
+
 export interface UpdateAiConfigInput {
+  name?: string;
   provider?: AiProvider;
   model?: string;
   endpoint?: string | null;
@@ -145,15 +155,16 @@ export interface UpdateAiConfigInput {
   timeout_ms?: number;
   max_prompt_tokens?: number;
   max_completion_tokens?: number;
-  enable_ai_default?: boolean;
-  auto_approve_low?: boolean;
-  block_critical?: boolean;
-  include_schema?: boolean;
 }
 
 export interface TestAiConfigResult {
   status: 'OK' | 'ERROR';
   detail: string;
+}
+
+export interface AiConfigInUseError {
+  error: 'AI_CONFIG_IN_USE';
+  boundDatasources: Array<{ id: string; name: string }>;
 }
 
 export interface SamlConfig {
@@ -204,6 +215,7 @@ export interface Datasource {
   require_review_writes: boolean;
   review_plan_id: string | null;
   ai_analysis_enabled: boolean;
+  ai_config_id: string | null;
   active: boolean;
   created_at: string;
 }
@@ -229,6 +241,7 @@ export interface CreateDatasourceInput {
   require_review_writes?: boolean;
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
+  ai_config_id?: string | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -245,6 +258,8 @@ export interface UpdateDatasourceInput {
   require_review_writes?: boolean;
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
+  ai_config_id?: string | null;
+  clear_ai_config?: boolean;
   active?: boolean;
 }
 

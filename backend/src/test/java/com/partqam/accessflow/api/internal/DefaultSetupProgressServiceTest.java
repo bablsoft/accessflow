@@ -1,8 +1,6 @@
 package com.partqam.accessflow.api.internal;
 
-import com.partqam.accessflow.ai.api.AiConfigService;
-import com.partqam.accessflow.ai.api.AiConfigView;
-import com.partqam.accessflow.core.api.AiProviderType;
+import com.partqam.accessflow.ai.api.AiConfigLookupService;
 import com.partqam.accessflow.core.api.OrganizationSetupLookupService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,7 +8,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,7 +17,7 @@ import static org.mockito.Mockito.when;
 class DefaultSetupProgressServiceTest {
 
     @Mock OrganizationSetupLookupService organizationSetupLookupService;
-    @Mock AiConfigService aiConfigService;
+    @Mock AiConfigLookupService aiConfigLookupService;
     @InjectMocks DefaultSetupProgressService service;
 
     @Test
@@ -28,8 +25,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.ANTHROPIC, false));
+        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -46,8 +42,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(true);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.OPENAI, false));
+        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -63,8 +58,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(true);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.ANTHROPIC, false));
+        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -73,26 +67,11 @@ class DefaultSetupProgressServiceTest {
     }
 
     @Test
-    void countsAiProviderConfiguredWhenApiKeyPresent() {
+    void countsAiProviderConfiguredWhenLookupReportsUsableBoundDatasource() {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.ANTHROPIC, true));
-
-        var view = service.getProgress(orgId);
-
-        assertThat(view.aiProviderConfigured()).isTrue();
-        assertThat(view.completedSteps()).isEqualTo(1);
-    }
-
-    @Test
-    void treatsOllamaWithoutApiKeyAsConfigured() {
-        var orgId = UUID.randomUUID();
-        when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
-        when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.OLLAMA, false));
+        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(true);
 
         var view = service.getProgress(orgId);
 
@@ -105,8 +84,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(true);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(true);
-        when(aiConfigService.getOrDefault(orgId))
-                .thenReturn(aiView(AiProviderType.ANTHROPIC, true));
+        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(true);
 
         var view = service.getProgress(orgId);
 
@@ -116,25 +94,5 @@ class DefaultSetupProgressServiceTest {
         assertThat(view.completedSteps()).isEqualTo(3);
         assertThat(view.totalSteps()).isEqualTo(3);
         assertThat(view.complete()).isTrue();
-    }
-
-    private static AiConfigView aiView(AiProviderType provider, boolean apiKeyMasked) {
-        var now = Instant.now();
-        return new AiConfigView(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                provider,
-                "model",
-                null,
-                apiKeyMasked,
-                30_000,
-                8_000,
-                2_000,
-                true,
-                false,
-                true,
-                true,
-                now,
-                now);
     }
 }

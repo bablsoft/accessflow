@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,6 +27,24 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
                                                              UUID id);
 
     boolean existsByReviewPlan_Id(UUID reviewPlanId);
+
+    List<DatasourceEntity> findAllByAiConfigId(UUID aiConfigId);
+
+    @Query("""
+            select d.aiConfigId, count(d) from DatasourceEntity d
+             where d.aiConfigId in :aiConfigIds
+            group by d.aiConfigId
+            """)
+    List<Object[]> countByAiConfigIdIn(@Param("aiConfigIds") Collection<UUID> aiConfigIds);
+
+    @Query("""
+            select distinct d.aiConfigId from DatasourceEntity d
+             where d.organization.id = :orgId
+               and d.aiAnalysisEnabled = true
+               and d.active = true
+               and d.aiConfigId is not null
+            """)
+    List<UUID> findActiveAiAnalysisAiConfigIdsByOrganization(@Param("orgId") UUID organizationId);
 
     @Query("""
             select d from DatasourceEntity d

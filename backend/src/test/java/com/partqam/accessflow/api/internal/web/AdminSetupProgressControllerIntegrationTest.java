@@ -1,7 +1,7 @@
 package com.partqam.accessflow.api.internal.web;
 
 import com.partqam.accessflow.TestcontainersConfig;
-import com.partqam.accessflow.ai.api.UpdateAiConfigCommand;
+import com.partqam.accessflow.ai.api.CreateAiConfigCommand;
 import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.AuthProviderType;
@@ -119,11 +119,11 @@ class AdminSetupProgressControllerIntegrationTest {
 
     @Test
     void reportsAllThreeOnceEachStepSatisfied() {
-        seedDatasource();
+        var aiConfig = aiConfigService.create(org.getId(), new CreateAiConfigCommand(
+                "Primary AI", AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", null,
+                "sk-test", null, null, null));
+        seedDatasourceBoundTo(aiConfig.id());
         seedReviewPlan();
-        aiConfigService.update(org.getId(), new UpdateAiConfigCommand(
-                AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", null, "sk-test",
-                null, null, null, null, null, null, null));
 
         var result = mvc.get().uri("/api/v1/admin/setup-progress")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
@@ -165,6 +165,25 @@ class AdminSetupProgressControllerIntegrationTest {
         ds.setUsername("dbuser");
         ds.setPasswordEncrypted("ciphertext");
         ds.setActive(true);
+        ds.setAiAnalysisEnabled(false);
+        ds.setCreatedAt(Instant.now());
+        datasourceRepository.save(ds);
+    }
+
+    private void seedDatasourceBoundTo(UUID aiConfigId) {
+        var ds = new DatasourceEntity();
+        ds.setId(UUID.randomUUID());
+        ds.setOrganization(org);
+        ds.setName("primary-db");
+        ds.setDbType(DbType.POSTGRESQL);
+        ds.setHost("db.local");
+        ds.setPort(5432);
+        ds.setDatabaseName("appdb");
+        ds.setUsername("dbuser");
+        ds.setPasswordEncrypted("ciphertext");
+        ds.setActive(true);
+        ds.setAiAnalysisEnabled(true);
+        ds.setAiConfigId(aiConfigId);
         ds.setCreatedAt(Instant.now());
         datasourceRepository.save(ds);
     }

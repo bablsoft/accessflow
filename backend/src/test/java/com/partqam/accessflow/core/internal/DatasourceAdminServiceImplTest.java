@@ -11,6 +11,7 @@ import com.partqam.accessflow.core.api.DbType;
 import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.JdbcCoordinatesFactory;
+import com.partqam.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.partqam.accessflow.core.api.SslMode;
 import com.partqam.accessflow.core.api.UpdateDatasourceCommand;
 import com.partqam.accessflow.core.events.DatasourceConfigChangedEvent;
@@ -78,7 +79,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db.example.com", 5432, "appdb", "svc", "plaintext-pw",
-                SslMode.REQUIRE, null, null, null, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null);
         var result = service.create(command);
 
         assertThat(result.name()).isEqualTo("Prod");
@@ -88,7 +89,7 @@ class DatasourceAdminServiceImplTest {
         assertThat(result.maxRowsPerQuery()).isEqualTo(1000);
         assertThat(result.requireReviewWrites()).isTrue();
         assertThat(result.requireReviewReads()).isFalse();
-        assertThat(result.aiAnalysisEnabled()).isTrue();
+        assertThat(result.aiAnalysisEnabled()).isFalse();
         assertThat(result.active()).isTrue();
         verify(encryptionService).encrypt("plaintext-pw");
     }
@@ -100,7 +101,7 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.create(new CreateDatasourceCommand(orgId, "Prod",
                 DbType.POSTGRESQL, "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, null)))
+                null, null, null, null, null, false, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
         verify(datasourceRepository, never()).save(any());
         verify(driverCatalog, never()).resolve(any());
@@ -119,7 +120,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null);
         service.create(command);
 
         var inOrder = inOrder(driverCatalog, datasourceRepository, encryptionService);
@@ -137,7 +138,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(DriverResolutionException.class);
@@ -153,7 +154,7 @@ class DatasourceAdminServiceImplTest {
         when(encryptionService.encrypt("new-pw")).thenReturn("ENC(new-pw)");
 
         var command = new UpdateDatasourceCommand(null, "new-host", null, null, null,
-                "new-pw", null, 25, null, null, null, null, null, null);
+                "new-pw", null, 25, null, null, null, null, null, null, null, null);
         var result = service.update(datasourceId, orgId, command);
 
         assertThat(result.host()).isEqualTo("new-host");
@@ -169,7 +170,7 @@ class DatasourceAdminServiceImplTest {
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
 
         var command = new UpdateDatasourceCommand("Renamed", null, null, null, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null);
         when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCaseAndIdNot(
                 eq(orgId), eq("Renamed"), eq(datasourceId))).thenReturn(false);
 
@@ -188,7 +189,7 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.update(datasourceId, orgId,
                 new UpdateDatasourceCommand("Conflict", null, null, null, null, null, null,
-                        null, null, null, null, null, null, null)))
+                        null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
     }
 
@@ -199,7 +200,7 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.update(datasourceId, orgId,
                 new UpdateDatasourceCommand(null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null)))
+                        null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
     }
 
@@ -241,7 +242,7 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, "new-host", null, null, null, null, null, null, null, null, null, null,
-                null, null));
+                null, null, null, null));
 
         verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
     }
@@ -253,7 +254,7 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, null, null, null, null, null, null, null, 5000, null, null, null, null,
-                null));
+                null, null, null));
 
         verify(eventPublisher, never()).publishEvent(any());
     }
@@ -265,7 +266,7 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, "new-host", null, null, null, null, null, null, null, null, null, null,
-                null, false));
+                null, null, null, false));
 
         verify(eventPublisher).publishEvent(new DatasourceDeactivatedEvent(datasourceId));
         verify(eventPublisher, never()).publishEvent(any(DatasourceConfigChangedEvent.class));
@@ -466,10 +467,63 @@ class DatasourceAdminServiceImplTest {
         entity.setMaxRowsPerQuery(1000);
         entity.setRequireReviewReads(false);
         entity.setRequireReviewWrites(true);
-        entity.setAiAnalysisEnabled(true);
+        entity.setAiAnalysisEnabled(false);
         entity.setActive(true);
         return entity;
     }
+
+    @Test
+    void createWithAiEnabledButNoConfigThrows() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt(any())).thenReturn("ENC");
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, true, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(MissingAiConfigForDatasourceException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createWithValidAiConfigPersistsBinding() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        var aiConfigId = UUID.randomUUID();
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, true, aiConfigId);
+        var view = service.create(command);
+
+        assertThat(view.aiConfigId()).isEqualTo(aiConfigId);
+        assertThat(view.aiAnalysisEnabled()).isTrue();
+    }
+
+    @Test
+    void updateClearAiConfigUnbindsAndRequiresAiDisabled() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setAiAnalysisEnabled(true);
+        entity.setAiConfigId(UUID.randomUUID());
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.update(datasourceId, orgId,
+                new UpdateDatasourceCommand(null, null, null, null, null, null, null,
+                        null, null, null, null, null, null, null, true, null)))
+                .isInstanceOf(MissingAiConfigForDatasourceException.class);
+    }
+
 
     @Test
     void probeSqlUsesFromDualForOracle() {

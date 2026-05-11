@@ -36,10 +36,10 @@
     "users": "Пользователи",
     "review_plans": "Планы проверки",
     "audit": "Журнал аудита",
-    "ai_config": "Настройка ИИ",
     "notifications": "Уведомления",
     "saml": "SAML / SSO",
-    "languages": "Языки"
+    "languages": "Языки",
+    "ai_configs": "AI configurations"
   },
   "auth": {
     "login": {
@@ -293,7 +293,12 @@
       "save_error": "Не удалось создать источник данных",
       "types_loading": "Загрузка типов баз…",
       "types_error_title": "Не удалось загрузить типы баз",
-      "types_error_body": "Эндпоинт /datasources/types не отвечает. Перезагрузите страницу или проверьте логи бэкенда."
+      "types_error_body": "Эндпоинт /datasources/types не отвечает. Перезагрузите страницу или проверьте логи бэкенда.",
+      "field_ai_analysis_enabled": "Enable AI analysis",
+      "field_ai_config": "AI configuration",
+      "field_ai_config_placeholder": "Pick an AI configuration",
+      "field_ai_config_required": "Select an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     },
     "settings": {
       "back_button": "Назад",
@@ -398,7 +403,11 @@
       "activity_empty": "По этому источнику данных пока не отправлено ни одного запроса.",
       "activity_load_error": "Не удалось загрузить недавние запросы",
       "not_found_message": "Источник данных не найден.",
-      "back_to_list": "К списку"
+      "back_to_list": "К списку",
+      "label_ai_config": "AI configuration",
+      "ai_config_placeholder": "Pick an AI configuration",
+      "ai_config_required": "Pick an AI configuration or disable AI analysis",
+      "add_ai_config_link": "+ Add new AI configuration"
     }
   },
   "admin": {
@@ -473,28 +482,6 @@
       "section_action": "Действие",
       "section_metadata": "метаданные · JSON",
       "actor_unknown": "(система)"
-    },
-    "ai_config": {
-      "title": "Настройка ИИ",
-      "subtitle": "Настройте ИИ-бэкенд, используемый для анализа риска запросов.",
-      "section_provider": "Поставщик",
-      "section_connection": "Подключение",
-      "section_behavior": "Поведение",
-      "label_model": "Модель",
-      "label_api_endpoint": "Endpoint API",
-      "label_api_key": "Ключ API",
-      "label_timeout_ms": "Тайм-аут (мс)",
-      "label_max_prompt_tokens": "Макс. tokens запроса",
-      "label_max_completion_tokens": "Макс. tokens ответа",
-      "label_enable_ai_default": "Включать ИИ по умолчанию для новых источников",
-      "label_auto_approve_low": "Автоматически одобрять SELECT с риском LOW",
-      "label_block_critical": "Блокировать запросы с риском CRITICAL",
-      "label_include_schema": "Включать схему в контекст ИИ",
-      "load_error": "Не удалось загрузить настройку ИИ",
-      "save_success": "Настройка ИИ сохранена",
-      "test_button": "Отправить тестовый промпт",
-      "test_ok_button": "Тест пройден",
-      "test_failed": "Тест не пройден: {{detail}}"
     },
     "notifications": {
       "title": "Каналы уведомлений",
@@ -601,6 +588,55 @@
       "validation_user_or_role": "Каждой строке утверждающего нужен пользователь или роль.",
       "select_user_placeholder": "(любой из роли)",
       "select_role_placeholder": "ЛЮБАЯ"
+    },
+    "ai_configs": {
+      "title": "AI configurations",
+      "subtitle": "Configure as many AI providers as you need. Each datasource binds to one.",
+      "add_button": "Add AI configuration",
+      "empty_title": "No AI configurations yet",
+      "empty_body": "Add an AI configuration to enable risk analysis on a datasource.",
+      "load_error": "Failed to load AI configurations",
+      "column_name": "Name",
+      "column_provider": "Provider",
+      "column_model": "Model",
+      "column_in_use": "In use",
+      "column_actions": "Actions",
+      "in_use_count_one": "{{count}} datasource",
+      "in_use_count_other": "{{count}} datasources",
+      "action_edit": "Edit",
+      "action_test": "Test",
+      "action_delete": "Delete",
+      "delete_confirm_title": "Delete AI configuration?",
+      "delete_confirm_body": "This will remove the configuration named {{name}}.",
+      "delete_in_use_title": "Cannot delete — still in use",
+      "delete_in_use_body": "Unbind these datasources first:",
+      "delete_success": "AI configuration deleted",
+      "save_success": "AI configuration saved",
+      "test_ok": "Test passed",
+      "test_ok_button": "Test passed",
+      "test_button": "Send test prompt",
+      "test_failed_title": "Test failed",
+      "test_failed": "Test failed: {{detail}}",
+      "edit_title": "Edit · {{name}}",
+      "field_name": "Configuration name",
+      "field_model": "Model",
+      "field_endpoint": "API endpoint",
+      "field_api_key": "API key",
+      "field_timeout_ms": "Timeout (ms)",
+      "field_max_prompt_tokens": "Max prompt tokens",
+      "field_max_completion_tokens": "Max completion tokens",
+      "name_required": "Configuration name is required",
+      "api_key_required": "API key is required for this provider",
+      "wizard": {
+        "title": "New AI configuration",
+        "subtitle": "Pick a provider, fill in the connection details, and run a test prompt.",
+        "step_provider": "Provider",
+        "step_connection": "Connection",
+        "step_test": "Test",
+        "save_and_test": "Save and continue",
+        "test_button": "Send test prompt",
+        "finish": "Done"
+      }
     }
   },
   "notifications": {
