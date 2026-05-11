@@ -105,7 +105,7 @@ com.partqam.accessflow/
 | Internal – Web | `internal/web/` | REST controllers, request/response models, web mappers |
 | Events | `events/` | Published and consumed domain events |
 
-- Controllers delegate to services; they never contain business logic.
+- Controllers delegate to services; they never contain business logic. "Business logic" here covers anything beyond parameter binding, calling a service, and mapping the result onto the HTTP envelope — including but not limited to: CSV / Excel / PDF / report assembly, paginated slicing, value formatting (timestamp stamping, filename construction), branching on domain state (e.g. status guards, ownership checks), event publishing, encryption / hashing, retry loops, JSON tree rewriting, or stateful caching. All of that lives in a `<module>.api` service interface with a `Default*` implementation under `<module>.internal/`. When you find yourself wanting a `StringWriter`, a per-row `Consumer<T>`, a `DateTimeFormatter`, or a `for` loop over domain entities inside a controller method, that is the signal to introduce or extend a service.
 - Controllers expose dedicated request/response models defined in `internal/web/`; they must not return `api/` DTOs or entities directly.
 - `@RestController` classes live under `<module>.internal.web`, not the module root.
 - JPA entity classes live in `internal/persistence/entity/` and **must** carry the `Entity` suffix (e.g. `UserEntity`, `QueryRequestEntity`). Never place entities in the persistence root package.

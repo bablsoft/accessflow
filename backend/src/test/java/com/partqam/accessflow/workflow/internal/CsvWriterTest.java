@@ -1,4 +1,4 @@
-package com.partqam.accessflow.workflow.internal.web;
+package com.partqam.accessflow.workflow.internal;
 
 import org.junit.jupiter.api.Test;
 

@@ -18,6 +18,8 @@ import com.partqam.accessflow.core.internal.persistence.entity.UserEntity;
 import com.partqam.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.security.internal.jwt.JwtService;
+import com.partqam.accessflow.core.api.QueryListFilter;
+import com.partqam.accessflow.workflow.api.QueryCsvExportService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService;
 import com.partqam.accessflow.workflow.api.QueryLifecycleService.ExecutionOutcome;
 import com.partqam.accessflow.workflow.api.QueryNotCancellableException;
@@ -36,6 +38,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
@@ -50,9 +53,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
@@ -68,6 +71,7 @@ class QueryReadControllerIntegrationTest {
     @MockitoBean QueryRequestLookupService queryRequestLookupService;
     @MockitoBean QueryLifecycleService queryLifecycleService;
     @MockitoBean QueryResultPersistenceService queryResultPersistenceService;
+    @MockitoBean QueryCsvExportService queryCsvExportService;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -167,9 +171,12 @@ class QueryReadControllerIntegrationTest {
     // ── GET /api/v1/queries/export.csv ──────────────────────────────────────────
 
     @Test
-    void exportCsvReturnsHeaderRowOnlyWhenServiceEmitsNothing() throws Exception {
-        when(queryRequestLookupService.countForOrganization(any())).thenReturn(0L);
-        doNothing().when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
+    void exportCsvWritesServiceBodyAndContentDispositionHeader() throws Exception {
+        var csv = "id,created_at\r\n11111111-1111-1111-1111-111111111111,2026-05-11T10:00:00Z\r\n"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(csv,
+                        "queries-20260511-100000.csv", false));
 
         var response = mvc.get().uri("/api/v1/queries/export.csv?status=PENDING_REVIEW")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
@@ -177,50 +184,20 @@ class QueryReadControllerIntegrationTest {
 
         assertThat(response).hasStatus(200);
         assertThat(response.getResponse().getContentType()).startsWith("text/csv");
-        var disposition = response.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION);
-        assertThat(disposition).startsWith("attachment; filename=\"queries-").endsWith(".csv\"");
+        assertThat(response.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                .isEqualTo("attachment; filename=\"queries-20260511-100000.csv\"");
         assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated")).isNull();
         assertThat(response.getResponse().getContentAsString())
-                .isEqualTo("id,created_at,query_type,status,ai_risk_level,ai_risk_score,"
-                        + "datasource_id,datasource_name,submitter_email,"
-                        + "submitter_display_name\r\n");
+                .isEqualTo("id,created_at\r\n11111111-1111-1111-1111-111111111111,"
+                        + "2026-05-11T10:00:00Z\r\n");
     }
 
     @Test
-    void exportCsvIncludesDataRowsForEmittedViews() throws Exception {
-        var dsId = UUID.randomUUID();
-        var qid = UUID.randomUUID();
-        var view = new QueryListItemView(qid, dsId, "Prod, PG", analyst.getId(),
-                analyst.getEmail(), "Alice \"the\" Analyst",
-                QueryType.SELECT, QueryStatus.EXECUTED, RiskLevel.LOW, 12,
-                Instant.parse("2026-05-01T10:00:00Z"));
-        when(queryRequestLookupService.countForOrganization(any())).thenReturn(1L);
-        doAnswer(invocation -> {
-            java.util.function.Consumer<QueryListItemView> consumer = invocation.getArgument(2);
-            consumer.accept(view);
-            return null;
-        }).when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
-
-        var response = mvc.get().uri("/api/v1/queries/export.csv")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
-                .exchange();
-
-        assertThat(response).hasStatus(200);
-        var body = response.getResponse().getContentAsString();
-        assertThat(body).startsWith("id,created_at,");
-        // Datasource name has a comma → must be quoted. Display name has quotes → quotes doubled.
-        assertThat(body).contains("\"Prod, PG\"");
-        assertThat(body).contains("\"Alice \"\"the\"\" Analyst\"");
-        assertThat(body).contains(qid.toString());
-        assertThat(body).contains("EXECUTED");
-        assertThat(body).contains("LOW");
-        assertThat(body).contains(analyst.getEmail());
-    }
-
-    @Test
-    void exportCsvSetsTruncatedHeaderWhenCountExceedsCap() {
-        when(queryRequestLookupService.countForOrganization(any())).thenReturn(50_001L);
-        doNothing().when(queryRequestLookupService).streamForOrganization(any(), any(int.class), any());
+    void exportCsvForwardsTruncationFlagAsHeader() {
+        var csv = "id\r\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(csv,
+                        "queries-20260511-100000.csv", true));
 
         var response = mvc.get().uri("/api/v1/queries/export.csv")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
@@ -229,6 +206,39 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).hasStatus(200);
         assertThat(response.getResponse().getHeader("X-AccessFlow-Export-Truncated"))
                 .isEqualTo("true");
+    }
+
+    @Test
+    void exportCsvScopesFilterToCallerForNonAdmin() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+
+        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + UUID.randomUUID())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        // Non-admin caller: the submittedBy query param is ignored and overridden with caller id.
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(analyst.getId());
+        assertThat(captor.getValue().organizationId()).isEqualTo(org.getId());
+    }
+
+    @Test
+    void exportCsvLetsAdminOverrideSubmitter() {
+        when(queryCsvExportService.exportQueries(any()))
+                .thenReturn(new QueryCsvExportService.CsvExport(new byte[0],
+                        "queries-20260511-100000.csv", false));
+        var target = UUID.randomUUID();
+
+        mvc.get().uri("/api/v1/queries/export.csv?submittedBy=" + target)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        var captor = ArgumentCaptor.forClass(QueryListFilter.class);
+        verify(queryCsvExportService).exportQueries(captor.capture());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(target);
     }
 
     @Test

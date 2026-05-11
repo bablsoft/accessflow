@@ -1,4 +1,4 @@
-package com.partqam.accessflow.workflow.internal.web;
+package com.partqam.accessflow.workflow.internal;
 
 import java.io.IOException;
 import java.io.Writer;
