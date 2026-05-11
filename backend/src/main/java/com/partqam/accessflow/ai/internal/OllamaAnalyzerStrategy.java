@@ -18,14 +18,14 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Calls the Anthropic Messages API via Spring AI's {@link ChatModel}. Instances are constructed by
- * {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row (provider, model, base
- * URL, API key). Not a Spring bean.
+ * Calls a local or self-hosted Ollama instance via Spring AI's {@link ChatModel}. Instances are
+ * constructed by {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row. Ollama is
+ * keyless — only the endpoint is required. Not a Spring bean.
  */
 @RequiredArgsConstructor
-class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
+class OllamaAnalyzerStrategy implements AiAnalyzerStrategy {
 
-    private static final Logger log = LoggerFactory.getLogger(AnthropicAnalyzerStrategy.class);
+    private static final Logger log = LoggerFactory.getLogger(OllamaAnalyzerStrategy.class);
     private static final String SYSTEM_PROMPT_PREAMBLE = """
             You analyze SQL for security and performance risks. Always reply with a single JSON object \
             matching the exact schema described in the user's message. Do not wrap the JSON in markdown.""";
@@ -42,21 +42,21 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
                 new UserMessage(userPrompt)));
 
-        log.debug("Calling Anthropic via Spring AI: prompt_chars={}", userPrompt.length());
+        log.debug("Calling Ollama via Spring AI: prompt_chars={}", userPrompt.length());
 
         ChatResponse response;
         try {
             response = chatModel.call(prompt);
         } catch (RuntimeException e) {
-            throw new AiAnalysisException("Anthropic API call failed: " + e.getMessage(), e);
+            throw new AiAnalysisException("Ollama API call failed: " + e.getMessage(), e);
         }
         if (response == null || response.getResult() == null) {
-            throw new AiAnalysisException("Anthropic API returned an empty response");
+            throw new AiAnalysisException("Ollama API returned an empty response");
         }
 
         var text = response.getResult().getOutput().getText();
         if (text == null || text.isBlank()) {
-            throw new AiAnalysisException("Anthropic API returned an empty message");
+            throw new AiAnalysisException("Ollama API returned an empty message");
         }
 
         int promptTokens = 0;
@@ -74,9 +74,9 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
             }
         }
 
-        log.debug("Anthropic response: model={}, input_tokens={}, output_tokens={}",
+        log.debug("Ollama response: model={}, input_tokens={}, output_tokens={}",
                 model, promptTokens, completionTokens);
 
-        return responseParser.parse(text, AiProviderType.ANTHROPIC, model, promptTokens, completionTokens);
+        return responseParser.parse(text, AiProviderType.OLLAMA, model, promptTokens, completionTokens);
     }
 }

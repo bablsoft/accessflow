@@ -2,9 +2,12 @@ package com.partqam.accessflow.ai.api;
 
 import com.partqam.accessflow.core.api.DbType;
 
+import java.util.UUID;
+
 /**
  * Pluggable adapter that performs the actual AI inference call. One implementation per provider
- * (Anthropic, OpenAI, Ollama). Selection happens via {@code accessflow.ai.provider} config.
+ * (Anthropic, OpenAI, Ollama). The autowired bean is the {@code AiAnalyzerStrategyHolder}, which
+ * resolves the active per-org delegate from the {@code ai_config} table on each call.
  *
  * <p>Implementations must be thread-safe and must not mutate caller-supplied arguments.
  */
@@ -21,9 +24,14 @@ public interface AiAnalyzerStrategy {
      * adapter falls back to English. Risk levels and category codes always remain the canonical
      * English enum strings.
      *
-     * @throws com.partqam.accessflow.ai.api.AiAnalysisException      provider call failed
+     * <p>{@code organizationId} scopes the provider lookup: the holder resolves the right
+     * {@code ai_config} row and builds/caches a provider-specific delegate for that org.
+     *
+     * @throws com.partqam.accessflow.ai.api.AiAnalysisException      provider call failed or AI is
+     *                                                                not configured for the org
      * @throws com.partqam.accessflow.ai.api.AiAnalysisParseException provider response did not
      *                                                                match the expected schema
      */
-    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
+                             UUID organizationId);
 }

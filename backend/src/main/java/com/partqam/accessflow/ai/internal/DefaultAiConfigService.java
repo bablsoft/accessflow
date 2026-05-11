@@ -8,19 +8,23 @@ import com.partqam.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.partqam.accessflow.core.api.AiProviderType;
 import com.partqam.accessflow.core.api.CredentialEncryptionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 class DefaultAiConfigService implements AiConfigService {
 
+    static final AiProviderType BOOT_DEFAULT_PROVIDER = AiProviderType.ANTHROPIC;
+
     private final AiConfigRepository repository;
     private final CredentialEncryptionService encryptionService;
-    private final AiAnalyzerProperties analyzerProperties;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -35,6 +39,9 @@ class DefaultAiConfigService implements AiConfigService {
     public AiConfigView update(UUID organizationId, UpdateAiConfigCommand command) {
         var entity = repository.findByOrganizationId(organizationId)
                 .orElseGet(() -> seed(organizationId));
+        var oldProvider = entity.getProvider();
+        var oldModel = entity.getModel();
+        var oldCiphertext = entity.getApiKeyEncrypted();
         if (command.provider() != null) {
             entity.setProvider(command.provider());
         }
@@ -67,7 +74,23 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setIncludeSchema(command.includeSchema());
         }
         entity.setUpdatedAt(Instant.now());
-        return toView(repository.save(entity));
+        var saved = repository.save(entity);
+        var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
+        if (oldProvider != saved.getProvider()
+                || !Objects.equals(oldModel, saved.getModel())
+                || apiKeyChanged
+                || hasConnectivityChange(command)) {
+            eventPublisher.publishEvent(new AiConfigUpdatedEvent(
+                    organizationId, oldProvider, saved.getProvider(),
+                    oldModel, saved.getModel(), apiKeyChanged));
+        }
+        return toView(saved);
+    }
+
+    private boolean hasConnectivityChange(UpdateAiConfigCommand command) {
+        return command.endpoint() != null
+                || command.timeoutMs() != null
+                || command.maxCompletionTokens() != null;
     }
 
     private void applyApiKey(AiConfigEntity entity, String submitted) {
@@ -85,7 +108,7 @@ class DefaultAiConfigService implements AiConfigService {
         var entity = new AiConfigEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(organizationId);
-        var defaults = defaultsFor(analyzerProperties.provider());
+        var defaults = defaultsFor(BOOT_DEFAULT_PROVIDER);
         entity.setProvider(defaults.provider());
         entity.setModel(defaults.model());
         entity.setEndpoint(defaults.endpoint());
@@ -93,7 +116,7 @@ class DefaultAiConfigService implements AiConfigService {
     }
 
     private AiConfigView defaultView(UUID organizationId) {
-        var defaults = defaultsFor(analyzerProperties.provider());
+        var defaults = defaultsFor(BOOT_DEFAULT_PROVIDER);
         var now = Instant.now();
         return new AiConfigView(
                 null,

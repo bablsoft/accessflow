@@ -206,8 +206,6 @@ com.partqam.accessflow/
 | `DB_PASSWORD` | PostgreSQL password |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
-| `AI_PROVIDER` | `anthropic` \| `openai` \| `ollama` (default: `anthropic`) |
-| `AI_API_KEY` | API key for OpenAI or Anthropic |
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |
@@ -650,16 +648,17 @@ The `AiAnalyzerStrategy` interface must be implemented by all three adapters:
 
 ```java
 public interface AiAnalyzerStrategy {
-    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                             String language, UUID organizationId);
 }
 ```
 
 `schemaContext` may be `null` or empty when introspection is unavailable; the prompt template
 substitutes `(no schema introspection available)` in that case.
 
-- Adapters route their HTTP calls through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M5`) — inject the auto-configured `ChatModel` (or `ChatClient`) rather than hand-rolling a `RestClient` per provider.
-- Active adapter is selected by `accessflow.ai.provider` config (toggles the `@ConditionalOnProperty` strategy beans).
-- Provider settings live under Spring AI's namespace: `spring.ai.anthropic.api-key`, `spring.ai.anthropic.chat.options.model`, etc. Don't duplicate them under `accessflow.ai.*`.
+- Adapters route their HTTP calls through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M6`). The autowired `AiAnalyzerStrategy` is `AiAnalyzerStrategyHolder` — it builds `AnthropicChatModel` / `OpenAiChatModel` / `OllamaChatModel` per-org from the `ai_config` row, caches the delegate, and evicts on `AiConfigUpdatedEvent` (no Spring context refresh, no restart).
+- Active provider per org is the `ai_config.provider` column. There is no `accessflow.ai.provider` property and no `@ConditionalOnProperty` on the strategy classes — they are plain classes, not Spring beans.
+- Connection settings (API key, base URL, model, max-tokens, timeout) come from `ai_config`, not from `spring.ai.*` properties. `application.yml` sets `spring.ai.model.{chat,embedding,image,audio.speech,audio.transcription,moderation}=none` so no `ChatModel` is auto-built at startup.
 - The system prompt template is in `docs/05-backend.md` — use it verbatim; do not invent a different prompt.
 - AI calls are asynchronous — publish a `QuerySubmittedEvent` and handle in the strategy asynchronously using virtual threads.
 - The response must be parsed strictly as JSON matching the `AiAnalysisResult` schema. If the AI returns non-JSON or an unexpected schema, log and mark the analysis as failed; do not propagate the exception to the query request.

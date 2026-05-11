@@ -956,11 +956,13 @@ Returns the current AI analyzer configuration for the caller's organization. The
 }
 ```
 
-If no row exists yet for the organization, a transient default snapshot is returned (driven by `accessflow.ai.provider`); persisting any change creates the row.
+If no row exists yet for the organization, a transient default snapshot is returned (ANTHROPIC / `claude-sonnet-4-20250514`, no API key — `apiKeyMasked` is `false` and `api_key` is omitted from the response). Persisting any change via PUT creates the row.
 
 ### PUT /admin/ai-config
 
 Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence.
+
+A successful PUT triggers a runtime refresh of the active `AiAnalyzerStrategy` for the caller's organization — the next call to `POST /queries/analyze`, `POST /admin/ai-config/test`, or the AI analysis listener uses the new provider / model / key without an application restart. An `AI_CONFIG_UPDATED` audit row is written whenever any of `provider`, `model`, or the API key changes; the `metadata` JSONB carries only the fields that actually changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `api_key_changed`).
 
 **Request body:**
 ```json

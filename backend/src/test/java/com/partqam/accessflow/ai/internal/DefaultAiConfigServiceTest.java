@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +28,7 @@ class DefaultAiConfigServiceTest {
 
     @Mock AiConfigRepository repository;
     @Mock CredentialEncryptionService encryptionService;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private DefaultAiConfigService service;
 
@@ -33,10 +36,7 @@ class DefaultAiConfigServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultAiConfigService(
-                repository,
-                encryptionService,
-                new AiAnalyzerProperties(AiProviderType.ANTHROPIC));
+        service = new DefaultAiConfigService(repository, encryptionService, eventPublisher);
     }
 
     @Test
@@ -149,6 +149,53 @@ class DefaultAiConfigServiceTest {
         var view = service.update(orgId, command);
 
         assertThat(view.endpoint()).isNull();
+    }
+
+    @Test
+    void updatePublishesEventWhenProviderChanges() {
+        var entity = seededEntity();
+        when(repository.findByOrganizationId(orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new UpdateAiConfigCommand(AiProviderType.OPENAI, null, null, null,
+                null, null, null, null, null, null, null);
+        service.update(orgId, command);
+
+        var captor = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        var event = captor.getValue();
+        assertThat(event.organizationId()).isEqualTo(orgId);
+        assertThat(event.oldProvider()).isEqualTo(AiProviderType.ANTHROPIC);
+        assertThat(event.newProvider()).isEqualTo(AiProviderType.OPENAI);
+        assertThat(event.apiKeyChanged()).isFalse();
+    }
+
+    @Test
+    void updatePublishesEventWhenApiKeyRotates() {
+        var entity = seededEntity();
+        entity.setApiKeyEncrypted("ENC(prior)");
+        when(repository.findByOrganizationId(orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("sk-new")).thenReturn("ENC(sk-new)");
+
+        service.update(orgId, partial("sk-new"));
+
+        var captor = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().apiKeyChanged()).isTrue();
+    }
+
+    @Test
+    void updateDoesNotPublishEventForNoOpUpdate() {
+        var entity = seededEntity();
+        when(repository.findByOrganizationId(orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new UpdateAiConfigCommand(null, null, null, null,
+                null, null, null, true, null, null, null); // enableAiDefault is non-event field
+        service.update(orgId, command);
+
+        verifyNoInteractions(eventPublisher);
     }
 
     private UpdateAiConfigCommand partial(String apiKey) {

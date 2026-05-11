@@ -290,10 +290,6 @@ kubectl create secret generic accessflow-ai-key \
 | `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256 key for credential encryption |
 | `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT signing |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation and async events |
-| `AI_PROVIDER` | Optional | `anthropic` | `openai` \| `anthropic` \| `ollama` |
-| `AI_API_KEY` | Conditional | — | Required if `AI_PROVIDER` is `openai` or `anthropic` |
-| `AI_MODEL` | Optional | provider default | Override specific model name |
-| `OLLAMA_BASE_URL` | Conditional | — | Required if `AI_PROVIDER` is `ollama` |
 | `ACCESSFLOW_EDITION` | Optional | `community` | `community` \| `enterprise` |
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:3000` | Frontend origin for CORS policy |
 | `SMTP_HOST` | Optional | — | SMTP host for email notifications |
@@ -307,6 +303,12 @@ kubectl create secret generic accessflow-ai-key \
 | `SAML_KEYSTORE_PASSWORD` | Enterprise | — | SAML keystore password |
 | `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
+
+> **AI provider config is not an environment variable.** Provider, model, API key, endpoint and
+> timeouts live in the per-organization `ai_config` table and are managed via `PUT
+> /api/v1/admin/ai-config` at runtime (see [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service)). A fresh install has no AI configured until an
+> ADMIN sets it; `POST /api/v1/admin/ai-config/test` returns `{"status":"ERROR", "detail":"AI is
+> not configured…"}` until then. No `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` env var is read.
 
 ---
 

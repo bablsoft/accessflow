@@ -21,8 +21,12 @@
     <properties>
         <java.version>25</java.version>
         <spring-modulith.version>2.0.6</spring-modulith.version>
-        <spring-ai.version>2.0.0-M5</spring-ai.version>
+        <spring-ai.version>2.0.0-M6</spring-ai.version>
         <shedlock.version>7.7.0</shedlock.version>
+        <slack.sdk.version>1.48.1</slack.sdk.version>
+        <springdoc.version>3.0.3</springdoc.version>
+        <jsqlparser.version>5.3</jsqlparser.version>
+        <totp.version>1.7.1</totp.version>
     </properties>
 
     <dependencyManagement>
@@ -98,13 +102,13 @@
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
-            <version>5.3</version>
+            <version>${jsqlparser.version}</version>
         </dependency>
 
         <dependency>
             <groupId>dev.samstevens.totp</groupId>
             <artifactId>totp</artifactId>
-            <version>1.7.1</version>
+            <version>${totp.version}</version>
         </dependency>
 
         <dependency>
@@ -119,6 +123,14 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-anthropic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
         </dependency>
 
         <dependency>
@@ -180,12 +192,12 @@
         <dependency>
             <groupId>com.slack.api</groupId>
             <artifactId>slack-api-client</artifactId>
-            <version>1.48.1</version>
+            <version>${slack.sdk.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.3</version>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <dependency>

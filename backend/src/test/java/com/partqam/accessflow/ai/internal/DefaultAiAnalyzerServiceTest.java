@@ -4,6 +4,8 @@ import com.partqam.accessflow.ai.api.AiAnalysisException;
 import com.partqam.accessflow.ai.api.AiAnalysisParseException;
 import com.partqam.accessflow.ai.api.AiAnalysisResult;
 import com.partqam.accessflow.ai.api.AiAnalyzerStrategy;
+import com.partqam.accessflow.ai.api.AiConfigService;
+import com.partqam.accessflow.ai.api.AiConfigView;
 import com.partqam.accessflow.ai.api.AiIssue;
 import com.partqam.accessflow.core.api.AiAnalysisPersistenceService;
 import com.partqam.accessflow.core.api.AiProviderType;
@@ -33,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,6 +52,7 @@ import static org.mockito.Mockito.when;
 class DefaultAiAnalyzerServiceTest {
 
     @Mock AiAnalyzerStrategy strategy;
+    @Mock AiConfigService aiConfigService;
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock QueryRequestLookupService queryRequestLookupService;
@@ -60,8 +64,6 @@ class DefaultAiAnalyzerServiceTest {
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
 
-    private final AiAnalyzerProperties properties = new AiAnalyzerProperties(AiProviderType.ANTHROPIC);
-
     private DefaultAiAnalyzerService service;
 
     private final UUID datasourceId = UUID.randomUUID();
@@ -71,12 +73,21 @@ class DefaultAiAnalyzerServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultAiAnalyzerService(strategy, properties, promptRenderer, responseParser,
+        service = new DefaultAiAnalyzerService(strategy, aiConfigService, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
                 permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
-                eventPublisher, "model-x");
+                eventPublisher);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
+        org.mockito.Mockito.lenient().when(aiConfigService.getOrDefault(organizationId))
+                .thenReturn(sampleConfigView("model-x"));
+    }
+
+    private AiConfigView sampleConfigView(String model) {
+        var now = Instant.now();
+        return new AiConfigView(UUID.randomUUID(), organizationId, AiProviderType.ANTHROPIC, model,
+                "https://api.anthropic.com", true, 30_000, 8_000, 2_000,
+                true, false, true, true, now, now);
     }
 
     private DatasourceConnectionDescriptor descriptor(DbType dbType) {
@@ -102,7 +113,8 @@ class DefaultAiAnalyzerServiceTest {
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
                 .thenReturn(schemaView());
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any(), any())).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any(), any(), eq(organizationId)))
+                .thenReturn(sampleResult());
 
         var result = service.analyzePreview(datasourceId, "SELECT 1", userId, organizationId, false);
 
@@ -134,7 +146,8 @@ class DefaultAiAnalyzerServiceTest {
                 List.of(), List.of(), List.of("public.users.ssn"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(), any()))
+        when(strategy.analyze(eq("SELECT ssn FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(),
+                any(), eq(organizationId)))
                 .thenReturn(sampleResult());
 
         service.analyzePreview(datasourceId, "SELECT ssn FROM users", userId, organizationId, false);
@@ -159,7 +172,8 @@ class DefaultAiAnalyzerServiceTest {
                 List.of(), List.of(), List.of("public.users.email"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        when(strategy.analyze(any(), eq(DbType.POSTGRESQL), contextCaptor.capture(), any())).thenReturn(sampleResult());
+        when(strategy.analyze(any(), eq(DbType.POSTGRESQL), contextCaptor.capture(), any(), eq(organizationId)))
+                .thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
         service.analyzeSubmittedQuery(queryRequestId);
@@ -174,7 +188,8 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any())).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), eq(organizationId)))
+                .thenReturn(sampleResult());
         var newAnalysisId = UUID.randomUUID();
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(newAnalysisId);
 
@@ -205,7 +220,8 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any(), any())).thenThrow(new AiAnalysisException("provider down"));
+        when(strategy.analyze(any(), any(), any(), any(), eq(organizationId)))
+                .thenThrow(new AiAnalysisException("provider down"));
 
         service.analyzeSubmittedQuery(queryRequestId);
 
@@ -216,6 +232,9 @@ class DefaultAiAnalyzerServiceTest {
         assertThat(cmd.riskScore()).isEqualTo(100);
         assertThat(cmd.summary()).startsWith("AI analysis failed:");
         assertThat(cmd.issuesJson()).isEqualTo("[]");
+        // Sentinel model + provider taken from current AiConfigView.
+        assertThat(cmd.aiModel()).isEqualTo("model-x");
+        assertThat(cmd.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
@@ -233,7 +252,8 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any(), any())).thenThrow(new AiAnalysisParseException("bad json"));
+        when(strategy.analyze(any(), any(), any(), any(), eq(organizationId)))
+                .thenThrow(new AiAnalysisParseException("bad json"));
 
         service.analyzeSubmittedQuery(queryRequestId);
 
@@ -248,12 +268,13 @@ class DefaultAiAnalyzerServiceTest {
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
                 .thenThrow(new RuntimeException("connection refused"));
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any())).thenReturn(sampleResult());
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), eq(organizationId)))
+                .thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
         service.analyzeSubmittedQuery(queryRequestId);
 
-        verify(strategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any());
+        verify(strategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), eq(organizationId));
         verify(eventPublisher).publishEvent(any(AiAnalysisCompletedEvent.class));
     }
 
@@ -280,5 +301,24 @@ class DefaultAiAnalyzerServiceTest {
         verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), captor.capture());
         assertThat(captor.getValue().summary()).contains("Datasource not found");
         verify(eventPublisher).publishEvent(any(AiAnalysisFailedEvent.class));
+    }
+
+    @Test
+    void sentinelFallsBackToUnknownWhenAiConfigLookupFails() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        when(strategy.analyze(any(), any(), any(), any(), eq(organizationId)))
+                .thenThrow(new AiAnalysisException("provider down"));
+        when(aiConfigService.getOrDefault(organizationId)).thenThrow(new RuntimeException("db unreachable"));
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        ArgumentCaptor<PersistAiAnalysisCommand> captor = ArgumentCaptor.forClass(PersistAiAnalysisCommand.class);
+        verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), captor.capture());
+        assertThat(captor.getValue().aiModel()).isEqualTo("unknown");
+        assertThat(captor.getValue().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
     }
 }
