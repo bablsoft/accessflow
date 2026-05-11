@@ -50,7 +50,9 @@ export function AppLayout() {
         <Topbar onOpenMobileNav={() => setMobileOpen(true)} />
         <div className="af-app-content">
           <SetupProgressWidget />
-          <Outlet />
+          <div className="af-app-content-page">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>
