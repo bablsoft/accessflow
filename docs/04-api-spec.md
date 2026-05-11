@@ -681,6 +681,7 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
 | `GET` | `/admin/saml-config` | Get SAML configuration *(Enterprise only)* |
 | `PUT` | `/admin/saml-config` | Update SAML configuration *(Enterprise only)* |
+| `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
 | `GET` | `/system/info` | Returns edition, version, feature flags |
 
 ### GET /admin/users — Query Parameters
@@ -1077,6 +1078,33 @@ Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs)
 
 **Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
 **Response 400:** Validation error.
+
+### GET /admin/setup-progress
+
+Reports which onboarding steps the caller's organization has completed. The frontend's setup-completion widget polls this on every admin route until `complete` flips to `true`, then hides itself permanently. Requires the caller to be an `ADMIN`.
+
+**Step semantics:**
+
+- `datasources_configured`: at least one row exists in `datasources` for the caller's organization.
+- `review_plans_configured`: at least one row exists in `review_plans` for the caller's organization.
+- `ai_provider_configured`: the merged AI config (DB row or environment defaults) reports a stored API key, **or** the provider is `OLLAMA` (which runs locally and needs no key).
+
+`total_steps` is the constant `3`. `complete` is `completed_steps == total_steps`.
+
+**Response 200:**
+```json
+{
+  "datasources_configured": false,
+  "review_plans_configured": true,
+  "ai_provider_configured": false,
+  "completed_steps": 1,
+  "total_steps": 3,
+  "complete": false
+}
+```
+
+**Response 401:** Not authenticated.
+**Response 403:** Caller is not an `ADMIN`.
 
 ---
 

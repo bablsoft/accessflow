@@ -211,6 +211,10 @@ The wizard is the only entry point that materializes a datasource; `DatasourceLi
 - Filters: date range picker, user selector, action type multi-select
 - Row click opens `AuditDetailDrawer` with full metadata JSON
 
+### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
+
+A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: returns `null` unless the current user is an `ADMIN` and the server reports `complete === false`, so non-admins and tenants that have finished onboarding never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`). The widget shows three rows — datasource, review plan, AI provider — with a primary "Set up" button linking to `/datasources/new`, `/admin/review-plans`, or `/admin/ai-config` for any pending step, and a check-mark for completed steps. Collapse/expand state lives in `preferencesStore.setupProgressCollapsed` so it survives navigation. The relevant mutations (create datasource, create review plan, save AI config) invalidate `setupProgressKeys.current()` on success so the widget reacts immediately.
+
 ### Topbar (`components/common/Topbar.tsx`)
 
 The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the

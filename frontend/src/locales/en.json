@@ -384,6 +384,18 @@
     }
   },
   "admin": {
+    "setup_progress": {
+      "title": "Finish setting up AccessFlow",
+      "subtitle": "Complete these steps to start reviewing queries.",
+      "step_datasources_label": "Add your first datasource",
+      "step_review_plans_label": "Create a review plan",
+      "step_ai_provider_label": "Configure the AI provider",
+      "step_action_setup": "Set up",
+      "step_status_done": "Done",
+      "progress_aria": "Setup progress",
+      "expand": "Show setup checklist",
+      "collapse": "Hide setup checklist"
+    },
     "users": {
       "title": "Users",
       "subtitle_count": "{{count}} users in your organization",

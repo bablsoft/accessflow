@@ -7,6 +7,7 @@ import type {
   CreateUserInput,
   NotificationChannel,
   SamlConfig,
+  SetupProgress,
   TestAiConfigResult,
   TestNotificationChannelInput,
   TestNotificationResult,
@@ -24,6 +25,7 @@ const AUDIT_BASE = '/api/v1/admin/audit-log';
 const CHANNELS_BASE = '/api/v1/admin/notification-channels';
 const AI_CONFIG_BASE = '/api/v1/admin/ai-config';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
+const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -54,6 +56,11 @@ export const aiConfigKeys = {
 export const samlConfigKeys = {
   all: ['samlConfig'] as const,
   current: () => ['samlConfig', 'current'] as const,
+};
+
+export const setupProgressKeys = {
+  all: ['setupProgress'] as const,
+  current: () => ['setupProgress', 'current'] as const,
 };
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -162,5 +169,12 @@ export async function getSamlConfig(): Promise<SamlConfig> {
 
 export async function updateSamlConfig(input: UpdateSamlConfigInput): Promise<SamlConfig> {
   const { data } = await apiClient.put<SamlConfig>(SAML_CONFIG_BASE, input);
+  return data;
+}
+
+// ── Setup progress ───────────────────────────────────────────────────────────
+
+export async function getSetupProgress(): Promise<SetupProgress> {
+  const { data } = await apiClient.get<SetupProgress>(SETUP_PROGRESS_BASE);
   return data;
 }

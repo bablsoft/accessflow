@@ -220,4 +220,25 @@ describe('api/admin', () => {
     expect(adminApi.aiConfigKeys.current()).toEqual(['aiConfig', 'current']);
     expect(adminApi.samlConfigKeys.current()).toEqual(['samlConfig', 'current']);
   });
+
+  // ── Setup progress ──────────────────────────────────────────────────────
+  it('getSetupProgress GETs /admin/setup-progress', async () => {
+    const fixture = {
+      datasources_configured: false,
+      review_plans_configured: true,
+      ai_provider_configured: false,
+      completed_steps: 1,
+      total_steps: 3,
+      complete: false,
+    };
+    get.mockResolvedValueOnce({ data: fixture });
+    const result = await adminApi.getSetupProgress();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/setup-progress');
+    expect(result).toEqual(fixture);
+  });
+
+  it('setupProgressKeys produce stable factory output', () => {
+    expect(adminApi.setupProgressKeys.all).toEqual(['setupProgress']);
+    expect(adminApi.setupProgressKeys.current()).toEqual(['setupProgress', 'current']);
+  });
 });

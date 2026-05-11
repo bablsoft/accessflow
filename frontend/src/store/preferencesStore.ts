@@ -8,10 +8,12 @@ export type ThemeMode = 'light' | 'dark';
 interface PreferencesState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
+  setupProgressCollapsed: boolean;
   edition: Edition;
   language: Language;
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
+  toggleSetupProgress: () => void;
   setLanguage: (code: string | null | undefined) => void;
 }
 
@@ -30,11 +32,14 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set, get) => ({
       theme: initialTheme(),
       sidebarCollapsed: false,
+      setupProgressCollapsed: false,
       edition: initialEdition(),
       language: 'en',
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      toggleSetupProgress: () =>
+        set((s) => ({ setupProgressCollapsed: !s.setupProgressCollapsed })),
       setLanguage: (code) => {
         const next: Language = isSupportedLanguage(code) ? code : 'en';
         if (next === get().language) {

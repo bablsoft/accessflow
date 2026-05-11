@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Sidebar } from '@/components/common/Sidebar';
+import { SetupProgressWidget } from '@/components/common/SetupProgressWidget';
 import { Topbar } from '@/components/common/Topbar';
 import { RealtimeBridge } from '@/realtime/RealtimeBridge';
 import { useAuthStore } from '@/store/authStore';
@@ -48,6 +49,7 @@ export function AppLayout() {
       <div className="af-app-main">
         <Topbar onOpenMobileNav={() => setMobileOpen(true)} />
         <div className="af-app-content">
+          <SetupProgressWidget />
           <Outlet />
         </div>
       </div>

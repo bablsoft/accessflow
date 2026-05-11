@@ -384,6 +384,18 @@
     }
   },
   "admin": {
+    "setup_progress": {
+      "title": "Finalisez la configuration d'AccessFlow",
+      "subtitle": "Complétez ces étapes pour commencer à examiner les requêtes.",
+      "step_datasources_label": "Ajoutez votre première source de données",
+      "step_review_plans_label": "Créez un plan d'examen",
+      "step_ai_provider_label": "Configurez le fournisseur d'IA",
+      "step_action_setup": "Configurer",
+      "step_status_done": "Terminé",
+      "progress_aria": "Progression de la configuration",
+      "expand": "Afficher la liste de configuration",
+      "collapse": "Masquer la liste de configuration"
+    },
     "users": {
       "title": "Utilisateurs",
       "subtitle_count": "{{count}} utilisateurs dans ton organisation",

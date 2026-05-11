@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import {
   aiConfigKeys,
   getAiConfig,
+  setupProgressKeys,
   testAiConfig,
   updateAiConfig,
 } from '@/api/admin';
@@ -71,6 +72,7 @@ export function AIConfigPage() {
     mutationFn: (payload: UpdateAiConfigInput) => updateAiConfig(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: aiConfigKeys.all });
+      void queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       message.success(t('admin.ai_config.save_success'));
     },
     onError: (err) => message.error(adminErrorMessage(err)),

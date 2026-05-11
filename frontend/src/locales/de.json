@@ -384,6 +384,18 @@
     }
   },
   "admin": {
+    "setup_progress": {
+      "title": "Einrichtung von AccessFlow abschließen",
+      "subtitle": "Schließe diese Schritte ab, um Abfragen zu prüfen.",
+      "step_datasources_label": "Erste Datenquelle hinzufügen",
+      "step_review_plans_label": "Prüfplan erstellen",
+      "step_ai_provider_label": "KI-Anbieter konfigurieren",
+      "step_action_setup": "Einrichten",
+      "step_status_done": "Erledigt",
+      "progress_aria": "Einrichtungsfortschritt",
+      "expand": "Einrichtungs-Checkliste anzeigen",
+      "collapse": "Einrichtungs-Checkliste ausblenden"
+    },
     "users": {
       "title": "Benutzer",
       "subtitle_count": "{{count}} Benutzer in deiner Organisation",

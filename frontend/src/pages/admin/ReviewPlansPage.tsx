@@ -29,6 +29,7 @@ import {
   reviewPlanKeys,
   updateReviewPlan,
 } from '@/api/reviewPlans';
+import { setupProgressKeys } from '@/api/admin';
 import { reviewPlanErrorMessage } from '@/utils/apiErrors';
 import type { ReviewPlan, ReviewPlanWriteRequest } from '@/types/api';
 
@@ -105,6 +106,7 @@ export function ReviewPlansPage() {
     mutationFn: (payload: ReviewPlanWriteRequest) => createReviewPlan(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: reviewPlanKeys.all });
+      void queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       message.success(t('admin.review_plans.create_success'));
       closeModal();
     },
