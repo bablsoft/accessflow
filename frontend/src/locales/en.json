@@ -391,7 +391,10 @@
       "step_review_plans_label": "Create a review plan",
       "step_ai_provider_label": "Configure the AI provider",
       "step_action_setup": "Set up",
+      "step_action_skip": "Skip",
+      "step_action_undo_skip": "Undo skip",
       "step_status_done": "Done",
+      "step_status_skipped": "Skipped",
       "progress_aria": "Setup progress",
       "expand": "Show setup checklist",
       "collapse": "Hide setup checklist"

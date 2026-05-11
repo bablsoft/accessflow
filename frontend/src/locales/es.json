@@ -391,7 +391,10 @@
       "step_review_plans_label": "Crea un plan de revisión",
       "step_ai_provider_label": "Configura el proveedor de IA",
       "step_action_setup": "Configurar",
+      "step_action_skip": "Omitir",
+      "step_action_undo_skip": "Deshacer omisión",
       "step_status_done": "Listo",
+      "step_status_skipped": "Omitido",
       "progress_aria": "Progreso de configuración",
       "expand": "Mostrar lista de configuración",
       "collapse": "Ocultar lista de configuración"

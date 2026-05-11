@@ -391,7 +391,10 @@
       "step_review_plans_label": "Prüfplan erstellen",
       "step_ai_provider_label": "KI-Anbieter konfigurieren",
       "step_action_setup": "Einrichten",
+      "step_action_skip": "Überspringen",
+      "step_action_undo_skip": "Überspringen rückgängig",
       "step_status_done": "Erledigt",
+      "step_status_skipped": "Übersprungen",
       "progress_aria": "Einrichtungsfortschritt",
       "expand": "Einrichtungs-Checkliste anzeigen",
       "collapse": "Einrichtungs-Checkliste ausblenden"

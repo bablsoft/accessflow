@@ -391,7 +391,10 @@
       "step_review_plans_label": "创建审核计划",
       "step_ai_provider_label": "配置 AI 提供商",
       "step_action_setup": "去设置",
+      "step_action_skip": "跳过",
+      "step_action_undo_skip": "撤销跳过",
       "step_status_done": "已完成",
+      "step_status_skipped": "已跳过",
       "progress_aria": "设置进度",
       "expand": "显示设置清单",
       "collapse": "隐藏设置清单"

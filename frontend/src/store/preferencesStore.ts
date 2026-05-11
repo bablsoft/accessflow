@@ -5,15 +5,20 @@ import type { Edition } from '@/types/api';
 
 export type ThemeMode = 'light' | 'dark';
 
+export type SetupStepId = 'review_plans' | 'datasources' | 'ai_provider';
+
 interface PreferencesState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
   setupProgressCollapsed: boolean;
+  setupProgressSkipped: SetupStepId[];
   edition: Edition;
   language: Language;
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
   toggleSetupProgress: () => void;
+  skipSetupStep: (id: SetupStepId) => void;
+  unskipSetupStep: (id: SetupStepId) => void;
   setLanguage: (code: string | null | undefined) => void;
 }
 
@@ -33,6 +38,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       theme: initialTheme(),
       sidebarCollapsed: false,
       setupProgressCollapsed: false,
+      setupProgressSkipped: [],
       edition: initialEdition(),
       language: 'en',
       setTheme: (theme) => set({ theme }),
@@ -40,6 +46,14 @@ export const usePreferencesStore = create<PreferencesState>()(
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleSetupProgress: () =>
         set((s) => ({ setupProgressCollapsed: !s.setupProgressCollapsed })),
+      skipSetupStep: (id) =>
+        set((s) => (s.setupProgressSkipped.includes(id)
+          ? s
+          : { setupProgressSkipped: [...s.setupProgressSkipped, id] })),
+      unskipSetupStep: (id) =>
+        set((s) => ({
+          setupProgressSkipped: s.setupProgressSkipped.filter((x) => x !== id),
+        })),
       setLanguage: (code) => {
         const next: Language = isSupportedLanguage(code) ? code : 'en';
         if (next === get().language) {
