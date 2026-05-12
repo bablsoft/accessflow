@@ -50,7 +50,7 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
         } catch (RuntimeException e) {
             throw new AiAnalysisException("Anthropic API call failed: " + e.getMessage(), e);
         }
-        if (response == null || response.getResult() == null) {
+        if (response.getResult() == null) {
             throw new AiAnalysisException("Anthropic API returned an empty response");
         }
 
@@ -63,16 +63,12 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
         int completionTokens = 0;
         String model = "";
         var metadata = response.getMetadata();
-        if (metadata != null) {
-            var usage = metadata.getUsage();
-            if (usage != null) {
-                promptTokens = usage.getPromptTokens() != null ? usage.getPromptTokens() : 0;
-                completionTokens = usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
-            }
-            if (metadata.getModel() != null) {
-                model = metadata.getModel();
-            }
-        }
+        var usage = metadata.getUsage();
+        usage.getPromptTokens();
+        promptTokens = usage.getPromptTokens();
+        usage.getCompletionTokens();
+        completionTokens = usage.getCompletionTokens();
+        model = metadata.getModel();
 
         log.debug("Anthropic response: model={}, input_tokens={}, output_tokens={}",
                 model, promptTokens, completionTokens);
