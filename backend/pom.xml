@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.partqam.accessflow</groupId>
+    <groupId>com.bablsoft.accessflow</groupId>
     <artifactId>accessflow</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
