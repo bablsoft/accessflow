@@ -53,12 +53,12 @@ accessflow/
 
 The project is a **single Maven module** with **Spring Modulith** enforcing logical module boundaries via package conventions. Do **not** split into Maven sub-modules.
 
-**Root package:** `com.partqam.accessflow`
+**Root package:** `com.bablsoft.accessflow`
 
 Each business module lives under its own top-level sub-package. Modules communicate through **Spring application events** and **exposed `api` packages** — never by reaching into another module's `internal` sub-packages.
 
 ```
-com.partqam.accessflow/
+com.bablsoft.accessflow/
 ├── AccessFlowApplication.java
 ├── core/           # Domain entities, JPA repositories, enums, service interfaces
 │   ├── api/        # Public — enums and interfaces accessible to other modules
@@ -512,7 +512,7 @@ npm run build          # Vite production build
 
 **Coverage target: ≥ 90% line coverage** — same gate as the backend. Enforced by Vitest's `coverage.thresholds` in `vite.config.ts`; the build fails when below threshold. Branches must hit ≥ 80%, lines/functions/statements ≥ 90%.
 
-The coverage `include` list deliberately scopes measurement to pure-logic modules (`src/utils/**`, the analyzer/schema/delay mocks) at the demo stage. As feature work lands and pages/components gain meaningful tests (tracked under [FE-09](https://github.com/partqam/accessflow/issues/80)), expand the `include` list in the same change. **Any time you add a new pure-logic module, include it in coverage measurement and ship it with tests.**
+The coverage `include` list deliberately scopes measurement to pure-logic modules (`src/utils/**`, the analyzer/schema/delay mocks) at the demo stage. As feature work lands and pages/components gain meaningful tests (tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80)), expand the `include` list in the same change. **Any time you add a new pure-logic module, include it in coverage measurement and ship it with tests.**
 
 CI pipeline (`.github/workflows/frontend-ci.yml`):
 - Triggers on changes to `frontend/**` on push to main and on PRs.
@@ -625,7 +625,7 @@ CI pipeline (`.github/workflows/frontend-ci.yml`):
 
 ### Demo-Mode Caveat
 
-The current `frontend/` scaffold runs in **demo mode**: mocked auth (`authStore` persists to localStorage), mocked AI/schema, in-memory query store. The rules above describe the **production** patterns and apply when wiring real backend calls (tracked under [FE-09](https://github.com/partqam/accessflow/issues/80) and follow-ups). Don't "fix" demo code to match these rules unless the task explicitly says so.
+The current `frontend/` scaffold runs in **demo mode**: mocked auth (`authStore` persists to localStorage), mocked AI/schema, in-memory query store. The rules above describe the **production** patterns and apply when wiring real backend calls (tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80) and follow-ups). Don't "fix" demo code to match these rules unless the task explicitly says so.
 
 ---
 
