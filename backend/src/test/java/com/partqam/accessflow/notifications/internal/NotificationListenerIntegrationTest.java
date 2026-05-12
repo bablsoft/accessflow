@@ -25,7 +25,9 @@ import com.partqam.accessflow.core.internal.persistence.repo.UserRepository;
 import com.partqam.accessflow.notifications.api.NotificationChannelType;
 import com.partqam.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.partqam.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
+import com.partqam.accessflow.core.events.QueryAutoApprovedEvent;
 import com.partqam.accessflow.workflow.events.QueryApprovedEvent;
+import com.partqam.accessflow.workflow.events.QueryRejectedEvent;
 import com.partqam.accessflow.core.events.QueryReadyForReviewEvent;
 import com.sun.net.httpserver.HttpServer;
 import org.awaitility.Awaitility;
@@ -242,6 +244,44 @@ class NotificationListenerIntegrationTest {
         Awaitility.await().atMost(Duration.ofSeconds(10))
                 .untilAsserted(() -> {
                     assertThat(REQUESTS).anyMatch(r -> "QUERY_APPROVED".equals(r.event()));
+                });
+    }
+
+    @Test
+    void autoApprovedFiresWebhook() {
+        new TransactionTemplate(transactionManager).executeWithoutResult(s ->
+                eventPublisher.publishEvent(new QueryAutoApprovedEvent(queryRequestId)));
+
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> {
+                    assertThat(REQUESTS).isNotEmpty();
+                    var req = REQUESTS.stream()
+                            .filter(r -> "QUERY_APPROVED".equals(r.event()))
+                            .findFirst()
+                            .orElseThrow();
+                    assertThat(req.signature()).startsWith("sha256=");
+                    assertThat(req.delivery()).isNotBlank();
+                    assertThat(req.body()).contains("\"event\":\"QUERY_APPROVED\"");
+                    assertThat(req.body()).contains(queryRequestId.toString());
+                });
+    }
+
+    @Test
+    void rejectedFiresWebhook() {
+        new TransactionTemplate(transactionManager).executeWithoutResult(s ->
+                eventPublisher.publishEvent(new QueryRejectedEvent(queryRequestId, UUID.randomUUID())));
+
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> {
+                    assertThat(REQUESTS).isNotEmpty();
+                    var req = REQUESTS.stream()
+                            .filter(r -> "QUERY_REJECTED".equals(r.event()))
+                            .findFirst()
+                            .orElseThrow();
+                    assertThat(req.signature()).startsWith("sha256=");
+                    assertThat(req.delivery()).isNotBlank();
+                    assertThat(req.body()).contains("\"event\":\"QUERY_REJECTED\"");
+                    assertThat(req.body()).contains(queryRequestId.toString());
                 });
     }
 
