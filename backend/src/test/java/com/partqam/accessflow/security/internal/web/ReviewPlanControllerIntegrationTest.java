@@ -170,7 +170,7 @@ class ReviewPlanControllerIntegrationTest {
     }
 
     @Test
-    void createWithDuplicateNameReturns422() {
+    void createWithDuplicateNameReturns409() {
         savePlan(primaryOrg, "Existing");
 
         var result = mvc.post().uri("/api/v1/review-plans")
@@ -181,9 +181,9 @@ class ReviewPlanControllerIntegrationTest {
                         """)
                 .exchange();
 
-        assertThat(result).hasStatus(422);
+        assertThat(result).hasStatus(409);
         assertThat(result).bodyJson().extractingPath("$.error").asString()
-                .isEqualTo("ILLEGAL_REVIEW_PLAN");
+                .isEqualTo("REVIEW_PLAN_NAME_ALREADY_EXISTS");
     }
 
     @Test

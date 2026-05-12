@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { timeAgo } from '@/utils/dateFormat';
+import { riskColor } from '@/utils/riskColors';
+import type { RiskLevel } from '@/types/api';
 
 export interface TimelineStage {
   label: string;
@@ -11,6 +13,7 @@ export interface TimelineStage {
   failed?: boolean;
   cancelled?: boolean;
   detail?: string | null;
+  riskLevel?: RiskLevel | null;
 }
 
 export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
@@ -29,15 +32,18 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
         {stages.map((s, i) => {
           const last = i === stages.length - 1;
           const isDanger = !!(s.rejected || s.failed);
+          const riskFg = s.riskLevel ? riskColor(s.riskLevel).fg : null;
           const dotColor = isDanger
             ? 'var(--risk-crit)'
-            : s.done
-              ? 'var(--risk-low)'
-              : s.active
-                ? 'var(--accent)'
-                : s.cancelled
-                  ? 'var(--fg-muted)'
-                  : 'var(--border-strong)';
+            : riskFg && (s.done || s.active)
+              ? riskFg
+              : s.done
+                ? 'var(--risk-low)'
+                : s.active
+                  ? 'var(--accent)'
+                  : s.cancelled
+                    ? 'var(--fg-muted)'
+                    : 'var(--border-strong)';
           return (
             <div
               key={i}

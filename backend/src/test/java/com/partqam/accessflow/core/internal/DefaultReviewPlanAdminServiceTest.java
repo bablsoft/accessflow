@@ -3,6 +3,7 @@ package com.partqam.accessflow.core.internal;
 import com.partqam.accessflow.core.api.CreateReviewPlanCommand;
 import com.partqam.accessflow.core.api.IllegalReviewPlanException;
 import com.partqam.accessflow.core.api.ReviewPlanInUseException;
+import com.partqam.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
 import com.partqam.accessflow.core.api.ReviewPlanView;
 import com.partqam.accessflow.core.api.UpdateReviewPlanCommand;
@@ -111,8 +112,8 @@ class DefaultReviewPlanAdminServiceTest {
         assertThatThrownBy(() -> service.create(new CreateReviewPlanCommand(orgId, "Dup",
                 null, null, true, null, null, null, null,
                 List.of(new ReviewPlanView.ApproverRule(null, UserRoleType.REVIEWER, 1)))))
-                .isInstanceOf(IllegalReviewPlanException.class)
-                .hasMessageContaining("already exists");
+                .isInstanceOf(ReviewPlanNameAlreadyExistsException.class)
+                .hasMessageContaining("Dup");
     }
 
     @Test
@@ -245,7 +246,8 @@ class DefaultReviewPlanAdminServiceTest {
         var command = new UpdateReviewPlanCommand("Other", null, null, null,
                 null, null, null, null, null);
         assertThatThrownBy(() -> service.update(planId, orgId, command))
-                .isInstanceOf(IllegalReviewPlanException.class);
+                .isInstanceOf(ReviewPlanNameAlreadyExistsException.class)
+                .hasMessageContaining("Other");
     }
 
     @Test

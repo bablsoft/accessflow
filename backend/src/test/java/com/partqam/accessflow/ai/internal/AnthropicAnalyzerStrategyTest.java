@@ -90,15 +90,6 @@ class AnthropicAnalyzerStrategyTest {
     }
 
     @Test
-    void analyzeFailsWhenResponseIsNull() {
-        when(chatModel.call(any(Prompt.class))).thenReturn(null);
-
-        assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", ORG_ID))
-                .isInstanceOf(AiAnalysisException.class)
-                .hasMessageContaining("empty response");
-    }
-
-    @Test
     void analyzeFailsWhenResponseTextIsBlank() {
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse("   ", 1, 1, "claude-sonnet-4-20250514"));

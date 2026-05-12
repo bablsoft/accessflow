@@ -8,7 +8,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Pill } from '@/components/common/Pill';
 import { DatasourceIcon } from '@/components/datasources/DatasourceIcon';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
-import type { Datasource } from '@/types/api';
+import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
+import type { Datasource, ReviewPlan } from '@/types/api';
 
 export function DatasourceListPage() {
   const { t } = useTranslation();
@@ -18,6 +19,17 @@ export function DatasourceListPage() {
     queryKey: datasourceKeys.list({ size: 100 }),
     queryFn: () => listDatasources({ size: 100 }),
   });
+  const reviewPlansQuery = useQuery({
+    queryKey: reviewPlanKeys.lists(),
+    queryFn: listReviewPlans,
+  });
+  const plansById = useMemo(() => {
+    const map = new Map<string, ReviewPlan>();
+    for (const plan of reviewPlansQuery.data ?? []) {
+      map.set(plan.id, plan);
+    }
+    return map;
+  }, [reviewPlansQuery.data]);
   const datasourcesData = datasourcesQuery.data;
   const total = datasourcesData?.total_elements ?? 0;
   const filtered = useMemo(() => {
@@ -91,7 +103,11 @@ export function DatasourceListPage() {
           <DsCard
             key={ds.id}
             ds={ds}
+            plan={ds.review_plan_id ? plansById.get(ds.review_plan_id) ?? null : null}
             onOpen={() => navigate(`/datasources/${ds.id}/settings`)}
+            onOpenPlan={(planId) =>
+              navigate(`/admin/review-plans?planId=${encodeURIComponent(planId)}`)
+            }
           />
         ))}
       </div>
@@ -101,15 +117,18 @@ export function DatasourceListPage() {
 
 interface CardProps {
   ds: Datasource;
+  plan: ReviewPlan | null;
   onOpen: () => void;
+  onOpenPlan: (planId: string) => void;
 }
 
-function DsCard({ ds, onOpen }: CardProps) {
+function DsCard({ ds, plan, onOpen, onOpenPlan }: CardProps) {
   const { t } = useTranslation();
-  // TODO(FE-XX): swap to useReviewPlans() once /review-plans ships.
-  const planLabel = ds.review_plan_id
-    ? ds.review_plan_id.slice(0, 8)
-    : t('datasources.list.stat_plan_unknown');
+  const planLabel = plan
+    ? plan.name
+    : ds.review_plan_id
+      ? ds.review_plan_id.slice(0, 8)
+      : t('datasources.list.stat_plan_unknown');
   return (
     <div
       onClick={onOpen}
@@ -203,9 +222,21 @@ function DsCard({ ds, onOpen }: CardProps) {
         >
           {t('datasources.list.stat_plan')}
         </div>
-        <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-          {planLabel}
-        </div>
+        {ds.review_plan_id ? (
+          <a
+            href={`/admin/review-plans?planId=${encodeURIComponent(ds.review_plan_id)}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenPlan(ds.review_plan_id!);
+            }}
+            style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}
+          >
+            {planLabel}
+          </a>
+        ) : (
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{planLabel}</div>
+        )}
       </div>
     </div>
   );

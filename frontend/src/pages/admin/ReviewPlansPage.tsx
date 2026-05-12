@@ -18,6 +18,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -69,6 +70,7 @@ export function ReviewPlansPage() {
   const [editing, setEditing] = useState<ReviewPlan | null>(null);
   const [creating, setCreating] = useState(false);
   const [form] = Form.useForm<PlanFormValues>();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const plansQuery = useQuery({
     queryKey: reviewPlanKeys.lists(),
@@ -76,6 +78,17 @@ export function ReviewPlansPage() {
   });
 
   const isOpen = creating || editing !== null;
+
+  const requestedPlanId = searchParams.get('planId');
+  useEffect(() => {
+    if (!requestedPlanId || !plansQuery.data) return;
+    if (editing && editing.id === requestedPlanId) return;
+    const target = plansQuery.data.find((p) => p.id === requestedPlanId);
+    if (target) {
+      setCreating(false);
+      setEditing(target);
+    }
+  }, [requestedPlanId, plansQuery.data, editing]);
 
   useEffect(() => {
     if (creating) {
@@ -101,6 +114,11 @@ export function ReviewPlansPage() {
   const closeModal = () => {
     setCreating(false);
     setEditing(null);
+    if (searchParams.has('planId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('planId');
+      setSearchParams(next, { replace: true });
+    }
   };
 
   const createMutation = useMutation({

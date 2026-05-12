@@ -10,6 +10,7 @@ import com.partqam.accessflow.core.api.DriverResolutionException;
 import com.partqam.accessflow.core.api.EmailAlreadyExistsException;
 import com.partqam.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.partqam.accessflow.core.api.IllegalUserOperationException;
+import com.partqam.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.UserNotFoundException;
 import com.partqam.accessflow.proxy.api.DatasourceUnavailableException;
 import com.partqam.accessflow.proxy.api.InvalidSqlException;
@@ -168,6 +169,16 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(409);
         assertThat(pd.getProperties())
                 .containsEntry("error", "DATASOURCE_PERMISSION_ALREADY_EXISTS");
+    }
+
+    @Test
+    void reviewPlanNameAlreadyExistsReturns409() {
+        var pd = handler.handleReviewPlanNameAlreadyExists(
+                new ReviewPlanNameAlreadyExistsException("Default"));
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "REVIEW_PLAN_NAME_ALREADY_EXISTS");
     }
 
     @Test

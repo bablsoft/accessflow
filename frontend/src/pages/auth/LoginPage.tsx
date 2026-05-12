@@ -241,19 +241,7 @@ export function LoginPage() {
 
               <Form.Item
                 name="password"
-                label={
-                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                    <span>{t('auth.login.password_label')}</span>
-                    <a
-                      href="#"
-                      className="muted"
-                      style={{ fontSize: 11, textDecoration: 'none' }}
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      Forgot?
-                    </a>
-                  </div>
-                }
+                label={t('auth.login.password_label')}
                 rules={[
                   { required: true, message: t('validation.password_required') },
                   { min: 8, max: 128, message: t('validation.password_size') },
@@ -280,6 +268,24 @@ export function LoginPage() {
                   }
                 />
               </Form.Item>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  marginTop: -8,
+                  marginBottom: 12,
+                }}
+              >
+                <a
+                  href="#"
+                  className="muted"
+                  style={{ fontSize: 11, textDecoration: 'none' }}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  {t('auth.login.forgot_link')}
+                </a>
+              </div>
 
               <Button
                 type="primary"
