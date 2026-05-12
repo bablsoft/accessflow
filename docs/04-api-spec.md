@@ -28,8 +28,8 @@
 | `POST` | `/auth/login` | Authenticate with email + password, returns JWT access token + HttpOnly refresh token cookie |
 | `POST` | `/auth/refresh` | Exchange refresh token for new access token |
 | `POST` | `/auth/logout` | Revoke current refresh token |
-| `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML *(Enterprise only)* |
-| `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint *(Enterprise only)* |
+| `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
+| `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
 
 ### POST /auth/login
 
@@ -835,7 +835,7 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/admin/users` | List all users in the organization |
-| `POST` | `/admin/users` | Create user (Community Edition — no SSO) |
+| `POST` | `/admin/users` | Create local user (LOCAL auth provider) |
 | `PUT` | `/admin/users/{id}` | Update user role or active status |
 | `DELETE` | `/admin/users/{id}` | Deactivate user |
 | `GET` | `/admin/audit-log` | Query audit log with filters (see below) |
@@ -846,10 +846,10 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | `POST` | `/admin/notification-channels/{id}/test` | Send a test notification |
 | `GET` | `/admin/ai-config` | Get current AI analyzer configuration |
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
-| `GET` | `/admin/saml-config` | Get SAML configuration *(Enterprise only)* |
-| `PUT` | `/admin/saml-config` | Update SAML configuration *(Enterprise only)* |
+| `GET` | `/admin/saml-config` | Get SAML configuration *(ADMIN only)* |
+| `PUT` | `/admin/saml-config` | Update SAML configuration *(ADMIN only)* |
 | `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
-| `GET` | `/system/info` | Returns edition, version, feature flags |
+| `GET` | `/system/info` | Returns version and feature flags |
 
 ### GET /admin/users — Query Parameters
 
@@ -1393,9 +1393,9 @@ Disables 2FA after confirming the caller's password. Clears `totp_secret_encrypt
 | `PASSWORD_INCORRECT` | 422 | `current_password` does not match the stored hash |
 | `PASSWORD_CHANGE_NOT_ALLOWED` | 422 | Account is SAML-provisioned |
 
-### GET /admin/saml-config (Enterprise only)
+### GET /admin/saml-config
 
-Returns the current SAML configuration for the caller's organization. Available only when the backend was started with `accessflow.edition=enterprise`; Community builds return 404. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
+Returns the current SAML configuration for the caller's organization. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
 
 **Response 200:**
 ```json
@@ -1418,9 +1418,9 @@ Returns the current SAML configuration for the caller's organization. Available 
 }
 ```
 
-### PUT /admin/saml-config (Enterprise only)
+### PUT /admin/saml-config
 
-Partial update. Any omitted field is left unchanged. Sending `"signing_cert_pem": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` before persistence. Available only on Enterprise builds (404 on Community).
+Partial update. Any omitted field is left unchanged. Sending `"signing_cert_pem": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` before persistence.
 
 **Request body:**
 ```json

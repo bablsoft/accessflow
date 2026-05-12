@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DecisionType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -99,7 +98,6 @@ class ReviewControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary");
-        org.setEdition(EditionType.COMMUNITY);
         organization = organizationRepository.save(org);
 
         reviewer = saveUser(org, "reviewer@example.com", UserRoleType.REVIEWER);

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import i18n, { isSupportedLanguage, type Language } from '@/i18n';
-import type { Edition } from '@/types/api';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -12,7 +11,6 @@ interface PreferencesState {
   sidebarCollapsed: boolean;
   setupProgressCollapsed: boolean;
   setupProgressSkipped: SetupStepId[];
-  edition: Edition;
   language: Language;
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
@@ -27,11 +25,6 @@ const initialTheme = (): ThemeMode => {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
-const initialEdition = (): Edition => {
-  const raw = import.meta.env.VITE_APP_EDITION;
-  return raw === 'enterprise' ? 'ENTERPRISE' : 'COMMUNITY';
-};
-
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set, get) => ({
@@ -39,7 +32,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       sidebarCollapsed: false,
       setupProgressCollapsed: false,
       setupProgressSkipped: [],
-      edition: initialEdition(),
       language: 'en',
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>

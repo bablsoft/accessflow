@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
@@ -86,7 +85,6 @@ class AdminSetupProgressControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
 
         admin = saveUser("admin@example.com", UserRoleType.ADMIN);

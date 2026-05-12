@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-AccessFlow is an open-source, enterprise-ready database access governance platform. It acts as a full SQL proxy between application users and relational databases (PostgreSQL and MySQL), enforcing configurable review and approval workflows before any query is executed against live data.
+AccessFlow is an open-source database access governance platform. It acts as a full SQL proxy between application users and relational databases (PostgreSQL and MySQL), enforcing configurable review and approval workflows before any query is executed against live data.
 
 Modern engineering teams face a critical gap: databases hold sensitive business data yet granting access is typically binary — either a user has credentials or they do not. AccessFlow bridges this gap by introducing a structured, auditable layer that supports:
 
@@ -11,7 +11,7 @@ Modern engineering teams face a critical gap: databases hold sensitive business 
 - AI-powered query analysis (risk scoring, index hints, anti-pattern detection)
 - A built-in SQL editor with real-time AI hints
 - Complete metadata audit trails (who requested what, when, who approved it)
-- Enterprise SAML/SSO integration
+- SAML 2.0 SSO integration
 
 All deployed within the customer's own infrastructure.
 
@@ -35,7 +35,7 @@ There is no widely-adopted, self-hostable, open-source tool that provides a gove
 - Enable users to **submit queries via a built-in SQL editor**, with AI-powered review before human approval.
 - Maintain a **tamper-evident metadata audit log** of every query request, review, and execution.
 - Support **notification delivery** via Email, Slack, and webhooks for review events.
-- Ship as a production-ready **open-source project** (Community Edition) with an Enterprise Edition adding SAML/SSO.
+- Ship as a production-ready **open-source project** under Apache 2.0.
 - Be **easy to operate**: single `docker compose up` for local/small environments; Helm chart for Kubernetes production.
 
 ---
@@ -58,5 +58,5 @@ There is no widely-adopted, self-hostable, open-source tool that provides a gove
 | Audit trail | Full metadata audit — who requested what, when, who approved it |
 | SQL editor | Built-in editor with syntax highlighting, autocomplete, and AI hints |
 | Configurable policies | Per-datasource approval chains, row limits, time windows |
-| Enterprise SSO | SAML 2.0 integration for workforce identity providers |
+| SSO | SAML 2.0 integration for workforce identity providers |
 | Easy deployment | Docker Compose for small teams, Helm chart for Kubernetes |

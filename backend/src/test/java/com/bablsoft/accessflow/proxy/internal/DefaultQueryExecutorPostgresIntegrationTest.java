@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.proxy.internal;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
@@ -96,7 +95,6 @@ class DefaultQueryExecutorPostgresIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary");
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
         datasource = saveDatasource();
 

@@ -103,7 +103,7 @@ accessflow-ui/
 │   ├── pages/
 │   │   ├── auth/
 │   │   │   ├── LoginPage.tsx
-│   │   │   └── SamlCallbackPage.tsx  # Enterprise SSO callback handler
+│   │   │   └── SamlCallbackPage.tsx  # SAML SSO callback handler
 │   │   │
 │   │   ├── editor/
 │   │   │   └── QueryEditorPage.tsx   # Full SQL editor with submit flow
@@ -125,11 +125,11 @@ accessflow-ui/
 │   │       ├── AuditLogPage.tsx
 │   │       ├── AIConfigPage.tsx
 │   │       ├── NotificationsPage.tsx
-│   │       └── SamlConfigPage.tsx    # Enterprise only
+│   │       └── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   └── preferencesStore.ts      # Theme, sidebar collapse, edition (env-driven, read-only)
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -274,8 +274,7 @@ The relevant mutations (create datasource, create review plan, save AI config) i
 
 The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the
 [language switcher](#language-switcher), the notification bell, and a sign-out button. It
-deliberately has no global search input and no community/enterprise edition selector — the
-edition is a build-time setting derived from `VITE_APP_EDITION` and read-only at runtime.
+deliberately has no global search input.
 
 ### Language switcher
 
@@ -397,7 +396,6 @@ The Axios refresh interceptor calls `useAuthStore.setState(...)` whenever the ac
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 VITE_WS_URL=ws://localhost:8080/ws
-VITE_APP_EDITION=community         # community | enterprise
 ```
 
 ---
@@ -406,7 +404,7 @@ VITE_APP_EDITION=community         # community | enterprise
 
 ```
 /login                              → LoginPage (also renders the TOTP verification stage)
-/auth/saml/callback                 → SamlCallbackPage (Enterprise)
+/auth/saml/callback                 → SamlCallbackPage
 
 /editor                             → QueryEditorPage
 /queries                            → QueryListPage  (header **Export CSV** button hits `GET /queries/export.csv` with the active server-side filters — `status`, `datasource_id`, `submitted_by`, `from`, `to`, `query_type`. Client-only filters on the page, namely the free-text search and risk-level select, are not sent because the backend has no equivalent filter; this matches the behaviour of the list endpoint itself. The mutation downloads via a temporary `<a>` element and shows a warning toast when the response carries `X-AccessFlow-Export-Truncated: true`.)
@@ -426,7 +424,7 @@ VITE_APP_EDITION=community         # community | enterprise
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
-/admin/saml                         → SamlConfigPage (Enterprise)
+/admin/saml                         → SamlConfigPage
 ```
 
 All routes except `/login` and `/auth/saml/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.

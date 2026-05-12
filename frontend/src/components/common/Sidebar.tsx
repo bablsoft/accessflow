@@ -40,7 +40,6 @@ type NavEntry = NavItem | NavDivider;
 
 interface SidebarProps {
   user: AuthUser;
-  edition: 'COMMUNITY' | 'ENTERPRISE';
   pendingCount: number;
   collapsed: boolean;
   onToggle: () => void;
@@ -49,7 +48,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  user, edition, pendingCount, collapsed, onToggle, mobileOpen, onMobileClose,
+  user, pendingCount, collapsed, onToggle, mobileOpen, onMobileClose,
 }: SidebarProps) {
   const { t } = useTranslation();
   const location = useLocation();
@@ -67,17 +66,7 @@ export function Sidebar({
     { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
     { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
     { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
-    ...(edition === 'ENTERPRISE'
-      ? [
-          {
-            id: 'saml',
-            to: '/admin/saml',
-            label: t('nav.saml'),
-            icon: <IdcardOutlined />,
-            roles: ['ADMIN'] as Role[],
-          },
-        ]
-      : []),
+    { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
   ];
 
   const items = NAV.filter((n) => n.roles.includes(user.role));
@@ -92,7 +81,7 @@ export function Sidebar({
                 {t('common.app_name')}
               </div>
               <div className="mono muted" style={{ fontSize: 9.5, textTransform: 'lowercase' }}>
-                {edition.toLowerCase()} · v0.1.0
+                v0.1.0
               </div>
             </div>
           )}

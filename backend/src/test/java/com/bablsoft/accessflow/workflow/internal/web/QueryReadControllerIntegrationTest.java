@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -104,7 +103,6 @@ class QueryReadControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary");
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
 
         analyst = makeUser("analyst@example.com", "Analyst", UserRoleType.ANALYST);

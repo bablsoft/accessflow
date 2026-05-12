@@ -54,7 +54,6 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-anthropic}
       AI_API_KEY: ${AI_API_KEY}
       REDIS_URL: redis://redis:6379
-      ACCESSFLOW_EDITION: ${ACCESSFLOW_EDITION:-community}
       CORS_ALLOWED_ORIGIN: http://localhost:3000
     ports:
       - '8080:8080'
@@ -65,7 +64,6 @@ services:
     environment:
       VITE_API_BASE_URL: http://localhost:8080
       VITE_WS_URL: ws://localhost:8080/ws
-      VITE_APP_EDITION: ${ACCESSFLOW_EDITION:-community}
     ports:
       - '3000:80'
     depends_on:
@@ -95,7 +93,6 @@ ENCRYPTION_KEY=0123456789abcdef0123456789abcdef  # 32 hex chars = 16 bytes
 JWT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
 AI_PROVIDER=anthropic
 AI_API_KEY=sk-ant-...
-ACCESSFLOW_EDITION=community
 ```
 
 ### Quick Start
@@ -157,8 +154,6 @@ image:
     repository: accessflow/frontend
     tag: "1.0.0"
     pullPolicy: IfNotPresent
-
-edition: community   # community | enterprise
 
 # Internal PostgreSQL (set enabled: false to use external)
 postgresql:
@@ -246,7 +241,7 @@ podDisruptionBudget:
     enabled: true
     minAvailable: 1
 
-# Enterprise SAML (edition: enterprise only)
+# SAML 2.0 SSO (optional)
 saml:
   enabled: false
   spEntityId: ""
@@ -289,19 +284,18 @@ kubectl create secret generic accessflow-ai-key \
 | `DB_PASSWORD` | ✓ | — | PostgreSQL password |
 | `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256 key for credential encryption |
 | `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT signing |
-| `AUDIT_HMAC_KEY` | Enterprise (✓) / Community (Optional) | — | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. Required for non-community editions; community installs auto-derive a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and log a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
+| `AUDIT_HMAC_KEY` | Optional | — | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation and async events |
-| `ACCESSFLOW_EDITION` | Optional | `community` | `community` \| `enterprise` |
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:3000` | Frontend origin for CORS policy |
 | `SMTP_HOST` | Optional | — | SMTP host for email notifications |
 | `SMTP_PORT` | Optional | `587` | SMTP port |
 | `SMTP_USER` | Optional | — | SMTP username |
 | `SMTP_PASSWORD` | Optional | — | SMTP password |
 | `SMTP_TLS` | Optional | `true` | Enable SMTP STARTTLS |
-| `SAML_IDP_METADATA_URL` | Enterprise | — | URL to IdP metadata XML |
-| `SAML_SP_ENTITY_ID` | Enterprise | — | Service Provider entity ID |
-| `SAML_KEYSTORE_PATH` | Enterprise | — | Path to SAML keystore JKS |
-| `SAML_KEYSTORE_PASSWORD` | Enterprise | — | SAML keystore password |
+| `SAML_IDP_METADATA_URL` | Optional | — | URL to IdP metadata XML (required only when SAML SSO is in use) |
+| `SAML_SP_ENTITY_ID` | Optional | — | Service Provider entity ID |
+| `SAML_KEYSTORE_PATH` | Optional | — | Path to SAML keystore JKS |
+| `SAML_KEYSTORE_PASSWORD` | Optional | — | SAML keystore password |
 | `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
 

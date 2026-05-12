@@ -10,7 +10,6 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
-import { usePreferencesStore } from '@/store/preferencesStore';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
@@ -42,7 +41,6 @@ export function LoginPage() {
   const [stage, setStage] = useState<Stage>('CREDENTIALS');
   const [pendingCredentials, setPendingCredentials] = useState<LoginFormValues | null>(null);
   const login = useAuthStore((s) => s.login);
-  const edition = usePreferencesStore((s) => s.edition);
   const [form] = Form.useForm<LoginFormValues>();
   const [totpForm] = Form.useForm<TotpFormValues>();
 
@@ -141,7 +139,7 @@ export function LoginPage() {
               {t('common.app_name')}
             </div>
             <div className="mono muted" style={{ fontSize: 10 }}>
-              {edition.toLowerCase()} · v0.1.0
+              v0.1.0
             </div>
           </div>
         </div>
@@ -187,7 +185,7 @@ export function LoginPage() {
             />
           )}
 
-          {stage === 'CREDENTIALS' && edition === 'ENTERPRISE' && (
+          {stage === 'CREDENTIALS' && (
             <>
               <Button
                 size="large"

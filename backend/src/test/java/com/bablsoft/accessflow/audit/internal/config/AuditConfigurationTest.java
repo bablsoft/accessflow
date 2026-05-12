@@ -19,7 +19,6 @@ class AuditConfigurationTest {
     void usesExplicitHmacKeyWhenProvided() {
         var key = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(VALID_HEX_KEY),
-                "enterprise",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource);
         assertThat(key).hasSize(32);
@@ -29,7 +28,6 @@ class AuditConfigurationTest {
     void trimsWhitespaceFromExplicitKey() {
         var key = AuditConfiguration.resolveKey(
                 new AuditHmacProperties("  " + VALID_HEX_KEY + "\n"),
-                "enterprise",
                 null,
                 messageSource);
         assertThat(key).hasSize(32);
@@ -40,7 +38,6 @@ class AuditConfigurationTest {
         var shortHex = "0123456789abcdef";
         assertThatThrownBy(() -> AuditConfiguration.resolveKey(
                 new AuditHmacProperties(shortHex),
-                "enterprise",
                 null,
                 messageSource))
                 .isInstanceOf(IllegalStateException.class)
@@ -51,7 +48,6 @@ class AuditConfigurationTest {
     void rejectsNonHexKey() {
         assertThatThrownBy(() -> AuditConfiguration.resolveKey(
                 new AuditHmacProperties("zzzz"),
-                "community",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource))
                 .isInstanceOf(IllegalStateException.class)
@@ -59,21 +55,9 @@ class AuditConfigurationTest {
     }
 
     @Test
-    void failsOnNonCommunityWithoutKey() {
-        assertThatThrownBy(() -> AuditConfiguration.resolveKey(
-                new AuditHmacProperties(null),
-                "enterprise",
-                SAMPLE_ENCRYPTION_KEY,
-                messageSource))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("required for non-community editions");
-    }
-
-    @Test
-    void failsOnCommunityWithoutEncryptionKey() {
+    void failsWithoutAnyKeyOrEncryptionKey() {
         assertThatThrownBy(() -> AuditConfiguration.resolveKey(
                 new AuditHmacProperties(""),
-                "community",
                 "",
                 messageSource))
                 .isInstanceOf(IllegalStateException.class)
@@ -81,17 +65,15 @@ class AuditConfigurationTest {
     }
 
     @Test
-    void derivesKeyFromEncryptionKeyForCommunity() {
+    void derivesKeyFromEncryptionKey() {
         var key = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(null),
-                "community",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource);
         assertThat(key).hasSize(32);
         // Determinism: same encryption key → same derived audit key.
         var again = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(""),
-                "community",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource);
         assertThat(again).isEqualTo(key);
@@ -102,7 +84,6 @@ class AuditConfigurationTest {
         var encBytes = java.util.HexFormat.of().parseHex(SAMPLE_ENCRYPTION_KEY);
         var audit = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(null),
-                "community",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource);
         assertThat(audit).isNotEqualTo(encBytes);
@@ -112,25 +93,13 @@ class AuditConfigurationTest {
     void derivedKeyDiffersBetweenEncryptionKeys() {
         var first = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(null),
-                "community",
                 SAMPLE_ENCRYPTION_KEY,
                 messageSource);
         var second = AuditConfiguration.resolveKey(
                 new AuditHmacProperties(null),
-                "community",
                 "ababababababababababababababababababababababababababababababab12",
                 messageSource);
         assertThat(first).isNotEqualTo(second);
-    }
-
-    @Test
-    void treatsMissingEditionAsCommunity() {
-        var key = AuditConfiguration.resolveKey(
-                new AuditHmacProperties(null),
-                null,
-                SAMPLE_ENCRYPTION_KEY,
-                messageSource);
-        assertThat(key).hasSize(32);
     }
 
     @Test

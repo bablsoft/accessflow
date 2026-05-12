@@ -10,7 +10,7 @@ accessflow/
 ├── accessflow-proxy/             # SQL proxy engine, JDBC connection pool management
 ├── accessflow-workflow/          # Review workflow state machine, notification fanout
 ├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama adapters
-├── accessflow-security/          # JWT config, Spring Security, SAML (Enterprise module)
+├── accessflow-security/          # JWT config, Spring Security, SAML 2.0 SSO
 ├── accessflow-notifications/     # Email (JavaMail), Slack API, Webhook dispatcher
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
@@ -37,7 +37,6 @@ spring:
     locations: classpath:db/migration
 
 accessflow:
-  edition: community           # community | enterprise
   encryption-key: ${ENCRYPTION_KEY}   # 256-bit AES key for credential encryption
 
   jwt:
@@ -69,11 +68,10 @@ accessflow:
     url: ${REDIS_URL:redis://localhost:6379}
 ```
 
-### application-enterprise.yml (Enterprise overlay)
+### SAML 2.0 SSO overlay (optional)
 
 ```yaml
 accessflow:
-  edition: enterprise
   saml:
     sp-entity-id: https://accessflow.company.com/saml/metadata
     idp-metadata-url: ${SAML_IDP_METADATA_URL}
@@ -719,7 +717,7 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 <dependency>net.javacrumbs.shedlock:shedlock-spring</dependency>
 <dependency>net.javacrumbs.shedlock:shedlock-provider-redis-spring</dependency>
 
-<!-- SAML (Enterprise module only) -->
+<!-- SAML 2.0 SSO -->
 <dependency>org.springframework.security:spring-security-saml2-service-provider</dependency>
 
 <!-- Testing -->

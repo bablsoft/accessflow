@@ -12,7 +12,6 @@ import './app-layout.css';
 
 export function AppLayout() {
   const user = useAuthStore((s) => s.user);
-  const edition = usePreferencesStore((s) => s.edition);
   const sidebarCollapsed = usePreferencesStore((s) => s.sidebarCollapsed);
   const toggleSidebar = usePreferencesStore((s) => s.toggleSidebar);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -39,7 +38,6 @@ export function AppLayout() {
       <RealtimeBridge />
       <Sidebar
         user={user}
-        edition={edition}
         pendingCount={pendingCount}
         collapsed={sidebarCollapsed}
         onToggle={toggleSidebar}

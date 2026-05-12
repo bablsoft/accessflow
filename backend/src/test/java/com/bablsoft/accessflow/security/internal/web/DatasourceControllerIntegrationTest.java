@@ -4,7 +4,6 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
@@ -506,7 +505,6 @@ class DatasourceControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName(name);
         org.setSlug(slug);
-        org.setEdition(EditionType.COMMUNITY);
         return organizationRepository.save(org);
     }
 

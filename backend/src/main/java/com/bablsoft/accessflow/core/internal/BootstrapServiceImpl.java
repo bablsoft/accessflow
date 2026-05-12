@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.BootstrapService;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.SetupAlreadyCompletedException;
 import com.bablsoft.accessflow.core.api.SetupCommand;
 import com.bablsoft.accessflow.core.api.SetupResult;
@@ -49,7 +48,6 @@ class BootstrapServiceImpl implements BootstrapService {
         organization.setId(UUID.randomUUID());
         organization.setName(command.organizationName());
         organization.setSlug(uniqueSlugFor(command.organizationName()));
-        organization.setEdition(EditionType.COMMUNITY);
         organization.setCreatedAt(Instant.now());
         organization.setUpdatedAt(Instant.now());
         var savedOrg = organizationRepository.save(organization);
