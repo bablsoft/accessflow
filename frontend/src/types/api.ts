@@ -1,7 +1,7 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
 export type AuthProvider = 'LOCAL' | 'SAML';
 export type Edition = 'COMMUNITY' | 'ENTERPRISE';
-export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL';
+export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =
   | 'PENDING_AI'
@@ -204,9 +204,9 @@ export interface Datasource {
   organization_id: string;
   name: string;
   db_type: DbType;
-  host: string;
-  port: number;
-  database_name: string;
+  host: string | null;
+  port: number | null;
+  database_name: string | null;
   username: string;
   ssl_mode: SslMode;
   connection_pool_size: number;
@@ -216,6 +216,8 @@ export interface Datasource {
   review_plan_id: string | null;
   ai_analysis_enabled: boolean;
   ai_config_id: string | null;
+  custom_driver_id: string | null;
+  jdbc_url_override: string | null;
   active: boolean;
   created_at: string;
 }
@@ -229,9 +231,9 @@ export interface ConnectionTestResult {
 export interface CreateDatasourceInput {
   name: string;
   db_type: DbType;
-  host: string;
-  port: number;
-  database_name: string;
+  host?: string | null;
+  port?: number | null;
+  database_name?: string | null;
   username: string;
   password: string;
   ssl_mode: SslMode;
@@ -242,6 +244,8 @@ export interface CreateDatasourceInput {
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
   ai_config_id?: string | null;
+  custom_driver_id?: string | null;
+  jdbc_url_override?: string | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -260,6 +264,7 @@ export interface UpdateDatasourceInput {
   ai_analysis_enabled?: boolean;
   ai_config_id?: string | null;
   clear_ai_config?: boolean;
+  jdbc_url_override?: string | null;
   active?: boolean;
 }
 
@@ -277,6 +282,8 @@ export interface CreatePermissionInput {
 
 export type DriverStatus = 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
 
+export type DriverSource = 'bundled' | 'uploaded';
+
 export interface DatasourceTypeOption {
   code: DbType;
   display_name: string;
@@ -286,10 +293,40 @@ export interface DatasourceTypeOption {
   jdbc_url_template: string;
   driver_status: DriverStatus;
   bundled: boolean;
+  source: DriverSource;
+  custom_driver_id: string | null;
+  vendor_name: string | null;
+  driver_class: string | null;
 }
 
 export interface DatasourceTypesResponse {
   types: DatasourceTypeOption[];
+}
+
+export interface CustomDriver {
+  id: string;
+  organization_id: string;
+  vendor_name: string;
+  target_db_type: DbType;
+  driver_class: string;
+  jar_filename: string;
+  jar_sha256: string;
+  jar_size_bytes: number;
+  uploaded_by_user_id: string;
+  uploaded_by_display_name: string;
+  created_at: string;
+}
+
+export interface CustomDriverListResponse {
+  drivers: CustomDriver[];
+}
+
+export interface CustomDriverUploadInput {
+  jar: File;
+  vendor_name: string;
+  target_db_type: DbType;
+  driver_class: string;
+  expected_sha256: string;
 }
 
 export type DatasourcePage = PaginatedResponse<Datasource>;

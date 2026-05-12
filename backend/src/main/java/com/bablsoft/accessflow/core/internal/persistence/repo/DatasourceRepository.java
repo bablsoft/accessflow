@@ -28,6 +28,10 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
 
     boolean existsByReviewPlan_Id(UUID reviewPlanId);
 
+    boolean existsByCustomDriver_Id(UUID customDriverId);
+
+    List<DatasourceEntity> findAllByCustomDriver_Id(UUID customDriverId);
+
     List<DatasourceEntity> findAllByAiConfigId(UUID aiConfigId);
 
     @Query("""

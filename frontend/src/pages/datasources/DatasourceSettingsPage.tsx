@@ -224,9 +224,9 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
 
   const initialValues: UpdateDatasourceInput = {
     name: ds.name,
-    host: ds.host,
-    port: ds.port,
-    database_name: ds.database_name,
+    host: ds.host ?? undefined,
+    port: ds.port ?? undefined,
+    database_name: ds.database_name ?? undefined,
     username: ds.username,
     ssl_mode: ds.ssl_mode,
     connection_pool_size: ds.connection_pool_size,

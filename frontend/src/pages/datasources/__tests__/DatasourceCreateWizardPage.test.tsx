@@ -87,6 +87,10 @@ const typesResponse: DatasourceTypesResponse = {
       jdbc_url_template: 'jdbc:postgresql://{host}:{port}/{database}',
       driver_status: 'READY',
       bundled: true,
+      source: 'bundled',
+      custom_driver_id: null,
+      vendor_name: null,
+      driver_class: null,
     },
   ],
 };
@@ -108,6 +112,8 @@ const baseDatasource: Datasource = {
   review_plan_id: null,
   ai_analysis_enabled: false,
   ai_config_id: null,
+  custom_driver_id: null,
+  jdbc_url_override: null,
   active: true,
   created_at: '2026-05-12T00:00:00Z',
 };

@@ -7,7 +7,7 @@ public record CreateDatasourceCommand(
         String name,
         DbType dbType,
         String host,
-        int port,
+        Integer port,
         String databaseName,
         String username,
         String password,
@@ -18,5 +18,7 @@ public record CreateDatasourceCommand(
         Boolean requireReviewWrites,
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
-        UUID aiConfigId
+        UUID aiConfigId,
+        UUID customDriverId,
+        String jdbcUrlOverride
 ) {}

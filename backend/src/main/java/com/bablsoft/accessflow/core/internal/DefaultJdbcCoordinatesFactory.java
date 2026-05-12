@@ -33,6 +33,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
             case ORACLE -> "jdbc:oracle:thin:@//" + host + ":" + port + "/" + databaseName;
             case MSSQL -> "jdbc:sqlserver://" + host + ":" + port
                     + ";databaseName=" + databaseName + mssqlSslSuffix(sslMode);
+            case CUSTOM -> throw new IllegalStateException(
+                    "CUSTOM db_type uses jdbc_url_override; build URL via DatasourceEntity, not here");
         };
     }
 
@@ -83,6 +85,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
             case MARIADB -> "org.mariadb.jdbc.Driver";
             case ORACLE -> "oracle.jdbc.OracleDriver";
             case MSSQL -> "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+            case CUSTOM -> throw new IllegalStateException(
+                    "CUSTOM db_type uses an uploaded driver class; resolve via CustomJdbcDriverService");
         };
     }
 }

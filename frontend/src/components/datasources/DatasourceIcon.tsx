@@ -6,6 +6,7 @@ const ICON_BY_DB_TYPE: Record<DbType, string> = {
   MARIADB: '/db-icons/mariadb.svg',
   ORACLE: '/db-icons/oracle.svg',
   MSSQL: '/db-icons/mssql.svg',
+  CUSTOM: '/db-icons/custom.svg',
 };
 
 const FALLBACK_ICON = '/db-icons/generic.svg';

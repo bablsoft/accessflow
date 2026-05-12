@@ -17,7 +17,9 @@ The separation is enforced in the Spring Boot application via:
 |---------|-----------|------------|
 | **Core Proxy** | | |
 | SQL proxy for PostgreSQL | ✓ | ✓ |
-| SQL proxy for MySQL | ✓ | ✓ |
+| SQL proxy for MySQL / MariaDB / Oracle / SQL Server | ✓ | ✓ |
+| Admin-uploaded custom JDBC drivers (per-datasource selection) | ✓ | ✓ |
+| Dynamic datasources (free-form JDBC URL + uploaded driver) | ✓ | ✓ |
 | Connection pool per datasource | ✓ | ✓ |
 | Max rows per query enforcement | ✓ | ✓ |
 | Schema / table allow-listing | ✓ | ✓ |

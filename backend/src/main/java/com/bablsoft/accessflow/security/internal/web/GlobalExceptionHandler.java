@@ -1,5 +1,11 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.CustomDriverChecksumMismatchException;
+import com.bablsoft.accessflow.core.api.CustomDriverDuplicateException;
+import com.bablsoft.accessflow.core.api.CustomDriverInUseException;
+import com.bablsoft.accessflow.core.api.CustomDriverInvalidJarException;
+import com.bablsoft.accessflow.core.api.CustomDriverNotFoundException;
+import com.bablsoft.accessflow.core.api.CustomDriverTooLargeException;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
@@ -385,6 +391,67 @@ class GlobalExceptionHandler {
                 msg("error.datasource.ai_config_required"));
         pd.setProperty("error", "AI_CONFIG_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverNotFoundException.class)
+    ProblemDetail handleCustomDriverNotFound(CustomDriverNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.custom_driver.not_found"));
+        pd.setProperty("error", "CUSTOM_DRIVER_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("driverId", ex.driverId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverDuplicateException.class)
+    ProblemDetail handleCustomDriverDuplicate(CustomDriverDuplicateException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.custom_driver.duplicate"));
+        pd.setProperty("error", "CUSTOM_DRIVER_DUPLICATE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("existingDriverId", ex.existingDriverId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverInUseException.class)
+    ProblemDetail handleCustomDriverInUse(CustomDriverInUseException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.custom_driver.in_use"));
+        pd.setProperty("error", "CUSTOM_DRIVER_IN_USE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("referencedBy", ex.referencedBy().stream().map(Object::toString).toList());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverChecksumMismatchException.class)
+    ProblemDetail handleCustomDriverChecksumMismatch(CustomDriverChecksumMismatchException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.custom_driver.checksum_mismatch", ex.expectedSha256(), ex.actualSha256()));
+        pd.setProperty("error", "CUSTOM_DRIVER_CHECKSUM_MISMATCH");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("expectedSha256", ex.expectedSha256());
+        pd.setProperty("actualSha256", ex.actualSha256());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverTooLargeException.class)
+    ProblemDetail handleCustomDriverTooLarge(CustomDriverTooLargeException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE,
+                msg("error.custom_driver.too_large", ex.maxBytes()));
+        pd.setProperty("error", "CUSTOM_DRIVER_TOO_LARGE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("maxBytes", ex.maxBytes());
+        return pd;
+    }
+
+    @ExceptionHandler(CustomDriverInvalidJarException.class)
+    ProblemDetail handleCustomDriverInvalidJar(CustomDriverInvalidJarException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.custom_driver.invalid_jar", ex.driverClass()));
+        pd.setProperty("error", "CUSTOM_DRIVER_INVALID_JAR");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("driverClass", ex.driverClass());
         return pd;
     }
 

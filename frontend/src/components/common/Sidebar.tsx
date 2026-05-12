@@ -11,6 +11,7 @@ import {
   ApartmentOutlined,
   IdcardOutlined,
   GlobalOutlined,
+  ApiOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
@@ -64,6 +65,7 @@ export function Sidebar({
     { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
     { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
     { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
+    { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
     { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
     ...(edition === 'ENTERPRISE'
       ? [

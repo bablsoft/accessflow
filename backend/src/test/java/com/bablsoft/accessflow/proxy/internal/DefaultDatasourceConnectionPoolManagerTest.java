@@ -43,7 +43,7 @@ class DefaultDatasourceConnectionPoolManagerTest {
     private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor activeDescriptor = new DatasourceConnectionDescriptor(
             id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10,
-            1000, false, null, true);
+            1000, false, null, null, null, true);
 
     @BeforeEach
     void setUp() {
@@ -113,7 +113,7 @@ class DefaultDatasourceConnectionPoolManagerTest {
     void resolveThrowsWhenDatasourceInactive() {
         var inactive = new DatasourceConnectionDescriptor(
                 id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
-                10, 1000, false, null, false);
+                10, 1000, false, null, null, null, false);
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(inactive));
 
         assertThatThrownBy(() -> manager.resolve(id))
@@ -163,9 +163,9 @@ class DefaultDatasourceConnectionPoolManagerTest {
         var poolA = mock(HikariDataSource.class);
         var poolB = mock(HikariDataSource.class);
         var descA = new DatasourceConnectionDescriptor(idA, organizationId, DbType.POSTGRESQL,
-                "a", 5432, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, false, null, true);
+                "a", 5432, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, false, null, null, null, true);
         var descB = new DatasourceConnectionDescriptor(idB, organizationId, DbType.MYSQL,
-                "b", 3306, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, false, null, true);
+                "b", 3306, "d", "u", "ENC", SslMode.DISABLE, 10, 1000, false, null, null, null, true);
         when(datasourceLookupService.findById(idA)).thenReturn(Optional.of(descA));
         when(datasourceLookupService.findById(idB)).thenReturn(Optional.of(descB));
         when(poolFactory.createPool(descA)).thenReturn(poolA);

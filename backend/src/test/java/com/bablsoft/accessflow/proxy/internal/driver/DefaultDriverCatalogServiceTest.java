@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
+import com.bablsoft.accessflow.core.api.CustomDriverDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.DriverStatus;
+import com.bablsoft.accessflow.core.api.DriverTypeInfo;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,12 +43,97 @@ class DefaultDriverCatalogServiceTest {
                 Locale.getDefault(), "cache-not-writable-{0}-{1}");
         messageSource.addMessage("error.datasource_driver_unavailable.unavailable",
                 Locale.getDefault(), "unavailable-{0}");
+        messageSource.addMessage("error.custom_driver.jar_missing",
+                Locale.getDefault(), "custom-jar-missing-{0}");
+        messageSource.addMessage("error.custom_driver.invalid_class",
+                Locale.getDefault(), "custom-invalid-class-{0}");
+    }
+
+    @Test
+    void resolveCustomLoadsDriverFromUploadedJarAndCachesResult() throws Exception {
+        var jarBytes = Files.readAllBytes(Path.of(org.postgresql.Driver.class
+                .getProtectionDomain().getCodeSource().getLocation().toURI()));
+        var sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(jarBytes));
+        Files.write(cacheDir.resolve("uploaded.jar"), jarBytes);
+
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var driverId = java.util.UUID.randomUUID();
+        var descriptor = new CustomDriverDescriptor(
+                driverId, java.util.UUID.randomUUID(), DbType.POSTGRESQL, "Acme",
+                "org.postgresql.Driver", "uploaded.jar", sha, jarBytes.length, "uploaded.jar");
+
+        var resolved = service.resolveCustom(descriptor);
+        var resolvedAgain = service.resolveCustom(descriptor);
+
+        assertThat(resolved.driverClassName()).isEqualTo("org.postgresql.Driver");
+        assertThat(resolved.driver()).isNotNull();
+        assertThat(resolvedAgain).isSameAs(resolved);
+    }
+
+    @Test
+    void resolveCustomThrowsOnChecksumMismatch() throws Exception {
+        Files.write(cacheDir.resolve("uploaded.jar"), new byte[]{0x01, 0x02});
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var descriptor = new CustomDriverDescriptor(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), DbType.POSTGRESQL,
+                "Acme", "org.postgresql.Driver", "uploaded.jar", "0".repeat(64), 2L, "uploaded.jar");
+
+        assertThatThrownBy(() -> service.resolveCustom(descriptor))
+                .isInstanceOf(DriverResolutionException.class)
+                .satisfies(ex -> assertThat(((DriverResolutionException) ex).reason())
+                        .isEqualTo(DriverResolutionException.Reason.CHECKSUM_MISMATCH));
+    }
+
+    @Test
+    void resolveCustomThrowsWhenJarFileMissing() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var descriptor = new CustomDriverDescriptor(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), DbType.CUSTOM,
+                "Acme", "org.postgresql.Driver", "ghost.jar", "0".repeat(64), 0L, "ghost.jar");
+
+        assertThatThrownBy(() -> service.resolveCustom(descriptor))
+                .isInstanceOf(DriverResolutionException.class)
+                .hasMessageContaining("custom-jar-missing");
+    }
+
+    @Test
+    void listWithUploadedDriversAppendsThemAfterBundled() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var orgId = java.util.UUID.randomUUID();
+        var uploadedId = java.util.UUID.randomUUID();
+        var descriptor = new CustomDriverDescriptor(
+                uploadedId, orgId, DbType.ORACLE, "Acme",
+                "oracle.jdbc.OracleDriver", "ojdbc.jar", "a".repeat(64), 1, "x.jar");
+
+        var rows = service.list(orgId, java.util.List.of(descriptor));
+
+        var uploaded = rows.stream().filter(r -> "uploaded".equals(r.source())).toList();
+        assertThat(uploaded).hasSize(1);
+        assertThat(uploaded.get(0).customDriverId()).isEqualTo(uploadedId);
+        assertThat(uploaded.get(0).vendorName()).isEqualTo("Acme");
+        assertThat(uploaded.get(0).driverStatus()).isEqualTo(DriverStatus.READY);
+        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(5);
+        DriverTypeInfo first = rows.get(0);
+        assertThat(first.source()).isEqualTo("bundled");
+    }
+
+    @Test
+    void resolveThrowsForCustomDbType() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+
+        assertThatThrownBy(() -> service.resolve(DbType.CUSTOM))
+                .isInstanceOf(DriverResolutionException.class);
     }
 
     @Test
     void postgresqlAlwaysReportedAsReady() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var info = service.list().stream()
                 .filter(t -> t.code() == DbType.POSTGRESQL)
@@ -58,7 +145,7 @@ class DefaultDriverCatalogServiceTest {
     @Test
     void externalDriversReportedAsNotBundled() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var infos = service.list();
 
@@ -73,7 +160,7 @@ class DefaultDriverCatalogServiceTest {
     @Test
     void mysqlReportedAsAvailableWhenCacheMissOnline() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var info = service.list().stream()
                 .filter(t -> t.code() == DbType.MYSQL)
@@ -84,7 +171,7 @@ class DefaultDriverCatalogServiceTest {
     @Test
     void mysqlReportedAsUnavailableWhenOfflineAndCacheMiss() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", true);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var info = service.list().stream()
                 .filter(t -> t.code() == DbType.MYSQL)
@@ -97,7 +184,7 @@ class DefaultDriverCatalogServiceTest {
         var entry = DriverRegistry.require(DbType.MYSQL);
         Files.write(cacheDir.resolve(entry.jarFileName()), new byte[]{0x01});
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", true);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var info = service.list().stream()
                 .filter(t -> t.code() == DbType.MYSQL)
@@ -108,7 +195,7 @@ class DefaultDriverCatalogServiceTest {
     @Test
     void resolvePostgresqlReturnsBundledDriverFromAppClassloader() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         var resolved = service.resolve(DbType.POSTGRESQL);
 
@@ -124,7 +211,7 @@ class DefaultDriverCatalogServiceTest {
         Files.write(bogus, new byte[]{0x00});
         var props = new DriverProperties(bogus.resolve("nested"),
                 "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         assertThatThrownBy(() -> service.resolve(DbType.MYSQL))
                 .isInstanceOf(DriverResolutionException.class)
@@ -140,7 +227,7 @@ class DefaultDriverCatalogServiceTest {
     @Test
     void resolveOfflineWithoutCacheThrowsOfflineCacheMiss() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", true);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         assertThatThrownBy(() -> service.resolve(DbType.MYSQL))
                 .isInstanceOf(DriverResolutionException.class)
@@ -158,7 +245,7 @@ class DefaultDriverCatalogServiceTest {
         var jar = cacheDir.resolve(entry.jarFileName());
         Files.write(jar, new byte[]{0x42, 0x42, 0x42});
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", true);
-        var service = new DefaultDriverCatalogService(props, messageSource);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
         assertThatThrownBy(() -> service.resolve(DbType.MYSQL))
                 .isInstanceOf(DriverResolutionException.class)
@@ -190,7 +277,7 @@ class DefaultDriverCatalogServiceTest {
         try {
             var props = new DriverProperties(cacheDir,
                     "http://localhost:" + server.getAddress().getPort(), false);
-            var service = new DefaultDriverCatalogService(props, messageSource);
+            var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
 
             var resolved = service.resolve(DbType.MYSQL);
 

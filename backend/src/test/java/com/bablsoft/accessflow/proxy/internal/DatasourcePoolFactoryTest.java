@@ -38,6 +38,7 @@ class DatasourcePoolFactoryTest {
     private JdbcCoordinatesFactory coordinatesFactory;
     private ProxyPoolProperties properties;
     private DriverCatalogService driverCatalog;
+    private com.bablsoft.accessflow.core.api.CustomJdbcDriverService customJdbcDriverService;
     private ClassLoader perTypeClassLoader;
     private DatasourcePoolFactory factory;
 
@@ -45,13 +46,14 @@ class DatasourcePoolFactoryTest {
     private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor descriptor = new DatasourceConnectionDescriptor(
             datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, true);
+            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null, true);
 
     @BeforeEach
     void setUp() {
         encryptionService = mock(CredentialEncryptionService.class);
         coordinatesFactory = mock(JdbcCoordinatesFactory.class);
         driverCatalog = mock(DriverCatalogService.class);
+        customJdbcDriverService = mock(com.bablsoft.accessflow.core.api.CustomJdbcDriverService.class);
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
                 Duration.ZERO, "accessflow-ds-", null);
@@ -65,7 +67,7 @@ class DatasourcePoolFactoryTest {
                 .thenReturn(new ResolvedDriver(mock(Driver.class), perTypeClassLoader,
                         "org.postgresql.Driver"));
         factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
-                driverCatalog);
+                driverCatalog, customJdbcDriverService);
     }
 
     @Test
@@ -122,7 +124,7 @@ class DatasourcePoolFactoryTest {
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
                 Duration.ofSeconds(2), "accessflow-ds-", null);
         factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
-                driverCatalog);
+                driverCatalog, customJdbcDriverService);
 
         var captured = new AtomicReference<HikariConfig>();
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(

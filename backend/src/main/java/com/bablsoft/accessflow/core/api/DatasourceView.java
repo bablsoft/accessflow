@@ -9,7 +9,7 @@ public record DatasourceView(
         String name,
         DbType dbType,
         String host,
-        int port,
+        Integer port,
         String databaseName,
         String username,
         SslMode sslMode,
@@ -20,6 +20,8 @@ public record DatasourceView(
         UUID reviewPlanId,
         boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        UUID customDriverId,
+        String jdbcUrlOverride,
         boolean active,
         Instant createdAt
 ) {}

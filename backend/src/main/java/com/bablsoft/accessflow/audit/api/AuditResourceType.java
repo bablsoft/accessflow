@@ -12,7 +12,8 @@ public enum AuditResourceType {
     PERMISSION("permission"),
     REVIEW_PLAN("review_plan"),
     NOTIFICATION_CHANNEL("notification_channel"),
-    AI_CONFIG("ai_config");
+    AI_CONFIG("ai_config"),
+    CUSTOM_JDBC_DRIVER("custom_jdbc_driver");
 
     private final String dbValue;
 

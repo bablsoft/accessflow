@@ -4,6 +4,7 @@ import {
   adminErrorMessage,
   apiErrorTraceId,
   authErrorMessage,
+  customDriverErrorMessage,
   datasourceCreateErrorMessage,
   datasourceGrantErrorMessage,
   isTotpInvalidError,
@@ -399,5 +400,55 @@ describe('reviewPlanErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(reviewPlanErrorMessage(undefined))
       .toBe('Could not save the review plan. Please try again.');
+  });
+});
+
+describe('customDriverErrorMessage', () => {
+  it('maps CUSTOM_DRIVER_DUPLICATE', () => {
+    expect(customDriverErrorMessage(buildAxiosError(409, { error: 'CUSTOM_DRIVER_DUPLICATE' })))
+      .toMatch(/already registered/i);
+  });
+
+  it('maps CUSTOM_DRIVER_IN_USE with reference count', () => {
+    const msg = customDriverErrorMessage(
+      buildAxiosError(409, { error: 'CUSTOM_DRIVER_IN_USE', referencedBy: ['ds-1', 'ds-2'] }),
+    );
+    expect(msg).toMatch(/2 datasources/);
+  });
+
+  it('maps CUSTOM_DRIVER_CHECKSUM_MISMATCH', () => {
+    expect(customDriverErrorMessage(
+      buildAxiosError(422, { error: 'CUSTOM_DRIVER_CHECKSUM_MISMATCH' }),
+    )).toMatch(/SHA-256/);
+  });
+
+  it('maps CUSTOM_DRIVER_INVALID_JAR with driver class', () => {
+    expect(customDriverErrorMessage(buildAxiosError(422, {
+      error: 'CUSTOM_DRIVER_INVALID_JAR',
+      driverClass: 'com.acme.Driver',
+    }))).toContain('com.acme.Driver');
+  });
+
+  it('maps CUSTOM_DRIVER_TOO_LARGE with default size', () => {
+    expect(customDriverErrorMessage(
+      buildAxiosError(413, { error: 'CUSTOM_DRIVER_TOO_LARGE' }),
+    )).toMatch(/50 MB/);
+  });
+
+  it('maps CUSTOM_DRIVER_NOT_FOUND', () => {
+    expect(customDriverErrorMessage(
+      buildAxiosError(404, { error: 'CUSTOM_DRIVER_NOT_FOUND' }),
+    )).toBe('Custom JDBC driver not found.');
+  });
+
+  it('maps VALIDATION_ERROR with a specific upload message', () => {
+    expect(customDriverErrorMessage(
+      buildAxiosError(400, { error: 'VALIDATION_ERROR' }),
+    )).toMatch(/upload fields/);
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(customDriverErrorMessage(undefined))
+      .toBe('Could not upload the JDBC driver. Please try again.');
   });
 });

@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
+import com.bablsoft.accessflow.core.api.CustomDriverDescriptor;
+import com.bablsoft.accessflow.core.api.CustomDriverStorageService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.DriverStatus;
 import com.bablsoft.accessflow.core.api.DriverTypeInfo;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
+import com.bablsoft.accessflow.core.api.SslMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -28,11 +31,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Driver;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Default {@link DriverCatalogService} that resolves customer-database JDBC drivers on demand
@@ -41,21 +46,33 @@ import java.util.stream.Collectors;
  * {@link URLClassLoader} so HikariCP can instantiate it without polluting the application
  * classloader. The PostgreSQL entry is bundled (used for the AccessFlow internal database)
  * and resolves against the parent classloader without any download.
+ *
+ * <p>Admin-uploaded drivers (see {@code POST /datasources/drivers}) live alongside the bundled
+ * cache. Each upload gets its own {@link URLClassLoader} keyed by the driver's UUID so two
+ * datasources pointing at different uploaded JARs — even for the same {@link DbType} — remain
+ * isolated.
  */
 @Service
 class DefaultDriverCatalogService implements DriverCatalogService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultDriverCatalogService.class);
     private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(60);
+    private static final String CUSTOM_DRIVER_DISPLAY_NAME_FORMAT = "%s (custom %s)";
+    private static final SslMode CUSTOM_DEFAULT_SSL = SslMode.DISABLE;
+    private static final int CUSTOM_DEFAULT_PORT = 0;
 
     private final DriverProperties properties;
     private final HttpClient httpClient;
     private final MessageSource messageSource;
-    private final Map<DbType, ResolvedDriver> cache = new ConcurrentHashMap<>();
+    private final CustomDriverStorageService customDriverStorage;
+    private final Map<DbType, ResolvedDriver> bundledCache = new ConcurrentHashMap<>();
+    private final Map<UUID, ResolvedDriver> customCache = new ConcurrentHashMap<>();
 
-    DefaultDriverCatalogService(DriverProperties properties, MessageSource messageSource) {
+    DefaultDriverCatalogService(DriverProperties properties, MessageSource messageSource,
+                                CustomDriverStorageService customDriverStorage) {
         this.properties = properties;
         this.messageSource = messageSource;
+        this.customDriverStorage = customDriverStorage;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -64,31 +81,99 @@ class DefaultDriverCatalogService implements DriverCatalogService {
 
     @Override
     public List<DriverTypeInfo> list() {
-        return DriverRegistry.entries().values().stream()
-                .map(this::toTypeInfo)
-                .sorted(java.util.Comparator.comparing(t -> t.code().ordinal()))
-                .collect(Collectors.toList());
+        return list(null, List.of());
+    }
+
+    @Override
+    public List<DriverTypeInfo> list(UUID organizationId, List<CustomDriverDescriptor> uploaded) {
+        List<DriverTypeInfo> rows = new ArrayList<>();
+        DriverRegistry.entries().values().stream()
+                .map(this::toBundledTypeInfo)
+                .sorted(Comparator.comparing(t -> t.code().ordinal()))
+                .forEach(rows::add);
+        if (uploaded != null) {
+            uploaded.stream()
+                    .map(this::toUploadedTypeInfo)
+                    .forEach(rows::add);
+        }
+        return rows;
     }
 
     @Override
     public ResolvedDriver resolve(DbType dbType) {
-        var existing = cache.get(dbType);
+        if (dbType == DbType.CUSTOM) {
+            // CUSTOM has no bundled registry entry — callers must resolve via resolveCustom.
+            throw new DriverResolutionException(
+                    dbType,
+                    DriverResolutionException.Reason.UNAVAILABLE,
+                    msg("error.datasource_driver_unavailable.unavailable", dbType.name()));
+        }
+        var existing = bundledCache.get(dbType);
         if (existing != null) {
             return existing;
         }
         synchronized (this) {
-            var nowExisting = cache.get(dbType);
+            var nowExisting = bundledCache.get(dbType);
             if (nowExisting != null) {
                 return nowExisting;
             }
             var entry = DriverRegistry.require(dbType);
             var resolved = entry.bundled() ? resolveBundled(entry) : resolveExternal(entry);
-            cache.put(dbType, resolved);
+            bundledCache.put(dbType, resolved);
             return resolved;
         }
     }
 
-    private DriverTypeInfo toTypeInfo(DriverRegistryEntry entry) {
+    @Override
+    public ResolvedDriver resolveCustom(CustomDriverDescriptor descriptor) {
+        var cached = customCache.get(descriptor.id());
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (this) {
+            var nowCached = customCache.get(descriptor.id());
+            if (nowCached != null) {
+                return nowCached;
+            }
+            var jarPath = customDriverStorage.resolve(descriptor.storagePath());
+            verifyCustomChecksum(descriptor, jarPath);
+            try {
+                var url = jarPath.toUri().toURL();
+                var loader = new URLClassLoader(
+                        "accessflow-jdbc-custom-" + descriptor.id(),
+                        new URL[]{url},
+                        getClass().getClassLoader());
+                var driverClass = Class.forName(descriptor.driverClass(), true, loader);
+                if (!Driver.class.isAssignableFrom(driverClass)) {
+                    closeQuietly(loader);
+                    throw new DriverResolutionException(
+                            descriptor.targetDbType(),
+                            DriverResolutionException.Reason.UNAVAILABLE,
+                            msg("error.custom_driver.invalid_class", descriptor.driverClass()));
+                }
+                var driver = (Driver) driverClass.getDeclaredConstructor().newInstance();
+                var resolved = new ResolvedDriver(driver, loader, descriptor.driverClass());
+                customCache.put(descriptor.id(), resolved);
+                return resolved;
+            } catch (ReflectiveOperationException | IOException e) {
+                throw new DriverResolutionException(
+                        descriptor.targetDbType(),
+                        DriverResolutionException.Reason.UNAVAILABLE,
+                        msg("error.custom_driver.invalid_class", descriptor.driverClass()),
+                        e);
+            }
+        }
+    }
+
+    @Override
+    public void evictCustom(UUID customDriverId) {
+        var removed = customCache.remove(customDriverId);
+        if (removed != null && removed.classLoader() instanceof URLClassLoader urlLoader) {
+            closeQuietly(urlLoader);
+        }
+    }
+
+    private DriverTypeInfo toBundledTypeInfo(DriverRegistryEntry entry) {
         DriverStatus status;
         if (entry.bundled() || cachedJar(entry).map(Files::isRegularFile).orElse(false)) {
             status = DriverStatus.READY;
@@ -99,7 +184,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
         } else {
             status = DriverStatus.UNAVAILABLE;
         }
-        return new DriverTypeInfo(
+        return DriverTypeInfo.bundled(
                 entry.dbType(),
                 entry.displayName(),
                 entry.iconUrl(),
@@ -108,6 +193,53 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 entry.jdbcUrlTemplate(),
                 status,
                 entry.bundled());
+    }
+
+    private DriverTypeInfo toUploadedTypeInfo(CustomDriverDescriptor descriptor) {
+        DbType target = descriptor.targetDbType();
+        // For a CUSTOM-typed upload there is no bundled template; the wizard renders a
+        // free-form JDBC URL field instead. We surface the upload's metadata as display hints.
+        if (target == DbType.CUSTOM) {
+            return DriverTypeInfo.uploaded(
+                    DbType.CUSTOM,
+                    String.format(CUSTOM_DRIVER_DISPLAY_NAME_FORMAT,
+                            descriptor.vendorName(), descriptor.jarFilename()),
+                    "/db-icons/custom.svg",
+                    CUSTOM_DEFAULT_PORT,
+                    CUSTOM_DEFAULT_SSL,
+                    "",
+                    descriptor.id(),
+                    descriptor.vendorName(),
+                    descriptor.driverClass());
+        }
+        // Uploaded drivers that override a bundled DbType inherit that type's display defaults.
+        var bundled = DriverRegistry.entries().get(target);
+        String displayName = bundled != null
+                ? String.format("%s (uploaded: %s)", bundled.displayName(), descriptor.vendorName())
+                : descriptor.vendorName();
+        String iconUrl = bundled != null ? bundled.iconUrl() : "/db-icons/custom.svg";
+        int port = bundled != null ? bundled.defaultPort() : CUSTOM_DEFAULT_PORT;
+        SslMode ssl = bundled != null ? bundled.defaultSslMode() : CUSTOM_DEFAULT_SSL;
+        String urlTemplate = bundled != null ? bundled.jdbcUrlTemplate() : "";
+        return DriverTypeInfo.uploaded(target, displayName, iconUrl, port, ssl, urlTemplate,
+                descriptor.id(), descriptor.vendorName(), descriptor.driverClass());
+    }
+
+    private void verifyCustomChecksum(CustomDriverDescriptor descriptor, Path jarPath) {
+        if (!Files.isRegularFile(jarPath)) {
+            throw new DriverResolutionException(
+                    descriptor.targetDbType(),
+                    DriverResolutionException.Reason.UNAVAILABLE,
+                    msg("error.custom_driver.jar_missing", descriptor.jarFilename()));
+        }
+        var actual = sha256(jarPath);
+        if (!actual.equalsIgnoreCase(descriptor.jarSha256())) {
+            throw new DriverResolutionException(
+                    descriptor.targetDbType(),
+                    DriverResolutionException.Reason.CHECKSUM_MISMATCH,
+                    msg("error.datasource_driver_unavailable.checksum_mismatch",
+                            descriptor.targetDbType().name(), descriptor.jarSha256(), actual));
+        }
     }
 
     private ResolvedDriver resolveBundled(DriverRegistryEntry entry) {
@@ -234,6 +366,18 @@ class DefaultDriverCatalogService implements DriverCatalogService {
     }
 
     private String sha256(Path jarPath, DriverRegistryEntry entry) {
+        try {
+            return sha256(jarPath);
+        } catch (RuntimeException e) {
+            throw new DriverResolutionException(
+                    entry.dbType(),
+                    DriverResolutionException.Reason.UNAVAILABLE,
+                    msg("error.datasource_driver_unavailable.unavailable", entry.dbType().name()),
+                    e);
+        }
+    }
+
+    private static String sha256(Path jarPath) {
         try (var in = Files.newInputStream(jarPath)) {
             var digest = MessageDigest.getInstance("SHA-256");
             var buffer = new byte[8192];
@@ -243,11 +387,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
             }
             return HexFormat.of().formatHex(digest.digest());
         } catch (NoSuchAlgorithmException | IOException e) {
-            throw new DriverResolutionException(
-                    entry.dbType(),
-                    DriverResolutionException.Reason.UNAVAILABLE,
-                    msg("error.datasource_driver_unavailable.unavailable", entry.dbType().name()),
-                    e);
+            throw new IllegalStateException("Failed to compute SHA-256 of " + jarPath, e);
         }
     }
 
@@ -269,5 +409,13 @@ class DefaultDriverCatalogService implements DriverCatalogService {
 
     private String msg(String key, Object... args) {
         return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
+
+    private static void closeQuietly(URLClassLoader loader) {
+        try {
+            loader.close();
+        } catch (IOException e) {
+            log.warn("Failed to close URLClassLoader {}: {}", loader.getName(), e.getMessage());
+        }
     }
 }

@@ -8,8 +8,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DriverRegistryTest {
 
     @Test
-    void hasEntryForEveryDbType() {
+    void hasEntryForEveryBundledDbType() {
+        // CUSTOM intentionally has no bundled registry entry — it's the placeholder for
+        // admin-uploaded drivers resolved via CustomJdbcDriverService.
         for (var dbType : DbType.values()) {
+            if (dbType == DbType.CUSTOM) {
+                continue;
+            }
             var entry = DriverRegistry.require(dbType);
             assertThat(entry).isNotNull();
             assertThat(entry.dbType()).isEqualTo(dbType);
@@ -32,7 +37,7 @@ class DriverRegistryTest {
     @Test
     void externalEntriesPinVersionAndSha256() {
         for (var dbType : DbType.values()) {
-            if (dbType == DbType.POSTGRESQL) {
+            if (dbType == DbType.POSTGRESQL || dbType == DbType.CUSTOM) {
                 continue;
             }
             var entry = DriverRegistry.require(dbType);

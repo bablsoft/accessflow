@@ -43,13 +43,13 @@ public class DatasourceEntity {
     @Column(name = "db_type", nullable = false, columnDefinition = "db_type")
     private DbType dbType;
 
-    @Column(nullable = false, length = 255)
+    @Column(length = 255)
     private String host;
 
-    @Column(nullable = false)
-    private int port;
+    @Column
+    private Integer port;
 
-    @Column(name = "database_name", nullable = false, length = 255)
+    @Column(name = "database_name", length = 255)
     private String databaseName;
 
     @Column(nullable = false, length = 255)
@@ -85,6 +85,13 @@ public class DatasourceEntity {
 
     @Column(name = "ai_config_id")
     private UUID aiConfigId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "custom_driver_id")
+    private CustomJdbcDriverEntity customDriver;
+
+    @Column(name = "jdbc_url_override", columnDefinition = "TEXT")
+    private String jdbcUrlOverride;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;

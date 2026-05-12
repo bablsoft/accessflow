@@ -13,7 +13,7 @@ public record DatasourceResponse(
         String name,
         DbType dbType,
         String host,
-        int port,
+        Integer port,
         String databaseName,
         String username,
         SslMode sslMode,
@@ -24,6 +24,8 @@ public record DatasourceResponse(
         UUID reviewPlanId,
         boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        UUID customDriverId,
+        String jdbcUrlOverride,
         boolean active,
         Instant createdAt
 ) {
@@ -45,6 +47,8 @@ public record DatasourceResponse(
                 view.reviewPlanId(),
                 view.aiAnalysisEnabled(),
                 view.aiConfigId(),
+                view.customDriverId(),
+                view.jdbcUrlOverride(),
                 view.active(),
                 view.createdAt());
     }

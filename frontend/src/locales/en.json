@@ -40,6 +40,7 @@
     "notifications": "Notifications",
     "saml": "SAML / SSO",
     "languages": "Languages",
+    "custom_drivers": "Custom JDBC drivers",
     "profile": "Profile settings"
   },
   "auth": {
@@ -142,7 +143,16 @@
     "profile_generic": "Could not update your profile. Please try again.",
     "trace_id_label": "Trace ID",
     "trace_id_copy": "Copy trace ID",
-    "trace_id_copied": "Trace ID copied"
+    "trace_id_copied": "Trace ID copied",
+    "custom_driver_duplicate": "A JDBC driver with this SHA-256 is already registered for your organization.",
+    "custom_driver_in_use_one": "Cannot delete: {{count}} datasource still uses this driver. Delete that datasource first.",
+    "custom_driver_in_use_other": "Cannot delete: {{count}} datasources still use this driver. Delete those datasources first.",
+    "custom_driver_checksum_mismatch": "The uploaded JAR's SHA-256 does not match the value you entered. Recompute the checksum and try again.",
+    "custom_driver_invalid_jar": "The uploaded JAR does not contain {{driverClass}}, or that class does not implement java.sql.Driver.",
+    "custom_driver_too_large": "The JAR exceeds the {{maxMb}} MB upload limit. Strip unused classes or split the bundle.",
+    "custom_driver_not_found": "Custom JDBC driver not found.",
+    "custom_driver_validation": "Some required upload fields are missing or invalid.",
+    "custom_driver_generic": "Could not upload the JDBC driver. Please try again."
   },
   "editor": {
     "title": "SQL editor",
@@ -307,8 +317,21 @@
         "mysql": "Widely used open-source relational database from Oracle.",
         "mariadb": "Community-developed MySQL fork.",
         "oracle": "Oracle Database with the official driver.",
-        "mssql": "Microsoft SQL Server with the official Microsoft driver."
+        "mssql": "Microsoft SQL Server with the official Microsoft driver.",
+        "custom": "Free-form JDBC connection using an admin-uploaded driver."
       },
+      "source_bundled": "Bundled drivers",
+      "source_uploaded": "Custom drivers",
+      "source_uploaded_help": "Admin-uploaded JDBC drivers for your organization. Manage them under Admin → Custom JDBC drivers.",
+      "no_custom_drivers_hint": "No custom drivers uploaded yet — admins can add one to support new database types or driver versions.",
+      "manage_custom_drivers_link": "Manage custom drivers",
+      "field_jdbc_url": "JDBC URL",
+      "field_jdbc_url_placeholder": "jdbc:vendor://host:port/database",
+      "field_jdbc_url_help": "Full JDBC connection string passed verbatim to the uploaded driver.",
+      "dynamic_mode_notice_title": "Free-form connection mode",
+      "dynamic_mode_notice_body": "This database type uses the uploaded JDBC driver. Provide the complete JDBC URL — AccessFlow does not build it for you.",
+      "uploaded_vendor_label": "vendor",
+      "uploaded_class_label": "class",
       "field_name": "Name",
       "field_name_placeholder": "Production PostgreSQL",
       "field_host": "Host",
@@ -758,5 +781,64 @@
     "open": "Open user menu",
     "profile": "Profile settings",
     "sign_out": "Sign out"
+  },
+  "drivers": {
+    "list": {
+      "title": "Custom JDBC drivers",
+      "subtitle": "Upload vendor-specific or in-house JDBC driver JARs for your organization. Datasources can then bind to these drivers instead of the bundled set.",
+      "upload_button": "Upload driver",
+      "loading": "Loading drivers…",
+      "load_error": "Could not load custom drivers.",
+      "empty_title": "No custom drivers yet",
+      "empty_description": "Upload a JDBC driver JAR to support forks, vendor builds, or database types beyond the bundled five.",
+      "col_vendor": "Vendor",
+      "col_target": "Target type",
+      "col_class": "Driver class",
+      "col_jar": "JAR",
+      "col_size": "Size",
+      "col_sha256": "SHA-256",
+      "col_uploaded_by": "Uploaded by",
+      "col_uploaded_at": "Uploaded",
+      "row_actions_aria": "Driver actions",
+      "delete_action": "Delete driver",
+      "delete_confirm_title": "Delete this JDBC driver?",
+      "delete_confirm_body": "{{vendor}} ({{filename}}) will be removed. Any datasource that still references it must be deleted first.",
+      "delete_success": "Driver deleted.",
+      "delete_error": "Could not delete the driver."
+    },
+    "upload": {
+      "title": "Upload JDBC driver",
+      "subtitle": "Select the driver JAR and enter the SHA-256 you computed locally. AccessFlow verifies the checksum before storing and loads the driver class to confirm it implements java.sql.Driver.",
+      "jar_label": "Driver JAR",
+      "jar_help": "Single .jar file, max 50 MB.",
+      "jar_select_button": "Select .jar",
+      "jar_change_button": "Choose a different JAR",
+      "jar_size_label": "{{kb}} KB",
+      "vendor_label": "Vendor name",
+      "vendor_placeholder": "Snowflake, SAP HANA, …",
+      "target_db_type_label": "Target database type",
+      "target_db_type_help": "Pick the matching bundled type to override its driver, or 'Custom / Dynamic' for a free-form JDBC connection.",
+      "driver_class_label": "Driver class",
+      "driver_class_placeholder": "com.vendor.JdbcDriver",
+      "driver_class_help": "Fully-qualified Java class name of the JDBC driver inside the JAR.",
+      "sha256_label": "Expected SHA-256",
+      "sha256_placeholder": "64 hex characters",
+      "sha256_help": "Run `shasum -a 256 driver.jar` locally and paste the hex digest. AccessFlow rejects the upload if the bytes don't match.",
+      "submit_button": "Upload driver",
+      "submitting": "Uploading…",
+      "cancel": "Cancel",
+      "success": "Driver uploaded.",
+      "missing_jar": "Select a JAR file before uploading.",
+      "invalid_jar_extension": "Only .jar files can be uploaded."
+    },
+    "validation": {
+      "vendor_required": "Vendor name is required.",
+      "vendor_max": "Vendor name must be at most 100 characters.",
+      "driver_class_required": "Driver class is required.",
+      "driver_class_max": "Driver class must be at most 255 characters.",
+      "driver_class_pattern": "Enter a fully-qualified Java class name (e.g. com.vendor.Driver).",
+      "sha256_required": "SHA-256 is required.",
+      "sha256_pattern": "Enter exactly 64 hexadecimal characters."
+    }
   }
 }

@@ -14,7 +14,7 @@ class DatasourceTypeResponseTest {
 
     @Test
     void mapsAllFieldsFromDriverTypeInfo() {
-        var info = new DriverTypeInfo(DbType.POSTGRESQL, "PostgreSQL", "/db-icons/postgresql.svg",
+        var info = DriverTypeInfo.bundled(DbType.POSTGRESQL, "PostgreSQL", "/db-icons/postgresql.svg",
                 5432, SslMode.VERIFY_FULL,
                 "jdbc:postgresql://{host}:{port}/{database_name}", DriverStatus.READY, true);
 
@@ -29,11 +29,13 @@ class DatasourceTypeResponseTest {
                 .isEqualTo("jdbc:postgresql://{host}:{port}/{database_name}");
         assertThat(response.driverStatus()).isEqualTo(DriverStatus.READY);
         assertThat(response.bundled()).isTrue();
+        assertThat(response.source()).isEqualTo("bundled");
+        assertThat(response.customDriverId()).isNull();
     }
 
     @Test
     void mapsBundledFalseForExternalDrivers() {
-        var info = new DriverTypeInfo(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
+        var info = DriverTypeInfo.bundled(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
                 DriverStatus.AVAILABLE, false);
 
@@ -45,10 +47,10 @@ class DatasourceTypeResponseTest {
 
     @Test
     void typesResponseWrapsListInCanonicalOrder() {
-        var infoA = new DriverTypeInfo(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
+        var infoA = DriverTypeInfo.bundled(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
                 DriverStatus.AVAILABLE, false);
-        var infoB = new DriverTypeInfo(DbType.MARIADB, "MariaDB", "/db-icons/mariadb.svg", 3306,
+        var infoB = DriverTypeInfo.bundled(DbType.MARIADB, "MariaDB", "/db-icons/mariadb.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mariadb://{host}:{port}/{database_name}",
                 DriverStatus.UNAVAILABLE, false);
 
@@ -57,5 +59,22 @@ class DatasourceTypeResponseTest {
         assertThat(response.types()).hasSize(2);
         assertThat(response.types().get(0).code()).isEqualTo(DbType.MYSQL);
         assertThat(response.types().get(1).code()).isEqualTo(DbType.MARIADB);
+    }
+
+    @Test
+    void mapsUploadedDriverFields() {
+        var driverId = java.util.UUID.randomUUID();
+        var info = DriverTypeInfo.uploaded(DbType.ORACLE, "Oracle Database (uploaded: Acme)",
+                "/db-icons/oracle.svg", 1521, SslMode.REQUIRE,
+                "jdbc:oracle:thin:@//{host}:{port}/{database_name}", driverId, "Acme",
+                "oracle.jdbc.OracleDriver");
+
+        var response = DatasourceTypeResponse.from(info);
+
+        assertThat(response.source()).isEqualTo("uploaded");
+        assertThat(response.customDriverId()).isEqualTo(driverId);
+        assertThat(response.vendorName()).isEqualTo("Acme");
+        assertThat(response.driverClass()).isEqualTo("oracle.jdbc.OracleDriver");
+        assertThat(response.bundled()).isFalse();
     }
 }
