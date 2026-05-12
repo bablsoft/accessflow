@@ -506,7 +506,6 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 
 - **Tamper-evident hash chain** (`previous_hash` / `current_hash`) — not yet implemented; tracked as a follow-up issue.
 - **Separate audit-writer DB user** with INSERT-only privilege — deployment-level, tracked as a follow-up issue.
-- **`QUERY_EXECUTED` / `QUERY_FAILED` audit** — depends on the proxy executor wiring `APPROVED → EXECUTED` / `APPROVED → FAILED` status transitions, which it does not yet do. Tracked as a follow-up issue.
 - **`QUERY_CANCELLED` audit** — depends on a cancel endpoint, which does not yet exist. Tracked as a follow-up issue.
 
 ---
