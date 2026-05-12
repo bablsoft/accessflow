@@ -276,6 +276,106 @@ class AdminAuditLogControllerIntegrationTest {
     }
 
     @Test
+    void verifyEndpointReturnsOkForCleanChain() {
+        for (int i = 0; i < 3; i++) {
+            auditLogService.record(new AuditEntry(
+                    AuditAction.USER_LOGIN,
+                    AuditResourceType.USER,
+                    analyst.getId(),
+                    org.getId(),
+                    analyst.getId(),
+                    Map.of("i", i),
+                    null,
+                    null));
+        }
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log/verify")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.ok").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.rows_checked").asNumber().isEqualTo(3);
+    }
+
+    @Test
+    void verifyEndpointFlagsTamperedRow() {
+        var ids = new java.util.ArrayList<UUID>();
+        for (int i = 0; i < 3; i++) {
+            ids.add(auditLogService.record(new AuditEntry(
+                    AuditAction.USER_LOGIN,
+                    AuditResourceType.USER,
+                    analyst.getId(),
+                    org.getId(),
+                    analyst.getId(),
+                    Map.of("i", i),
+                    null,
+                    null)));
+        }
+        jdbcTemplate.update(
+                "UPDATE audit_log SET metadata = ?::jsonb WHERE id = ?",
+                "{\"tampered\":true}", ids.get(1));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log/verify")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.ok").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.first_bad_row_id").asString()
+                .isEqualTo(ids.get(1).toString());
+        assertThat(result).bodyJson().extractingPath("$.first_bad_reason").asString()
+                .isEqualTo("current_hash_mismatch");
+    }
+
+    @Test
+    void verifyEndpointIs403ForNonAdmin() {
+        var result = mvc.get().uri("/api/v1/admin/audit-log/verify")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void verifyEndpointIs400ForInvertedRange() {
+        var result = mvc.get().uri(
+                "/api/v1/admin/audit-log/verify?from=2026-01-02T00:00:00Z&to=2026-01-01T00:00:00Z")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("BAD_AUDIT_QUERY");
+    }
+
+    @Test
+    void verifyEndpointScopesToCallerOrganization() {
+        var foreignOrg = new OrganizationEntity();
+        foreignOrg.setId(UUID.randomUUID());
+        foreignOrg.setName("Other");
+        foreignOrg.setSlug("other-" + UUID.randomUUID());
+        foreignOrg.setEdition(EditionType.COMMUNITY);
+        organizationRepository.save(foreignOrg);
+        var foreigner = saveUser(foreignOrg, "stranger@example.com", UserRoleType.ANALYST);
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_LOGIN,
+                AuditResourceType.USER,
+                foreigner.getId(),
+                foreignOrg.getId(),
+                foreigner.getId(),
+                Map.of(),
+                null,
+                null));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log/verify")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.ok").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.rows_checked").asNumber().isEqualTo(0);
+    }
+
+    @Test
     void filterByActionWorks() {
         auditLogService.record(new AuditEntry(
                 AuditAction.USER_LOGIN,

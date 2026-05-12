@@ -51,4 +51,10 @@ public class AuditLogEntity {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    @Column(name = "previous_hash")
+    private byte[] previousHash;
+
+    @Column(name = "current_hash")
+    private byte[] currentHash;
 }

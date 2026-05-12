@@ -154,7 +154,7 @@ AccessFlow uses defense-in-depth against injection attacks:
 
 ## Audit Log Integrity
 
-The `audit_log` table is designed to be tamper-evident. Today the implementation provides the application-level half of that goal; the deployment-level and cryptographic-chain halves are deferred (see "Deferred" below).
+The `audit_log` table is tamper-evident. The cryptographic chain (added in V26) makes any post-hoc edit, deletion, or reordering detectable; deployment-level role separation is still tracked separately (see "Deferred").
 
 Implemented today:
 
@@ -162,12 +162,15 @@ Implemented today:
 - User-initiated actions are audited synchronously from controllers so `ip_address` (honoring `X-Forwarded-For`) and `user_agent` from the HTTP request are captured on the row.
 - System-driven state transitions are audited via `@ApplicationModuleListener` in `audit/internal/AuditEventListener` — these run after the publishing transaction commits, on a separate thread; `ip_address` / `user_agent` are NULL on those rows by design.
 - `metadata` JSONB contains context-specific information but **never** stores query result data (rows returned), passwords, or encryption keys.
+- **HMAC-SHA256 hash chain.** Every new row carries `previous_hash` (the predecessor's `current_hash`, NULL only for the org's first chained row) and `current_hash = HMAC-SHA256(key, canonical(row) ‖ previous_hash)`. The canonical form is a length-prefixed concatenation of `id`, `organization_id`, `actor_id`, `action`, `resource_type`, `resource_id`, normalised JSON metadata, `ip_address`, `user_agent`, and ISO-8601 `created_at` — length-prefixed so the encoding is injective. The key is `AUDIT_HMAC_KEY` (hex-encoded, ≥ 32 bytes); for community installs the audit module derives the key from `ENCRYPTION_KEY` via HKDF-SHA256 with info string `accessflow-audit-hmac-v1` and logs a single WARN. Non-community editions fail startup if the env var is unset.
+- **Per-organization insert serialization.** `DefaultAuditLogService.record(...)` takes a Postgres advisory lock (`pg_advisory_xact_lock(orgIdHigh ^ orgIdLow)`) inside the transaction before reading the prior row's hash, so concurrent writes to the same org cannot interleave and break the chain. The lock releases automatically on commit/rollback.
+- **Verifier endpoint.** `GET /api/v1/admin/audit-log/verify` (ADMIN only) walks the chain in ASC order, recomputes each row's HMAC, and returns the first row whose recorded `previous_hash` or `current_hash` does not match — see `docs/04-api-spec.md`. The verifier is scoped to the caller's organization. Pre-V26 rows have NULL hashes and are skipped without counting.
 
 Deferred (tracked as separate GitHub issues):
 
 - The application database user has **INSERT-only** privilege on `audit_log`. No UPDATE or DELETE. Today the application uses a single Postgres role; the second role with INSERT-only grant is a deployment-level change tracked separately.
 - A **separate audit writer DB user** for audit log inserts, distinct from the general application user.
-- Cryptographic hash chain (`previous_hash` / `current_hash` columns + verifier endpoint). The schema does not yet include those columns; the chain will be added in a follow-up issue.
+- Exporting hashes in `GET /admin/audit-log` row responses (the verifier is the canonical tamper-detection surface today).
 
 ---
 
@@ -200,6 +203,7 @@ Content-Security-Policy: default-src 'self'
 |--------|--------------|
 | `ENCRYPTION_KEY` | Environment variable / Kubernetes Secret |
 | `JWT_PRIVATE_KEY` | Environment variable / Kubernetes Secret (PEM format) |
+| `AUDIT_HMAC_KEY` | Environment variable / Kubernetes Secret (hex, ≥ 32 bytes). Required for non-community editions; derived from `ENCRYPTION_KEY` in community installs. |
 | `AI_API_KEY` | Environment variable / Kubernetes Secret |
 | `DB_PASSWORD` | Environment variable / Kubernetes Secret |
 | Customer DB credentials | Stored encrypted in DB; never in env vars |

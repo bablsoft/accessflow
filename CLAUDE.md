@@ -206,6 +206,7 @@ com.partqam.accessflow/
 | `DB_PASSWORD` | PostgreSQL password |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
+| `AUDIT_HMAC_KEY` | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. Required for non-community editions; community installs auto-derive a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |

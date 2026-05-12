@@ -715,6 +715,7 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | `PUT` | `/admin/users/{id}` | Update user role or active status |
 | `DELETE` | `/admin/users/{id}` | Deactivate user |
 | `GET` | `/admin/audit-log` | Query audit log with filters (see below) |
+| `GET` | `/admin/audit-log/verify` | Verify the HMAC hash chain for the caller's org (tamper detection) |
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
@@ -933,6 +934,50 @@ Returns rows scoped to the caller's organization only. ADMIN role required (othe
 ```
 
 `actor_id`, `actor_email`, `actor_display_name`, `ip_address`, and `user_agent` may be `null` for system-driven rows (e.g. AI analysis completion). `actor_email`/`actor_display_name` are server-side joins on the `users` table within the caller's organization; if the actor was hard-deleted (or originated outside the org), only `actor_id` is returned.
+
+### GET /admin/audit-log/verify — Tamper-Evidence Check
+
+Verifies the audit-log HMAC-SHA256 hash chain for the caller's organization. Walks rows in `(created_at ASC, id ASC)` order and stops at the first row whose recorded hashes do not match. Rows written before V26 have NULL hashes and are skipped (they do not count toward `rows_checked`).
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `from` | ISO datetime | Optional inclusive lower bound on `created_at` |
+| `to` | ISO datetime | Optional exclusive upper bound on `created_at` |
+
+ADMIN role required (otherwise 403).
+
+**Response 200 — chain intact:**
+```json
+{
+  "ok": true,
+  "rows_checked": 247,
+  "first_bad_row_id": null,
+  "first_bad_created_at": null,
+  "first_bad_reason": null
+}
+```
+
+**Response 200 — tamper detected:**
+```json
+{
+  "ok": false,
+  "rows_checked": 142,
+  "first_bad_row_id": "9b6c9e0a-...-...",
+  "first_bad_created_at": "2026-05-06T10:32:14Z",
+  "first_bad_reason": "current_hash_mismatch"
+}
+```
+
+`first_bad_reason` is a stable, machine-readable string. Possible values:
+
+| Reason | Meaning |
+|--------|---------|
+| `current_hash_mismatch` | The row's `current_hash` does not equal HMAC(key, canonical(row) ‖ previous_hash). Most often means a column value was edited in place. |
+| `previous_hash_mismatch` | The row's `previous_hash` does not equal the prior row's `current_hash`. Most often means rows were reordered or a row was deleted from the middle of the chain. |
+| `anchor_has_previous` | The first chained row in the window has a non-null `previous_hash`. The anchor must always be NULL-prev. |
+| `null_hash_in_chain` | A row inside the chain has a NULL `current_hash` or `previous_hash`. Most often means a row was truncated or the application bypassed the chain-aware service. |
+
+**Response 400:** `from` is after `to`. `error: BAD_AUDIT_QUERY`.
 
 ### AI Configurations (`/admin/ai-configs`) *(ADMIN only)*
 

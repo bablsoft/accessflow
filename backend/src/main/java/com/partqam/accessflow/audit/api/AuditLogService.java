@@ -3,6 +3,7 @@ package com.partqam.accessflow.audit.api;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -23,4 +24,12 @@ public interface AuditLogService {
      * Cross-tenant reads are forbidden — the implementation must always AND the org clause.
      */
     Page<AuditLogView> query(UUID organizationId, AuditLogQuery filter, Pageable pageable);
+
+    /**
+     * Walks the HMAC-SHA256 hash chain for {@code organizationId} in ASC {@code created_at} order
+     * over the optional {@code [from, to)} window and returns the verification outcome. Rows
+     * written before V26 keep NULL hashes and are skipped as "pre-chain". The first row with a
+     * non-null {@code current_hash} anchors the chain and must have {@code previous_hash IS NULL}.
+     */
+    AuditLogVerificationResult verify(UUID organizationId, Instant from, Instant to);
 }

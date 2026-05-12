@@ -3,6 +3,7 @@ package com.partqam.accessflow.audit.internal.web;
 import com.partqam.accessflow.audit.api.AuditAction;
 import com.partqam.accessflow.audit.api.AuditLogQuery;
 import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditLogVerificationResult;
 import com.partqam.accessflow.audit.api.AuditLogView;
 import com.partqam.accessflow.audit.api.AuditResourceType;
 import com.partqam.accessflow.core.api.UserAdminService;
@@ -83,6 +84,23 @@ class AdminAuditLogController {
                     actor == null ? null : actor.email(),
                     actor == null ? null : actor.displayName());
         }));
+    }
+
+    @GetMapping("/verify")
+    @Operation(summary = "Verify the audit-log hash chain for the caller's organization")
+    @ApiResponse(responseCode = "200", description = "Verification outcome (ok or first bad row)")
+    @ApiResponse(responseCode = "400", description = "Invalid time window ('from' after 'to')")
+    @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
+    AuditLogVerificationResult verify(
+            @Parameter(description = "Inclusive lower bound on createdAt")
+            @RequestParam(required = false) Instant from,
+            @Parameter(description = "Exclusive upper bound on createdAt")
+            @RequestParam(required = false) Instant to,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new BadAuditQueryException("'from' must be on or before 'to'");
+        }
+        return auditLogService.verify(organizationId, from, to);
     }
 
     private Map<UUID, UserView> lookupActors(UUID organizationId, Page<AuditLogView> page) {
