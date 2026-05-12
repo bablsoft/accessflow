@@ -32,7 +32,8 @@ interface SetupStep {
 }
 
 // Order is deliberate — review plans first because every datasource references one. AI
-// provider is last because it is also the most likely to be skipped on a fresh install.
+// provider comes before datasources so admins land on the datasource wizard with an AI
+// config available to pick (AI is still skippable on a per-datasource basis).
 function buildSteps(data: SetupProgress): SetupStep[] {
   return [
     {
@@ -42,16 +43,16 @@ function buildSteps(data: SetupProgress): SetupStep[] {
       to: '/admin/review-plans',
     },
     {
+      id: 'ai_provider',
+      configured: data.ai_provider_configured,
+      labelKey: 'admin.setup_progress.step_ai_provider_label',
+      to: '/admin/ai-configs',
+    },
+    {
       id: 'datasources',
       configured: data.datasources_configured,
       labelKey: 'admin.setup_progress.step_datasources_label',
       to: '/datasources/new',
-    },
-    {
-      id: 'ai_provider',
-      configured: data.ai_provider_configured,
-      labelKey: 'admin.setup_progress.step_ai_provider_label',
-      to: '/admin/ai-config',
     },
   ];
 }

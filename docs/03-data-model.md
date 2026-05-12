@@ -239,7 +239,7 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
 | `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` |
 | `model` | VARCHAR(100) — provider-specific model name |
-| `endpoint` | VARCHAR(500) nullable — base URL override |
+| `endpoint` | VARCHAR(500) nullable — base URL. Honored only when `provider = OLLAMA`; ignored at runtime for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
 | `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |

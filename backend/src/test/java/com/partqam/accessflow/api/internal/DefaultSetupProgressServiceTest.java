@@ -25,7 +25,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
+        when(aiConfigLookupService.hasAnyUsableAiConfig(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -42,7 +42,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(true);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
+        when(aiConfigLookupService.hasAnyUsableAiConfig(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -58,7 +58,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(true);
-        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(false);
+        when(aiConfigLookupService.hasAnyUsableAiConfig(orgId)).thenReturn(false);
 
         var view = service.getProgress(orgId);
 
@@ -67,11 +67,11 @@ class DefaultSetupProgressServiceTest {
     }
 
     @Test
-    void countsAiProviderConfiguredWhenLookupReportsUsableBoundDatasource() {
+    void countsAiProviderConfiguredWhenLookupReportsAnyUsableAiConfig() {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(false);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(false);
-        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(true);
+        when(aiConfigLookupService.hasAnyUsableAiConfig(orgId)).thenReturn(true);
 
         var view = service.getProgress(orgId);
 
@@ -84,7 +84,7 @@ class DefaultSetupProgressServiceTest {
         var orgId = UUID.randomUUID();
         when(organizationSetupLookupService.hasAnyDatasource(orgId)).thenReturn(true);
         when(organizationSetupLookupService.hasAnyReviewPlan(orgId)).thenReturn(true);
-        when(aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)).thenReturn(true);
+        when(aiConfigLookupService.hasAnyUsableAiConfig(orgId)).thenReturn(true);
 
         var view = service.getProgress(orgId);
 

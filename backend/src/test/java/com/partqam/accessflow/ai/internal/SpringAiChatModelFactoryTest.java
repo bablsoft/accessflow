@@ -15,15 +15,13 @@ class SpringAiChatModelFactoryTest {
 
     @Test
     void anthropicBuildsChatModel() {
-        var model = factory.anthropic("sk-test", "https://api.anthropic.com",
-                "claude-sonnet-4-20250514", 1000, 30_000);
+        var model = factory.anthropic("sk-test", "claude-sonnet-4-20250514", 1000, 30_000);
         assertThat(model).isNotNull();
     }
 
     @Test
     void openAiBuildsChatModel() {
-        var model = factory.openAi("sk-test", "https://api.openai.com",
-                "gpt-4o", 1000, 30_000);
+        var model = factory.openAi("sk-test", "gpt-4o", 1000, 30_000);
         assertThat(model).isNotNull();
     }
 

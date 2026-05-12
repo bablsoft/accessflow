@@ -115,7 +115,7 @@ describe('SetupProgressWidget', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('lists steps with review plan first, then datasource, then AI', async () => {
+  it('lists steps with review plan first, then AI, then datasource', async () => {
     useAuthStore.setState({ user: adminUser, accessToken: 'tok' });
     getSetupProgressMock.mockResolvedValue(inProgress);
 
@@ -124,8 +124,8 @@ describe('SetupProgressWidget', () => {
     await screen.findByText(/finish setting up accessflow/i);
     const items = screen.getAllByRole('listitem');
     expect(items[0]?.textContent).toMatch(/create a review plan/i);
-    expect(items[1]?.textContent).toMatch(/add your first datasource/i);
-    expect(items[2]?.textContent).toMatch(/configure the ai provider/i);
+    expect(items[1]?.textContent).toMatch(/configure the ai provider/i);
+    expect(items[2]?.textContent).toMatch(/add your first datasource/i);
   });
 
   it('renders progress bar matching one-of-three done', async () => {
@@ -159,7 +159,7 @@ describe('SetupProgressWidget', () => {
       .getByText(/configure the ai provider/i)
       .closest('li')
       ?.querySelector('a');
-    expect(aiLink?.getAttribute('href')).toBe('/admin/ai-config');
+    expect(aiLink?.getAttribute('href')).toBe('/admin/ai-configs');
   });
 
   it('marks a step as Skipped when the Skip button is clicked', async () => {
@@ -199,7 +199,7 @@ describe('SetupProgressWidget', () => {
         .closest('li')
         ?.querySelector('a')
         ?.getAttribute('href'),
-    ).toBe('/admin/ai-config');
+    ).toBe('/admin/ai-configs');
   });
 
   it('counts skipped steps toward progress', async () => {

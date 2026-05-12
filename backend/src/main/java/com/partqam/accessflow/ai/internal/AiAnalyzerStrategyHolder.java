@@ -33,8 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(AiAnalyzerStrategyHolder.class);
-    private static final String DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
-    private static final String DEFAULT_OPENAI_BASE_URL = "https://api.openai.com";
     private static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
 
     private final AiConfigRepository aiConfigRepository;
@@ -90,15 +88,13 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private ChatModel buildAnthropicChatModel(AiConfigEntity entity) {
         var apiKey = requireApiKey(entity);
-        var baseUrl = baseUrlOrDefault(entity, DEFAULT_ANTHROPIC_BASE_URL);
-        return chatModelFactory.anthropic(apiKey, baseUrl, entity.getModel(),
+        return chatModelFactory.anthropic(apiKey, entity.getModel(),
                 entity.getMaxCompletionTokens(), entity.getTimeoutMs());
     }
 
     private ChatModel buildOpenAiChatModel(AiConfigEntity entity) {
         var apiKey = requireApiKey(entity);
-        var baseUrl = baseUrlOrDefault(entity, DEFAULT_OPENAI_BASE_URL);
-        return chatModelFactory.openAi(apiKey, baseUrl, entity.getModel(),
+        return chatModelFactory.openAi(apiKey, entity.getModel(),
                 entity.getMaxCompletionTokens(), entity.getTimeoutMs());
     }
 

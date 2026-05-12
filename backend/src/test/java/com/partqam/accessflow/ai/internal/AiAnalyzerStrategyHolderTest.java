@@ -92,14 +92,14 @@ class AiAnalyzerStrategyHolderTest {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.ANTHROPIC, "ENC(k)", "https://example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-anthropic");
-        when(chatModelFactory.anthropic(eq("sk-anthropic"), eq("https://example.com"), eq("test-model"),
+        when(chatModelFactory.anthropic(eq("sk-anthropic"), eq("test-model"),
                 anyInt(), anyInt())).thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
         assertThat(result.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
-        verify(chatModelFactory).anthropic(eq("sk-anthropic"), eq("https://example.com"), eq("test-model"),
+        verify(chatModelFactory).anthropic(eq("sk-anthropic"), eq("test-model"),
                 anyInt(), anyInt());
     }
 
@@ -108,14 +108,14 @@ class AiAnalyzerStrategyHolderTest {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI, "ENC(k)", "https://example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-openai");
-        when(chatModelFactory.openAi(eq("sk-openai"), eq("https://example.com"), eq("test-model"),
+        when(chatModelFactory.openAi(eq("sk-openai"), eq("test-model"),
                 anyInt(), anyInt())).thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
         assertThat(result.aiProvider()).isEqualTo(AiProviderType.OPENAI);
-        verify(chatModelFactory).openAi(eq("sk-openai"), eq("https://example.com"), eq("test-model"),
+        verify(chatModelFactory).openAi(eq("sk-openai"), eq("test-model"),
                 anyInt(), anyInt());
     }
 
@@ -134,33 +134,33 @@ class AiAnalyzerStrategyHolderTest {
     }
 
     @Test
-    void analyzeFallsBackToDefaultAnthropicBaseUrl() {
+    void analyzeIgnoresStoredEndpointForAnthropic() {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
-                .thenReturn(Optional.of(entityWithKey(AiProviderType.ANTHROPIC, "ENC(k)", "")));
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.ANTHROPIC, "ENC(k)", "https://stored.example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk");
-        when(chatModelFactory.anthropic(anyString(), eq("https://api.anthropic.com"), anyString(),
-                anyInt(), anyInt())).thenReturn(chatModel);
+        when(chatModelFactory.anthropic(anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
-        verify(chatModelFactory).anthropic(anyString(), eq("https://api.anthropic.com"), anyString(),
-                anyInt(), anyInt());
+        // Factory signature has no baseUrl param for Anthropic — Spring AI's built-in default is used.
+        verify(chatModelFactory).anthropic(anyString(), anyString(), anyInt(), anyInt());
     }
 
     @Test
-    void analyzeFallsBackToDefaultOpenAiBaseUrl() {
+    void analyzeIgnoresStoredEndpointForOpenAi() {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
-                .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI, "ENC(k)", null)));
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI, "ENC(k)", "https://stored.example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk");
-        when(chatModelFactory.openAi(anyString(), eq("https://api.openai.com"), anyString(),
-                anyInt(), anyInt())).thenReturn(chatModel);
+        when(chatModelFactory.openAi(anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
-        verify(chatModelFactory).openAi(anyString(), eq("https://api.openai.com"), anyString(),
-                anyInt(), anyInt());
+        // Factory signature has no baseUrl param for OpenAI — Spring AI's built-in default is used.
+        verify(chatModelFactory).openAi(anyString(), anyString(), anyInt(), anyInt());
     }
 
     @Test
@@ -215,7 +215,7 @@ class AiAnalyzerStrategyHolderTest {
 
         assertThat(stub.calls).isEqualTo(2);
         verify(aiConfigRepository, never()).findById(any());
-        verify(chatModelFactory, times(0)).anthropic(any(), any(), any(), anyInt(), anyInt());
+        verify(chatModelFactory, times(0)).anthropic(any(), any(), anyInt(), anyInt());
     }
 
     private AiConfigEntity entityWithoutKey(AiProviderType provider) {

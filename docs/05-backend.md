@@ -349,10 +349,13 @@ autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring
 (`spring-ai-bom:2.0.0-M6` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
-  provider / model / endpoint / API key / timeout. Default boot model: `claude-sonnet-4-20250514`.
-- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Default boot model: `gpt-4o`.
+  provider / model / API key / timeout. The base URL comes from Spring AI's built-in default;
+  the `ai_config.endpoint` column is ignored for this provider. Default boot model:
+  `claude-sonnet-4-20250514`.
+- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Same handling — Spring AI's built-in default
+  base URL is used; the `ai_config.endpoint` column is ignored. Default boot model: `gpt-4o`.
 - `OllamaAnalyzerStrategy` — `OllamaChatModel`. Keyless; needs only `endpoint` (default
-  `http://localhost:11434`).
+  `http://localhost:11434`). Ollama is the only provider that reads `ai_config.endpoint`.
 
 ### Runtime strategy refresh
 
@@ -380,12 +383,13 @@ OpenAI), the holder throws `AiAnalysisException` whose message is resolved via `
 
 ### Setup progress
 
-`DefaultSetupProgressService` reports `ai_provider_configured = true` when at least one
-active datasource in the org has `ai_analysis_enabled = true` and `ai_config_id` populated,
-and the bound `ai_config` row is "usable" (provider `OLLAMA` — keyless — or a non-blank API
-key is stored). This signal flows through `AiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)`,
-which composes `DatasourceLookupService.findActiveAiAnalysisAiConfigIdsByOrganization(orgId)`
-with `AiConfigRepository.findAllById(ids)`.
+`DefaultSetupProgressService` reports `ai_provider_configured = true` when the org has at
+least one `ai_config` row that is "usable" on its own — provider `OLLAMA` (keyless) or a
+non-blank API key is stored. This signal flows through
+`AiConfigLookupService.hasAnyUsableAiConfig(orgId)`, which simply scans
+`AiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId)` and filters on usability.
+The signal does **not** require any datasource to bind to the config — admins configure AI
+before creating their first datasource (the onboarding widget lists AI as step 2).
 
 ### No yaml-driven AI config
 

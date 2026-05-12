@@ -87,9 +87,11 @@ class AdminAuditLogControllerIntegrationTest {
 
     @AfterEach
     void cleanup() {
-        jdbcTemplate.update("DELETE FROM audit_log");
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        // TRUNCATE CASCADE wipes organizations plus every table that transitively references it
+        // (datasources, review_plans, ai_config, permissions, query_requests, audit_log, …).
+        // A plain DELETE FROM organizations chain would FK-fail whenever a prior test class left
+        // datasources or other dependents behind — that exact flake bit this class in CI.
+        jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
     }
 
     @Test

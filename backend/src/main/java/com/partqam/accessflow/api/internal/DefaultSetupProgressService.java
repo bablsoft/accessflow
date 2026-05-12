@@ -22,7 +22,7 @@ class DefaultSetupProgressService implements SetupProgressService {
     public SetupProgressView getProgress(UUID organizationId) {
         var hasDatasource = organizationSetupLookupService.hasAnyDatasource(organizationId);
         var hasReviewPlan = organizationSetupLookupService.hasAnyReviewPlan(organizationId);
-        var aiConfigured = aiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(organizationId);
+        var aiConfigured = aiConfigLookupService.hasAnyUsableAiConfig(organizationId);
         var completed = (hasDatasource ? 1 : 0) + (hasReviewPlan ? 1 : 0) + (aiConfigured ? 1 : 0);
         return new SetupProgressView(
                 hasDatasource,
