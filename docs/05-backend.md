@@ -383,12 +383,13 @@ OpenAI), the holder throws `AiAnalysisException` whose message is resolved via `
 
 ### Setup progress
 
-`DefaultSetupProgressService` reports `ai_provider_configured = true` when at least one
-active datasource in the org has `ai_analysis_enabled = true` and `ai_config_id` populated,
-and the bound `ai_config` row is "usable" (provider `OLLAMA` — keyless — or a non-blank API
-key is stored). This signal flows through `AiConfigLookupService.hasUsableAiAnalysisConfiguredDatasource(orgId)`,
-which composes `DatasourceLookupService.findActiveAiAnalysisAiConfigIdsByOrganization(orgId)`
-with `AiConfigRepository.findAllById(ids)`.
+`DefaultSetupProgressService` reports `ai_provider_configured = true` when the org has at
+least one `ai_config` row that is "usable" on its own — provider `OLLAMA` (keyless) or a
+non-blank API key is stored. This signal flows through
+`AiConfigLookupService.hasAnyUsableAiConfig(orgId)`, which simply scans
+`AiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId)` and filters on usability.
+The signal does **not** require any datasource to bind to the config — admins configure AI
+before creating their first datasource (the onboarding widget lists AI as step 2).
 
 ### No yaml-driven AI config
 
