@@ -159,7 +159,7 @@ describe('SetupProgressWidget', () => {
       .getByText(/configure the ai provider/i)
       .closest('li')
       ?.querySelector('a');
-    expect(aiLink?.getAttribute('href')).toBe('/admin/ai-config');
+    expect(aiLink?.getAttribute('href')).toBe('/admin/ai-configs');
   });
 
   it('marks a step as Skipped when the Skip button is clicked', async () => {
@@ -199,7 +199,7 @@ describe('SetupProgressWidget', () => {
         .closest('li')
         ?.querySelector('a')
         ?.getAttribute('href'),
-    ).toBe('/admin/ai-config');
+    ).toBe('/admin/ai-configs');
   });
 
   it('counts skipped steps toward progress', async () => {

@@ -46,7 +46,7 @@ function buildSteps(data: SetupProgress): SetupStep[] {
       id: 'ai_provider',
       configured: data.ai_provider_configured,
       labelKey: 'admin.setup_progress.step_ai_provider_label',
-      to: '/admin/ai-config',
+      to: '/admin/ai-configs',
     },
     {
       id: 'datasources',
