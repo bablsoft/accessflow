@@ -11,15 +11,19 @@ import {
   datasourceKeys,
   getDatasourceTypes,
   testConnection,
+  updateDatasource,
 } from '@/api/datasources';
 import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
+import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
+  Datasource,
   DatasourceTypeOption,
   SslMode,
+  UpdateDatasourceInput,
 } from '@/types/api';
 import { DatasourceTypeSelector } from '@/components/datasources/DatasourceTypeSelector';
 import {
@@ -37,6 +41,14 @@ interface ConnectionFormValues {
   username: string;
   password: string;
   ssl_mode: SslMode;
+}
+
+interface SettingsFormValues {
+  connection_pool_size: number;
+  max_rows_per_query: number;
+  review_plan_id: string | null;
+  require_review_reads: boolean;
+  require_review_writes: boolean;
   ai_analysis_enabled: boolean;
   ai_config_id: string | null;
 }
@@ -50,8 +62,9 @@ export default function DatasourceCreateWizardPage() {
   const { message } = App.useApp();
   const [currentStep, setCurrentStep] = useState<WizardStepKey>('type');
   const [selectedType, setSelectedType] = useState<DatasourceTypeOption | null>(null);
-  const [form] = Form.useForm<ConnectionFormValues>();
-  const [createdDatasourceId, setCreatedDatasourceId] = useState<string | null>(null);
+  const [connectionForm] = Form.useForm<ConnectionFormValues>();
+  const [settingsForm] = Form.useForm<SettingsFormValues>();
+  const [createdDatasource, setCreatedDatasource] = useState<Datasource | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
 
@@ -65,25 +78,43 @@ export default function DatasourceCreateWizardPage() {
     queryFn: listAiConfigs,
   });
 
-  const previewValues = Form.useWatch([], form);
+  const reviewPlansQuery = useQuery({
+    queryKey: reviewPlanKeys.lists(),
+    queryFn: listReviewPlans,
+  });
+
+  const connectionValues = Form.useWatch([], connectionForm);
+  const settingsValues = Form.useWatch([], settingsForm);
   const previewedTemplate = selectedType?.jdbc_url_template ?? '';
 
   const handleSelectType = useCallback(
     (option: DatasourceTypeOption) => {
       setSelectedType(option);
-      form.setFieldsValue({
+      connectionForm.setFieldsValue({
         port: option.default_port,
         ssl_mode: option.default_ssl_mode,
       });
       setCurrentStep('connection');
     },
-    [form],
+    [connectionForm],
   );
 
-  const createMutation = useMutation({
+  const persistConnection = useMutation({
     mutationFn: async (values: ConnectionFormValues) => {
       if (!selectedType) {
         throw new Error('No datasource type selected');
+      }
+      if (createdDatasource) {
+        const input: UpdateDatasourceInput = {
+          name: values.name,
+          host: values.host,
+          port: values.port,
+          database_name: values.database_name,
+          username: values.username,
+          password: values.password,
+          ssl_mode: values.ssl_mode,
+        };
+        return updateDatasource(createdDatasource.id, input);
       }
       const input: CreateDatasourceInput = {
         name: values.name,
@@ -94,15 +125,18 @@ export default function DatasourceCreateWizardPage() {
         username: values.username,
         password: values.password,
         ssl_mode: values.ssl_mode,
-        ai_analysis_enabled: values.ai_analysis_enabled,
-        ai_config_id: values.ai_analysis_enabled ? values.ai_config_id : null,
+        ai_analysis_enabled: false,
+        ai_config_id: null,
       };
       return createDatasource(input);
     },
-    onSuccess: (created) => {
-      setCreatedDatasourceId(created.id);
+    onSuccess: (saved) => {
+      setCreatedDatasource(saved);
+      queryClient.setQueryData(datasourceKeys.detail(saved.id), saved);
       queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
       queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
+      setTestResult(null);
+      setTestError(null);
       setCurrentStep('test');
     },
     onError: (err: unknown) => {
@@ -115,10 +149,10 @@ export default function DatasourceCreateWizardPage() {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      if (!createdDatasourceId) {
+      if (!createdDatasource) {
         throw new Error('No persisted datasource id');
       }
-      return testConnection(createdDatasourceId);
+      return testConnection(createdDatasource.id);
     },
     onMutate: () => {
       setTestResult(null);
@@ -133,15 +167,53 @@ export default function DatasourceCreateWizardPage() {
     },
   });
 
-  const submitConnectionForm = (values: ConnectionFormValues) => {
-    createMutation.mutate(values);
-  };
+  const persistSettings = useMutation({
+    mutationFn: async (values: SettingsFormValues) => {
+      if (!createdDatasource) {
+        throw new Error('No persisted datasource id');
+      }
+      const input: UpdateDatasourceInput = {
+        connection_pool_size: values.connection_pool_size,
+        max_rows_per_query: values.max_rows_per_query,
+        review_plan_id: values.review_plan_id ?? null,
+        require_review_reads: values.require_review_reads,
+        require_review_writes: values.require_review_writes,
+        ai_analysis_enabled: values.ai_analysis_enabled,
+        ai_config_id: values.ai_analysis_enabled ? values.ai_config_id : null,
+      };
+      if (!values.ai_analysis_enabled) {
+        input.clear_ai_config = true;
+      }
+      return updateDatasource(createdDatasource.id, input);
+    },
+    onSuccess: (saved) => {
+      setCreatedDatasource(saved);
+      queryClient.setQueryData(datasourceKeys.detail(saved.id), saved);
+      queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
+      message.success(t('datasources.create.save_success'));
+      navigate(`/datasources/${saved.id}/settings`);
+    },
+    onError: (err: unknown) => {
+      const fallback = t('datasources.create.save_error');
+      showApiError(message, err, (e) =>
+        datasourceCreateErrorMessage(e) ?? extractDetail(e) ?? fallback,
+      );
+    },
+  });
 
-  const finishWizard = () => {
-    if (!createdDatasourceId) return;
-    message.success(t('datasources.create.save_success'));
-    navigate(`/datasources/${createdDatasourceId}/settings`);
-  };
+  const submitConnectionForm = useCallback(
+    (values: ConnectionFormValues) => {
+      persistConnection.mutate(values);
+    },
+    [persistConnection],
+  );
+
+  const submitSettingsForm = useCallback(
+    (values: SettingsFormValues) => {
+      persistSettings.mutate(values);
+    },
+    [persistSettings],
+  );
 
   const goBack = () => {
     if (currentStep === 'type') {
@@ -153,9 +225,11 @@ export default function DatasourceCreateWizardPage() {
       return;
     }
     if (currentStep === 'test') {
-      // After save we don't allow going back to edit the same persisted record;
-      // the user can either finish or open the settings page from the success screen.
       setCurrentStep('connection');
+      return;
+    }
+    if (currentStep === 'settings') {
+      setCurrentStep('test');
     }
   };
 
@@ -196,15 +270,13 @@ export default function DatasourceCreateWizardPage() {
     if (currentStep === 'connection' && selectedType) {
       return (
         <Form<ConnectionFormValues>
-          form={form}
+          form={connectionForm}
           layout="vertical"
           requiredMark
           onFinish={submitConnectionForm}
           initialValues={{
             port: selectedType.default_port,
             ssl_mode: selectedType.default_ssl_mode,
-            ai_analysis_enabled: false,
-            ai_config_id: null,
           }}
         >
           <div
@@ -266,7 +338,7 @@ export default function DatasourceCreateWizardPage() {
               />
             </Form.Item>
           </div>
-          {selectedType.code === 'MYSQL' && previewValues?.ssl_mode === 'DISABLE' && (
+          {selectedType.code === 'MYSQL' && connectionValues?.ssl_mode === 'DISABLE' && (
             <Alert
               type="warning"
               showIcon
@@ -275,16 +347,109 @@ export default function DatasourceCreateWizardPage() {
               description={t('datasources.create.mysql_public_key_retrieval_body')}
             />
           )}
+          <div style={{ marginTop: 8 }}>
+            <JdbcUrlPreview
+              template={previewedTemplate}
+              host={connectionValues?.host}
+              port={connectionValues?.port}
+              databaseName={connectionValues?.database_name}
+            />
+          </div>
+        </Form>
+      );
+    }
+    if (currentStep === 'test' && selectedType && createdDatasource) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="muted" style={{ fontSize: 13 }}>
+            {t('datasources.create.test_step_subtitle')}
+          </div>
+          <ConnectionTester
+            driverStatus={selectedType.driver_status}
+            pending={testMutation.isPending}
+            result={testResult}
+            errorMessage={testError}
+            onRunTest={() => testMutation.mutate()}
+          />
+        </div>
+      );
+    }
+    if (currentStep === 'settings' && createdDatasource) {
+      return (
+        <Form<SettingsFormValues>
+          form={settingsForm}
+          layout="vertical"
+          requiredMark
+          onFinish={submitSettingsForm}
+          initialValues={{
+            connection_pool_size: createdDatasource.connection_pool_size,
+            max_rows_per_query: createdDatasource.max_rows_per_query,
+            review_plan_id: createdDatasource.review_plan_id ?? null,
+            require_review_reads: createdDatasource.require_review_reads,
+            require_review_writes: createdDatasource.require_review_writes,
+            ai_analysis_enabled: createdDatasource.ai_analysis_enabled,
+            ai_config_id: createdDatasource.ai_config_id ?? null,
+          }}
+        >
+          <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+            {t('datasources.create.settings_step_subtitle')}
+          </div>
           <div
             style={{
-              marginTop: 16,
-              paddingTop: 16,
-              borderTop: '1px solid var(--border)',
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               gap: 12,
             }}
           >
+            <Form.Item
+              label={t('datasources.create.label_pool_size')}
+              name="connection_pool_size"
+              extra={t('datasources.create.label_pool_size_help')}
+              rules={[{ required: true, type: 'number', min: 1, max: 200 }]}
+            >
+              <InputNumber style={{ width: '100%' }} min={1} max={200} />
+            </Form.Item>
+            <Form.Item
+              label={t('datasources.create.label_max_rows')}
+              name="max_rows_per_query"
+              extra={t('datasources.create.label_max_rows_help')}
+              rules={[{ required: true, type: 'number', min: 1, max: 1_000_000 }]}
+            >
+              <InputNumber style={{ width: '100%' }} min={1} max={1_000_000} />
+            </Form.Item>
+            <Form.Item
+              label={t('datasources.create.label_review_plan')}
+              name="review_plan_id"
+            >
+              <Select
+                allowClear
+                loading={reviewPlansQuery.isLoading}
+                placeholder={
+                  reviewPlansQuery.isLoading
+                    ? t('datasources.create.review_plan_loading')
+                    : t('datasources.create.review_plan_placeholder')
+                }
+                options={(reviewPlansQuery.data ?? []).map((plan) => ({
+                  value: plan.id,
+                  label: plan.name,
+                }))}
+              />
+            </Form.Item>
+            <div />
+            <Form.Item
+              label={t('datasources.create.label_require_writes')}
+              name="require_review_writes"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              label={t('datasources.create.label_require_reads')}
+              name="require_review_reads"
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
             <Form.Item
               label={t('datasources.create.field_ai_analysis_enabled')}
               name="ai_analysis_enabled"
@@ -310,7 +475,7 @@ export default function DatasourceCreateWizardPage() {
             >
               <Select
                 allowClear
-                disabled={!previewValues?.ai_analysis_enabled}
+                disabled={!settingsValues?.ai_analysis_enabled}
                 placeholder={t('datasources.create.field_ai_config_placeholder')}
                 options={(aiConfigsQuery.data ?? []).map((c) => ({
                   value: c.id,
@@ -319,31 +484,7 @@ export default function DatasourceCreateWizardPage() {
               />
             </Form.Item>
           </div>
-          <div style={{ marginTop: 8 }}>
-            <JdbcUrlPreview
-              template={previewedTemplate}
-              host={previewValues?.host}
-              port={previewValues?.port}
-              databaseName={previewValues?.database_name}
-            />
-          </div>
         </Form>
-      );
-    }
-    if (currentStep === 'test' && selectedType && createdDatasourceId) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {t('datasources.create.test_step_subtitle')}
-          </div>
-          <ConnectionTester
-            driverStatus={selectedType.driver_status}
-            pending={testMutation.isPending}
-            result={testResult}
-            errorMessage={testError}
-            onRunTest={() => testMutation.mutate()}
-          />
-        </div>
       );
     }
     return null;
@@ -353,18 +494,27 @@ export default function DatasourceCreateWizardPage() {
     typesQuery.isError,
     typesQuery.data,
     selectedType,
-    form,
+    connectionForm,
+    settingsForm,
     previewedTemplate,
-    previewValues,
-    createdDatasourceId,
+    connectionValues,
+    settingsValues,
+    createdDatasource,
     testResult,
     testError,
     testMutation,
     aiConfigsQuery.data,
+    reviewPlansQuery.isLoading,
+    reviewPlansQuery.data,
     t,
     submitConnectionForm,
+    submitSettingsForm,
     handleSelectType,
   ]);
+
+  const connectionPrimaryLabel = createdDatasource
+    ? t('datasources.create.save_and_continue')
+    : t('datasources.create.save_and_test');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -400,15 +550,33 @@ export default function DatasourceCreateWizardPage() {
         {currentStep === 'connection' && (
           <Button
             type="primary"
-            onClick={() => form.submit()}
-            loading={createMutation.isPending}
+            onClick={() => connectionForm.submit()}
+            loading={persistConnection.isPending}
           >
-            {t('datasources.create.save_and_test')}
+            {connectionPrimaryLabel}
           </Button>
         )}
         {currentStep === 'test' && (
-          <Button type="primary" onClick={finishWizard}>
-            {t('datasources.create.finish')}
+          <>
+            <Button onClick={() => setCurrentStep('settings')}>
+              {t('datasources.create.skip_test')}
+            </Button>
+            <Button
+              type="primary"
+              disabled={!testResult?.ok}
+              onClick={() => setCurrentStep('settings')}
+            >
+              {t('datasources.create.next')}
+            </Button>
+          </>
+        )}
+        {currentStep === 'settings' && (
+          <Button
+            type="primary"
+            onClick={() => settingsForm.submit()}
+            loading={persistSettings.isPending}
+          >
+            {t('datasources.create.save_and_finish')}
           </Button>
         )}
       </div>
