@@ -8,15 +8,13 @@ All entities are stored in AccessFlow's **internal PostgreSQL database**. Custom
 
 ## organizations
 
-Represents a tenant. In Community Edition there is always exactly one organization.
+Represents a tenant. A deployment hosts a single organization.
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `name` | VARCHAR(255) NOT NULL |
 | `slug` | VARCHAR(100) UNIQUE — URL-safe identifier |
-| `edition` | ENUM: `COMMUNITY` \| `ENTERPRISE` |
-| `saml_config_id` | FK → `saml_configurations` (nullable, Enterprise only) |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 
@@ -24,7 +22,7 @@ Represents a tenant. In Community Edition there is always exactly one organizati
 
 ## users
 
-Platform users. Can be created locally or auto-provisioned via SAML (Enterprise).
+Platform users. Can be created locally or auto-provisioned via SAML.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -422,9 +420,9 @@ When no row exists for an organization, `LocalizationConfigService.getOrDefault`
 
 ---
 
-## saml_configurations *(Enterprise only)*
+## saml_configurations
 
-Stores SAML 2.0 Identity Provider configuration for an organization.
+Stores SAML 2.0 Identity Provider configuration for an organization. Optional — rows only exist for orgs that have configured SSO.
 
 | Column | Type / Notes |
 |--------|-------------|

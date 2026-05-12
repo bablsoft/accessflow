@@ -13,14 +13,12 @@ import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.security.internal.jwt.JwtValidationException;
 import com.bablsoft.accessflow.security.internal.token.RefreshTokenStore;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
-@ConditionalOnProperty(name = "accessflow.edition", havingValue = "community", matchIfMissing = true)
 @RequiredArgsConstructor
 public class LocalAuthenticationService implements AuthenticationService {
 

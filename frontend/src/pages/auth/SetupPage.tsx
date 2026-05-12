@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { submitSetup, type SetupRequest } from '@/api/setup';
 import { useSetupStore } from '@/store/setupStore';
-import { usePreferencesStore } from '@/store/preferencesStore';
 import { apiErrorTraceId, setupErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
@@ -21,7 +20,6 @@ export function SetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const setSetupRequired = useSetupStore((s) => s.setSetupRequired);
-  const edition = usePreferencesStore((s) => s.edition);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
   const [form] = Form.useForm<SetupFormValues>();
@@ -90,7 +88,7 @@ export function SetupPage() {
               {t('common.app_name')}
             </div>
             <div className="mono muted" style={{ fontSize: 10 }}>
-              {edition.toLowerCase()} · v0.1.0
+              v0.1.0
             </div>
           </div>
         </div>

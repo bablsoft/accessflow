@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -76,7 +75,6 @@ class AdminAuditLogControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Org");
         org.setSlug("org-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
 
         admin = saveUser(org, "admin@example.com", UserRoleType.ADMIN);
@@ -179,7 +177,6 @@ class AdminAuditLogControllerIntegrationTest {
         foreignOrg.setId(UUID.randomUUID());
         foreignOrg.setName("Other");
         foreignOrg.setSlug("other-" + UUID.randomUUID());
-        foreignOrg.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(foreignOrg);
         var foreigner = saveUser(foreignOrg, "stranger@example.com", UserRoleType.ANALYST);
 
@@ -353,7 +350,6 @@ class AdminAuditLogControllerIntegrationTest {
         foreignOrg.setId(UUID.randomUUID());
         foreignOrg.setName("Other");
         foreignOrg.setSlug("other-" + UUID.randomUUID());
-        foreignOrg.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(foreignOrg);
         var foreigner = saveUser(foreignOrg, "stranger@example.com", UserRoleType.ANALYST);
         auditLogService.record(new AuditEntry(

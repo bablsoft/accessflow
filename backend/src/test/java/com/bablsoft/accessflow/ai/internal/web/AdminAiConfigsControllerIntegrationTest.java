@@ -14,7 +14,6 @@ import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -100,7 +99,6 @@ class AdminAiConfigsControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
 
         admin = saveUser("admin@example.com", UserRoleType.ADMIN);

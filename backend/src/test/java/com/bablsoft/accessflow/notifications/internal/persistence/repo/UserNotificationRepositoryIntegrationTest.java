@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.notifications.internal.persistence.repo;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -65,7 +64,6 @@ class UserNotificationRepositoryIntegrationTest {
         organization.setId(UUID.randomUUID());
         organization.setName("Primary");
         organization.setSlug("primary-" + UUID.randomUUID());
-        organization.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(organization);
 
         userA = saveUser("a@example.com");

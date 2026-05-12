@@ -8,7 +8,7 @@ This file is the authoritative guide for AI agents implementing AccessFlow. Read
 
 AccessFlow is an open-source **database access governance platform**. It acts as a full SQL proxy between users and customer databases (PostgreSQL / MySQL), enforcing configurable review and approval workflows before any query executes. Core capabilities: AI-powered SQL analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications.
 
-**Editions:** Community (Apache 2.0, JWT auth) and Enterprise (commercial, adds SAML/SSO and multi-org). All code lives in a single repository; Enterprise features are conditionally activated via `@ConditionalOnProperty`.
+AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO.
 
 **Full design docs:** `docs/` — read them before implementing any feature. The authoritative references are:
 - `docs/02-architecture.md` — system architecture and request flow
@@ -75,7 +75,7 @@ com.bablsoft.accessflow/
 ├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama)
 │   ├── api/
 │   └── internal/
-├── security/       # JWT config, Spring Security filters, SAML (Enterprise)
+├── security/       # JWT config, Spring Security filters, SAML 2.0 SSO
 │   ├── api/
 │   └── internal/
 ├── notifications/  # Email, Slack, Webhook dispatchers
@@ -206,10 +206,9 @@ com.bablsoft.accessflow/
 | `DB_PASSWORD` | PostgreSQL password |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
-| `AUDIT_HMAC_KEY` | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. Required for non-community editions; community installs auto-derive a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
+| `AUDIT_HMAC_KEY` | Optional. Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
-| `ACCESSFLOW_EDITION` | `community` \| `enterprise` (default: `community`) |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
@@ -285,24 +284,6 @@ com.bablsoft.accessflow/
 7. **CORS** — only the configured `CORS_ALLOWED_ORIGIN` is allowed. No wildcard in production.
 8. **Refresh token cookies** — `HttpOnly; Secure; SameSite=Strict`.
 9. **WebSocket handshake auth** — `/ws` is exempt from `JwtAuthenticationFilter`; the upgrade is authenticated by `realtime/internal/ws/JwtHandshakeInterceptor`, which calls the public `AccessTokenAuthenticator` (`security/api/`) on the `?token=<JWT>` query param. Same RSA key, same expiry rules — never a separate WS token. Browsers cannot set custom headers on a WS upgrade, which is why this path exists.
-
----
-
-### Enterprise Conditional Beans
-
-```java
-// Community default
-@Service
-@ConditionalOnProperty(name = "accessflow.edition", havingValue = "community", matchIfMissing = true)
-public class LocalAuthenticationService implements AuthenticationService { ... }
-
-// Enterprise override
-@Service
-@ConditionalOnProperty(name = "accessflow.edition", havingValue = "enterprise")
-public class SamlAuthenticationService implements AuthenticationService { ... }
-```
-
-Never use `if (edition.equals("enterprise"))` guards inside a shared bean — use conditional beans.
 
 ---
 
@@ -464,7 +445,6 @@ src/
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 VITE_WS_URL=ws://localhost:8080/ws
-VITE_APP_EDITION=community
 ```
 
 Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend code — use `import.meta.env`.
@@ -473,7 +453,7 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 
 ```
 /login                         → LoginPage
-/auth/saml/callback            → SamlCallbackPage (Enterprise)
+/auth/saml/callback            → SamlCallbackPage
 /editor                        → QueryEditorPage
 /queries                       → QueryListPage
 /queries/:id                   → QueryDetailPage
@@ -486,7 +466,7 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 /admin/ai-configs/new          → AiConfigCreateWizardPage
 /admin/ai-configs/:id          → AiConfigEditPage
 /admin/notifications           → NotificationsPage
-/admin/saml                    → SamlConfigPage (Enterprise — render only if features.saml_enabled)
+/admin/saml                    → SamlConfigPage
 ```
 
 ### SQL Editor Component

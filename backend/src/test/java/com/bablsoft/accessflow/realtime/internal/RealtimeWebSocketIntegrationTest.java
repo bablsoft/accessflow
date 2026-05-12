@@ -5,7 +5,6 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -240,7 +239,6 @@ class RealtimeWebSocketIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("WS Test Org");
         org.setSlug("ws-test-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         return organizationRepository.save(org);
     }
 

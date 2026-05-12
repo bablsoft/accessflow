@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.security.internal.web;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -24,7 +23,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -38,7 +36,6 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
-@TestPropertySource(properties = "accessflow.edition=enterprise")
 class AdminSamlConfigControllerIntegrationTest {
 
     @Autowired WebApplicationContext context;
@@ -47,8 +44,6 @@ class AdminSamlConfigControllerIntegrationTest {
     @Autowired SamlConfigRepository repository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
-    // Enterprise context has no LocalAuthenticationService and SamlAuthenticationService is not yet
-    // implemented; supply a stub so AuthController can wire.
     @MockitoBean AuthenticationService authenticationService;
 
     private MockMvcTester mvc;
@@ -85,7 +80,6 @@ class AdminSamlConfigControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary-" + UUID.randomUUID());
-        org.setEdition(EditionType.ENTERPRISE);
         organizationRepository.save(org);
 
         admin = saveUser("admin@example.com", UserRoleType.ADMIN);

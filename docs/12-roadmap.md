@@ -66,8 +66,6 @@
 **Authentication**
 - JWT RS256 with refresh token rotation
 - Redis-backed token revocation
-
-**Enterprise (v1.0)**
 - SAML 2.0 SP-initiated and IdP-initiated SSO
 - Auto-provisioning of users from SAML assertions
 - SAML attribute → role mapping
@@ -85,7 +83,7 @@
 - **AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users
 - **Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema
 - **Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved")
-- **Audit log CSV export** *(moves to Community from Enterprise)*
+- **Audit log CSV export**
 - **User invitation flow** — invite users by email instead of admin-created accounts
 
 ---
@@ -117,13 +115,13 @@
 
 ## v2.1
 
-**Theme:** Enterprise database coverage.
+**Theme:** Broader database coverage.
 
 - **Oracle adapter** — proxy support for Oracle Database 19c+
 - **Microsoft SQL Server adapter** — proxy support for SQL Server 2019+
 - **Data classification tagging** — mark columns as PII, PCI, PHI in the schema explorer; AI analysis uses tags to increase risk score automatically
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts
-- **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence (Enterprise)
+- **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence
 
 ---
 

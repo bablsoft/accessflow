@@ -2,7 +2,7 @@
 
 ## Authentication
 
-### Community Edition — JWT (RS256)
+### JWT (RS256)
 
 - Access tokens signed with RSA-2048 private key (`JWT_PRIVATE_KEY` env var)
 - Access token TTL: **15 minutes**
@@ -33,9 +33,9 @@ The realtime endpoint at `/ws` is exempt from `JwtAuthenticationFilter` and auth
 - The frontend reconnects whenever the access token rotates (after a `/auth/refresh` 200), so a long-running socket cannot outlive its credentials.
 - `/ws` is added to the `permitAll()` list in `SecurityConfiguration` because the handshake interceptor — not the JWT filter — is the auth boundary here.
 
-### Enterprise Edition — SAML 2.0
+### SAML 2.0 SSO
 
-All Community JWT mechanisms remain in place. Additionally:
+All JWT mechanisms remain in place. Additionally:
 
 - SP-initiated and IdP-initiated SSO flows supported
 - Spring Security SAML2 extension handles assertion parsing and validation
@@ -43,7 +43,7 @@ All Community JWT mechanisms remain in place. Additionally:
   1. Extract `NameID` as `saml_subject`
   2. Look up user by `saml_subject` — create if `auto_provision_users=true`
   3. Map SAML attributes to `display_name`, `email`, `role` per `attribute_mapping` config
-  4. Issue standard JWT pair — same token format as Community Edition
+  4. Issue standard JWT pair — same token format as for local logins
 - SAML session lifetime respected: when IdP sends `SessionNotOnOrAfter`, refresh tokens beyond that time are rejected
 
 ---
@@ -67,7 +67,7 @@ All Community JWT mechanisms remain in place. Additionally:
 | Manage notification channels | — | — | — | ✓ |
 | Configure AI provider | — | — | — | ✓ |
 | Manage users (create/deactivate) | — | — | — | ✓ |
-| Configure SAML (Enterprise) | — | — | — | ✓ |
+| Configure SAML | — | — | — | ✓ |
 
 **Key rule:** A user can never approve their own query request, regardless of role.
 
@@ -178,7 +178,7 @@ Implemented today:
 - User-initiated actions are audited synchronously from controllers so `ip_address` (honoring `X-Forwarded-For`) and `user_agent` from the HTTP request are captured on the row.
 - System-driven state transitions are audited via `@ApplicationModuleListener` in `audit/internal/AuditEventListener` — these run after the publishing transaction commits, on a separate thread; `ip_address` / `user_agent` are NULL on those rows by design.
 - `metadata` JSONB contains context-specific information but **never** stores query result data (rows returned), passwords, or encryption keys.
-- **HMAC-SHA256 hash chain.** Every new row carries `previous_hash` (the predecessor's `current_hash`, NULL only for the org's first chained row) and `current_hash = HMAC-SHA256(key, canonical(row) ‖ previous_hash)`. The canonical form is a length-prefixed concatenation of `id`, `organization_id`, `actor_id`, `action`, `resource_type`, `resource_id`, normalised JSON metadata, `ip_address`, `user_agent`, and ISO-8601 `created_at` — length-prefixed so the encoding is injective. The key is `AUDIT_HMAC_KEY` (hex-encoded, ≥ 32 bytes); for community installs the audit module derives the key from `ENCRYPTION_KEY` via HKDF-SHA256 with info string `accessflow-audit-hmac-v1` and logs a single WARN. Non-community editions fail startup if the env var is unset.
+- **HMAC-SHA256 hash chain.** Every new row carries `previous_hash` (the predecessor's `current_hash`, NULL only for the org's first chained row) and `current_hash = HMAC-SHA256(key, canonical(row) ‖ previous_hash)`. The canonical form is a length-prefixed concatenation of `id`, `organization_id`, `actor_id`, `action`, `resource_type`, `resource_id`, normalised JSON metadata, `ip_address`, `user_agent`, and ISO-8601 `created_at` — length-prefixed so the encoding is injective. The key is `AUDIT_HMAC_KEY` (hex-encoded, ≥ 32 bytes); when unset, the audit module derives the key from `ENCRYPTION_KEY` via HKDF-SHA256 with info string `accessflow-audit-hmac-v1` and logs a single WARN. Startup fails if neither key is available.
 - **Per-organization insert serialization.** `DefaultAuditLogService.record(...)` takes a Postgres advisory lock (`pg_advisory_xact_lock(orgIdHigh ^ orgIdLow)`) inside the transaction before reading the prior row's hash, so concurrent writes to the same org cannot interleave and break the chain. The lock releases automatically on commit/rollback.
 - **Verifier endpoint.** `GET /api/v1/admin/audit-log/verify` (ADMIN only) walks the chain in ASC order, recomputes each row's HMAC, and returns the first row whose recorded `previous_hash` or `current_hash` does not match — see `docs/04-api-spec.md`. The verifier is scoped to the caller's organization. Pre-V26 rows have NULL hashes and are skipped without counting.
 
@@ -219,11 +219,11 @@ Content-Security-Policy: default-src 'self'
 |--------|--------------|
 | `ENCRYPTION_KEY` | Environment variable / Kubernetes Secret |
 | `JWT_PRIVATE_KEY` | Environment variable / Kubernetes Secret (PEM format) |
-| `AUDIT_HMAC_KEY` | Environment variable / Kubernetes Secret (hex, ≥ 32 bytes). Required for non-community editions; derived from `ENCRYPTION_KEY` in community installs. |
+| `AUDIT_HMAC_KEY` | Environment variable / Kubernetes Secret (hex, ≥ 32 bytes). Optional — when unset, derived from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `AI_API_KEY` | Environment variable / Kubernetes Secret |
 | `DB_PASSWORD` | Environment variable / Kubernetes Secret |
 | Customer DB credentials | Stored encrypted in DB; never in env vars |
-| SAML keystore password | Environment variable / Kubernetes Secret (Enterprise) |
+| SAML keystore password | Environment variable / Kubernetes Secret |
 
 For Kubernetes deployments, all secrets should be injected via `secretKeyRef` in the deployment manifest, not hardcoded in `values.yaml`.
 

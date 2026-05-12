@@ -4,7 +4,6 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -155,7 +154,6 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         return organizationRepository.save(org);
     }
 

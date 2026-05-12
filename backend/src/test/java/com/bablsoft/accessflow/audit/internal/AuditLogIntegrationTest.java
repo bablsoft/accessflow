@@ -10,7 +10,6 @@ import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
@@ -93,7 +92,6 @@ class AuditLogIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Org");
         org.setSlug("org-" + UUID.randomUUID());
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
         organizationId = org.getId();
 

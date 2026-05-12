@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.security.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -245,7 +244,6 @@ class AdminUserControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName(name);
         org.setSlug(slug);
-        org.setEdition(EditionType.COMMUNITY);
         return organizationRepository.save(org);
     }
 

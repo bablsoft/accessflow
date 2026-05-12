@@ -19,15 +19,15 @@ import java.util.HexFormat;
 /**
  * Wires the audit-module HMAC chain hasher. The active key source is, in order:
  * <ol>
- *   <li>{@code accessflow.audit.hmac-key} (env var {@code AUDIT_HMAC_KEY}) — required for
- *       non-community editions. Must be hex-encoded with at least 32 bytes of entropy.</li>
- *   <li>For community installs only, an HKDF-SHA256 derivative of {@code accessflow.encryption-key}
- *       with the literal info string {@code "accessflow-audit-hmac-v1"}. This keeps the demo /
- *       single-binary deployment path zero-config while still tying the audit chain to a
- *       per-deployment secret that is not stored in the database.</li>
+ *   <li>{@code accessflow.audit.hmac-key} (env var {@code AUDIT_HMAC_KEY}) — when set, must be
+ *       hex-encoded with at least 32 bytes of entropy.</li>
+ *   <li>Otherwise, an HKDF-SHA256 derivative of {@code accessflow.encryption-key} with the literal
+ *       info string {@code "accessflow-audit-hmac-v1"}. This keeps the zero-config deployment path
+ *       working while still tying the audit chain to a per-deployment secret that is not stored in
+ *       the database.</li>
  * </ol>
- * Startup fails fast for any other combination so a misconfigured production deployment cannot
- * silently fall back to a derivable key.
+ * Startup fails fast when neither key is available so a misconfigured deployment cannot silently
+ * proceed with a missing chain key.
  */
 @Configuration
 @EnableConfigurationProperties(AuditHmacProperties.class)
@@ -39,23 +39,17 @@ class AuditConfiguration {
 
     @Bean
     AuditChainHasher auditChainHasher(AuditHmacProperties properties,
-                                      @Value("${accessflow.edition:community}") String edition,
                                       @Value("${accessflow.encryption-key:}") String encryptionKey,
                                       ObjectMapper objectMapper,
                                       MessageSource messageSource) {
-        byte[] key = resolveKey(properties, edition, encryptionKey, messageSource);
+        byte[] key = resolveKey(properties, encryptionKey, messageSource);
         return new AuditChainHasher(key, objectMapper);
     }
 
-    static byte[] resolveKey(AuditHmacProperties properties, String edition, String encryptionKey,
+    static byte[] resolveKey(AuditHmacProperties properties, String encryptionKey,
                              MessageSource messageSource) {
         if (properties != null && properties.hmacKey() != null && !properties.hmacKey().isBlank()) {
             return parseHexKey(properties.hmacKey().trim(), messageSource);
-        }
-        boolean community = edition == null || edition.isBlank() || "community".equalsIgnoreCase(edition);
-        if (!community) {
-            throw new IllegalStateException(messageSource.getMessage(
-                    "error.audit_hmac_key_missing", null, LocaleContextHolder.getLocale()));
         }
         if (encryptionKey == null || encryptionKey.isBlank()) {
             throw new IllegalStateException(messageSource.getMessage(

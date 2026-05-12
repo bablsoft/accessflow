@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.workflow.internal.web;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -80,7 +79,6 @@ class QuerySubmissionControllerIntegrationTest {
         org.setId(UUID.randomUUID());
         org.setName("Primary");
         org.setSlug("primary");
-        org.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(org);
 
         analyst = new UserEntity();

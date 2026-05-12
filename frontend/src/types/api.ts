@@ -1,6 +1,5 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
 export type AuthProvider = 'LOCAL' | 'SAML';
-export type Edition = 'COMMUNITY' | 'ENTERPRISE';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =

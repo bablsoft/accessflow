@@ -47,7 +47,7 @@ describe('Topbar', () => {
     expect(screen.queryByPlaceholderText(/search/i)).toBeNull();
   });
 
-  it('does not render the community/enterprise edition selector', () => {
+  it('does not render an edition selector', () => {
     render(wrap(<Topbar onOpenMobileNav={vi.fn()} />));
     expect(screen.queryByText(/community/i)).toBeNull();
     expect(screen.queryByText(/enterprise/i)).toBeNull();

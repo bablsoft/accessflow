@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.security.api.UpdateSamlConfigCommand;
 import com.bablsoft.accessflow.security.internal.persistence.entity.SamlConfigEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +14,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Service
-@ConditionalOnProperty(name = "accessflow.edition", havingValue = "enterprise")
 @RequiredArgsConstructor
 class DefaultSamlConfigService implements SamlConfigService {
 

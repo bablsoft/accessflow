@@ -7,7 +7,6 @@ import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -127,7 +126,6 @@ class QueryTimeoutJobIntegrationTest {
         organization.setId(UUID.randomUUID());
         organization.setName("Primary");
         organization.setSlug("primary-" + UUID.randomUUID());
-        organization.setEdition(EditionType.COMMUNITY);
         organizationRepository.save(organization);
 
         var submitter = new UserEntity();

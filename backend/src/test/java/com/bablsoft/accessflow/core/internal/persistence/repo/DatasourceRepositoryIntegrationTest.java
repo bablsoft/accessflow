@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.core.internal.persistence.repo;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.core.api.EditionType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -53,7 +52,6 @@ class DatasourceRepositoryIntegrationTest {
         organization.setId(UUID.randomUUID());
         organization.setName("org-" + organization.getId());
         organization.setSlug("org-" + organization.getId());
-        organization.setEdition(EditionType.COMMUNITY);
         organization = organizationRepository.save(organization);
     }
 

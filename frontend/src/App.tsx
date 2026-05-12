@@ -29,12 +29,10 @@ import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
-import { usePreferencesStore } from '@/store/preferencesStore';
 
 export function App() {
   const setupRequired = useSetupStore((s) => s.setupRequired);
   const location = useLocation();
-  const edition = usePreferencesStore((s) => s.edition);
 
   if (setupRequired === true && location.pathname !== '/setup') {
     return <Navigate to="/setup" replace />;
@@ -172,16 +170,14 @@ export function App() {
               </AuthGuard>
             }
           />
-          {edition === 'ENTERPRISE' && (
-            <Route
-              path="/admin/saml"
-              element={
-                <AuthGuard requireRole="ADMIN">
-                  <SamlConfigPage />
-                </AuthGuard>
-              }
-            />
-          )}
+          <Route
+            path="/admin/saml"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <SamlConfigPage />
+              </AuthGuard>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/editor" replace />} />
       </Routes>
