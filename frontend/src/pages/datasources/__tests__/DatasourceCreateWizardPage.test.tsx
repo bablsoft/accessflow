@@ -159,6 +159,8 @@ describe('DatasourceCreateWizardPage', () => {
         name: 'Prod PG',
         host: 'db.internal',
         db_type: 'POSTGRESQL',
+        ai_analysis_enabled: false,
+        ai_config_id: null,
       }),
     );
     expect(updateDatasource).not.toHaveBeenCalled();

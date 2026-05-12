@@ -125,6 +125,8 @@ export default function DatasourceCreateWizardPage() {
         username: values.username,
         password: values.password,
         ssl_mode: values.ssl_mode,
+        ai_analysis_enabled: false,
+        ai_config_id: null,
       };
       return createDatasource(input);
     },
