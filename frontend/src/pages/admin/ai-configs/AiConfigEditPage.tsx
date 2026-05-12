@@ -54,10 +54,11 @@ export default function AiConfigEditPage() {
 
   useEffect(() => {
     if (cfgQuery.data) {
+      const isOllama = cfgQuery.data.provider === 'OLLAMA';
       form.setFieldsValue({
         name: cfgQuery.data.name,
         model: cfgQuery.data.model,
-        endpoint: cfgQuery.data.endpoint ?? '',
+        endpoint: isOllama ? (cfgQuery.data.endpoint ?? '') : '',
         api_key: cfgQuery.data.api_key ?? '',
         timeout_ms: cfgQuery.data.timeout_ms,
         max_prompt_tokens: cfgQuery.data.max_prompt_tokens,
@@ -119,10 +120,11 @@ export default function AiConfigEditPage() {
 
   const onSave = (values: FormValues) => {
     const apiKey = values.api_key === MASK ? undefined : values.api_key;
+    const isOllama = cfg.provider === 'OLLAMA';
     saveMutation.mutate({
       name: values.name.trim(),
       model: values.model.trim(),
-      endpoint: values.endpoint.trim() || null,
+      endpoint: isOllama ? (values.endpoint?.trim() || null) : null,
       api_key: apiKey ?? null,
       timeout_ms: values.timeout_ms,
       max_prompt_tokens: values.max_prompt_tokens,
@@ -164,13 +166,15 @@ export default function AiConfigEditPage() {
           >
             <Input className="mono" maxLength={100} />
           </Form.Item>
-          <Form.Item
-            name="endpoint"
-            label={t('admin.ai_configs.field_endpoint')}
-            rules={[{ max: 500 }]}
-          >
-            <Input className="mono" maxLength={500} />
-          </Form.Item>
+          {cfg.provider === 'OLLAMA' && (
+            <Form.Item
+              name="endpoint"
+              label={t('admin.ai_configs.field_endpoint')}
+              rules={[{ max: 500 }]}
+            >
+              <Input className="mono" maxLength={500} />
+            </Form.Item>
+          )}
           <Form.Item
             name="api_key"
             label={t('admin.ai_configs.field_api_key')}

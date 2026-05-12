@@ -974,7 +974,6 @@ Creates a new AI configuration.
   "name": "OpenAI prod",
   "provider": "OPENAI",
   "model": "gpt-4o",
-  "endpoint": "https://api.openai.com/v1",
   "api_key": "sk-...",
   "timeout_ms": 30000,
   "max_prompt_tokens": 8000,
@@ -983,6 +982,8 @@ Creates a new AI configuration.
 ```
 
 Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA}; `model` non-blank ≤ 100; `endpoint` ≤ 500; `api_key` ≤ 4096; `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
+
+`endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
 **Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
 **Response 400:** Validation error.

@@ -349,10 +349,13 @@ autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring
 (`spring-ai-bom:2.0.0-M6` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
-  provider / model / endpoint / API key / timeout. Default boot model: `claude-sonnet-4-20250514`.
-- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Default boot model: `gpt-4o`.
+  provider / model / API key / timeout. The base URL comes from Spring AI's built-in default;
+  the `ai_config.endpoint` column is ignored for this provider. Default boot model:
+  `claude-sonnet-4-20250514`.
+- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Same handling — Spring AI's built-in default
+  base URL is used; the `ai_config.endpoint` column is ignored. Default boot model: `gpt-4o`.
 - `OllamaAnalyzerStrategy` — `OllamaChatModel`. Keyless; needs only `endpoint` (default
-  `http://localhost:11434`).
+  `http://localhost:11434`). Ollama is the only provider that reads `ai_config.endpoint`.
 
 ### Runtime strategy refresh
 

@@ -304,11 +304,13 @@ kubectl create secret generic accessflow-ai-key \
 | `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
 
-> **AI provider config is not an environment variable.** Provider, model, API key, endpoint and
-> timeouts live in the per-organization `ai_config` table and are managed via `PUT
-> /api/v1/admin/ai-config` at runtime (see [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service)). A fresh install has no AI configured until an
-> ADMIN sets it; `POST /api/v1/admin/ai-config/test` returns `{"status":"ERROR", "detail":"AI is
-> not configured…"}` until then. No `AI_PROVIDER` / `AI_API_KEY` / `AI_MODEL` env var is read.
+> **AI provider config is not an environment variable.** Provider, model, API key, endpoint
+> (Ollama only) and timeouts live in the per-organization `ai_config` table and are managed via
+> `PUT /api/v1/admin/ai-config` at runtime (see [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service)). For OpenAI and Anthropic, Spring AI's built-in
+> default base URLs are used; the `endpoint` column is read only when `provider = OLLAMA`. A
+> fresh install has no AI configured until an ADMIN sets it; `POST /api/v1/admin/ai-config/test`
+> returns `{"status":"ERROR", "detail":"AI is not configured…"}` until then. No `AI_PROVIDER` /
+> `AI_API_KEY` / `AI_MODEL` env var is read.
 
 ---
 

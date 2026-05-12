@@ -24,7 +24,7 @@ interface ProviderTile {
   label: string;
   desc: string;
   defaultModel: string;
-  defaultEndpoint: string;
+  defaultEndpoint?: string;
   needsApiKey: boolean;
 }
 
@@ -34,7 +34,6 @@ const PROVIDERS: ProviderTile[] = [
     label: 'OpenAI',
     desc: 'GPT-4o, GPT-4o-mini',
     defaultModel: 'gpt-4o',
-    defaultEndpoint: 'https://api.openai.com/v1',
     needsApiKey: true,
   },
   {
@@ -42,7 +41,6 @@ const PROVIDERS: ProviderTile[] = [
     label: 'Anthropic',
     desc: 'Claude Sonnet, Haiku',
     defaultModel: 'claude-sonnet-4-20250514',
-    defaultEndpoint: 'https://api.anthropic.com/v1',
     needsApiKey: true,
   },
   {
@@ -81,11 +79,12 @@ export default function AiConfigCreateWizardPage() {
   const createMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       if (!selectedProvider) throw new Error('No provider selected');
+      const isOllama = selectedProvider.id === 'OLLAMA';
       const input: CreateAiConfigInput = {
         name: values.name.trim(),
         provider: selectedProvider.id,
         model: values.model.trim(),
-        endpoint: values.endpoint.trim() || null,
+        endpoint: isOllama ? (values.endpoint?.trim() || null) : null,
         api_key: values.api_key || null,
         timeout_ms: values.timeout_ms,
         max_prompt_tokens: values.max_prompt_tokens,
@@ -135,7 +134,7 @@ export default function AiConfigCreateWizardPage() {
                     setSelectedProvider(p);
                     form.setFieldsValue({
                       model: p.defaultModel,
-                      endpoint: p.defaultEndpoint,
+                      endpoint: p.defaultEndpoint ?? '',
                       timeout_ms: 30_000,
                       max_prompt_tokens: 8_000,
                       max_completion_tokens: 2_000,
@@ -178,13 +177,15 @@ export default function AiConfigCreateWizardPage() {
               >
                 <Input className="mono" maxLength={100} />
               </Form.Item>
-              <Form.Item
-                name="endpoint"
-                label={t('admin.ai_configs.field_endpoint')}
-                rules={[{ max: 500 }]}
-              >
-                <Input className="mono" maxLength={500} />
-              </Form.Item>
+              {selectedProvider.id === 'OLLAMA' && (
+                <Form.Item
+                  name="endpoint"
+                  label={t('admin.ai_configs.field_endpoint')}
+                  rules={[{ max: 500 }]}
+                >
+                  <Input className="mono" maxLength={500} />
+                </Form.Item>
+              )}
               <Form.Item
                 name="api_key"
                 label={t('admin.ai_configs.field_api_key')}

@@ -203,7 +203,7 @@ export default function DatasourceCreateWizardPage() {
           initialValues={{
             port: selectedType.default_port,
             ssl_mode: selectedType.default_ssl_mode,
-            ai_analysis_enabled: true,
+            ai_analysis_enabled: false,
             ai_config_id: null,
           }}
         >
