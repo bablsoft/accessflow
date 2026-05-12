@@ -4,6 +4,7 @@ import com.partqam.accessflow.core.api.CreateReviewPlanCommand;
 import com.partqam.accessflow.core.api.IllegalReviewPlanException;
 import com.partqam.accessflow.core.api.ReviewPlanAdminService;
 import com.partqam.accessflow.core.api.ReviewPlanInUseException;
+import com.partqam.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
 import com.partqam.accessflow.core.api.ReviewPlanView;
 import com.partqam.accessflow.core.api.UpdateReviewPlanCommand;
@@ -56,7 +57,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         validateName(command.name());
         if (reviewPlanRepository.existsByOrganization_IdAndNameIgnoreCase(
                 command.organizationId(), command.name())) {
-            throw new IllegalReviewPlanException("Review plan name already exists");
+            throw new ReviewPlanNameAlreadyExistsException(command.name());
         }
         var requiresHuman = command.requiresHumanApproval() == null
                 || command.requiresHumanApproval();
@@ -87,7 +88,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
             validateName(command.name());
             if (reviewPlanRepository.existsByOrganization_IdAndNameIgnoreCaseAndIdNot(
                     organizationId, command.name(), id)) {
-                throw new IllegalReviewPlanException("Review plan name already exists");
+                throw new ReviewPlanNameAlreadyExistsException(command.name());
             }
             entity.setName(command.name());
         }

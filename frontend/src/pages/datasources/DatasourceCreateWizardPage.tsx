@@ -522,9 +522,11 @@ export default function DatasourceCreateWizardPage() {
         title={t('datasources.create.title')}
         subtitle={t('datasources.create.subtitle')}
         actions={
-          <Button icon={<ArrowLeftOutlined />} onClick={goBack}>
-            {t('datasources.create.back')}
-          </Button>
+          currentStep === 'type' || currentStep === 'connection' ? (
+            <Button icon={<ArrowLeftOutlined />} onClick={goBack}>
+              {t('datasources.create.back')}
+            </Button>
+          ) : null
         }
       />
       <div

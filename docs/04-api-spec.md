@@ -679,6 +679,8 @@ Validation: `name` non-blank, ≤255 chars; `description` ≤2000; `min_approval
 
 **Response 201**: full review plan body (same shape as `GET /review-plans/{id}`); `Location` header points to the new resource.
 
+**Response 409:** Another review plan in the organization already uses that name (`error: REVIEW_PLAN_NAME_ALREADY_EXISTS`).
+
 ### GET /review-plans/{id}
 
 Returns a single review plan in the caller's organization. 404 if missing or in another organization.
@@ -699,7 +701,8 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | 403 | `FORBIDDEN` | Caller is not an `ADMIN` (mutations only) |
 | 404 | `REVIEW_PLAN_NOT_FOUND` | Plan does not exist or is in another organization |
 | 409 | `REVIEW_PLAN_IN_USE` | One or more datasources still reference the plan |
-| 422 | `ILLEGAL_REVIEW_PLAN` | Approver configuration invalid, name conflict, etc. |
+| 409 | `REVIEW_PLAN_NAME_ALREADY_EXISTS` | Another plan in the organization already uses that name |
+| 422 | `ILLEGAL_REVIEW_PLAN` | Approver configuration invalid, etc. |
 
 ---
 

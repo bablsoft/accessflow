@@ -386,6 +386,7 @@ function buildStages(query: QueryDetail): TimelineStage[] {
     detail: query.ai_analysis
       ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
       : 'analyzing…',
+    riskLevel: query.ai_analysis?.risk_level ?? null,
   });
   if (query.status !== 'APPROVED' || query.duration_ms == null) {
     const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT'].includes(query.status);

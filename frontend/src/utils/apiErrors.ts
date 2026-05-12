@@ -114,6 +114,10 @@ export function adminErrorMessage(err: unknown): string {
     if (code === 'EMAIL_ALREADY_EXISTS') return i18n.t('errors.email_already_exists');
     if (code === 'USER_NOT_FOUND') return i18n.t('errors.user_not_found');
     if (code === 'ILLEGAL_USER_OPERATION') return i18n.t('errors.illegal_user_operation_admin');
+    if (code === 'AI_CONFIG_NAME_ALREADY_EXISTS') {
+      return i18n.t('errors.ai_config_name_already_exists');
+    }
+    if (code === 'AI_CONFIG_IN_USE') return i18n.t('errors.ai_config_in_use');
     if (code === 'NOTIFICATION_CHANNEL_CONFIG_INVALID') {
       return i18n.t('errors.notification_channel_config_invalid');
     }
@@ -155,6 +159,9 @@ export function datasourceCreateErrorMessage(err: unknown): string | null {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;
     const body = ax.response?.data;
+    if (body?.error === 'DATASOURCE_NAME_ALREADY_EXISTS') {
+      return i18n.t('errors.datasource_name_already_exists');
+    }
     if (body?.error === 'DATASOURCE_DRIVER_UNAVAILABLE') {
       const dbType = body.dbType ?? '';
       switch (body.reason) {
@@ -185,8 +192,8 @@ export function datasourceCreateErrorMessage(err: unknown): string | null {
           });
       }
     }
-    if (body?.title) return body.title;
     if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
     if (ax.message) return ax.message;
   }
   if (err instanceof Error && err.message) return err.message;
@@ -203,6 +210,9 @@ export function reviewPlanErrorMessage(err: unknown): string {
     }
     if (code === 'REVIEW_PLAN_NOT_FOUND') {
       return i18n.t('errors.review_plan_not_found');
+    }
+    if (code === 'REVIEW_PLAN_NAME_ALREADY_EXISTS') {
+      return i18n.t('errors.review_plan_name_already_exists');
     }
     if (code === 'ILLEGAL_REVIEW_PLAN') {
       return i18n.t('errors.illegal_review_plan');

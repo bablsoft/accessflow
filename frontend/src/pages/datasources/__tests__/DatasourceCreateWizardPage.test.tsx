@@ -168,12 +168,8 @@ describe('DatasourceCreateWizardPage', () => {
     await screen.findByRole('button', { name: /Test connection/ });
   });
 
-  it('PUTs (not POSTs) when back-editing after a failed test', async () => {
+  it('hides the Back button once the datasource is persisted (test step)', async () => {
     createDatasource.mockResolvedValueOnce(baseDatasource);
-    updateDatasource.mockResolvedValueOnce({
-      ...baseDatasource,
-      host: 'db2.internal',
-    });
 
     render(wrap(<DatasourceCreateWizardPage />));
 
@@ -181,24 +177,12 @@ describe('DatasourceCreateWizardPage', () => {
     fireEvent.click(screen.getByText('PostgreSQL'));
 
     await screen.findByLabelText('Name');
+    expect(screen.queryByRole('button', { name: /Back/ })).toBeInTheDocument();
+
     await fillConnectionAndSubmit('Save and test');
 
     await screen.findByRole('button', { name: /Test connection/ });
-    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
-
-    await screen.findByLabelText('Host');
-    fireEvent.change(screen.getByLabelText('Host'), {
-      target: { value: 'db2.internal' },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
-
-    await waitFor(() => expect(updateDatasource).toHaveBeenCalledTimes(1));
-    expect(updateDatasource).toHaveBeenCalledWith(
-      'ds-1',
-      expect.objectContaining({ host: 'db2.internal' }),
-    );
-    expect(createDatasource).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Back/ })).toBeNull();
   });
 
   it('settings step PUTs and navigates to /datasources/:id/settings', async () => {

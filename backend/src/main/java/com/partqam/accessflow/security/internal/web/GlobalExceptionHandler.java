@@ -21,6 +21,7 @@ import com.partqam.accessflow.core.api.TotpInvalidCodeException;
 import com.partqam.accessflow.core.api.TotpNotEnabledException;
 import com.partqam.accessflow.core.api.QueryRequestNotFoundException;
 import com.partqam.accessflow.core.api.ReviewPlanInUseException;
+import com.partqam.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.partqam.accessflow.core.api.ReviewPlanNotFoundException;
 import com.partqam.accessflow.core.api.SetupAlreadyCompletedException;
 import com.partqam.accessflow.core.api.UnsupportedLanguageException;
@@ -255,6 +256,15 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 msg("error.review_plan_in_use"));
         pd.setProperty("error", "REVIEW_PLAN_IN_USE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ReviewPlanNameAlreadyExistsException.class)
+    ProblemDetail handleReviewPlanNameAlreadyExists(ReviewPlanNameAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.review_plan_name_already_exists"));
+        pd.setProperty("error", "REVIEW_PLAN_NAME_ALREADY_EXISTS");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

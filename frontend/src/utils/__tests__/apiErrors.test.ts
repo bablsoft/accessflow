@@ -143,6 +143,16 @@ describe('adminErrorMessage', () => {
       .toBe('Audit log filter is invalid (page size or resource type).');
   });
 
+  it('maps AI_CONFIG_NAME_ALREADY_EXISTS', () => {
+    expect(adminErrorMessage(buildAxiosError(409, { error: 'AI_CONFIG_NAME_ALREADY_EXISTS' })))
+      .toBe('An AI configuration with that name already exists. Pick a different name.');
+  });
+
+  it('maps AI_CONFIG_IN_USE', () => {
+    expect(adminErrorMessage(buildAxiosError(409, { error: 'AI_CONFIG_IN_USE' })))
+      .toBe('This AI configuration is bound to one or more datasources and cannot be deleted.');
+  });
+
   it('falls back to ProblemDetail.title', () => {
     expect(adminErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
   });
@@ -326,11 +336,21 @@ describe('datasourceCreateErrorMessage', () => {
     expect(datasourceCreateErrorMessage(undefined)).toBeNull();
   });
 
-  it('uses ProblemDetail title for non-driver 4xx', () => {
+  it('maps DATASOURCE_NAME_ALREADY_EXISTS to a friendly duplicate message', () => {
     expect(datasourceCreateErrorMessage(buildAxiosError(409, {
       error: 'DATASOURCE_NAME_ALREADY_EXISTS',
-      title: 'A datasource with this name already exists',
-    }))).toBe('A datasource with this name already exists');
+      title: 'Conflict',
+      detail: 'A datasource with that name already exists',
+    }))).toBe(
+      'A datasource with that name already exists in your organization. Pick a different name.',
+    );
+  });
+
+  it('prefers ProblemDetail.detail over .title for non-driver 4xx fallbacks', () => {
+    expect(datasourceCreateErrorMessage(buildAxiosError(409, {
+      title: 'Conflict',
+      detail: 'Something more specific',
+    }))).toBe('Something more specific');
   });
 });
 
@@ -368,6 +388,12 @@ describe('reviewPlanErrorMessage', () => {
   it('maps ILLEGAL_REVIEW_PLAN', () => {
     expect(reviewPlanErrorMessage(buildAxiosError(422, { error: 'ILLEGAL_REVIEW_PLAN' })))
       .toBe('That review plan configuration is not allowed.');
+  });
+
+  it('maps REVIEW_PLAN_NAME_ALREADY_EXISTS', () => {
+    expect(
+      reviewPlanErrorMessage(buildAxiosError(409, { error: 'REVIEW_PLAN_NAME_ALREADY_EXISTS' })),
+    ).toBe('A review plan with that name already exists. Pick a different name.');
   });
 
   it('returns a generic fallback for unknown values', () => {
