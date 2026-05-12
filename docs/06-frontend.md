@@ -197,6 +197,44 @@ Four-step flow at `/datasources/new` for adding a new datasource. Replaces a fla
 
 The wizard is the only entry point that materializes a datasource; `DatasourceListPage` links to it via a "New datasource" button.
 
+**Custom drivers + dynamic mode.** The type-selection step groups results into two sections: a
+**Bundled drivers** group (the five canonical engines) and a **Custom drivers** group (entries
+where `source==="uploaded"` in `GET /datasources/types`). Each uploaded entry shows vendor +
+driver class instead of the generic description. Selecting an uploaded entry passes the option
+into the connection step, which:
+
+- Sets `custom_driver_id` from `option.custom_driver_id` on submit so the backend resolves the
+  per-driver classloader instead of the bundled registry.
+- If the entry's `code` is `CUSTOM`, switches the connection form into **dynamic mode**: the
+  host / port / database fields are replaced with a single `JDBC URL` textarea bound to
+  `jdbc_url_override`. `JdbcUrlPreview` is suppressed (the URL is the URL).
+
+When no uploaded drivers exist, the Custom drivers group renders a single help row with a deep
+link to `/admin/drivers` so admins can upload one without abandoning the wizard. The selector
+exposes a stable `optionKey(option)` helper so two uploaded drivers with the same target
+`db_type` stay independently selectable.
+
+### CustomDriversPage *(ADMIN — `/admin/drivers`)*
+
+Lazy-loaded admin page listing the organization's uploaded JDBC drivers. Implemented in
+`src/pages/admin/drivers/CustomDriversPage.tsx` with the upload flow in
+`CustomDriverUploadModal.tsx`. Data source: `GET /datasources/drivers` via TanStack Query (key
+`customDriverKeys.lists()`).
+
+The table shows vendor, target `db_type`, fully-qualified driver class, JAR filename and size,
+truncated SHA-256 (with copy button), uploader, and upload timestamp. The row action is a
+single delete button gated by a `Popconfirm`; 409 `CUSTOM_DRIVER_IN_USE` errors surface via
+`customDriverErrorMessage` with a count of referencing datasources.
+
+The upload modal collects the JAR through Ant Design's `Upload.Dragger` (`.jar` extension and
+50 MB size enforced client-side as a first line of defence), plus vendor name, target
+`db_type` (including a "Custom / Dynamic JDBC" option), fully-qualified driver class, and the
+admin-computed SHA-256. Form-level Bean-Validation mirrors the backend regexes:
+`^[A-Za-z_$][A-Za-z0-9_$]*(\.[A-Za-z_$][A-Za-z0-9_$]*)+$` for the driver class and
+`^[a-fA-F0-9]{64}$` for the SHA-256. On success the modal invalidates both
+`customDriverKeys.lists()` and `['datasources', 'types']` so the wizard picks up the new entry
+immediately.
+
 **Logo asset licensing.** All five database type icons (`postgresql.svg`, `mysql.svg`, `mariadb.svg`, `oracle.svg`, `mssql.svg`) are sourced verbatim from [Devicon](https://devicon.dev/) pinned to release [v2.17.0](https://github.com/devicons/devicon/releases/tag/v2.17.0) and redistributed under the MIT licence. The licence text and attribution preamble live in `frontend/public/db-icons/LICENSE` — keep them next to the SVGs and update the preamble when the pinned tag is bumped. `generic.svg` is original AccessFlow artwork and remains as the fallback for any future `DbType` added before its icon has been vendored.
 
 ### DatasourceSettingsPage *(ADMIN)*
@@ -387,6 +425,7 @@ VITE_APP_EDITION=community         # community | enterprise
 /admin/ai-configs/:id               → AiConfigEditPage
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
+/admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
 /admin/saml                         → SamlConfigPage (Enterprise)
 ```
 

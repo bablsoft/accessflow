@@ -130,6 +130,22 @@ Are restricted_columns set?
 
 ---
 
+## Custom JDBC Driver Trust Boundary
+
+Admin-uploaded JDBC driver JARs (see [`docs/05-backend.md`](05-backend.md#admin-uploaded-drivers-94--142)) live on the AccessFlow filesystem unencrypted. The trust anchors are:
+
+- **Admin-only RBAC** — `POST /datasources/drivers`, `GET /datasources/drivers`, and the delete endpoint all require `hasRole('ADMIN')`. The upload flow is the only way to add a custom driver; the static `DriverRegistry` is compile-time and cannot be mutated at runtime.
+- **Pinned SHA-256, verified twice** — The admin enters the expected SHA-256 on upload; the server computes the actual digest while streaming bytes to disk and refuses to persist on mismatch. Every subsequent `resolveCustom(...)` re-verifies the on-disk JAR against the persisted descriptor before instantiating the classloader, so an attacker who tampers with the file (e.g. via a privileged shell on the host) is caught at the next pool init.
+- **Per-driver classloader isolation** — Each uploaded JAR loads into its own `URLClassLoader` keyed by `custom_jdbc_driver.id`. Two datasources targeting different uploaded drivers — even with the same `db_type` — cannot share static state. This also limits the blast radius of a malicious driver to its own classloader and the customer DB it connects to; it cannot reach AccessFlow beans (which live on the parent classloader and are not exported into the child).
+- **No remote download path** — Unlike the bundled registry, uploaded drivers are never fetched from Maven Central or any remote URL. They are admin-supplied and verified locally.
+- **Org-scoped visibility** — Every list / lookup / delete is filtered by `organization_id`. A driver uploaded by org A is invisible to org B, even at the `GET /datasources/types` catalog level.
+- **Driver class probe** — At upload time the server instantiates the declared driver class in a throwaway classloader and asserts it implements `java.sql.Driver`. Uploads where the declared class is missing or wrong-typed are rejected with `422 CUSTOM_DRIVER_INVALID_JAR` so they cannot be referenced by a datasource later.
+- **JARs are not encrypted at rest.** AccessFlow does not encrypt driver JARs because their contents are not secret (they typically come from public Maven coordinates) and the file is signed-by-content via SHA-256. Operators who need at-rest encryption should mount `${ACCESSFLOW_DRIVER_CACHE}` on a volume that provides it (e.g. dm-crypt / KMS-managed cloud volumes).
+
+The 50 MB upload limit (`spring.servlet.multipart.max-file-size=50MB`) is a defence-in-depth bound — far above any legitimate driver (Snowflake's bundle, the largest in common use, is ~30 MB) and small enough that a runaway upload cannot fill an operator's storage volume.
+
+---
+
 ## SQL Injection Prevention
 
 AccessFlow uses defense-in-depth against injection attacks:

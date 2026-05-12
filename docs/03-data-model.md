@@ -55,10 +55,10 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
 | `name` | VARCHAR(255) — human-readable label; **UNIQUE per organization** (case-insensitive at the service layer) |
-| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` |
-| `host` | VARCHAR(255) |
-| `port` | INTEGER |
-| `database_name` | VARCHAR(255) |
+| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` \| `MARIADB` \| `ORACLE` \| `MSSQL` \| `CUSTOM` — `CUSTOM` is paired with `custom_driver_id` + `jdbc_url_override` for free-form dynamic datasources |
+| `host` | VARCHAR(255) — nullable; required for bundled `db_type`s, absent when `db_type=CUSTOM` |
+| `port` | INTEGER — nullable; same rule as `host` |
+| `database_name` | VARCHAR(255) — nullable; same rule as `host` |
 | `username` | VARCHAR(255) — service account username |
 | `password_encrypted` | TEXT — AES-256-GCM encrypted at rest |
 | `ssl_mode` | ENUM: `DISABLE` \| `REQUIRE` \| `VERIFY_CA` \| `VERIFY_FULL` |
@@ -69,10 +69,46 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `review_plan_id` | FK → `review_plans` |
 | `ai_analysis_enabled` | BOOLEAN DEFAULT true |
 | `ai_config_id` | FK → `ai_config(id)` NULL, ON DELETE SET NULL — which AI configuration runs analysis for this datasource. Required (and enforced by the service layer) when `ai_analysis_enabled = true`. |
+| `custom_driver_id` | FK → `custom_jdbc_driver(id)` NULL, ON DELETE RESTRICT — when set, the proxy uses the uploaded driver's per-driver classloader instead of the bundled registry entry. Required when `db_type=CUSTOM`. |
+| `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; required when `db_type=CUSTOM` (and rejected for any bundled `db_type`). |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
 > **Constraint:** `UNIQUE (organization_id, name)` — added in `V10__datasource_unique_name_per_org.sql`. Attempting to create or rename a datasource into an existing name in the same organization returns HTTP 409 with `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+
+---
+
+## custom_jdbc_driver
+
+Per-organization admin-uploaded JDBC driver JARs. Powers both:
+1. **Drop-in overrides** — uploaded entries take precedence over the bundled registry when a
+   datasource sets `custom_driver_id`. Useful for community-driver forks, vendor builds, or
+   newer driver versions.
+2. **Fully dynamic datasources** — when `target_db_type=CUSTOM`, the upload backs a
+   `db_type=CUSTOM` datasource with a free-form JDBC URL (no host/port/database_name).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `vendor_name` | VARCHAR(100) — display label (e.g. "Snowflake", "Acme Custom Build") |
+| `target_db_type` | `db_type` ENUM — the dialect the upload speaks. `CUSTOM` means free-form JDBC URL. |
+| `driver_class` | VARCHAR(255) — fully-qualified Java class name of the JDBC driver inside the JAR |
+| `jar_filename` | VARCHAR(255) — original filename for display |
+| `jar_sha256` | VARCHAR(64) — hex SHA-256; verified server-side at upload and at every classloader hit |
+| `jar_size_bytes` | BIGINT |
+| `storage_path` | TEXT — relative path under `${ACCESSFLOW_DRIVER_CACHE}` (typically `custom/<org_id>/<driver_id>.jar`) |
+| `uploaded_by` | FK → `users(id)` |
+| `created_at` | TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP |
+
+**Constraints**
+- `UNIQUE (organization_id, jar_sha256)` — re-upload of the same JAR returns HTTP 409 with `CUSTOM_DRIVER_DUPLICATE`.
+- Index `idx_custom_jdbc_driver_org_dbtype (organization_id, target_db_type)` — powers `GET /datasources/types` org-scoped lookup.
+- Datasources reference this table via `datasources.custom_driver_id` with `ON DELETE RESTRICT`; deleting a driver that any datasource still binds to returns HTTP 409 with `CUSTOM_DRIVER_IN_USE` (body includes `referencedBy` array of datasource ids).
+
+The JAR file on disk is **not** encrypted — it is byte-identical to what the admin uploaded.
+SHA-256 + admin-only RBAC are the trust anchors; the file is re-verified on every classloader
+load to detect on-disk tampering.
 
 ---
 

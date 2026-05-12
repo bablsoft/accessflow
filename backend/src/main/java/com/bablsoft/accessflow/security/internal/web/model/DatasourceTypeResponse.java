@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.core.api.DriverStatus;
 import com.bablsoft.accessflow.core.api.DriverTypeInfo;
 import com.bablsoft.accessflow.core.api.SslMode;
 
+import java.util.UUID;
+
 public record DatasourceTypeResponse(
         DbType code,
         String displayName,
@@ -13,7 +15,11 @@ public record DatasourceTypeResponse(
         SslMode defaultSslMode,
         String jdbcUrlTemplate,
         DriverStatus driverStatus,
-        boolean bundled) {
+        boolean bundled,
+        String source,
+        UUID customDriverId,
+        String vendorName,
+        String driverClass) {
 
     public static DatasourceTypeResponse from(DriverTypeInfo info) {
         return new DatasourceTypeResponse(
@@ -24,6 +30,10 @@ public record DatasourceTypeResponse(
                 info.defaultSslMode(),
                 info.jdbcUrlTemplate(),
                 info.driverStatus(),
-                info.bundled());
+                info.bundled(),
+                info.source(),
+                info.customDriverId(),
+                info.vendorName(),
+                info.driverClass());
     }
 }

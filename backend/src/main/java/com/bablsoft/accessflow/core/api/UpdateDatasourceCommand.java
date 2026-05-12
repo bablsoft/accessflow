@@ -18,5 +18,6 @@ public record UpdateDatasourceCommand(
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
         Boolean clearAiConfig,
+        String jdbcUrlOverride,
         Boolean active
 ) {}

@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
+import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
@@ -58,12 +59,27 @@ class DatasourceController {
     private final DatasourceAdminService datasourceAdminService;
     private final AuditLogService auditLogService;
     private final DriverCatalogService driverCatalogService;
+    private final CustomJdbcDriverService customJdbcDriverService;
 
     @GetMapping("/types")
     @Operation(summary = "List supported database types with driver resolution status")
     @ApiResponse(responseCode = "200", description = "Catalog of database types")
-    DatasourceTypesResponse listTypes() {
-        return DatasourceTypesResponse.from(driverCatalogService.list());
+    DatasourceTypesResponse listTypes(Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var orgDrivers = customJdbcDriverService.list(caller.organizationId()).stream()
+                .map(view -> new com.bablsoft.accessflow.core.api.CustomDriverDescriptor(
+                        view.id(),
+                        view.organizationId(),
+                        view.targetDbType(),
+                        view.vendorName(),
+                        view.driverClass(),
+                        view.jarFilename(),
+                        view.jarSha256(),
+                        view.jarSizeBytes(),
+                        ""))
+                .toList();
+        return DatasourceTypesResponse.from(
+                driverCatalogService.list(caller.organizationId(), orgDrivers));
     }
 
     @GetMapping
@@ -106,7 +122,9 @@ class DatasourceController {
                 request.requireReviewWrites(),
                 request.reviewPlanId(),
                 request.aiAnalysisEnabled(),
-                request.aiConfigId());
+                request.aiConfigId(),
+                request.customDriverId(),
+                request.jdbcUrlOverride());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, httpRequest, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -157,6 +175,7 @@ class DatasourceController {
                 request.aiAnalysisEnabled(),
                 request.aiConfigId(),
                 request.clearAiConfig(),
+                request.jdbcUrlOverride(),
                 request.active());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,

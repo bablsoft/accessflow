@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.security.internal.web.model;
 import com.bablsoft.accessflow.core.api.SslMode;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.util.UUID;
@@ -26,5 +27,8 @@ public record UpdateDatasourceRequest(
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
         Boolean clearAiConfig,
+        @Size(max = 2048, message = "{validation.jdbc_url.length}")
+        @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
+                message = "{validation.jdbc_url.format}") String jdbcUrlOverride,
         Boolean active
 ) {}

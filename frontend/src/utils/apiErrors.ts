@@ -8,6 +8,12 @@ interface ProblemDetail {
   reason?: string;
   dbType?: string;
   traceId?: string;
+  driverClass?: string;
+  expectedSha256?: string;
+  actualSha256?: string;
+  maxBytes?: number;
+  referencedBy?: string[];
+  existingDriverId?: string;
 }
 
 export function apiErrorTraceId(err: unknown): string | undefined {
@@ -198,6 +204,45 @@ export function datasourceCreateErrorMessage(err: unknown): string | null {
   }
   if (err instanceof Error && err.message) return err.message;
   return null;
+}
+
+export function customDriverErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'CUSTOM_DRIVER_DUPLICATE') {
+      return i18n.t('errors.custom_driver_duplicate');
+    }
+    if (code === 'CUSTOM_DRIVER_IN_USE') {
+      const count = body?.referencedBy?.length ?? 0;
+      return i18n.t('errors.custom_driver_in_use', { count });
+    }
+    if (code === 'CUSTOM_DRIVER_CHECKSUM_MISMATCH') {
+      return i18n.t('errors.custom_driver_checksum_mismatch');
+    }
+    if (code === 'CUSTOM_DRIVER_INVALID_JAR') {
+      return i18n.t('errors.custom_driver_invalid_jar', {
+        driverClass: body?.driverClass ?? '',
+      });
+    }
+    if (code === 'CUSTOM_DRIVER_TOO_LARGE') {
+      return i18n.t('errors.custom_driver_too_large', {
+        maxMb: body?.maxBytes ? Math.round(body.maxBytes / 1024 / 1024) : 50,
+      });
+    }
+    if (code === 'CUSTOM_DRIVER_NOT_FOUND') {
+      return i18n.t('errors.custom_driver_not_found');
+    }
+    if (code === 'VALIDATION_ERROR') {
+      return i18n.t('errors.custom_driver_validation');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.custom_driver_generic');
 }
 
 export function reviewPlanErrorMessage(err: unknown): string {

@@ -27,6 +27,7 @@ import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
+const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 import { usePreferencesStore } from '@/store/preferencesStore';
 
@@ -158,6 +159,16 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <LanguagesConfigPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/drivers"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <CustomDriversPage />
+                </Suspense>
               </AuthGuard>
             }
           />

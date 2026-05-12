@@ -67,4 +67,43 @@ class DefaultDatasourceLookupServiceTest {
 
         assertThat(service.findById(id)).isEmpty();
     }
+
+    @Test
+    void findByIdMapsCustomDriverIdAndJdbcUrlOverride() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var customDriver = new com.bablsoft.accessflow.core.internal.persistence.entity
+                .CustomJdbcDriverEntity();
+        var customDriverId = UUID.randomUUID();
+        customDriver.setId(customDriverId);
+        customDriver.setOrganization(org);
+        customDriver.setTargetDbType(DbType.CUSTOM);
+        customDriver.setDriverClass("com.acme.JdbcDriver");
+        customDriver.setVendorName("Acme");
+        customDriver.setJarFilename("acme.jar");
+        customDriver.setJarSha256("a".repeat(64));
+        customDriver.setJarSizeBytes(1024);
+        customDriver.setStoragePath("custom/x.jar");
+
+        var entity = new DatasourceEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setDbType(DbType.CUSTOM);
+        entity.setUsername("svc");
+        entity.setPasswordEncrypted("ENC(secret)");
+        entity.setSslMode(SslMode.DISABLE);
+        entity.setConnectionPoolSize(5);
+        entity.setActive(true);
+        entity.setCustomDriver(customDriver);
+        entity.setJdbcUrlOverride("jdbc:vendor://host/db");
+        when(datasourceRepository.findById(id)).thenReturn(Optional.of(entity));
+
+        var descriptor = service.findById(id).orElseThrow();
+
+        assertThat(descriptor.customDriverId()).isEqualTo(customDriverId);
+        assertThat(descriptor.jdbcUrlOverride()).isEqualTo("jdbc:vendor://host/db");
+        assertThat(descriptor.host()).isNull();
+        assertThat(descriptor.port()).isNull();
+        assertThat(descriptor.databaseName()).isNull();
+    }
 }

@@ -38,6 +38,13 @@ spring:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
 
+  servlet:
+    multipart:
+      # Admin-uploaded JDBC driver JARs are size-checked at the storage layer (50 MB max);
+      # bump request/file limits slightly above that to leave room for the multipart envelope.
+      max-file-size: 50MB
+      max-request-size: 51MB
+
   # AI provider config is fully DB-driven (ai_config table) and applied at runtime by
   # AiAnalyzerStrategyHolder. Disable every Spring AI startup model auto-config so the
   # context does not try to build a ChatModel / embedding / image / audio bean from

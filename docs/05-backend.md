@@ -215,6 +215,59 @@ Any failure in this flow bubbles as `DriverResolutionException` and surfaces on 
 
 **Operational notes.** First datasource of a never-yet-resolved type incurs a one-time download latency of roughly 1–5 s depending on driver size and network. The wizard's "test connection" step (see `docs/06-frontend.md` → DatasourceCreateWizardPage) surfaces this so admins are not surprised by a longer first call. The 5 s login timeout on `POST /datasources/{id}/test` does **not** include driver download time.
 
+#### Admin-uploaded drivers (#94 / #142)
+
+The bundled registry covers the five canonical engines. For everything else — community
+driver forks, vendor builds, paywalled JDBC drivers, or entirely new database types — admins
+upload the JAR directly via `POST /datasources/drivers` (multipart, see `docs/04-api-spec.md`).
+The same primitive backs **two consumption patterns**:
+
+1. **Override** — an uploaded driver whose `target_db_type` is one of the bundled five wins
+   over the static registry **for any datasource that references it via `custom_driver_id`**.
+   Other datasources of the same `db_type` continue using the bundled driver. Useful for
+   running a different MariaDB driver version per datasource without org-wide side effects.
+2. **Dynamic datasource** — when `target_db_type=CUSTOM`, the upload backs a `db_type=CUSTOM`
+   datasource with a free-form `jdbc_url_override`. No `host`/`port`/`database_name` is stored.
+
+**Per-driver classloader.** `DefaultDriverCatalogService` caches resolved drivers in two maps:
+`Map<DbType, ResolvedDriver>` for bundled entries, and `Map<UUID, ResolvedDriver>` keyed by
+`custom_jdbc_driver.id` for uploads. Each uploaded driver becomes its own
+`URLClassLoader` named `accessflow-jdbc-custom-{driverId}`. This guarantees that two datasources
+referencing different uploads — even if both target ORACLE — load disjoint copies of
+`oracle.jdbc.OracleDriver` and cannot interfere via static state.
+
+**Upload validation flow** (`DefaultCustomJdbcDriverService.register`):
+1. Look up `(organization_id, expected_sha256)` to reject duplicates with `CUSTOM_DRIVER_DUPLICATE`.
+2. Stream the upload through `CustomDriverStorage.store(...)`, computing SHA-256 inline. If the
+   computed digest doesn't match `expected_sha256`, delete the temp file and throw
+   `CustomDriverChecksumMismatchException`.
+3. Probe-load `driver_class` in a throwaway `URLClassLoader`. The class must exist in the JAR
+   and implement `java.sql.Driver`; otherwise delete the stored JAR and throw
+   `CustomDriverInvalidJarException`.
+4. Persist the `custom_jdbc_driver` row and publish `CustomJdbcDriverRegisteredEvent`.
+
+**Storage layout.** JARs live at `${ACCESSFLOW_DRIVER_CACHE}/custom/{org_id}/{driver_id}.jar`,
+alongside the bundled-driver cache. JARs are not encrypted — SHA-256 + admin-only RBAC are the
+trust anchors. Every `resolveCustom(...)` call re-verifies SHA-256 against the persisted
+descriptor before instantiating the classloader, so on-disk tampering is detected immediately.
+
+**Pool factory branching.** `DatasourcePoolFactory.createPool` checks the descriptor:
+- If `customDriverId` is set: load via `customJdbcDriverService.findById(...)` →
+  `driverCatalog.resolveCustom(...)`. The thread-context classloader swap uses the per-driver
+  loader.
+- Else: existing bundled path.
+- JDBC URL: if `jdbcUrlOverride` is non-blank, use it verbatim; else build via
+  `JdbcCoordinatesFactory`.
+
+**Deletion.** Removing an uploaded driver evicts its cached classloader and deletes the JAR
+file, but the DB foreign-key constraint (`ON DELETE RESTRICT`) refuses deletion while any
+datasource still references it — the service translates the violation into
+`409 CUSTOM_DRIVER_IN_USE` with a `referencedBy` list.
+
+**Multipart limits.** `spring.servlet.multipart.max-file-size=50MB` / `max-request-size=51MB`
+in `application.yml`. The storage layer also enforces a 50 MB cap as a second line of defence;
+exceeding it streams returns `413 CUSTOM_DRIVER_TOO_LARGE`.
+
 ### SQL Injection Prevention
 
 - JSqlParser validates all SQL before any execution path.

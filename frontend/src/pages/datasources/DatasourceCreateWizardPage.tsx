@@ -25,7 +25,7 @@ import type {
   SslMode,
   UpdateDatasourceInput,
 } from '@/types/api';
-import { DatasourceTypeSelector } from '@/components/datasources/DatasourceTypeSelector';
+import { DatasourceTypeSelector, optionKey } from '@/components/datasources/DatasourceTypeSelector';
 import {
   DatasourceWizardSteps,
   type WizardStepKey,
@@ -38,6 +38,7 @@ interface ConnectionFormValues {
   host: string;
   port: number;
   database_name: string;
+  jdbc_url: string;
   username: string;
   password: string;
   ssl_mode: SslMode;
@@ -99,35 +100,47 @@ export default function DatasourceCreateWizardPage() {
     [connectionForm],
   );
 
+  const dynamicMode = selectedType?.code === 'CUSTOM';
+
   const persistConnection = useMutation({
     mutationFn: async (values: ConnectionFormValues) => {
       if (!selectedType) {
         throw new Error('No datasource type selected');
       }
+      const isDynamic = selectedType.code === 'CUSTOM';
       if (createdDatasource) {
         const input: UpdateDatasourceInput = {
           name: values.name,
-          host: values.host,
-          port: values.port,
-          database_name: values.database_name,
           username: values.username,
           password: values.password,
           ssl_mode: values.ssl_mode,
         };
+        if (isDynamic) {
+          input.jdbc_url_override = values.jdbc_url;
+        } else {
+          input.host = values.host;
+          input.port = values.port;
+          input.database_name = values.database_name;
+        }
         return updateDatasource(createdDatasource.id, input);
       }
       const input: CreateDatasourceInput = {
         name: values.name,
         db_type: selectedType.code,
-        host: values.host,
-        port: values.port,
-        database_name: values.database_name,
         username: values.username,
         password: values.password,
         ssl_mode: values.ssl_mode,
         ai_analysis_enabled: false,
         ai_config_id: null,
+        custom_driver_id: selectedType.custom_driver_id ?? null,
       };
+      if (isDynamic) {
+        input.jdbc_url_override = values.jdbc_url;
+      } else {
+        input.host = values.host;
+        input.port = values.port;
+        input.database_name = values.database_name;
+      }
       return createDatasource(input);
     },
     onSuccess: (saved) => {
@@ -261,7 +274,7 @@ export default function DatasourceCreateWizardPage() {
           />
           <DatasourceTypeSelector
             types={typesQuery.data.types}
-            selectedCode={selectedType?.code ?? null}
+            selectedKey={selectedType ? optionKey(selectedType) : null}
             onSelect={handleSelectType}
           />
         </div>
@@ -279,6 +292,15 @@ export default function DatasourceCreateWizardPage() {
             ssl_mode: selectedType.default_ssl_mode,
           }}
         >
+          {dynamicMode && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message={t('datasources.create.dynamic_mode_notice_title')}
+              description={t('datasources.create.dynamic_mode_notice_body')}
+            />
+          )}
           <div
             style={{
               display: 'grid',
@@ -293,27 +315,31 @@ export default function DatasourceCreateWizardPage() {
             >
               <Input autoFocus placeholder={t('datasources.create.field_name_placeholder')} />
             </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_host')}
-              name="host"
-              rules={[{ required: true }, { max: 255 }]}
-            >
-              <Input placeholder="db.internal" />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_port')}
-              name="port"
-              rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
-            >
-              <InputNumber style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_database')}
-              name="database_name"
-              rules={[{ required: true }, { max: 255 }]}
-            >
-              <Input placeholder="appdb" />
-            </Form.Item>
+            {!dynamicMode && (
+              <>
+                <Form.Item
+                  label={t('datasources.create.field_host')}
+                  name="host"
+                  rules={[{ required: true }, { max: 255 }]}
+                >
+                  <Input placeholder="db.internal" />
+                </Form.Item>
+                <Form.Item
+                  label={t('datasources.create.field_port')}
+                  name="port"
+                  rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
+                >
+                  <InputNumber style={{ width: '100%' }} />
+                </Form.Item>
+                <Form.Item
+                  label={t('datasources.create.field_database')}
+                  name="database_name"
+                  rules={[{ required: true }, { max: 255 }]}
+                >
+                  <Input placeholder="appdb" />
+                </Form.Item>
+              </>
+            )}
             <Form.Item
               label={t('datasources.create.field_username')}
               name="username"
@@ -338,6 +364,27 @@ export default function DatasourceCreateWizardPage() {
               />
             </Form.Item>
           </div>
+          {dynamicMode && (
+            <Form.Item
+              label={t('datasources.create.field_jdbc_url')}
+              name="jdbc_url"
+              extra={t('datasources.create.field_jdbc_url_help')}
+              rules={[
+                { required: true, message: t('datasources.create.field_jdbc_url_help') },
+                { max: 2048 },
+                {
+                  pattern: /^jdbc:[a-zA-Z][a-zA-Z0-9+\-.]*:.+$/,
+                  message: t('datasources.create.field_jdbc_url_placeholder'),
+                },
+              ]}
+            >
+              <Input.TextArea
+                rows={2}
+                className="mono"
+                placeholder={t('datasources.create.field_jdbc_url_placeholder')}
+              />
+            </Form.Item>
+          )}
           {selectedType.code === 'MYSQL' && connectionValues?.ssl_mode === 'DISABLE' && (
             <Alert
               type="warning"
@@ -347,14 +394,16 @@ export default function DatasourceCreateWizardPage() {
               description={t('datasources.create.mysql_public_key_retrieval_body')}
             />
           )}
-          <div style={{ marginTop: 8 }}>
-            <JdbcUrlPreview
-              template={previewedTemplate}
-              host={connectionValues?.host}
-              port={connectionValues?.port}
-              databaseName={connectionValues?.database_name}
-            />
-          </div>
+          {!dynamicMode && (
+            <div style={{ marginTop: 8 }}>
+              <JdbcUrlPreview
+                template={previewedTemplate}
+                host={connectionValues?.host}
+                port={connectionValues?.port}
+                databaseName={connectionValues?.database_name}
+              />
+            </div>
+          )}
         </Form>
       );
     }
@@ -494,6 +543,7 @@ export default function DatasourceCreateWizardPage() {
     typesQuery.isError,
     typesQuery.data,
     selectedType,
+    dynamicMode,
     connectionForm,
     settingsForm,
     previewedTemplate,

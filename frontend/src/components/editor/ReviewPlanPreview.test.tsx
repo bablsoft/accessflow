@@ -37,6 +37,8 @@ const baseDatasource: Datasource = {
   review_plan_id: 'rp-1',
   ai_analysis_enabled: true,
   ai_config_id: null,
+  custom_driver_id: null,
+  jdbc_url_override: null,
   active: true,
   created_at: '2026-05-01T00:00:00Z',
 };

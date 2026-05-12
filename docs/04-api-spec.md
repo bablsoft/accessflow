@@ -102,6 +102,10 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
+| `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
+| `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
+| `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
+| `DELETE` | `/datasources/drivers/{id}` | ADMIN | Delete an uploaded driver |
 
 ### GET /datasources/types — Response 200
 
@@ -115,30 +119,61 @@ Revokes the current refresh token and clears the cookie. Reads the refresh token
       "default_port": 5432,
       "default_ssl_mode": "VERIFY_FULL",
       "jdbc_url_template": "jdbc:postgresql://{host}:{port}/{database_name}",
-      "driver_status": "READY"
+      "driver_status": "READY",
+      "bundled": true,
+      "source": "bundled",
+      "custom_driver_id": null,
+      "vendor_name": null,
+      "driver_class": null
     },
     {
-      "code": "MYSQL",
-      "display_name": "MySQL",
-      "icon_url": "/db-icons/mysql.svg",
-      "default_port": 3306,
+      "code": "ORACLE",
+      "display_name": "Oracle Database (uploaded: Acme)",
+      "icon_url": "/db-icons/oracle.svg",
+      "default_port": 1521,
       "default_ssl_mode": "REQUIRE",
-      "jdbc_url_template": "jdbc:mysql://{host}:{port}/{database_name}",
-      "driver_status": "AVAILABLE"
+      "jdbc_url_template": "jdbc:oracle:thin:@//{host}:{port}/{database_name}",
+      "driver_status": "READY",
+      "bundled": false,
+      "source": "uploaded",
+      "custom_driver_id": "uuid",
+      "vendor_name": "Acme",
+      "driver_class": "oracle.jdbc.OracleDriver"
+    },
+    {
+      "code": "CUSTOM",
+      "display_name": "Acme (custom snowflake.jar)",
+      "icon_url": "/db-icons/custom.svg",
+      "default_port": 0,
+      "default_ssl_mode": "DISABLE",
+      "jdbc_url_template": "",
+      "driver_status": "READY",
+      "bundled": false,
+      "source": "uploaded",
+      "custom_driver_id": "uuid",
+      "vendor_name": "Acme",
+      "driver_class": "com.acme.JdbcDriver"
     }
   ]
 }
 ```
 
+`source` values:
+
+| Value | Meaning |
+|-------|---------|
+| `bundled` | Entry from the static driver registry. `code` is one of the bundled `DbType` values; `custom_driver_id` is `null`. |
+| `uploaded` | Admin-uploaded driver for the caller's organization. `custom_driver_id` is the `custom_jdbc_driver.id`; `code` mirrors `target_db_type` (or `CUSTOM` for free-form datasources). |
+
 `driver_status` values:
 
 | Value | Meaning |
 |-------|---------|
-| `READY` | Driver is cached locally; first connection has no resolution cost. |
+| `READY` | Driver is cached locally (or already uploaded); first connection has no resolution cost. |
 | `AVAILABLE` | Driver is in the registry but not yet cached; will be downloaded on first use. |
 | `UNAVAILABLE` | Registry entry exists but the cache directory is unwritable or the resolver is offline without a cache hit. Admin attention needed. |
 
-Initial supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. See `docs/05-backend.md` → Dynamic JDBC Driver Loading for the resolution mechanism.
+Bundled supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. The pseudo-type `CUSTOM` only surfaces when at least one uploaded driver targets it. See `docs/05-backend.md` → Dynamic JDBC Driver Loading for the resolution mechanism.
 
 ### GET /datasources — Query Parameters
 
@@ -198,15 +233,38 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "require_review_reads": false,
   "require_review_writes": true,
   "review_plan_id": "uuid",
-  "ai_analysis_enabled": true
+  "ai_analysis_enabled": true,
+  "custom_driver_id": null,
+  "jdbc_url_override": null
 }
 ```
 
+For datasources backed by an uploaded driver, set `custom_driver_id` to the
+`custom_jdbc_driver.id`. For fully dynamic datasources, set `db_type=CUSTOM`,
+`custom_driver_id`, and `jdbc_url_override` (and omit `host` / `port` / `database_name`):
+
+```json
+{
+  "name": "Snowflake Prod",
+  "db_type": "CUSTOM",
+  "username": "ACCESSFLOW_SVC",
+  "password": "service_account_password",
+  "ssl_mode": "DISABLE",
+  "custom_driver_id": "uuid",
+  "jdbc_url_override": "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD&schema=PUBLIC"
+}
+```
+
+Validation rules enforced by the service layer:
+- `db_type=CUSTOM` requires non-null `custom_driver_id` and non-blank `jdbc_url_override`, and forbids `host`/`port`/`database_name`.
+- Bundled `db_type`s require `host`/`port`/`database_name` and reject `jdbc_url_override`.
+- A referenced `custom_driver_id` must belong to the caller's organization, and its `target_db_type` must be either `CUSTOM` or match the datasource's `db_type`.
+
 The password is AES-256-GCM encrypted server-side using the `ENCRYPTION_KEY` env var before persistence.
 
-**Response 201:** Single datasource object (same shape as a `content[]` element above). The `Location` header points to `/api/v1/datasources/{id}`.
+**Response 201:** Single datasource object (same shape as a `content[]` element above, plus `custom_driver_id` and `jdbc_url_override` fields). The `Location` header points to `/api/v1/datasources/{id}`.
 
-**Response 400:** Validation error (missing required field, port out of range, etc.). `error: VALIDATION_ERROR`.
+**Response 400:** Validation error (missing required field, port out of range, malformed JDBC URL, etc.). `error: VALIDATION_ERROR`.
 **Response 403:** Caller is not an ADMIN. `error: FORBIDDEN`.
 **Response 409:** A datasource with this name already exists in the caller's organization. `error: DATASOURCE_NAME_ALREADY_EXISTS`.
 **Response 422:** JDBC driver for `db_type` could not be resolved (download failure, checksum mismatch, or offline-mode cache miss). The `detail` field contains the resolver error. `error: DATASOURCE_DRIVER_UNAVAILABLE`.
@@ -336,6 +394,72 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
 
 **Response 204:** No content.
 **Response 404:** Permission does not exist or belongs to a different datasource. `error: DATASOURCE_PERMISSION_NOT_FOUND`.
+
+---
+
+## Custom JDBC Driver Endpoints
+
+Admin-only. Storage budget: max **50 MB** per JAR (`spring.servlet.multipart.max-file-size`).
+Uploaded drivers are scoped to the caller's organization.
+
+### POST /datasources/drivers — Upload
+
+Request: `multipart/form-data`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `jar` | file | The driver JAR. Must end with `.jar`. ≤ 50 MB. |
+| `vendor_name` | text | 1–100 chars. Display name (e.g. "Snowflake", "Acme"). |
+| `target_db_type` | text | One of `POSTGRESQL`/`MYSQL`/`MARIADB`/`ORACLE`/`MSSQL`/`CUSTOM`. |
+| `driver_class` | text | Fully-qualified Java class name (e.g. `com.acme.JdbcDriver`). Validated against `^[A-Za-z_$][A-Za-z0-9_$]*(\.[A-Za-z_$][A-Za-z0-9_$]*)+$`. |
+| `expected_sha256` | text | Exactly 64 hex chars. The admin's locally-computed SHA-256 of the JAR. |
+
+Server flow:
+1. Stream the upload to a temp file under the driver cache dir, computing SHA-256 inline.
+2. Reject with `422 CUSTOM_DRIVER_CHECKSUM_MISMATCH` if the actual SHA-256 doesn't match `expected_sha256`.
+3. Probe-load the driver class from the JAR in a throwaway `URLClassLoader`; reject with `422 CUSTOM_DRIVER_INVALID_JAR` if the class is missing or does not implement `java.sql.Driver`.
+4. Atomically move the temp file into place and persist the `custom_jdbc_driver` row.
+
+**Response 201:**
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "vendor_name": "Acme",
+  "target_db_type": "CUSTOM",
+  "driver_class": "com.acme.JdbcDriver",
+  "jar_filename": "acme-driver.jar",
+  "jar_sha256": "abcdef…",
+  "jar_size_bytes": 8123456,
+  "uploaded_by_user_id": "uuid",
+  "uploaded_by_display_name": "Alice",
+  "created_at": "2026-05-12T17:50:00Z"
+}
+```
+
+**Response 400:** Validation error (missing field, malformed driver class, bad SHA hex). `error: VALIDATION_ERROR`.
+**Response 403:** Caller is not an ADMIN. `error: FORBIDDEN`.
+**Response 409:** A driver with this SHA-256 is already registered for the organization. `error: CUSTOM_DRIVER_DUPLICATE`. Body includes `existingDriverId`.
+**Response 413:** JAR exceeds the multipart limit. `error: CUSTOM_DRIVER_TOO_LARGE`. Body includes `maxBytes`.
+**Response 422:** SHA-256 mismatch or driver class missing. `error: CUSTOM_DRIVER_CHECKSUM_MISMATCH` or `CUSTOM_DRIVER_INVALID_JAR`.
+
+### GET /datasources/drivers — Response 200
+
+```json
+{ "drivers": [ /* same shape as the upload response */ ] }
+```
+
+Returns the caller-org's uploaded drivers, newest first.
+
+### GET /datasources/drivers/{id} — Response 200
+
+Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in caller's organization.
+
+### DELETE /datasources/drivers/{id}
+
+**Response 204:** Driver removed (entity, JAR file, and any cached classloader).
+**Response 404:** `CUSTOM_DRIVER_NOT_FOUND`.
+**Response 409:** Driver is still referenced by one or more datasources. `error: CUSTOM_DRIVER_IN_USE`. Body includes `referencedBy: [datasource_id, …]`.
 
 ---
 
