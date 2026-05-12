@@ -314,6 +314,32 @@ kubectl create secret generic accessflow-ai-key \
 
 ---
 
+## Database Hardening
+
+### `audit_log` is append-only — revoke UPDATE/DELETE on the application role
+
+The application **never** issues `UPDATE`, `DELETE`, or `TRUNCATE` against `audit_log` —
+writes go through `AuditLogService.record(...)` which only `INSERT`s, and reads through
+`AuditLogService.query(...)` which only `SELECT`s (see [docs/07-security.md → "Audit log
+integrity"](07-security.md)). Enforce that contract at the database layer in production so a
+future code bug or compromised connection cannot rewrite history:
+
+```sql
+-- Run once, after Flyway has applied V9__create_audit_log.sql.
+-- Replace `accessflow` with the role used by DB_USER.
+REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM accessflow;
+GRANT  SELECT, INSERT          ON audit_log TO   accessflow;
+```
+
+`SELECT` is retained because the admin audit-log UI
+(`GET /api/v1/admin/audit-log`) reads from the same role.
+
+A fully separate "audit writer" role distinct from the general application user remains a
+deferred enhancement (see [docs/07-security.md → "Deferred"](07-security.md)); the `REVOKE`
+above is the interim hardening that requires no application changes.
+
+---
+
 ## Health Checks
 
 | Endpoint | Purpose |

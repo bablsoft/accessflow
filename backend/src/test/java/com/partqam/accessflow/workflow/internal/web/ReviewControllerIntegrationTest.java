@@ -1,6 +1,10 @@
 package com.partqam.accessflow.workflow.internal.web;
 
 import com.partqam.accessflow.TestcontainersConfig;
+import com.partqam.accessflow.audit.api.AuditAction;
+import com.partqam.accessflow.audit.api.AuditLogQuery;
+import com.partqam.accessflow.audit.api.AuditLogService;
+import com.partqam.accessflow.audit.api.AuditResourceType;
 import com.partqam.accessflow.core.api.AuthProviderType;
 import com.partqam.accessflow.core.api.DecisionType;
 import com.partqam.accessflow.core.api.EditionType;
@@ -25,8 +29,10 @@ import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -57,9 +63,12 @@ class ReviewControllerIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
+    @Autowired AuditLogService auditLogService;
+    @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean ReviewService reviewService;
 
     private MockMvcTester mvc;
+    private OrganizationEntity organization;
     private UserEntity reviewer;
     private UserEntity analyst;
     private String reviewerToken;
@@ -82,6 +91,7 @@ class ReviewControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
+        jdbcTemplate.update("DELETE FROM audit_log");
         userRepository.deleteAll();
         organizationRepository.deleteAll();
 
@@ -90,7 +100,7 @@ class ReviewControllerIntegrationTest {
         org.setName("Primary");
         org.setSlug("primary");
         org.setEdition(EditionType.COMMUNITY);
-        organizationRepository.save(org);
+        organization = organizationRepository.save(org);
 
         reviewer = saveUser(org, "reviewer@example.com", UserRoleType.REVIEWER);
         analyst = saveUser(org, "analyst@example.com", UserRoleType.ANALYST);
@@ -100,6 +110,7 @@ class ReviewControllerIntegrationTest {
 
     @AfterEach
     void cleanup() {
+        jdbcTemplate.update("DELETE FROM audit_log");
         userRepository.deleteAll();
         organizationRepository.deleteAll();
     }
@@ -143,6 +154,8 @@ class ReviewControllerIntegrationTest {
 
         var response = mvc.post().uri("/api/v1/reviews/{queryId}/approve", queryId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .header("X-Forwarded-For", "203.0.113.10")
+                .header(HttpHeaders.USER_AGENT, "junit-ua/1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"comment\":\"looks good\"}")
                 .exchange();
@@ -154,6 +167,21 @@ class ReviewControllerIntegrationTest {
                 .isEqualTo("APPROVED");
         assertThat(response).bodyJson().extractingPath("$.decision").asString()
                 .isEqualTo("APPROVED");
+
+        var auditRows = auditLogService.query(organization.getId(),
+                AuditLogQuery.empty(), Pageable.ofSize(10)).getContent();
+        assertThat(auditRows).hasSize(1);
+        var row = auditRows.get(0);
+        assertThat(row.action()).isEqualTo(AuditAction.QUERY_APPROVED);
+        assertThat(row.resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(row.resourceId()).isEqualTo(queryId);
+        assertThat(row.actorId()).isEqualTo(reviewer.getId());
+        assertThat(row.organizationId()).isEqualTo(organization.getId());
+        assertThat(row.ipAddress()).isEqualTo("203.0.113.10");
+        assertThat(row.userAgent()).isEqualTo("junit-ua/1");
+        assertThat(row.metadata())
+                .containsEntry("comment", "looks good")
+                .containsEntry("resulting_status", "APPROVED");
     }
 
     @Test
@@ -244,6 +272,8 @@ class ReviewControllerIntegrationTest {
 
         var response = mvc.post().uri("/api/v1/reviews/{queryId}/reject", queryId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .header("X-Forwarded-For", "198.51.100.7")
+                .header(HttpHeaders.USER_AGENT, "junit-ua/2")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"comment\":\"too risky\"}")
                 .exchange();
@@ -251,6 +281,39 @@ class ReviewControllerIntegrationTest {
         assertThat(response).hasStatus(200);
         assertThat(response).bodyJson().extractingPath("$.resulting_status").asString()
                 .isEqualTo("REJECTED");
+
+        var auditRows = auditLogService.query(organization.getId(),
+                AuditLogQuery.empty(), Pageable.ofSize(10)).getContent();
+        assertThat(auditRows).hasSize(1);
+        var row = auditRows.get(0);
+        assertThat(row.action()).isEqualTo(AuditAction.QUERY_REJECTED);
+        assertThat(row.resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(row.resourceId()).isEqualTo(queryId);
+        assertThat(row.actorId()).isEqualTo(reviewer.getId());
+        assertThat(row.organizationId()).isEqualTo(organization.getId());
+        assertThat(row.ipAddress()).isEqualTo("198.51.100.7");
+        assertThat(row.userAgent()).isEqualTo("junit-ua/2");
+        assertThat(row.metadata())
+                .containsEntry("comment", "too risky")
+                .containsEntry("resulting_status", "REJECTED");
+    }
+
+    @Test
+    void approveIdempotentReplayWritesNoAuditRow() {
+        var queryId = UUID.randomUUID();
+        when(reviewService.approve(eq(queryId), any(), any()))
+                .thenReturn(new DecisionOutcome(UUID.randomUUID(), DecisionType.APPROVED,
+                        QueryStatus.APPROVED, true));
+
+        var response = mvc.post().uri("/api/v1/reviews/{queryId}/approve", queryId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"comment\":\"replay\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(auditLogService.query(organization.getId(),
+                AuditLogQuery.empty(), Pageable.ofSize(10)).getTotalElements()).isZero();
     }
 
     @Test
