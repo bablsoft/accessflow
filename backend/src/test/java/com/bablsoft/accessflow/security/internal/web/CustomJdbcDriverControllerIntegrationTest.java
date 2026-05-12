@@ -242,6 +242,56 @@ class CustomJdbcDriverControllerIntegrationTest {
     }
 
     @Test
+    void getDriverByIdReturnsFullDetails() {
+        var driver = saveCustomDriver();
+
+        var result = mvc.get().uri("/api/v1/datasources/drivers/" + driver.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.id").asString()
+                .isEqualTo(driver.getId().toString());
+        assertThat(result).bodyJson().extractingPath("$.vendor_name").asString()
+                .isEqualTo("Acme");
+        assertThat(result).bodyJson().extractingPath("$.driver_class").asString()
+                .isEqualTo("org.postgresql.Driver");
+        assertThat(result).bodyJson().extractingPath("$.uploaded_by_display_name").asString()
+                .isEqualTo("Admin");
+    }
+
+    @Test
+    void getUnknownDriverReturns404() {
+        var result = mvc.get().uri("/api/v1/datasources/drivers/" + UUID.randomUUID())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("CUSTOM_DRIVER_NOT_FOUND");
+    }
+
+    @Test
+    void listDriversByAnalystReturns403() {
+        var result = mvc.get().uri("/api/v1/datasources/drivers")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void deleteUnknownDriverReturns404() {
+        var result = mvc.delete().uri("/api/v1/datasources/drivers/" + UUID.randomUUID())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("CUSTOM_DRIVER_NOT_FOUND");
+    }
+
+    @Test
     void deleteDriverReturns204WhenNotReferenced() {
         var driver = saveCustomDriver();
 

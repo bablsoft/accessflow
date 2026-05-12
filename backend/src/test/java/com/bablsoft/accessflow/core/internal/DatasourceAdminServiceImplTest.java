@@ -54,6 +54,8 @@ class DatasourceAdminServiceImplTest {
     @Mock OrganizationRepository organizationRepository;
     @Mock UserRepository userRepository;
     @Mock ReviewPlanRepository reviewPlanRepository;
+    @Mock com.bablsoft.accessflow.core.internal.persistence.repo.CustomJdbcDriverRepository
+            customJdbcDriverRepository;
     @Mock CredentialEncryptionService encryptionService;
     @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
     @Mock com.bablsoft.accessflow.core.api.DriverCatalogService driverCatalog;
@@ -536,5 +538,161 @@ class DatasourceAdminServiceImplTest {
         assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MYSQL)).isEqualTo("SELECT 1");
         assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MARIADB)).isEqualTo("SELECT 1");
         assertThat(DatasourceAdminServiceImpl.probeSql(DbType.MSSQL)).isEqualTo("SELECT 1");
+    }
+
+    @Test
+    void createCustomDatasourcePersistsCustomDriverAndJdbcUrlOverride() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var customDriverId = UUID.randomUUID();
+        var customDriverEntity = sampleCustomDriverEntity(customDriverId, org, DbType.CUSTOM);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Snowflake"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.of(customDriverEntity));
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
+                null, null, null, "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, customDriverId,
+                "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD");
+
+        var view = service.create(command);
+
+        assertThat(view.dbType()).isEqualTo(DbType.CUSTOM);
+        assertThat(view.customDriverId()).isEqualTo(customDriverId);
+        assertThat(view.jdbcUrlOverride()).startsWith("jdbc:snowflake://");
+        assertThat(view.host()).isNull();
+        // The bundled driver catalog must not be queried for a custom datasource.
+        verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void createCustomDatasourceRequiresCustomDriverId() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Snowflake"))
+                .thenReturn(false);
+
+        var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
+                null, null, null, "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null,
+                "jdbc:snowflake://acme.snowflakecomputing.com/");
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("custom_driver_id");
+    }
+
+    @Test
+    void createCustomDatasourceRequiresJdbcUrlOverride() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var customDriverId = UUID.randomUUID();
+        var customDriverEntity = sampleCustomDriverEntity(customDriverId, org, DbType.CUSTOM);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Snowflake"))
+                .thenReturn(false);
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.of(customDriverEntity));
+
+        var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
+                null, null, null, "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, customDriverId, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("jdbc_url_override");
+    }
+
+    @Test
+    void createCustomDatasourceRejectsHostPortDatabase() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var customDriverId = UUID.randomUUID();
+        var customDriverEntity = sampleCustomDriverEntity(customDriverId, org, DbType.CUSTOM);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Snowflake"))
+                .thenReturn(false);
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.of(customDriverEntity));
+
+        var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
+                "host.example.com", 1234, null, "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, customDriverId,
+                "jdbc:snowflake://x/");
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("must not set host/port");
+    }
+
+    @Test
+    void createBundledDatasourceWithJdbcUrlOverrideIsRejected() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Bundled"))
+                .thenReturn(false);
+
+        var command = new CreateDatasourceCommand(orgId, "Bundled", DbType.POSTGRESQL,
+                "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null,
+                "jdbc:postgresql://h:5432/db");
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("jdbc_url_override is only allowed");
+    }
+
+    @Test
+    void createBundledDatasourceWithMismatchedCustomDriverIsRejected() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var customDriverId = UUID.randomUUID();
+        var oracleDriver = sampleCustomDriverEntity(customDriverId, org, DbType.ORACLE);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.of(oracleDriver));
+
+        // PostgreSQL datasource binding to an Oracle-target uploaded driver — refused.
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, customDriverId, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("target_db_type");
+    }
+
+    @Test
+    void createWithUnknownCustomDriverIdThrowsCustomDriverNotFound() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        var customDriverId = UUID.randomUUID();
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.empty());
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, customDriverId, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.CustomDriverNotFoundException.class);
+    }
+
+    private com.bablsoft.accessflow.core.internal.persistence.entity.CustomJdbcDriverEntity
+            sampleCustomDriverEntity(UUID id, OrganizationEntity org, DbType targetDbType) {
+        var entity = new com.bablsoft.accessflow.core.internal.persistence.entity
+                .CustomJdbcDriverEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setTargetDbType(targetDbType);
+        entity.setVendorName("Acme");
+        entity.setDriverClass("com.acme.JdbcDriver");
+        entity.setJarFilename("acme.jar");
+        entity.setJarSha256("a".repeat(64));
+        entity.setJarSizeBytes(1024);
+        entity.setStoragePath("custom/x.jar");
+        return entity;
     }
 }

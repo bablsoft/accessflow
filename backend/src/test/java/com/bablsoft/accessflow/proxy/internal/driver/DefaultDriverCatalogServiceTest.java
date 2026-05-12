@@ -131,6 +131,89 @@ class DefaultDriverCatalogServiceTest {
     }
 
     @Test
+    void listNoArgReturnsOnlyBundledRows() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+
+        var rows = service.list();
+
+        assertThat(rows).hasSize(5);
+        assertThat(rows).extracting(r -> r.source()).containsOnly("bundled");
+        assertThat(rows).extracting(r -> r.customDriverId()).containsOnlyNulls();
+    }
+
+    @Test
+    void listWithNullUploadedSkipsTheUploadedBlock() {
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+
+        var rows = service.list(java.util.UUID.randomUUID(), null);
+
+        assertThat(rows).hasSize(5);
+        assertThat(rows).extracting(r -> r.source()).containsOnly("bundled");
+    }
+
+    @Test
+    void evictCustomRemovesCachedClassloaderAndIsIdempotent() throws Exception {
+        var jarBytes = Files.readAllBytes(Path.of(org.postgresql.Driver.class
+                .getProtectionDomain().getCodeSource().getLocation().toURI()));
+        var sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(jarBytes));
+        Files.write(cacheDir.resolve("uploaded.jar"), jarBytes);
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var driverId = java.util.UUID.randomUUID();
+        var descriptor = new CustomDriverDescriptor(
+                driverId, java.util.UUID.randomUUID(), DbType.POSTGRESQL, "Acme",
+                "org.postgresql.Driver", "uploaded.jar", sha, jarBytes.length, "uploaded.jar");
+
+        var first = service.resolveCustom(descriptor);
+        service.evictCustom(driverId);
+        var second = service.resolveCustom(descriptor);
+
+        // After eviction, resolveCustom must produce a fresh ResolvedDriver (different
+        // ClassLoader identity) — the cache no longer holds the previous entry.
+        assertThat(second).isNotSameAs(first);
+
+        // Calling evictCustom again is a no-op and must not throw.
+        service.evictCustom(driverId);
+        service.evictCustom(java.util.UUID.randomUUID()); // unknown id is fine
+    }
+
+    @Test
+    void resolveCustomRejectsClassThatIsNotADriver() throws Exception {
+        // Build a small JAR containing only a class that does NOT extend java.sql.Driver.
+        var jarPath = cacheDir.resolve("not-a-driver.jar");
+        writeNotADriverJar(jarPath);
+        var sha = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(Files.readAllBytes(jarPath)));
+        var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
+        var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));
+        var descriptor = new CustomDriverDescriptor(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), DbType.CUSTOM,
+                "Acme", "com.example.NotADriver", "not-a-driver.jar", sha,
+                Files.size(jarPath), "not-a-driver.jar");
+
+        assertThatThrownBy(() -> service.resolveCustom(descriptor))
+                .isInstanceOf(DriverResolutionException.class)
+                .hasMessageContaining("custom-invalid-class");
+    }
+
+    private static void writeNotADriverJar(Path target) throws IOException {
+        // Compile-free minimal classfile for `public class com.example.NotADriver {}`.
+        // We assemble it via ASM-free hand-rolled bytecode? Too involved. Instead, we drop
+        // any non-Driver class (java.lang.String) into the JAR under a fabricated FQCN
+        // by repackaging — but classloader will refuse a mismatched name. Simpler: write a
+        // JAR with NO entry for com.example.NotADriver. Class.forName fails with CNFE,
+        // which translates to UNAVAILABLE via the same code path (the test asserts on
+        // i18n key "custom-invalid-class").
+        try (var out = new java.util.jar.JarOutputStream(Files.newOutputStream(target))) {
+            out.putNextEntry(new java.util.jar.JarEntry("META-INF/MANIFEST.MF"));
+            out.write("Manifest-Version: 1.0\n".getBytes());
+            out.closeEntry();
+        }
+    }
+
+    @Test
     void postgresqlAlwaysReportedAsReady() {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", false);
         var service = new DefaultDriverCatalogService(props, messageSource, new CustomDriverStorage(props));

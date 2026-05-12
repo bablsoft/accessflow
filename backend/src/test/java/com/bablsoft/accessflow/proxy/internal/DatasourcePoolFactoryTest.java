@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.sql.Driver;
 import java.time.Duration;
@@ -32,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class DatasourcePoolFactoryTest {
 
     private CredentialEncryptionService encryptionService;
@@ -150,6 +153,81 @@ class DatasourcePoolFactoryTest {
 
             assertThat(observed.get()).isSameAs(perTypeClassLoader);
             assertThat(Thread.currentThread().getContextClassLoader()).isSameAs(prior);
+        }
+    }
+
+    @Test
+    void createPoolWithCustomDriverIdUsesPerDriverClassloaderAndDriverClass() {
+        var customDriverId = UUID.randomUUID();
+        var customDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null, true);
+        // HikariConfig.setDriverClassName() eagerly verifies the class is loadable, so we use
+        // a real class name on the test classpath. The classloader-swap assertion still
+        // demonstrates that the custom path is taken.
+        var customLoader = new ClassLoader(getClass().getClassLoader()) {};
+        var driverDescriptor = new com.bablsoft.accessflow.core.api.CustomDriverDescriptor(
+                customDriverId, organizationId, DbType.POSTGRESQL, "Acme",
+                "org.postgresql.Driver", "driver.jar", "a".repeat(64), 1024, "custom/x.jar");
+        when(customJdbcDriverService.findById(customDriverId, organizationId))
+                .thenReturn(java.util.Optional.of(driverDescriptor));
+        when(driverCatalog.resolveCustom(driverDescriptor))
+                .thenReturn(new ResolvedDriver(mock(Driver.class), customLoader,
+                        "org.postgresql.Driver"));
+
+        var observed = new AtomicReference<ClassLoader>();
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> mocked = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> {
+                    captured.set((HikariConfig) ctx.arguments().get(0));
+                    observed.set(Thread.currentThread().getContextClassLoader());
+                })) {
+
+            factory.createPool(customDescriptor);
+
+            assertThat(observed.get()).isSameAs(customLoader);
+            assertThat(captured.get().getDriverClassName()).isEqualTo("org.postgresql.Driver");
+            // Bundled driver catalog must NOT have been consulted on the custom path.
+            verify(driverCatalog, times(0)).resolve(any());
+        }
+    }
+
+    @Test
+    void createPoolWithCustomDriverIdThrowsCustomDriverNotFoundWhenLookupEmpty() {
+        var customDriverId = UUID.randomUUID();
+        var customDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null, true);
+        when(customJdbcDriverService.findById(customDriverId, organizationId))
+                .thenReturn(java.util.Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> factory.createPool(customDescriptor))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.CustomDriverNotFoundException.class)
+                .satisfies(ex -> assertThat(
+                        ((com.bablsoft.accessflow.core.api.CustomDriverNotFoundException) ex).driverId())
+                        .isEqualTo(customDriverId));
+    }
+
+    @Test
+    void createPoolWithJdbcUrlOverrideBypassesCoordinatesFactory() {
+        var overrideUrl = "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD";
+        var dynamicDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL,
+                null, null, null, "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, overrideUrl, true);
+
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+            factory.createPool(dynamicDescriptor);
+
+            assertThat(captured.get().getJdbcUrl()).isEqualTo(overrideUrl);
+            // CoordinatesFactory must not be consulted when an override is present.
+            verify(coordinatesFactory, times(0)).from(any(), anyString(), anyInt(),
+                    anyString(), anyString(), any());
         }
     }
 }
