@@ -1,7 +1,7 @@
 import { Steps } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-export type WizardStepKey = 'type' | 'connection' | 'test';
+export type WizardStepKey = 'type' | 'connection' | 'test' | 'settings';
 
 interface DatasourceWizardStepsProps {
   current: WizardStepKey;
@@ -9,7 +9,7 @@ interface DatasourceWizardStepsProps {
 
 export function DatasourceWizardSteps({ current }: DatasourceWizardStepsProps) {
   const { t } = useTranslation();
-  const order: WizardStepKey[] = ['type', 'connection', 'test'];
+  const order: WizardStepKey[] = ['type', 'connection', 'test', 'settings'];
   return (
     <Steps
       size="small"
@@ -18,6 +18,7 @@ export function DatasourceWizardSteps({ current }: DatasourceWizardStepsProps) {
         { title: t('datasources.create.step_type') },
         { title: t('datasources.create.step_connection') },
         { title: t('datasources.create.step_test') },
+        { title: t('datasources.create.step_settings') },
       ]}
     />
   );
