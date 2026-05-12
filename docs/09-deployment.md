@@ -289,6 +289,7 @@ kubectl create secret generic accessflow-ai-key \
 | `DB_PASSWORD` | ✓ | — | PostgreSQL password |
 | `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256 key for credential encryption |
 | `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT signing |
+| `AUDIT_HMAC_KEY` | Enterprise (✓) / Community (Optional) | — | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. Required for non-community editions; community installs auto-derive a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and log a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation and async events |
 | `ACCESSFLOW_EDITION` | Optional | `community` | `community` \| `enterprise` |
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:3000` | Frontend origin for CORS policy |

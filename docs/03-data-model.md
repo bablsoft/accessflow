@@ -288,6 +288,10 @@ Append-only tamper-evident log of every meaningful action in the system. **No qu
 | `ip_address` | INET |
 | `user_agent` | TEXT |
 | `created_at` | TIMESTAMPTZ |
+| `previous_hash` | BYTEA — HMAC-SHA256 of the immediately preceding row in the same org's chain (NULL for the anchor row and for any row written before V26) |
+| `current_hash` | BYTEA — HMAC-SHA256(key, canonical(row) ‖ previous_hash). NULL only for rows written before V26 (skipped by the verifier) |
+
+The hash chain (added in V26) is per organization. Inserts are serialized by a Postgres advisory lock keyed on the org id so each row deterministically chains to the prior one. The verifier (`GET /admin/audit-log/verify`) walks the chain in `(created_at ASC, id ASC)` order and returns the first row whose recomputed `current_hash` or recorded `previous_hash` does not match. Rows persisted before V26 keep NULL hashes and are treated as "pre-chain" — the verifier skips them up to the first chained row.
 
 ### Audit Action Types
 

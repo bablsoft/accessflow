@@ -44,6 +44,8 @@ class AuthControllerSetupIntegrationTest {
                 + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
                 + "\n-----END PRIVATE KEY-----";
         registry.add("accessflow.jwt.private-key", () -> pem);
+        registry.add("accessflow.encryption-key", () ->
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     }
 
     @BeforeEach

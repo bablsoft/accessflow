@@ -248,4 +248,101 @@ class AuditLogIntegrationTest {
         var ours = auditLogService.query(organizationId, AuditLogQuery.empty(), PageRequest.of(0, 20));
         assertThat(ours.getTotalElements()).isEqualTo(1);
     }
+
+    @Test
+    void verifyReturnsOkForUntamperedChain() {
+        for (int i = 0; i < 5; i++) {
+            auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_SUBMITTED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryRequestId,
+                    organizationId,
+                    submitterId,
+                    Map.of("i", i),
+                    "10.0.0.1",
+                    "ua"));
+        }
+
+        var result = auditLogService.verify(organizationId, null, null);
+
+        assertThat(result.ok()).isTrue();
+        assertThat(result.rowsChecked()).isEqualTo(5);
+        assertThat(result.firstBadRowId()).isNull();
+    }
+
+    @Test
+    void verifyFlagsRowWhenMetadataIsTamperedWith() {
+        UUID third = null;
+        for (int i = 0; i < 5; i++) {
+            var id = auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_SUBMITTED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryRequestId,
+                    organizationId,
+                    submitterId,
+                    Map.of("i", i),
+                    null,
+                    null));
+            if (i == 2) {
+                third = id;
+            }
+        }
+        // Tamper with row 3 by rewriting its metadata directly in the DB.
+        jdbcTemplate.update(
+                "UPDATE audit_log SET metadata = ?::jsonb WHERE id = ?",
+                "{\"tampered\":true}", third);
+
+        var result = auditLogService.verify(organizationId, null, null);
+
+        assertThat(result.ok()).isFalse();
+        assertThat(result.firstBadRowId()).isEqualTo(third);
+        assertThat(result.firstBadReason()).isEqualTo("current_hash_mismatch");
+    }
+
+    @Test
+    void verifyFlagsPreviousHashTamper() {
+        UUID third = null;
+        for (int i = 0; i < 5; i++) {
+            var id = auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_SUBMITTED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryRequestId,
+                    organizationId,
+                    submitterId,
+                    Map.of("i", i),
+                    null,
+                    null));
+            if (i == 2) {
+                third = id;
+            }
+        }
+        var corrupted = new byte[32];
+        java.util.Arrays.fill(corrupted, (byte) 0x77);
+        jdbcTemplate.update("UPDATE audit_log SET previous_hash = ? WHERE id = ?",
+                corrupted, third);
+
+        var result = auditLogService.verify(organizationId, null, null);
+
+        assertThat(result.ok()).isFalse();
+        assertThat(result.firstBadRowId()).isEqualTo(third);
+        assertThat(result.firstBadReason()).isEqualTo("previous_hash_mismatch");
+    }
+
+    @Test
+    void verifyIsScopedToCallerOrganization() {
+        auditLogService.record(new AuditEntry(
+                AuditAction.QUERY_SUBMITTED,
+                AuditResourceType.QUERY_REQUEST,
+                queryRequestId,
+                organizationId,
+                submitterId,
+                Map.of(),
+                null,
+                null));
+
+        var otherOrg = UUID.randomUUID();
+        var result = auditLogService.verify(otherOrg, null, null);
+        assertThat(result.ok()).isTrue();
+        assertThat(result.rowsChecked()).isZero();
+    }
 }

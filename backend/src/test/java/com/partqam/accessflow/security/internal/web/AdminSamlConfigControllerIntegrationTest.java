@@ -70,6 +70,8 @@ class AdminSamlConfigControllerIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        registry.add("accessflow.audit.hmac-key", () ->
+                "abababababababababababababababababababababababababababababababab");
     }
 
     @BeforeEach

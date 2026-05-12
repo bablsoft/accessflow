@@ -5,6 +5,7 @@ import com.partqam.accessflow.audit.internal.persistence.entity.AuditLogEntity;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -12,6 +13,20 @@ import java.util.UUID;
 final class AuditLogSpecifications {
 
     private AuditLogSpecifications() {
+    }
+
+    static Specification<AuditLogEntity> forVerification(UUID organizationId, Instant from, Instant to) {
+        return (root, cq, cb) -> {
+            var predicates = new ArrayList<Predicate>();
+            predicates.add(cb.equal(root.get("organizationId"), organizationId));
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThan(root.get("createdAt"), to));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     static Specification<AuditLogEntity> forQuery(UUID organizationId, AuditLogQuery query) {

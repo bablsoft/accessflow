@@ -101,6 +101,11 @@ accessflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.
     timeout-poll-interval: ${ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL:PT5M}
+  audit:
+    # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Required for
+    # non-community editions; community installs fall back to an HKDF derivative of
+    # accessflow.encryption-key. See AuditConfiguration.
+    hmac-key: ${AUDIT_HMAC_KEY:}
 
 springdoc:
   api-docs:
