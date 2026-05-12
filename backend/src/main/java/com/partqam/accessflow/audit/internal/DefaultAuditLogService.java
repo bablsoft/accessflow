@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -62,7 +63,9 @@ class DefaultAuditLogService implements AuditLogService {
         row.setMetadata(serializeMetadata(entry.metadata()));
         row.setIpAddress(entry.ipAddress());
         row.setUserAgent(entry.userAgent());
-        row.setCreatedAt(Instant.now());
+        // Postgres TIMESTAMPTZ stores microsecond precision; truncate so the value used in the
+        // HMAC canonical form matches what verify() reads back from the database.
+        row.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MICROS));
         row.setPreviousHash(prevHash);
         row.setCurrentHash(hasher.hash(row, prevHash));
         repository.save(row);
