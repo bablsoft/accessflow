@@ -12,7 +12,6 @@ import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInp
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +43,7 @@ class QuerySubmissionController {
     @ApiResponse(responseCode = "422", description = "SQL could not be parsed or query type is not supported")
     ResponseEntity<SubmitQueryResponse> submit(@Valid @RequestBody SubmitQueryRequestBody body,
                                                Authentication authentication,
-                                               HttpServletRequest httpRequest) {
+                                               RequestAuditContext auditContext) {
         var caller = (JwtClaims) authentication.getPrincipal();
         var result = querySubmissionService.submit(new SubmissionInput(
                 body.datasourceId(),
@@ -53,15 +52,14 @@ class QuerySubmissionController {
                 caller.userId(),
                 caller.organizationId(),
                 caller.role() == UserRoleType.ADMIN));
-        recordAudit(caller, result.id(), body, httpRequest);
+        recordAudit(caller, result.id(), body, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.id(), result.status(), null, null, null));
     }
 
     private void recordAudit(JwtClaims caller, java.util.UUID queryId,
-                             SubmitQueryRequestBody body, HttpServletRequest httpRequest) {
+                             SubmitQueryRequestBody body, RequestAuditContext auditContext) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             var metadata = new HashMap<String, Object>();
             metadata.put("datasource_id", body.datasourceId().toString());
             auditLogService.record(new AuditEntry(
@@ -71,8 +69,8 @@ class QuerySubmissionController {
                     caller.organizationId(),
                     caller.userId(),
                     metadata,
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for QUERY_SUBMITTED on query {}", queryId, ex);
         }

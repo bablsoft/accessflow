@@ -29,8 +29,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
@@ -257,7 +257,7 @@ class DefaultReviewServiceTest {
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.ANALYST),
                 PageRequest.of(0, 20));
 
-        assertThat(page).isEmpty();
+        assertThat(page.content()).isEmpty();
         verify(queryRequestLookupService, never()).findPendingForReviewer(any(), any(), any(),
                 any());
     }
@@ -267,12 +267,12 @@ class DefaultReviewServiceTest {
         var view = view(QueryStatus.PENDING_REVIEW, reviewerId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
                 eq(UserRoleType.REVIEWER), any()))
-                .thenReturn(new PageImpl<>(List.of(view), PageRequest.of(0, 20), 1));
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
 
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
                 PageRequest.of(0, 20));
 
-        assertThat(page).isEmpty();
+        assertThat(page.content()).isEmpty();
     }
 
     @Test
@@ -280,7 +280,7 @@ class DefaultReviewServiceTest {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
                 eq(UserRoleType.REVIEWER), any()))
-                .thenReturn(new PageImpl<>(List.of(view), PageRequest.of(0, 20), 1));
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
                         new ApproverRule(null, UserRoleType.REVIEWER, 1)))));
@@ -289,9 +289,9 @@ class DefaultReviewServiceTest {
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
                 PageRequest.of(0, 20));
 
-        assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).queryRequestId()).isEqualTo(queryId);
-        assertThat(page.getContent().get(0).currentStage()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).queryRequestId()).isEqualTo(queryId);
+        assertThat(page.content().get(0).currentStage()).isEqualTo(1);
     }
 
     @Test
@@ -299,7 +299,7 @@ class DefaultReviewServiceTest {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
                 eq(UserRoleType.REVIEWER), any()))
-                .thenReturn(new PageImpl<>(List.of(view), PageRequest.of(0, 20), 1));
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         // Caller is approver only at stage 2; stage 1 still pending
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
@@ -310,7 +310,7 @@ class DefaultReviewServiceTest {
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
                 PageRequest.of(0, 20));
 
-        assertThat(page).isEmpty();
+        assertThat(page.content()).isEmpty();
     }
 
     private void givenPendingReview() {

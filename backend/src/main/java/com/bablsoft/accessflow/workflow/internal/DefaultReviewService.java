@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.PendingReviewView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
@@ -22,9 +24,6 @@ import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,17 +46,19 @@ class DefaultReviewService implements ReviewService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PendingReview> listPendingForReviewer(ReviewerContext context, Pageable pageable) {
+    public PageResponse<PendingReview> listPendingForReviewer(ReviewerContext context,
+                                                              PageRequest pageRequest) {
         if (!REVIEWER_ROLES.contains(context.role())) {
-            return Page.empty(pageable);
+            return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var page = queryRequestLookupService.findPendingForReviewer(context.organizationId(),
-                context.userId(), context.role(), pageable);
-        var visible = page.getContent().stream()
+                context.userId(), context.role(), pageRequest);
+        var visible = page.content().stream()
                 .filter(view -> isCurrentlyActionable(view, context))
                 .map(view -> toPendingReview(view, context))
                 .toList();
-        return new PageImpl<>(visible, pageable, page.getTotalElements());
+        return new PageResponse<>(visible, page.page(), page.size(), page.totalElements(),
+                page.totalPages());
     }
 
     @Override

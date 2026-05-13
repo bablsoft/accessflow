@@ -35,8 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -191,8 +191,8 @@ class AuditLogIntegrationTest {
                     new AuditLogQuery(null, AuditAction.QUERY_AI_ANALYZED, null, queryRequestId,
                             null, null),
                     PageRequest.of(0, 20));
-            assertThat(rows.getTotalElements()).isEqualTo(1);
-            var view = rows.getContent().get(0);
+            assertThat(rows.totalElements()).isEqualTo(1);
+            var view = rows.content().get(0);
             assertThat(view.actorId()).isNull();
             assertThat(view.metadata()).containsEntry("risk_level", "HIGH");
         });
@@ -208,8 +208,8 @@ class AuditLogIntegrationTest {
                     new AuditLogQuery(null, AuditAction.QUERY_AI_FAILED, null, queryRequestId,
                             null, null),
                     PageRequest.of(0, 20));
-            assertThat(rows.getTotalElements()).isEqualTo(1);
-            assertThat(rows.getContent().get(0).metadata()).containsEntry("reason", "boom");
+            assertThat(rows.totalElements()).isEqualTo(1);
+            assertThat(rows.content().get(0).metadata()).containsEntry("reason", "boom");
         });
     }
 
@@ -223,7 +223,7 @@ class AuditLogIntegrationTest {
                     new AuditLogQuery(null, AuditAction.QUERY_REVIEW_REQUESTED, null,
                             queryRequestId, null, null),
                     PageRequest.of(0, 20));
-            assertThat(rows.getTotalElements()).isEqualTo(1);
+            assertThat(rows.totalElements()).isEqualTo(1);
         });
     }
 
@@ -241,10 +241,10 @@ class AuditLogIntegrationTest {
 
         var otherOrg = UUID.randomUUID();
         var rows = auditLogService.query(otherOrg, AuditLogQuery.empty(), PageRequest.of(0, 20));
-        assertThat(rows.getTotalElements()).isZero();
+        assertThat(rows.totalElements()).isZero();
 
         var ours = auditLogService.query(organizationId, AuditLogQuery.empty(), PageRequest.of(0, 20));
-        assertThat(ours.getTotalElements()).isEqualTo(1);
+        assertThat(ours.totalElements()).isEqualTo(1);
     }
 
     @Test

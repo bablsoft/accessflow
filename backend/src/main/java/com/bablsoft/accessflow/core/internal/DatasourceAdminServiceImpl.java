@@ -34,12 +34,12 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationReposi
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,16 +81,19 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DatasourceView> listForAdmin(UUID organizationId, Pageable pageable) {
-        return datasourceRepository.findAllByOrganization_Id(organizationId, pageable)
-                .map(this::toView);
+    public PageResponse<DatasourceView> listForAdmin(UUID organizationId, PageRequest pageRequest) {
+        var page = datasourceRepository.findAllByOrganization_Id(
+                organizationId, PageAdapter.toSpringPageable(pageRequest));
+        return PageAdapter.toPageResponse(page.map(this::toView));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DatasourceView> listForUser(UUID organizationId, UUID userId, Pageable pageable) {
-        return datasourceRepository.findAllVisibleToUser(organizationId, userId, pageable)
-                .map(this::toView);
+    public PageResponse<DatasourceView> listForUser(UUID organizationId, UUID userId,
+                                                    PageRequest pageRequest) {
+        var page = datasourceRepository.findAllVisibleToUser(
+                organizationId, userId, PageAdapter.toSpringPageable(pageRequest));
+        return PageAdapter.toPageResponse(page.map(this::toView));
     }
 
     @Override

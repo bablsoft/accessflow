@@ -1,12 +1,12 @@
 package com.bablsoft.accessflow.workflow.api;
 
 import com.bablsoft.accessflow.core.api.DecisionType;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,7 +19,8 @@ import java.util.UUID;
  */
 public interface ReviewService {
 
-    Page<PendingReview> listPendingForReviewer(ReviewerContext context, Pageable pageable);
+    PageResponse<PendingReview> listPendingForReviewer(ReviewerContext context,
+                                                       PageRequest pageRequest);
 
     DecisionOutcome approve(UUID queryRequestId, ReviewerContext context, String comment);
 

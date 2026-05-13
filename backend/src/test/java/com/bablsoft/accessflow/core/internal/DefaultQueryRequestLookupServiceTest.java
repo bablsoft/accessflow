@@ -186,10 +186,11 @@ class DefaultQueryRequestLookupServiceTest {
                 .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
 
         var page = service.findForOrganization(
-                new QueryListFilter(orgId, null, null, null, null, null, null), pageable);
+                new QueryListFilter(orgId, null, null, null, null, null, null),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
-        assertThat(page.getTotalElements()).isEqualTo(1);
-        var item = page.getContent().get(0);
+        assertThat(page.totalElements()).isEqualTo(1);
+        var item = page.content().get(0);
         assertThat(item.id()).isEqualTo(entity.getId());
         assertThat(item.datasourceName()).isEqualTo("ds");
         assertThat(item.submittedByEmail()).isEqualTo("alice@example.com");
@@ -220,8 +221,9 @@ class DefaultQueryRequestLookupServiceTest {
         when(aiAnalysisRepository.findById(aiId)).thenReturn(Optional.of(ai));
 
         var item = service.findForOrganization(
-                new QueryListFilter(orgId, null, null, null, null, null, null), pageable)
-                .getContent().get(0);
+                new QueryListFilter(orgId, null, null, null, null, null, null),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20))
+                .content().get(0);
 
         assertThat(item.aiRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
         assertThat(item.aiRiskScore()).isEqualTo(42);
@@ -472,11 +474,11 @@ class DefaultQueryRequestLookupServiceTest {
                 .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
 
         var page = service.findPendingForReviewer(orgId, reviewerId, UserRoleType.REVIEWER,
-                pageable);
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
-        assertThat(page.getTotalElements()).isEqualTo(1);
-        assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).queryRequestId()).isEqualTo(entity.getId());
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).queryRequestId()).isEqualTo(entity.getId());
         verify(queryRequestRepository).findPendingForReviewer(orgId, reviewerId,
                 UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW, pageable);
     }

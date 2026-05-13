@@ -14,7 +14,6 @@ import com.bablsoft.accessflow.security.internal.web.model.CustomDriverResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -73,7 +72,7 @@ class CustomJdbcDriverController {
             @RequestParam("expected_sha256") @NotBlank @Pattern(regexp = SHA256_PATTERN)
                 String expectedSha256,
             Authentication authentication,
-            HttpServletRequest httpRequest) throws IOException {
+            RequestAuditContext auditContext) throws IOException {
         var caller = currentClaims(authentication);
         String originalFilename = jar.getOriginalFilename();
         if (originalFilename == null || originalFilename.isBlank()) {
@@ -98,7 +97,7 @@ class CustomJdbcDriverController {
         metadata.put("jar_sha256", created.jarSha256());
         metadata.put("jar_size_bytes", created.jarSizeBytes());
         recordAudit(AuditAction.CUSTOM_DRIVER_UPLOADED, AuditResourceType.CUSTOM_JDBC_DRIVER,
-                created.id(), caller, httpRequest, metadata);
+                created.id(), caller, auditContext, metadata);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -134,7 +133,7 @@ class CustomJdbcDriverController {
     @ApiResponse(responseCode = "404", description = "Driver not found")
     @ApiResponse(responseCode = "409", description = "Driver is still referenced by a datasource")
     ResponseEntity<Void> deleteDriver(@PathVariable UUID id, Authentication authentication,
-                                       HttpServletRequest httpRequest) {
+                                       RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var view = customJdbcDriverService.get(id, caller.organizationId());
         customJdbcDriverService.delete(id, caller.organizationId());
@@ -144,7 +143,7 @@ class CustomJdbcDriverController {
         metadata.put("target_db_type", view.targetDbType().name());
         metadata.put("jar_sha256", view.jarSha256());
         recordAudit(AuditAction.CUSTOM_DRIVER_DELETED, AuditResourceType.CUSTOM_JDBC_DRIVER, id,
-                caller, httpRequest, metadata);
+                caller, auditContext, metadata);
         return ResponseEntity.noContent().build();
     }
 
@@ -153,10 +152,9 @@ class CustomJdbcDriverController {
     }
 
     private void recordAudit(AuditAction action, AuditResourceType resourceType, UUID resourceId,
-                             JwtClaims caller, HttpServletRequest httpRequest,
+                             JwtClaims caller, RequestAuditContext auditContext,
                              Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             auditLogService.record(new AuditEntry(
                     action,
                     resourceType,
@@ -164,8 +162,8 @@ class CustomJdbcDriverController {
                     caller.organizationId(),
                     caller.userId(),
                     new HashMap<>(metadata),
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on {} {}", action, resourceType.dbValue(),
                     resourceId, ex);

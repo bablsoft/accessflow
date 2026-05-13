@@ -9,10 +9,13 @@ import com.bablsoft.accessflow.audit.api.AuditLogView;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.internal.persistence.entity.AuditLogEntity;
 import com.bablsoft.accessflow.audit.internal.persistence.repo.AuditLogRepository;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.SortOrder;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -74,13 +77,32 @@ class DefaultAuditLogService implements AuditLogService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AuditLogView> query(UUID organizationId, AuditLogQuery filter, Pageable pageable) {
+    public PageResponse<AuditLogView> query(UUID organizationId, AuditLogQuery filter,
+                                            PageRequest pageRequest) {
         if (organizationId == null) {
             throw new IllegalArgumentException("organizationId is required");
         }
         var spec = AuditLogSpecifications.forQuery(organizationId,
                 filter == null ? AuditLogQuery.empty() : filter);
-        return repository.findAll(spec, pageable).map(this::toView);
+        var page = repository.findAll(spec, toSpringPageable(pageRequest)).map(this::toView);
+        return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    private static Pageable toSpringPageable(PageRequest request) {
+        if (request == null) {
+            return Pageable.unpaged();
+        }
+        var sort = request.sort().isEmpty()
+                ? Sort.unsorted()
+                : Sort.by(request.sort().stream().map(DefaultAuditLogService::toSpringOrder).toList());
+        return org.springframework.data.domain.PageRequest.of(request.page(), request.size(), sort);
+    }
+
+    private static Sort.Order toSpringOrder(SortOrder sortOrder) {
+        var direction = sortOrder.direction() == SortOrder.Direction.ASC
+                ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return new Sort.Order(direction, sortOrder.property());
     }
 
     @Override

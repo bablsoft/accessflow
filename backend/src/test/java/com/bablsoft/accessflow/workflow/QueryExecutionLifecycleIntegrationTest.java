@@ -31,8 +31,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -174,8 +174,8 @@ class QueryExecutionLifecycleIntegrationTest {
             var rows = auditLogService.query(organization.getId(),
                     new AuditLogQuery(null, AuditAction.QUERY_EXECUTED, null, queryId, null, null),
                     PageRequest.of(0, 20));
-            assertThat(rows.getTotalElements()).isEqualTo(1);
-            var view = rows.getContent().get(0);
+            assertThat(rows.totalElements()).isEqualTo(1);
+            var view = rows.content().get(0);
             assertThat(view.actorId()).isEqualTo(submitter.getId());
             assertThat(view.metadata())
                     .containsEntry("rows_affected", 3)
@@ -203,8 +203,8 @@ class QueryExecutionLifecycleIntegrationTest {
             var rows = auditLogService.query(organization.getId(),
                     new AuditLogQuery(null, AuditAction.QUERY_FAILED, null, queryId, null, null),
                     PageRequest.of(0, 20));
-            assertThat(rows.getTotalElements()).isEqualTo(1);
-            var view = rows.getContent().get(0);
+            assertThat(rows.totalElements()).isEqualTo(1);
+            var view = rows.content().get(0);
             assertThat(view.metadata())
                     .containsEntry("sql_state", "42P01")
                     .containsKey("error")

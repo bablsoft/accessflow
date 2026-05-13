@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.PendingReviewView;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
@@ -15,9 +17,6 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,20 +56,23 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<PendingReviewView> findPendingForReviewer(UUID organizationId,
-                                                          UUID reviewerUserId, UserRoleType role,
-                                                          Pageable pageable) {
-        return queryRequestRepository
+    public PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
+                                                                  UUID reviewerUserId,
+                                                                  UserRoleType role,
+                                                                  PageRequest pageRequest) {
+        var page = queryRequestRepository
                 .findPendingForReviewer(organizationId, reviewerUserId, role,
-                        QueryStatus.PENDING_REVIEW, pageable)
-                .map(this::toPendingReviewView);
+                        QueryStatus.PENDING_REVIEW, PageAdapter.toSpringPageable(pageRequest));
+        return PageAdapter.toPageResponse(page.map(this::toPendingReviewView));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<QueryListItemView> findForOrganization(QueryListFilter filter, Pageable pageable) {
+    public PageResponse<QueryListItemView> findForOrganization(QueryListFilter filter,
+                                                               PageRequest pageRequest) {
         var spec = QueryRequestSpecifications.forFilter(filter);
-        return queryRequestRepository.findAll(spec, pageable).map(this::toListItemView);
+        var page = queryRequestRepository.findAll(spec, PageAdapter.toSpringPageable(pageRequest));
+        return PageAdapter.toPageResponse(page.map(this::toListItemView));
     }
 
     private static final int STREAM_PAGE_SIZE = 500;
@@ -95,7 +97,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
             int remaining = maxRows - emitted;
             int pageSize = Math.min(STREAM_PAGE_SIZE, remaining);
             var page = queryRequestRepository.findAll(spec,
-                    PageRequest.of(pageIndex, pageSize));
+                    org.springframework.data.domain.PageRequest.of(pageIndex, pageSize));
             for (var entity : page.getContent()) {
                 consumer.accept(toListItemView(entity));
                 emitted++;

@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
-import org.springframework.data.domain.Page;
+import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.util.List;
 
@@ -13,13 +13,13 @@ public record QueryListPageResponse(
         int totalPages,
         boolean last) {
 
-    public static QueryListPageResponse from(Page<QueryListItem> page) {
+    public static QueryListPageResponse from(PageResponse<QueryListItem> page) {
         return new QueryListPageResponse(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.isLast());
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages(),
+                page.page() + 1 >= page.totalPages());
     }
 }

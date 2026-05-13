@@ -1,8 +1,5 @@
 package com.bablsoft.accessflow.core.api;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -28,14 +25,17 @@ public interface QueryRequestLookupService {
      * the reviewer themselves submitted. The current-stage filter is applied by the caller
      * (workflow module) using the embedded review-plan and decision data.
      */
-    Page<PendingReviewView> findPendingForReviewer(UUID organizationId, UUID reviewerUserId,
-                                                   UserRoleType role, Pageable pageable);
+    PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
+                                                           UUID reviewerUserId,
+                                                           UserRoleType role,
+                                                           PageRequest pageRequest);
 
     /**
      * Returns queries in the caller's organization matching the supplied filter, ordered by
      * {@code created_at DESC}.
      */
-    Page<QueryListItemView> findForOrganization(QueryListFilter filter, Pageable pageable);
+    PageResponse<QueryListItemView> findForOrganization(QueryListFilter filter,
+                                                        PageRequest pageRequest);
 
     /**
      * Returns the total number of queries matching the supplied filter, scoped to the caller's

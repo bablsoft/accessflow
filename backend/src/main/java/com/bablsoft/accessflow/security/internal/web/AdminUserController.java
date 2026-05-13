@@ -17,7 +17,6 @@ import com.bablsoft.accessflow.security.internal.web.model.UserPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +59,8 @@ class AdminUserController {
     @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
     UserPageResponse listUsers(Authentication authentication, Pageable pageable) {
         var caller = currentClaims(authentication);
-        var page = userAdminService.listUsers(caller.organizationId(), pageable)
+        var page = userAdminService.listUsers(caller.organizationId(),
+                        SpringPageableAdapter.toPageRequest(pageable))
                 .map(AdminUserResponse::from);
         return UserPageResponse.from(page);
     }
@@ -72,7 +72,7 @@ class AdminUserController {
     @ApiResponse(responseCode = "409", description = "Email already exists")
     ResponseEntity<AdminUserResponse> createUser(@Valid @RequestBody CreateUserRequest request,
                                                  Authentication authentication,
-                                                 HttpServletRequest httpRequest) {
+                                                 RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new CreateUserCommand(
                 caller.organizationId(),
@@ -82,7 +82,7 @@ class AdminUserController {
                 request.role()
         );
         var created = userAdminService.createUser(command);
-        recordAudit(AuditAction.USER_CREATED, created.id(), caller, httpRequest,
+        recordAudit(AuditAction.USER_CREATED, created.id(), caller, auditContext,
                 Map.of("email", created.email(), "role", created.role().name()));
         var response = AdminUserResponse.from(created);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -114,11 +114,12 @@ class AdminUserController {
     @ApiResponse(responseCode = "404", description = "User not found in caller's organization")
     @ApiResponse(responseCode = "422", description = "Cannot deactivate self")
     ResponseEntity<Void> deactivateUser(@PathVariable UUID id, Authentication authentication,
-                                        HttpServletRequest httpRequest) {
+                                        RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         userAdminService.deactivateUser(id, caller.organizationId(), caller.userId());
         refreshTokenStore.revokeAllForUser(id.toString());
-        recordAudit(AuditAction.USER_DEACTIVATED, id, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.USER_DEACTIVATED, id, caller, auditContext, Map.of());
+
         return ResponseEntity.noContent().build();
     }
 
@@ -127,9 +128,8 @@ class AdminUserController {
     }
 
     private void recordAudit(AuditAction action, UUID resourceId, JwtClaims caller,
-                             HttpServletRequest httpRequest, Map<String, Object> metadata) {
+                             RequestAuditContext auditContext, Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             auditLogService.record(new AuditEntry(
                     action,
                     AuditResourceType.USER,
@@ -137,8 +137,8 @@ class AdminUserController {
                     caller.organizationId(),
                     caller.userId(),
                     new HashMap<>(metadata),
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on user {}", action, resourceId, ex);
         }

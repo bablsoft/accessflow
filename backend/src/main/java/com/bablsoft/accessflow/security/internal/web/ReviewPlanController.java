@@ -17,7 +17,6 @@ import com.bablsoft.accessflow.security.internal.web.model.UpdateReviewPlanReque
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,7 +80,7 @@ class ReviewPlanController {
     @ApiResponse(responseCode = "422", description = "Approver configuration invalid or name conflict")
     ResponseEntity<ReviewPlanResponse> create(@Valid @RequestBody CreateReviewPlanRequest request,
                                               Authentication authentication,
-                                              HttpServletRequest httpRequest) {
+                                              RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new CreateReviewPlanCommand(
                 caller.organizationId(),
@@ -95,7 +94,7 @@ class ReviewPlanController {
                 request.notifyChannels(),
                 toRules(request.approvers()));
         var view = reviewPlanAdminService.create(command);
-        recordAudit(AuditAction.REVIEW_PLAN_CREATED, view.id(), caller, httpRequest,
+        recordAudit(AuditAction.REVIEW_PLAN_CREATED, view.id(), caller, auditContext,
                 Map.of("name", view.name()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -115,7 +114,7 @@ class ReviewPlanController {
     ReviewPlanResponse update(@PathVariable UUID id,
                               @Valid @RequestBody UpdateReviewPlanRequest request,
                               Authentication authentication,
-                              HttpServletRequest httpRequest) {
+                              RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new UpdateReviewPlanCommand(
                 request.name(),
@@ -128,7 +127,7 @@ class ReviewPlanController {
                 request.notifyChannels(),
                 toRules(request.approvers()));
         var view = reviewPlanAdminService.update(id, caller.organizationId(), command);
-        recordAudit(AuditAction.REVIEW_PLAN_UPDATED, view.id(), caller, httpRequest,
+        recordAudit(AuditAction.REVIEW_PLAN_UPDATED, view.id(), caller, auditContext,
                 Map.of("name", view.name()));
         return ReviewPlanResponse.from(view);
     }
@@ -142,10 +141,11 @@ class ReviewPlanController {
     @ApiResponse(responseCode = "409", description = "Review plan still attached to datasources")
     ResponseEntity<Void> delete(@PathVariable UUID id,
                                 Authentication authentication,
-                                HttpServletRequest httpRequest) {
+                                RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         reviewPlanAdminService.delete(id, caller.organizationId());
-        recordAudit(AuditAction.REVIEW_PLAN_DELETED, id, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.REVIEW_PLAN_DELETED, id, caller, auditContext, Map.of());
+
         return ResponseEntity.noContent().build();
     }
 
@@ -162,9 +162,8 @@ class ReviewPlanController {
     }
 
     private void recordAudit(AuditAction action, UUID resourceId, JwtClaims caller,
-                             HttpServletRequest httpRequest, Map<String, Object> metadata) {
+                             RequestAuditContext auditContext, Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             auditLogService.record(new AuditEntry(
                     action,
                     AuditResourceType.REVIEW_PLAN,
@@ -172,8 +171,8 @@ class ReviewPlanController {
                     caller.organizationId(),
                     caller.userId(),
                     new HashMap<>(metadata),
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on review plan {}", action, resourceId, ex);
         }

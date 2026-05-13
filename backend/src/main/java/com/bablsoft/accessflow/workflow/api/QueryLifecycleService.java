@@ -14,11 +14,12 @@ public interface QueryLifecycleService {
      * Transitions the query to {@link QueryStatus#CANCELLED}. Only the submitter may cancel,
      * and only while the query is in {@code PENDING_AI} or {@code PENDING_REVIEW}.
      *
+     * <p>Authorization is enforced by the security layer; a denial is translated to HTTP 403
+     * by the global exception handler.
+     *
      * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if no query exists
      *         with the given id (or it lives in a different organization).
      * @throws QueryNotCancellableException if the query is in a non-cancellable status.
-     * @throws org.springframework.security.access.AccessDeniedException if the caller is not
-     *         the submitter.
      */
     void cancel(CancelQueryCommand command);
 
@@ -27,10 +28,11 @@ public interface QueryLifecycleService {
      * Returns the resulting status ({@link QueryStatus#EXECUTED} on success or
      * {@link QueryStatus#FAILED} on execution error).
      *
+     * <p>Authorization is enforced by the security layer; a denial is translated to HTTP 403
+     * by the global exception handler.
+     *
      * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if no query exists.
      * @throws QueryNotExecutableException if the query is not in {@code APPROVED}.
-     * @throws org.springframework.security.access.AccessDeniedException if the caller is not
-     *         the submitter and not an admin.
      */
     ExecutionOutcome execute(ExecuteQueryCommand command);
 

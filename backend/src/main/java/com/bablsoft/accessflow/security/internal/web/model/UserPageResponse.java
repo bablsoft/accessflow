@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
-import org.springframework.data.domain.Page;
+import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.util.List;
 
@@ -11,13 +11,13 @@ public record UserPageResponse(
         long totalElements,
         int totalPages
 ) {
-    public static UserPageResponse from(Page<AdminUserResponse> page) {
+    public static UserPageResponse from(PageResponse<AdminUserResponse> page) {
         return new UserPageResponse(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages()
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages()
         );
     }
 }

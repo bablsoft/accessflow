@@ -26,7 +26,6 @@ import com.bablsoft.accessflow.security.internal.web.model.UpdateDatasourceReque
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,10 +86,11 @@ class DatasourceController {
     @ApiResponse(responseCode = "200", description = "Page of datasources")
     DatasourcePageResponse listDatasources(Authentication authentication, Pageable pageable) {
         var caller = currentClaims(authentication);
+        var pageRequest = SpringPageableAdapter.toPageRequest(pageable);
         var page = isAdmin(caller)
-                ? datasourceAdminService.listForAdmin(caller.organizationId(), pageable)
+                ? datasourceAdminService.listForAdmin(caller.organizationId(), pageRequest)
                 : datasourceAdminService.listForUser(caller.organizationId(), caller.userId(),
-                        pageable);
+                        pageRequest);
         return DatasourcePageResponse.from(page.map(DatasourceResponse::from));
     }
 
@@ -104,7 +104,7 @@ class DatasourceController {
     ResponseEntity<DatasourceResponse> createDatasource(
             @Valid @RequestBody CreateDatasourceRequest request,
             Authentication authentication,
-            HttpServletRequest httpRequest) {
+            RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new CreateDatasourceCommand(
                 caller.organizationId(),
@@ -127,7 +127,7 @@ class DatasourceController {
                 request.jdbcUrlOverride());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
-                caller, httpRequest, Map.of("name", created.name(), "db_type", created.dbType().name()));
+                caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
                 .buildAndExpand(created.id())
@@ -157,7 +157,7 @@ class DatasourceController {
     DatasourceResponse updateDatasource(@PathVariable UUID id,
                                         @Valid @RequestBody UpdateDatasourceRequest request,
                                         Authentication authentication,
-                                        HttpServletRequest httpRequest) {
+                                        RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new UpdateDatasourceCommand(
                 request.name(),
@@ -179,7 +179,7 @@ class DatasourceController {
                 request.active());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
-                httpRequest, Map.of("name", updated.name()));
+                auditContext, Map.of("name", updated.name()));
         return DatasourceResponse.from(updated);
     }
 
@@ -243,7 +243,7 @@ class DatasourceController {
             @PathVariable UUID id,
             @Valid @RequestBody CreatePermissionRequest request,
             Authentication authentication,
-            HttpServletRequest httpRequest) {
+            RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new CreatePermissionCommand(
                 request.userId(),
@@ -264,7 +264,7 @@ class DatasourceController {
         metadata.put("can_write", view.canWrite());
         metadata.put("can_ddl", view.canDdl());
         recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
-                caller, httpRequest, metadata);
+                caller, auditContext, metadata);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{permId}")
                 .buildAndExpand(view.id())
@@ -280,11 +280,11 @@ class DatasourceController {
     ResponseEntity<Void> revokePermission(@PathVariable UUID id,
                                           @PathVariable UUID permId,
                                           Authentication authentication,
-                                          HttpServletRequest httpRequest) {
+                                          RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         datasourceAdminService.revokePermission(id, caller.organizationId(), permId);
         recordAudit(AuditAction.PERMISSION_REVOKED, AuditResourceType.PERMISSION, permId, caller,
-                httpRequest, Map.of("datasource_id", id.toString()));
+                auditContext, Map.of("datasource_id", id.toString()));
         return ResponseEntity.noContent().build();
     }
 
@@ -297,10 +297,9 @@ class DatasourceController {
     }
 
     private void recordAudit(AuditAction action, AuditResourceType resourceType, UUID resourceId,
-                             JwtClaims caller, HttpServletRequest httpRequest,
+                             JwtClaims caller, RequestAuditContext auditContext,
                              Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             auditLogService.record(new AuditEntry(
                     action,
                     resourceType,
@@ -308,8 +307,8 @@ class DatasourceController {
                     caller.organizationId(),
                     caller.userId(),
                     new HashMap<>(metadata),
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on {} {}", action, resourceType.dbValue(),
                     resourceId, ex);

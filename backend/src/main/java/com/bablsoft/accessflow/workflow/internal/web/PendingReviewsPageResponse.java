@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
-import org.springframework.data.domain.Page;
+import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.util.List;
 
@@ -11,12 +11,12 @@ public record PendingReviewsPageResponse(
         long totalElements,
         int totalPages) {
 
-    public static PendingReviewsPageResponse from(Page<PendingReviewItem> page) {
+    public static PendingReviewsPageResponse from(PageResponse<PendingReviewItem> page) {
         return new PendingReviewsPageResponse(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages());
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages());
     }
 }

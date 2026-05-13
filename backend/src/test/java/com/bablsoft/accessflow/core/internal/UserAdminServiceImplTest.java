@@ -17,7 +17,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -45,14 +44,16 @@ class UserAdminServiceImplTest {
     @Test
     void listUsersReturnsPageMappedToView() {
         var entity = buildUser(userId, orgId, "alice@example.com", UserRoleType.ANALYST);
-        when(userRepository.findAllByOrganization_Id(orgId, PageRequest.of(0, 20)))
+        when(userRepository.findAllByOrganization_Id(orgId,
+                org.springframework.data.domain.PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(entity)));
 
-        var page = service.listUsers(orgId, PageRequest.of(0, 20));
+        var page = service.listUsers(orgId,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
-        assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).email()).isEqualTo("alice@example.com");
-        assertThat(page.getContent().get(0).organizationId()).isEqualTo(orgId);
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).email()).isEqualTo("alice@example.com");
+        assertThat(page.content().get(0).organizationId()).isEqualTo(orgId);
     }
 
     @Test

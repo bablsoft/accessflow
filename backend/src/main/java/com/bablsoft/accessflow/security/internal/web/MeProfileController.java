@@ -17,7 +17,6 @@ import com.bablsoft.accessflow.security.internal.web.model.UpdateMeProfileReques
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,10 +57,10 @@ class MeProfileController {
     @ApiResponse(responseCode = "400", description = "Validation error")
     MeProfileResponse updateProfile(@Valid @RequestBody UpdateMeProfileRequest request,
                                     Authentication authentication,
-                                    HttpServletRequest httpRequest) {
+                                    RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var updated = userProfileService.updateDisplayName(caller.userId(), request.displayName());
-        recordAudit(AuditAction.USER_PROFILE_UPDATED, caller, httpRequest,
+        recordAudit(AuditAction.USER_PROFILE_UPDATED, caller, auditContext,
                 Map.of("display_name", updated.displayName()));
         return MeProfileResponse.from(updated);
     }
@@ -73,11 +72,11 @@ class MeProfileController {
     @ApiResponse(responseCode = "422", description = "Current password incorrect or change not allowed")
     ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
                                         Authentication authentication,
-                                        HttpServletRequest httpRequest) {
+                                        RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         userProfileService.changePassword(caller.userId(), request.currentPassword(),
                 request.newPassword());
-        recordAudit(AuditAction.USER_PASSWORD_CHANGED, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.USER_PASSWORD_CHANGED, caller, auditContext, Map.of());
         return ResponseEntity.noContent().build();
     }
 
@@ -97,10 +96,10 @@ class MeProfileController {
     @ApiResponse(responseCode = "422", description = "Invalid code or enrolment not started")
     TotpConfirmationResponse confirmTotp(@Valid @RequestBody ConfirmTotpRequest request,
                                         Authentication authentication,
-                                        HttpServletRequest httpRequest) {
+                                        RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var result = userProfileService.confirmTotpEnrollment(caller.userId(), request.code());
-        recordAudit(AuditAction.USER_TOTP_ENABLED, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.USER_TOTP_ENABLED, caller, auditContext, Map.of());
         return TotpConfirmationResponse.from(result);
     }
 
@@ -111,10 +110,10 @@ class MeProfileController {
     @ApiResponse(responseCode = "422", description = "TOTP not enabled or password incorrect")
     ResponseEntity<Void> disableTotp(@Valid @RequestBody DisableTotpRequest request,
                                      Authentication authentication,
-                                     HttpServletRequest httpRequest) {
+                                     RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         userProfileService.disableTotp(caller.userId(), request.currentPassword());
-        recordAudit(AuditAction.USER_TOTP_DISABLED, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.USER_TOTP_DISABLED, caller, auditContext, Map.of());
         return ResponseEntity.noContent().build();
     }
 
@@ -123,9 +122,8 @@ class MeProfileController {
     }
 
     private void recordAudit(AuditAction action, JwtClaims caller,
-                             HttpServletRequest httpRequest, Map<String, Object> metadata) {
+                             RequestAuditContext auditContext, Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             UUID userId = caller.userId();
             auditLogService.record(new AuditEntry(
                     action,
@@ -134,8 +132,8 @@ class MeProfileController {
                     caller.organizationId(),
                     userId,
                     new HashMap<>(metadata),
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on user {}", action, caller.userId(), ex);
         }

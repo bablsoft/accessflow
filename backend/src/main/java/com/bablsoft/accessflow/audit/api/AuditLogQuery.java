@@ -4,8 +4,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Filter for {@link AuditLogService#query(UUID, AuditLogQuery, org.springframework.data.domain.Pageable)}.
- * All fields are optional; null means "no filter on this field".
+ * Filter for {@link AuditLogService#query}. All fields are optional; null means
+ * "no filter on this field".
  */
 public record AuditLogQuery(
         UUID actorId,

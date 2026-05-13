@@ -26,9 +26,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -116,7 +113,7 @@ class ReviewControllerIntegrationTest {
     @Test
     void listPendingReturns200ForReviewer() {
         when(reviewService.listPendingForReviewer(any(), any()))
-                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+                .thenReturn(com.bablsoft.accessflow.core.api.PageResponse.empty(0, 20));
 
         var response = mvc.get().uri("/api/v1/reviews/pending")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
@@ -167,7 +164,7 @@ class ReviewControllerIntegrationTest {
                 .isEqualTo("APPROVED");
 
         var auditRows = auditLogService.query(organization.getId(),
-                AuditLogQuery.empty(), Pageable.ofSize(10)).getContent();
+                AuditLogQuery.empty(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 10)).content();
         assertThat(auditRows).hasSize(1);
         var row = auditRows.get(0);
         assertThat(row.action()).isEqualTo(AuditAction.QUERY_APPROVED);
@@ -281,7 +278,7 @@ class ReviewControllerIntegrationTest {
                 .isEqualTo("REJECTED");
 
         var auditRows = auditLogService.query(organization.getId(),
-                AuditLogQuery.empty(), Pageable.ofSize(10)).getContent();
+                AuditLogQuery.empty(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 10)).content();
         assertThat(auditRows).hasSize(1);
         var row = auditRows.get(0);
         assertThat(row.action()).isEqualTo(AuditAction.QUERY_REJECTED);
@@ -311,7 +308,7 @@ class ReviewControllerIntegrationTest {
 
         assertThat(response).hasStatus(200);
         assertThat(auditLogService.query(organization.getId(),
-                AuditLogQuery.empty(), Pageable.ofSize(10)).getTotalElements()).isZero();
+                AuditLogQuery.empty(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 10)).totalElements()).isZero();
     }
 
     @Test
