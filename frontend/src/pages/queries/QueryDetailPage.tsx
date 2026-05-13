@@ -227,7 +227,15 @@ export function QueryDetailPage() {
           </Card>
 
           <Card title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
-            <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>{query.justification}</div>
+            <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+              {query.justification?.trim() ? (
+                query.justification
+              ) : (
+                <span className="muted" style={{ fontStyle: 'italic' }}>
+                  {t('queries.detail.no_justification')}
+                </span>
+              )}
+            </div>
           </Card>
 
           <Card

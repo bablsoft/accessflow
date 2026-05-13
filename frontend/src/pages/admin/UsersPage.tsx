@@ -37,7 +37,7 @@ import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
-import type { CreateUserInput, Role, UpdateUserInput, User } from '@/types/api';
+import type { AuthProvider, CreateUserInput, Role, UpdateUserInput, User } from '@/types/api';
 
 interface InviteFormValues {
   email: string;
@@ -62,7 +62,7 @@ export function UsersPage() {
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
-  const [providerFilter, setProviderFilter] = useState<'all' | 'LOCAL' | 'SAML'>('all');
+  const [providerFilter, setProviderFilter] = useState<'all' | AuthProvider>('all');
   const [inviting, setInviting] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
 
@@ -191,6 +191,7 @@ export function UsersPage() {
             { value: 'all', label: t('admin.users.filter_all_providers') },
             { value: 'LOCAL', label: 'LOCAL' },
             { value: 'SAML', label: 'SAML' },
+            { value: 'OAUTH2', label: 'OAUTH2' },
           ]}
         />
       </div>
