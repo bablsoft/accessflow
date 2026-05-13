@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Form, Input, Popconfirm, Select, Skeleton, Switch, Tabs } from 'antd';
-import { CheckOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Switch, Tabs, Tooltip } from 'antd';
+import { CheckOutlined, CopyOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
@@ -23,6 +23,20 @@ const PROVIDERS: { provider: OAuth2Provider; label: string }[] = [
   { provider: 'MICROSOFT', label: 'Microsoft' },
   { provider: 'GITLAB', label: 'GitLab' },
 ];
+
+const PROVIDER_CONSOLE_URLS: Record<OAuth2Provider, string> = {
+  GOOGLE: 'https://console.cloud.google.com/apis/credentials',
+  GITHUB: 'https://github.com/settings/developers',
+  MICROSOFT: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+  GITLAB: 'https://gitlab.com/-/profile/applications',
+};
+
+function callbackUrlFor(provider: OAuth2Provider): string {
+  const base =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  return `${base.replace(/\/+$/, '')}/api/v1/auth/oauth2/callback/${provider.toLowerCase()}`;
+}
 
 export function OAuth2ConfigPage() {
   const { t } = useTranslation();
@@ -100,6 +114,15 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const [form] = Form.useForm<OAuth2FormValues>();
+  const callbackUrl = useMemo(() => callbackUrlFor(provider), [provider]);
+  const onCopyCallback = async () => {
+    try {
+      await navigator.clipboard.writeText(callbackUrl);
+      message.success(t('admin.oauth2.callback_url_copied'));
+    } catch {
+      // Clipboard may be unavailable in non-secure contexts; the URL is still on screen.
+    }
+  };
   const initialValues = useMemo<OAuth2FormValues>(
     () => ({
       client_id: config.client_id ?? '',
@@ -153,16 +176,77 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       onFinish={onFinish}
       initialValues={initialValues}
     >
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message={t('admin.oauth2.setup_intro_title', { provider: PROVIDERS.find((p) => p.provider === provider)?.label })}
+        description={
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div>
+              <Trans
+                i18nKey={`admin.oauth2.setup_intro.${provider.toLowerCase()}`}
+                components={{
+                  console: (
+                    <a
+                      href={PROVIDER_CONSOLE_URLS[provider]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
+                  ),
+                }}
+              />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
+                {t('admin.oauth2.callback_url_label')}
+              </div>
+              <Input
+                value={callbackUrl}
+                readOnly
+                className="mono"
+                onFocus={(e) => e.currentTarget.select()}
+                addonAfter={
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={onCopyCallback}
+                    aria-label={t('admin.oauth2.callback_url_copy')}
+                  />
+                }
+              />
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {t('admin.oauth2.callback_url_help')}
+              </div>
+            </div>
+          </div>
+        }
+      />
       <Form.Item
         name="client_id"
-        label={t('admin.oauth2.label_client_id')}
+        label={
+          <span>
+            {t('admin.oauth2.label_client_id')}{' '}
+            <Tooltip title={t(`admin.oauth2.client_id_tooltip.${provider.toLowerCase()}`)}>
+              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+            </Tooltip>
+          </span>
+        }
         rules={[{ max: 512, message: t('validation.oauth2.client_id_max') }]}
       >
         <Input className="mono" maxLength={512} autoComplete="off" />
       </Form.Item>
       <Form.Item
         name="client_secret"
-        label={t('admin.oauth2.label_client_secret')}
+        label={
+          <span>
+            {t('admin.oauth2.label_client_secret')}{' '}
+            <Tooltip title={t(`admin.oauth2.client_secret_tooltip.${provider.toLowerCase()}`)}>
+              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+            </Tooltip>
+          </span>
+        }
         extra={t('admin.oauth2.label_client_secret_help')}
         rules={[{ max: 2048, message: t('validation.oauth2.client_secret_max') }]}
       >
@@ -170,16 +254,30 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       </Form.Item>
       <Form.Item
         name="scopes_override"
-        label={t('admin.oauth2.label_scopes')}
+        label={
+          <span>
+            {t('admin.oauth2.label_scopes')}{' '}
+            <Tooltip title={t('admin.oauth2.scopes_tooltip', { defaults: defaultScopesFor(provider) })}>
+              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+            </Tooltip>
+          </span>
+        }
         extra={t('admin.oauth2.label_scopes_help')}
         rules={[{ max: 1024, message: t('validation.oauth2.scopes_max') }]}
       >
-        <Input className="mono" maxLength={1024} placeholder="openid email profile" />
+        <Input className="mono" maxLength={1024} placeholder={defaultScopesFor(provider)} />
       </Form.Item>
       {provider === 'MICROSOFT' && (
         <Form.Item
           name="tenant_id"
-          label={t('admin.oauth2.label_tenant_id')}
+          label={
+            <span>
+              {t('admin.oauth2.label_tenant_id')}{' '}
+              <Tooltip title={t('admin.oauth2.tenant_id_tooltip')}>
+                <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              </Tooltip>
+            </span>
+          }
           extra={t('admin.oauth2.label_tenant_id_help')}
           rules={[{ max: 255, message: t('validation.oauth2.tenant_id_max') }]}
         >
@@ -255,6 +353,18 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
 function blankToNull(s: string | undefined | null): string | null {
   if (s === undefined || s === null) return null;
   return s.trim().length === 0 ? null : s.trim();
+}
+
+function defaultScopesFor(provider: OAuth2Provider): string {
+  switch (provider) {
+    case 'GITHUB':
+      return 'read:user user:email';
+    case 'GOOGLE':
+    case 'MICROSOFT':
+    case 'GITLAB':
+    default:
+      return 'openid email profile';
+  }
 }
 
 export default OAuth2ConfigPage;
