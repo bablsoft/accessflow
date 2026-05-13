@@ -21,7 +21,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -74,15 +73,14 @@ class AuthController {
     @ApiResponse(responseCode = "409", description = "Setup already completed or email already exists")
     @SecurityRequirements
     ResponseEntity<Void> setup(@Valid @RequestBody SetupRequest request,
-                               HttpServletRequest httpRequest) {
+                               RequestAuditContext auditContext) {
         var passwordHash = passwordEncoder.encode(request.password());
         var result = bootstrapService.performSetup(new SetupCommand(
                 request.organizationName(),
                 request.email(),
                 request.displayName(),
                 passwordHash));
-        recordSetupAudit(result.userId(), result.organizationId(), request.email(),
-                RequestAuditContext.from(httpRequest));
+        recordSetupAudit(result.userId(), result.organizationId(), request.email(), auditContext);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -92,24 +90,23 @@ class AuthController {
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "401", description = "Invalid credentials")
     ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
-                                        HttpServletRequest httpRequest,
+                                        RequestAuditContext auditContext,
                                         HttpServletResponse response) {
-        var context = RequestAuditContext.from(httpRequest);
         try {
             var result = authenticationService.login(
                     new LoginCommand(request.email(), request.password(), request.totpCode()));
             setRefreshCookie(response, result.refreshToken(), REFRESH_COOKIE_MAX_AGE);
             recordLoginAudit(AuditAction.USER_LOGIN, request.email(), result.user().id(),
-                    result.user().organizationId(), context);
+                    result.user().organizationId(), auditContext);
             return ResponseEntity.ok(toLoginResponse(result));
         } catch (TotpRequiredException ex) {
             throw ex;
         } catch (TotpAuthenticationException ex) {
-            recordLoginFailureAudit(AuditAction.USER_LOGIN_TOTP_FAILED, request.email(), context,
+            recordLoginFailureAudit(AuditAction.USER_LOGIN_TOTP_FAILED, request.email(), auditContext,
                     ex.getMessage());
             throw ex;
         } catch (AuthenticationException ex) {
-            recordLoginFailureAudit(AuditAction.USER_LOGIN_FAILED, request.email(), context,
+            recordLoginFailureAudit(AuditAction.USER_LOGIN_FAILED, request.email(), auditContext,
                     ex.getMessage());
             throw ex;
         }

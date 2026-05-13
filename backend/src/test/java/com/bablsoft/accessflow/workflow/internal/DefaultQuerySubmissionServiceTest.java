@@ -16,7 +16,6 @@ import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.SqlParseResult;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
-import net.sf.jsqlparser.statement.Statement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -200,7 +199,7 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     private void stubParse(String sql, QueryType type) {
-        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(type, (Statement) null));
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(type));
     }
 
     private void stubActiveDatasourceForUser() {

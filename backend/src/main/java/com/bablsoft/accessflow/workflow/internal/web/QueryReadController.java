@@ -79,7 +79,8 @@ class QueryReadController {
         }
         var caller = (JwtClaims) authentication.getPrincipal();
         var filter = buildFilter(caller, status, datasourceId, submittedBy, queryType, from, to);
-        var page = queryRequestLookupService.findForOrganization(filter, pageable)
+        var page = queryRequestLookupService.findForOrganization(filter,
+                        SpringPageableAdapter.toPageRequest(pageable))
                 .map(QueryListItem::from);
         return QueryListPageResponse.from(page);
     }

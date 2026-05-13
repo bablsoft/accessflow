@@ -53,7 +53,7 @@ class SqlParserServiceImpl implements SqlParserService {
             throw new InvalidSqlException(msg("error.sql_multiple_statements"));
         }
         Statement statement = statements.get(0);
-        return new SqlParseResult(classify(statement), statement);
+        return new SqlParseResult(classify(statement));
     }
 
     private static QueryType classify(Statement statement) {

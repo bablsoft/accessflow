@@ -15,7 +15,6 @@ import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,10 +79,10 @@ class AdminAiConfigsController {
     @ApiResponse(responseCode = "409", description = "An AI configuration with that name already exists")
     ResponseEntity<AiConfigResponse> create(@Valid @RequestBody CreateAiConfigRequest body,
                                             Authentication authentication,
-                                            HttpServletRequest httpRequest) {
+                                            RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var created = aiConfigService.create(caller.organizationId(), body.toCommand());
-        recordAudit(AuditAction.AI_CONFIG_CREATED, created.id(), caller, httpRequest,
+        recordAudit(AuditAction.AI_CONFIG_CREATED, created.id(), caller, auditContext,
                 Map.of("name", created.name(), "provider", created.provider().name(),
                         "model", created.model()));
         var location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -103,11 +102,11 @@ class AdminAiConfigsController {
     AiConfigResponse update(@PathVariable UUID id,
                             @Valid @RequestBody UpdateAiConfigRequest body,
                             Authentication authentication,
-                            HttpServletRequest httpRequest) {
+                            RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var before = aiConfigService.get(id, caller.organizationId());
         var after = aiConfigService.update(id, caller.organizationId(), body.toCommand());
-        recordAuditIfChanged(before, after, body, caller, httpRequest);
+        recordAuditIfChanged(before, after, body, caller, auditContext);
         return AiConfigResponse.from(after);
     }
 
@@ -118,10 +117,11 @@ class AdminAiConfigsController {
     @ApiResponse(responseCode = "409", description = "Configuration is still bound to one or more datasources")
     ResponseEntity<Void> delete(@PathVariable UUID id,
                                 Authentication authentication,
-                                HttpServletRequest httpRequest) {
+                                RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         aiConfigService.delete(id, caller.organizationId());
-        recordAudit(AuditAction.AI_CONFIG_DELETED, id, caller, httpRequest, Map.of());
+        recordAudit(AuditAction.AI_CONFIG_DELETED, id, caller, auditContext, Map.of());
+
         return ResponseEntity.noContent().build();
     }
 
@@ -144,7 +144,7 @@ class AdminAiConfigsController {
 
     private void recordAuditIfChanged(AiConfigView before, AiConfigView after,
                                       UpdateAiConfigRequest body, JwtClaims caller,
-                                      HttpServletRequest httpRequest) {
+                                      RequestAuditContext auditContext) {
         var metadata = new LinkedHashMap<String, Object>();
         if (before.provider() != after.provider()) {
             metadata.put("old_provider", before.provider().name());
@@ -164,7 +164,7 @@ class AdminAiConfigsController {
         if (metadata.isEmpty()) {
             return;
         }
-        recordAudit(AuditAction.AI_CONFIG_UPDATED, after.id(), caller, httpRequest, metadata);
+        recordAudit(AuditAction.AI_CONFIG_UPDATED, after.id(), caller, auditContext, metadata);
     }
 
     private boolean apiKeyChanged(UpdateAiConfigRequest body, AiConfigView before) {
@@ -179,9 +179,8 @@ class AdminAiConfigsController {
     }
 
     private void recordAudit(AuditAction action, UUID resourceId, JwtClaims caller,
-                             HttpServletRequest httpRequest, Map<String, Object> metadata) {
+                             RequestAuditContext auditContext, Map<String, Object> metadata) {
         try {
-            var context = RequestAuditContext.from(httpRequest);
             auditLogService.record(new AuditEntry(
                     action,
                     AuditResourceType.AI_CONFIG,
@@ -189,8 +188,8 @@ class AdminAiConfigsController {
                     caller.organizationId(),
                     caller.userId(),
                     metadata,
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on ai_config {}", action, resourceId, ex);
         }

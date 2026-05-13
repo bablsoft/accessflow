@@ -12,7 +12,6 @@ import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +46,8 @@ class ReviewController {
     @ApiResponse(responseCode = "403", description = "Caller is not a reviewer")
     PendingReviewsPageResponse listPending(Authentication authentication, Pageable pageable) {
         var caller = currentClaims(authentication);
-        var page = reviewService.listPendingForReviewer(toContext(caller), pageable)
+        var page = reviewService.listPendingForReviewer(toContext(caller),
+                        SpringPageableAdapter.toPageRequest(pageable))
                 .map(PendingReviewItem::from);
         return PendingReviewsPageResponse.from(page);
     }
@@ -64,11 +64,11 @@ class ReviewController {
     ReviewDecisionResponse approve(@PathVariable UUID queryId,
                                    @Valid @RequestBody ReviewDecisionRequest body,
                                    Authentication authentication,
-                                   HttpServletRequest httpRequest) {
+                                   RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.approve(queryId, toContext(caller), body.comment());
         recordDecisionAudit(AuditAction.QUERY_APPROVED, queryId, caller, outcome, body.comment(),
-                httpRequest);
+                auditContext);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 
@@ -84,11 +84,11 @@ class ReviewController {
     ReviewDecisionResponse reject(@PathVariable UUID queryId,
                                   @Valid @RequestBody ReviewDecisionRequest body,
                                   Authentication authentication,
-                                  HttpServletRequest httpRequest) {
+                                  RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.reject(queryId, toContext(caller), body.comment());
         recordDecisionAudit(AuditAction.QUERY_REJECTED, queryId, caller, outcome, body.comment(),
-                httpRequest);
+                auditContext);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 
@@ -111,12 +111,11 @@ class ReviewController {
 
     private void recordDecisionAudit(AuditAction action, UUID queryId, JwtClaims caller,
                                      DecisionOutcome outcome, String comment,
-                                     HttpServletRequest httpRequest) {
+                                     RequestAuditContext auditContext) {
         if (outcome.wasIdempotentReplay()) {
             return;
         }
         try {
-            var context = RequestAuditContext.from(httpRequest);
             var metadata = new HashMap<String, Object>();
             if (comment != null && !comment.isBlank()) {
                 metadata.put("comment", comment);
@@ -129,8 +128,8 @@ class ReviewController {
                     caller.organizationId(),
                     caller.userId(),
                     metadata,
-                    context.ipAddress(),
-                    context.userAgent()));
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on query {}", action, queryId, ex);
         }

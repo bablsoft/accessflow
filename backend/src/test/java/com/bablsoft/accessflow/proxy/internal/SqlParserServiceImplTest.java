@@ -10,12 +10,6 @@ import static org.mockito.Mockito.when;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.SqlParseResult;
-import net.sf.jsqlparser.statement.create.table.CreateTable;
-import net.sf.jsqlparser.statement.delete.Delete;
-import net.sf.jsqlparser.statement.drop.Drop;
-import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.update.Update;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
@@ -47,7 +41,6 @@ class SqlParserServiceImplTest {
         SqlParseResult result = service.parse("SELECT * FROM users");
 
         assertThat(result.type()).isEqualTo(QueryType.SELECT);
-        assertThat(result.statement()).isInstanceOf(Select.class);
     }
 
     @Test
@@ -56,7 +49,6 @@ class SqlParserServiceImplTest {
                 service.parse("WITH t AS (SELECT 1 AS x) SELECT x FROM t");
 
         assertThat(result.type()).isEqualTo(QueryType.SELECT);
-        assertThat(result.statement()).isInstanceOf(Select.class);
     }
 
     @Test
@@ -73,7 +65,6 @@ class SqlParserServiceImplTest {
                 service.parse("INSERT INTO users (id, email) VALUES (1, 'a@b.c')");
 
         assertThat(result.type()).isEqualTo(QueryType.INSERT);
-        assertThat(result.statement()).isInstanceOf(Insert.class);
     }
 
     @Test
@@ -82,7 +73,6 @@ class SqlParserServiceImplTest {
                 service.parse("UPDATE users SET email = 'x@y.z' WHERE id = 1");
 
         assertThat(result.type()).isEqualTo(QueryType.UPDATE);
-        assertThat(result.statement()).isInstanceOf(Update.class);
     }
 
     @Test
@@ -90,7 +80,6 @@ class SqlParserServiceImplTest {
         SqlParseResult result = service.parse("DELETE FROM users WHERE id = 1");
 
         assertThat(result.type()).isEqualTo(QueryType.DELETE);
-        assertThat(result.statement()).isInstanceOf(Delete.class);
     }
 
     @Test
@@ -98,7 +87,6 @@ class SqlParserServiceImplTest {
         SqlParseResult result = service.parse("CREATE TABLE t (id INT)");
 
         assertThat(result.type()).isEqualTo(QueryType.DDL);
-        assertThat(result.statement()).isInstanceOf(CreateTable.class);
     }
 
     @Test
@@ -114,7 +102,6 @@ class SqlParserServiceImplTest {
         SqlParseResult result = service.parse("DROP TABLE users");
 
         assertThat(result.type()).isEqualTo(QueryType.DDL);
-        assertThat(result.statement()).isInstanceOf(Drop.class);
     }
 
     @Test

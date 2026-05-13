@@ -1,16 +1,13 @@
 package com.bablsoft.accessflow.core.api;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.util.List;
 import java.util.UUID;
 
 public interface DatasourceAdminService {
 
-    Page<DatasourceView> listForAdmin(UUID organizationId, Pageable pageable);
+    PageResponse<DatasourceView> listForAdmin(UUID organizationId, PageRequest pageRequest);
 
-    Page<DatasourceView> listForUser(UUID organizationId, UUID userId, Pageable pageable);
+    PageResponse<DatasourceView> listForUser(UUID organizationId, UUID userId, PageRequest pageRequest);
 
     DatasourceView getForAdmin(UUID id, UUID organizationId);
 

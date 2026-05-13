@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.audit.internal.web;
 
-import org.springframework.data.domain.Page;
+import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.util.List;
 
@@ -11,12 +11,12 @@ public record AuditLogPageResponse(
         long totalElements,
         int totalPages
 ) {
-    public static AuditLogPageResponse from(Page<AuditLogResponse> page) {
+    public static AuditLogPageResponse from(PageResponse<AuditLogResponse> page) {
         return new AuditLogPageResponse(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages());
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages());
     }
 }

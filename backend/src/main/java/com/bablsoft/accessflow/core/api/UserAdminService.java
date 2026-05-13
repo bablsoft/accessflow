@@ -1,15 +1,12 @@
 package com.bablsoft.accessflow.core.api;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
 public interface UserAdminService {
 
-    Page<UserView> listUsers(UUID organizationId, Pageable pageable);
+    PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest);
 
     UserView createUser(CreateUserCommand command);
 

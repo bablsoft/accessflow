@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import tools.jackson.databind.ObjectMapper;
 
@@ -164,7 +163,8 @@ class DefaultAuditLogServiceTest {
 
     @Test
     void queryRequiresOrganizationId() {
-        assertThatThrownBy(() -> service.query(null, AuditLogQuery.empty(), PageRequest.of(0, 20)))
+        assertThatThrownBy(() -> service.query(null, AuditLogQuery.empty(),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -179,15 +179,16 @@ class DefaultAuditLogServiceTest {
         entity.setResourceId(resourceId);
         entity.setMetadata("{\"foo\":\"bar\"}");
         entity.setCreatedAt(Instant.parse("2026-05-06T10:00:00Z"));
-        var pageable = PageRequest.of(0, 20);
-        Page<AuditLogEntity> page = new PageImpl<>(java.util.List.of(entity), pageable, 1);
+        var pageable = com.bablsoft.accessflow.core.api.PageRequest.of(0, 20);
+        Page<AuditLogEntity> page = new PageImpl<>(java.util.List.of(entity),
+                org.springframework.data.domain.PageRequest.of(0, 20), 1);
         when(repository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(page);
 
         var result = service.query(organizationId, AuditLogQuery.empty(), pageable);
 
-        assertThat(result.getTotalElements()).isEqualTo(1);
-        var view = result.getContent().get(0);
+        assertThat(result.totalElements()).isEqualTo(1);
+        var view = result.content().get(0);
         assertThat(view.action()).isEqualTo(AuditAction.QUERY_SUBMITTED);
         assertThat(view.resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
         assertThat(view.metadata()).isInstanceOf(Map.class);
@@ -204,13 +205,14 @@ class DefaultAuditLogServiceTest {
         entity.setResourceType(AuditResourceType.USER.dbValue());
         entity.setMetadata("");
         entity.setCreatedAt(Instant.now());
-        var pageable = PageRequest.of(0, 20);
+        var pageable = com.bablsoft.accessflow.core.api.PageRequest.of(0, 20);
         when(repository.findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(new PageImpl<>(java.util.List.of(entity), pageable, 1));
+                .thenReturn(new PageImpl<>(java.util.List.of(entity),
+                        org.springframework.data.domain.PageRequest.of(0, 20), 1));
 
         var result = service.query(organizationId, null, pageable);
 
-        assertThat(result.getContent().get(0).metadata()).isEqualTo(Map.of());
+        assertThat(result.content().get(0).metadata()).isEqualTo(Map.of());
     }
 
     @Test

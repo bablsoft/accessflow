@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditLogVerificationResult;
 import com.bablsoft.accessflow.audit.api.AuditLogView;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserView;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,7 +14,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -75,7 +75,8 @@ class AdminAuditLogController {
         validateSort(pageable.getSort());
         var resourceTypeEnum = parseResourceType(resourceType);
         var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
-        Page<AuditLogView> page = auditLogService.query(organizationId, filter, pageable);
+        PageResponse<AuditLogView> page = auditLogService.query(organizationId, filter,
+                SpringPageableAdapter.toPageRequest(pageable));
         Map<UUID, UserView> actors = lookupActors(organizationId, page);
         return AuditLogPageResponse.from(page.map(view -> {
             UserView actor = view.actorId() == null ? null : actors.get(view.actorId());
@@ -103,9 +104,9 @@ class AdminAuditLogController {
         return auditLogService.verify(organizationId, from, to);
     }
 
-    private Map<UUID, UserView> lookupActors(UUID organizationId, Page<AuditLogView> page) {
+    private Map<UUID, UserView> lookupActors(UUID organizationId, PageResponse<AuditLogView> page) {
         Set<UUID> actorIds = new HashSet<>();
-        for (AuditLogView view : page.getContent()) {
+        for (AuditLogView view : page.content()) {
             if (view.actorId() != null) {
                 actorIds.add(view.actorId());
             }

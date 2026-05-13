@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
@@ -13,8 +15,6 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,9 +33,10 @@ class UserAdminServiceImpl implements UserAdminService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserView> listUsers(UUID organizationId, Pageable pageable) {
-        return userRepository.findAllByOrganization_Id(organizationId, pageable)
-                .map(this::toView);
+    public PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest) {
+        var page = userRepository.findAllByOrganization_Id(
+                organizationId, PageAdapter.toSpringPageable(pageRequest));
+        return PageAdapter.toPageResponse(page.map(this::toView));
     }
 
     @Override

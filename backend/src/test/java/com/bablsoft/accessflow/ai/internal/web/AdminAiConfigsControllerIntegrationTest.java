@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.data.domain.PageRequest;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -152,7 +152,7 @@ class AdminAiConfigsControllerIntegrationTest {
                 new AuditLogQuery(null, AuditAction.AI_CONFIG_CREATED, AuditResourceType.AI_CONFIG,
                         null, null, null),
                 PageRequest.of(0, 10));
-        assertThat(audits.getContent()).hasSize(1);
+        assertThat(audits.content()).hasSize(1);
     }
 
     @Test
@@ -198,7 +198,7 @@ class AdminAiConfigsControllerIntegrationTest {
                 new AuditLogQuery(null, AuditAction.AI_CONFIG_UPDATED, AuditResourceType.AI_CONFIG,
                         null, null, null),
                 PageRequest.of(0, 10));
-        assertThat(audits.getContent()).hasSize(1);
+        assertThat(audits.content()).hasSize(1);
     }
 
     @Test
@@ -216,7 +216,7 @@ class AdminAiConfigsControllerIntegrationTest {
                 new AuditLogQuery(null, AuditAction.AI_CONFIG_DELETED, AuditResourceType.AI_CONFIG,
                         null, null, null),
                 PageRequest.of(0, 10));
-        assertThat(audits.getContent()).hasSize(1);
+        assertThat(audits.content()).hasSize(1);
     }
 
     @Test

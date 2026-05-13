@@ -29,9 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -147,7 +144,8 @@ class QueryReadControllerIntegrationTest {
                 analyst.getEmail(), analyst.getDisplayName(),
                 QueryType.SELECT, QueryStatus.PENDING_AI, RiskLevel.LOW, 12,
                 Instant.parse("2026-05-01T10:00:00Z"));
-        Page<QueryListItemView> page = new PageImpl<>(List.of(item), PageRequest.of(0, 20), 1);
+        var page = new com.bablsoft.accessflow.core.api.PageResponse<>(
+                List.of(item), 0, 20, 1L, 1);
         when(queryRequestLookupService.findForOrganization(any(), any())).thenReturn(page);
 
         var response = mvc.get().uri("/api/v1/queries?status=PENDING_AI&size=20")

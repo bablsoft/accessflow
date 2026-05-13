@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.audit.api;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,7 +23,8 @@ public interface AuditLogService {
      * Reads audit rows scoped to {@code organizationId}, optionally filtered by {@code filter}.
      * Cross-tenant reads are forbidden — the implementation must always AND the org clause.
      */
-    Page<AuditLogView> query(UUID organizationId, AuditLogQuery filter, Pageable pageable);
+    PageResponse<AuditLogView> query(UUID organizationId, AuditLogQuery filter,
+                                     PageRequest pageRequest);
 
     /**
      * Walks the HMAC-SHA256 hash chain for {@code organizationId} in ASC {@code created_at} order
