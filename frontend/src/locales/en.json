@@ -25,7 +25,8 @@
     "light_theme": "Light theme",
     "dark_theme": "Dark theme",
     "retry": "Retry",
-    "language": "Language"
+    "language": "Language",
+    "close": "Close"
   },
   "nav": {
     "editor": "Query editor",
@@ -840,6 +841,36 @@
       "disable_help": "Enter your password to confirm.",
       "disable_button": "Disable 2FA",
       "disabled_success": "Two-factor authentication disabled."
+    },
+    "api_keys": {
+      "title": "API keys",
+      "description": "Create personal API keys to authenticate the AccessFlow MCP server and other programmatic clients. Keys inherit your permissions and can be revoked at any time.",
+      "create": "Create API key",
+      "create_title": "Create a new API key",
+      "name_label": "Key name",
+      "name_placeholder": "e.g. claude-mcp",
+      "name_required": "Name is required.",
+      "name_size": "Name must be between 1 and 100 characters.",
+      "issued_title": "Copy your new API key",
+      "raw_key_label": "Key",
+      "copy_once_warning": "This is the only time the key is shown. Copy it now and store it somewhere safe — you won't be able to retrieve it again.",
+      "empty": "You haven't created any API keys yet.",
+      "revoke": "Revoke",
+      "revoke_aria": "Revoke API key {{name}}",
+      "revoke_confirm": "Revoke API key \"{{name}}\"? Clients using it will lose access immediately.",
+      "revoked": "API key revoked.",
+      "column": {
+        "name": "Name",
+        "prefix": "Prefix",
+        "created_at": "Created",
+        "last_used_at": "Last used",
+        "expires_at": "Expires",
+        "status": "Status"
+      },
+      "status": {
+        "active": "Active",
+        "revoked": "Revoked"
+      }
     }
   },
   "totp_login": {

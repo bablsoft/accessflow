@@ -732,3 +732,24 @@ export type UserNotificationPage = PageEnvelope<UserNotification>;
 export interface UnreadCountResponse {
   count: number;
 }
+
+// API keys (MCP and programmatic access)
+export interface ApiKey {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface CreateApiKeyInput {
+  name: string;
+  expires_at?: string | null;
+}
+
+export interface CreateApiKeyResponse {
+  api_key: ApiKey;
+  raw_key: string;
+}

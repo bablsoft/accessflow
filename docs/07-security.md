@@ -92,6 +92,36 @@ API returns `"********"` whenever a secret is stored — the plaintext never lea
 `AiAnalyzerStrategyHolder`. Config changes take effect on the next authorize request — no
 application restart.
 
+### API key authentication
+
+Users may create personal API keys (under **Profile → API keys**) to authenticate the MCP
+server and other programmatic clients without a browser session. The flow:
+
+- **Format.** `af_<32-byte base64url, no padding>` — ~38 characters. Generated with
+  `SecureRandom`; the `af_` prefix is informational.
+- **Storage.** Only the `SHA-256` hash (hex, 64 chars) and a 12-char display prefix are
+  persisted (`api_keys.key_hash`, `api_keys.key_prefix`). The plaintext is shown **once** on
+  creation and is unrecoverable thereafter. Hashing is plain SHA-256 (not bcrypt) because lookup
+  happens on every request and the keys carry 256 bits of entropy — brute force is infeasible.
+- **Header parity.** The filter accepts either `X-API-Key: <key>` (preferred for MCP clients)
+  or `Authorization: ApiKey <key>` (parity with `Authorization: Bearer <jwt>`). The CORS
+  config exposes `X-API-Key` as an allowed header.
+- **Scope.** A key acts as its owning user — same role, same datasource permissions, same
+  review-self-approval block. There is no separate scope model: an API key can hit any endpoint
+  the user can hit, including `/mcp/**`.
+- **Lifecycle.** Per-user CRUD endpoints live at `/api/v1/me/api-keys` (see
+  `docs/04-api-spec.md`). Revocation sets `revoked_at = now()` and is idempotent; revoked or
+  expired keys never authenticate.
+- **Filter placement.** `ApiKeyAuthenticationFilter` (in the `security` module, sibling to
+  `JwtAuthenticationFilter`) runs before
+  `JwtAuthenticationFilter` in the main security chain. If no API key header is present, the
+  JWT filter still gets a chance. Both filters end up populating a `JwtAuthenticationToken`
+  with the same `JwtClaims` shape, so downstream controllers and MCP tools are auth-agnostic.
+- **Audit.** `api_keys.last_used_at` is bumped on each successful authentication. Bumps are
+  best-effort and swallow exceptions to avoid impacting auth latency.
+
+See `docs/13-mcp.md` for the end-user guide.
+
 ---
 
 ## Authorization — Role Matrix

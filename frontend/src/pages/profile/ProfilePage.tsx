@@ -8,6 +8,7 @@ import { apiErrorTraceId } from '@/utils/apiErrors';
 import { DisplayNameForm } from './sections/DisplayNameForm';
 import { ChangePasswordForm } from './sections/ChangePasswordForm';
 import { TwoFactorSection } from './sections/TwoFactorSection';
+import { ApiKeysSection } from './sections/ApiKeysSection';
 
 export function ProfilePage() {
   const { t } = useTranslation();
@@ -67,6 +68,10 @@ export function ProfilePage() {
               ) : (
                 <TwoFactorSection profile={profile} />
               )}
+            </Card>
+
+            <Card title={t('profile.api_keys.title')}>
+              {isLoading || !profile ? <Skeleton active /> : <ApiKeysSection />}
             </Card>
           </Space>
         </div>

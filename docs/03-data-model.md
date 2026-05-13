@@ -44,6 +44,37 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 
 ---
 
+## api_keys
+
+Per-user API keys used to authenticate the AccessFlow MCP server and other programmatic clients
+without a browser session. Keys are issued once (plaintext shown on creation only), stored as a
+SHA-256 hash, and revocable individually. A key inherits the owning user's role and datasource
+permissions exactly — there is no separate scope model.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `user_id` | FK → `users` ON DELETE CASCADE — the owning user |
+| `name` | VARCHAR(100) NOT NULL — user-supplied label (UNIQUE per `user_id`) |
+| `key_prefix` | VARCHAR(16) NOT NULL — first 12 chars of the raw key (e.g. `af_kQ7abcde`), shown in the UI for identification |
+| `key_hash` | VARCHAR(128) NOT NULL UNIQUE — SHA-256 hex of the raw key; the source of truth used by the auth filter |
+| `expires_at` | TIMESTAMPTZ — optional expiry; nullable for non-expiring keys |
+| `last_used_at` | TIMESTAMPTZ — bumped on each successful authentication |
+| `revoked_at` | TIMESTAMPTZ — non-null when the key has been revoked; revoked keys never authenticate |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+**Indexes**
+- `idx_api_keys_user (user_id)` — user-scoped list view
+- `idx_api_keys_org (organization_id)` — org-scoped cleanup on org delete
+- `idx_api_keys_active_hash (key_hash) WHERE revoked_at IS NULL` — fast filter lookups
+
+The raw key uses the format `af_<32-byte base64url, no padding>` (~38 chars). The plaintext is
+**never persisted** — only the `key_hash` and `key_prefix` are. See `docs/07-security.md` →
+"API key authentication" and `docs/13-mcp.md` for the full lifecycle and auth flow.
+
+---
+
 ## datasources
 
 A customer database that AccessFlow proxies. Credentials are stored encrypted.
