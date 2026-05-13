@@ -30,6 +30,7 @@ export default defineConfig({
       include: [
         'src/utils/**/*.ts',
         'src/theme/**/*.ts',
+        'src/config/runtimeConfig.ts',
         'src/mocks/delay.ts',
         'src/api/admin.ts',
         'src/api/auth.ts',

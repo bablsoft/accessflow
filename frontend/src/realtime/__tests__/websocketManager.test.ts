@@ -75,6 +75,18 @@ describe('websocketManager', () => {
     expect(sock(0).url).toBe('ws://test.local/ws?token=abc.token');
   });
 
+  it('prefers window.__APP_CONFIG__.wsUrl over VITE_WS_URL', () => {
+    const previous = (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__;
+    (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = { wsUrl: 'ws://runtime.local/ws' };
+    try {
+      websocketManager.connect('runtime.token');
+      const last = FakeWebSocket.instances.at(-1);
+      expect(last?.url).toBe('ws://runtime.local/ws?token=runtime.token');
+    } finally {
+      (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = previous;
+    }
+  });
+
   it('does not reopen the socket when called with the same token', () => {
     websocketManager.connect('same');
     websocketManager.connect('same');

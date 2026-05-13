@@ -72,7 +72,7 @@ spring:
           list_pending_reviews and review_query.
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 management:
   tracing:
@@ -91,20 +91,20 @@ accessflow:
   encryption-key: ${ENCRYPTION_KEY:}
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
-    access-token-expiry: PT15M
-    refresh-token-expiry: P7D
+    access-token-expiry: ${ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY:PT15M}
+    refresh-token-expiry: ${ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY:P7D}
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
   proxy:
-    connection-timeout: 30s
-    idle-timeout: 10m
-    max-lifetime: 30m
-    leak-detection-threshold: 0s
+    connection-timeout: ${ACCESSFLOW_PROXY_CONNECTION_TIMEOUT:30s}
+    idle-timeout: ${ACCESSFLOW_PROXY_IDLE_TIMEOUT:10m}
+    max-lifetime: ${ACCESSFLOW_PROXY_MAX_LIFETIME:30m}
+    leak-detection-threshold: ${ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD:0s}
     pool-name-prefix: accessflow-ds-
     execution:
-      max-rows: 10000
-      statement-timeout: 30s
-      default-fetch-size: 1000
+      max-rows: ${ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS:10000}
+      statement-timeout: ${ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT:30s}
+      default-fetch-size: ${ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE:1000}
   drivers:
     cache-dir: ${ACCESSFLOW_DRIVER_CACHE:${user.home}/.accessflow/drivers}
     repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}
@@ -112,9 +112,9 @@ accessflow:
   notifications:
     public-base-url: ${ACCESSFLOW_PUBLIC_BASE_URL:http://localhost:5173}
     retry:
-      first: PT30S
-      second: PT2M
-      third: PT10M
+      first: ${ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST:PT30S}
+      second: ${ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND:PT2M}
+      third: ${ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD:PT10M}
   workflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.

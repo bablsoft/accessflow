@@ -201,25 +201,41 @@ com.bablsoft.accessflow/
 
 ### Configuration
 
-`application.yml` must not contain secrets — use `${ENV_VAR}` placeholders. Required env vars:
+`application.yml` must not contain secrets — use `${ENV_VAR}` placeholders. The full operator-facing env-var reference (grouped by area) lives in [docs/09-deployment.md](docs/09-deployment.md). The most commonly tuned ones:
 
 | Variable | Purpose |
 |----------|---------|
+| `SERVER_PORT` | Backend HTTP port (default `8080`). |
 | `DB_URL` | JDBC URL for AccessFlow PostgreSQL |
 | `DB_USER` | PostgreSQL username |
 | `DB_PASSWORD` | PostgreSQL password |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
+| `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | ISO-8601 duration for the JWT access-token TTL (default `PT15M`). |
+| `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | ISO-8601 duration for the refresh-token TTL (default `P7D`). |
 | `AUDIT_HMAC_KEY` | Optional. Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
+| `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` | HikariCP `connectionTimeout` for customer-DB pools (default `30s`). |
+| `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | HikariCP `idleTimeout` (default `10m`). |
+| `ACCESSFLOW_PROXY_MAX_LIFETIME` | HikariCP `maxLifetime` (default `30m`). |
+| `ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD` | HikariCP leak-detection threshold (default `0s` = disabled). |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
+| `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
+| `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
+| `ACCESSFLOW_PUBLIC_BASE_URL` | Public base URL embedded in notification email links and webhook payloads (default `http://localhost:5173`). |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | ISO-8601 duration before the first webhook retry (default `PT30S`). |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | ISO-8601 duration before the third (final) webhook retry (default `PT10M`). |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
 | `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Micrometer Tracing sampling probability (default `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. |
 | `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Where the OAuth2 success / failure handler redirects after the provider roundtrip. Defaults to `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback`. The frontend `OAuthCallbackPage` parses `?code=` (success) or `?error=` (failure) from the query string. |
 | `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | ISO-8601 duration. TTL of the one-time exchange code in Redis (default `PT1M`). Codes are single-use; keep short. |
+
+> Spring Boot's relaxed binding lets *any* `application.yml` key be overridden by its UPPER_SNAKE_CASE env-var equivalent (e.g. `spring.jpa.show-sql` → `SPRING_JPA_SHOW_SQL=true`). The table above lists the values we expect operators to tune; advanced framework knobs remain reachable via this mechanism.
 
 ---
 
@@ -448,10 +464,16 @@ src/
 
 ### Environment Variables
 
+Two values drive the frontend: `apiBaseUrl` and `wsUrl`. Both are read through `src/config/runtimeConfig.ts` (`getApiBaseUrl()` / `getWsUrl()`) — never reach for `import.meta.env` directly from components.
+
+Build-time `.env` (used by `npm run dev` only):
+
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 VITE_WS_URL=ws://localhost:8080/ws
 ```
+
+**Frontend runtime config.** `frontend/public/runtime-config.js` sets `window.__APP_CONFIG__` synchronously before the React bundle loads, and `runtimeConfig.ts` reads it with this precedence: `window.__APP_CONFIG__` → `import.meta.env.VITE_*` → `http://localhost:8080` / `ws://localhost:8080/ws`. Production deployments override at container runtime by replacing that one file (Docker bind-mount, Kubernetes ConfigMap, `sed` in an entrypoint) — *not* by setting `VITE_*` env vars on the container, which only affect rebuilds. See [docs/09-deployment.md → "Frontend Runtime Configuration"](docs/09-deployment.md#frontend-runtime-configuration).
 
 Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend code — use `import.meta.env`.
 
