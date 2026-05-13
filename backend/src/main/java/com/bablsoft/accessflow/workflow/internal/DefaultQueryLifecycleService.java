@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
+import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
@@ -116,8 +117,14 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     query.id(), QueryStatus.FAILED, null, durationMs, ex.getMessage(),
                     startedAt, completedAt));
             var failureMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+            var failureMetadata = new HashMap<String, Object>();
+            failureMetadata.put("error", failureMessage);
+            if (ex instanceof QueryExecutionFailedException qef && qef.sqlState() != null) {
+                failureMetadata.put("sql_state", qef.sqlState());
+                failureMetadata.put("vendor_code", qef.vendorCode());
+            }
             recordAudit(AuditAction.QUERY_FAILED, query.id(), command.callerUserId(),
-                    command.callerOrganizationId(), Map.of("error", failureMessage));
+                    command.callerOrganizationId(), failureMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
                     query.id(), null, durationMs, QueryStatus.FAILED));
             return new ExecutionOutcome(query.id(), QueryStatus.FAILED, null, durationMs);

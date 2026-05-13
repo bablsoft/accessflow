@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.QueryResultPersistenceService.SaveResult
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
+import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.ResultColumn;
@@ -358,7 +359,49 @@ class DefaultQueryLifecycleServiceTest {
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_FAILED);
-        assertThat(auditCaptor.getValue().metadata()).containsEntry("error", "connection refused");
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("error", "connection refused")
+                .doesNotContainKey("sql_state")
+                .doesNotContainKey("vendor_code");
+    }
+
+    @Test
+    void executeCapturesSqlStateAndVendorCodeWhenExecutionFailedExceptionThrown() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(queryExecutor.execute(any())).thenThrow(new QueryExecutionFailedException(
+                "relation \"does_not_exist\" does not exist", "42P01", 0,
+                new RuntimeException("cause")));
+
+        var outcome = service.execute(new ExecuteQueryCommand(queryId, submitterId,
+                organizationId, false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_FAILED);
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("error", "relation \"does_not_exist\" does not exist")
+                .containsEntry("sql_state", "42P01")
+                .containsEntry("vendor_code", 0);
+    }
+
+    @Test
+    void executeOmitsSqlStateWhenExecutionFailedExceptionHasNoSqlState() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(queryExecutor.execute(any())).thenThrow(new QueryExecutionFailedException(
+                "driver returned no sql state", null, 0, new RuntimeException("cause")));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("error", "driver returned no sql state")
+                .doesNotContainKey("sql_state")
+                .doesNotContainKey("vendor_code");
     }
 
     @Test
