@@ -394,10 +394,39 @@ The Axios refresh interceptor calls `useAuthStore.setState(...)` whenever the ac
 
 ## Environment Variables
 
+Two values drive the frontend: the REST base URL and the WebSocket URL. They are read through a
+single module — `src/config/runtimeConfig.ts` — which exposes `getApiBaseUrl()` and `getWsUrl()`.
+Resolution precedence:
+
+1. **`window.__APP_CONFIG__`** — set synchronously by `public/runtime-config.js`, loaded from
+   `index.html` *before* the React bundle. This is the production override path: replace one
+   file in the served static root (Docker bind-mount, Kubernetes ConfigMap, `sed` in an
+   entrypoint) to retarget the same image at a different backend without rebuilding.
+2. **`import.meta.env.VITE_*`** — read by Vite at build time. Use for `npm run dev` only; the
+   values are baked into the production bundle and cannot be changed at container runtime.
+3. **Localhost defaults** — `http://localhost:8080` and `ws://localhost:8080/ws`.
+
+Build-time `.env` (for `npm run dev`):
+
 ```env
 VITE_API_BASE_URL=http://localhost:8080
 VITE_WS_URL=ws://localhost:8080/ws
 ```
+
+Runtime override (`public/runtime-config.js`, shipped at
+`/usr/share/nginx/html/runtime-config.js` in the image):
+
+```js
+window.__APP_CONFIG__ = {
+  apiBaseUrl: "https://api.example.com",
+  wsUrl: "wss://api.example.com/ws",
+};
+```
+
+Never read `import.meta.env.VITE_*` directly from components — always go through
+`getApiBaseUrl()` / `getWsUrl()` so the precedence stays consistent. See
+[docs/09-deployment.md → "Frontend Runtime Configuration"](09-deployment.md#frontend-runtime-configuration)
+for deployment recipes (Docker Compose, Helm).
 
 ---
 

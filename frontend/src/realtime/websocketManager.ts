@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
+import { getWsUrl } from '@/config/runtimeConfig';
 import { WS_EVENT_NAMES, type WsEnvelope, type WsEventName, type WsEventPayloadMap } from '@/types/ws';
 
 type Handler<E extends WsEventName> = (data: WsEventPayloadMap[E]) => void;
@@ -59,7 +60,7 @@ class WebSocketManager {
 
   private openSocket(): void {
     if (!this.currentToken) return;
-    const base = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8080/ws';
+    const base = getWsUrl();
     const url = `${base}?token=${encodeURIComponent(this.currentToken)}`;
     let ws: WebSocket;
     try {

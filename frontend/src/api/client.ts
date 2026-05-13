@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
+import { getApiBaseUrl } from '@/config/runtimeConfig';
 import * as authApi from './auth';
 
 interface RetriableConfig extends InternalAxiosRequestConfig {
@@ -20,12 +21,11 @@ const isRefreshUrl = (url: string | undefined): boolean =>
   !!url && url.endsWith('/api/v1/auth/refresh');
 
 /**
- * Resolved API base URL — same fallback the axios client uses. Anything that needs to navigate
+ * Resolved API base URL — same value the axios client uses. Anything that needs to navigate
  * the browser to a backend route (OAuth2 authorize, redirect URI display) must use this so
- * dev-mode (no VITE_API_BASE_URL set) doesn't silently route to the Vite dev server.
+ * dev-mode (no runtime config) doesn't silently route to the Vite dev server.
  */
-export const apiBaseUrl = (): string =>
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080';
+export const apiBaseUrl = (): string => getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: apiBaseUrl(),

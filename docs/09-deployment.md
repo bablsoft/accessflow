@@ -61,9 +61,11 @@ services:
 
   frontend:
     image: accessflow/frontend:latest
-    environment:
-      VITE_API_BASE_URL: http://localhost:8080
-      VITE_WS_URL: ws://localhost:8080/ws
+    # The frontend bundle is built with Vite — env vars are *not* read at container
+    # runtime. To point the same image at a different backend, mount your own
+    # runtime-config.js over the one shipped in the image:
+    volumes:
+      - ./runtime-config.js:/usr/share/nginx/html/runtime-config.js:ro
     ports:
       - '3000:80'
     depends_on:
@@ -178,6 +180,11 @@ config:
   aiProvider: anthropic
   aiApiKeySecret: accessflow-ai-key                # key: value
   corsAllowedOrigin: https://accessflow.company.com
+  # Frontend runtime config — rendered into a ConfigMap, mounted as
+  # /usr/share/nginx/html/runtime-config.js inside the frontend pod.
+  frontend:
+    apiBaseUrl: https://accessflow.company.com
+    wsUrl: wss://accessflow.company.com/ws
 
 # External DB (when postgresql.enabled=false)
 externalDatabase:
@@ -275,31 +282,94 @@ kubectl create secret generic accessflow-ai-key \
 
 ---
 
-## Environment Variables Reference
+## Configuration Reference
+
+AccessFlow follows the [12-factor](https://12factor.net/config) approach: every config value
+is overrideable via an environment variable, with safe defaults baked into the application so
+a fresh container starts on `localhost` without additional config.
+
+Two layers exist:
+
+- **Backend** (`backend/src/main/resources/application.yml`) — Spring Boot reads YAML and
+  resolves `${ENV:default}` placeholders against the process environment at startup. Any
+  property below is also overrideable via its UPPER_SNAKE_CASE env-var name thanks to Spring
+  Boot's [relaxed binding](https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.relaxed-binding.environment-variables),
+  even if it isn't in the explicit table below. The table lists the values we expect
+  operators to tune; everything else stays internal.
+- **Frontend** (`frontend/public/runtime-config.js`) — read at page load, *not* at build
+  time. See [Frontend Runtime Configuration](#frontend-runtime-configuration) below.
+
+### Backend Environment Variables
+
+#### Server
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
-| `DB_URL` | ✓ | — | JDBC URL for AccessFlow internal PostgreSQL |
-| `DB_USER` | ✓ | — | PostgreSQL username |
-| `DB_PASSWORD` | ✓ | — | PostgreSQL password |
-| `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256 key for credential encryption |
-| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT signing |
-| `AUDIT_HMAC_KEY` | Optional | — | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
-| `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation and async events |
-| `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:3000` | Frontend origin for CORS policy |
-| `SMTP_HOST` | Optional | — | SMTP host for email notifications |
-| `SMTP_PORT` | Optional | `587` | SMTP port |
-| `SMTP_USER` | Optional | — | SMTP username |
-| `SMTP_PASSWORD` | Optional | — | SMTP password |
-| `SMTP_TLS` | Optional | `true` | Enable SMTP STARTTLS |
-| `SAML_IDP_METADATA_URL` | Optional | — | URL to IdP metadata XML (required only when SAML SSO is in use) |
-| `SAML_SP_ENTITY_ID` | Optional | — | Service Provider entity ID |
-| `SAML_KEYSTORE_PATH` | Optional | — | Path to SAML keystore JKS |
-| `SAML_KEYSTORE_PASSWORD` | Optional | — | SAML keystore password |
+| `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
+
+#### Database
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `DB_URL` | ✓ | `jdbc:postgresql://localhost:5432/accessflow` | JDBC URL for AccessFlow internal PostgreSQL |
+| `DB_USER` | ✓ | `accessflow` | PostgreSQL username |
+| `DB_PASSWORD` | ✓ | `accessflow` | PostgreSQL password |
+| `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation, async events, and ShedLock scheduler locks |
+
+#### Security & Auth
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256-GCM key for datasource credential encryption |
+| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT RS256 signing |
+| `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | Optional | `PT15M` | ISO-8601 duration for the access-token TTL |
+| `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | Optional | `P7D` | ISO-8601 duration for the refresh-token TTL (`HttpOnly` cookie) |
+| `AUDIT_HMAC_KEY` | Optional | derived | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
+| `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:5173` | Frontend origin for CORS policy |
 | `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Optional | `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback` | Where the OAuth2 success/failure handler redirects after the provider roundtrip. The frontend `OAuthCallbackPage` parses `?code=` or `?error=` from the query string. |
 | `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time exchange code in Redis. Codes are single-use; keep short. |
-| `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
-| `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
+
+#### Customer-DB Proxy (HikariCP + Execution)
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` | Optional | `30s` | HikariCP `connectionTimeout` for customer-DB pools |
+| `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | Optional | `10m` | HikariCP `idleTimeout` |
+| `ACCESSFLOW_PROXY_MAX_LIFETIME` | Optional | `30m` | HikariCP `maxLifetime` |
+| `ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD` | Optional | `0s` | HikariCP leak-detection threshold (`0s` disables) |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Optional | `10000` | Hard cap on rows returned by a single query execution |
+| `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Optional | `30s` | Statement-level timeout applied to customer-DB JDBC statements |
+| `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Optional | `1000` | Default JDBC fetch size |
+
+#### Custom JDBC Driver Cache
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_DRIVER_CACHE` | Optional | `${user.home}/.accessflow/drivers` | Filesystem path for cached customer-DB driver JARs. Set to a system path (e.g. `/var/lib/accessflow/drivers`) and mount as a persistent volume in production. |
+| `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Optional | `https://repo1.maven.org/maven2` | Maven repository base URL for on-demand driver downloads. Override for internal Nexus / Artifactory mirrors. |
+| `ACCESSFLOW_DRIVERS_OFFLINE` | Optional | `false` | When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
+
+#### Workflow & Notifications
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours`. ShedLock makes this safe under horizontal scaling. |
+| `ACCESSFLOW_PUBLIC_BASE_URL` | Optional | `http://localhost:5173` | Public base URL used in notification email links and webhook payloads |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | Optional | `PT30S` | ISO-8601 duration — delay before the first webhook retry |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | Optional | `PT2M` | ISO-8601 duration — delay before the second webhook retry |
+| `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | Optional | `PT10M` | ISO-8601 duration — delay before the third (final) webhook retry |
+
+#### Observability
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See [docs/05-backend.md](05-backend.md). |
+
+> **Overriding any other property.** Spring Boot's relaxed binding lets you override any
+> `application.yml` key via its UPPER_SNAKE_CASE env-var equivalent — e.g.
+> `spring.jpa.show-sql` → `SPRING_JPA_SHOW_SQL=true`. The tables above list the values we
+> expect operators to tune; advanced framework knobs (`spring.flyway.*`, `spring.jpa.*`,
+> `spring.servlet.multipart.*`, etc.) remain reachable via this mechanism.
 
 > **AI provider config is not an environment variable.** Provider, model, API key, endpoint
 > (Ollama only) and timeouts live in the per-organization `ai_config` table and are managed via
@@ -308,6 +378,91 @@ kubectl create secret generic accessflow-ai-key \
 > fresh install has no AI configured until an ADMIN sets it; `POST /api/v1/admin/ai-config/test`
 > returns `{"status":"ERROR", "detail":"AI is not configured…"}` until then. No `AI_PROVIDER` /
 > `AI_API_KEY` / `AI_MODEL` env var is read.
+
+---
+
+### Frontend Runtime Configuration
+
+The React frontend is built once by Vite — `import.meta.env.VITE_*` values are *baked into
+the bundle at build time* and cannot be changed by setting env vars on the running container.
+To keep "build once, deploy many" possible, the frontend reads its config at page load from
+`/runtime-config.js`, a tiny script that sets `window.__APP_CONFIG__`. Replacing that one
+file is sufficient to retarget the bundle.
+
+**Default file** (`frontend/public/runtime-config.js`, shipped in the image at
+`/usr/share/nginx/html/runtime-config.js`):
+
+```js
+window.__APP_CONFIG__ = {
+  apiBaseUrl: "http://localhost:8080",
+  wsUrl: "ws://localhost:8080/ws",
+};
+```
+
+**Resolution precedence** (in `src/config/runtimeConfig.ts`):
+
+1. `window.__APP_CONFIG__.{apiBaseUrl,wsUrl}` from `runtime-config.js` — production override.
+2. `import.meta.env.VITE_API_BASE_URL` / `VITE_WS_URL` — build-time, only relevant for
+   `npm run dev`.
+3. Hard-coded `http://localhost:8080` / `ws://localhost:8080/ws`.
+
+#### Config keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `apiBaseUrl` | `http://localhost:8080` | Base URL for `axios` REST calls and OAuth2 redirects |
+| `wsUrl` | `ws://localhost:8080/ws` | WebSocket URL — the JWT is appended as `?token=` automatically |
+
+#### Docker Compose — bind-mount the file
+
+```yaml
+frontend:
+  image: accessflow/frontend:latest
+  volumes:
+    - ./runtime-config.js:/usr/share/nginx/html/runtime-config.js:ro
+  ports:
+    - '3000:80'
+```
+
+Where `./runtime-config.js` on the host contains your environment's URLs.
+
+#### Kubernetes — mount from a ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: accessflow-frontend-config
+data:
+  runtime-config.js: |
+    window.__APP_CONFIG__ = {
+      apiBaseUrl: "https://accessflow.company.com",
+      wsUrl: "wss://accessflow.company.com/ws",
+    };
+---
+# In the frontend Deployment:
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /usr/share/nginx/html/runtime-config.js
+              subPath: runtime-config.js
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: accessflow-frontend-config
+```
+
+The Helm chart renders this ConfigMap automatically from
+`config.frontend.{apiBaseUrl,wsUrl}` (see [Full `values.yaml`](#full-valuesyaml) above).
+
+> **Cache.** The default nginx image serves `runtime-config.js` with the same caching
+> headers as other static assets. For zero-restart updates, configure your reverse proxy to
+> serve this single file with `Cache-Control: no-store` (or version it with a query string
+> on the `<script>` tag).
 
 ---
 

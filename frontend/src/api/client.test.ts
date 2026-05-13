@@ -7,7 +7,7 @@ vi.mock('./auth', () => ({
   refresh: (...a: unknown[]) => refresh(...a),
 }));
 
-import { apiClient } from './client';
+import { apiBaseUrl, apiClient } from './client';
 import { useAuthStore } from '@/store/authStore';
 
 interface MockResponse {
@@ -148,5 +148,17 @@ describe('api/client interceptors', () => {
       response: { status: 401 },
     });
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('apiBaseUrl() prefers window.__APP_CONFIG__.apiBaseUrl', () => {
+    const previous = (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__;
+    (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = {
+      apiBaseUrl: 'https://runtime.example.com',
+    };
+    try {
+      expect(apiBaseUrl()).toBe('https://runtime.example.com');
+    } finally {
+      (window as { __APP_CONFIG__?: unknown }).__APP_CONFIG__ = previous;
+    }
   });
 });
