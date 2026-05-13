@@ -10,6 +10,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -34,5 +35,11 @@ class DefaultOrganizationLookupService implements OrganizationLookupService {
                             LocaleContextHolder.getLocale()));
         }
         return rows.getFirst().getId();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<String> findNameById(UUID organizationId) {
+        return organizationRepository.findById(organizationId).map(OrganizationEntity::getName);
     }
 }

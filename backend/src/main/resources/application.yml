@@ -93,6 +93,14 @@ accessflow:
     private-key: ${JWT_PRIVATE_KEY:}
     access-token-expiry: ${ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY:PT15M}
     refresh-token-expiry: ${ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY:P7D}
+  security:
+    invitation:
+      # TTL of user-invitation tokens. Pending invitations past this duration are treated as
+      # expired on lookup and cannot be accepted (admins can resend to issue a fresh token).
+      ttl: ${ACCESSFLOW_SECURITY_INVITATION_TTL:P7D}
+      # Base URL used to build the accept-invite link embedded in the email. Defaults to the
+      # frontend origin (same default as ACCESSFLOW_PUBLIC_BASE_URL).
+      accept-base-url: ${ACCESSFLOW_PUBLIC_BASE_URL:http://localhost:5173}
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
   proxy:

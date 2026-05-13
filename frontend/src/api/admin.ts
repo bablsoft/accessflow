@@ -22,6 +22,12 @@ import type {
   User,
   UserListFilters,
   UserPage,
+  SystemSmtpConfig,
+  UpdateSystemSmtpInput,
+  TestSystemSmtpInput,
+  UserInvitation,
+  UserInvitationPage,
+  InviteUserInput,
 } from '@/types/api';
 
 const USERS_BASE = '/api/v1/admin/users';
@@ -31,6 +37,8 @@ const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
 const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
+const SYSTEM_SMTP_BASE = '/api/v1/admin/system-smtp';
+const INVITATIONS_BASE = '/api/v1/admin/users/invitations';
 
 export const userKeys = {
   all: ['users'] as const,
@@ -74,6 +82,18 @@ export const oauth2ConfigKeys = {
 export const setupProgressKeys = {
   all: ['setupProgress'] as const,
   current: () => ['setupProgress', 'current'] as const,
+};
+
+export const systemSmtpKeys = {
+  all: ['systemSmtp'] as const,
+  current: () => ['systemSmtp', 'current'] as const,
+};
+
+export const invitationKeys = {
+  all: ['invitations'] as const,
+  lists: () => ['invitations', 'list'] as const,
+  list: (filters: { page?: number; size?: number; sort?: string }) =>
+    ['invitations', 'list', filters] as const,
 };
 
 // ── Users ─────────────────────────────────────────────────────────────────────
@@ -228,4 +248,65 @@ export async function deleteOAuth2Config(provider: OAuth2Provider): Promise<void
 export async function getSetupProgress(): Promise<SetupProgress> {
   const { data } = await apiClient.get<SetupProgress>(SETUP_PROGRESS_BASE);
   return data;
+}
+
+// ── System SMTP ───────────────────────────────────────────────────────────────
+
+export async function getSystemSmtp(): Promise<SystemSmtpConfig | null> {
+  try {
+    const { data } = await apiClient.get<SystemSmtpConfig>(SYSTEM_SMTP_BASE);
+    return data;
+  } catch (err) {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      'response' in err &&
+      (err as { response?: { status?: number } }).response?.status === 404
+    ) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function updateSystemSmtp(
+  input: UpdateSystemSmtpInput,
+): Promise<SystemSmtpConfig> {
+  const { data } = await apiClient.put<SystemSmtpConfig>(SYSTEM_SMTP_BASE, input);
+  return data;
+}
+
+export async function deleteSystemSmtp(): Promise<void> {
+  await apiClient.delete(SYSTEM_SMTP_BASE);
+}
+
+export async function testSystemSmtp(input: TestSystemSmtpInput = {}): Promise<void> {
+  await apiClient.post(`${SYSTEM_SMTP_BASE}/test`, input);
+}
+
+// ── User invitations ─────────────────────────────────────────────────────────
+
+export async function listInvitations(
+  filters: { page?: number; size?: number; sort?: string } = {},
+): Promise<UserInvitationPage> {
+  const params: Record<string, string | number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  if (filters.sort) params.sort = filters.sort;
+  const { data } = await apiClient.get<UserInvitationPage>(INVITATIONS_BASE, { params });
+  return data;
+}
+
+export async function createInvitation(input: InviteUserInput): Promise<UserInvitation> {
+  const { data } = await apiClient.post<UserInvitation>(INVITATIONS_BASE, input);
+  return data;
+}
+
+export async function resendInvitation(id: string): Promise<UserInvitation> {
+  const { data } = await apiClient.post<UserInvitation>(`${INVITATIONS_BASE}/${id}/resend`);
+  return data;
+}
+
+export async function revokeInvitation(id: string): Promise<void> {
+  await apiClient.delete(`${INVITATIONS_BASE}/${id}`);
 }

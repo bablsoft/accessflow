@@ -27,6 +27,7 @@
         <springdoc.version>3.0.3</springdoc.version>
         <jsqlparser.version>5.3</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
+        <archiunit.version>1.4.2</archiunit.version>
     </properties>
 
     <dependencyManagement>
@@ -241,7 +242,7 @@
         <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
-            <version>1.4.2</version>
+            <version>${archiunit.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

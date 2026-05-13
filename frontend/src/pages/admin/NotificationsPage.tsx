@@ -22,6 +22,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { SystemSmtpCard } from '@/components/admin/SystemSmtpCard';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
 import {
@@ -125,6 +126,7 @@ export function NotificationsPage() {
         }
       />
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        <SystemSmtpCard />
         {channelsQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
         ) : channelsQuery.isError ? (

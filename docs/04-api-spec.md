@@ -28,6 +28,10 @@
 | `POST` | `/auth/login` | Authenticate with email + password, returns JWT access token + HttpOnly refresh token cookie |
 | `POST` | `/auth/refresh` | Exchange refresh token for new access token |
 | `POST` | `/auth/logout` | Revoke current refresh token |
+| `GET` | `/auth/setup-status` | Public — `{ "setup_required": boolean }` for the first-run wizard |
+| `POST` | `/auth/setup` | Public — first-run create org + admin; returns a `LoginResponse` and sets the refresh cookie so the SPA can chain into the SMTP setup step |
+| `GET` | `/auth/invitations/{token}` | Public — preview a pending invitation (email, role, organization, expiry) |
+| `POST` | `/auth/invitations/{token}/accept` | Public — set a password and activate the invited account |
 | `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
 | `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
 | `GET` | `/auth/saml/enabled` | Public — `{ "enabled": boolean }` so the login page can hide the SAML button until an admin activates it |
@@ -843,6 +847,14 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | `POST` | `/admin/users` | Create local user (LOCAL auth provider) |
 | `PUT` | `/admin/users/{id}` | Update user role or active status |
 | `DELETE` | `/admin/users/{id}` | Deactivate user |
+| `GET` | `/admin/users/invitations` | List user invitations (paginated) |
+| `POST` | `/admin/users/invitations` | Invite a user by email |
+| `POST` | `/admin/users/invitations/{id}/resend` | Reissue the token and resend the invitation email |
+| `DELETE` | `/admin/users/invitations/{id}` | Revoke a pending invitation |
+| `GET` | `/admin/system-smtp` | Get the organization's system SMTP configuration (404 when unset) |
+| `PUT` | `/admin/system-smtp` | Create or update the system SMTP configuration |
+| `DELETE` | `/admin/system-smtp` | Remove the system SMTP configuration |
+| `POST` | `/admin/system-smtp/test` | Send a synthetic test email (optionally against an override config) |
 | `GET` | `/admin/audit-log` | Query audit log with filters (see below) |
 | `GET` | `/admin/audit-log/verify` | Verify the HMAC hash chain for the caller's org (tamper detection) |
 | `GET` | `/admin/notification-channels` | List notification channels |
@@ -1019,6 +1031,188 @@ Per-type behavior:
 
 **Response 404:** Channel not found in caller's organization.
 **Response 502:** Delivery failed. `error: NOTIFICATION_DELIVERY_FAILED`.
+
+### System SMTP (`/admin/system-smtp`)
+
+Per-organization global SMTP configuration. Drives user-invitation emails and acts as the fallback EMAIL channel when an organization has no active EMAIL row in `notification_channels`. ADMIN role required.
+
+#### GET /admin/system-smtp
+
+**Response 200:**
+```json
+{
+  "organization_id": "uuid",
+  "host": "smtp.example.com",
+  "port": 587,
+  "username": "accessflow",
+  "smtp_password": "********",
+  "tls": true,
+  "from_address": "no-reply@example.com",
+  "from_name": "AccessFlow",
+  "updated_at": "2026-05-13T00:00:00Z"
+}
+```
+
+`smtp_password` is the masked placeholder when a password is configured, and `null` otherwise (anonymous-bind SMTP).
+
+**Response 404:** No system SMTP configured for the organization.
+
+#### PUT /admin/system-smtp
+
+Upsert. Send the masked placeholder `"********"` (or omit the field) on update to keep the existing password ciphertext.
+
+**Request body:**
+```json
+{
+  "host": "smtp.example.com",
+  "port": 587,
+  "username": "accessflow",
+  "smtp_password": "supersecret",
+  "tls": true,
+  "from_address": "no-reply@example.com",
+  "from_name": "AccessFlow"
+}
+```
+
+**Response 200:** same shape as `GET`.
+**Response 400:** Validation error (`VALIDATION_ERROR`).
+
+#### DELETE /admin/system-smtp
+
+**Response 204.**
+
+#### POST /admin/system-smtp/test
+
+Sends a synthetic test email. Body is optional. When provided, the test runs against the override config without persisting it — useful for verifying a configuration before saving.
+
+**Request body (optional):**
+```json
+{
+  "to": "ops@example.com",
+  "host": "smtp.example.com",
+  "port": 587,
+  "username": "accessflow",
+  "smtp_password": "supersecret",
+  "tls": true,
+  "from_address": "no-reply@example.com",
+  "from_name": "AccessFlow"
+}
+```
+
+If `to` is omitted, the test is sent to the resolved `from_address`. If host/port/from_address are omitted, the persisted system SMTP row is used.
+
+**Response 200:** Empty body on success.
+**Response 422:** `SYSTEM_SMTP_NOT_CONFIGURED` when no override is provided and no row exists.
+**Response 502:** `SYSTEM_SMTP_DELIVERY_FAILED` when the SMTP server rejects the message.
+
+### User Invitations (`/admin/users/invitations`)
+
+Email-based user invitations. The token is delivered via the organization's system SMTP and exchanged for a new local-account user when the recipient sets a password through `POST /auth/invitations/{token}/accept`. ADMIN role required.
+
+#### POST /admin/users/invitations
+
+**Request body:**
+```json
+{
+  "email": "alice@example.com",
+  "display_name": "Alice",
+  "role": "ANALYST"
+}
+```
+
+**Response 201:** Invitation record (no token; the plaintext token is only sent in the email).
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "email": "alice@example.com",
+  "display_name": "Alice",
+  "role": "ANALYST",
+  "status": "PENDING",
+  "expires_at": "2026-05-20T00:00:00Z",
+  "accepted_at": null,
+  "revoked_at": null,
+  "invited_by_user_id": "uuid",
+  "created_at": "2026-05-13T00:00:00Z"
+}
+```
+
+**Response 409:** `DUPLICATE_PENDING_INVITATION` — a pending invitation for this email already exists.
+**Response 422:** `SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE` — set up the system SMTP first.
+
+#### GET /admin/users/invitations
+
+Paginated list of invitations for the caller's organization, ordered by `created_at DESC` by default. Same envelope as `/admin/users`.
+
+#### POST /admin/users/invitations/{id}/resend
+
+Rotates the token (the previous emailed link stops working) and resends the email. Refreshes `expires_at`.
+
+**Response 200:** Updated invitation record.
+**Response 404:** Invitation not found.
+**Response 422:** `INVITATION_ALREADY_ACCEPTED` or `INVITATION_REVOKED`.
+
+#### DELETE /admin/users/invitations/{id}
+
+**Response 204** on success. Marks the invitation as `REVOKED` — accepting with the existing token returns `INVITATION_REVOKED`.
+
+### Setup wizard (`/auth/setup`)
+
+Public endpoint exposed only while no active ADMIN user exists. The setup form on the SPA submits org + admin, then chains into the optional system-SMTP step using the access token returned here.
+
+#### POST /auth/setup
+
+**Request body:**
+```json
+{
+  "organization_name": "Acme",
+  "email": "admin@acme.com",
+  "display_name": "Acme Admin",
+  "password": "supersecret"
+}
+```
+
+**Response 201:** A standard `LoginResponse` (same shape as `POST /auth/login`) and a `refresh_token` cookie. The newly created admin is signed in automatically, so the SPA can call `PUT /admin/system-smtp` next without an extra round-trip.
+**Response 409:** `SETUP_ALREADY_COMPLETED` or `EMAIL_ALREADY_EXISTS`.
+
+### Invitation acceptance (`/auth/invitations/...`)
+
+Public endpoints, no auth required. Powered by the same `user_invitations` token as the admin-side flow.
+
+#### GET /auth/invitations/{token}
+
+Preview an invitation before accepting it.
+
+**Response 200:**
+```json
+{
+  "email": "alice@example.com",
+  "display_name": "Alice",
+  "role": "ANALYST",
+  "organization_name": "Acme",
+  "expires_at": "2026-05-20T00:00:00Z"
+}
+```
+
+**Response 404:** `INVITATION_NOT_FOUND` (also returned for revoked tokens).
+**Response 422:** `INVITATION_EXPIRED` or `INVITATION_ALREADY_ACCEPTED`.
+
+#### POST /auth/invitations/{token}/accept
+
+**Request body:**
+```json
+{
+  "password": "supersecret",
+  "display_name": "Alice"
+}
+```
+
+`display_name` is optional; if omitted the invitation's stored value (or null) is used. Password must be 8–128 characters.
+
+**Response 201:** Empty body; the new user is created with role from the invitation and the user can immediately sign in via `POST /auth/login`.
+**Response 404:** `INVITATION_NOT_FOUND`.
+**Response 409:** `EMAIL_ALREADY_EXISTS` — a local user with this email already exists.
+**Response 422:** `INVITATION_EXPIRED`, `INVITATION_ALREADY_ACCEPTED`, or `INVITATION_REVOKED`.
 
 ### GET /admin/audit-log — Query Parameters
 

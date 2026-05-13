@@ -27,9 +27,14 @@ import { Avatar } from '@/components/common/Avatar';
 import { RolePill } from '@/components/common/RolePill';
 import { Pill } from '@/components/common/Pill';
 import {
+  createInvitation,
   createUser,
   deactivateUser,
+  invitationKeys,
   listUsers,
+  listInvitations,
+  resendInvitation,
+  revokeInvitation,
   updateUser,
   userKeys,
 } from '@/api/admin';
@@ -37,11 +42,25 @@ import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
-import type { AuthProvider, CreateUserInput, Role, UpdateUserInput, User } from '@/types/api';
+import type {
+  AuthProvider,
+  CreateUserInput,
+  InviteUserInput,
+  Role,
+  UpdateUserInput,
+  User,
+  UserInvitation,
+} from '@/types/api';
 
 interface InviteFormValues {
   email: string;
   password: string;
+  display_name?: string;
+  role: Role;
+}
+
+interface InviteByEmailFormValues {
+  email: string;
   display_name?: string;
   role: Role;
 }
@@ -64,6 +83,7 @@ export function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
   const [providerFilter, setProviderFilter] = useState<'all' | AuthProvider>('all');
   const [inviting, setInviting] = useState(false);
+  const [invitingByEmail, setInvitingByEmail] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
 
   const filters = useMemo(
@@ -101,6 +121,39 @@ export function UsersPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
       message.success(t('admin.users.deactivate_success'));
+    },
+    onError: (err) => showApiError(message, err, adminErrorMessage),
+  });
+
+  const invitationsQuery = useQuery({
+    queryKey: invitationKeys.list({ page: 0, size: 50, sort: 'createdAt,desc' }),
+    queryFn: () => listInvitations({ page: 0, size: 50, sort: 'createdAt,desc' }),
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (payload: InviteUserInput) => createInvitation(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: invitationKeys.all });
+      message.success(t('admin.users.invite_email_success'));
+      setInvitingByEmail(false);
+    },
+    onError: (err) => showApiError(message, err, adminErrorMessage),
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: (id: string) => resendInvitation(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: invitationKeys.all });
+      message.success(t('admin.users.invite_resend_success'));
+    },
+    onError: (err) => showApiError(message, err, adminErrorMessage),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (id: string) => revokeInvitation(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: invitationKeys.all });
+      message.success(t('admin.users.invite_revoke_success'));
     },
     onError: (err) => showApiError(message, err, adminErrorMessage),
   });
@@ -145,13 +198,22 @@ export function UsersPage() {
             <Button icon={<ReloadOutlined />} onClick={() => usersQuery.refetch()}>
               {t('common.refresh')}
             </Button>
-            <Button
+            <Dropdown.Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setInviting(true)}
+              menu={{
+                items: [
+                  {
+                    key: 'password',
+                    label: t('admin.users.create_with_password'),
+                    onClick: () => setInviting(true),
+                  },
+                ],
+              }}
+              onClick={() => setInvitingByEmail(true)}
             >
-              {t('common.invite')}
-            </Button>
+              {t('admin.users.invite_via_email')}
+            </Dropdown.Button>
           </>
         }
       />
@@ -327,11 +389,34 @@ export function UsersPage() {
         )}
       </div>
 
+      <PendingInvitationsSection
+        invitations={invitationsQuery.data?.content ?? []}
+        loading={invitationsQuery.isLoading}
+        onResend={(id) => resendMutation.mutate(id)}
+        onRevoke={(invitation) =>
+          modal.confirm({
+            title: t('admin.users.invite_revoke_confirm_title'),
+            content: t('admin.users.invite_revoke_confirm_body', { email: invitation.email }),
+            okType: 'danger',
+            okText: t('admin.users.invite_revoke'),
+            cancelText: t('common.cancel'),
+            onOk: () => revokeMutation.mutateAsync(invitation.id),
+          })
+        }
+      />
+
       <InviteUserModal
         open={inviting}
         onClose={() => setInviting(false)}
         onSubmit={(values) => createMutation.mutate(values)}
         loading={createMutation.isPending}
+      />
+
+      <InviteByEmailModal
+        open={invitingByEmail}
+        onClose={() => setInvitingByEmail(false)}
+        onSubmit={(values) => inviteMutation.mutate(values)}
+        loading={inviteMutation.isPending}
       />
 
       <EditUserModal
@@ -498,5 +583,170 @@ function EditUserModal({
         </Form.Item>
       </Form>
     </Modal>
+  );
+}
+
+function InviteByEmailModal({
+  open,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (values: InviteUserInput) => void;
+  loading: boolean;
+}) {
+  const { t } = useTranslation();
+  const [form] = Form.useForm<InviteByEmailFormValues>();
+  useEffect(() => {
+    if (open) form.resetFields();
+  }, [open, form]);
+
+  return (
+    <Modal
+      open={open}
+      title={t('admin.users.invite_email_modal_title')}
+      onCancel={onClose}
+      onOk={() => form.submit()}
+      okText={t('admin.users.invite_email_submit')}
+      cancelText={t('common.cancel')}
+      confirmLoading={loading}
+      destroyOnHidden
+    >
+      <Form<InviteByEmailFormValues>
+        form={form}
+        layout="vertical"
+        initialValues={{ role: 'ANALYST' }}
+        onFinish={(values) =>
+          onSubmit({
+            email: values.email.trim(),
+            display_name: values.display_name?.trim() || null,
+            role: values.role,
+          })
+        }
+      >
+        <Form.Item
+          name="email"
+          label={t('admin.users.label_email')}
+          rules={[
+            { required: true, message: t('validation.invite.email_required') },
+            { type: 'email', message: t('validation.email_invalid') },
+            { max: 255, message: t('validation.field_max_255') },
+          ]}
+        >
+          <Input maxLength={255} autoComplete="off" />
+        </Form.Item>
+        <Form.Item
+          name="display_name"
+          label={t('admin.users.label_display_name')}
+          rules={[{ max: 255, message: t('validation.field_max_255') }]}
+        >
+          <Input maxLength={255} />
+        </Form.Item>
+        <Form.Item
+          name="role"
+          label={t('admin.users.label_role')}
+          rules={[{ required: true, message: t('validation.invite.role_required') }]}
+        >
+          <Select
+            options={[
+              { value: 'ADMIN', label: 'ADMIN' },
+              { value: 'REVIEWER', label: 'REVIEWER' },
+              { value: 'ANALYST', label: 'ANALYST' },
+              { value: 'READONLY', label: 'READONLY' },
+            ]}
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
+function PendingInvitationsSection({
+  invitations,
+  loading,
+  onResend,
+  onRevoke,
+}: {
+  invitations: UserInvitation[];
+  loading: boolean;
+  onResend: (id: string) => void;
+  onRevoke: (invitation: UserInvitation) => void;
+}) {
+  const { t } = useTranslation();
+  if (loading) {
+    return <Skeleton active paragraph={{ rows: 2 }} style={{ padding: 24 }} />;
+  }
+  if (invitations.length === 0) {
+    return null;
+  }
+  return (
+    <div style={{ padding: '12px 28px 24px' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+        {t('admin.users.invitations_title')}
+      </div>
+      <Table<UserInvitation>
+        rowKey="id"
+        size="small"
+        dataSource={invitations}
+        pagination={false}
+        columns={[
+          {
+            title: t('admin.users.label_email'),
+            dataIndex: 'email',
+          },
+          {
+            title: t('admin.users.label_role'),
+            dataIndex: 'role',
+            render: (role: Role) => <RolePill role={role} />,
+          },
+          {
+            title: t('admin.users.invite_status'),
+            dataIndex: 'status',
+            render: (status: UserInvitation['status']) => <Pill>{status}</Pill>,
+          },
+          {
+            title: t('admin.users.invite_expires_at'),
+            dataIndex: 'expires_at',
+            render: (expiresAt: string) => fmtDate(expiresAt),
+          },
+          {
+            title: '',
+            key: 'actions',
+            width: 80,
+            render: (_, invitation) => (
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'resend',
+                      label: t('admin.users.invite_resend'),
+                      disabled: invitation.status === 'ACCEPTED' || invitation.status === 'REVOKED',
+                      onClick: () => onResend(invitation.id),
+                    },
+                    {
+                      key: 'revoke',
+                      danger: true,
+                      label: t('admin.users.invite_revoke'),
+                      disabled: invitation.status === 'ACCEPTED' || invitation.status === 'REVOKED',
+                      onClick: () => onRevoke(invitation),
+                    },
+                  ],
+                }}
+                trigger={['click']}
+              >
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<MoreOutlined />}
+                  aria-label={t('common.edit')}
+                />
+              </Dropdown>
+            ),
+          },
+        ]}
+      />
+    </div>
   );
 }

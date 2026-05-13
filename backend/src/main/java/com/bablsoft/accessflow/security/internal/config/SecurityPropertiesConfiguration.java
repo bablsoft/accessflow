@@ -10,7 +10,8 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, OAuth2RedirectProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, OAuth2RedirectProperties.class,
+        InvitationProperties.class})
 class SecurityPropertiesConfiguration {
 
     @Bean

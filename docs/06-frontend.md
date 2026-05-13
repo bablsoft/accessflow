@@ -433,7 +433,9 @@ for deployment recipes (Docker Compose, Helm).
 ## Routing Structure
 
 ```
+/setup                              → SetupPage (2-step wizard: org+admin, then optional system SMTP)
 /login                              → LoginPage (also renders the TOTP verification stage)
+/invite/:token                      → AcceptInvitePage (public; previews + accepts a user invitation)
 /auth/saml/callback                 → SamlCallbackPage
 
 /editor                             → QueryEditorPage
@@ -459,7 +461,15 @@ for deployment recipes (Docker Compose, Helm).
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
-All routes except `/login`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+All routes except `/login`, `/setup`, `/invite/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+
+### Setup wizard
+
+`SetupPage` is a two-step state machine. Step 1 collects org name + admin email/password and submits `POST /auth/setup`; the response now returns a `LoginResponse` and sets the refresh cookie so the SPA can call admin endpoints as the freshly-created admin. Step 2 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
+
+### User invitations on `/admin/users`
+
+The primary action button is now a `Dropdown.Button` — the default click sends an email invitation (`POST /admin/users/invitations`), while the dropdown menu still exposes the legacy "Create with password" path (`POST /admin/users`). A **Pending invitations** table below the user list shows invitations and exposes per-row resend / revoke actions (`POST /admin/users/invitations/{id}/resend`, `DELETE /admin/users/invitations/{id}`).
 
 ### OAuth 2.0 sign-in
 

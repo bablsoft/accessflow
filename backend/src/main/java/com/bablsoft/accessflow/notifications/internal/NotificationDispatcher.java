@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
+import com.bablsoft.accessflow.notifications.internal.strategy.EmailNotificationStrategy;
 import com.bablsoft.accessflow.notifications.internal.strategy.NotificationChannelStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,17 +34,20 @@ class NotificationDispatcher {
     private final NotificationChannelRepository channelRepository;
     private final UserNotificationService userNotificationService;
     private final ObjectMapper objectMapper;
+    private final SystemEmailFallback systemEmailFallback;
     private final Map<NotificationChannelType, NotificationChannelStrategy> strategies;
 
     NotificationDispatcher(NotificationContextBuilder contextBuilder,
                            NotificationChannelRepository channelRepository,
                            UserNotificationService userNotificationService,
                            ObjectMapper objectMapper,
+                           SystemEmailFallback systemEmailFallback,
                            List<NotificationChannelStrategy> strategyBeans) {
         this.contextBuilder = contextBuilder;
         this.channelRepository = channelRepository;
         this.userNotificationService = userNotificationService;
         this.objectMapper = objectMapper;
+        this.systemEmailFallback = systemEmailFallback;
         var map = new EnumMap<NotificationChannelType, NotificationChannelStrategy>(
                 NotificationChannelType.class);
         for (NotificationChannelStrategy strategy : strategyBeans) {
@@ -63,10 +67,7 @@ class NotificationDispatcher {
         var ctx = contextOpt.get();
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
-        if (channels.isEmpty()) {
-            log.debug("No active channels for event {} on query {}", eventType, queryRequestId);
-            return;
-        }
+        boolean emailChannelDelivered = false;
         for (NotificationChannelEntity channel : channels) {
             var strategy = strategies.get(channel.getChannelType());
             if (strategy == null) {
@@ -75,11 +76,35 @@ class NotificationDispatcher {
             }
             try {
                 strategy.deliver(ctx, channel);
+                if (channel.getChannelType() == NotificationChannelType.EMAIL) {
+                    emailChannelDelivered = true;
+                }
             } catch (RuntimeException ex) {
                 log.error("Failed to deliver {} via channel {} ({})",
                         eventType, channel.getId(), channel.getChannelType(), ex);
             }
         }
+        maybeDeliverViaSystemSmtp(ctx, channels, emailChannelDelivered);
+    }
+
+    private void maybeDeliverViaSystemSmtp(NotificationContext ctx,
+                                           List<NotificationChannelEntity> resolvedChannels,
+                                           boolean emailChannelDelivered) {
+        if (emailChannelDelivered) {
+            return;
+        }
+        boolean hasAnyEmailChannel = resolvedChannels.stream()
+                .anyMatch(c -> c.getChannelType() == NotificationChannelType.EMAIL);
+        if (hasAnyEmailChannel) {
+            return;
+        }
+        if (ctx.recipients() == null || ctx.recipients().isEmpty()) {
+            return;
+        }
+        if (!EmailNotificationStrategy.hasTemplateFor(ctx.eventType())) {
+            return;
+        }
+        systemEmailFallback.deliverIfPossible(ctx);
     }
 
     private void recordInAppNotifications(NotificationContext ctx) {

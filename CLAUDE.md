@@ -228,6 +228,7 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | ISO-8601 duration before the first webhook retry (default `PT30S`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | ISO-8601 duration before the third (final) webhook retry (default `PT10M`). |
+| `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
 | `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |

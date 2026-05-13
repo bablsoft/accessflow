@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.api;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -11,4 +12,6 @@ import java.util.UUID;
 public interface OrganizationLookupService {
 
     UUID singleOrganization();
+
+    Optional<String> findNameById(UUID organizationId);
 }

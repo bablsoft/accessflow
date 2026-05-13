@@ -91,7 +91,31 @@
       "confirm_password_label": "Confirm password",
       "submit": "Create admin",
       "submitting": "Creating admin…",
-      "footer": "first-run setup · only available while no admin exists"
+      "footer": "first-run setup · only available while no admin exists",
+      "smtp": {
+        "title": "Configure system SMTP (optional)",
+        "subtitle": "Set up email delivery so you can invite teammates. You can change this later from the notifications page.",
+        "host_label": "SMTP host",
+        "port_label": "SMTP port",
+        "username_label": "Username (optional)",
+        "password_label": "Password (optional)",
+        "tls_label": "Use STARTTLS",
+        "from_address_label": "From address",
+        "from_name_label": "From display name (optional)",
+        "skip": "Skip for now",
+        "save": "Save & finish"
+      }
+    },
+    "invitation": {
+      "title": "Activate your account",
+      "subtitle": "Set a password to complete your AccessFlow invitation.",
+      "greeting": "You have been invited to {{organization}} as {{role}}.",
+      "display_name_label": "Display name (optional)",
+      "display_name_placeholder": "How should we address you?",
+      "password_label": "Password",
+      "confirm_password_label": "Confirm password",
+      "submit": "Activate account",
+      "error_invalid_token": "This invitation link is invalid."
     }
   },
   "validation": {
@@ -115,6 +139,16 @@
       "scopes_max": "Scopes override must be at most 1024 characters.",
       "tenant_id_max": "Tenant ID must be at most 255 characters.",
       "default_role_required": "Default role is required."
+    },
+    "system_smtp": {
+      "host_required": "SMTP host is required.",
+      "port_range": "Port must be between 1 and 65535.",
+      "from_address_required": "From address is required.",
+      "from_address_invalid": "From address must be a valid email."
+    },
+    "invite": {
+      "email_required": "Email is required.",
+      "role_required": "Role is required."
     }
   },
   "errors": {
@@ -548,7 +582,21 @@
       "deactivate_action": "Deactivate",
       "create_success": "User created",
       "update_success": "User updated",
-      "deactivate_success": "User deactivated"
+      "deactivate_success": "User deactivated",
+      "invite_via_email": "Invite via email",
+      "create_with_password": "Create with password",
+      "invite_email_modal_title": "Invite a teammate",
+      "invite_email_submit": "Send invitation",
+      "invite_email_success": "Invitation email sent",
+      "invitations_title": "Pending invitations",
+      "invite_status": "Status",
+      "invite_expires_at": "Expires",
+      "invite_resend": "Resend",
+      "invite_resend_success": "Invitation resent",
+      "invite_revoke": "Revoke",
+      "invite_revoke_success": "Invitation revoked",
+      "invite_revoke_confirm_title": "Revoke this invitation?",
+      "invite_revoke_confirm_body": "The invitation link for {{email}} will stop working."
     },
     "audit": {
       "title": "Audit log",
@@ -650,7 +698,34 @@
       "create_success": "Channel created",
       "update_success": "Channel updated",
       "test_success": "Test notification dispatched",
-      "test_email_label": "Override recipient (EMAIL only)"
+      "test_email_label": "Override recipient (EMAIL only)",
+      "system_smtp": {
+        "title": "System SMTP",
+        "subtitle": "Used for user-invitation emails and as a fallback when no email channel is configured.",
+        "configure": "Configure",
+        "edit": "Edit",
+        "delete_action": "Remove",
+        "delete_title": "Remove system SMTP",
+        "delete_confirm": "Remove the system SMTP configuration? User invitations and the email fallback will no longer work until reconfigured.",
+        "delete_success": "System SMTP removed",
+        "save": "Save",
+        "save_success": "System SMTP saved",
+        "modal_title": "System SMTP configuration",
+        "host_label": "Host",
+        "port_label": "Port",
+        "username_label": "Username (optional)",
+        "password_label": "Password",
+        "password_help": "Leave blank to keep the existing password.",
+        "tls_label": "STARTTLS",
+        "tls_off": "Plain",
+        "from_label": "From",
+        "from_address_label": "From address",
+        "from_name_label": "From display name (optional)",
+        "test": "Send test",
+        "test_to_placeholder": "Recipient (defaults to From address)",
+        "test_success": "Test email accepted by the SMTP server",
+        "not_configured": "System SMTP is not configured. Configure it to enable user invitations and the email fallback."
+      }
     },
     "oauth2": {
       "title": "OAuth providers",

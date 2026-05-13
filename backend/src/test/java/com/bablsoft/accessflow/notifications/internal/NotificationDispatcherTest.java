@@ -34,6 +34,7 @@ class NotificationDispatcherTest {
     private UserNotificationService userNotificationService;
     private NotificationChannelStrategy emailStrategy;
     private NotificationChannelStrategy webhookStrategy;
+    private SystemEmailFallback systemEmailFallback;
     private NotificationDispatcher dispatcher;
     private final UUID orgId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
@@ -48,8 +49,9 @@ class NotificationDispatcherTest {
         when(emailStrategy.supports()).thenReturn(NotificationChannelType.EMAIL);
         webhookStrategy = mock(NotificationChannelStrategy.class);
         when(webhookStrategy.supports()).thenReturn(NotificationChannelType.WEBHOOK);
+        systemEmailFallback = mock(SystemEmailFallback.class);
         dispatcher = new NotificationDispatcher(contextBuilder, channelRepository,
-                userNotificationService, new ObjectMapper(),
+                userNotificationService, new ObjectMapper(), systemEmailFallback,
                 List.of(emailStrategy, webhookStrategy));
     }
 
@@ -129,7 +131,7 @@ class NotificationDispatcherTest {
     void unknownStrategyTypeIsSkipped() {
         // Build a dispatcher with NO registered strategies.
         var emptyDispatcher = new NotificationDispatcher(contextBuilder, channelRepository,
-                userNotificationService, new ObjectMapper(), List.of());
+                userNotificationService, new ObjectMapper(), systemEmailFallback, List.of());
         whenContextBuilds();
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(contextBuilder.lookupPlanChannelIds(datasourceId))
@@ -140,6 +142,57 @@ class NotificationDispatcherTest {
         emptyDispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
 
         verify(emailStrategy, never()).deliver(any(), any());
+    }
+
+    @Test
+    void systemEmailFallbackInvokedWhenNoEmailChannel() {
+        var reviewer = UUID.randomUUID();
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_APPROVED,
+                        List.of(new RecipientView(reviewer, "a@example.com", "A")))));
+        var webhookCh = channel(NotificationChannelType.WEBHOOK);
+        when(contextBuilder.lookupPlanChannelIds(datasourceId))
+                .thenReturn(List.of(webhookCh.getId()));
+        when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
+                .thenReturn(List.of(webhookCh));
+
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+
+        verify(systemEmailFallback).deliverIfPossible(any());
+        verify(emailStrategy, never()).deliver(any(), any());
+    }
+
+    @Test
+    void systemEmailFallbackSkippedWhenEmailChannelDelivers() {
+        var reviewer = UUID.randomUUID();
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.QUERY_APPROVED,
+                        List.of(new RecipientView(reviewer, "a@example.com", "A")))));
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(contextBuilder.lookupPlanChannelIds(datasourceId))
+                .thenReturn(List.of(emailCh.getId()));
+        when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
+                .thenReturn(List.of(emailCh));
+
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+
+        verify(emailStrategy).deliver(any(), eq(emailCh));
+        verify(systemEmailFallback, never()).deliverIfPossible(any());
+    }
+
+    @Test
+    void systemEmailFallbackSkippedWhenEventHasNoTemplate() {
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.TEST,
+                        List.of(new RecipientView(UUID.randomUUID(), "a@example.com", "A")))));
+        when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
+
+        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null);
+
+        verify(systemEmailFallback, never()).deliverIfPossible(any());
     }
 
     @Test

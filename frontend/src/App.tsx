@@ -6,6 +6,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
+const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 import { useSetupStore } from '@/store/setupStore';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
@@ -36,7 +37,9 @@ export function App() {
   const setupRequired = useSetupStore((s) => s.setupRequired);
   const location = useLocation();
 
-  if (setupRequired === true && location.pathname !== '/setup') {
+  const isPublicPath =
+    location.pathname === '/setup' || location.pathname.startsWith('/invite/');
+  if (setupRequired === true && !isPublicPath) {
     return <Navigate to="/setup" replace />;
   }
   if (setupRequired === false && location.pathname === '/setup') {
@@ -48,6 +51,14 @@ export function App() {
       <Routes>
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/invite/:token"
+          element={
+            <Suspense fallback={null}>
+              <AcceptInvitePage />
+            </Suspense>
+          }
+        />
         <Route
           path="/auth/oauth/callback"
           element={

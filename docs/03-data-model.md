@@ -401,6 +401,62 @@ Stores notification channel configurations (email, Slack, webhook).
 
 ---
 
+## system_smtp_config
+
+Per-organization global SMTP configuration. Drives user-invitation emails and acts as the fallback EMAIL channel when an organization has no active EMAIL row in `notification_channels`. One row per organization (enforced by UNIQUE on `organization_id`).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE, UNIQUE |
+| `host` | VARCHAR(255) NOT NULL |
+| `port` | INTEGER NOT NULL |
+| `username` | VARCHAR(255), nullable — for anonymous-bind SMTP servers |
+| `password_encrypted` | TEXT, nullable — AES-256-GCM via `CredentialEncryptionService` |
+| `tls` | BOOLEAN NOT NULL DEFAULT TRUE — STARTTLS toggle |
+| `from_address` | VARCHAR(255) NOT NULL |
+| `from_name` | VARCHAR(255), nullable — display name attached to the From header |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+| `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+`password_encrypted` is `@JsonIgnore`-equivalent on the response side: the admin API returns `"********"` as the `smtp_password` field when a password is set, and accepts the same masked placeholder on update (PUT) to mean "keep existing".
+
+---
+
+## user_invitations
+
+Single-use email invitations. The token is delivered via the organization's system SMTP and exchanged for a new local-account user when the recipient sets a password.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `email` | VARCHAR(255) NOT NULL |
+| `role` | `user_role_type` enum — role the invited user receives on accept |
+| `display_name` | VARCHAR(255), nullable |
+| `token_hash` | VARCHAR(64) NOT NULL UNIQUE — SHA-256 hex of the plaintext token; the plaintext token is sent in the email only and never persisted |
+| `status` | `user_invitation_status` enum: `PENDING` \| `ACCEPTED` \| `REVOKED` \| `EXPIRED` |
+| `expires_at` | TIMESTAMPTZ NOT NULL — controlled by `accessflow.security.invitation.ttl` (default `P7D`) |
+| `accepted_at` | TIMESTAMPTZ, nullable — set on successful accept |
+| `revoked_at` | TIMESTAMPTZ, nullable — set when the admin revokes |
+| `invited_by_user_id` | FK → `users` |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+
+Indexes:
+
+```sql
+CREATE INDEX idx_user_invitations_org_status_created
+    ON user_invitations(organization_id, status, created_at DESC);
+
+CREATE UNIQUE INDEX uq_user_invitations_pending_email
+    ON user_invitations(organization_id, LOWER(email))
+    WHERE status = 'PENDING';
+```
+
+The partial UNIQUE index prevents two simultaneous pending invitations for the same email within an organization. Resending an invitation rotates the token (so old emailed links stop working) and refreshes `expires_at` without creating a duplicate row.
+
+---
+
 ## user_notifications
 
 In-app notification inbox rows, persisted per recipient. Each domain event that the
