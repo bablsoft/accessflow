@@ -21,9 +21,25 @@ describe('api/setup', () => {
     expect(result).toEqual({ setup_required: true });
   });
 
-  it('submitSetup posts the payload to the setup endpoint', async () => {
-    post.mockResolvedValueOnce({ data: undefined });
-    await setupApi.submitSetup({
+  it('submitSetup posts the payload and returns the login payload', async () => {
+    const user = {
+      id: 'u1',
+      email: 'admin@acme.com',
+      display_name: 'Acme Admin',
+      role: 'ADMIN' as const,
+      auth_provider: 'LOCAL' as const,
+      totp_enabled: false,
+      preferred_language: null,
+    };
+    post.mockResolvedValueOnce({
+      data: {
+        access_token: 'token',
+        token_type: 'Bearer',
+        expires_in: 900,
+        user,
+      },
+    });
+    const result = await setupApi.submitSetup({
       organization_name: 'Acme',
       email: 'admin@acme.com',
       display_name: 'Acme Admin',
@@ -34,6 +50,11 @@ describe('api/setup', () => {
       email: 'admin@acme.com',
       display_name: 'Acme Admin',
       password: 'secret-pass-12',
+    });
+    expect(result).toEqual({
+      access_token: 'token',
+      expires_in: 900,
+      user,
     });
   });
 });

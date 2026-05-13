@@ -30,11 +30,19 @@ import com.bablsoft.accessflow.core.api.ReviewPlanInUseException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.core.api.SetupAlreadyCompletedException;
+import com.bablsoft.accessflow.core.api.SystemSmtpDeliveryException;
+import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.UnsupportedLanguageException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.security.api.DuplicatePendingInvitationException;
+import com.bablsoft.accessflow.security.api.InvitationAlreadyAcceptedException;
+import com.bablsoft.accessflow.security.api.InvitationExpiredException;
+import com.bablsoft.accessflow.security.api.InvitationNotFoundException;
+import com.bablsoft.accessflow.security.api.InvitationRevokedException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigInvalidException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigNotFoundException;
+import com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
@@ -472,6 +480,78 @@ class GlobalExceptionHandler {
         // Message resolved at throw site via MessageSource.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "OAUTH2_CONFIG_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SystemSmtpNotConfiguredException.class)
+    ProblemDetail handleSystemSmtpNotConfigured(SystemSmtpNotConfiguredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.system_smtp.not_configured"));
+        pd.setProperty("error", "SYSTEM_SMTP_NOT_CONFIGURED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SystemSmtpDeliveryException.class)
+    ProblemDetail handleSystemSmtpDelivery(SystemSmtpDeliveryException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
+                msg("error.notification_delivery_failed"));
+        pd.setProperty("error", "SYSTEM_SMTP_DELIVERY_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SystemSmtpNotConfiguredForInviteException.class)
+    ProblemDetail handleSystemSmtpNotConfiguredForInvite(SystemSmtpNotConfiguredForInviteException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.system_smtp.not_configured_for_invite"));
+        pd.setProperty("error", "SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvitationNotFoundException.class)
+    ProblemDetail handleInvitationNotFound(InvitationNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.invitation.not_found"));
+        pd.setProperty("error", "INVITATION_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvitationExpiredException.class)
+    ProblemDetail handleInvitationExpired(InvitationExpiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.invitation.expired"));
+        pd.setProperty("error", "INVITATION_EXPIRED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvitationAlreadyAcceptedException.class)
+    ProblemDetail handleInvitationAlreadyAccepted(InvitationAlreadyAcceptedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.invitation.already_accepted"));
+        pd.setProperty("error", "INVITATION_ALREADY_ACCEPTED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvitationRevokedException.class)
+    ProblemDetail handleInvitationRevoked(InvitationRevokedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.invitation.revoked"));
+        pd.setProperty("error", "INVITATION_REVOKED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DuplicatePendingInvitationException.class)
+    ProblemDetail handleDuplicatePendingInvitation(DuplicatePendingInvitationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.invitation.duplicate_pending"));
+        pd.setProperty("error", "DUPLICATE_PENDING_INVITATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

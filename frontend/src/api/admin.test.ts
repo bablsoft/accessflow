@@ -314,4 +314,146 @@ describe('api/admin', () => {
     expect(adminApi.setupProgressKeys.all).toEqual(['setupProgress']);
     expect(adminApi.setupProgressKeys.current()).toEqual(['setupProgress', 'current']);
   });
+
+  // ── System SMTP ───────────────────────────────────────────────────────────
+  const smtpFixture = {
+    organization_id: 'org-1',
+    host: 'smtp.example.com',
+    port: 587,
+    username: 'user',
+    smtp_password: '********',
+    tls: true,
+    from_address: 'no-reply@example.com',
+    from_name: 'AccessFlow',
+    updated_at: '2026-05-13T00:00:00Z',
+  };
+
+  it('getSystemSmtp GETs /admin/system-smtp and returns body', async () => {
+    get.mockResolvedValueOnce({ data: smtpFixture });
+    const result = await adminApi.getSystemSmtp();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/system-smtp');
+    expect(result?.host).toBe('smtp.example.com');
+  });
+
+  it('getSystemSmtp returns null on 404', async () => {
+    get.mockRejectedValueOnce({ response: { status: 404 } });
+    const result = await adminApi.getSystemSmtp();
+    expect(result).toBeNull();
+  });
+
+  it('getSystemSmtp rethrows non-404 errors', async () => {
+    get.mockRejectedValueOnce({ response: { status: 500 } });
+    await expect(adminApi.getSystemSmtp()).rejects.toMatchObject({
+      response: { status: 500 },
+    });
+  });
+
+  it('updateSystemSmtp PUTs the payload', async () => {
+    put.mockResolvedValueOnce({ data: smtpFixture });
+    await adminApi.updateSystemSmtp({
+      host: 'smtp.example.com',
+      port: 587,
+      tls: true,
+      from_address: 'no-reply@example.com',
+    });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/system-smtp', {
+      host: 'smtp.example.com',
+      port: 587,
+      tls: true,
+      from_address: 'no-reply@example.com',
+    });
+  });
+
+  it('deleteSystemSmtp DELETEs the endpoint', async () => {
+    del.mockResolvedValueOnce({});
+    await adminApi.deleteSystemSmtp();
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/system-smtp');
+  });
+
+  it('testSystemSmtp POSTs to /test with the input', async () => {
+    post.mockResolvedValueOnce({});
+    await adminApi.testSystemSmtp({ to: 'to@example.com' });
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/system-smtp/test', {
+      to: 'to@example.com',
+    });
+  });
+
+  it('testSystemSmtp defaults to empty body when omitted', async () => {
+    post.mockResolvedValueOnce({});
+    await adminApi.testSystemSmtp();
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/system-smtp/test', {});
+  });
+
+  it('systemSmtpKeys produce stable factory output', () => {
+    expect(adminApi.systemSmtpKeys.all).toEqual(['systemSmtp']);
+    expect(adminApi.systemSmtpKeys.current()).toEqual(['systemSmtp', 'current']);
+  });
+
+  // ── User invitations ───────────────────────────────────────────────────────
+  const invitationFixture = {
+    id: 'inv-1',
+    organization_id: 'org-1',
+    email: 'alice@example.com',
+    display_name: 'Alice',
+    role: 'ANALYST' as const,
+    status: 'PENDING' as const,
+    expires_at: '2026-05-20T00:00:00Z',
+    accepted_at: null,
+    revoked_at: null,
+    invited_by_user_id: 'u-1',
+    created_at: '2026-05-13T00:00:00Z',
+  };
+
+  it('listInvitations GETs /admin/users/invitations with paging', async () => {
+    get.mockResolvedValueOnce({
+      data: { content: [invitationFixture], page: 0, size: 20, total_elements: 1, total_pages: 1 },
+    });
+    const result = await adminApi.listInvitations({ page: 0, size: 20, sort: 'createdAt,desc' });
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/users/invitations', {
+      params: { page: 0, size: 20, sort: 'createdAt,desc' },
+    });
+    expect(result.content[0]?.email).toBe('alice@example.com');
+  });
+
+  it('listInvitations omits unset params', async () => {
+    get.mockResolvedValueOnce({
+      data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
+    });
+    await adminApi.listInvitations();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/users/invitations', { params: {} });
+  });
+
+  it('createInvitation POSTs the payload', async () => {
+    post.mockResolvedValueOnce({ data: invitationFixture });
+    await adminApi.createInvitation({
+      email: 'alice@example.com',
+      role: 'ANALYST',
+    });
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/users/invitations', {
+      email: 'alice@example.com',
+      role: 'ANALYST',
+    });
+  });
+
+  it('resendInvitation POSTs to /resend', async () => {
+    post.mockResolvedValueOnce({ data: invitationFixture });
+    await adminApi.resendInvitation('inv-1');
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/users/invitations/inv-1/resend');
+  });
+
+  it('revokeInvitation DELETEs the invitation', async () => {
+    del.mockResolvedValueOnce({});
+    await adminApi.revokeInvitation('inv-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/users/invitations/inv-1');
+  });
+
+  it('invitationKeys produce stable factory output', () => {
+    expect(adminApi.invitationKeys.all).toEqual(['invitations']);
+    expect(adminApi.invitationKeys.lists()).toEqual(['invitations', 'list']);
+    expect(adminApi.invitationKeys.list({ page: 0, size: 20 })).toEqual([
+      'invitations',
+      'list',
+      { page: 0, size: 20 },
+    ]);
+  });
 });

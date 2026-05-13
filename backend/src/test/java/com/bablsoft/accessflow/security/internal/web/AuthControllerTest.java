@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.security.api.AuthResult;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
+import com.bablsoft.accessflow.security.api.UserInvitationService;
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -44,6 +45,7 @@ class AuthControllerTest {
     private UserQueryService userQueryService;
     private BootstrapService bootstrapService;
     private PasswordEncoder passwordEncoder;
+    private UserInvitationService userInvitationService;
     private AuthController controller;
 
     private final RequestAuditContext auditContext =
@@ -56,8 +58,9 @@ class AuthControllerTest {
         userQueryService = mock(UserQueryService.class);
         bootstrapService = mock(BootstrapService.class);
         passwordEncoder = mock(PasswordEncoder.class);
+        userInvitationService = mock(UserInvitationService.class);
         controller = new AuthController(authenticationService, auditLogService, userQueryService,
-                bootstrapService, passwordEncoder, new RefreshCookieWriter());
+                bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService);
     }
 
     @Test
@@ -74,12 +77,16 @@ class AuthControllerTest {
         when(bootstrapService.performSetup(any())).thenReturn(new SetupResult(orgId, userId));
         when(auditLogService.record(any(AuditEntry.class)))
                 .thenThrow(new RuntimeException("audit down"));
+        var user = userView(UserRoleType.ADMIN);
+        when(authenticationService.login(any()))
+                .thenReturn(new AuthResult("access", "refresh", "Bearer", 900L, user));
 
         var response = controller.setup(
                 new SetupRequest("Acme", "admin@example.com", "Admin", "Password123!"),
-                auditContext);
+                auditContext, new MockHttpServletResponse());
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
+        assertThat(response.getBody().accessToken()).isEqualTo("access");
     }
 
     @Test
@@ -221,6 +228,34 @@ class AuthControllerTest {
 
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
         assertThat(resp.getBody().accessToken()).isEqualTo("new-access");
+    }
+
+    @Test
+    void previewInvitationDelegatesToService() {
+        when(userInvitationService.previewByToken("raw-token"))
+                .thenReturn(new com.bablsoft.accessflow.security.api.InvitationPreview(
+                        "alice@example.com", "Alice", UserRoleType.ANALYST, "Acme", Instant.now()));
+
+        var resp = controller.previewInvitation("raw-token");
+
+        assertThat(resp.email()).isEqualTo("alice@example.com");
+        assertThat(resp.organizationName()).isEqualTo("Acme");
+    }
+
+    @Test
+    void acceptInvitationReturns201AndAudits() {
+        var newUserId = UUID.randomUUID();
+        var orgId = UUID.randomUUID();
+        when(userInvitationService.acceptInvitation(any(), any(), any()))
+                .thenReturn(new com.bablsoft.accessflow.security.api.AcceptedInvitation(newUserId, orgId));
+
+        var resp = controller.acceptInvitation("raw-token",
+                new com.bablsoft.accessflow.security.internal.web.model.AcceptInvitationRequest(
+                        "password1", "Override"),
+                auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(201);
+        verify(auditLogService).record(any(AuditEntry.class));
     }
 
     @Test

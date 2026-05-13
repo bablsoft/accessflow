@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,5 +63,24 @@ class DefaultOrganizationLookupServiceTest {
 
         assertThatThrownBy(service::singleOrganization)
                 .isInstanceOf(SingleOrganizationUnavailableException.class);
+    }
+
+    @Test
+    void findNameByIdReturnsName() {
+        var org = new OrganizationEntity();
+        var id = UUID.randomUUID();
+        org.setId(id);
+        org.setName("Acme");
+        when(organizationRepository.findById(id)).thenReturn(Optional.of(org));
+
+        assertThat(service.findNameById(id)).contains("Acme");
+    }
+
+    @Test
+    void findNameByIdReturnsEmptyWhenMissing() {
+        var id = UUID.randomUUID();
+        when(organizationRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThat(service.findNameById(id)).isEmpty();
     }
 }

@@ -658,6 +658,24 @@ Placing the controller in `api/` (which imports `core.api` and `ai.api` cleanly)
 
 ---
 
+## System SMTP and user invitations
+
+System SMTP lives in `core` (entity `SystemSmtpConfigEntity` under `core/internal/persistence/entity`, service `core.api.SystemSmtpService`). Storage is per-organization (one row, enforced by UNIQUE on `organization_id`) and the password is encrypted with the same `CredentialEncryptionService` used by `notification_channels`. Reads through `SystemSmtpService.resolveSendingConfig` return a transient `SystemSmtpSendingConfig` record with the decrypted password — callers MUST treat it as ephemeral (never log, never persist).
+
+Two consumers depend on it:
+
+1. **`notifications/internal/SystemEmailFallback`** — invoked by `NotificationDispatcher` after the per-channel loop. When the resolved channel list contains zero `EMAIL` rows AND the event has an email template AND `ctx.recipients()` is non-empty, the fallback converts the system SMTP into an `EmailChannelConfig` and routes through `EmailNotificationStrategy.deliverInternal(ctx, config)` — the same code path as per-channel email. A `SystemSmtpDeliveryException` raised by the JavaMail send is caught and logged so the workflow state machine is unaffected.
+
+2. **`security/internal/DefaultUserInvitationService`** — implements the invitation lifecycle (entity `UserInvitationEntity`, repo `UserInvitationRepository`). On invite the service generates a 32-byte SecureRandom token, Base64URL-encodes it for the email, persists only its SHA-256 hex digest in `token_hash`, renders `templates/email/user-invitation.html` via the auto-configured `SpringTemplateEngine`, and dispatches through `SystemSmtpService.sendSystemEmail`. Accept hashes the inbound token, validates status + expiry, calls `UserAdminService.createUser` with the encoded password, and marks the row `ACCEPTED`. Status transitions: `PENDING → ACCEPTED` (terminal), `PENDING → REVOKED` (terminal, admin action), `PENDING → EXPIRED` (terminal; set lazily when a preview/accept request lands after `expires_at`). Resend rotates the token and resets `status` to `PENDING`.
+
+Configuration property: `accessflow.security.invitation.ttl` (ISO-8601 Duration, default `P7D`, env `ACCESSFLOW_SECURITY_INVITATION_TTL`). The accept-URL base is `accessflow.security.invitation.accept-base-url`, defaulting to `ACCESSFLOW_PUBLIC_BASE_URL`.
+
+The setup endpoint (`POST /api/v1/auth/setup`) was extended to auto-login: after `BootstrapService.performSetup` the controller calls `AuthenticationService.login(...)` with the just-supplied plaintext password and returns a `LoginResponse` plus a `refresh_token` cookie, so the SPA can chain straight into `PUT /admin/system-smtp` without a second sign-in.
+
+Audit actions added: `USER_INVITED`, `USER_INVITATION_RESENT`, `USER_INVITATION_REVOKED`, `USER_INVITATION_ACCEPTED`, `SYSTEM_SMTP_UPDATED`, `SYSTEM_SMTP_DELETED`, `SYSTEM_SMTP_TEST_SENT`. Resource types: `system_smtp`, `user_invitation`.
+
+---
+
 ## Realtime / WebSocket
 
 Lives in `realtime/`. Pushes domain events to connected frontend clients over a single WebSocket endpoint at `/ws`, so status changes, review notifications, and execution outcomes appear in the UI within ~1 s without polling. Wire format and event list are defined in [`docs/04-api-spec.md`](04-api-spec.md#websocket-events).

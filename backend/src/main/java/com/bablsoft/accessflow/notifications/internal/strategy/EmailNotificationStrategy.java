@@ -28,7 +28,7 @@ import java.util.Properties;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-class EmailNotificationStrategy implements NotificationChannelStrategy {
+public class EmailNotificationStrategy implements NotificationChannelStrategy {
 
     private final ChannelConfigCodec codec;
     private final SpringTemplateEngine templateEngine;
@@ -46,18 +46,42 @@ class EmailNotificationStrategy implements NotificationChannelStrategy {
                     ctx.eventType(), ctx.queryRequestId());
             return;
         }
+        if (templateName(ctx.eventType()) == null) {
+            log.debug("No email template for event {}; skipping delivery", ctx.eventType());
+            return;
+        }
+        deliverInternal(ctx, codec.decodeEmail(channel.getConfigJson()));
+    }
+
+    /**
+     * Render and send the configured event template using the given SMTP config. Shared by the
+     * per-channel path and the system-SMTP fallback so behaviour is identical regardless of source.
+     */
+    public void deliverInternal(NotificationContext ctx, EmailChannelConfig config) {
+        if (ctx.recipients() == null || ctx.recipients().isEmpty()) {
+            log.debug("Skipping email delivery for {} on query {} — no recipients",
+                    ctx.eventType(), ctx.queryRequestId());
+            return;
+        }
         var template = templateName(ctx.eventType());
         if (template == null) {
             log.debug("No email template for event {}; skipping delivery", ctx.eventType());
             return;
         }
-        var config = codec.decodeEmail(channel.getConfigJson());
         var sender = mailSenderFactory.create(config);
         var subject = subject(ctx);
         var html = renderHtml(template, ctx);
         for (RecipientView recipient : ctx.recipients()) {
             sendOne(sender, config, recipient.email(), subject, html);
         }
+    }
+
+    /**
+     * Returns true if the event type has an email template configured. Used by the
+     * dispatcher to decide whether to attempt a system-SMTP fallback for an event.
+     */
+    public static boolean hasTemplateFor(NotificationEventType eventType) {
+        return templateName(eventType) != null;
     }
 
     @Override
@@ -149,9 +173,9 @@ class EmailNotificationStrategy implements NotificationChannelStrategy {
      * Seam for tests: produces a {@link JavaMailSender} from a per-channel SMTP config.
      */
     @Component
-    static class MailSenderFactory {
+    public static class MailSenderFactory {
 
-        JavaMailSender create(EmailChannelConfig config) {
+        public JavaMailSender create(EmailChannelConfig config) {
             var sender = new JavaMailSenderImpl();
             sender.setHost(config.smtpHost());
             sender.setPort(config.smtpPort());

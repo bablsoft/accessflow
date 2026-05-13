@@ -358,6 +358,7 @@ Two layers exist:
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | Optional | `PT30S` | ISO-8601 duration — delay before the first webhook retry |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | Optional | `PT2M` | ISO-8601 duration — delay before the second webhook retry |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | Optional | `PT10M` | ISO-8601 duration — delay before the third (final) webhook retry |
+| `ACCESSFLOW_SECURITY_INVITATION_TTL` | Optional | `P7D` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations`. Pending invitations past this duration are treated as expired on preview/accept; admins can resend to issue a fresh token. |
 
 #### Observability
 

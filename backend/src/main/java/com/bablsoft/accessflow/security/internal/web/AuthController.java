@@ -12,6 +12,9 @@ import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.LoginCommand;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
+import com.bablsoft.accessflow.security.api.UserInvitationService;
+import com.bablsoft.accessflow.security.internal.web.model.AcceptInvitationRequest;
+import com.bablsoft.accessflow.security.internal.web.model.InvitationPreviewResponse;
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
 import com.bablsoft.accessflow.security.internal.web.model.LoginResponse;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
@@ -31,6 +34,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,6 +60,7 @@ class AuthController {
     private final BootstrapService bootstrapService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshCookieWriter refreshCookieWriter;
+    private final UserInvitationService userInvitationService;
 
     @GetMapping("/setup-status")
     @Operation(summary = "Report whether the deployment still needs first-time admin setup")
@@ -66,13 +71,14 @@ class AuthController {
     }
 
     @PostMapping("/setup")
-    @Operation(summary = "Create the first organization and admin user (first-run only)")
-    @ApiResponse(responseCode = "201", description = "Setup completed")
+    @Operation(summary = "Create the first organization and admin user, then sign in (first-run only)")
+    @ApiResponse(responseCode = "201", description = "Setup completed and user logged in")
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "409", description = "Setup already completed or email already exists")
     @SecurityRequirements
-    ResponseEntity<Void> setup(@Valid @RequestBody SetupRequest request,
-                               RequestAuditContext auditContext) {
+    ResponseEntity<LoginResponse> setup(@Valid @RequestBody SetupRequest request,
+                                        RequestAuditContext auditContext,
+                                        HttpServletResponse response) {
         var passwordHash = passwordEncoder.encode(request.password());
         var result = bootstrapService.performSetup(new SetupCommand(
                 request.organizationName(),
@@ -80,7 +86,54 @@ class AuthController {
                 request.displayName(),
                 passwordHash));
         recordSetupAudit(result.userId(), result.organizationId(), request.email(), auditContext);
+        var login = authenticationService.login(
+                new LoginCommand(request.email(), request.password(), null));
+        setRefreshCookie(response, login.refreshToken(), REFRESH_COOKIE_MAX_AGE);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toLoginResponse(login));
+    }
+
+    @GetMapping("/invitations/{token}")
+    @Operation(summary = "Preview an invitation (public, no auth)")
+    @ApiResponse(responseCode = "200", description = "Invitation preview")
+    @ApiResponse(responseCode = "404", description = "Invitation not found, expired, or revoked")
+    @SecurityRequirements
+    InvitationPreviewResponse previewInvitation(@PathVariable String token) {
+        return InvitationPreviewResponse.from(userInvitationService.previewByToken(token));
+    }
+
+    @PostMapping("/invitations/{token}/accept")
+    @Operation(summary = "Accept an invitation by setting a password (public, no auth)")
+    @ApiResponse(responseCode = "201", description = "User created from the invitation")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "404", description = "Invitation not found, expired, or revoked")
+    @ApiResponse(responseCode = "409", description = "Email already exists")
+    @SecurityRequirements
+    ResponseEntity<Void> acceptInvitation(@PathVariable String token,
+                                          @Valid @RequestBody AcceptInvitationRequest request,
+                                          RequestAuditContext auditContext) {
+        var accepted = userInvitationService.acceptInvitation(token, request.password(),
+                request.displayName());
+        recordInvitationAcceptedAudit(accepted.userId(), accepted.organizationId(), auditContext);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    private void recordInvitationAcceptedAudit(UUID userId, UUID organizationId,
+                                               RequestAuditContext context) {
+        try {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("source", "invitation");
+            auditLogService.record(new AuditEntry(
+                    AuditAction.USER_INVITATION_ACCEPTED,
+                    AuditResourceType.USER,
+                    userId,
+                    organizationId,
+                    userId,
+                    metadata,
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for USER_INVITATION_ACCEPTED on user {}", userId, ex);
+        }
     }
 
     @PostMapping("/login")

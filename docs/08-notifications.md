@@ -54,6 +54,18 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - Direct link to query detail page in the AccessFlow UI
 - Approve / Reject action links for review request emails (link to UI, not direct API calls)
 
+#### System SMTP fallback
+
+Each organization can also configure a single, separate **system SMTP** under `system_smtp_config` (see [docs/03-data-model.md](03-data-model.md#system_smtp_config)). This is the SMTP used for user-invitation emails, and the dispatcher uses it as a **fallback EMAIL channel** when an event would otherwise have no email delivery path.
+
+Precedence at dispatch time (per event):
+
+1. Per-channel email rows (`notification_channels.channel_type = 'EMAIL'`) tied to the triggering review plan (or org-wide for `AI_HIGH_RISK`) are tried first, exactly as before. Each is independent — failures are logged and do not affect siblings.
+2. If the resolved channel set contains **zero** EMAIL rows, the event has an email template, and `ctx.recipients()` is non-empty, the dispatcher converts the org's `system_smtp_config` into an `EmailChannelConfig` and routes through the same `EmailNotificationStrategy.deliverInternal(...)` code path.
+3. If no system SMTP row exists either, no email is sent for that event (Slack/Webhook channels still fire normally).
+
+Operators see a **System SMTP** card at the top of `/admin/notifications`; admins can edit it, send a test message, or remove it. Removing it leaves invitations disabled (the invitation endpoint returns `SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE`) and the fallback path inert.
+
 ---
 
 ### Slack

@@ -33,6 +33,15 @@ services:
     networks:
       - accessflow-dev
 
+  mailcrab:
+    image: marlonb/mailcrab:latest
+    container_name: loanstracker-mailcrab
+    ports:
+      - "1025:1025"  # SMTP
+      - "1080:1080"  # Web UI http://localhost:8025
+    networks:
+      - accessflow-dev
+
 volumes:
   accessflow_dev_postgres_data:
   accessflow_dev_redis_data:

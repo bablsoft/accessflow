@@ -753,3 +753,75 @@ export interface CreateApiKeyResponse {
   api_key: ApiKey;
   raw_key: string;
 }
+
+// System SMTP configuration (per-org global SMTP for invitations + email fallback)
+export interface SystemSmtpConfig {
+  organization_id: string;
+  host: string;
+  port: number;
+  username: string | null;
+  smtp_password: string | null;
+  tls: boolean;
+  from_address: string;
+  from_name: string | null;
+  updated_at: string;
+}
+
+export interface UpdateSystemSmtpInput {
+  host: string;
+  port: number;
+  username?: string | null;
+  smtp_password?: string | null;
+  tls: boolean;
+  from_address: string;
+  from_name?: string | null;
+}
+
+export interface TestSystemSmtpInput {
+  to?: string | null;
+  host?: string | null;
+  port?: number | null;
+  username?: string | null;
+  smtp_password?: string | null;
+  tls?: boolean | null;
+  from_address?: string | null;
+  from_name?: string | null;
+}
+
+// User invitations
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+
+export interface UserInvitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  display_name: string | null;
+  role: Role;
+  status: InvitationStatus;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  invited_by_user_id: string;
+  created_at: string;
+}
+
+export type UserInvitationPage = PageEnvelope<UserInvitation>;
+
+export interface InviteUserInput {
+  email: string;
+  display_name?: string | null;
+  role: Role;
+}
+
+export interface InvitationPreview {
+  email: string;
+  display_name: string | null;
+  role: Role;
+  organization_name: string;
+  expires_at: string;
+}
+
+export interface AcceptInvitationInput {
+  password: string;
+  display_name?: string | null;
+}
