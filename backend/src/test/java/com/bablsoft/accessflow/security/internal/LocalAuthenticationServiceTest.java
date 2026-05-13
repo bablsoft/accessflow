@@ -216,4 +216,35 @@ class LocalAuthenticationServiceTest {
 
         verify(refreshTokenStore, never()).revoke(any());
     }
+
+    @Test
+    void issueForUserMintsPairForActiveUser() {
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(activeUser));
+        when(jwtService.generateAccessToken(activeUser)).thenReturn("a");
+        when(jwtService.generateRefreshToken(activeUser)).thenReturn("r");
+
+        var result = service.issueForUser(userId);
+
+        assertThat(result.accessToken()).isEqualTo("a");
+        assertThat(result.refreshToken()).isEqualTo("r");
+        verify(refreshTokenStore).store(eq("r"), eq(userId.toString()), anyLong());
+    }
+
+    @Test
+    void issueForUserRejectsMissingUser() {
+        when(userQueryService.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.issueForUser(userId))
+                .isInstanceOf(BadCredentialsException.class);
+    }
+
+    @Test
+    void issueForUserRejectsInactiveUser() {
+        var inactive = new UserView(userId, "a@b.com", "A", UserRoleType.ANALYST, orgId,
+                false, AuthProviderType.OAUTH2, null, null, null, false, null);
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(inactive));
+
+        assertThatThrownBy(() -> service.issueForUser(userId))
+                .isInstanceOf(DisabledException.class);
+    }
 }

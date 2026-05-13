@@ -33,6 +33,8 @@ import com.bablsoft.accessflow.core.api.SetupAlreadyCompletedException;
 import com.bablsoft.accessflow.core.api.UnsupportedLanguageException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.security.api.OAuth2ConfigInvalidException;
+import com.bablsoft.accessflow.security.api.OAuth2ConfigNotFoundException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
@@ -452,6 +454,25 @@ class GlobalExceptionHandler {
         pd.setProperty("error", "CUSTOM_DRIVER_INVALID_JAR");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("driverClass", ex.driverClass());
+        return pd;
+    }
+
+    @ExceptionHandler(OAuth2ConfigNotFoundException.class)
+    ProblemDetail handleOAuth2ConfigNotFound(OAuth2ConfigNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.oauth2.config_not_found"));
+        pd.setProperty("error", "OAUTH2_CONFIG_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("provider", ex.provider().name());
+        return pd;
+    }
+
+    @ExceptionHandler(OAuth2ConfigInvalidException.class)
+    ProblemDetail handleOAuth2ConfigInvalid(OAuth2ConfigInvalidException ex) {
+        // Message resolved at throw site via MessageSource.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "OAUTH2_CONFIG_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
 

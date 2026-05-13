@@ -1,5 +1,6 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
-export type AuthProvider = 'LOCAL' | 'SAML';
+export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2';
+export type OAuth2Provider = 'GOOGLE' | 'GITHUB' | 'MICROSOFT' | 'GITLAB';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =
@@ -196,6 +197,34 @@ export interface UpdateSamlConfigInput {
   attr_role?: string | null;
   default_role?: Role;
   active?: boolean;
+}
+
+export interface OAuth2Config {
+  id: string | null;
+  organization_id: string;
+  provider: OAuth2Provider;
+  client_id: string | null;
+  client_secret: string | null;
+  scopes_override: string | null;
+  tenant_id: string | null;
+  default_role: Role;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateOAuth2ConfigInput {
+  client_id?: string | null;
+  client_secret?: string | null;
+  scopes_override?: string | null;
+  tenant_id?: string | null;
+  default_role: Role;
+  active: boolean;
+}
+
+export interface OAuth2ProviderSummary {
+  provider: OAuth2Provider;
+  display_name: string;
 }
 
 export interface Datasource {

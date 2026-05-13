@@ -25,9 +25,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,14 +47,15 @@ import java.util.UUID;
 @Slf4j
 class AuthController {
 
-    private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
-    private static final int REFRESH_COOKIE_MAX_AGE = 7 * 24 * 3600;
+    private static final String REFRESH_TOKEN_COOKIE = RefreshCookieWriter.REFRESH_TOKEN_COOKIE;
+    private static final int REFRESH_COOKIE_MAX_AGE = RefreshCookieWriter.REFRESH_COOKIE_MAX_AGE;
 
     private final AuthenticationService authenticationService;
     private final AuditLogService auditLogService;
     private final UserQueryService userQueryService;
     private final BootstrapService bootstrapService;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshCookieWriter refreshCookieWriter;
 
     @GetMapping("/setup-status")
     @Operation(summary = "Report whether the deployment still needs first-time admin setup")
@@ -139,14 +138,7 @@ class AuthController {
     }
 
     private void setRefreshCookie(HttpServletResponse response, String value, int maxAge) {
-        var cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
-                .maxAge(maxAge)
-                .path("/api/v1/auth")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        refreshCookieWriter.write(response, value, maxAge);
     }
 
     private LoginResponse toLoginResponse(com.bablsoft.accessflow.security.api.AuthResult result) {

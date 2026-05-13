@@ -7,6 +7,8 @@ import type {
   CreateNotificationChannelInput,
   CreateUserInput,
   NotificationChannel,
+  OAuth2Config,
+  OAuth2Provider,
   SamlConfig,
   SetupProgress,
   TestAiConfigResult,
@@ -14,6 +16,7 @@ import type {
   TestNotificationResult,
   UpdateAiConfigInput,
   UpdateNotificationChannelInput,
+  UpdateOAuth2ConfigInput,
   UpdateSamlConfigInput,
   UpdateUserInput,
   User,
@@ -26,6 +29,7 @@ const AUDIT_BASE = '/api/v1/admin/audit-log';
 const CHANNELS_BASE = '/api/v1/admin/notification-channels';
 const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
+const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
 
 export const userKeys = {
@@ -59,6 +63,12 @@ export const aiConfigKeys = {
 export const samlConfigKeys = {
   all: ['samlConfig'] as const,
   current: () => ['samlConfig', 'current'] as const,
+};
+
+export const oauth2ConfigKeys = {
+  all: ['oauth2Config'] as const,
+  list: () => ['oauth2Config', 'list'] as const,
+  detail: (provider: OAuth2Provider) => ['oauth2Config', 'detail', provider] as const,
 };
 
 export const setupProgressKeys = {
@@ -187,6 +197,30 @@ export async function getSamlConfig(): Promise<SamlConfig> {
 export async function updateSamlConfig(input: UpdateSamlConfigInput): Promise<SamlConfig> {
   const { data } = await apiClient.put<SamlConfig>(SAML_CONFIG_BASE, input);
   return data;
+}
+
+// ── OAuth2 config ────────────────────────────────────────────────────────────
+
+export async function listOAuth2Configs(): Promise<OAuth2Config[]> {
+  const { data } = await apiClient.get<OAuth2Config[]>(OAUTH2_CONFIG_BASE);
+  return data;
+}
+
+export async function getOAuth2Config(provider: OAuth2Provider): Promise<OAuth2Config> {
+  const { data } = await apiClient.get<OAuth2Config>(`${OAUTH2_CONFIG_BASE}/${provider}`);
+  return data;
+}
+
+export async function updateOAuth2Config(
+  provider: OAuth2Provider,
+  input: UpdateOAuth2ConfigInput,
+): Promise<OAuth2Config> {
+  const { data } = await apiClient.put<OAuth2Config>(`${OAUTH2_CONFIG_BASE}/${provider}`, input);
+  return data;
+}
+
+export async function deleteOAuth2Config(provider: OAuth2Provider): Promise<void> {
+  await apiClient.delete(`${OAUTH2_CONFIG_BASE}/${provider}`);
 }
 
 // ── Setup progress ───────────────────────────────────────────────────────────

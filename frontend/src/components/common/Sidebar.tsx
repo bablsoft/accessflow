@@ -12,6 +12,7 @@ import {
   IdcardOutlined,
   GlobalOutlined,
   ApiOutlined,
+  LoginOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
@@ -67,6 +68,7 @@ export function Sidebar({
     { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
     { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
     { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
+    { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, roles: ['ADMIN'] },
   ];
 
   const items = NAV.filter((n) => n.roles.includes(user.role));

@@ -5,13 +5,17 @@ import {
   EyeOutlined,
   EyeInvisibleOutlined,
   SafetyCertificateOutlined,
+  LoginOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
+import { listOAuth2Providers, oauth2ProvidersKeys } from '@/api/auth';
+import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
   setupSuccess?: boolean;
@@ -94,6 +98,18 @@ export function LoginPage() {
   const samlLogin = () => {
     // SAML SSO is wired in a follow-up; FE-01 covers /auth/* local auth only.
     setError({ message: t('auth.login.saml_not_configured') });
+  };
+
+  const oauth2ProvidersQuery = useQuery({
+    queryKey: oauth2ProvidersKeys.all,
+    queryFn: listOAuth2Providers,
+    // Public endpoint — keep it short-lived so newly-enabled providers show up.
+    staleTime: 30_000,
+  });
+
+  const startOAuth2 = (provider: OAuth2Provider) => {
+    const base = import.meta.env.VITE_API_BASE_URL ?? '';
+    window.location.assign(`${base}/api/v1/auth/oauth2/authorize/${provider.toLowerCase()}`);
   };
 
   return (
@@ -191,11 +207,23 @@ export function LoginPage() {
                 size="large"
                 block
                 onClick={samlLogin}
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: 12 }}
                 icon={<SafetyCertificateOutlined />}
               >
                 {t('auth.login.saml_button')}
               </Button>
+              {(oauth2ProvidersQuery.data ?? []).map((p) => (
+                <Button
+                  key={p.provider}
+                  size="large"
+                  block
+                  onClick={() => startOAuth2(p.provider)}
+                  style={{ marginBottom: 12 }}
+                  icon={<LoginOutlined />}
+                >
+                  {t('auth.login.oauth_button', { provider: p.display_name })}
+                </Button>
+              ))}
               <div
                 style={{
                   display: 'flex',

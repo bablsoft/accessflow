@@ -426,9 +426,30 @@ VITE_WS_URL=ws://localhost:8080/ws
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
 /admin/saml                         → SamlConfigPage
+/admin/oauth2                       → OAuth2ConfigPage (lazy)
+/auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
-All routes except `/login` and `/auth/saml/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+All routes except `/login`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+
+### OAuth 2.0 sign-in
+
+`LoginPage` renders one "Continue with &lt;Provider&gt;" button per active row returned by
+`GET /api/v1/auth/oauth2/providers` (a public endpoint, queried via TanStack Query with a
+short 30 s `staleTime`). Click → `window.location.assign(${API_BASE_URL}/api/v1/auth/oauth2/authorize/<provider>)`
+so Spring Security can take over the redirect dance.
+
+`OAuthCallbackPage` parses `?code=...` or `?error=...` from the URL, calls
+`exchangeOAuth2Code(code)` to swap the one-time code for a `LoginPayload`, hands it to
+`useAuthStore.setSession`, and navigates to `/editor`. On `?error=...` it shows a localised
+message (keys under `auth.oauth_callback.error.*`) plus a "Back to sign in" button.
+
+`OAuth2ConfigPage` (`/admin/oauth2`) is admin-only. It renders one Ant `Tabs` per supported
+provider (Google, GitHub, Microsoft, GitLab). Each tab is a `Form` with `client_id`,
+`client_secret` (masked passthrough — leave `********` to keep the existing secret),
+`scopes_override`, `tenant_id` (Microsoft only), `default_role`, and an `active` toggle.
+Saving invalidates `oauth2ConfigKeys.all`. Deleting clears the row and the cache so the
+button disappears from `/login` after the page is refreshed.
 
 ### Profile page and 2FA
 

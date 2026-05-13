@@ -39,6 +39,7 @@
     "ai_configs": "AI configurations",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
+    "oauth2": "OAuth providers",
     "languages": "Languages",
     "custom_drivers": "Custom JDBC drivers",
     "profile": "Profile settings"
@@ -57,8 +58,24 @@
       "submitting": "Signing in…",
       "saml_button": "Continue with SAML SSO",
       "saml_not_configured": "SAML SSO is not configured yet. Please sign in with email and password.",
+      "oauth_button": "Continue with {{provider}}",
       "or_divider": "OR",
       "setup_success_banner": "Admin created. Sign in to continue."
+    },
+    "oauth_callback": {
+      "exchanging": "Signing you in…",
+      "error_title": "Single sign-on did not complete",
+      "back_to_login": "Back to sign in",
+      "error": {
+        "oauth2_login_failed": "We could not complete the sign-in with your provider. Please try again.",
+        "oauth2_email_missing": "Your provider did not return an email address. Ask your administrator to grant the email scope.",
+        "oauth2_email_unverified": "Your email address is not verified with the provider. Verify it and try again.",
+        "oauth2_local_email_conflict": "An AccessFlow account with this email already uses a password. Ask an administrator to switch the account to single sign-on before retrying.",
+        "oauth2_unexpected_auth": "Single sign-on returned an unexpected authentication state.",
+        "oauth2_unknown_provider": "Single sign-on returned an unknown provider.",
+        "account_disabled": "Your AccessFlow account is currently disabled.",
+        "generic": "Single sign-on failed. Please try again."
+      }
     },
     "setup": {
       "title": "Create the first admin",
@@ -90,7 +107,14 @@
     "new_password_required": "New password is required.",
     "new_password_size": "Password must be 8–128 characters.",
     "totp_code_required": "Verification code is required.",
-    "totp_code_pattern": "Enter the 6-digit code from your authenticator."
+    "totp_code_pattern": "Enter the 6-digit code from your authenticator.",
+    "oauth2": {
+      "client_id_max": "Client ID must be at most 512 characters.",
+      "client_secret_max": "Client secret must be at most 2048 characters.",
+      "scopes_max": "Scopes override must be at most 1024 characters.",
+      "tenant_id_max": "Tenant ID must be at most 255 characters.",
+      "default_role_required": "Default role is required."
+    }
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -625,6 +649,25 @@
       "update_success": "Channel updated",
       "test_success": "Test notification dispatched",
       "test_email_label": "Override recipient (EMAIL only)"
+    },
+    "oauth2": {
+      "title": "OAuth providers",
+      "subtitle": "Configure one or more OAuth 2.0 / OIDC providers so users can sign in with their existing accounts.",
+      "label_client_id": "Client ID",
+      "label_client_secret": "Client secret",
+      "label_client_secret_help": "Leave the masked value untouched to keep the existing secret. Clear it to remove the secret.",
+      "label_scopes": "Scopes override",
+      "label_scopes_help": "Space-separated. Leave empty to use the provider defaults.",
+      "label_tenant_id": "Tenant ID",
+      "label_tenant_id_help": "Use \"common\" for any Microsoft account, \"organizations\" for any work/school account, or a specific tenant GUID.",
+      "label_default_role": "Default role for new users",
+      "label_active": "Active",
+      "save_button": "Save",
+      "save_success": "OAuth configuration saved",
+      "delete_button": "Remove",
+      "delete_confirm": "Remove this provider configuration? Users currently signed in stay signed in.",
+      "delete_success": "OAuth configuration removed",
+      "load_error": "Failed to load OAuth configuration"
     },
     "saml": {
       "title": "SAML / SSO",

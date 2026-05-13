@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.config;
 
+import com.bablsoft.accessflow.security.internal.oauth2.OAuth2RedirectProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,7 +10,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 @Configuration
-@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, OAuth2RedirectProperties.class})
 class SecurityPropertiesConfiguration {
 
     @Bean

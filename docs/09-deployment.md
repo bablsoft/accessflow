@@ -296,6 +296,8 @@ kubectl create secret generic accessflow-ai-key \
 | `SAML_SP_ENTITY_ID` | Optional | — | Service Provider entity ID |
 | `SAML_KEYSTORE_PATH` | Optional | — | Path to SAML keystore JKS |
 | `SAML_KEYSTORE_PASSWORD` | Optional | — | SAML keystore password |
+| `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Optional | `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback` | Where the OAuth2 success/failure handler redirects after the provider roundtrip. The frontend `OAuthCallbackPage` parses `?code=` or `?error=` from the query string. |
+| `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time exchange code in Redis. Codes are single-use; keep short. |
 | `SERVER_PORT` | Optional | `8080` | Backend HTTP port |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See `docs/05-backend.md` → *Observability and tracing*. |
 

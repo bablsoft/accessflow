@@ -18,6 +18,8 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class LocalAuthenticationService implements AuthenticationService {
@@ -80,6 +82,16 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (refreshToken != null) {
             refreshTokenStore.revoke(refreshToken);
         }
+    }
+
+    @Override
+    public AuthResult issueForUser(UUID userId) {
+        var user = userQueryService.findById(userId)
+                .orElseThrow(() -> new BadCredentialsException("User not found"));
+        if (!user.active()) {
+            throw new DisabledException("Account is disabled");
+        }
+        return issueTokenPair(user);
     }
 
     private AuthResult issueTokenPair(UserView user) {

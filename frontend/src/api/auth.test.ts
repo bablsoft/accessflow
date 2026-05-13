@@ -1,9 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+const { post, get } = vi.hoisted(() => ({ post: vi.fn(), get: vi.fn() }));
 
 vi.mock('./client', () => ({
-  apiClient: { post },
+  apiClient: { post, get },
 }));
 
 import * as authApi from './auth';
@@ -19,6 +19,7 @@ const userPayload = {
 describe('api/auth', () => {
   beforeEach(() => {
     post.mockReset();
+    get.mockReset();
   });
 
   it('login posts credentials and unwraps the response', async () => {
@@ -43,5 +44,26 @@ describe('api/auth', () => {
     post.mockResolvedValueOnce({ data: undefined });
     await authApi.logout();
     expect(post).toHaveBeenCalledWith('/api/v1/auth/logout');
+  });
+
+  it('listOAuth2Providers GETs the public providers endpoint', async () => {
+    const summary = [{ provider: 'GOOGLE' as const, display_name: 'Google' }];
+    get.mockResolvedValueOnce({ data: summary });
+    const result = await authApi.listOAuth2Providers();
+    expect(get).toHaveBeenCalledWith('/api/v1/auth/oauth2/providers');
+    expect(result).toEqual(summary);
+  });
+
+  it('exchangeOAuth2Code POSTs the code and unwraps the response', async () => {
+    post.mockResolvedValueOnce({
+      data: { access_token: 't', token_type: 'Bearer', expires_in: 900, user: userPayload },
+    });
+    const result = await authApi.exchangeOAuth2Code('CODE_XYZ');
+    expect(post).toHaveBeenCalledWith('/api/v1/auth/oauth2/exchange', { code: 'CODE_XYZ' });
+    expect(result.access_token).toBe('t');
+  });
+
+  it('oauth2ProvidersKeys factory is stable', () => {
+    expect(authApi.oauth2ProvidersKeys.all).toEqual(['oauth2Providers']);
   });
 });

@@ -215,6 +215,8 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
 | `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Micrometer Tracing sampling probability (default `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. |
+| `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Where the OAuth2 success / failure handler redirects after the provider roundtrip. Defaults to `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback`. The frontend `OAuthCallbackPage` parses `?code=` (success) or `?error=` (failure) from the query string. |
+| `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | ISO-8601 duration. TTL of the one-time exchange code in Redis (default `PT1M`). Codes are single-use; keep short. |
 
 ---
 
