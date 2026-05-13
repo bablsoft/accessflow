@@ -19,8 +19,16 @@ const isAuthBypass = (url: string | undefined): boolean =>
 const isRefreshUrl = (url: string | undefined): boolean =>
   !!url && url.endsWith('/api/v1/auth/refresh');
 
+/**
+ * Resolved API base URL — same fallback the axios client uses. Anything that needs to navigate
+ * the browser to a backend route (OAuth2 authorize, redirect URI display) must use this so
+ * dev-mode (no VITE_API_BASE_URL set) doesn't silently route to the Vite dev server.
+ */
+export const apiBaseUrl = (): string =>
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080';
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080',
+  baseURL: apiBaseUrl(),
   withCredentials: true,
 });
 

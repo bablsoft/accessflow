@@ -11,6 +11,7 @@ import {
   oauth2ConfigKeys,
   updateOAuth2Config,
 } from '@/api/admin';
+import { apiBaseUrl } from '@/api/client';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type { OAuth2Config, OAuth2Provider, Role, UpdateOAuth2ConfigInput } from '@/types/api';
@@ -32,10 +33,10 @@ const PROVIDER_CONSOLE_URLS: Record<OAuth2Provider, string> = {
 };
 
 function callbackUrlFor(provider: OAuth2Provider): string {
-  const base =
-    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-    (typeof window !== 'undefined' ? window.location.origin : '');
-  return `${base.replace(/\/+$/, '')}/api/v1/auth/oauth2/callback/${provider.toLowerCase()}`;
+  // The provider redirects to the BACKEND, not the frontend — so we always use the
+  // API base URL here, not window.location.origin. Wrong host → silent fall-through to
+  // the SPA, which is the exact bug that produced "click → page refresh → /auth/refresh 401".
+  return `${apiBaseUrl().replace(/\/+$/, '')}/api/v1/auth/oauth2/callback/${provider.toLowerCase()}`;
 }
 
 export function OAuth2ConfigPage() {

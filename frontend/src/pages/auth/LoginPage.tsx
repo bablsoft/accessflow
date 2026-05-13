@@ -20,6 +20,7 @@ import {
   oauth2ProvidersKeys,
   samlEnabledKeys,
 } from '@/api/auth';
+import { apiBaseUrl } from '@/api/client';
 import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
@@ -119,7 +120,7 @@ export function LoginPage() {
   });
 
   const startOAuth2 = (provider: OAuth2Provider) => {
-    const base = import.meta.env.VITE_API_BASE_URL ?? '';
+    const base = apiBaseUrl().replace(/\/+$/, '');
     window.location.assign(`${base}/api/v1/auth/oauth2/authorize/${provider.toLowerCase()}`);
   };
 
