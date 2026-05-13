@@ -14,7 +14,7 @@ accessflow/
 ├── accessflow-notifications/     # Email (JavaMail), Slack API, Webhook dispatcher
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
-├── accessflow-mcp/               # User API keys + Spring AI stateless MCP server (tool callbacks)
+├── accessflow-mcp/               # Spring AI stateless MCP server — @Tool callbacks for AI agents
 └── accessflow-app/               # Spring Boot main application, Docker entrypoint
 ```
 
@@ -716,22 +716,41 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 
 ---
 
-## MCP server and user API keys
+## User API keys (security module)
 
-The **`mcp/` module** hosts two coupled features:
+User-managed API keys live alongside the rest of authentication in the **`security/` module**:
 
-1. **API key issuance + auth** — `api_keys` table (see `docs/03-data-model.md`), `ApiKeyService`
-   (issue / list / revoke / resolveUserId), `ApiKeyAuthenticationFilter` registered into the main
-   Spring Security chain (by bean-name qualifier to keep Spring Modulith happy — the security
-   module never type-depends on `mcp.internal`). Both `X-API-Key: af_…` and
-   `Authorization: ApiKey af_…` are accepted; on success the filter populates the same
-   `JwtAuthenticationToken`-shaped principal the JWT path produces, so every downstream
-   controller and MCP tool is auth-agnostic.
-2. **Spring AI stateless MCP server** — pulled in via `spring-ai-starter-mcp-server-webmvc`
-   (`spring.ai.mcp.server.protocol=STATELESS`, endpoint defaults to `/mcp`). Tool callbacks are
-   `@Tool`-annotated methods on `McpToolService` (query / datasource tools) and
-   `McpReviewToolService` (reviewer-only, gated with `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`).
-   `McpServerConfiguration` exposes them as a single `MethodToolCallbackProvider`.
+- **Persistence.** `api_keys` table (see `docs/03-data-model.md`),
+  `security.internal.persistence.entity.ApiKeyEntity` + `repo.ApiKeyRepository`.
+- **Service.** `security.api.ApiKeyService` (public — also consumed by the MCP tools' filter
+  pipeline) with `DefaultApiKeyService` under `security.internal.apikey`. Issue / list / revoke
+  / resolveUserId. Plaintext is shown once on creation and stored as SHA-256 only.
+- **Hashing.** `security.internal.apikey.ApiKeyHasher` — `af_<32-byte base64url>` format,
+  SHA-256 hex hash, 12-char display prefix.
+- **Auth filter.** `security.internal.filter.ApiKeyAuthenticationFilter`, registered into the
+  main Spring Security chain before `JwtAuthenticationFilter` in `SecurityConfiguration`. Reads
+  `X-API-Key` or `Authorization: ApiKey …`, resolves to `JwtClaims`, populates an
+  `ApiKeyAuthenticationToken` — same shape as the JWT path so downstream code is auth-agnostic.
+- **Web.** `security.internal.web.ApiKeysController` exposes `/api/v1/me/api-keys` CRUD;
+  `ApiKeysExceptionHandler` maps `ApiKeyDuplicateNameException` / `ApiKeyNotFoundException` to
+  RFC 9457 `ProblemDetail`.
+
+The full REST contract is in `docs/04-api-spec.md` → "API Keys".
+
+## MCP server (mcp module)
+
+The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`
+(for `JwtClaims` and `ApiKeyService` — though only the filter actually calls the latter) and on
+`core.api` / `workflow.api` for the underlying services the tools delegate to.
+
+- **Starter.** `spring-ai-starter-mcp-server-webmvc` with `spring.ai.mcp.server.protocol=STATELESS`,
+  endpoint defaults to `/mcp`.
+- **Tool services.** `@Tool`-annotated methods on `McpToolService` (query / datasource tools)
+  and `McpReviewToolService` (reviewer-only, gated with
+  `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`). `McpCurrentUser` resolves the calling
+  principal from the SecurityContext.
+- **Wiring.** `McpServerConfiguration` exposes both services as a single
+  `MethodToolCallbackProvider` bean — the starter's auto-configuration picks it up.
 
 ### Exposed MCP tools
 
@@ -746,17 +765,6 @@ The **`mcp/` module** hosts two coupled features:
 | `cancel_query` | `QueryLifecycleService.cancel` | Submitter-only (enforced in service). |
 | `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize` reviewer/admin. |
 | `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. |
-
-### Why the filter lives in `mcp` and not `security`
-
-Spring Modulith forbids cyclic module dependencies. `workflow` already depends on `security.api`
-(for `JwtClaims` in controllers), and `mcp` depends on `workflow.api` (for `ReviewService` and
-the submission service). If `security` also depended on `mcp.internal` directly, we'd get
-`security → mcp → workflow → security`. The fix is to keep the API key filter inside `mcp` and
-inject it into `SecurityConfiguration` as an `OncePerRequestFilter` bean qualified by name
-(`@Qualifier("apiKeyAuthenticationFilter")`). Lombok's `lombok.copyableAnnotations += Qualifier`
-config propagates the qualifier from field to constructor parameter so `@RequiredArgsConstructor`
-keeps working. `ApplicationModulesTest` enforces the boundary.
 
 ### Configuration
 

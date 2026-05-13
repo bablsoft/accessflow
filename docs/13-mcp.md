@@ -14,7 +14,8 @@ This document covers:
 4. Limits, errors, and audit behaviour.
 
 For the wire-level REST spec see [04-api-spec.md → API Keys](04-api-spec.md#api-keys-meapi-keys).
-For Spring-side architecture see [05-backend.md → MCP server and user API keys](05-backend.md#mcp-server-and-user-api-keys).
+For Spring-side architecture see [05-backend.md → User API keys (security module)](05-backend.md#user-api-keys-security-module)
+and [05-backend.md → MCP server (mcp module)](05-backend.md#mcp-server-mcp-module).
 
 ---
 

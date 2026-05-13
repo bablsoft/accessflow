@@ -84,7 +84,7 @@ com.bablsoft.accessflow/
 ├── audit/          # Audit log service, ApplicationEvent consumers
 │   ├── api/
 │   └── internal/
-└── mcp/            # User API keys + Spring AI stateless MCP server (tool callbacks)
+└── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
 ```

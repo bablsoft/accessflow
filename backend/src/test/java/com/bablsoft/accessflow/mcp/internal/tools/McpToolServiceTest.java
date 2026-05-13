@@ -15,7 +15,6 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserRoleType;
-import com.bablsoft.accessflow.mcp.internal.auth.ApiKeyAuthenticationToken;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
@@ -27,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
@@ -201,8 +201,10 @@ class McpToolServiceTest {
     }
 
     private void authenticateAs(UserRoleType role) {
-        SecurityContextHolder.getContext().setAuthentication(new ApiKeyAuthenticationToken(
-                new JwtClaims(userId, "user@example.com", role, orgId)));
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
+                new JwtClaims(userId, "user@example.com", role, orgId),
+                null,
+                "ROLE_" + role.name()));
     }
 
     private DatasourceView newDatasourceView() {

@@ -1,8 +1,7 @@
 package com.bablsoft.accessflow.security.internal.config;
 
+import com.bablsoft.accessflow.security.internal.filter.ApiKeyAuthenticationFilter;
 import com.bablsoft.accessflow.security.internal.filter.JwtAuthenticationFilter;
-import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.beans.factory.annotation.Qualifier;
 import com.bablsoft.accessflow.security.internal.oauth2.DynamicClientRegistrationRepository;
 import com.bablsoft.accessflow.security.internal.oauth2.OAuth2LoginFailureHandler;
 import com.bablsoft.accessflow.security.internal.oauth2.OAuth2LoginSuccessHandler;
@@ -33,15 +32,7 @@ import java.util.List;
 class SecurityConfiguration {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    /**
-     * Resolved by bean name from the {@code mcp} module — kept as the Spring-provided
-     * {@link OncePerRequestFilter} interface so the security module does not type-depend on
-     * {@code mcp.internal} and Spring Modulith sees no cross-module reference.
-     */
-    @Qualifier("apiKeyAuthenticationFilter")
-    private final OncePerRequestFilter apiKeyAuthenticationFilter;
-
+    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final SecurityExceptionHandler securityExceptionHandler;
     private final CorsProperties corsProperties;
 

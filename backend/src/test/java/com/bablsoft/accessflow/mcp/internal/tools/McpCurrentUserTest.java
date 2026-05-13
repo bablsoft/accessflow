@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
 import com.bablsoft.accessflow.core.api.UserRoleType;
-import com.bablsoft.accessflow.mcp.internal.auth.ApiKeyAuthenticationToken;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +41,7 @@ class McpCurrentUserTest {
     void exposes_userId_orgId_role_isAdmin() {
         var userId = UUID.randomUUID();
         var orgId = UUID.randomUUID();
-        SecurityContextHolder.getContext().setAuthentication(new ApiKeyAuthenticationToken(
+        SecurityContextHolder.getContext().setAuthentication(authentication(
                 new JwtClaims(userId, "u@e.c", UserRoleType.ADMIN, orgId)));
 
         assertThat(currentUser.userId()).isEqualTo(userId);
@@ -53,8 +52,12 @@ class McpCurrentUserTest {
 
     @Test
     void isAdmin_false_for_other_roles() {
-        SecurityContextHolder.getContext().setAuthentication(new ApiKeyAuthenticationToken(
+        SecurityContextHolder.getContext().setAuthentication(authentication(
                 new JwtClaims(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID())));
         assertThat(currentUser.isAdmin()).isFalse();
+    }
+
+    private static TestingAuthenticationToken authentication(JwtClaims claims) {
+        return new TestingAuthenticationToken(claims, null, "ROLE_" + claims.role().name());
     }
 }

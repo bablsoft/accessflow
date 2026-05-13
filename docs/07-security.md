@@ -112,7 +112,8 @@ server and other programmatic clients without a browser session. The flow:
 - **Lifecycle.** Per-user CRUD endpoints live at `/api/v1/me/api-keys` (see
   `docs/04-api-spec.md`). Revocation sets `revoked_at = now()` and is idempotent; revoked or
   expired keys never authenticate.
-- **Filter placement.** `ApiKeyAuthenticationFilter` (in the `mcp` module) runs before
+- **Filter placement.** `ApiKeyAuthenticationFilter` (in the `security` module, sibling to
+  `JwtAuthenticationFilter`) runs before
   `JwtAuthenticationFilter` in the main security chain. If no API key header is present, the
   JWT filter still gets a chance. Both filters end up populating a `JwtAuthenticationToken`
   with the same `JwtClaims` shape, so downstream controllers and MCP tools are auth-agnostic.
