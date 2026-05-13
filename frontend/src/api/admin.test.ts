@@ -222,6 +222,49 @@ describe('api/admin', () => {
     expect(put).toHaveBeenCalledWith('/api/v1/admin/saml-config', { active: true });
   });
 
+  // ── OAuth2 config ─────────────────────────────────────────────────────────
+  it('listOAuth2Configs GETs /admin/oauth2-config', async () => {
+    get.mockResolvedValueOnce({ data: [] });
+    await adminApi.listOAuth2Configs();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/oauth2-config');
+  });
+
+  it('getOAuth2Config GETs /admin/oauth2-config/{provider}', async () => {
+    get.mockResolvedValueOnce({ data: { provider: 'GOOGLE' } });
+    await adminApi.getOAuth2Config('GOOGLE');
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/oauth2-config/GOOGLE');
+  });
+
+  it('updateOAuth2Config PUTs the body to the provider path', async () => {
+    put.mockResolvedValueOnce({ data: { provider: 'GITHUB' } });
+    await adminApi.updateOAuth2Config('GITHUB', {
+      client_id: 'c',
+      client_secret: 's',
+      default_role: 'ANALYST',
+      active: true,
+    });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/oauth2-config/GITHUB', {
+      client_id: 'c',
+      client_secret: 's',
+      default_role: 'ANALYST',
+      active: true,
+    });
+  });
+
+  it('deleteOAuth2Config DELETEs the provider path', async () => {
+    del.mockResolvedValueOnce({ data: undefined });
+    await adminApi.deleteOAuth2Config('GITLAB');
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/oauth2-config/GITLAB');
+  });
+
+  it('oauth2ConfigKeys produce stable factory output', () => {
+    expect(adminApi.oauth2ConfigKeys.all).toEqual(['oauth2Config']);
+    expect(adminApi.oauth2ConfigKeys.list()).toEqual(['oauth2Config', 'list']);
+    expect(adminApi.oauth2ConfigKeys.detail('MICROSOFT')).toEqual([
+      'oauth2Config', 'detail', 'MICROSOFT',
+    ]);
+  });
+
   // ── Key factories ────────────────────────────────────────────────────────
   it('userKeys produce stable factory output', () => {
     expect(adminApi.userKeys.all).toEqual(['users']);

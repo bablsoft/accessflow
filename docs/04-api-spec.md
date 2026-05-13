@@ -30,6 +30,11 @@
 | `POST` | `/auth/logout` | Revoke current refresh token |
 | `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
 | `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
+| `GET` | `/auth/saml/enabled` | Public — `{ "enabled": boolean }` so the login page can hide the SAML button until an admin activates it |
+| `GET` | `/auth/oauth2/providers` | Public — list enabled OAuth2 providers for the deployment |
+| `GET` | `/auth/oauth2/authorize/{provider}` | Redirects the browser to the provider's authorization endpoint (handled by Spring Security) |
+| `GET` | `/auth/oauth2/callback/{provider}` | Provider redirect target; runs the success handler and redirects to the frontend callback URL |
+| `POST` | `/auth/oauth2/exchange` | Trade the one-time code emitted by the success handler for a JWT pair + refresh cookie |
 
 ### POST /auth/login
 
@@ -1443,6 +1448,110 @@ Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs)
 
 **Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
 **Response 400:** Validation error.
+
+### GET /auth/oauth2/providers
+
+Public — returns the list of OAuth2 providers an admin has enabled for this deployment. The login page calls this on mount to decide which "Continue with …" buttons to render. No secrets, no authentication required.
+
+**Response 200:**
+```json
+[
+  { "provider": "GOOGLE", "display_name": "Google" },
+  { "provider": "GITHUB", "display_name": "GitHub" }
+]
+```
+
+### GET /auth/oauth2/authorize/{provider}
+
+Handled by Spring Security's `OAuth2AuthorizationRequestRedirectFilter`. The browser is redirected to the provider's authorization endpoint with the configured `client_id`, scopes, and redirect URI. `{provider}` is one of `google`, `github`, `microsoft`, `gitlab` (lowercase).
+
+**Response 302:** Redirect to the provider's authorization endpoint.
+
+### GET /auth/oauth2/callback/{provider}
+
+Provider redirect target. Spring Security exchanges the authorization code for tokens, then invokes the success / failure handler. On success the user is redirected to `${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL}?code=<one-time-exchange-code>`; on failure to the same URL with `?error=<code>`.
+
+Possible error codes:
+
+| Code | Cause |
+|---|---|
+| `OAUTH2_LOGIN_FAILED` | Generic Spring Security OAuth2 failure (state mismatch, token error, etc.) |
+| `OAUTH2_EMAIL_MISSING` | Provider returned no email claim |
+| `OAUTH2_EMAIL_UNVERIFIED` | Provider says the email is not verified |
+| `OAUTH2_LOCAL_EMAIL_CONFLICT` | An existing AccessFlow account with the same email uses local password auth — admin must intervene |
+| `OAUTH2_UNKNOWN_PROVIDER` | The `{provider}` segment did not match a known registration id |
+| `ACCOUNT_DISABLED` | The matched user is inactive |
+
+### POST /auth/oauth2/exchange
+
+Trade the one-time `code` emitted by the success handler for an access token + refresh cookie. Codes are single-use and short-lived (default 60s in Redis). Public — no JWT required.
+
+**Request:**
+```json
+{ "code": "rAnD0m-BaSe64-UrL" }
+```
+
+**Response 200:** identical shape to `POST /auth/login` (access token, token type, expires-in, user summary). Sets the same `refresh_token` HttpOnly cookie.
+
+**Errors:**
+
+| Code | Status | Cause |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | `code` is missing or empty |
+| `UNAUTHORIZED` | 401 | Code is invalid, expired, or already consumed |
+
+### GET /admin/oauth2-config
+
+Returns one entry per supported OAuth2 provider (always four rows). Rows the admin has not yet configured are returned with `id: null`, `client_id: null`, and `active: false` so the UI can render an empty form. The `client_secret` field is `"********"` when a secret is stored, `null` otherwise.
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid-or-null",
+    "organization_id": "uuid",
+    "provider": "GOOGLE",
+    "client_id": "1234.apps.googleusercontent.com",
+    "client_secret": "********",
+    "scopes_override": null,
+    "tenant_id": null,
+    "default_role": "ANALYST",
+    "active": true,
+    "created_at": "2026-05-06T10:00:00Z",
+    "updated_at": "2026-05-06T10:00:00Z"
+  }
+]
+```
+
+### GET /admin/oauth2-config/{provider}
+
+Single-provider variant of the list. `{provider}` is one of `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`.
+
+### PUT /admin/oauth2-config/{provider}
+
+Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext; sending an empty string clears it (and forces `active=false`); any other value is encrypted with `ENCRYPTION_KEY` before persistence.
+
+**Request body:**
+```json
+{
+  "client_id": "1234.apps.googleusercontent.com",
+  "client_secret": "the-new-secret-or-********",
+  "scopes_override": "openid email profile",
+  "tenant_id": null,
+  "default_role": "ANALYST",
+  "active": true
+}
+```
+
+Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`).
+
+**Response 200:** Updated configuration (same shape as GET, `client_secret` replaced with `"********"` if set).
+**Response 400:** Validation error.
+**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, or without a `tenant_id` for Microsoft.
+
+### DELETE /admin/oauth2-config/{provider}
+
+Removes the configuration row for a provider and evicts the cached `ClientRegistration` so subsequent authorize requests return 404. **Response 204.**
 
 ### GET /admin/setup-progress
 

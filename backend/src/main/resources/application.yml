@@ -111,6 +111,12 @@ accessflow:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.
     hmac-key: ${AUDIT_HMAC_KEY:}
+  oauth2:
+    # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
+    # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.
+    frontend-callback-url: ${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL:${accessflow.cors.allowed-origin}/auth/oauth/callback}
+    # One-time exchange code lifetime in Redis. Keep short — codes are single-use anyway.
+    exchange-code-ttl: ${ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL:PT1M}
 
 springdoc:
   api-docs:

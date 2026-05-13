@@ -1,0 +1,1 @@
+ALTER TYPE auth_provider_type ADD VALUE IF NOT EXISTS 'OAUTH2';

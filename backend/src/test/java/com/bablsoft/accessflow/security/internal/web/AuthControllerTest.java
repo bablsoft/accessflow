@@ -57,7 +57,7 @@ class AuthControllerTest {
         bootstrapService = mock(BootstrapService.class);
         passwordEncoder = mock(PasswordEncoder.class);
         controller = new AuthController(authenticationService, auditLogService, userQueryService,
-                bootstrapService, passwordEncoder);
+                bootstrapService, passwordEncoder, new RefreshCookieWriter());
     }
 
     @Test

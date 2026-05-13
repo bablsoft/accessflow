@@ -46,6 +46,52 @@ All JWT mechanisms remain in place. Additionally:
   4. Issue standard JWT pair — same token format as for local logins
 - SAML session lifetime respected: when IdP sends `SessionNotOnOrAfter`, refresh tokens beyond that time are rejected
 
+### OAuth 2.0 / OIDC SSO
+
+All JWT mechanisms remain in place. Configuration is **fully DB-driven** (`oauth2_config`
+table, one row per `(organization_id, provider)`); there are no `spring.security.oauth2.client.*`
+properties. Four providers ship with built-in templates: `GOOGLE`, `GITHUB`, `MICROSOFT`,
+`GITLAB`. The admin enters only `client_id`, `client_secret`, optional `scopes_override`, and
+(for Microsoft) `tenant_id`. Authorization / token / userinfo URLs come from
+`OAuth2ProviderTemplate` and are never user-editable, so a misconfigured row cannot redirect
+the browser to a hostile authorization server.
+
+**Account-linking model — verified email + safe rejection.** The success handler:
+
+1. Pulls `email` (and `email_verified` when the provider supplies it) from the userinfo
+   payload. For GitHub it falls back to `GET /user/emails` with the access token and picks
+   the row where `primary=true AND verified=true`.
+2. Rejects sign-in with `OAUTH2_EMAIL_UNVERIFIED` when the provider says the email is not
+   verified. Google / Microsoft / GitLab include `email_verified`; GitHub uses the
+   `/user/emails` filter described above. We never trust an unverified email.
+3. Looks up the matching user by email. If they already exist with
+   `auth_provider=OAUTH2` (or `auth_provider=LOCAL` **without** a password hash, i.e.
+   admin-created shell account), the existing row is reused.
+4. Rejects with `OAUTH2_LOCAL_EMAIL_CONFLICT` when an existing user has
+   `auth_provider=LOCAL` **and** a populated `password_hash`. The admin must manually
+   convert the account before the user can sign in via OAuth — auto-linking would let
+   anyone who controls a provider account with the same email take over a local account.
+5. JIT-provisions a new user otherwise, with `auth_provider=OAUTH2` and `role =
+   oauth2_config.default_role` (per-provider).
+
+**Redirect handshake.** Spring Security's `oauth2Login()` handles the browser redirect to
+the provider and the code-for-token exchange. The custom success handler then issues a
+one-time exchange code via `OAuth2ExchangeCodeStore` (Redis, 60 s default TTL) and redirects
+the browser to `${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL}?code=…`. The frontend posts the
+code to `/api/v1/auth/oauth2/exchange`, which consumes it (single-use) and returns the same
+JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL itself.
+
+**Secret storage.** `oauth2_config.client_secret_encrypted` is AES-256-GCM ciphertext via
+the existing `CredentialEncryptionService`. The entity field is `@JsonIgnore` and the admin
+API returns `"********"` whenever a secret is stored — the plaintext never leaves
+`DynamicClientRegistrationRepository.build`.
+
+**Dynamic config refresh.** `DynamicClientRegistrationRepository` caches
+`ClientRegistration`s per registration id and listens for `OAuth2ConfigUpdatedEvent` /
+`OAuth2ConfigDeletedEvent` via `@ApplicationModuleListener`, mirroring
+`AiAnalyzerStrategyHolder`. Config changes take effect on the next authorize request — no
+application restart.
+
 ---
 
 ## Authorization — Role Matrix
@@ -68,6 +114,7 @@ All JWT mechanisms remain in place. Additionally:
 | Configure AI provider | — | — | — | ✓ |
 | Manage users (create/deactivate) | — | — | — | ✓ |
 | Configure SAML | — | — | — | ✓ |
+| Configure OAuth providers | — | — | — | ✓ |
 
 **Key rule:** A user can never approve their own query request, regardless of role.
 

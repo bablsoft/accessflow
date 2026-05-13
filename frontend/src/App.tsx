@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/common/AuthGuard';
 import { AppLayout } from '@/layouts/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
+const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
 import { useSetupStore } from '@/store/setupStore';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
@@ -26,6 +27,7 @@ const AiConfigEditPage = lazy(() => import('@/pages/admin/ai-configs/AiConfigEdi
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
+const OAuth2ConfigPage = lazy(() => import('@/pages/admin/OAuth2ConfigPage'));
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
@@ -46,6 +48,14 @@ export function App() {
       <Routes>
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/auth/oauth/callback"
+          element={
+            <Suspense fallback={null}>
+              <OAuthCallbackPage />
+            </Suspense>
+          }
+        />
         <Route
           element={
             <AuthGuard>
@@ -175,6 +185,16 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <SamlConfigPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/oauth2"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <OAuth2ConfigPage />
+                </Suspense>
               </AuthGuard>
             }
           />

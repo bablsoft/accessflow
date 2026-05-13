@@ -39,6 +39,7 @@
     "ai_configs": "AI configurations",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
+    "oauth2": "OAuth providers",
     "languages": "Languages",
     "custom_drivers": "Custom JDBC drivers",
     "profile": "Profile settings"
@@ -57,8 +58,24 @@
       "submitting": "Signing in…",
       "saml_button": "Continue with SAML SSO",
       "saml_not_configured": "SAML SSO is not configured yet. Please sign in with email and password.",
+      "oauth_button": "Continue with {{provider}}",
       "or_divider": "OR",
       "setup_success_banner": "Admin created. Sign in to continue."
+    },
+    "oauth_callback": {
+      "exchanging": "Signing you in…",
+      "error_title": "Single sign-on did not complete",
+      "back_to_login": "Back to sign in",
+      "error": {
+        "oauth2_login_failed": "We could not complete the sign-in with your provider. Please try again.",
+        "oauth2_email_missing": "Your provider did not return an email address. Ask your administrator to grant the email scope.",
+        "oauth2_email_unverified": "Your email address is not verified with the provider. Verify it and try again.",
+        "oauth2_local_email_conflict": "An AccessFlow account with this email already uses a password. Ask an administrator to switch the account to single sign-on before retrying.",
+        "oauth2_unexpected_auth": "Single sign-on returned an unexpected authentication state.",
+        "oauth2_unknown_provider": "Single sign-on returned an unknown provider.",
+        "account_disabled": "Your AccessFlow account is currently disabled.",
+        "generic": "Single sign-on failed. Please try again."
+      }
     },
     "setup": {
       "title": "Create the first admin",
@@ -90,7 +107,14 @@
     "new_password_required": "New password is required.",
     "new_password_size": "Password must be 8–128 characters.",
     "totp_code_required": "Verification code is required.",
-    "totp_code_pattern": "Enter the 6-digit code from your authenticator."
+    "totp_code_pattern": "Enter the 6-digit code from your authenticator.",
+    "oauth2": {
+      "client_id_max": "Client ID must be at most 512 characters.",
+      "client_secret_max": "Client secret must be at most 2048 characters.",
+      "scopes_max": "Scopes override must be at most 1024 characters.",
+      "tenant_id_max": "Tenant ID must be at most 255 characters.",
+      "default_role_required": "Default role is required."
+    }
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -626,6 +650,50 @@
       "test_success": "Test notification dispatched",
       "test_email_label": "Override recipient (EMAIL only)"
     },
+    "oauth2": {
+      "title": "OAuth providers",
+      "subtitle": "Configure one or more OAuth 2.0 / OIDC providers so users can sign in with their existing accounts.",
+      "setup_intro_title": "Setting up {{provider}}",
+      "setup_intro": {
+        "google": "Open the <console>Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</console>, create an OAuth 2.0 Client ID of type \"Web application\", and paste the redirect URI below into \"Authorized redirect URIs\".",
+        "github": "Open <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, click \"New OAuth App\", and paste the redirect URI below into \"Authorization callback URL\".",
+        "microsoft": "Open the <console>Microsoft Entra admin center &rarr; App registrations</console>, register a new application, and under Authentication &rarr; Redirect URIs add a Web platform entry with the URI below. Capture the tenant ID from the app's overview page.",
+        "gitlab": "Open <console>GitLab &rarr; User Settings &rarr; Applications</console> (or Admin Area &rarr; Applications for an org-wide app), and paste the redirect URI below into \"Redirect URI\"."
+      },
+      "callback_url_label": "Redirect URI to register with the provider",
+      "callback_url_help": "Copy this exact URL into the provider's developer console. AccessFlow accepts the callback only at this path.",
+      "callback_url_copy": "Copy redirect URI",
+      "callback_url_copied": "Redirect URI copied to clipboard",
+      "label_client_id": "Client ID",
+      "label_client_secret": "Client secret",
+      "label_client_secret_help": "Leave the masked value untouched to keep the existing secret. Clear it to remove the secret.",
+      "label_scopes": "Scopes override",
+      "label_scopes_help": "Space-separated. Leave empty to use the provider defaults.",
+      "label_tenant_id": "Tenant ID",
+      "label_tenant_id_help": "Use \"common\" for any Microsoft account, \"organizations\" for any work/school account, or a specific tenant GUID.",
+      "label_default_role": "Default role for new users",
+      "label_active": "Active",
+      "client_id_tooltip": {
+        "google": "The OAuth 2.0 Client ID created in the Google Cloud Console. Looks like 1234567890-abc.apps.googleusercontent.com.",
+        "github": "The GitHub OAuth App's Client ID (visible on the app's settings page once created).",
+        "microsoft": "The Application (client) ID shown on the app's Overview page in the Entra admin center.",
+        "gitlab": "The Application ID shown on the application's page after creation in GitLab."
+      },
+      "client_secret_tooltip": {
+        "google": "Click \"Create credentials\" in Google Cloud and download the secret — it is only shown once.",
+        "github": "Generate a new client secret on the GitHub OAuth App page. Copy it immediately; GitHub does not show it again.",
+        "microsoft": "Under Certificates &amp; secrets, create a new Client Secret. Copy the \"Value\" (not the Secret ID).",
+        "gitlab": "Shown once on the application page right after creation under \"Secret\"."
+      },
+      "scopes_tooltip": "Space- or comma-separated. Leave empty to use the provider defaults ({{defaults}}).",
+      "tenant_id_tooltip": "Microsoft Entra tenant ID, GUID, or a well-known alias: \"common\" (any Microsoft account), \"organizations\" (any work or school account), or \"consumers\" (personal accounts only).",
+      "save_button": "Save",
+      "save_success": "OAuth configuration saved",
+      "delete_button": "Remove",
+      "delete_confirm": "Remove this provider configuration? Users currently signed in stay signed in.",
+      "delete_success": "OAuth configuration removed",
+      "load_error": "Failed to load OAuth configuration"
+    },
     "saml": {
       "title": "SAML / SSO",
       "subtitle": "Configure your identity provider for single sign-on.",
@@ -740,7 +808,8 @@
       "confirm_label": "Confirm new password",
       "save": "Update password",
       "saved": "Password updated. You'll be signed out of other sessions.",
-      "saml_disabled": "Password is managed by your SAML identity provider."
+      "saml_disabled": "Password is managed by your SAML identity provider.",
+      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings."
     },
     "totp": {
       "title": "Two-factor authentication",
@@ -750,6 +819,7 @@
       "enable": "Enable 2FA",
       "disable": "Disable 2FA",
       "saml_disabled": "Two-factor authentication is managed by your SAML identity provider.",
+      "oauth2_disabled": "Two-factor authentication is managed by your OAuth provider. Enable it in that provider's account settings.",
       "enroll_title": "Enable two-factor authentication",
       "step_scan": "Scan the QR code",
       "step_scan_help": "Open Google Authenticator, 1Password, or any TOTP app and scan this code.",

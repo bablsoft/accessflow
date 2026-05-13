@@ -79,6 +79,43 @@ accessflow:
     keystore-password: ${SAML_KEYSTORE_PASSWORD}
 ```
 
+### OAuth 2.0 / OIDC login (DB-driven)
+
+OAuth providers are configured entirely from the admin UI (`/admin/oauth2`) — there is no
+`spring.security.oauth2.client.*` in `application.yml`. The flow is:
+
+1. Browser hits `GET /api/v1/auth/oauth2/authorize/{provider}` (one of `google`, `github`,
+   `microsoft`, `gitlab`).
+2. `DynamicClientRegistrationRepository.findByRegistrationId` builds a Spring Security
+   `ClientRegistration` on demand from the matching `oauth2_config` row. Per-provider static
+   metadata (auth/token/userinfo URLs, default scopes, OIDC flag, attribute extractors) lives
+   in `OAuth2ProviderTemplate`. The repository caches `ClientRegistration`s by registration id
+   and evicts on `OAuth2ConfigUpdatedEvent` / `OAuth2ConfigDeletedEvent` — same pattern as
+   `AiAnalyzerStrategyHolder`, no application restart.
+3. Spring's `OAuth2AuthorizationRequestRedirectFilter` redirects the browser to the provider.
+4. The provider redirects back to `GET /api/v1/auth/oauth2/callback/{provider}`. Spring
+   exchanges the code for tokens.
+5. `OAuth2LoginSuccessHandler` runs: resolves email + display name via `OAuth2EmailResolver`
+   (which falls back to GitHub's `/user/emails` when the primary `/user` payload omits the
+   email), JIT-provisions the user through `UserProvisioningService.findOrProvision`, issues a
+   one-time exchange code through `OAuth2ExchangeCodeStore` (Redis, 60 s default TTL), and
+   redirects to `${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL}?code=<one-time-code>`.
+6. The frontend `OAuthCallbackPage` POSTs the code to `/api/v1/auth/oauth2/exchange`.
+   `OAuth2ExchangeController` consumes the code, calls `AuthenticationService.issueForUser`
+   to mint the standard JWT pair, sets the refresh-token cookie via `RefreshCookieWriter`, and
+   returns the same `LoginResponse` shape as `/auth/login`.
+
+`SecurityConfiguration` declares two `SecurityFilterChain` beans:
+
+- `@Order(1)` matches only the OAuth2 authorize / callback paths and runs Spring's
+  `oauth2Login()` configurer with `sessionCreationPolicy(IF_REQUIRED)` (the redirect dance
+  needs the session for a few seconds).
+- `@Order(2)` is the existing stateless chain that owns the rest of the API.
+
+Account-linking model — the success handler rejects with `OAUTH2_LOCAL_EMAIL_CONFLICT` if an
+existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin
+must manually convert the account. See [docs/07-security.md](07-security.md).
+
 ---
 
 ## Query Proxy Engine

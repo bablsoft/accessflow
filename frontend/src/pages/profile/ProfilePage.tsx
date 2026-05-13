@@ -16,7 +16,16 @@ export function ProfilePage() {
     queryFn: getCurrentUser,
   });
 
-  const isSaml = profile?.auth_provider === 'SAML';
+  const isExternal =
+    profile?.auth_provider === 'SAML' || profile?.auth_provider === 'OAUTH2';
+  const externalPasswordMessage =
+    profile?.auth_provider === 'OAUTH2'
+      ? t('profile.password.oauth2_disabled')
+      : t('profile.password.saml_disabled');
+  const externalTotpMessage =
+    profile?.auth_provider === 'OAUTH2'
+      ? t('profile.totp.oauth2_disabled')
+      : t('profile.totp.saml_disabled');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -43,8 +52,8 @@ export function ProfilePage() {
             <Card title={t('profile.password.title')}>
               {isLoading || !profile ? (
                 <Skeleton active />
-              ) : isSaml ? (
-                <Alert type="info" message={t('profile.password.saml_disabled')} showIcon />
+              ) : isExternal ? (
+                <Alert type="info" message={externalPasswordMessage} showIcon />
               ) : (
                 <ChangePasswordForm />
               )}
@@ -53,8 +62,8 @@ export function ProfilePage() {
             <Card title={t('profile.totp.title')}>
               {isLoading || !profile ? (
                 <Skeleton active />
-              ) : isSaml ? (
-                <Alert type="info" message={t('profile.totp.saml_disabled')} showIcon />
+              ) : isExternal ? (
+                <Alert type="info" message={externalTotpMessage} showIcon />
               ) : (
                 <TwoFactorSection profile={profile} />
               )}
