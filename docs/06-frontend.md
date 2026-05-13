@@ -161,9 +161,10 @@ The primary user-facing page. Features:
 
 - **Datasource selector** — dropdown of datasources the user has access to, loads schema tree on selection
 - **CodeMirror SQL editor** — see SQL Editor section below
-- **AI Hint Panel** — displays current AI analysis (debounced, updates as user types)
+- **AI Hint Panel** — displays AI analysis after the user clicks the **Analyze** button; the result is cleared as soon as the SQL is edited so the user must re-analyze before submitting.
+- **Analyze button** — explicit user action that calls `POST /queries/analyze`. Rendered only when the selected datasource has `ai_analysis_enabled=true` and a non-null `ai_config_id`.
 - **Justification field** — required text area for the reason behind the query
-- **Submit button** — sends `POST /queries`, transitions to status tracking view
+- **Submit button** — sends `POST /queries`, transitions to status tracking view. When the datasource has AI configured, Submit is disabled until a fresh AI analysis exists for the current SQL.
 - **Status tracker** — real-time status updates via WebSocket (`PENDING_AI` → `PENDING_REVIEW` → `APPROVED` → `EXECUTED`)
 
 ### ReviewQueuePage
@@ -307,7 +308,7 @@ Built on **CodeMirror 6** (`@codemirror/lang-sql`).
 | SQL syntax highlighting | `@codemirror/lang-sql` with dialect set from selected datasource |
 | Table/column autocomplete | Schema fetched from `/datasources/{id}/schema`, passed as `schema` option to `sql()` language extension |
 | Keyword autocomplete | Built into `@codemirror/lang-sql` |
-| Real-time AI hints | Debounced (800ms) calls to `POST /queries/analyze`; issues shown as CodeMirror gutter markers and in the AI Hint Panel |
+| On-demand AI analysis | User-triggered via the **Analyze** button → `POST /queries/analyze`; issues shown as CodeMirror gutter markers and in the AI Hint Panel. Editing the SQL clears the previous result so the analysis cannot become stale. |
 | Query formatter | `sql-formatter` library called on `Ctrl+Shift+F` keyboard binding |
 | Read-only mode | `EditorState.readOnly` extension set to `true` for detail/history views |
 | Theme | Custom theme matching Ant Design token colors; dark/light follows OS preference |

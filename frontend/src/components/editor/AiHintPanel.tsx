@@ -69,7 +69,7 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
           </div>
         ) : !analysis ? (
           <div className="muted" style={{ fontSize: 12, padding: '40px 0', textAlign: 'center' }}>
-            {t('ai_panel.no_sql_prompt')}
+            {t('ai_panel.empty_prompt_analyze')}
           </div>
         ) : (
           <>
