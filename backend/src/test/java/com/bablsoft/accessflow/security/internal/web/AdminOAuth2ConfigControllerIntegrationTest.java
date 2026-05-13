@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
+import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
@@ -43,6 +44,7 @@ class AdminOAuth2ConfigControllerIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired DatasourceRepository datasourceRepository;
     @Autowired OAuth2ConfigRepository repository;
     @Autowired SamlConfigRepository samlConfigRepository;
     @Autowired JwtService jwtService;
