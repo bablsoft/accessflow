@@ -245,6 +245,7 @@
       "submitted_by": "Submitted by",
       "card_sql": "SQL",
       "card_justification": "Justification",
+      "no_justification": "Requester did not provide a justification.",
       "card_ai": "AI analysis",
       "ai_awaiting": "Awaiting analysis…",
       "card_execution": "Execution result",
