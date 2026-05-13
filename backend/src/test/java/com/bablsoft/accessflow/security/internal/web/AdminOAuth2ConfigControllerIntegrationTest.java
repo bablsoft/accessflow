@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.security.internal.persistence.repo.OAuth2ConfigRepository;
+import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,7 @@ class AdminOAuth2ConfigControllerIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired OAuth2ConfigRepository repository;
+    @Autowired SamlConfigRepository samlConfigRepository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
     @MockitoBean AuthenticationService authenticationService;
@@ -74,6 +76,7 @@ class AdminOAuth2ConfigControllerIntegrationTest {
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
         repository.deleteAll();
+        samlConfigRepository.deleteAll();
         userRepository.deleteAll();
         organizationRepository.deleteAll();
 
@@ -92,6 +95,7 @@ class AdminOAuth2ConfigControllerIntegrationTest {
     @AfterEach
     void cleanup() {
         repository.deleteAll();
+        samlConfigRepository.deleteAll();
     }
 
     @Test
@@ -219,6 +223,31 @@ class AdminOAuth2ConfigControllerIntegrationTest {
         assertThat(withGoogle).hasStatus(200);
         assertThat(withGoogle).bodyJson().extractingPath("$[0].provider").asString().isEqualTo("GOOGLE");
         assertThat(withGoogle).bodyJson().extractingPath("$[0].display_name").asString().isEqualTo("Google");
+    }
+
+    @Test
+    void publicSamlEnabledReturnsFalseWhenNoConfigExists() {
+        var result = mvc.get().uri("/api/v1/auth/saml/enabled").exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.enabled").asBoolean().isFalse();
+    }
+
+    @Test
+    void publicSamlEnabledFlipsAfterAdminActivatesSamlConfig() {
+        mvc.put().uri("/api/v1/admin/saml-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"idp_metadata_url\":\"https://idp.example.com/m\","
+                        + "\"idp_entity_id\":\"idp\",\"sp_entity_id\":\"sp\","
+                        + "\"acs_url\":\"https://app.example.com/saml/acs\","
+                        + "\"default_role\":\"ANALYST\",\"active\":true}")
+                .exchange();
+
+        var result = mvc.get().uri("/api/v1/auth/saml/enabled").exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.enabled").asBoolean().isTrue();
     }
 
     private UserEntity saveUser(String email, UserRoleType role) {

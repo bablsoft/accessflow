@@ -30,6 +30,7 @@
 | `POST` | `/auth/logout` | Revoke current refresh token |
 | `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
 | `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
+| `GET` | `/auth/saml/enabled` | Public — `{ "enabled": boolean }` so the login page can hide the SAML button until an admin activates it |
 | `GET` | `/auth/oauth2/providers` | Public — list enabled OAuth2 providers for the deployment |
 | `GET` | `/auth/oauth2/authorize/{provider}` | Redirects the browser to the provider's authorization endpoint (handled by Spring Security) |
 | `GET` | `/auth/oauth2/callback/{provider}` | Provider redirect target; runs the success handler and redirects to the frontend callback URL |

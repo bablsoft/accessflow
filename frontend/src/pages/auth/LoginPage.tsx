@@ -14,7 +14,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
-import { listOAuth2Providers, oauth2ProvidersKeys } from '@/api/auth';
+import {
+  getSamlEnabled,
+  listOAuth2Providers,
+  oauth2ProvidersKeys,
+  samlEnabledKeys,
+} from '@/api/auth';
 import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
@@ -104,6 +109,12 @@ export function LoginPage() {
     queryKey: oauth2ProvidersKeys.all,
     queryFn: listOAuth2Providers,
     // Public endpoint — keep it short-lived so newly-enabled providers show up.
+    staleTime: 30_000,
+  });
+
+  const samlEnabledQuery = useQuery({
+    queryKey: samlEnabledKeys.all,
+    queryFn: getSamlEnabled,
     staleTime: 30_000,
   });
 
@@ -201,45 +212,54 @@ export function LoginPage() {
             />
           )}
 
-          {stage === 'CREDENTIALS' && (
-            <>
-              <Button
-                size="large"
-                block
-                onClick={samlLogin}
-                style={{ marginBottom: 12 }}
-                icon={<SafetyCertificateOutlined />}
-              >
-                {t('auth.login.saml_button')}
-              </Button>
-              {(oauth2ProvidersQuery.data ?? []).map((p) => (
-                <Button
-                  key={p.provider}
-                  size="large"
-                  block
-                  onClick={() => startOAuth2(p.provider)}
-                  style={{ marginBottom: 12 }}
-                  icon={<LoginOutlined />}
-                >
-                  {t('auth.login.oauth_button', { provider: p.display_name })}
-                </Button>
-              ))}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  margin: '20px 0',
-                }}
-              >
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                <span className="muted mono" style={{ fontSize: 10 }}>
-                  {t('auth.login.or_divider')}
-                </span>
-                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-              </div>
-            </>
-          )}
+          {stage === 'CREDENTIALS' && (() => {
+            const oauth2Providers = oauth2ProvidersQuery.data ?? [];
+            const samlEnabled = samlEnabledQuery.data === true;
+            const hasSso = samlEnabled || oauth2Providers.length > 0;
+            return (
+              <>
+                {samlEnabled && (
+                  <Button
+                    size="large"
+                    block
+                    onClick={samlLogin}
+                    style={{ marginBottom: 12 }}
+                    icon={<SafetyCertificateOutlined />}
+                  >
+                    {t('auth.login.saml_button')}
+                  </Button>
+                )}
+                {oauth2Providers.map((p) => (
+                  <Button
+                    key={p.provider}
+                    size="large"
+                    block
+                    onClick={() => startOAuth2(p.provider)}
+                    style={{ marginBottom: 12 }}
+                    icon={<LoginOutlined />}
+                  >
+                    {t('auth.login.oauth_button', { provider: p.display_name })}
+                  </Button>
+                ))}
+                {hasSso && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      margin: '20px 0',
+                    }}
+                  >
+                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    <span className="muted mono" style={{ fontSize: 10 }}>
+                      {t('auth.login.or_divider')}
+                    </span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {stage === 'CREDENTIALS' && (
             <Form<LoginFormValues>

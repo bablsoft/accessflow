@@ -48,11 +48,20 @@ export const oauth2ProvidersKeys = {
   all: ['oauth2Providers'] as const,
 };
 
+export const samlEnabledKeys = {
+  all: ['samlEnabled'] as const,
+};
+
 export async function listOAuth2Providers(): Promise<OAuth2ProviderSummary[]> {
   const { data } = await apiClient.get<OAuth2ProviderSummary[]>(
     '/api/v1/auth/oauth2/providers',
   );
   return data;
+}
+
+export async function getSamlEnabled(): Promise<boolean> {
+  const { data } = await apiClient.get<{ enabled: boolean }>('/api/v1/auth/saml/enabled');
+  return data.enabled;
 }
 
 export async function exchangeOAuth2Code(code: string): Promise<LoginPayload> {

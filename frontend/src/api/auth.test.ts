@@ -54,6 +54,17 @@ describe('api/auth', () => {
     expect(result).toEqual(summary);
   });
 
+  it('getSamlEnabled GETs the public flag endpoint and unwraps to a boolean', async () => {
+    get.mockResolvedValueOnce({ data: { enabled: true } });
+    const result = await authApi.getSamlEnabled();
+    expect(get).toHaveBeenCalledWith('/api/v1/auth/saml/enabled');
+    expect(result).toBe(true);
+  });
+
+  it('samlEnabledKeys factory is stable', () => {
+    expect(authApi.samlEnabledKeys.all).toEqual(['samlEnabled']);
+  });
+
   it('exchangeOAuth2Code POSTs the code and unwraps the response', async () => {
     post.mockResolvedValueOnce({
       data: { access_token: 't', token_type: 'Bearer', expires_in: 900, user: userPayload },
