@@ -808,7 +808,8 @@
       "confirm_label": "Confirm new password",
       "save": "Update password",
       "saved": "Password updated. You'll be signed out of other sessions.",
-      "saml_disabled": "Password is managed by your SAML identity provider."
+      "saml_disabled": "Password is managed by your SAML identity provider.",
+      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings."
     },
     "totp": {
       "title": "Two-factor authentication",
@@ -818,6 +819,7 @@
       "enable": "Enable 2FA",
       "disable": "Disable 2FA",
       "saml_disabled": "Two-factor authentication is managed by your SAML identity provider.",
+      "oauth2_disabled": "Two-factor authentication is managed by your OAuth provider. Enable it in that provider's account settings.",
       "enroll_title": "Enable two-factor authentication",
       "step_scan": "Scan the QR code",
       "step_scan_help": "Open Google Authenticator, 1Password, or any TOTP app and scan this code.",
