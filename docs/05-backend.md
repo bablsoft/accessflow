@@ -14,6 +14,7 @@ accessflow/
 ├── accessflow-notifications/     # Email (JavaMail), Slack API, Webhook dispatcher
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
+├── accessflow-mcp/               # User API keys + Spring AI stateless MCP server (tool callbacks)
 └── accessflow-app/               # Spring Boot main application, Docker entrypoint
 ```
 
@@ -715,6 +716,73 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 
 ---
 
+## MCP server and user API keys
+
+The **`mcp/` module** hosts two coupled features:
+
+1. **API key issuance + auth** — `api_keys` table (see `docs/03-data-model.md`), `ApiKeyService`
+   (issue / list / revoke / resolveUserId), `ApiKeyAuthenticationFilter` registered into the main
+   Spring Security chain (by bean-name qualifier to keep Spring Modulith happy — the security
+   module never type-depends on `mcp.internal`). Both `X-API-Key: af_…` and
+   `Authorization: ApiKey af_…` are accepted; on success the filter populates the same
+   `JwtAuthenticationToken`-shaped principal the JWT path produces, so every downstream
+   controller and MCP tool is auth-agnostic.
+2. **Spring AI stateless MCP server** — pulled in via `spring-ai-starter-mcp-server-webmvc`
+   (`spring.ai.mcp.server.protocol=STATELESS`, endpoint defaults to `/mcp`). Tool callbacks are
+   `@Tool`-annotated methods on `McpToolService` (query / datasource tools) and
+   `McpReviewToolService` (reviewer-only, gated with `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`).
+   `McpServerConfiguration` exposes them as a single `MethodToolCallbackProvider`.
+
+### Exposed MCP tools
+
+| Tool | Service called | Notes |
+|------|----------------|-------|
+| `list_datasources` | `DatasourceAdminService.listForUser` / `listForAdmin` | Scoped to caller's organisation + permissions. |
+| `get_datasource_schema` | `DatasourceAdminService.introspectSchema` | Caller must have datasource access. |
+| `list_my_queries` | `QueryRequestLookupService.findForOrganization` | Filter is hard-coded to `submittedByUserId = caller`. |
+| `get_query_status` | `QueryRequestLookupService.findDetailById` | Submitter-or-admin enforced inside the tool. |
+| `get_query_result` | `QueryResultPersistenceService.find` | Requires `SELECT` query in `EXECUTED` status. |
+| `submit_query` | `QuerySubmissionService.submit` | Goes through the normal AI-analysis + review workflow. |
+| `cancel_query` | `QueryLifecycleService.cancel` | Submitter-only (enforced in service). |
+| `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize` reviewer/admin. |
+| `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. |
+
+### Why the filter lives in `mcp` and not `security`
+
+Spring Modulith forbids cyclic module dependencies. `workflow` already depends on `security.api`
+(for `JwtClaims` in controllers), and `mcp` depends on `workflow.api` (for `ReviewService` and
+the submission service). If `security` also depended on `mcp.internal` directly, we'd get
+`security → mcp → workflow → security`. The fix is to keep the API key filter inside `mcp` and
+inject it into `SecurityConfiguration` as an `OncePerRequestFilter` bean qualified by name
+(`@Qualifier("apiKeyAuthenticationFilter")`). Lombok's `lombok.copyableAnnotations += Qualifier`
+config propagates the qualifier from field to constructor parameter so `@RequiredArgsConstructor`
+keeps working. `ApplicationModulesTest` enforces the boundary.
+
+### Configuration
+
+`application.yml` adds:
+
+```yaml
+spring:
+  ai:
+    mcp:
+      server:
+        name: accessflow-mcp
+        version: 1.0.0
+        protocol: STATELESS
+        instructions: |
+          AccessFlow MCP server. Use list_datasources, submit_query, get_query_status, …
+```
+
+Default endpoint: `POST /mcp` (the security chain already requires authentication on it via
+`anyRequest().authenticated()`). No new env vars are required — auth piggybacks on the existing
+chain, transport is plain HTTP.
+
+User-facing usage guide (creating API keys, pointing Claude / other clients at `/mcp`, full tool
+reference) is in `docs/13-mcp.md`.
+
+---
+
 ## Key Dependencies (pom.xml)
 
 ```xml
@@ -746,6 +814,9 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 
 <!-- AI Clients -->
 <dependency>com.openai:openai-java</dependency>    <!-- OpenAI official SDK -->
+
+<!-- MCP (Model Context Protocol) server — stateless WebMVC transport -->
+<dependency>org.springframework.ai:spring-ai-starter-mcp-server-webmvc</dependency>
 
 <!-- Redis -->
 <dependency>spring-boot-starter-data-redis</dependency>

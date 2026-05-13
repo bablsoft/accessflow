@@ -58,6 +58,18 @@ spring:
         speech: none
         transcription: none
       moderation: none
+    mcp:
+      server:
+        name: accessflow-mcp
+        version: 1.0.0
+        # Stateless transport — every request carries auth, no client session is held server-side.
+        # See https://docs.spring.io/spring-ai/reference/api/mcp/mcp-stateless-server-boot-starter-docs.html
+        protocol: STATELESS
+        instructions: >
+          AccessFlow MCP server. Use list_datasources to discover databases you can query,
+          submit_query to enqueue a SQL query for review, get_query_status to monitor it,
+          and get_query_result once it is EXECUTED. Reviewers can additionally call
+          list_pending_reviews and review_query.
 
 server:
   port: 8080

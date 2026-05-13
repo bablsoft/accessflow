@@ -1398,6 +1398,94 @@ Disables 2FA after confirming the caller's password. Clears `totp_secret_encrypt
 | `PASSWORD_INCORRECT` | 422 | `current_password` does not match the stored hash |
 | `PASSWORD_CHANGE_NOT_ALLOWED` | 422 | Account is SAML-provisioned |
 
+### API Keys (`/me/api-keys`)
+
+User-managed API keys for the AccessFlow MCP server and other programmatic clients. Keys inherit
+the owning user's role and datasource permissions exactly. The plaintext key is shown **once** on
+creation — `key_hash` (SHA-256) and `key_prefix` are persisted; the raw key cannot be recovered
+later. See `docs/13-mcp.md` for end-to-end usage.
+
+#### GET /me/api-keys
+
+Lists the calling user's API keys (newest first). The raw key is never included.
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "claude-mcp",
+    "key_prefix": "af_kQ7abcde",
+    "created_at": "2026-05-10T12:34:56Z",
+    "last_used_at": "2026-05-12T08:11:02Z",
+    "expires_at": null,
+    "revoked_at": null
+  }
+]
+```
+
+#### POST /me/api-keys
+
+Creates a new API key. The plaintext `raw_key` is the only chance to capture the secret.
+
+**Request Body:**
+```json
+{
+  "name": "claude-mcp",
+  "expires_at": null
+}
+```
+
+| Field | Constraints |
+|-------|-------------|
+| `name` | `@NotBlank`, `@Size(min=1, max=100)` — UNIQUE per user |
+| `expires_at` | Optional ISO-8601 timestamp; null for non-expiring |
+
+**Response 201:**
+```json
+{
+  "api_key": {
+    "id": "uuid",
+    "name": "claude-mcp",
+    "key_prefix": "af_kQ7abcde",
+    "created_at": "2026-05-10T12:34:56Z",
+    "last_used_at": null,
+    "expires_at": null,
+    "revoked_at": null
+  },
+  "raw_key": "af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+**Errors:**
+| Code | Status | Cause |
+|------|--------|-------|
+| `VALIDATION_ERROR` | 400 | Missing or oversize `name` |
+| `API_KEY_DUPLICATE_NAME` | 409 | Caller already has an API key with this name |
+
+#### DELETE /me/api-keys/{id}
+
+Revokes the API key. Idempotent — revoking an already-revoked key returns 204.
+
+**Response 204:** No content.
+
+**Errors:**
+| Code | Status | Cause |
+|------|--------|-------|
+| `API_KEY_NOT_FOUND` | 404 | Unknown id, or the key is owned by another user |
+
+#### Using an API key
+
+Either header authenticates any AccessFlow REST endpoint and the MCP `/mcp/**` paths:
+
+```
+X-API-Key: af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+Authorization: ApiKey af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+
+The filter populates a security context identical to the JWT path — downstream code (controllers,
+MCP tools) sees the same `JwtClaims` principal.
+
 ### GET /admin/saml-config
 
 Returns the current SAML configuration for the caller's organization. The `signing_cert_pem` field is replaced with `"********"` whenever a certificate is stored, and is omitted otherwise.
@@ -1714,3 +1802,5 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `UNSUPPORTED_LANGUAGE` | 400 | `UnsupportedLanguageException` | A BCP-47 code in a localization request is not one of the seven supported languages. Body includes `language`. |
 | `LANGUAGE_NOT_IN_ALLOWED_LIST` | 400 | `LanguageNotInAllowedListException` | User attempted to pick a language that is not in the org's `available_languages`. Body includes `language`. |
 | `ILLEGAL_LOCALIZATION_CONFIG` | 400 | `IllegalLocalizationConfigException` | Empty `available_languages`, or `default_language` not in `available_languages`. |
+| `API_KEY_NOT_FOUND` | 404 | `ApiKeyNotFoundException` | Unknown API key id, or the key is owned by another user. |
+| `API_KEY_DUPLICATE_NAME` | 409 | `ApiKeyDuplicateNameException` | The caller already has an API key with the requested name. |

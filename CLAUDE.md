@@ -81,7 +81,10 @@ com.bablsoft.accessflow/
 ├── notifications/  # Email, Slack, Webhook dispatchers
 │   ├── api/
 │   └── internal/
-└── audit/          # Audit log service, ApplicationEvent consumers
+├── audit/          # Audit log service, ApplicationEvent consumers
+│   ├── api/
+│   └── internal/
+└── mcp/            # User API keys + Spring AI stateless MCP server (tool callbacks)
     ├── api/
     └── internal/
 ```
@@ -643,6 +646,7 @@ public interface AiAnalyzerStrategy {
 substitutes `(no schema introspection available)` in that case.
 
 - Adapters route their HTTP calls through **Spring AI 2.0** (`spring-ai-bom:2.0.0-M6`). The autowired `AiAnalyzerStrategy` is `AiAnalyzerStrategyHolder` — it builds `AnthropicChatModel` / `OpenAiChatModel` / `OllamaChatModel` per-org from the `ai_config` row, caches the delegate, and evicts on `AiConfigUpdatedEvent` (no Spring context refresh, no restart).
+- The same Spring AI BOM also pins `spring-ai-starter-mcp-server-webmvc` (`2.0.0-M6`) — the stateless MCP server starter used by the `mcp` module. See `docs/13-mcp.md` and `docs/05-backend.md` → "MCP server and user API keys".
 - Active provider per org is the `ai_config.provider` column. There is no `accessflow.ai.provider` property and no `@ConditionalOnProperty` on the strategy classes — they are plain classes, not Spring beans.
 - Connection settings (API key, base URL, model, max-tokens, timeout) come from `ai_config`, not from `spring.ai.*` properties. `application.yml` sets `spring.ai.model.{chat,embedding,image,audio.speech,audio.transcription,moderation}=none` so no `ChatModel` is auto-built at startup.
 - The system prompt template is in `docs/05-backend.md` — use it verbatim; do not invent a different prompt.
