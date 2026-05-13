@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
+import com.bablsoft.accessflow.security.internal.persistence.repo.OAuth2ConfigRepository;
+import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -27,6 +29,9 @@ class DatasourceRepositoryIntegrationTest {
 
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired UserRepository userRepository;
+    @Autowired OAuth2ConfigRepository oauth2ConfigRepository;
+    @Autowired SamlConfigRepository samlConfigRepository;
 
     private OrganizationEntity organization;
 
@@ -46,7 +51,14 @@ class DatasourceRepositoryIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Delete every row that holds an FK to organizations before deleting orgs themselves.
+        // Other integration tests (e.g. AdminOAuth2ConfigControllerIntegrationTest) may leave
+        // users / saml_config / oauth2_config rows behind; without this the org delete trips
+        // organizations_*_fkey constraints depending on test execution order.
         datasourceRepository.deleteAll();
+        oauth2ConfigRepository.deleteAll();
+        samlConfigRepository.deleteAll();
+        userRepository.deleteAll();
         organizationRepository.deleteAll();
         organization = new OrganizationEntity();
         organization.setId(UUID.randomUUID());
