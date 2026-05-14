@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AccessFlow Documentation — Run and configure the proxy</title>
+  <meta name="description" content="Operator and admin documentation for AccessFlow — how to run it (Docker Compose, Helm, from source), how to start it for the first time, and how to configure users, roles, datasources, review plans, AI, OAuth, SMTP, and notification channels." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+  <script src="../app.js" defer></script>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a href="../index.html#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="../index.html#features">Features</a>
+        <a href="../index.html#how">How it works</a>
+        <a href="../index.html#install">Install</a>
+        <a href="../index.html#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <div class="nav-right">
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="../index.html#install" class="btn btn-ghost">Quick start</a>
+        <a href="../index.html#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <h5>Getting started</h5>
+            <a href="#getting-started">Read this first</a>
+
+            <h5>Running</h5>
+            <a href="#running">Overview</a>
+            <a href="#run-docker-compose">Docker Compose</a>
+            <a href="#run-helm">Kubernetes &amp; Helm</a>
+            <a href="#run-manual">Manual / from source</a>
+
+            <h5>First-time setup</h5>
+            <a href="#first-run">Setup wizard or bootstrap</a>
+
+            <h5>Configuration</h5>
+            <a href="#cfg-users">Users</a>
+            <a href="#cfg-roles">User roles &amp; RBAC</a>
+            <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-review-plans">Review plans</a>
+            <a href="#cfg-ai">AI configurations</a>
+            <a href="#cfg-notification-channels">Notification channels</a>
+            <a href="#cfg-smtp">System SMTP</a>
+            <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
+            <a href="#cfg-saml">SAML 2.0 SSO</a>
+
+            <h5>Further reading</h5>
+            <a href="#further-reading">Engineering chapters</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Run and configure AccessFlow.</h1>
+          <p>
+            An operator and admin guide — how to install AccessFlow in different environments,
+            how to start it for the first time, and how to configure every entity that drives the
+            review pipeline: users, roles, datasources, review plans, AI, OAuth, SMTP, and
+            notification channels. Everything here is sourced from the
+            <a href="https://github.com/bablsoft/accessflow/tree/main/docs">engineering chapters</a>
+            and the project <a href="https://github.com/bablsoft/accessflow/blob/main/README.md">README</a>.
+          </p>
+        </header>
+
+        <!-- 1. Getting started -->
+        <section id="getting-started" class="docs-section">
+          <h2>Read this first</h2>
+          <p>
+            AccessFlow is a self-hosted SQL proxy. Your team connects to AccessFlow instead of
+            directly to PostgreSQL, MySQL, MariaDB, Oracle, or Microsoft SQL Server (or any other
+            JDBC-compatible engine, via an admin-uploaded driver). Every statement is parsed,
+            classified, optionally AI-reviewed, and routed through a configurable human-approval
+            workflow before it touches the database. Customer-database credentials never leave the
+            proxy.
+          </p>
+          <p>
+            This guide is split into three parts: <a href="#running">running</a> AccessFlow (pick
+            one of three deployment modes), <a href="#first-run">first-time setup</a> (browser
+            wizard or GitOps env vars), and <a href="#configuration">configuration</a> (every
+            entity an admin manages through the UI or REST API).
+          </p>
+
+          <div class="docs-callout info">
+            <strong>Versions referenced.</strong> Backend Java 25 + Spring Boot 4, frontend
+            React 19 + Vite 8 + Node 24. Postgres 18 for internal state, Redis 8 for token
+            revocation and scheduler locks. See <a href="../index.html#install">the Install
+            section</a> on the homepage for the canonical pinned versions.
+          </div>
+        </section>
+
+        <!-- 2. Running -->
+        <section id="running" class="docs-section">
+          <h2>Running AccessFlow</h2>
+          <p>
+            Pick one of three modes. Docker Compose is the fastest path to a running instance.
+            Helm is the production-recommended path on Kubernetes. The manual / from-source path
+            is for contributors and for environments where containers aren't available.
+          </p>
+
+          <h3 id="run-docker-compose">Docker Compose</h3>
+          <p>
+            The repo root ships a <strong>zero-config demo stack</strong> — it pulls the published
+            images from GHCR and starts Postgres + Redis + backend + frontend with insecure demo
+            keys baked in so a fresh clone runs with one command:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell — demo</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+<span class="c-kw">docker</span> compose up -d
+<span class="c-com"># open http://localhost:5173 — the in-app setup wizard creates the first admin</span>
+</pre>
+          </div>
+          <div class="docs-callout warn">
+            <strong>Demo only.</strong> The root <code>docker-compose.yml</code> embeds insecure
+            <code>JWT_PRIVATE_KEY</code> and <code>ENCRYPTION_KEY</code> defaults inline so it
+            works on a fresh clone. <strong>Do not deploy this to anything but a sandbox.</strong>
+            For real environments, use the production-style compose below or the Helm chart.
+          </div>
+
+          <p>
+            For a <strong>production-style compose</strong>, generate real keys and supply them via
+            <code>.env</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.env — production</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com"># 32-byte hex — AES-256-GCM for datasource credential encryption</span>
+<span class="c-kw">ENCRYPTION_KEY</span>=<span class="c-str">$(openssl rand -hex 32)</span>
+
+<span class="c-com"># RSA-2048 PEM — JWT RS256 signing key</span>
+<span class="c-kw">JWT_PRIVATE_KEY</span>=<span class="c-str">"$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2&gt;/dev/null)"</span>
+
+<span class="c-kw">DB_PASSWORD</span>=<span class="c-str">change-me</span>
+<span class="c-kw">CORS_ALLOWED_ORIGIN</span>=<span class="c-str">https://accessflow.company.com</span>
+<span class="c-kw">ACCESSFLOW_PUBLIC_BASE_URL</span>=<span class="c-str">https://accessflow.company.com</span>
+</pre>
+          </div>
+          <p>
+            See <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#docker-compose">docs/09-deployment.md
+            → Docker Compose</a> for the full production-style compose (including the optional
+            <code>ollama</code> profile for self-hosted AI).
+          </p>
+
+          <h3 id="run-helm">Kubernetes &amp; Helm</h3>
+          <p>
+            The Helm chart ships at <code>charts/accessflow/</code> and is published to
+            <code>https://bablsoft.github.io/accessflow</code>. Pre-create the required Secrets
+            (the chart will refuse to start if they're missing or empty):
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com"># 1. add the chart repo</span>
+<span class="c-kw">helm</span> repo add accessflow https://bablsoft.github.io/accessflow
+<span class="c-kw">helm</span> repo update
+
+<span class="c-com"># 2. create namespace + Secrets</span>
+<span class="c-kw">kubectl</span> create namespace accessflow
+
+<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-encryption-key \
+  --from-literal=ENCRYPTION_KEY=<span class="c-str">"$(openssl rand -hex 32)"</span>
+
+<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-jwt-key \
+  --from-file=JWT_PRIVATE_KEY=<span class="c-str">&lt;(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048)</span>
+
+<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-pg-secret \
+  --from-literal=DB_PASSWORD=<span class="c-str">"$(openssl rand -base64 24)"</span>
+
+<span class="c-com"># 3. install</span>
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow -n accessflow -f values.yaml
+</pre>
+          </div>
+          <p>
+            The chart bundles Bitnami subcharts for Postgres and Redis (toggle off with
+            <code>postgresql.enabled=false</code> / <code>redis.enabled=false</code> to point at
+            external instances). Full values reference and the Secret schema:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#kubernetes--helm">docs/09-deployment.md
+            → Kubernetes &amp; Helm</a> and
+            <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md">charts/accessflow/README.md</a>.
+          </p>
+
+          <h3 id="run-manual">Manual / from source</h3>
+          <p>
+            For contributors and air-gapped builds. Requires JDK 25 and Node.js 24 on the host:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+
+<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8 + Mailcrab (dev-only compose)</span>
+<span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
+
+<span class="c-com"># 2. backend</span>
+<span class="c-kw">cd</span> backend
+<span class="c-kw">./mvnw</span> spring-boot:run
+
+<span class="c-com"># 3. frontend (in another shell)</span>
+<span class="c-kw">cd</span> frontend
+<span class="c-kw">npm</span> install
+<span class="c-kw">npm</span> run dev
+
+<span class="c-com"># open http://localhost:5173</span>
+</pre>
+          </div>
+          <p>
+            For full coding standards, test commands, and the dev loop, see
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md">docs/11-development.md</a>.
+          </p>
+        </section>
+
+        <!-- 3. First-time setup -->
+        <section id="first-run" class="docs-section">
+          <h2>First-time setup</h2>
+          <p>
+            There are two ways to bring up a brand-new AccessFlow deployment.
+          </p>
+
+          <h3>Option A — Browser setup wizard</h3>
+          <p>
+            The default. Open the frontend (<code>http://localhost:5173</code> for the demo
+            stack, or whatever URL serves the SPA in your environment). When no organization
+            exists yet, the app routes to <code>/setup</code> and walks you through:
+          </p>
+          <ol>
+            <li>Create the organization.</li>
+            <li>Create the first admin user (email + password).</li>
+            <li>Optional: configure system SMTP so invitation emails work.</li>
+            <li>Optional: add a first datasource and a default review plan.</li>
+          </ol>
+          <p>
+            After the wizard finishes, log in as the admin and finish configuring the system from
+            the admin pages — see <a href="#configuration">Configuration</a> below.
+          </p>
+
+          <h3>Option B — Bootstrap via env vars (GitOps)</h3>
+          <p>
+            Set <code>ACCESSFLOW_BOOTSTRAP_ENABLED=true</code> and supply
+            <code>ACCESSFLOW_BOOTSTRAP_*</code> properties for the organization, admin user,
+            review plans, AI configs, datasources, SAML, OAuth2, notification channels, and
+            system SMTP. On every startup the bootstrap module reconciles the declared
+            configuration into the database — declared rows are upserted, omitted rows are left
+            alone.
+          </p>
+          <div class="docs-callout info">
+            <strong>Reconciliation order.</strong> Organization → admin user → notification
+            channels → AI configs → review plans → datasources → SAML → OAuth2 → SMTP. Secret
+            fields (passwords, API keys, webhook secrets) are read from Kubernetes Secrets, never
+            from a ConfigMap. Full property tree:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#bootstrap-configuration">docs/09-deployment.md
+            → Bootstrap configuration</a>.
+          </div>
+        </section>
+
+        <!-- 4. Configuration -->
+        <section id="configuration" class="docs-section">
+          <h2>Configuration</h2>
+          <p>
+            Everything below is admin-only. Each entity can be managed through the admin pages of
+            the SPA or through the REST API directly (full payload reference in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">docs/04-api-spec.md</a>).
+            All API calls require an <code>Authorization: Bearer &lt;JWT&gt;</code> header.
+          </p>
+
+          <!-- Users -->
+          <h3 id="cfg-users">Users</h3>
+          <p>
+            Local users are created directly by an admin. Federated users (SAML / OAuth) are
+            auto-provisioned on first sign-in if the feature is enabled (see
+            <a href="#cfg-saml">SAML</a> and <a href="#cfg-oauth">OAuth</a>).
+          </p>
+          <p>
+            <strong>Create a user directly</strong> — <code>POST /api/v1/admin/users</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"email"</span>:        <span class="c-str">"alice@company.com"</span>,
+  <span class="c-kw">"password"</span>:     <span class="c-str">"InitialPassword123!"</span>,
+  <span class="c-kw">"display_name"</span>: <span class="c-str">"Alice Reviewer"</span>,
+  <span class="c-kw">"role"</span>:         <span class="c-str">"REVIEWER"</span>
+}
+</pre>
+          </div>
+          <p>
+            <strong>Invite a user by email</strong> — <code>POST /api/v1/admin/users/invitations</code>
+            generates a one-time signup token and emails it. The token expires after
+            <code>ACCESSFLOW_SECURITY_INVITATION_TTL</code> (default 7 days).
+          </p>
+          <p>
+            Other endpoints: <code>GET /api/v1/admin/users</code> (paginated list),
+            <code>PUT /api/v1/admin/users/{id}</code> (change role or active flag),
+            <code>DELETE /api/v1/admin/users/{id}</code> (deactivate).
+          </p>
+
+          <!-- Roles -->
+          <h3 id="cfg-roles">User roles &amp; RBAC</h3>
+          <p>
+            AccessFlow has four roles. Pick the lowest-privilege role for each user — admins are
+            the only role that can change configuration. A user can never approve their own
+            query, regardless of role.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th><code>READONLY</code></th>
+                  <th><code>ANALYST</code></th>
+                  <th><code>REVIEWER</code></th>
+                  <th><code>ADMIN</code></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Submit <code>SELECT</code> queries</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Submit DML (<code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code>)</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Submit DDL (<code>CREATE</code> / <code>ALTER</code> / <code>DROP</code>)</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>View own query history</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+                <tr><td>View all queries in the org</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Approve / reject queries</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Manage review plans</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>View audit log</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Manage notification channels</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Configure AI</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Configure SAML / OAuth</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>Which role for what.</strong> Use <code>READONLY</code> for people who only
+            need to look at production data (analysts, on-call engineers reading dashboards).
+            Use <code>ANALYST</code> for people who write data through reviewed queries.
+            Use <code>REVIEWER</code> for people who approve other users' queries — typically
+            senior engineers or DBAs. Use <code>ADMIN</code> for the platform-team operators who
+            configure the system itself.
+          </p>
+          <p>
+            <strong>Datasource-level permissions.</strong> Role is the org-wide ceiling. On top of
+            it, every user needs an explicit row in <code>datasource_user_permissions</code> to
+            access a given datasource — that row controls <code>can_read</code> /
+            <code>can_write</code> / <code>can_ddl</code> per datasource, row caps, allowed
+            schemas / tables, and restricted columns (which are masked as <code>***</code> in
+            <code>SELECT</code> results). See
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
+            for the full authorization matrix.
+          </p>
+
+          <!-- Datasources -->
+          <h3 id="cfg-datasources">Datasources</h3>
+          <p>
+            A datasource describes one customer database that AccessFlow proxies. PostgreSQL,
+            MySQL, MariaDB, Oracle, and MS SQL Server are bundled; any other JDBC engine works by
+            uploading its driver JAR and setting <code>db_type=CUSTOM</code>.
+          </p>
+          <p>
+            <strong>Create a datasource</strong> — <code>POST /api/v1/datasources</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"name"</span>:                  <span class="c-str">"Production PostgreSQL"</span>,
+  <span class="c-kw">"db_type"</span>:               <span class="c-str">"POSTGRESQL"</span>,
+  <span class="c-kw">"host"</span>:                  <span class="c-str">"db.company.com"</span>,
+  <span class="c-kw">"port"</span>:                  5432,
+  <span class="c-kw">"database_name"</span>:         <span class="c-str">"app_prod"</span>,
+  <span class="c-kw">"username"</span>:              <span class="c-str">"accessflow_svc"</span>,
+  <span class="c-kw">"password"</span>:              <span class="c-str">"<i>encrypted at rest</i>"</span>,
+  <span class="c-kw">"ssl_mode"</span>:              <span class="c-str">"REQUIRE"</span>,
+  <span class="c-kw">"require_review_reads"</span>:  <span class="c-str">false</span>,
+  <span class="c-kw">"require_review_writes"</span>: <span class="c-str">true</span>,
+  <span class="c-kw">"review_plan_id"</span>:        <span class="c-str">"<i>uuid of a review plan</i>"</span>,
+  <span class="c-kw">"ai_analysis_enabled"</span>:   <span class="c-str">true</span>,
+  <span class="c-kw">"ai_config_id"</span>:          <span class="c-str">"<i>uuid of an ai_config</i>"</span>
+}
+</pre>
+          </div>
+          <p>
+            <code>password</code> is AES-256-GCM encrypted on write and is never returned in any
+            response. The plaintext is decrypted once during HikariCP pool init and never stored
+            on the heap beyond that.
+          </p>
+          <p>
+            <strong>Grant a user access</strong> — <code>POST /api/v1/datasources/{id}/permissions</code>
+            with <code>{ user_id, can_read, can_write, can_ddl, allowed_schemas, allowed_tables,
+            restricted_columns, expires_at }</code>. Without a permission row, a user cannot see
+            or query the datasource at all.
+          </p>
+          <p>
+            <strong>Custom JDBC drivers.</strong> Upload a driver JAR with
+            <code>POST /api/v1/datasources/drivers</code> (multipart: <code>vendor_name</code>,
+            <code>target_db_type</code>, <code>driver_class</code>,
+            <code>expected_sha256</code>). The SHA-256 is re-verified on every pool init and
+            each driver runs in an isolated classloader. The on-disk cache path is
+            <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) —
+            mount this as a persistent volume in Kubernetes.
+          </p>
+
+          <!-- Review plans -->
+          <h3 id="cfg-review-plans">Review plans</h3>
+          <p>
+            A review plan is a per-datasource policy that decides how a submitted query reaches
+            execution. Each plan describes a sequence of stages; each stage names approvers (by
+            role or explicit user) and a minimum number of approvals before the query advances.
+          </p>
+          <p>
+            <strong>Create a plan</strong> — <code>POST /api/v1/admin/review-plans</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"name"</span>:                    <span class="c-str">"Production writes — two reviewers"</span>,
+  <span class="c-kw">"description"</span>:             <span class="c-str">"DML on prod needs senior + DBA sign-off."</span>,
+  <span class="c-kw">"requires_ai_review"</span>:      <span class="c-str">true</span>,
+  <span class="c-kw">"requires_human_approval"</span>: <span class="c-str">true</span>,
+  <span class="c-kw">"min_approvals_required"</span>:  2,
+  <span class="c-kw">"approval_timeout_hours"</span>:  24,
+  <span class="c-kw">"auto_approve_reads"</span>:      <span class="c-str">true</span>,
+  <span class="c-kw">"approvers"</span>: [
+    { <span class="c-kw">"role"</span>: <span class="c-str">"REVIEWER"</span>, <span class="c-kw">"stage"</span>: 1 },
+    { <span class="c-kw">"role"</span>: <span class="c-str">"ADMIN"</span>,    <span class="c-kw">"stage"</span>: 2 }
+  ]
+}
+</pre>
+          </div>
+          <p>
+            <strong>Query status transitions.</strong> A query moves through these states:
+          </p>
+<pre class="docs-pre-plain">PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
+                           ↘ REJECTED   (manual reviewer rejection)
+                           ↘ TIMED_OUT  (approval-timeout auto-reject)
+PENDING_REVIEW → CANCELLED (submitter only)
+APPROVED → FAILED (execution error)</pre>
+          <p>
+            A single <code>REJECTED</code> decision at any stage terminates the query. If a query
+            sits in <code>PENDING_REVIEW</code> past the plan's <code>approval_timeout_hours</code>,
+            <code>QueryTimeoutJob</code> auto-rejects it. The job's cadence is configurable via
+            <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code> (default <code>PT5M</code>).
+            <code>auto_approve_reads=true</code> lets <code>SELECT</code>s skip human approval
+            entirely; <code>requires_ai_review=true</code> still scores the read but won't block
+            on a human.
+          </p>
+
+          <!-- AI -->
+          <h3 id="cfg-ai">AI configurations</h3>
+          <p>
+            AI analysis is per-organization. AccessFlow ships adapters for three providers — pick
+            one that fits your data-egress policy:
+          </p>
+          <ul>
+            <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
+            <li><strong>OpenAI</strong> (or any OpenAI-compatible endpoint) — default model <code>gpt-4o</code>.</li>
+            <li><strong>Ollama</strong> — self-hosted, set <code>endpoint</code> to the Ollama server URL.</li>
+          </ul>
+          <p>
+            <strong>Set the AI config</strong> — <code>PUT /api/v1/admin/ai-configs</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"provider"</span>: <span class="c-str">"ANTHROPIC"</span>,
+  <span class="c-kw">"model"</span>:    <span class="c-str">"claude-sonnet-4-20250514"</span>,
+  <span class="c-kw">"api_key"</span>:  <span class="c-str">"sk-ant-..."</span>
+}
+</pre>
+          </div>
+          <p>
+            For Ollama, add <code>"endpoint": "http://ollama:11434"</code> (and leave
+            <code>api_key</code> empty). Provider switches take effect immediately — no restart
+            is required. Verify the connection with
+            <code>POST /api/v1/admin/ai-configs/{id}/test</code> before relying on it in a
+            review plan.
+          </p>
+          <div class="docs-callout info">
+            <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
+            (<code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>CRITICAL</code>),
+            and a list of issues categorised as anti-patterns, missing indexes, restricted-column
+            access, etc. The score is informational — only human reviewers can finalize approval
+            unless the plan opts in to <code>auto_approve_reads</code>.
+          </div>
+
+          <!-- Notification channels -->
+          <h3 id="cfg-notification-channels">Notification channels</h3>
+          <p>
+            AccessFlow fires notifications when a query is submitted, approved, rejected, times
+            out, or scores <code>CRITICAL</code> on AI risk. Channels are configured per
+            organization; multiple channels of the same type can coexist (e.g. one Slack channel
+            per team).
+          </p>
+          <p>
+            <strong>Three channel types</strong> — <code>POST /api/v1/admin/notification-channels</code>:
+          </p>
+          <ul>
+            <li><strong>Email</strong> — <code>config</code> carries <code>smtp_host</code>, <code>smtp_port</code>, <code>smtp_user</code>, <code>smtp_password</code>, <code>smtp_tls</code>, <code>from_address</code>, <code>from_name</code>. Falls back to the system SMTP when omitted.</li>
+            <li><strong>Slack</strong> — <code>config</code> carries an incoming-webhook <code>webhook_url</code>, optional <code>channel</code> override, optional <code>mention_users</code>. Messages use Slack Block Kit so the SQL preview and action buttons render natively.</li>
+            <li><strong>Webhook</strong> — <code>config</code> carries <code>url</code>, <code>secret</code> (used to compute <code>X-AccessFlow-Signature: sha256=...</code>), <code>timeout_seconds</code>, <code>retry_attempts</code>.</li>
+          </ul>
+          <p>
+            Sensitive config fields (<code>smtp_password</code>, <code>webhook_secret</code>) are
+            AES-256-GCM encrypted at rest and are never returned in <code>GET</code> responses.
+            Verify a channel with
+            <code>POST /api/v1/admin/notification-channels/{id}/test</code> — the dispatcher
+            sends a synthetic event and reports delivery success.
+          </p>
+          <div class="docs-callout info">
+            <strong>Webhook retry policy.</strong> One immediate attempt plus three scheduled
+            retries at <code>+30s</code>, <code>+2 min</code>, <code>+10 min</code>. Tune the
+            delays via <code>ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST</code> /
+            <code>_SECOND</code> / <code>_THIRD</code>. Failed deliveries log <code>ERROR</code>
+            but never affect query workflow state.
+          </div>
+
+          <!-- SMTP -->
+          <h3 id="cfg-smtp">System SMTP</h3>
+          <p>
+            System SMTP is the fallback for transactional emails — password resets, invitations,
+            and any notification email channel that doesn't carry its own SMTP overrides.
+            Configure once per org:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json — PUT /api/v1/admin/system-smtp</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"host"</span>:         <span class="c-str">"smtp.company.com"</span>,
+  <span class="c-kw">"port"</span>:         587,
+  <span class="c-kw">"username"</span>:     <span class="c-str">"smtp-user"</span>,
+  <span class="c-kw">"password"</span>:     <span class="c-str">"<i>encrypted at rest</i>"</span>,
+  <span class="c-kw">"tls"</span>:          <span class="c-str">true</span>,
+  <span class="c-kw">"from_address"</span>: <span class="c-str">"accessflow@company.com"</span>
+}
+</pre>
+          </div>
+          <p>
+            Verify with <code>POST /api/v1/admin/system-smtp/test</code> — the server tries a
+            real send to a sink address you supply. Remove with
+            <code>DELETE /api/v1/admin/system-smtp</code> if you'd rather rely solely on
+            per-channel email config.
+          </p>
+
+          <!-- OAuth -->
+          <h3 id="cfg-oauth">OAuth 2.0 / OIDC</h3>
+          <p>
+            Sign-in with Google, GitHub, Microsoft, and GitLab is built-in — operators only need
+            to register an OAuth app with the provider and store the client id / secret in
+            AccessFlow. Other OIDC providers work the same way; the configuration lives in the
+            database (<code>oauth2_config</code> rows), not in <code>application.yml</code>, so
+            adding a new provider does not require a restart.
+          </p>
+          <ol>
+            <li>Register an OAuth app at the provider; set the redirect URI to <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth/{provider}/callback</code>.</li>
+            <li>From the admin UI, paste the <code>client_id</code> + <code>client_secret</code> and pick the built-in template (Google / GitHub / Microsoft / GitLab) or fill in the OIDC discovery URL for a custom provider.</li>
+            <li>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code> if the frontend lives at a different origin than the backend's CORS origin (default is <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
+            <li>Optional: enable auto-provisioning so first-time sign-ins create a user with a default role.</li>
+          </ol>
+          <p>
+            Email verification is required before an OAuth account is linked, and account-linking
+            is conservative — a provider-supplied email will not silently take over an existing
+            local user. Implementation details:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md
+            → Authentication</a>.
+          </p>
+
+          <!-- SAML -->
+          <h3 id="cfg-saml">SAML 2.0 SSO</h3>
+          <p>
+            For SAML-based SSO (Okta, Azure AD, OneLogin, etc.) configure one record per org via
+            <code>PUT /api/v1/admin/saml-config</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">json</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>{
+  <span class="c-kw">"sp_entity_id"</span>:     <span class="c-str">"https://accessflow.company.com/saml"</span>,
+  <span class="c-kw">"idp_metadata_url"</span>: <span class="c-str">"https://idp.company.com/saml/metadata"</span>,
+  <span class="c-kw">"keystore"</span>:         <span class="c-str">"<i>base64-encoded JKS or P12</i>"</span>,
+  <span class="c-kw">"keystore_password"</span>:<span class="c-str">"<i>encrypted at rest</i>"</span>
+}
+</pre>
+          </div>
+          <p>
+            Both SP-initiated and IdP-initiated flows are supported. Attribute mapping (email,
+            display name, role) and auto-provisioning behaviour are configurable; SAML users
+            rely on the IdP's MFA rather than AccessFlow's TOTP. Full SP metadata, signing-cert
+            rotation, and assertion validation rules live in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>.
+          </p>
+        </section>
+
+        <!-- 5. Further reading -->
+        <section id="further-reading" class="docs-section">
+          <h2>Further reading</h2>
+          <p>
+            This page covers what an operator needs to run and configure AccessFlow. For deeper
+            internals — module boundaries, the proxy engine, the audit log's HMAC chain, the full
+            REST + WebSocket spec — see the engineering chapters in
+            <a href="https://github.com/bablsoft/accessflow/tree/main/docs">the docs/ folder on
+            GitHub</a>:
+          </p>
+          <ul class="docs-link-list">
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">02 · Architecture</a> — subsystems, technology stack, request flow.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">04 · REST API</a> — every endpoint, request body, and WebSocket event.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md">05 · Backend</a> — proxy engine, workflow state machine, AI analyzer internals.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">07 · Security</a> — auth, authorization matrix, encryption, audit integrity.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md">08 · Notifications</a> — event types, channel configs, signed webhook payloads.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">09 · Deployment</a> — full env-var reference, Helm values, Bootstrap GitOps tree.</li>
+          </ul>
+        </section>
+
+      </article>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="../index.html#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Product</h5>
+          <ul>
+            <li><a href="../index.html#features">Features</a></li>
+            <li><a href="../index.html#how">How it works</a></li>
+            <li><a href="../index.html#install">Quick start</a></li>
+            <li><a href="../index.html#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Docs</h5>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Community</h5>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Legal</h5>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v1.0 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
