@@ -8,12 +8,16 @@ Helm chart for [AccessFlow](https://github.com/bablsoft/accessflow) — an open-
 helm repo add accessflow https://bablsoft.github.io/accessflow
 helm repo update
 
-# Create required secrets first (see "Secrets" below)
+# Create the required Kubernetes Secrets first (see "Secrets" below)
 helm install accessflow accessflow/accessflow \
   --namespace accessflow \
   --create-namespace \
+  --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+  --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
   --values my-values.yaml
 ```
+
+`config.encryptionKey.existingSecret` and `config.jwtPrivateKey.existingSecret` have no defaults — the chart fails fast if either is empty. Override them via `--set` (as above), via `--values`, or in your own `my-values.yaml`.
 
 The chart `version` and `appVersion` are kept in lock-step with AccessFlow releases — `helm install accessflow/accessflow --version 1.2.3` always installs the `1.2.3` images.
 
@@ -60,8 +64,8 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `redis.enabled` | `true` | Install the bundled bitnami/redis subchart. Set `false` to use `externalRedis`. |
 | `externalDatabase.host` / `.port` / `.database` / `.username` / `.existingSecret` | `""` | External PostgreSQL settings. |
 | `externalRedis.url` | `""` | External Redis URL (e.g. `redis://host:6379`). |
-| `config.encryptionKey.existingSecret` / `.key` | `accessflow-encryption-key` / `value` | Reference to a Kubernetes Secret holding the 32-byte hex AES-256-GCM key. |
-| `config.jwtPrivateKey.existingSecret` / `.key` | `accessflow-jwt-key` / `value` | Reference to a Kubernetes Secret holding the RSA-2048 PEM. |
+| `config.encryptionKey.existingSecret` / `.key` | `""` (required) / `value` | Reference to a Kubernetes Secret holding the 32-byte hex AES-256-GCM key. The "TL;DR" snippet above uses `accessflow-encryption-key`. |
+| `config.jwtPrivateKey.existingSecret` / `.key` | `""` (required) / `value` | Reference to a Kubernetes Secret holding the RSA-2048 PEM. The "TL;DR" snippet above uses `accessflow-jwt-key`. |
 | `config.corsAllowedOrigin` | `https://accessflow.company.com` | Frontend origin allowed by CORS. |
 | `config.frontend.apiBaseUrl` / `.wsUrl` | `https://accessflow.company.com[/ws]` | Rendered into the runtime-config.js ConfigMap. |
 | `ingress.enabled` / `.className` / `.hosts` / `.tls` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. |

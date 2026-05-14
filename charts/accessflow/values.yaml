@@ -90,13 +90,13 @@ config:
   # (not credentials). See docs/09-deployment.md → "Kubernetes Secrets Setup" for the
   # kubectl one-liners that create the actual material.
   encryptionKey:
-    existingSecret: accessflow-encryption-key   # required — 32 hex bytes under key below
+    existingSecret: ""    # required — Secret name (see docs/09-deployment.md kubectl one-liners)
     key: value
   jwtPrivateKey:
-    existingSecret: accessflow-jwt-key          # required — RSA-2048 PEM under key below
+    existingSecret: ""    # required — Secret name (see docs/09-deployment.md kubectl one-liners)
     key: value
   auditHmac:
-    existingSecret: ""                          # optional — hex ≥ 32 bytes under key below
+    existingSecret: ""    # optional — hex ≥ 32 bytes under key below
     key: value
   # CORS / public-URL config (non-secret)
   corsAllowedOrigin: https://accessflow.company.com

@@ -29,8 +29,8 @@ Backend health endpoints (port {{ .Values.backend.service.port }}):
   /actuator/info             — build version metadata
 
 Required Kubernetes Secrets (create before install if not already present):
-  - {{ .Values.config.encryptionKey.existingSecret }}         (key: {{ default "value" .Values.config.encryptionKey.key }} — 32 hex bytes)
-  - {{ .Values.config.jwtPrivateKey.existingSecret }}         (key: {{ default "value" .Values.config.jwtPrivateKey.key }} — RSA-2048 PEM)
+  - encryption key  →  Secret "{{ .Values.config.encryptionKey.existingSecret }}" (key: {{ default "value" .Values.config.encryptionKey.key }} — 32 hex bytes)
+  - JWT private key →  Secret "{{ .Values.config.jwtPrivateKey.existingSecret }}" (key: {{ default "value" .Values.config.jwtPrivateKey.key }} — RSA-2048 PEM)
 {{- if .Values.postgresql.enabled }}
   - {{ .Values.postgresql.auth.existingSecret }}    (key: password — PostgreSQL password)
 {{- else if .Values.externalDatabase.existingSecret }}

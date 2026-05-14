@@ -30,7 +30,11 @@ jobs:
         run: helm lint charts/accessflow
 
       - name: Render with defaults (bundled Postgres + Redis)
-        run: helm template accessflow charts/accessflow > /tmp/rendered-defaults.yaml
+        run: |
+          helm template accessflow charts/accessflow \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
+            > /tmp/rendered-defaults.yaml
 
       - name: Render with external Postgres + Redis
         run: |
@@ -40,4 +44,6 @@ jobs:
             --set externalDatabase.host=db.example.com \
             --set externalDatabase.existingSecret=external-db-secret \
             --set externalRedis.url=redis://r.example.com:6379 \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
             > /tmp/rendered-external.yaml

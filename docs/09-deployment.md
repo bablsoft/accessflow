@@ -134,9 +134,13 @@ docker exec -it accessflow-ollama-1 ollama pull llama3.2
 helm repo add accessflow https://bablsoft.github.io/accessflow
 helm repo update
 
+# config.encryptionKey.existingSecret and config.jwtPrivateKey.existingSecret have no
+# defaults — set them either via --set or in your my-values.yaml.
 helm install accessflow accessflow/accessflow \
   --namespace accessflow \
   --create-namespace \
+  --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+  --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
   --values my-values.yaml
 ```
 
