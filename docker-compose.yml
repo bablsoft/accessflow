@@ -61,6 +61,13 @@ services:
       DB_USER: accessflow
       DB_PASSWORD: ${DB_PASSWORD:-accessflow}
       REDIS_URL: redis://redis:6379
+      # Browser origin allowed by the CORS filter. Must match the URL the user
+      # types into the browser — i.e. the host:port the `frontend` service is
+      # published on below. Change both together.
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:5173}
+      # Public URL embedded in outbound emails, webhook payloads, and OAuth2
+      # callbacks. Same value as CORS_ALLOWED_ORIGIN for the local demo.
+      ACCESSFLOW_PUBLIC_BASE_URL: ${ACCESSFLOW_PUBLIC_BASE_URL:-http://localhost:5173}
       # ⚠️  DEMO ONLY — do not reuse in production. Generate your own with:
       #     openssl rand -hex 32
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e}
@@ -104,6 +111,14 @@ services:
   frontend:
     image: ghcr.io/bablsoft/accessflow-frontend:latest
     container_name: accessflow-frontend
+    # The frontend reads its backend URL at boot from
+    # /usr/share/nginx/html/runtime-config.js, baked into the image with
+    #   apiBaseUrl: "http://localhost:8080"
+    #   wsUrl:     "ws://localhost:8080/ws"
+    # which matches the host port the `backend` service is published on above.
+    # To point this image at a backend on a different host:port (or behind a
+    # reverse proxy), mount your own runtime-config.js — see
+    # docs/09-deployment.md → "Production-style configuration".
     depends_on:
       - backend
     networks:
