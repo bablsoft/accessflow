@@ -143,8 +143,14 @@ helm install accessflow accessflow/accessflow \
 
 The chart bundles optional `bitnami/postgresql` and `bitnami/redis` subcharts (toggle off
 for production with `postgresql.enabled=false` / `redis.enabled=false`) and ships a single
-Ingress that dispatches `/api`+`/ws` → backend, `/` → frontend. Full reference:
-[`charts/accessflow/README.md`](https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md)
+Ingress that dispatches `/api`+`/ws` → backend, `/` → frontend.
+
+For GitOps deployments, the chart can also seed the organization, first admin user, review
+plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system
+SMTP from `values.yaml` (with sensitive fields routed through Kubernetes Secrets) — see
+[`docs/09-deployment.md → Bootstrap configuration`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#bootstrap-configuration).
+
+Full reference: [`charts/accessflow/README.md`](https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md)
 and [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md).
 
 ---

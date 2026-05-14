@@ -78,6 +78,7 @@ spec:
                   name: {{ .Values.config.auditHmac.existingSecret }}
                   key: {{ default "value" .Values.config.auditHmac.key }}
             {{- end }}
+            {{- include "accessflow.bootstrap.envSecrets" . | nindent 12 }}
           {{- if .Values.driverCache.persistence.enabled }}
           volumeMounts:
             - name: driver-cache

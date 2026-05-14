@@ -1,0 +1,75 @@
+# helm template fixture exercising every bootstrap.* render path so PRs that
+# break the helper templates fail CI. See .github/workflows/helm-ci.yml.
+config:
+  encryptionKey:
+    existingSecret: accessflow-bootstrap-secrets
+    key: encryption-key
+  jwtPrivateKey:
+    existingSecret: accessflow-bootstrap-secrets
+    key: jwt-private-key
+
+bootstrap:
+  enabled: true
+  organization:
+    name: Acme
+  admin:
+    email: admin@acme.com
+    displayName: Initial Admin
+    passwordSecretRef: { name: accessflow-bootstrap-secrets, key: admin-password }
+  reviewPlans:
+    - name: standard
+      requiresAiReview: true
+      requiresHumanApproval: true
+      minApprovalsRequired: 1
+      approvalTimeoutHours: 24
+      autoApproveReads: false
+      notifyChannelNames: [ops-slack]
+      approverEmails: [admin@acme.com]
+  aiConfigs:
+    - name: claude
+      provider: ANTHROPIC
+      model: claude-sonnet-4-20250514
+      apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: anthropic-key }
+  datasources:
+    - name: prod-postgres
+      dbType: POSTGRESQL
+      host: postgres.prod.svc
+      port: 5432
+      databaseName: app
+      username: af_reader
+      passwordSecretRef: { name: prod-pg-creds, key: password }
+      sslMode: REQUIRE
+      reviewPlanName: standard
+      aiAnalysisEnabled: true
+      aiConfigName: claude
+  notificationChannels:
+    - name: ops-slack
+      channelType: SLACK
+      active: true
+      config:
+        channel: "#ops"
+      sensitiveSecretRefs:
+        webhookUrl: { name: accessflow-bootstrap-secrets, key: slack-webhook }
+  saml:
+    enabled: true
+    idpMetadataUrl: https://idp.example/metadata
+    idpEntityId: https://idp.example
+    spEntityId: https://accessflow.example
+    acsUrl: https://accessflow.example/saml/acs
+    defaultRole: REVIEWER
+    active: true
+  oauth2:
+    - provider: GOOGLE
+      clientId: google-client-id
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: google-client-secret }
+      defaultRole: REVIEWER
+      active: true
+  systemSmtp:
+    enabled: true
+    host: smtp.acme.com
+    port: 587
+    username: noreply
+    passwordSecretRef: { name: accessflow-bootstrap-secrets, key: smtp-password }
+    tls: true
+    fromAddress: noreply@acme.com
+    fromName: AccessFlow

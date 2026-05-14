@@ -232,3 +232,126 @@ saml:
   spEntityId: ""
   idpMetadataUrl: ""
   keystoreSecret: ""
+
+# --- Startup bootstrap of admin config (env-var driven; GitOps-friendly)
+# When enabled, the backend reconciles the resources declared below into the
+# database on every startup. See docs/09-deployment.md → "Bootstrap configuration"
+# for full semantics. Authoritative mode: declared resources are upserted on
+# every restart and overwrite admin-UI edits. Resources NOT declared here are
+# left untouched.
+#
+# Sensitive fields use *SecretRef ({ name, key }) sub-objects that reference a
+# pre-existing Kubernetes Secret. The chart does not create Secret objects.
+bootstrap:
+  enabled: false
+
+  # The tenant org that owns every resource below. Created on first start if a
+  # row with this slug does not exist; never deleted.
+  organization:
+    name: ""                    # required when enabled
+    slug: ""                    # optional; derived from name (slugify) when blank
+
+  # First admin user. Created on first start; password is NOT rotated on
+  # subsequent restarts (operators rotate via the admin API).
+  admin:
+    email: ""                   # required when enabled
+    displayName: ""             # required when enabled
+    passwordSecretRef:          # required when enabled
+      name: ""                  # K8s Secret name (must exist)
+      key: ""                   # key inside that Secret
+
+  # Review plans (upserted by name). approverEmails resolve at apply time
+  # against the admin user above or any already-provisioned users.
+  reviewPlans: []
+  # - name: standard
+  #   description: "Standard review plan"
+  #   requiresAiReview: true
+  #   requiresHumanApproval: true
+  #   minApprovalsRequired: 1
+  #   approvalTimeoutHours: 24
+  #   autoApproveReads: false
+  #   notifyChannelNames: [ops-slack]
+  #   approverEmails: [admin@acme.com]
+
+  # AI provider configurations (upserted by name).
+  aiConfigs: []
+  # - name: claude
+  #   provider: ANTHROPIC          # ANTHROPIC | OPENAI | OLLAMA
+  #   model: claude-sonnet-4-20250514
+  #   endpoint: ""                 # optional override
+  #   apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: anthropic-key }
+  #   timeoutMs: 30000
+  #   maxPromptTokens: 4000
+  #   maxCompletionTokens: 1024
+
+  # Datasources (upserted by name). dbType=CUSTOM is rejected — upload CUSTOM
+  # driver JARs via the admin API.
+  datasources: []
+  # - name: prod-postgres
+  #   dbType: POSTGRESQL           # POSTGRESQL | MYSQL | MARIADB | ORACLE | MSSQL
+  #   host: postgres.prod.svc
+  #   port: 5432
+  #   databaseName: app
+  #   username: af_reader
+  #   passwordSecretRef: { name: prod-pg-creds, key: password }
+  #   sslMode: REQUIRE             # DISABLE | REQUIRE | VERIFY_CA | VERIFY_FULL
+  #   connectionPoolSize: 10
+  #   maxRowsPerQuery: 10000
+  #   requireReviewReads: false
+  #   requireReviewWrites: true
+  #   reviewPlanName: standard     # resolved against reviewPlans above
+  #   aiAnalysisEnabled: true
+  #   aiConfigName: claude         # resolved against aiConfigs above
+  #   jdbcUrlOverride: ""
+
+  # Notification channels (upserted by name). `config` carries non-secret
+  # sub-fields; sensitive sub-fields are referenced via `sensitiveSecretRefs`
+  # keyed by the same sub-field name. The chart merges both into the
+  # ACCESSFLOW_BOOTSTRAP_NOTIFICATION_CHANNELS_<N>_CONFIG_<KEY> env-var space.
+  notificationChannels: []
+  # - name: ops-slack
+  #   channelType: SLACK           # EMAIL | SLACK | WEBHOOK
+  #   active: true
+  #   config:
+  #     channel: "#ops"
+  #   sensitiveSecretRefs:
+  #     webhookUrl: { name: accessflow-bootstrap-secrets, key: slack-webhook }
+
+  # SAML 2.0 (singleton per org). Disabled by default — set saml.enabled=true
+  # to render. signingCertPem is in-line; long values can flow through the
+  # `backend.extraEnvFrom` mechanism if preferred.
+  saml:
+    enabled: false
+    idpMetadataUrl: ""
+    idpEntityId: ""
+    spEntityId: ""
+    acsUrl: ""
+    sloUrl: ""
+    signingCertPem: ""
+    attrEmail: ""
+    attrDisplayName: ""
+    attrRole: ""
+    defaultRole: REVIEWER         # ADMIN | REVIEWER | ANALYST | READONLY
+    active: true
+
+  # OAuth2 / OIDC providers (upserted by provider key — GOOGLE / GITHUB / etc.).
+  oauth2: []
+  # - provider: GOOGLE
+  #   clientId: "..."
+  #   clientSecretRef: { name: accessflow-bootstrap-secrets, key: google-client-secret }
+  #   scopesOverride: ""
+  #   tenantId: ""
+  #   defaultRole: REVIEWER
+  #   active: true
+
+  # System SMTP relay (singleton per org). Used for outbound email — review
+  # notifications, password resets, invitations.
+  systemSmtp:
+    enabled: false
+    host: ""
+    port: 587
+    username: ""
+    passwordSecretRef: { name: "", key: "" }
+    tls: true
+    fromAddress: ""
+    fromName: AccessFlow

@@ -18,3 +18,4 @@ data:
   {{- range $key, $value := .Values.backend.env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
+  {{- include "accessflow.bootstrap.configmap" . | nindent 2 }}
