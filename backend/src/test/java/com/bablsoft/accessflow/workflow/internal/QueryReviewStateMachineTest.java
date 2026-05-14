@@ -191,7 +191,8 @@ class QueryReviewStateMachineTest {
     private void givenPendingAiQuery(QueryType type) {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(new QueryRequestSnapshot(queryId, datasourceId,
-                        organizationId, submitterId, "SELECT 1", type, QueryStatus.PENDING_AI)));
+                        organizationId, submitterId, "SELECT 1", type, false,
+                        QueryStatus.PENDING_AI)));
     }
 
     private void givenPlan(boolean autoApproveReads, boolean requiresHumanApproval,
@@ -206,6 +207,6 @@ class QueryReviewStateMachineTest {
 
     private QueryRequestSnapshot snapshot(QueryStatus status) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", QueryType.SELECT, status);
+                "SELECT 1", QueryType.SELECT, false, status);
     }
 }

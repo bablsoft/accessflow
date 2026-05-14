@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
@@ -46,6 +47,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final QueryRequestStateService queryRequestStateService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryExecutor queryExecutor;
+    private final SqlParserService sqlParserService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
@@ -86,9 +88,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .findFor(query.submittedByUserId(), query.datasourceId())
                     .map(p -> p.restrictedColumns())
                     .orElse(List.of());
+            var parsed = sqlParserService.parse(query.sqlText());
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
-                    restrictedColumns));
+                    restrictedColumns, parsed.transactional(), parsed.statements()));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;

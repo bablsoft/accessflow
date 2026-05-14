@@ -233,6 +233,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getSubmittedBy().getId(),
                 entity.getSqlText(),
                 entity.getQueryType(),
+                entity.isTransactional(),
                 entity.getStatus());
     }
 }

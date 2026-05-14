@@ -219,8 +219,9 @@ The central entity. Represents a single SQL submission through the platform.
 | `id` | UUID PK |
 | `datasource_id` | FK → `datasources` |
 | `submitted_by` | FK → `users` |
-| `sql_text` | TEXT — the raw submitted SQL |
-| `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER` |
+| `sql_text` | TEXT — the raw submitted SQL (including any `BEGIN; … COMMIT;` envelope, verbatim, for audit and AI prompting) |
+| `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
+| `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
 | `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |

@@ -7,5 +7,6 @@ public record SubmitQueryCommand(
         UUID submittedByUserId,
         String sqlText,
         QueryType queryType,
+        boolean transactional,
         String justification) {
 }

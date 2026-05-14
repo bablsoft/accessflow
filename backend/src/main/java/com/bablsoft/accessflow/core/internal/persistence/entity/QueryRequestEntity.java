@@ -75,6 +75,9 @@ public class QueryRequestEntity {
     @Column(name = "execution_duration_ms")
     private Integer executionDurationMs;
 
+    @Column(name = "transactional", nullable = false)
+    private boolean transactional = false;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

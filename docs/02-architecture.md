@@ -70,7 +70,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 1. User opens SQL editor in browser, selects a datasource, writes SQL.
 2. Frontend sends `POST /api/v1/queries` to the Spring Boot API.
 3. API validates JWT, checks the user has a permission record for the datasource.
-4. Query Proxy Service classifies the SQL type (SELECT / DML / DDL).
+4. Query Proxy Service classifies the SQL type (SELECT / DML / DDL). Multi-statement input is rejected, except for `BEGIN; … COMMIT;` blocks wrapping homogeneous INSERT/UPDATE/DELETE batches — those are accepted, recorded with `transactional=true`, and executed atomically.
 5. Review plan is looked up for the datasource → determines if AI review and/or human approval required.
 6. If AI review enabled → AI Analyzer Service invoked asynchronously; status becomes `PENDING_AI`.
 7. On AI completion → if human approval required, status becomes `PENDING_REVIEW`; reviewers notified.

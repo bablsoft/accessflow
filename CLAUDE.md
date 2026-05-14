@@ -302,7 +302,7 @@ com.bablsoft.accessflow/
 ### Security Rules — Non-Negotiable
 
 1. **No string-concatenation SQL** — `PreparedStatement` exclusively in the proxy engine.
-2. **JSqlParser validation first** — parse every submitted SQL before any execution path. Reject unparseable SQL with HTTP 422.
+2. **JSqlParser validation first** — parse every submitted SQL before any execution path. Reject unparseable SQL with HTTP 422. Multi-statement input is rejected, **except** for `BEGIN; … COMMIT;` envelopes wrapping a homogeneous INSERT/UPDATE/DELETE batch — those are executed under a single JDBC transaction (`autoCommit=false` + commit on success / rollback on `SQLException`). Inside the envelope, SELECT, DDL, `ROLLBACK`, `SAVEPOINT`, and nested `BEGIN` are all rejected with distinct 422 messages.
 3. **Schema allow-list at AST level** — walk the parsed AST to validate referenced tables, not string matching.
 4. **`password_encrypted` never in heap beyond pool init** — decrypt credentials once inside `QueryProxyService`, pass to HikariCP, do not store the plaintext.
 5. **A user can never approve their own query**, regardless of role. Enforce in the workflow service, not just the UI.

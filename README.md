@@ -23,7 +23,7 @@ AccessFlow provides the missing middle: governed, self-service access where ever
 
 ## Features
 
-- **Proxy-first execution** — no user ever holds production credentials; the proxy holds them encrypted and opens connections only after approval.
+- **Proxy-first execution** — no user ever holds production credentials; the proxy holds them encrypted and opens connections only after approval. Single SQL statements run with autocommit; multi-statement INSERT/UPDATE/DELETE batches wrapped in `BEGIN; … COMMIT;` execute atomically inside one JDBC transaction (mixed SELECT/DML batches are rejected at parse time).
 - **Configurable review workflows** — per-datasource review plans, multi-stage sequential approval chains, optional auto-approve for reads, approval timeouts with auto-reject.
 - **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, and self-hosted Ollama; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI.
 - **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.

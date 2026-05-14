@@ -228,6 +228,51 @@ class DefaultQueryExecutorTest {
         verify(statement).setQueryTimeout(7);
     }
 
+    @Test
+    void transactionalSumsRowsAffectedAndCommits() throws SQLException {
+        var stmt1 = mock(PreparedStatement.class);
+        var stmt2 = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)")).thenReturn(stmt1);
+        when(connection.prepareStatement("INSERT INTO t(id) VALUES (2)")).thenReturn(stmt2);
+        when(stmt1.executeLargeUpdate()).thenReturn(1L);
+        when(stmt2.executeLargeUpdate()).thenReturn(1L);
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (2); COMMIT;",
+                QueryType.INSERT, null, null, List.of(), true,
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (2)"));
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(2L);
+        verify(connection).setReadOnly(false);
+        verify(connection).setAutoCommit(false);
+        verify(connection).commit();
+        verify(connection, never()).rollback();
+    }
+
+    @Test
+    void transactionalRollsBackOnFailure() throws SQLException {
+        var stmt1 = mock(PreparedStatement.class);
+        var stmt2 = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)")).thenReturn(stmt1);
+        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)/* dup */")).thenReturn(stmt2);
+        when(stmt1.executeLargeUpdate()).thenReturn(1L);
+        when(stmt2.executeLargeUpdate())
+                .thenThrow(new SQLException("duplicate key", "23505", 7));
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (1)/* dup */; COMMIT;",
+                QueryType.INSERT, null, null, List.of(), true,
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (1)/* dup */"));
+
+        assertThatThrownBy(() -> executor.execute(request))
+                .isInstanceOf(QueryExecutionFailedException.class);
+
+        verify(connection).rollback();
+        verify(connection, never()).commit();
+    }
+
     private DatasourceConnectionDescriptor descriptor(int maxRows) {
         return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows,

@@ -30,6 +30,16 @@ class SqlParserServiceImplTest {
                 case "error.sql_parse_failed" -> "Failed to parse SQL";
                 case "error.sql_no_statement" -> "SQL must contain a statement";
                 case "error.sql_multiple_statements" -> "Multiple SQL statements are not allowed";
+                case "error.transaction_mixed_select_dml" -> "Transactions cannot mix SELECT with DML";
+                case "error.transaction_select_only" -> "SELECT does not require a transaction";
+                case "error.transaction_ddl_not_allowed" -> "DDL not allowed inside a transaction";
+                case "error.transaction_other_not_allowed" -> "Only INSERT/UPDATE/DELETE allowed inside a transaction";
+                case "error.transaction_nested_not_allowed" -> "Nested transactions are not allowed";
+                case "error.transaction_rollback_not_allowed" -> "ROLLBACK is not allowed";
+                case "error.transaction_savepoint_not_allowed" -> "SAVEPOINT is not allowed";
+                case "error.transaction_unmatched_begin" -> "Missing closing COMMIT";
+                case "error.transaction_unmatched_commit" -> "COMMIT without matching BEGIN";
+                case "error.transaction_empty_body" -> "Empty transaction body";
                 default -> key;
             };
         });
@@ -165,6 +175,180 @@ class SqlParserServiceImplTest {
     @Test
     void rejectsStackedStatements() {
         assertThatThrownBy(() -> service.parse("SELECT 1; DROP TABLE users;"))
-                .isInstanceOf(InvalidSqlException.class);
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("Multiple SQL statements");
+    }
+
+    // ── transactional submissions ────────────────────────────────────────────
+
+    @Test
+    void parsesDmlTransactionWithBeginCommit() {
+        SqlParseResult result = service.parse("""
+                BEGIN;
+                INSERT INTO t(id) VALUES (1);
+                INSERT INTO t(id) VALUES (2);
+                COMMIT;""");
+
+        assertThat(result.type()).isEqualTo(QueryType.INSERT);
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.statements()).hasSize(2);
+        assertThat(result.statements().get(0)).contains("INSERT INTO t");
+        assertThat(result.statements().get(1)).contains("VALUES (2)");
+    }
+
+    @Test
+    void parsesUpdateTransactionRepresentativeTypeIsUpdate() {
+        SqlParseResult result = service.parse(
+                "BEGIN; UPDATE t SET v=1 WHERE id=1; UPDATE t SET v=2 WHERE id=2; COMMIT;");
+
+        assertThat(result.type()).isEqualTo(QueryType.UPDATE);
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.statements()).hasSize(2);
+    }
+
+    @Test
+    void acceptsStartTransactionMarker() {
+        SqlParseResult result = service.parse(
+                "START TRANSACTION; INSERT INTO t(id) VALUES(1); COMMIT;");
+
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.statements()).hasSize(1);
+    }
+
+    @Test
+    void acceptsBeginTransactionMarker() {
+        SqlParseResult result = service.parse(
+                "BEGIN TRANSACTION; INSERT INTO t(id) VALUES(1); COMMIT;");
+
+        assertThat(result.transactional()).isTrue();
+    }
+
+    @Test
+    void acceptsBeginWorkMarker() {
+        SqlParseResult result = service.parse(
+                "BEGIN WORK; INSERT INTO t(id) VALUES(1); COMMIT WORK;");
+
+        assertThat(result.transactional()).isTrue();
+    }
+
+    @Test
+    void acceptsLowercaseAndMixedCaseMarkers() {
+        SqlParseResult result = service.parse(
+                "begin; INSERT INTO t(id) VALUES(1); Commit;");
+
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.type()).isEqualTo(QueryType.INSERT);
+    }
+
+    @Test
+    void acceptsEndAsClosingMarker() {
+        SqlParseResult result = service.parse(
+                "BEGIN; INSERT INTO t(id) VALUES(1); END;");
+
+        assertThat(result.transactional()).isTrue();
+    }
+
+    @Test
+    void acceptsLeadingLineAndBlockComments() {
+        SqlParseResult result = service.parse("""
+                -- prepare batch
+                /* multi
+                   line */
+                BEGIN;
+                INSERT INTO t(id) VALUES(1);
+                COMMIT;""");
+
+        assertThat(result.transactional()).isTrue();
+    }
+
+    @Test
+    void acceptsIssueExamplePayload() {
+        SqlParseResult result = service.parse("""
+                BEGIN; -- start a transaction
+                INSERT INTO card.pending_activation_cards_report (id, user_id, card_ids, generation_date)
+                SELECT uuid_generate_v4(), user_id, STRING_AGG(id::text, ','), '2026-05-07'
+                FROM card.card
+                WHERE card_status = 'CREATED' AND card_type = 'PHYSICAL_DEBIT'
+                AND user_id NOT IN (SELECT user_id FROM card.pending_activation_cards_report WHERE generation_date = '2026-05-07')
+                GROUP BY user_id;
+                INSERT INTO card.event_outbox(id, reference_id, type, created_at, event)
+                VALUES(uuid_generate_v4(), 'a89117ae-c760-4f83-acd3-20b24e9a4abd', 'PENDING_ACTIVATION_CARDS_REPORT_POPULATED', now(), '{"eventId":"ea159aaf-9f96-4a91-854e-83fbac8c53ce","generationDate":"2026-05-07"}');
+                COMMIT; -- commit the change (or roll it back later)
+                """);
+
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.type()).isEqualTo(QueryType.INSERT);
+        assertThat(result.statements()).hasSize(2);
+    }
+
+    @Test
+    void rejectsMixedSelectAndDmlInsideTransaction() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; SELECT * FROM t; INSERT INTO t(id) VALUES(1); COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("mix SELECT");
+    }
+
+    @Test
+    void rejectsSelectOnlyTransaction() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; SELECT 1; SELECT 2; COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("SELECT does not require");
+    }
+
+    @Test
+    void rejectsDdlInsideTransaction() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; CREATE TABLE t(id int); INSERT INTO t(id) VALUES(1); COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("DDL not allowed");
+    }
+
+    @Test
+    void rejectsRollbackInsideTransaction() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; ROLLBACK; INSERT INTO t(id) VALUES(1); COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("ROLLBACK");
+    }
+
+    @Test
+    void rejectsBeginWithoutCommitWhenLastStatementIsRollback() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; INSERT INTO t(id) VALUES(1); ROLLBACK;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("Missing closing COMMIT");
+    }
+
+    @Test
+    void rejectsSavepointInsideTransaction() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; SAVEPOINT sp1; INSERT INTO t(id) VALUES(1); COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("SAVEPOINT");
+    }
+
+    @Test
+    void rejectsEmptyTransactionBody() {
+        assertThatThrownBy(() -> service.parse("BEGIN; COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("Empty transaction");
+    }
+
+    @Test
+    void rejectsUnmatchedBegin() {
+        assertThatThrownBy(() -> service.parse(
+                "BEGIN; INSERT INTO t(id) VALUES(1);"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("Missing closing COMMIT");
+    }
+
+    @Test
+    void rejectsUnmatchedCommit() {
+        assertThatThrownBy(() -> service.parse(
+                "INSERT INTO t(id) VALUES(1); COMMIT;"))
+                .isInstanceOf(InvalidSqlException.class)
+                .hasMessageContaining("COMMIT without matching BEGIN");
     }
 }
