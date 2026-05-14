@@ -36,6 +36,8 @@ accessflow/
 └── .github/workflows/
 ```
 
+The root [`docker-compose.yml`](docker-compose.yml) is intentionally a **zero-config demo stack** that ships insecure demo `JWT_PRIVATE_KEY` and `ENCRYPTION_KEY` defaults inline so `docker compose up` works on a fresh clone with no `.env` and no key generation. Do not "fix" the embedded keys — they are committed deliberately. The production-style compose (with real `.env` / generated keys / optional Ollama profile) lives in [`docs/09-deployment.md`](docs/09-deployment.md). The dev-loop infrastructure-only compose (Postgres + Redis + Mailcrab) is [`backend/docker-compose-dev.yml`](backend/docker-compose-dev.yml).
+
 ---
 
 ## Backend
