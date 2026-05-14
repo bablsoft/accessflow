@@ -11,7 +11,7 @@
 ### Scope
 
 **Proxy & Execution**
-- Full SQL proxy for PostgreSQL 13+ and MySQL 8+
+- Full SQL proxy with bundled drivers for PostgreSQL 13+, MySQL 8+, MariaDB, Oracle, and Microsoft SQL Server — plus admin-uploaded custom JDBC driver JARs for any other relational engine
 - JSqlParser-based query validation and classification
 - Per-datasource HikariCP connection pool management
 - Schema / table allow-listing enforcement at AST level
@@ -69,6 +69,7 @@
 - SAML 2.0 SP-initiated and IdP-initiated SSO
 - Auto-provisioning of users from SAML assertions
 - SAML attribute → role mapping
+- OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, Microsoft, and GitLab; additional providers configurable via DB-driven `oauth2_config` rows
 
 ---
 
@@ -115,10 +116,8 @@
 
 ## v2.1
 
-**Theme:** Broader database coverage.
+**Theme:** Data classification, query suggestions, and compliance reporting.
 
-- **Oracle adapter** — proxy support for Oracle Database 19c+
-- **Microsoft SQL Server adapter** — proxy support for SQL Server 2019+
 - **Data classification tagging** — mark columns as PII, PCI, PHI in the schema explorer; AI analysis uses tags to increase risk score automatically
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts
 - **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence
@@ -127,4 +126,4 @@
 
 ## Contribution Path
 
-Community contributions for new database adapters (Oracle, MSSQL, SQLite, etc.) are welcome after v2.0. The `accessflow-proxy` module defines a `DatabaseAdapter` SPI that third-party adapters can implement. See `CONTRIBUTING.md` for the adapter development guide.
+PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server ship as bundled adapters; any other JDBC-compatible engine (SQLite, CockroachDB, Snowflake-via-JDBC, vendor forks, etc.) can already be added today by uploading a custom driver JAR through the admin UI (`db_type=CUSTOM` + `custom_jdbc_driver` — see [docs/03-data-model.md](03-data-model.md)). Community contributions promoting an engine to a first-class bundled adapter are welcome after v2.0; the `accessflow-proxy` module defines a `DatabaseAdapter` SPI that third-party adapters can implement. See `CONTRIBUTING.md` for the adapter development guide.

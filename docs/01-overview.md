@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-AccessFlow is an open-source database access governance platform. It acts as a full SQL proxy between application users and relational databases (PostgreSQL and MySQL), enforcing configurable review and approval workflows before any query is executed against live data.
+AccessFlow is an open-source database access governance platform. It acts as a full SQL proxy between application users and relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be wired in via an admin-uploaded custom driver JAR — enforcing configurable review and approval workflows before any query is executed against live data.
 
 Modern engineering teams face a critical gap: databases hold sensitive business data yet granting access is typically binary — either a user has credentials or they do not. AccessFlow bridges this gap by introducing a structured, auditable layer that supports:
 
@@ -12,6 +12,7 @@ Modern engineering teams face a critical gap: databases hold sensitive business 
 - A built-in SQL editor with real-time AI hints
 - Complete metadata audit trails (who requested what, when, who approved it)
 - SAML 2.0 SSO integration
+- OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, Microsoft, and GitLab (additional providers configurable via the admin UI)
 
 All deployed within the customer's own infrastructure.
 
@@ -43,7 +44,6 @@ There is no widely-adopted, self-hostable, open-source tool that provides a gove
 ## Non-Goals (v1.0)
 
 - NoSQL / Redis support (planned for v2.0)
-- Oracle, MSSQL support (community contribution path)
 - Data masking / column-level encryption in proxy
 - Query result data storage — metadata-only audit trail (no actual row data stored)
 
@@ -58,5 +58,5 @@ There is no widely-adopted, self-hostable, open-source tool that provides a gove
 | Audit trail | Full metadata audit — who requested what, when, who approved it |
 | SQL editor | Built-in editor with syntax highlighting, autocomplete, and AI hints |
 | Configurable policies | Per-datasource approval chains, row limits, time windows |
-| SSO | SAML 2.0 integration for workforce identity providers |
+| SSO | SAML 2.0 and OAuth 2.0 / OIDC integration for workforce identity providers (Google, GitHub, Microsoft, GitLab templates ship out of the box) |
 | Easy deployment | Docker Compose for small teams, Helm chart for Kubernetes |
