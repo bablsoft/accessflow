@@ -20,6 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
 import type { AuthUser } from '@/api/auth';
+import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
 import { Avatar } from './Avatar';
 import './sidebar.css';
@@ -82,8 +83,12 @@ export function Sidebar({
               <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em' }}>
                 {t('common.app_name')}
               </div>
-              <div className="mono muted" style={{ fontSize: 9.5, textTransform: 'lowercase' }}>
-                v0.1.0
+              <div
+                className="mono muted"
+                style={{ fontSize: 9.5, textTransform: 'lowercase' }}
+                aria-label={t('nav.version', { version: APP_VERSION })}
+              >
+                v{APP_VERSION}
               </div>
             </div>
           )}

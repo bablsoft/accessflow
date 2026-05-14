@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver version (e.g. 1.2.3) — without leading v"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    steps:
+      - name: Validate version
+        run: |
+          echo "${{ inputs.version }}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' \
+            || { echo "::error::version must be semver (X.Y.Z[-suffix])"; exit 1; }
+
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Bump Maven version
+        working-directory: backend
+        run: mvn -B -q versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+
+      - name: Bump frontend version
+        working-directory: frontend
+        run: npm version ${{ inputs.version }} --no-git-tag-version
+
+      - name: Configure git identity
+        uses: fregante/setup-git-user@v2
+
+      - name: Create release commit & push tag (detached)
+        run: |
+          git checkout --detach
+          git add backend/pom.xml frontend/package.json frontend/package-lock.json
+          git commit -m "chore(release): v${{ inputs.version }}"
+          git push origin HEAD:refs/tags/v${{ inputs.version }}
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/accessflow-backend:${{ inputs.version }}
+            ghcr.io/${{ github.repository_owner }}/accessflow-backend:latest
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            APP_VERSION=${{ inputs.version }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/accessflow-frontend:${{ inputs.version }}
+            ghcr.io/${{ github.repository_owner }}/accessflow-frontend:latest
+
+      - name: Create GitHub Release with auto-generated notes
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Container images
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository_owner }}/accessflow-backend:${{ inputs.version }}
+            docker pull ghcr.io/${{ github.repository_owner }}/accessflow-frontend:${{ inputs.version }}
+            ```
+
+            Multi-arch: `linux/amd64`, `linux/arm64`.

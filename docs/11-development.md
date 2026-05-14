@@ -188,72 +188,71 @@ hotfix/AF-{n}-description    → critical fixes (from main, merge back to both)
 
 ## CI/CD Pipelines
 
-### `.github/workflows/ci.yml` (on every PR)
+The repository ships three GitHub Actions workflows:
 
-```yaml
-jobs:
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { java-version: '21', distribution: 'temurin' }
-      - run: cd backend && ./mvnw verify -Pcoverage
-      - uses: codecov/codecov-action@v4
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` touching `backend/**` | Java 25 + Maven build, JaCoCo coverage, JUnit test report |
+| [`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml) | Push / PR to `main` touching `frontend/**` | Node 24 + npm: lint, typecheck, Vitest coverage, Vite build |
+| [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes a GitHub Release with auto-generated notes |
 
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: cd frontend && npm ci && npm run test:coverage && npm run build
-```
+### Release pipeline (`release.yml`)
 
-### `.github/workflows/release.yml` (on tag `v*`)
+Triggered manually from the Actions tab. The maintainer provides a semver `version` input (e.g. `1.2.3`, without the leading `v`). The workflow:
 
-```yaml
-jobs:
-  build-and-push:
-    steps:
-      - name: Build backend JAR
-        run: cd backend && ./mvnw package -DskipTests
-      - name: Build and push backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: accessflow/backend:${{ github.ref_name }}
-      - name: Build and push frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: true
-          tags: accessflow/frontend:${{ github.ref_name }}
-      - name: Package and push Helm chart
-        run: helm package charts/accessflow && helm push ...
-```
+1. **Validates** the version against `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`.
+2. Checks out `main`.
+3. **Bumps the Maven version** in `backend/pom.xml` via `mvn versions:set -DnewVersion=${INPUT}`.
+4. **Bumps the frontend version** in `frontend/package.json` via `npm version ${INPUT} --no-git-tag-version`.
+5. **Detaches HEAD**, commits the two bumps as `chore(release): v${VERSION}`, and pushes the commit *as a tag* (`git push origin HEAD:refs/tags/v${VERSION}`) — `main` is **never modified**. Checking out the tag shows pom.xml / package.json at the bumped version; checking out `main` keeps the SNAPSHOT.
+6. Builds and pushes **multi-arch** (`linux/amd64`, `linux/arm64`) Docker images via `docker/build-push-action@v6`:
+   - `ghcr.io/<owner>/accessflow-backend:${VERSION}` + `:latest`
+   - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + `:latest`
+   The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
+7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true` (changelog auto-built from PRs/commits since the previous tag).
+
+### Version surfacing
+
+- **Backend**: the `spring-boot-maven-plugin` `build-info` goal generates `META-INF/build-info.properties` at build time. Spring Boot's actuator auto-publishes this as `info.build.*` on `/actuator/info` (which is `permitAll()` in `SecurityConfiguration`, alongside `/actuator/health/**`).
+- **Frontend**: `vite.config.ts` reads `process.env.VITE_APP_VERSION` (set by the release workflow as a build-arg) and falls back to `package.json#version` for local `npm run dev`. The value is exposed as `APP_VERSION` from `src/config/version.ts` and rendered under the brand mark in the Sidebar.
 
 ---
 
 ## Dockerfiles
 
-### Backend Dockerfile
+The actual Dockerfiles live at [`backend/Dockerfile`](../backend/Dockerfile) and [`frontend/Dockerfile`](../frontend/Dockerfile). Highlights:
+
+### Backend ([`backend/Dockerfile`](../backend/Dockerfile))
+
+Multi-stage build using the official Maven image for compilation and the Temurin JRE for the runtime layer:
 
 ```dockerfile
-FROM eclipse-temurin:21-jre-alpine
+FROM maven:3-eclipse-temurin-25-alpine AS build
+WORKDIR /workspace
+COPY pom.xml ./
+RUN mvn -B -q -DskipTests dependency:go-offline
+COPY src src
+RUN mvn -B -DskipTests package && mv target/*.jar target/app.jar
+
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
-COPY accessflow-app/target/accessflow-app.jar app.jar
+RUN addgroup -S app && adduser -S app -G app
+COPY --from=build --chown=app:app /workspace/target/app.jar /app/app.jar
+USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 ```
 
-### Frontend Dockerfile
+### Frontend ([`frontend/Dockerfile`](../frontend/Dockerfile))
+
+Multi-stage Node 24 build → nginx:alpine runtime. The `APP_VERSION` build-arg is forwarded to Vite via `VITE_APP_VERSION`:
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
-COPY package*.json ./
+ARG APP_VERSION=0.0.0
+ENV VITE_APP_VERSION=$APP_VERSION
+COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
@@ -263,6 +262,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 ```
+
+The companion [`frontend/nginx.conf`](../frontend/nginx.conf) sets `Cache-Control: no-store` on `runtime-config.js` and `index.html`, caches hashed asset bundles for 7 days, and falls back to `index.html` for client-side routes.
 
 ---
 

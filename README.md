@@ -115,6 +115,18 @@ The SPA comes up on `http://localhost:5173`.
 
 > The full multi-service production-style Compose layout (separate backend / frontend / optional Ollama containers) and the Helm chart are described in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md). The root `docker-compose.yml` here is intentionally infrastructure-only for the dev loop.
 
+### Running released images
+
+Tagged releases are published to GitHub Container Registry as multi-arch (`linux/amd64`, `linux/arm64`) images:
+
+```bash
+docker pull ghcr.io/bablsoft/accessflow-backend:1.2.3
+docker pull ghcr.io/bablsoft/accessflow-frontend:1.2.3
+# or :latest
+```
+
+The running backend exposes its version at `GET /actuator/info` (`build.version`); the frontend shows it under the brand mark in the sidebar. Maintainers cut a release by running the [`Release` workflow](https://github.com/bablsoft/accessflow/actions/workflows/release.yml) from the Actions tab with a semver `version` input — see [`docs/09-deployment.md → Releases`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#releases) for what the pipeline does.
+
 ---
 
 ## Project Structure

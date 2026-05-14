@@ -1,9 +1,18 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+
+const pkg = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'),
+) as { version: string };
+const APP_VERSION = process.env.VITE_APP_VERSION ?? pkg.version;
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
@@ -31,6 +40,7 @@ export default defineConfig({
         'src/utils/**/*.ts',
         'src/theme/**/*.ts',
         'src/config/runtimeConfig.ts',
+        'src/config/version.ts',
         'src/mocks/delay.ts',
         'src/api/admin.ts',
         'src/api/auth.ts',

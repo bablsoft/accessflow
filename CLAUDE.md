@@ -713,16 +713,27 @@ Branch names must match the pattern above. Commit messages should be imperative 
 
 ## CI / CD
 
-`.github/workflows/ci.yml` runs on every PR:
-- Backend: `./mvnw verify -Pcoverage` (Java 25, Ubuntu)
-- Frontend: `npm ci && npm run test:coverage && npm run build` (Node 20, Ubuntu)
+`.github/workflows/ci.yml` runs on every push / PR touching `backend/**`:
+- Java 25 (Temurin) + Maven `verify -Pcoverage` with JaCoCo gate and JUnit reporter.
 
-`.github/workflows/release.yml` runs on `v*` tags:
-- Builds JAR, Docker images for backend and frontend, and packages the Helm chart.
+`.github/workflows/frontend-ci.yml` runs on every push / PR touching `frontend/**`:
+- Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+
+`.github/workflows/release.yml` is **manually triggered** (`workflow_dispatch`) and takes a semver `version` input (e.g. `1.2.3` without the leading `v`). On run it:
+1. Bumps `backend/pom.xml` (`mvn versions:set`) and `frontend/package.json` (`npm version`).
+2. Creates a **detached** commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and pushes only the tag — `main` is never modified, so `main` always reflects `1.0.0-SNAPSHOT`. Checking out the tag shows pom.xml / package.json at the bumped version.
+3. Builds and pushes multi-arch (`linux/amd64`, `linux/arm64`) Docker images to GHCR: `ghcr.io/<owner>/accessflow-backend:{version,latest}` and `…-frontend:{version,latest}`. The frontend image gets `APP_VERSION` as a build-arg → `VITE_APP_VERSION` → `__APP_VERSION__` in the bundle.
+4. Publishes a GitHub Release (`softprops/action-gh-release@v2`) with `generate_release_notes: true`.
+
+Prefer published actions over raw shell in `release.yml` — fall back to `run:` only when no well-maintained action exists (`mvn versions:set`, `npm version`, detached-tag push).
 
 Docker images:
-- Backend: `eclipse-temurin:25-jre-alpine` base image (use the correct Java version).
-- Frontend: multi-stage — `node:20-alpine` build, then `nginx:alpine` serve.
+- Backend ([`backend/Dockerfile`](backend/Dockerfile)): multi-stage `maven:3-eclipse-temurin-25-alpine` build → `eclipse-temurin:25-jre-alpine` runtime, runs as non-root `app` user.
+- Frontend ([`frontend/Dockerfile`](frontend/Dockerfile)): multi-stage `node:24-alpine` build → `nginx:alpine` serve. Companion [`frontend/nginx.conf`](frontend/nginx.conf) handles SPA routing, `no-store` on `runtime-config.js` / `index.html`, and 7-day cache on hashed assets.
+
+Version surfacing:
+- Backend — `spring-boot-maven-plugin`'s `build-info` goal writes `META-INF/build-info.properties` at build time; Spring Boot publishes it under `info.build.*` on `/actuator/info`. The `health` and `info` actuator endpoints are `permitAll()` in `SecurityConfiguration` so k8s probes and the frontend can read them unauthenticated.
+- Frontend — `vite.config.ts` injects `__APP_VERSION__` (from `VITE_APP_VERSION` build-arg, fallback to `package.json#version`); exposed as `APP_VERSION` from [`src/config/version.ts`](frontend/src/config/version.ts) and rendered in the Sidebar brand mark.
 
 ---
 
