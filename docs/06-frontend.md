@@ -55,6 +55,7 @@ accessflow-ui/
 │   │   │   ├── StatusBadge.tsx     # Color-coded query status badge
 │   │   │   ├── RiskBadge.tsx       # Color-coded AI risk level badge
 │   │   │   ├── CopyButton.tsx      # Copy-to-clipboard wrapper
+│   │   │   ├── LogoMark.tsx        # Two-tone brand mark (mirrors website logo)
 │   │   │   └── PageHeader.tsx      # Consistent page header with breadcrumbs
 │   │   │
 │   │   ├── editor/

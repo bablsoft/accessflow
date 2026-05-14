@@ -23,6 +23,7 @@ import type { AuthUser } from '@/api/auth';
 import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
 import { Avatar } from './Avatar';
+import { LogoMark } from './LogoMark';
 import './sidebar.css';
 
 interface NavItem {
@@ -77,7 +78,7 @@ export function Sidebar({
     <>
       <aside className={`af-sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
         <div className="af-sidebar-brand">
-          <div className="af-logo-mark">AF</div>
+          <LogoMark size={26} className="af-logo-mark" />
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em' }}>
