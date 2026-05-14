@@ -123,7 +123,14 @@ jobs:
         run: |
           yq -i '.version = strenv(VERSION) | .appVersion = strenv(VERSION)' charts/accessflow/Chart.yaml
 
-      - name: Build chart dependencies
+      # chart-releaser's internal `cr package` calls `helm dependency build`,
+      # which requires (a) a Chart.lock and (b) each dependency repository to be
+      # registered in helm's local config. We register the bitnami repo and
+      # pre-resolve dependencies so cr finds a populated Chart.lock + charts/ dir.
+      - name: Register chart dependency repos
+        run: helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      - name: Resolve chart dependencies
         run: helm dependency update charts/accessflow
 
       - name: Publish chart to gh-pages
