@@ -199,7 +199,7 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     private void stubParse(String sql, QueryType type) {
-        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(type));
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(type, sql));
     }
 
     private void stubActiveDatasourceForUser() {

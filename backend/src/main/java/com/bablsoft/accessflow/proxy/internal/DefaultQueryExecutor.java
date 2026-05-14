@@ -23,7 +23,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +56,9 @@ class DefaultQueryExecutor implements QueryExecutor {
 
         var dataSource = poolManager.resolve(request.datasourceId());
         Instant start = clock.instant();
+        if (request.transactional()) {
+            return executeTransactional(request, dataSource, effectiveTimeout, start);
+        }
         try (Connection connection = dataSource.getConnection()) {
             connection.setReadOnly(request.queryType() == QueryType.SELECT);
             try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
@@ -70,6 +72,37 @@ class DefaultQueryExecutor implements QueryExecutor {
             }
         } catch (SQLException ex) {
             log.debug("SQL execution failed for datasource {}: {}",
+                    request.datasourceId(), ex.getMessage());
+            throw sqlExceptionTranslator.translate(ex, effectiveTimeout, LocaleContextHolder.getLocale());
+        }
+    }
+
+    private QueryExecutionResult executeTransactional(QueryExecutionRequest request,
+                                                      javax.sql.DataSource dataSource,
+                                                      Duration effectiveTimeout, Instant start) {
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setReadOnly(false);
+            connection.setAutoCommit(false);
+            long totalAffected = 0;
+            try {
+                for (String stmtSql : request.statements()) {
+                    try (PreparedStatement statement = connection.prepareStatement(stmtSql)) {
+                        statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
+                        totalAffected += statement.executeLargeUpdate();
+                    }
+                }
+                connection.commit();
+            } catch (SQLException ex) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackEx) {
+                    ex.addSuppressed(rollbackEx);
+                }
+                throw ex;
+            }
+            return new UpdateExecutionResult(totalAffected, durationSince(start));
+        } catch (SQLException ex) {
+            log.debug("Transactional SQL execution failed for datasource {}: {}",
                     request.datasourceId(), ex.getMessage());
             throw sqlExceptionTranslator.translate(ex, effectiveTimeout, LocaleContextHolder.getLocale());
         }

@@ -1,0 +1,2 @@
+ALTER TABLE query_requests
+    ADD COLUMN transactional BOOLEAN NOT NULL DEFAULT FALSE;

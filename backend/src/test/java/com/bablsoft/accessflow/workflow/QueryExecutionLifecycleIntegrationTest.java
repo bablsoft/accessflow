@@ -213,6 +213,65 @@ class QueryExecutionLifecycleIntegrationTest {
     }
 
     @Test
+    void executesDmlTransactionPersistsBothRows() {
+        var sql = """
+                BEGIN;
+                INSERT INTO items VALUES ('00000000-0000-0000-0000-0000000000aa', 'fig',  8);
+                INSERT INTO items VALUES ('00000000-0000-0000-0000-0000000000bb', 'grape',9);
+                COMMIT;""";
+        var queryId = persistApprovedTransactionalQuery(sql, QueryType.INSERT);
+
+        var outcome = queryLifecycleService.execute(new ExecuteQueryCommand(
+                queryId, submitter.getId(), organization.getId(), false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(outcome.rowsAffected()).isEqualTo(2L);
+
+        Integer rowsInDb;
+        try (var connection = DriverManager.getConnection(customerDb.getJdbcUrl(),
+                customerDb.getUsername(), customerDb.getPassword());
+             var statement = connection.createStatement();
+             var rs = statement.executeQuery(
+                     "SELECT count(*) FROM items WHERE name IN ('fig','grape')")) {
+            rs.next();
+            rowsInDb = rs.getInt(1);
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException(e);
+        }
+        assertThat(rowsInDb).isEqualTo(2);
+    }
+
+    @Test
+    void executesDmlTransactionRollsBackOnFailure() {
+        // The second INSERT violates the PK constraint (duplicate id).
+        var sql = """
+                BEGIN;
+                INSERT INTO items VALUES ('00000000-0000-0000-0000-0000000000cc', 'fig',   8);
+                INSERT INTO items VALUES ('00000000-0000-0000-0000-000000000001', 'apple', 9);
+                COMMIT;""";
+        var queryId = persistApprovedTransactionalQuery(sql, QueryType.INSERT);
+
+        var outcome = queryLifecycleService.execute(new ExecuteQueryCommand(
+                queryId, submitter.getId(), organization.getId(), false));
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+
+        // The first INSERT must have been rolled back: no row with name='fig' exists.
+        Integer rowsInDb;
+        try (var connection = DriverManager.getConnection(customerDb.getJdbcUrl(),
+                customerDb.getUsername(), customerDb.getPassword());
+             var statement = connection.createStatement();
+             var rs = statement.executeQuery(
+                     "SELECT count(*) FROM items WHERE name = 'fig'")) {
+            rs.next();
+            rowsInDb = rs.getInt(1);
+        } catch (java.sql.SQLException e) {
+            throw new RuntimeException(e);
+        }
+        assertThat(rowsInDb).isZero();
+    }
+
+    @Test
     void executeIsRejectedWhenStatusIsNotApproved() {
         var query = new QueryRequestEntity();
         query.setId(UUID.randomUUID());
@@ -238,6 +297,19 @@ class QueryExecutionLifecycleIntegrationTest {
         query.setSubmittedBy(submitter);
         query.setSqlText(sql);
         query.setQueryType(type);
+        query.setStatus(QueryStatus.APPROVED);
+        queryRequestRepository.save(query);
+        return query.getId();
+    }
+
+    private UUID persistApprovedTransactionalQuery(String sql, QueryType type) {
+        var query = new QueryRequestEntity();
+        query.setId(UUID.randomUUID());
+        query.setDatasource(datasource);
+        query.setSubmittedBy(submitter);
+        query.setSqlText(sql);
+        query.setQueryType(type);
+        query.setTransactional(true);
         query.setStatus(QueryStatus.APPROVED);
         queryRequestRepository.save(query);
         return query.getId();

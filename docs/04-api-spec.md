@@ -519,8 +519,19 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 - `400 VALIDATION_ERROR` — request body missing `datasource_id` or `sql`.
 - `403 FORBIDDEN` — caller has no active permission row for this datasource, or the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL). Admins bypass this check.
 - `404 DATASOURCE_NOT_FOUND` — datasource does not exist in the caller's organization, or — for non-admin callers — the caller has no permission row for it.
-- `422 INVALID_SQL` — SQL did not parse, contained multiple statements, or classified as `OTHER` (transactional / session-control statements are not accepted).
+- `422 INVALID_SQL` — SQL did not parse, contained multiple statements without a `BEGIN/COMMIT` envelope, or classified as `OTHER`. The `detail` field carries the specific reason. Distinct sub-cases include:
+  - mixed SELECT with INSERT/UPDATE/DELETE inside a transaction → "Transactions cannot mix SELECT with INSERT/UPDATE/DELETE; submit them as separate query requests";
+  - SELECT-only transaction → "SELECT statements do not require a transaction";
+  - DDL inside a transaction → "DDL statements are not allowed inside a transaction";
+  - `ROLLBACK` / `SAVEPOINT` / nested `BEGIN` inside a transaction → respective rejection;
+  - unmatched `BEGIN` (no closing `COMMIT`) or unmatched `COMMIT` (no opening `BEGIN`).
 - `422 DATASOURCE_UNAVAILABLE` — datasource exists but is inactive.
+
+#### Transactional submissions
+
+A request may bundle multiple data-modifying statements inside a `BEGIN; … COMMIT;` envelope so that they execute atomically against the customer database. The proxy recognises the following opening markers (case-insensitive, optional trailing `;`): `BEGIN`, `BEGIN WORK`, `BEGIN TRANSACTION`, `START TRANSACTION`. Recognised closing markers: `COMMIT`, `COMMIT WORK`, `COMMIT TRANSACTION`, `END`. Whitespace and SQL comments around the markers are tolerated.
+
+Inside the envelope, every statement must classify as `INSERT`, `UPDATE`, or `DELETE`. Mixing SELECT with DML, SELECT-only transactions, DDL, `ROLLBACK`, `SAVEPOINT`, and nested `BEGIN` blocks are all rejected with HTTP 422 — see the error sub-cases above. The persisted `query_requests` row carries the original SQL text verbatim and a `transactional=true` flag (see [docs/03-data-model.md](03-data-model.md)). The representative `query_type` is the first inner statement's type. On execute, the proxy re-parses the SQL, opens a single JDBC connection with `autoCommit=false`, runs each inner statement, and commits — or rolls back atomically on any `SQLException`. `rows_affected` is the sum across inner statements.
 
 ### GET /queries — Query Parameters
 
@@ -2032,7 +2043,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|
-| `INVALID_SQL` | 422 | `InvalidSqlException` | SQL did not parse, or contained multiple statements. |
+| `INVALID_SQL` | 422 | `InvalidSqlException` | SQL did not parse, contained multiple statements outside a `BEGIN/COMMIT` envelope, or violated transaction constraints (mixed SELECT+DML, DDL inside transaction, etc. — see `detail`). |
 | `QUERY_EXECUTION_FAILED` | 422 | `QueryExecutionFailedException` | The customer database rejected the query. Body includes `sqlState` and `vendorCode`. |
 | `QUERY_EXECUTION_TIMEOUT` | 504 | `QueryExecutionTimeoutException` | Query exceeded the configured statement timeout. Body includes `timeoutSeconds`. |
 | `DATASOURCE_UNAVAILABLE` | 422 | `DatasourceUnavailableException` | Datasource is missing or marked inactive. |

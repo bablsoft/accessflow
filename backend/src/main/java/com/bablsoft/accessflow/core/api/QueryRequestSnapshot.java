@@ -14,5 +14,6 @@ public record QueryRequestSnapshot(
         UUID submittedByUserId,
         String sqlText,
         QueryType queryType,
+        boolean transactional,
         QueryStatus status) {
 }

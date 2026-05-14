@@ -228,9 +228,9 @@ The 50 MB upload limit (`spring.servlet.multipart.max-file-size=50MB`) is a defe
 
 AccessFlow uses defense-in-depth against injection attacks:
 
-1. **JSqlParser validation** — All SQL is parsed before any execution path. Queries that fail to parse are rejected with HTTP 422. This blocks syntactically invalid injection attempts.
+1. **JSqlParser validation** — All SQL is parsed before any execution path. Queries that fail to parse are rejected with HTTP 422. This blocks syntactically invalid injection attempts. Multi-statement input is rejected by default; the one exception is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch — these are accepted and executed under a single JDBC transaction. Inside a transaction, SELECT (whether SELECT-only or mixed with DML), DDL, `ROLLBACK`, `SAVEPOINT`, and nested `BEGIN` are all rejected as defense-in-depth — the proxy refuses any submission that doesn't fit the narrow "atomic DML batch" use case.
 
-2. **PreparedStatement only** — The proxy engine uses `PreparedStatement` exclusively. No string concatenation or interpolation is used to build queries.
+2. **PreparedStatement only** — The proxy engine uses `PreparedStatement` exclusively. No string concatenation or interpolation is used to build queries. Transactional batches use one `PreparedStatement` per inner statement, never `Statement.execute()` of a stacked string.
 
 3. **Schema allow-listing at AST level** — If `allowed_tables` is configured, the parsed SQL AST is walked to extract referenced tables. Violations are rejected without touching the database.
 

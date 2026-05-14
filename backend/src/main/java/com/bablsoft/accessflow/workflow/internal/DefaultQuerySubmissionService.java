@@ -57,6 +57,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
                 input.submitterUserId(),
                 input.sql(),
                 parsed.type(),
+                parsed.transactional(),
                 input.justification()));
         eventPublisher.publishEvent(new QuerySubmittedEvent(id));
         return new QuerySubmissionResult(id, QueryStatus.PENDING_AI);

@@ -19,6 +19,8 @@ import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.ResultColumn;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
+import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
@@ -32,6 +34,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.MessageSource;
 import org.springframework.security.access.AccessDeniedException;
@@ -53,12 +57,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class DefaultQueryLifecycleServiceTest {
 
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QueryExecutor queryExecutor;
+    @Mock SqlParserService sqlParserService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
@@ -79,16 +85,21 @@ class DefaultQueryLifecycleServiceTest {
                 queryRequestStateService,
                 queryResultPersistenceService,
                 queryExecutor,
+                sqlParserService,
                 permissionLookupService,
                 auditLogService,
                 new ObjectMapper(),
                 messageSource,
                 eventPublisher);
+        when(sqlParserService.parse(anyString())).thenAnswer(inv -> {
+            String sql = inv.getArgument(0);
+            return new SqlParseResult(QueryType.SELECT, sql);
+        });
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", type, status);
+                "SELECT 1", type, false, status);
     }
 
     // ── cancel ────────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@ class DefaultQueryRequestPersistenceServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, "ticket-42");
+                QueryType.SELECT, false, "ticket-42");
 
         var id = service.submit(command);
 
@@ -58,6 +58,7 @@ class DefaultQueryRequestPersistenceServiceTest {
         assertThat(saved.getSubmittedBy()).isSameAs(user);
         assertThat(saved.getSqlText()).isEqualTo("SELECT 1");
         assertThat(saved.getQueryType()).isEqualTo(QueryType.SELECT);
+        assertThat(saved.isTransactional()).isFalse();
         assertThat(saved.getJustification()).isEqualTo("ticket-42");
         assertThat(saved.getStatus())
                 .isEqualTo(com.bablsoft.accessflow.core.api.QueryStatus.PENDING_AI);
@@ -71,7 +72,7 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.empty());
 
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, null);
+                QueryType.SELECT, false, null);
 
         assertThatThrownBy(() -> service.submit(command))
                 .isInstanceOf(IllegalStateException.class)
@@ -88,7 +89,7 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, null);
+                QueryType.SELECT, false, null);
 
         assertThatThrownBy(() -> service.submit(command))
                 .isInstanceOf(IllegalStateException.class)
