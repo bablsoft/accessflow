@@ -1,0 +1,226 @@
+# Default values for accessflow.
+# This is the source-of-truth values reference; the structure mirrors
+# docs/09-deployment.md so the chart and its documentation stay in sync.
+
+# -- Number of replicas for each tier
+replicaCount:
+  backend: 3
+  frontend: 2
+
+image:
+  backend:
+    repository: ghcr.io/bablsoft/accessflow-backend
+    # tag overrides Chart.appVersion when set. Leave empty to use the chart's appVersion.
+    tag: ""
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: ghcr.io/bablsoft/accessflow-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# Override generated resource names
+nameOverride: ""
+fullnameOverride: ""
+
+# Labels merged into every rendered manifest
+commonLabels: {}
+
+# Pod-level metadata applied to both backend and frontend
+podAnnotations: {}
+podLabels: {}
+
+# Scheduling defaults applied to both backend and frontend (override per-tier under
+# backend.* / frontend.* if needed)
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# --- Internal PostgreSQL subchart (bitnami/postgresql).
+# Set enabled: false to use externalDatabase below instead.
+postgresql:
+  enabled: true
+  auth:
+    database: accessflow
+    username: accessflow
+    # Secret must contain a "password" key (matches Bitnami chart defaults).
+    existingSecret: accessflow-pg-secret
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
+# --- Internal Redis subchart (bitnami/redis).
+# Set enabled: false to use externalRedis below instead.
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+
+# --- External database (used when postgresql.enabled=false)
+externalDatabase:
+  host: ""
+  port: 5432
+  database: accessflow
+  username: accessflow
+  # Secret must expose the password under the "password" key by default
+  # (override via existingSecretPasswordKey).
+  existingSecret: ""
+  existingSecretPasswordKey: password
+
+# --- External Redis (used when redis.enabled=false)
+externalRedis:
+  # Full URL, e.g. "redis://host:6379" or "rediss://user:pass@host:6380".
+  url: ""
+  # When the URL must come from a Secret, point at one with key REDIS_URL.
+  existingSecret: ""
+  existingSecretUrlKey: REDIS_URL
+
+# --- Application configuration
+config:
+  # Secrets referenced via existingSecret pattern — chart does not create them.
+  # See docs/09-deployment.md → "Kubernetes Secrets Setup" for the kubectl one-liners.
+  encryptionKeySecret: accessflow-encryption-key   # required, key: value (32 hex bytes)
+  jwtPrivateKeySecret: accessflow-jwt-key          # required, key: value (RSA PEM)
+  auditHmacKeySecret: ""                            # optional, key: value (hex ≥ 32 bytes)
+  # CORS / public-URL config (non-secret)
+  corsAllowedOrigin: https://accessflow.company.com
+  publicBaseUrl: https://accessflow.company.com
+  oauth2FrontendCallbackUrl: ""                    # optional, defaults to ${corsAllowedOrigin}/auth/oauth/callback
+  # Frontend runtime config — rendered into a ConfigMap and mounted at
+  # /usr/share/nginx/html/runtime-config.js inside the frontend pod.
+  frontend:
+    apiBaseUrl: https://accessflow.company.com
+    wsUrl: wss://accessflow.company.com/ws
+    # Extra keys merged into window.__APP_CONFIG__ (object)
+    extraConfig: {}
+
+# --- Backend tier
+backend:
+  service:
+    type: ClusterIP
+    port: 8080
+  # Extra environment variables (relaxed-binding overrides for any
+  # ACCESSFLOW_* / SPRING_* knob — see CLAUDE.md → Configuration).
+  env: {}
+  # extraEnvFrom items appended to the container's envFrom list
+  extraEnvFrom: []
+  # Override scheduling per-tier (fall back to top-level defaults)
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Health-check tuning
+  startupProbe:
+    failureThreshold: 60       # ~5 min cold start for Flyway
+    periodSeconds: 5
+  livenessProbe:
+    initialDelaySeconds: 0
+    periodSeconds: 30
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    failureThreshold: 3
+
+# --- Frontend tier
+frontend:
+  service:
+    type: ClusterIP
+    port: 80
+  env: {}
+  extraEnvFrom: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  livenessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 30
+  readinessProbe:
+    initialDelaySeconds: 2
+    periodSeconds: 10
+
+# --- Driver cache persistence (custom JDBC drivers downloaded on demand).
+# Match the env var ACCESSFLOW_DRIVER_CACHE (see CLAUDE.md → Configuration).
+driverCache:
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    mountPath: /var/lib/accessflow/drivers
+
+# --- Ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: accessflow.company.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: backend
+        - path: /ws
+          pathType: Prefix
+          service: backend
+        - path: /
+          pathType: Prefix
+          service: frontend
+  tls:
+    - secretName: accessflow-tls
+      hosts:
+        - accessflow.company.com
+
+# --- Resource requests / limits
+resources:
+  backend:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  frontend:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# --- Horizontal Pod Autoscaler
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  frontend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# --- Pod disruption budget
+podDisruptionBudget:
+  backend:
+    enabled: true
+    minAvailable: 1
+  frontend:
+    enabled: false
+    minAvailable: 1
+
+# --- SAML 2.0 SSO (placeholder; wired into the backend Deployment when needed)
+saml:
+  enabled: false
+  spEntityId: ""
+  idpMetadataUrl: ""
+  keystoreSecret: ""

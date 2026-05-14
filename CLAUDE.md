@@ -28,6 +28,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
+├── charts/           # Helm charts — currently charts/accessflow/
 ├── docs/             # Design documentation
 ├── docker-compose.yml
 └── .github/workflows/
@@ -719,13 +720,23 @@ Branch names must match the pattern above. Commit messages should be imperative 
 `.github/workflows/frontend-ci.yml` runs on every push / PR touching `frontend/**`:
 - Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 
+`.github/workflows/helm-ci.yml` runs on every push / PR touching `charts/**`:
+- `helm dependency update` + `helm lint charts/accessflow` + `helm template` (default and external-services variants). Catches missing conditionals that only surface when subcharts are disabled.
+
 `.github/workflows/release.yml` is **manually triggered** (`workflow_dispatch`) and takes a semver `version` input (e.g. `1.2.3` without the leading `v`). On run it:
 1. Bumps `backend/pom.xml` (`mvn versions:set`) and `frontend/package.json` (`npm version`).
 2. Creates a **detached** commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and pushes only the tag — `main` is never modified, so `main` always reflects `1.0.0-SNAPSHOT`. Checking out the tag shows pom.xml / package.json at the bumped version.
 3. Builds and pushes multi-arch (`linux/amd64`, `linux/arm64`) Docker images to GHCR: `ghcr.io/<owner>/accessflow-backend:{version,latest}` and `…-frontend:{version,latest}`. The frontend image gets `APP_VERSION` as a build-arg → `VITE_APP_VERSION` → `__APP_VERSION__` in the bundle.
 4. Publishes a GitHub Release (`softprops/action-gh-release@v2`) with `generate_release_notes: true`.
+5. Repackages the Helm chart at `charts/accessflow/`: overwrites `Chart.yaml#version` and `appVersion` with the release semver via `yq`, runs `helm dependency update`, and `helm/chart-releaser-action@v1.7.0` pushes the packaged `.tgz` plus the updated `index.yaml` to the `gh-pages` branch (helm repo URL: `https://<owner>.github.io/accessflow`). Enable GitHub Pages once in **Repo Settings → Pages → Source = `gh-pages`** after the first release.
 
-Prefer published actions over raw shell in `release.yml` — fall back to `run:` only when no well-maintained action exists (`mvn versions:set`, `npm version`, detached-tag push).
+Helm chart rules:
+- The chart lives at `charts/accessflow/`. Chart `version` and `appVersion` track the app version 1:1 — never bump them independently; the release workflow overwrites both at release time, so the values committed to `main` (`0.1.0`) are placeholders.
+- Subchart deps (`bitnami/postgresql`, `bitnami/redis`) follow the same pin-to-latest-stable rule as every other dependency — refresh both `Chart.yaml` and the `helm search repo bitnami/<name>` output snapshot whenever the chart is touched.
+- `helm/chart-releaser-action`'s working tree-based packaging means dependency `.tgz` files **must not** be excluded by `.helmignore` (otherwise `helm template` and `helm package` fail with "missing in charts/ directory").
+- Dependency lockfiles (`charts/accessflow/Chart.lock`) and pulled `.tgz` artefacts are git-ignored — CI rebuilds them with `helm dependency update`.
+
+Prefer published actions over raw shell in `release.yml` — fall back to `run:` only when no well-maintained action exists (`mvn versions:set`, `npm version`, detached-tag push, `yq` in-place edit).
 
 Docker images:
 - Backend ([`backend/Dockerfile`](backend/Dockerfile)): multi-stage `maven:3-eclipse-temurin-25-alpine` build → `eclipse-temurin:25-jre-alpine` runtime, runs as non-root `app` user.

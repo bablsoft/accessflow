@@ -131,7 +131,7 @@ docker exec -it accessflow-ollama-1 ollama pull llama3.2
 ### Install
 
 ```bash
-helm repo add accessflow https://charts.accessflow.io
+helm repo add accessflow https://bablsoft.github.io/accessflow
 helm repo update
 
 helm install accessflow accessflow/accessflow \
@@ -139,6 +139,11 @@ helm install accessflow accessflow/accessflow \
   --create-namespace \
   --values my-values.yaml
 ```
+
+The chart lives in this repo at [`charts/accessflow/`](../charts/accessflow/) and is published to the
+`gh-pages` branch of `bablsoft/accessflow` (helm repo URL above) on every tagged release.
+Chart `version` and `appVersion` track the app version 1:1 — `--version X.Y.Z` always installs
+the `X.Y.Z` container images.
 
 ### Full `values.yaml`
 
@@ -248,6 +253,29 @@ podDisruptionBudget:
     enabled: true
     minAvailable: 1
 
+# External Redis (used when redis.enabled=false)
+externalRedis:
+  url: ""                            # e.g. redis://host:6379
+  existingSecret: ""                 # optional — pull the URL from a Secret
+  existingSecretUrlKey: REDIS_URL
+
+# Frontend HPA (off by default)
+autoscaling:
+  frontend:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+# Custom JDBC driver cache persistence (matches ACCESSFLOW_DRIVER_CACHE)
+driverCache:
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    mountPath: /var/lib/accessflow/drivers
+
 # SAML 2.0 SSO (optional)
 saml:
   enabled: false
@@ -255,6 +283,36 @@ saml:
   idpMetadataUrl: ""
   keystoreSecret: ""
 ```
+
+### Chart development
+
+The chart sources live alongside the application code:
+
+```bash
+helm dependency update charts/accessflow
+helm lint charts/accessflow
+helm template accessflow charts/accessflow              # default (bundled Postgres + Redis)
+helm template accessflow charts/accessflow \
+  --set postgresql.enabled=false --set redis.enabled=false \
+  --set externalDatabase.host=db.example.com \
+  --set externalDatabase.existingSecret=db-secret \
+  --set externalRedis.url=redis://r.example.com:6379    # external services
+```
+
+The same lint + render pair runs in [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml)
+on every PR that touches `charts/**`, so chart regressions are caught before merge.
+
+### Releasing the chart
+
+[`.github/workflows/release.yml`](../.github/workflows/release.yml) repackages the chart on every
+tagged release. It overwrites `Chart.yaml#version` and `appVersion` with the release semver,
+runs `helm dependency update`, and uses
+[`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action) to push the
+packaged `.tgz` and the updated `index.yaml` to the `gh-pages` branch.
+
+After the first release lands, enable GitHub Pages once in **Repo Settings → Pages**
+(Source = "Deploy from a branch" → `gh-pages` / root). All subsequent releases just need a
+tag — no further manual steps.
 
 ### Kubernetes Secrets Setup
 

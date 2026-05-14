@@ -103,3 +103,32 @@ jobs:
             ```
 
             Multi-arch: `linux/amd64`, `linux/arm64`.
+
+            ## Helm chart
+
+            ```bash
+            helm repo add accessflow https://${{ github.repository_owner }}.github.io/accessflow
+            helm repo update
+            helm install accessflow accessflow/accessflow --version ${{ inputs.version }} \
+              --namespace accessflow --create-namespace
+            ```
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Set chart version
+        run: |
+          yq -i '.version = "${{ inputs.version }}" | .appVersion = "${{ inputs.version }}"' charts/accessflow/Chart.yaml
+
+      - name: Build chart dependencies
+        run: helm dependency update charts/accessflow
+
+      - name: Publish chart to gh-pages
+        uses: helm/chart-releaser-action@v1.7.0
+        with:
+          charts_dir: charts
+          skip_existing: true
+          mark_as_latest: true
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
