@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
+import { LogoMark } from '@/components/common/LogoMark';
 import {
   getSamlEnabled,
   listOAuth2Providers,
@@ -149,23 +150,9 @@ export function LoginPage() {
             justifyContent: 'center',
           }}
         >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: 'var(--fg)',
-              color: 'var(--fg-inverse)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 700,
-              fontSize: 13,
-            }}
-          >
-            AF
-          </div>
+          <span style={{ color: 'var(--fg)', display: 'inline-flex' }}>
+            <LogoMark size={32} />
+          </span>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
               {t('common.app_name')}

@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg" />
+  <link rel="apple-touch-icon" href="../favicon.svg" />
   <link rel="stylesheet" href="../styles.css" />
   <script src="../app.js" defer></script>
 </head>
@@ -35,6 +37,20 @@
         <a href="../index.html#roadmap">Roadmap</a>
         <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="../index.html#features">Features</a>
+          <a href="../index.html#how">How it works</a>
+          <a href="../index.html#install">Install</a>
+          <a href="../index.html#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        </nav>
+      </details>
       <div class="nav-right">
         <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">

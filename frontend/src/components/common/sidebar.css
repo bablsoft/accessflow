@@ -28,16 +28,9 @@
 .af-logo-mark {
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  background: var(--fg);
-  color: var(--fg-inverse);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 11px;
+  color: var(--fg);
   flex-shrink: 0;
+  display: inline-flex;
 }
 .af-sidebar-collapse-btn {
   width: 22px;

@@ -52,6 +52,7 @@ website/
 ├── index.html      # Marketing site — single-page, all sections inline
 ├── styles.css      # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
 ├── app.js          # Vanilla JS: install tabs, copy buttons, how-it-works stepper
+├── favicon.svg     # Brand mark (shared with frontend/public/favicon.svg)
 ├── docs/
 │   └── index.html  # Public user documentation — run + configure (sidebar TOC)
 └── README.md       # this file
