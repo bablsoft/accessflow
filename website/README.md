@@ -42,6 +42,7 @@ the right.
 | [`CLAUDE.md`](../CLAUDE.md) (supported db list, env-var defaults) | Hero meta strip, Features tags |
 | [`charts/accessflow/`](../charts/accessflow/) | Helm install tab |
 | [`README.md`](../README.md) quick start + [`docs/04-api-spec.md`](../docs/04-api-spec.md), [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/09-deployment.md`](../docs/09-deployment.md) | [`docs/index.html`](docs/index.html) — user documentation page (run + configure) |
+| Existing on-page copy (hero, features, supported DBs, license) | SEO meta block (canonical, OG, Twitter, JSON-LD) in both [`index.html`](index.html) and [`docs/index.html`](docs/index.html) |
 
 ---
 
@@ -53,6 +54,9 @@ website/
 ├── styles.css      # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
 ├── app.js          # Vanilla JS: install tabs, copy buttons, how-it-works stepper
 ├── favicon.svg     # Brand mark (shared with frontend/public/favicon.svg)
+├── og-image.png    # 1200×630 social-share image (Open Graph / Twitter Card)
+├── robots.txt      # Crawler directives + sitemap pointer
+├── sitemap.xml     # XML sitemap (homepage + docs page)
 ├── docs/
 │   └── index.html  # Public user documentation — run + configure (sidebar TOC)
 └── README.md       # this file
@@ -64,6 +68,29 @@ for running and configuring a deployment. Both reuse `styles.css` and `app.js`.
 
 No frameworks, no bundlers, no CDN runtime. The Geist + Geist Mono fonts load from
 Google Fonts; everything else is local.
+
+---
+
+## SEO
+
+Both HTML pages ship a full SEO meta block — canonical URL, Open Graph, Twitter Card,
+`theme-color`, and a single JSON-LD `@graph` (`SoftwareApplication` + `Organization` +
+`WebSite` on the homepage; `TechArticle` + `BreadcrumbList` on the docs page). The
+`og:image` / `twitter:image` is `og-image.png` (1200×630, PNG, ~143 KB), regenerable from
+a one-off HTML template via headless Chrome — re-create the template and run
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless --disable-gpu --hide-scrollbars --window-size=1200,630 \
+  --screenshot=og-image.png http://localhost:4173/<template>.html
+```
+
+(then delete the template). All canonical / `og:url` values are hard-coded to
+`https://accessflow.bablsoft.com` — if the deployed origin ever changes, search both
+HTML files plus `sitemap.xml` and `robots.txt` and update in lockstep.
+
+`robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
+two HTML pages (`/` and `/docs/`).
 
 ---
 

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://accessflow.bablsoft.com/sitemap.xml
