@@ -89,7 +89,8 @@ class SecurityConfiguration {
                                 "/api/v1/auth/setup", "/api/v1/auth/setup-status",
                                 "/api/v1/auth/oauth2/providers", "/api/v1/auth/oauth2/exchange",
                                 "/api/v1/auth/saml/enabled",
-                                "/api/v1/auth/invitations/*", "/api/v1/auth/invitations/*/accept").permitAll()
+                                "/api/v1/auth/invitations/*", "/api/v1/auth/invitations/*/accept",
+                                "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset/*").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // WebSocket handshake is authenticated by JwtHandshakeInterceptor via
                         // ?token= (browsers cannot set Authorization on the WS upgrade).

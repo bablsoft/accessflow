@@ -379,6 +379,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `USER_LOGIN_FAILED` | Failed login attempt |
 | `USER_CREATED` | New user created |
 | `USER_DEACTIVATED` | User account deactivated |
+| `USER_PASSWORD_RESET_REQUESTED` | User submitted the public forgot-password form for a real LOCAL account. Metadata: `email`, `source: "self_service"`. |
+| `USER_PASSWORD_RESET_COMPLETED` | User successfully set a new password via the reset link. Metadata: `source: "self_service"`. All refresh tokens for the user are revoked. |
 | `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
 | `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`). |
 | `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
@@ -454,6 +456,38 @@ CREATE UNIQUE INDEX uq_user_invitations_pending_email
 ```
 
 The partial UNIQUE index prevents two simultaneous pending invitations for the same email within an organization. Resending an invitation rotates the token (so old emailed links stop working) and refreshes `expires_at` without creating a duplicate row.
+
+---
+
+## password_reset_tokens
+
+Single-use, short-lived tokens that let a user reset a forgotten password. Issued by the public `POST /api/v1/auth/password/forgot` endpoint; consumed by `POST /api/v1/auth/password/reset/{token}`. The flow is enumeration-safe — the request endpoint always returns 202 regardless of whether the email matches an active LOCAL account.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `user_id` | FK → `users` ON DELETE CASCADE |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `token_hash` | VARCHAR(64) NOT NULL UNIQUE — SHA-256 hex of the plaintext token; plaintext is sent in the email only and never persisted |
+| `status` | `password_reset_status` enum: `PENDING` \| `USED` \| `REVOKED` \| `EXPIRED` |
+| `expires_at` | TIMESTAMPTZ NOT NULL — controlled by `accessflow.security.password-reset.ttl` (default `PT1H`) |
+| `used_at` | TIMESTAMPTZ, nullable — set when the token is consumed |
+| `revoked_at` | TIMESTAMPTZ, nullable — set when a subsequent reset request supersedes a prior pending row |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+
+Indexes:
+
+```sql
+CREATE INDEX idx_password_reset_tokens_user_status_created
+    ON password_reset_tokens(user_id, status, created_at DESC);
+
+CREATE UNIQUE INDEX uq_password_reset_tokens_pending_user
+    ON password_reset_tokens(user_id) WHERE status = 'PENDING';
+```
+
+The partial UNIQUE index allows only one pending token per user; when a user requests a second reset the service marks the existing `PENDING` row as `REVOKED` before inserting the new one. Successful reset additionally revokes all active refresh tokens via `core.api.SessionRevocationService`, so any logged-in sessions on the account are kicked out.
+
+The audit table records `USER_PASSWORD_RESET_REQUESTED` when the requester resolves to a real LOCAL account, and `USER_PASSWORD_RESET_COMPLETED` on a successful reset.
 
 ---
 

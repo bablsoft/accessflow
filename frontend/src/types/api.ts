@@ -825,3 +825,12 @@ export interface AcceptInvitationInput {
   password: string;
   display_name?: string | null;
 }
+
+export interface PasswordResetPreview {
+  email: string;
+  expires_at: string;
+}
+
+export interface ResetPasswordInput {
+  password: string;
+}

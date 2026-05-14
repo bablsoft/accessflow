@@ -10,6 +10,7 @@ import {
   isTotpInvalidError,
   isTotpRequiredError,
   profileErrorMessage,
+  resetPasswordErrorMessage,
   reviewErrorMessage,
   reviewPlanErrorMessage,
   setupErrorMessage,
@@ -450,5 +451,42 @@ describe('customDriverErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(customDriverErrorMessage(undefined))
       .toBe('Could not upload the JDBC driver. Please try again.');
+  });
+});
+
+describe('resetPasswordErrorMessage', () => {
+  it('maps PASSWORD_RESET_NOT_FOUND', () => {
+    expect(resetPasswordErrorMessage(
+      buildAxiosError(404, { error: 'PASSWORD_RESET_NOT_FOUND' }),
+    )).toBe('This reset link is invalid.');
+  });
+
+  it('maps PASSWORD_RESET_EXPIRED', () => {
+    expect(resetPasswordErrorMessage(
+      buildAxiosError(422, { error: 'PASSWORD_RESET_EXPIRED' }),
+    )).toBe('This reset link has expired. Request a new one.');
+  });
+
+  it('maps PASSWORD_RESET_ALREADY_USED', () => {
+    expect(resetPasswordErrorMessage(
+      buildAxiosError(422, { error: 'PASSWORD_RESET_ALREADY_USED' }),
+    )).toBe('This reset link has already been used.');
+  });
+
+  it('maps PASSWORD_RESET_REVOKED', () => {
+    expect(resetPasswordErrorMessage(
+      buildAxiosError(422, { error: 'PASSWORD_RESET_REVOKED' }),
+    )).toBe('This reset link is no longer valid. Request a new one.');
+  });
+
+  it('falls back to ProblemDetail.title when no known code is present', () => {
+    expect(resetPasswordErrorMessage(
+      buildAxiosError(500, { title: 'Server exploded' }),
+    )).toBe('Server exploded');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(resetPasswordErrorMessage(undefined))
+      .toBe('Could not reset your password. Please try again.');
   });
 });

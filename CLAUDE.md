@@ -229,6 +229,8 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | ISO-8601 duration before the third (final) webhook retry (default `PT10M`). |
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |
+| `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | ISO-8601 duration. TTL of self-service password-reset tokens issued by `POST /api/v1/auth/password/forgot` (default `PT1H`). Tokens are single-use. |
+| `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Base URL embedded in password-reset emails (default `http://localhost:5173`). The emailed link is `{base}/reset-password/{token}`. |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
 | `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |

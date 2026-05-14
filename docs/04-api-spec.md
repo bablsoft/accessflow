@@ -32,6 +32,9 @@
 | `POST` | `/auth/setup` | Public — first-run create org + admin; returns a `LoginResponse` and sets the refresh cookie so the SPA can chain into the SMTP setup step |
 | `GET` | `/auth/invitations/{token}` | Public — preview a pending invitation (email, role, organization, expiry) |
 | `POST` | `/auth/invitations/{token}/accept` | Public — set a password and activate the invited account |
+| `POST` | `/auth/password/forgot` | Public — request a password-reset email. Always returns 202 (enumeration-safe). |
+| `GET` | `/auth/password/reset/{token}` | Public — preview a reset token (email, expiry). |
+| `POST` | `/auth/password/reset/{token}` | Public — set a new password using a valid reset token. Revokes all sessions on success. |
 | `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
 | `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
 | `GET` | `/auth/saml/enabled` | Public — `{ "enabled": boolean }` so the login page can hide the SAML button until an admin activates it |
@@ -1213,6 +1216,48 @@ Preview an invitation before accepting it.
 **Response 404:** `INVITATION_NOT_FOUND`.
 **Response 409:** `EMAIL_ALREADY_EXISTS` — a local user with this email already exists.
 **Response 422:** `INVITATION_EXPIRED`, `INVITATION_ALREADY_ACCEPTED`, or `INVITATION_REVOKED`.
+
+### Password reset (`/auth/password/...`)
+
+Public endpoints, no auth required. The flow is enumeration-safe: the request endpoint always succeeds and only sends an email when the address matches an active LOCAL account with a password hash. SSO-only accounts and inactive accounts are silently skipped, as are requests for an organization with no system SMTP configured.
+
+#### POST /auth/password/forgot
+
+**Request body:**
+```json
+{ "email": "alice@example.com" }
+```
+
+**Response 202:** Empty body — request accepted. An email is sent only when the address resolves to a real LOCAL account.
+
+#### GET /auth/password/reset/{token}
+
+Preview a reset token before showing the new-password form.
+
+**Response 200:**
+```json
+{
+  "email": "alice@example.com",
+  "expiresAt": "2026-05-14T11:30:00Z"
+}
+```
+
+**Response 404:** `PASSWORD_RESET_NOT_FOUND` — token not found or malformed.
+**Response 422:** `PASSWORD_RESET_EXPIRED`, `PASSWORD_RESET_ALREADY_USED`, or `PASSWORD_RESET_REVOKED`.
+
+#### POST /auth/password/reset/{token}
+
+**Request body:**
+```json
+{ "password": "supersecret" }
+```
+
+Password must be 8–128 characters. On success the user's password hash is rotated and **all active refresh tokens for that user are revoked** via `SessionRevocationService`; the requester must sign in again with the new password.
+
+**Response 204:** Empty body.
+**Response 400:** Validation error (password length).
+**Response 404:** `PASSWORD_RESET_NOT_FOUND`.
+**Response 422:** `PASSWORD_RESET_EXPIRED`, `PASSWORD_RESET_ALREADY_USED`, or `PASSWORD_RESET_REVOKED`.
 
 ### GET /admin/audit-log — Query Parameters
 

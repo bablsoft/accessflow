@@ -69,6 +69,23 @@ export function profileErrorMessage(err: unknown): string {
   return i18n.t('errors.profile_generic');
 }
 
+export function resetPasswordErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const code = ax.response?.data?.error;
+    if (code === 'PASSWORD_RESET_NOT_FOUND') return i18n.t('errors.password_reset_not_found');
+    if (code === 'PASSWORD_RESET_EXPIRED') return i18n.t('errors.password_reset_expired');
+    if (code === 'PASSWORD_RESET_ALREADY_USED') return i18n.t('errors.password_reset_already_used');
+    if (code === 'PASSWORD_RESET_REVOKED') return i18n.t('errors.password_reset_revoked');
+    const body = ax.response?.data;
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.password_reset_generic');
+}
+
 export function setupErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

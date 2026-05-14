@@ -676,6 +676,32 @@ Audit actions added: `USER_INVITED`, `USER_INVITATION_RESENT`, `USER_INVITATION_
 
 ---
 
+## Password reset (self-service)
+
+Lets a user who has forgotten their password recover access without admin intervention. Three public endpoints under `/api/v1/auth/password/...` (see [`04-api-spec.md`](04-api-spec.md)) plus a single email per request, delivered through the same `SystemSmtpService` as invitations.
+
+**Service:** `security/internal/DefaultPasswordResetService` (interface `security.api.PasswordResetService`). Token storage uses entity `PasswordResetTokenEntity` and repository `PasswordResetTokenRepository` in `security/internal/persistence/`. Status enum `security.api.PasswordResetStatusType` mirrors the `password_reset_status` Postgres enum: `PENDING | USED | REVOKED | EXPIRED`.
+
+`requestReset(email)` is **enumeration-safe** — it always returns to the caller without throwing, and only sends an email when all of the following hold:
+
+1. A user matches the email exactly (case-insensitive lookup via `UserQueryService.findByEmail`).
+2. `authProvider == LOCAL` (SAML / OAuth2 users have no password to reset).
+3. `isActive == true`.
+4. `passwordHash` is non-null (defense-in-depth).
+5. The user's org has system SMTP configured.
+
+When eligible, the service marks any existing `PENDING` row for that user as `REVOKED`, inserts a new row with a 32-byte SecureRandom base64url token (only the SHA-256 hex stored in `token_hash`), renders `templates/email/password-reset.html`, and dispatches via `SystemSmtpService.sendSystemEmail`. The partial unique index `uq_password_reset_tokens_pending_user` enforces one-pending-per-user at the database level; a concurrent insert that loses the race is swallowed.
+
+`previewByToken` and `resetPassword` validate by hashing the inbound plaintext and looking up `token_hash`. Status transitions: `PENDING → USED` (terminal, on successful reset), `PENDING → REVOKED` (terminal, superseded by a newer request), `PENDING → EXPIRED` (terminal, lazily set when a preview/reset lands after `expires_at`).
+
+Password mutation goes through `core.api.UserProfileService.resetPassword(userId, newPassword)` — a new method that mirrors `changePassword` but skips the current-password check. It still enforces the LOCAL-account guard and calls `SessionRevocationService.revokeAllSessions(userId)` so any logged-in sessions are kicked out. This keeps all password-hash mutations inside `core` rather than reaching into `core.internal` from the security module.
+
+Configuration: `accessflow.security.password-reset.ttl` (ISO-8601 Duration, default `PT1H`, env `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL`); reset-link base `accessflow.security.password-reset.reset-base-url` (default `http://localhost:5173`, env `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL`). The emailed URL is `{base}/reset-password/{plaintextToken}`.
+
+Audit actions added: `USER_PASSWORD_RESET_REQUESTED` (only when the email resolves to a real LOCAL active account — unknown-email requests still return 202 but skip the audit row), `USER_PASSWORD_RESET_COMPLETED`. Both are written inline by `AuthController` so the request's IP and User-Agent are captured.
+
+---
+
 ## Realtime / WebSocket
 
 Lives in `realtime/`. Pushes domain events to connected frontend clients over a single WebSocket endpoint at `/ws`, so status changes, review notifications, and execution outcomes appear in the UI within ~1 s without polling. Wire format and event list are defined in [`docs/04-api-spec.md`](04-api-spec.md#websocket-events).

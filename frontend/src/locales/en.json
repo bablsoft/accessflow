@@ -61,7 +61,29 @@
       "saml_not_configured": "SAML SSO is not configured yet. Please sign in with email and password.",
       "oauth_button": "Continue with {{provider}}",
       "or_divider": "OR",
-      "setup_success_banner": "Admin created. Sign in to continue."
+      "setup_success_banner": "Admin created. Sign in to continue.",
+      "password_reset_success_banner": "Password updated. Sign in to continue."
+    },
+    "forgot_password": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send a reset link.",
+      "email_label": "Email",
+      "email_placeholder": "you@company.com",
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "success_title": "Check your email",
+      "success_body": "If an account with that email exists, we have sent a reset link.",
+      "back_to_login": "Back to sign in",
+      "error_generic": "Could not send a reset link. Please try again."
+    },
+    "password_reset": {
+      "title": "Create a new password",
+      "subtitle": "You are resetting the password for {{email}}.",
+      "password_label": "New password",
+      "confirm_password_label": "Confirm new password",
+      "submit": "Reset password",
+      "submitting": "Resetting…",
+      "error_invalid_token": "This reset link is invalid or has expired."
     },
     "oauth_callback": {
       "exchanging": "Signing you in…",
@@ -180,6 +202,11 @@
     "datasource_permission_already_exists": "This user already has a permission row for this datasource.",
     "illegal_datasource_permission": "That user is not part of your organization.",
     "datasource_grant_generic": "Failed to grant access. Please try again.",
+    "password_reset_not_found": "This reset link is invalid.",
+    "password_reset_expired": "This reset link has expired. Request a new one.",
+    "password_reset_already_used": "This reset link has already been used.",
+    "password_reset_revoked": "This reset link is no longer valid. Request a new one.",
+    "password_reset_generic": "Could not reset your password. Please try again.",
     "driver_unavailable": {
       "offline_cache_miss": "The JDBC driver for {{dbType}} is not in the local cache and AccessFlow is in offline mode. Pre-populate the driver cache or set ACCESSFLOW_DRIVERS_OFFLINE=false and restart AccessFlow. ({{detail}})",
       "cache_not_writable": "AccessFlow cannot write to the JDBC driver cache directory. Set ACCESSFLOW_DRIVER_CACHE to a writable path (for example, ~/.accessflow/drivers) and restart AccessFlow. ({{detail}})",
