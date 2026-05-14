@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AccessFlow — Open-source database access governance</title>
+  <meta name="description" content="AccessFlow is an open-source SQL proxy for PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a href="#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#install">Install</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#docs">Docs</a>
+      </nav>
+      <div class="nav-right">
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="#install" class="btn btn-ghost">Quick start</a>
+        <a href="#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="hero-grid-bg" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <div class="hero-left">
+          <span class="badge">
+            <span class="badge-tag">v1.0</span>
+            general availability — Apache 2.0 licensed
+          </span>
+          <h1>
+            Governed database access,<br />
+            built for <span class="underline">engineers</span>.
+          </h1>
+          <p class="hero-sub">
+            AccessFlow is an open-source SQL proxy that sits between your team and your databases.
+            Every query is parsed, classified, optionally AI-reviewed, and routed through a configurable
+            human-approval workflow before it touches production — with a tamper-evident metadata audit
+            trail of every decision.
+          </p>
+          <div class="hero-cta">
+            <a href="#install" class="btn btn-primary">
+              <span class="mono">$</span> docker compose up
+            </a>
+            <a href="https://github.com/bablsoft/accessflow" class="btn">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+          <div class="hero-meta">
+            <span><b>PostgreSQL</b> · <b>MySQL</b> · <b>MariaDB</b> · <b>Oracle</b> · <b>MSSQL</b></span>
+            <span>Self-hosted · <b>SAML</b> · <b>OAuth</b> · <b>TOTP</b></span>
+            <span>Anthropic · Ollama · OpenAI-compatible</span>
+          </div>
+        </div>
+
+        <div class="terminal" aria-label="Quick start terminal preview">
+          <div class="terminal-head">
+            <span class="tl-dot" aria-hidden="true"></span>
+            <span class="tl-dot" aria-hidden="true"></span>
+            <span class="tl-dot" aria-hidden="true"></span>
+            <span class="terminal-title mono">~/accessflow — zsh</span>
+          </div>
+          <div class="terminal-body">
+<div><span class="prompt">$</span> <span class="cmd">git clone github.com/bablsoft/accessflow</span></div>
+<div><span class="out">Cloning into 'accessflow'... done.</span></div>
+<div><span class="prompt">$</span> <span class="cmd">cd accessflow</span></div>
+<div><span class="prompt">$</span> <span class="cmd">docker compose up -d</span></div>
+<div><span class="dim">[+]</span> <span class="out">Running 2/2</span></div>
+<div><span class="ok"> ✓</span> <span class="out">postgres-1   Healthy</span>     <span class="dim">12.3s</span></div>
+<div><span class="ok"> ✓</span> <span class="out">redis-1      Started</span>     <span class="dim"> 1.4s</span></div>
+<div><span class="prompt">$</span> <span class="cmd">cd backend &amp;&amp; ./mvnw spring-boot:run</span></div>
+<div><span class="info">→</span> <span class="out">API ready at</span> <span class="ok">http://localhost:8080</span></div>
+<div><span class="prompt">$</span> <span class="cmd">cd ../frontend &amp;&amp; npm run dev</span></div>
+<div><span class="info">→</span> <span class="out">UI ready at</span> <span class="ok">http://localhost:5173</span></div>
+<div><span class="info">→</span> <span class="out">first admin via</span> <span class="warn">ACCESSFLOW_BOOTSTRAP_ADMIN_*</span></div>
+<div><span class="prompt">$</span><span class="cursor" aria-hidden="true"></span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture -->
+    <section class="arch scroll-pad" id="architecture">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Architecture</span>
+          <h2>One proxy. Every query. Zero shared credentials.</h2>
+          <p>
+            AccessFlow is the sole path between users and production databases. Customer-database
+            credentials never leave the proxy — users authenticate to AccessFlow, the proxy holds the
+            real JDBC connection pools and opens connections only after a query is approved.
+          </p>
+        </div>
+
+        <div class="arch-canvas">
+          <div class="arch-row">
+            <div class="arch-cell">
+              <span class="label">CLIENT</span>
+              <span class="value">React SPA · /ws · REST</span>
+            </div>
+          </div>
+          <div class="arch-conn" aria-hidden="true"></div>
+          <div class="arch-row">
+            <div class="arch-cell accent" style="min-width: 360px;">
+              <span class="label">API GATEWAY</span>
+              <span class="value">Spring Boot 4 · JWT · Modulith</span>
+            </div>
+          </div>
+          <div class="arch-conn" aria-hidden="true"></div>
+          <div class="arch-services">
+            <div class="arch-cell">
+              <span class="label">SERVICE</span>
+              <span class="value">Query Proxy</span>
+            </div>
+            <div class="arch-cell">
+              <span class="label">SERVICE</span>
+              <span class="value">Review Workflow</span>
+            </div>
+            <div class="arch-cell">
+              <span class="label">SERVICE</span>
+              <span class="value">AI Analyzer</span>
+            </div>
+            <div class="arch-cell">
+              <span class="label">SERVICE</span>
+              <span class="value">Admin &amp; Audit</span>
+            </div>
+          </div>
+          <div class="arch-conn" aria-hidden="true"></div>
+          <div class="arch-row">
+            <div class="arch-cell" style="min-width: 360px;">
+              <span class="label">INTERNAL STATE</span>
+              <span class="value">PostgreSQL · Redis</span>
+            </div>
+          </div>
+          <div class="arch-conn" aria-hidden="true"></div>
+          <div class="arch-row">
+            <div class="arch-cell accent" style="min-width: 460px;">
+              <span class="label">CUSTOMER DATABASES (PROXIED)</span>
+              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-callouts">
+          <div class="arch-callout">
+            <span class="k">Encryption</span>
+            <span class="v">AES-256-GCM for datasource credentials at rest. RSA-2048 JWT signing. SAML 2.0 keystore.</span>
+          </div>
+          <div class="arch-callout">
+            <span class="k">Runtime</span>
+            <span class="v">Java 25 with virtual threads. Horizontally scalable behind any L7 load balancer.</span>
+          </div>
+          <div class="arch-callout">
+            <span class="k">Observability</span>
+            <span class="v">Spring Boot Actuator probes. HMAC-SHA256 chained, append-only metadata audit log of every action.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features scroll-pad" id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Capabilities</span>
+          <h2>The middle ground between blanket access and a DBA ticket queue.</h2>
+          <p>Composable subsystems, configurable per datasource, observable end-to-end. Deployable inside your own infrastructure with no telemetry leaving the box.</p>
+        </div>
+        <div class="feat-grid">
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
+            </div>
+            <h3>Full SQL proxy</h3>
+            <p>Every statement is parsed with JSqlParser, classified as SELECT / DML / DDL, validated against schema and table allow-lists at the AST level, then routed through your review policy before it touches the database.</p>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M9 3a3 3 0 0 0-3 3v1a3 3 0 0 0-2 2.83V11a3 3 0 0 0 1 2.24V15a3 3 0 0 0 3 3h1v3h4V3H9z"/>
+                <path d="M15 3v18h4a3 3 0 0 0 3-3v-2.76A3 3 0 0 0 23 13v-1.17A3 3 0 0 0 21 9V7a3 3 0 0 0-3-3h-3z"/>
+              </svg>
+            </div>
+            <h3>AI query analysis</h3>
+            <p>Pluggable per-organization analyzer — Anthropic, Ollama, or any OpenAI-compatible backend. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human ever sees it.</p>
+            <span class="tag">Anthropic · Ollama · OpenAI-compatible</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <h3>Configurable review workflows</h3>
+            <p>Per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Reviewers are paged via Email, Slack Block Kit, or HMAC-signed webhooks.</p>
+            <span class="tag">State machine · Email · Slack · Webhooks</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h3>Workforce-ready auth</h3>
+            <p>JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, Microsoft, and GitLab — plus optional TOTP 2FA.</p>
+            <span class="tag">JWT · SAML · OAuth · TOTP</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+            <h3>Tamper-evident audit</h3>
+            <p>Append-only metadata audit log chained with HMAC-SHA256. INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored.</p>
+            <span class="tag">HMAC-SHA256 chain</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+            </div>
+            <h3>Cloud-native deploy</h3>
+            <p>One <span class="mono">docker compose up</span> for local and small environments. Helm 3 chart for Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas.</p>
+            <span class="tag">Docker · Helm · Kubernetes · Modulith</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="how scroll-pad" id="how">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Request flow</span>
+          <h2>From keystroke to commit, observable at every step.</h2>
+          <p>A single state machine drives every query through classification, review, and execution. Each transition is auditable, cancellable, and replayable.</p>
+        </div>
+
+        <div class="flow-grid">
+          <div class="flow-steps" role="tablist" aria-label="Request flow steps">
+            <div class="flow-step active" role="tab" aria-selected="true">
+              <div class="flow-num">01</div>
+              <div>
+                <h4>Submit a query</h4>
+                <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">02</div>
+              <div>
+                <h4>AI reviews it</h4>
+                <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">03</div>
+              <div>
+                <h4>Humans approve</h4>
+                <p>Reviewers get paged by Email, Slack, or webhook. Multi-stage approval chains run as a state machine.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">04</div>
+              <div>
+                <h4>Proxy executes</h4>
+                <p>AccessFlow opens a JDBC connection from the per-datasource HikariCP pool, executes, captures metadata.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">05</div>
+              <div>
+                <h4>Audit forever</h4>
+                <p>Append-only metadata audit row. WebSocket pushes result to the submitter. Status becomes <span class="mono">EXECUTED</span>.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flow-stage">
+
+            <!-- Stage 1: Submit -->
+            <div data-flow-stage="0">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">SQL Editor</span>
+                  <span class="seg">History</span>
+                  <span class="seg">Saved</span>
+                  <span style="margin-left: auto;" class="mono">datasource: <span style="color: var(--info);">prod-orders ⌄</span></span>
+                </div>
+                <div class="sql-editor">
+                  <div class="sql-line"><span class="ln">1</span><span><span class="sql-com">-- backfill missing region codes</span></span></div>
+                  <div class="sql-line"><span class="ln">2</span><span><span class="sql-kw">UPDATE</span> <span class="sql-op">orders</span></span></div>
+                  <div class="sql-line"><span class="ln">3</span><span>   <span class="sql-kw">SET</span> region_code <span class="sql-op">=</span> <span class="sql-fn">UPPER</span>(<span class="sql-op">substr</span>(country, <span class="sql-num">1</span>, <span class="sql-num">2</span>))</span></div>
+                  <div class="sql-line"><span class="ln">4</span><span> <span class="sql-kw">WHERE</span> region_code <span class="sql-kw">IS NULL</span></span></div>
+                  <div class="sql-line"><span class="ln">5</span><span>   <span class="sql-kw">AND</span> created_at <span class="sql-op">&gt;</span> <span class="sql-str">'2026-01-01'</span><span class="sql-op">;</span></span></div>
+                </div>
+                <div style="padding: 12px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span style="color: var(--warn);">DML detected</span> · review required</span>
+                  <span class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Submit for review</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 2: AI -->
+            <div data-flow-stage="1" hidden>
+              <div class="ai-panel">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="pill ai">analyzing</span>
+                    <span class="mono" style="font-size: 11px; color: var(--fg-mute);">req_a8c91f · ai_analyzer</span>
+                  </div>
+                  <span class="mono" style="font-size: 11px; color: var(--fg-faint);">1.4s</span>
+                </div>
+                <div class="risk-bar">
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">RISK</span>
+                  <div class="risk-meter"><div class="risk-fill"></div></div>
+                  <span class="risk-label">62 · MEDIUM</span>
+                </div>
+                <div class="ai-finding warn">
+                  <span class="marker">!</span>
+                  <div>
+                    <strong>Unbounded UPDATE scan</strong>
+                    <p>WHERE clause has no index on (region_code, created_at). Estimated 4.2M rows scanned. Suggest composite index before run.</p>
+                  </div>
+                </div>
+                <div class="ai-finding info">
+                  <span class="marker">i</span>
+                  <div>
+                    <strong>Idempotency</strong>
+                    <p>Repeat execution will not modify already-backfilled rows (region_code IS NULL filter is self-limiting). Safe to re-run.</p>
+                  </div>
+                </div>
+                <div class="ai-finding ok">
+                  <span class="marker">✓</span>
+                  <div>
+                    <strong>No DDL, no destructive ops</strong>
+                    <p>UPPER(substr(...)) is deterministic. Statement parses cleanly against the orders schema.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 3: Review queue -->
+            <div data-flow-stage="2" hidden>
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Review queue</span>
+                  <span class="seg">All queries</span>
+                  <span class="seg">Audit log</span>
+                  <span style="margin-left: auto;" class="mono">5 results</span>
+                </div>
+                <div>
+                  <div class="review-row">
+                    <span class="id">q_42081</span>
+                    <span class="sql">UPDATE orders SET region_code = UPPER(substr(...))</span>
+                    <span class="who">alice@co · ANALYST</span>
+                    <span class="pill pending">PENDING</span>
+                    <span style="display: flex; gap: 6px;">
+                      <span style="font-size: 11px; color: var(--accent); cursor: pointer;">approve</span>
+                      <span style="font-size: 11px; color: var(--fg-faint);">·</span>
+                      <span style="font-size: 11px; color: var(--danger); cursor: pointer;">reject</span>
+                    </span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42080</span>
+                    <span class="sql">SELECT user_id, count(*) FROM events GROUP BY 1 LIMIT 100</span>
+                    <span class="who">bob@co · ANALYST</span>
+                    <span class="pill ai">AI REVIEW</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42079</span>
+                    <span class="sql">DELETE FROM sessions WHERE expires_at &lt; now() - interval '30 days'</span>
+                    <span class="who">eve@co · REVIEWER</span>
+                    <span class="pill approved">APPROVED</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42078</span>
+                    <span class="sql">SELECT * FROM payments WHERE amount &gt; 10000</span>
+                    <span class="who">mark@co · ANALYST</span>
+                    <span class="pill executed">EXECUTED</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42077</span>
+                    <span class="sql">DROP TABLE legacy_users</span>
+                    <span class="who">mark@co · ANALYST</span>
+                    <span class="pill rejected">REJECTED</span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 4: Execute -->
+            <div data-flow-stage="3" hidden>
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Execution · q_42081</span>
+                  <span style="margin-left: auto;" class="mono"><span style="color: var(--accent);">● live</span> · streaming via /ws</span>
+                </div>
+                <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
+                  <div style="color: var(--fg-mute);">↳ proxy → <span style="color: var(--fg);">jdbc:postgresql://prod-orders.db.internal:5432</span></div>
+                  <div style="color: var(--fg-mute);">↳ pool <span style="color: var(--info);">hikari-prod-orders</span> · borrowed conn #7 of 20</div>
+                  <div style="color: var(--fg-mute);">↳ setMaxRows = 10000 (datasource cap)</div>
+                  <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
+                  <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span style="color: var(--fg-mute);">rows_affected</span>
+                      <span style="color: var(--fg);">238,420</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span style="color: var(--fg-mute);">duration_ms</span>
+                      <span style="color: var(--fg);">4,182</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span style="color: var(--fg-mute);">conn_returned</span>
+                      <span style="color: var(--accent);">ok</span>
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px; color: var(--accent);">✓ status → EXECUTED · ws event pushed to submitter</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 5: Audit -->
+            <div data-flow-stage="4" hidden>
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Audit log</span>
+                  <span style="margin-left: auto;" class="mono">append-only · HMAC-SHA256 chained</span>
+                </div>
+                <div style="padding: 0; font-family: var(--mono); font-size: 12px;">
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span style="color: var(--fg-faint);">14:02:51</span>
+                    <span style="color: var(--accent);">QUERY_SUBMITTED</span>
+                    <span style="color: var(--fg-dim);">alice@co</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">q_42081 · datasource=prod-orders</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span style="color: var(--fg-faint);">14:02:52</span>
+                    <span style="color: var(--accent);">AI_REVIEW_STARTED</span>
+                    <span style="color: var(--fg-dim);">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">provider=anthropic</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span style="color: var(--fg-faint);">14:02:53</span>
+                    <span style="color: var(--accent);">AI_REVIEW_COMPLETED</span>
+                    <span style="color: var(--fg-dim);">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">risk=62 MEDIUM · 3 findings</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span style="color: var(--fg-faint);">14:04:11</span>
+                    <span style="color: var(--accent);">QUERY_APPROVED</span>
+                    <span style="color: var(--fg-dim);">eve@co</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">stage=1/1 · note="add index first"</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; font-size: 11px;">
+                    <span style="color: var(--fg-faint);">14:04:12</span>
+                    <span style="color: var(--accent);">QUERY_EXECUTED</span>
+                    <span style="color: var(--fg-dim);">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">rows=238420 · duration=4182ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="install scroll-pad" id="install">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Quick start</span>
+          <h2>Up and governing queries in under five minutes.</h2>
+          <p>Pick your platform. The backend bootstraps PostgreSQL with Flyway, mints JWT keys, and seeds the first admin user from environment variables.</p>
+        </div>
+
+        <div class="install-grid">
+          <div>
+            <div class="install-tabs" role="tablist" aria-label="Install method">
+              <button class="install-tab active" role="tab" aria-selected="true" data-install-tab="docker">Docker Compose</button>
+              <button class="install-tab" role="tab" aria-selected="false" data-install-tab="helm">Helm / Kubernetes</button>
+              <button class="install-tab" role="tab" aria-selected="false" data-install-tab="source">From source</button>
+            </div>
+
+            <div data-install-pane="docker">
+              <div class="code-block">
+                <div class="code-block-head">
+                  <span class="mono">docker-compose.yml</span>
+                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                    <span data-copy-label>copy</span>
+                  </button>
+                </div>
+<pre><span class="c-com"># Boot infrastructure</span>
+<span class="c-kw">services</span>:
+  <span class="c-kw">postgres</span>:
+    <span class="c-kw">image</span>: <span class="c-str">postgres:18-alpine</span>
+    <span class="c-kw">environment</span>:
+      POSTGRES_DB: <span class="c-str">accessflow</span>
+      POSTGRES_USER: <span class="c-str">accessflow</span>
+      POSTGRES_PASSWORD: <span class="c-flag">${DB_PASSWORD}</span>
+
+  <span class="c-kw">redis</span>:
+    <span class="c-kw">image</span>: <span class="c-str">redis:8-alpine</span>
+
+  <span class="c-kw">backend</span>:
+    <span class="c-kw">image</span>: <span class="c-str">ghcr.io/bablsoft/accessflow-backend:latest</span>
+    <span class="c-kw">depends_on</span>: [postgres, redis]
+    <span class="c-kw">environment</span>:
+      DB_URL: <span class="c-str">jdbc:postgresql://postgres:5432/accessflow</span>
+      ENCRYPTION_KEY: <span class="c-flag">${ENCRYPTION_KEY}</span>
+      JWT_PRIVATE_KEY: <span class="c-flag">${JWT_PRIVATE_KEY}</span>
+      <span class="c-com"># Seed the first admin user on startup</span>
+      ACCESSFLOW_BOOTSTRAP_ENABLED: <span class="c-str">"true"</span>
+      ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: <span class="c-flag">${ADMIN_EMAIL}</span>
+      ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: <span class="c-flag">${ADMIN_PASSWORD}</span>
+    <span class="c-kw">ports</span>: [<span class="c-str">"8080:8080"</span>]
+
+  <span class="c-kw">frontend</span>:
+    <span class="c-kw">image</span>: <span class="c-str">ghcr.io/bablsoft/accessflow-frontend:latest</span>
+    <span class="c-kw">ports</span>: [<span class="c-str">"5173:80"</span>]
+</pre>
+              </div>
+            </div>
+
+            <div data-install-pane="helm" hidden>
+              <div class="code-block">
+                <div class="code-block-head">
+                  <span class="mono">values.yaml</span>
+                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                    <span data-copy-label>copy</span>
+                  </button>
+                </div>
+<pre><span class="c-com"># helm repo add accessflow https://bablsoft.github.io/accessflow</span>
+<span class="c-com"># helm install accessflow accessflow/accessflow -f values.yaml</span>
+
+<span class="c-kw">backend</span>:
+  <span class="c-kw">replicaCount</span>: 3
+  <span class="c-kw">autoscaling</span>:
+    <span class="c-kw">enabled</span>: <span class="c-str">true</span>
+    <span class="c-kw">minReplicas</span>: 2
+    <span class="c-kw">maxReplicas</span>: 10
+
+<span class="c-com"># Postgres + Redis ship as Bitnami subcharts — disable for production</span>
+<span class="c-kw">postgresql</span>:
+  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
+<span class="c-kw">redis</span>:
+  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
+
+<span class="c-kw">secrets</span>:
+  <span class="c-kw">encryptionKey</span>:
+    <span class="c-kw">existingSecret</span>: <span class="c-str">accessflow-encryption-key</span>
+  <span class="c-kw">jwtPrivateKey</span>:
+    <span class="c-kw">existingSecret</span>: <span class="c-str">accessflow-jwt-key</span>
+
+<span class="c-kw">ingress</span>:
+  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
+  <span class="c-kw">className</span>: <span class="c-str">nginx</span>
+  <span class="c-kw">hosts</span>:
+    - <span class="c-kw">host</span>: <span class="c-str">accessflow.company.com</span>
+</pre>
+              </div>
+            </div>
+
+            <div data-install-pane="source" hidden>
+              <div class="code-block">
+                <div class="code-block-head">
+                  <span class="mono">shell</span>
+                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                    <span data-copy-label>copy</span>
+                  </button>
+                </div>
+<pre><span class="c-com"># clone</span>
+<span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+
+<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8</span>
+<span class="c-kw">docker</span> compose up -d
+
+<span class="c-com"># 2. backend — Java 25 · Spring Boot 4 · Maven</span>
+<span class="c-kw">cd</span> backend
+<span class="c-kw">./mvnw</span> spring-boot:run
+
+<span class="c-com"># 3. frontend — Node 24 · Vite 8 · React 19</span>
+<span class="c-kw">cd</span> ../frontend
+<span class="c-kw">npm</span> install
+<span class="c-kw">npm</span> run dev
+
+<span class="c-com"># open http://localhost:5173 — admin user from ACCESSFLOW_BOOTSTRAP_ADMIN_*</span>
+</pre>
+              </div>
+            </div>
+          </div>
+
+          <div class="install-meta">
+            <h4>System requirements</h4>
+            <dl>
+              <dt>Backend</dt><dd>Java 25</dd>
+              <dt>Frontend</dt><dd>Node 24</dd>
+              <dt>Internal DB</dt><dd>PostgreSQL 18</dd>
+              <dt>Cache</dt><dd>Redis 8</dd>
+              <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL</dd>
+              <dt>AI backends</dt><dd>Anthropic · Ollama · OpenAI-compat.</dd>
+              <dt>License</dt><dd style="color: var(--accent);">Apache 2.0</dd>
+            </dl>
+            <div style="height: 1px; background: var(--line); margin: 20px 0;"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="mono" style="font-size: 12px; color: var(--fg-dim);">
+                → Full deployment guide
+              </a>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="mono" style="font-size: 12px; color: var(--fg-dim);">
+                → Environment variables reference
+              </a>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md" class="mono" style="font-size: 12px; color: var(--fg-dim);">
+                → Helm chart values
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="roadmap scroll-pad" id="roadmap">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Roadmap</span>
+          <h2>Shipped, shipping, and where we're going next.</h2>
+          <p>Public, versioned milestones — driven by community input and adapter contributions. Full milestone scope lives in <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" style="color: var(--accent); border-bottom: 1px dotted var(--accent-dim);">docs/12-roadmap.md</a>.</p>
+        </div>
+        <div class="roadmap-track">
+          <div class="milestone current">
+            <span class="ver">v1.0</span>
+            <h4>Core platform</h4>
+            <ul>
+              <li>SQL proxy · 5 DBs + custom JDBC</li>
+              <li>AI review · risk + index hints</li>
+              <li>Multi-stage approval workflows</li>
+              <li>JWT · SAML · OAuth · TOTP 2FA</li>
+              <li>HMAC-chained audit log</li>
+              <li>Docker Compose + Helm 3</li>
+            </ul>
+          </div>
+          <div class="milestone">
+            <span class="ver">v1.1</span>
+            <h4>Productivity</h4>
+            <ul>
+              <li>Dynamic JDBC driver loading</li>
+              <li>Datasource creation wizard</li>
+              <li>Query scheduling</li>
+              <li>Bulk approval UI</li>
+              <li>AI analytics dashboard</li>
+              <li>User invitation flow</li>
+            </ul>
+          </div>
+          <div class="milestone">
+            <span class="ver">v1.2</span>
+            <h4>Reviewer experience</h4>
+            <ul>
+              <li>Read replica routing</li>
+              <li>Query result diffing</li>
+              <li>Slack bot approve / reject</li>
+              <li>PagerDuty integration</li>
+              <li>Query templates library</li>
+              <li>Datasource health dashboard</li>
+            </ul>
+          </div>
+          <div class="milestone">
+            <span class="ver">v2.0</span>
+            <h4>Beyond SQL</h4>
+            <ul>
+              <li>MongoDB query governance</li>
+              <li>Redis access governance</li>
+              <li>REST API governance</li>
+              <li>Custom analyzer plugin SPI</li>
+              <li>Column-level permissions</li>
+            </ul>
+          </div>
+          <div class="milestone">
+            <span class="ver">v2.1</span>
+            <h4>Compliance</h4>
+            <ul>
+              <li>PII / PCI / PHI classification</li>
+              <li>Auto query suggestions</li>
+              <li>SOC2 / HIPAA report export</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Docs -->
+    <section class="docs scroll-pad" id="docs">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Documentation</span>
+          <h2>Thirteen chapters. Read them in any order.</h2>
+          <p>Every subsystem is documented — architecture diagrams, schemas, payload examples, deployment recipes, and security model. Open source in the same repo.</p>
+        </div>
+        <div class="docs-grid">
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/01-overview.md" class="doc-card">
+            <span class="doc-num">01</span>
+            <h4>Overview</h4>
+            <p>Problem statement, goals, non-goals, value proposition.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md" class="doc-card">
+            <span class="doc-num">02</span>
+            <h4>Architecture</h4>
+            <p>Subsystems, technology stack, request flow.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/03-data-model.md" class="doc-card">
+            <span class="doc-num">03</span>
+            <h4>Data model</h4>
+            <p>Internal entities, audit log schema, retention.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md" class="doc-card">
+            <span class="doc-num">04</span>
+            <h4>REST API</h4>
+            <p>Endpoints, payloads, WebSocket events.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md" class="doc-card">
+            <span class="doc-num">05</span>
+            <h4>Backend</h4>
+            <p>Modulith layout, proxy engine, workflow state machine.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md" class="doc-card">
+            <span class="doc-num">06</span>
+            <h4>Frontend</h4>
+            <p>React/Vite layout, SQL editor, TanStack &amp; Zustand.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md" class="doc-card">
+            <span class="doc-num">07</span>
+            <h4>Security</h4>
+            <p>JWT, SAML, OAuth, encryption, audit integrity.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md" class="doc-card">
+            <span class="doc-num">08</span>
+            <h4>Notifications</h4>
+            <p>Email, Slack, signed webhook delivery.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="doc-card">
+            <span class="doc-num">09</span>
+            <h4>Deployment</h4>
+            <p>Docker Compose, Helm, env-var reference.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md" class="doc-card">
+            <span class="doc-num">11</span>
+            <h4>Development</h4>
+            <p>Repo layout, tests, coding standards, Git workflow.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" class="doc-card">
+            <span class="doc-num">12</span>
+            <h4>Roadmap</h4>
+            <p>Milestones, contribution path.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md" class="doc-card">
+            <span class="doc-num">13</span>
+            <h4>MCP server</h4>
+            <p>Stateless tool surface for AI agents, API keys.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md" class="doc-card">
+            <span class="doc-num">★</span>
+            <h4>Agent rulebook</h4>
+            <p>CLAUDE.md — module boundaries, conventions, gates.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Big CTA -->
+    <section style="padding: 120px 0; border-top: 1px solid var(--line);" id="contact">
+      <div class="wrap">
+        <div class="big-cta">
+          <h2>Stop choosing between speed and safety.</h2>
+          <p>Pull the images, run <span class="mono">docker compose up</span>, point AccessFlow at your dev database, and watch a real query run through a real review workflow.</p>
+          <div class="hero-cta">
+            <a href="#install" class="btn btn-primary">
+              Quick start
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="https://github.com/bablsoft/accessflow" class="btn">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/></svg>
+              Star on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h5>Product</h5>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#install">Quick start</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Docs</h5>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Community</h5>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Legal</h5>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v1.0 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -19,6 +19,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 - `docs/07-security.md` — auth, authorization matrix, encryption rules
 - `docs/11-development.md` — coding standards, testing strategy, Git workflow
 - `README.md` (repo root) — public-facing project overview and quick start; keep in sync when changes affect setup, tech stack, features, project structure, or top-level documentation
+- `website/` (repo root) — public marketing site (static HTML/CSS/JS, no build); keep in sync when changes affect the user-facing pitch, supported databases, AI providers, auth methods, features, roadmap, quick-start commands, or top-level URLs
 
 ---
 
@@ -30,6 +31,7 @@ accessflow/
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
 ├── charts/           # Helm charts — currently charts/accessflow/
 ├── docs/             # Design documentation
+├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
 ├── docker-compose.yml
 └── .github/workflows/
 ```
@@ -765,3 +767,4 @@ Version surfacing:
 - Do not write multi-paragraph comments or doc comments on obvious methods.
 - Do not add features beyond what is requested; do not design for hypothetical future requirements.
 - Do not let `README.md` drift. When a change alters the user-facing pitch, tech stack versions, quick-start commands, project structure, license, or top-level features, update `README.md` in the same commit set — same rule that already applies to `docs/*.md`.
+- Do not let `website/` drift. The public marketing site at [`website/`](website/) is sourced from the application and `docs/` chapters — when a change alters the user-facing pitch, supported databases, AI providers, authentication methods, feature list, roadmap milestones, quick-start commands, docs chapter list, tech stack versions, or top-level URLs, update [`website/index.html`](website/index.html) (and the content-source map in [`website/README.md`](website/README.md)) in the same commit set. The site has no build step; edits land directly in HTML.
