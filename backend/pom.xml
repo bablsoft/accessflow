@@ -13,7 +13,7 @@
 
     <groupId>com.bablsoft.accessflow</groupId>
     <artifactId>accessflow</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.0.7</version>
     <packaging>jar</packaging>
     <name>accessflow</name>
     <description>AccessFlow - Database Access Governance Platform</description>
