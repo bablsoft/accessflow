@@ -1,8 +1,209 @@
 # AccessFlow
 
-Managed Database Access & Query Governance Platform.
+> Open-source database access governance platform — a SQL proxy that puts review, approval, and audit between your team and production data.
+
+[![Backend CI](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml)
+[![Frontend CI](https://github.com/bablsoft/accessflow/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/frontend-ci.yml)
+![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+
+AccessFlow sits as a full SQL proxy in front of PostgreSQL and MySQL databases. Every query a user submits is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO. AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
+
+---
+
+## Why AccessFlow
+
+Most teams pick one of two extremes for database access:
+
+- **Shared production credentials** — anyone with the password can run `DELETE`. Fast, but a single mistake is unbounded and there is no record of who did what.
+- **Ticket-driven DBA access** — every change goes through a manual DBA queue. Safe, but slow enough that engineers route around it.
+
+AccessFlow provides the missing middle: governed, self-service access where every query is reviewable, every approval is traceable, and AI catches the obvious problems before a human ever sees the request.
+
+---
+
+## Features
+
+- **Proxy-first execution** — no user ever holds production credentials; the proxy holds them encrypted and opens connections only after approval.
+- **Configurable review workflows** — per-datasource review plans, multi-stage sequential approval chains, optional auto-approve for reads, approval timeouts with auto-reject.
+- **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, and self-hosted Ollama; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI.
+- **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.
+- **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
+- **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
+- **Notifications** — Email (SMTP), Slack (Incoming Webhooks), and HMAC-signed outbound webhooks with retry policy.
+- **Identity & SSO** — JWT access tokens (15 min) + HttpOnly refresh cookies, optional SAML 2.0 SSO, password reset and user-invitation flows.
+- **MCP server** — built-in Spring AI MCP server exposes a stateless tool surface so external AI agents can submit queries through the same review pipeline.
+- **Deploy anywhere** — `docker compose up` for local and small environments; Helm chart for Kubernetes production.
+
+---
+
+## Architecture (at a glance)
+
+AccessFlow is a single Spring Boot 4 application organized as Spring Modulith modules — six logical subsystems share one process, one Postgres, and one Redis but communicate strictly through events and exposed API packages:
+
+- **Proxy** — parses, validates, and executes SQL against customer databases via per-datasource HikariCP pools.
+- **Workflow** — review-plan state machine, approval chains, scheduled timeout auto-reject.
+- **AI Analyzer** — Spring AI–backed adapters resolved per organization from the `ai_config` row.
+- **Notifications** — async dispatcher fanning events to Email / Slack / webhooks.
+- **Audit** — INSERT-only, HMAC-chained record of every domain event.
+- **Realtime** — WebSocket fan-out for the React SPA.
+
+For the full request flow, technology stack table, and component-level diagrams, see [`docs/02-architecture.md`](https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md).
+
+---
+
+## Tech Stack
+
+| Layer | Stack |
+|-------|-------|
+| Backend runtime | Java 25, virtual threads |
+| Backend framework | Spring Boot 4, Spring Modulith 2, Spring Security, Spring Data JPA, Spring AI 2.0 |
+| Internal database | PostgreSQL 18 |
+| Migrations | Flyway |
+| Target databases | PostgreSQL 13+, MySQL 8+ |
+| Frontend | React 19, Vite 8, TypeScript 6, Ant Design 6, CodeMirror 6 |
+| Server state | TanStack Query 5 |
+| Client state | Zustand 5 |
+| Cache & locks | Redis 8 (JWT refresh-token revocation, ShedLock locks for `@Scheduled` jobs) |
+| AI backends | OpenAI, Anthropic, Ollama (admin-configurable per organization) |
+| Auth | JWT RS256 + optional SAML 2.0 SSO |
+| Deploy | Docker Compose, Helm 3 |
+
+Library versions in `backend/pom.xml` and `frontend/package.json` are pinned to the latest stable at the time of merge; see `CLAUDE.md` for the dependency-bump rule.
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- JDK 25 (e.g. `sdk install java 25-tem`)
+- Node.js 20 LTS
+- Docker Desktop (for Postgres + Redis)
+
+### 1. Start infrastructure
+
+The repo ships two Compose files. The root file boots the minimum infrastructure AccessFlow needs to run:
+
+```bash
+docker compose up -d        # Postgres 18 + Redis 8
+```
+
+For a local dev loop that also includes a fake SMTP inbox at <http://localhost:1080>:
+
+```bash
+docker compose -f backend/docker-compose-dev.yml up -d   # Postgres + Redis + Mailcrab
+```
+
+### 2. Run the backend
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+The API comes up on `http://localhost:8080`. Required environment variables (`DB_PASSWORD`, `ENCRYPTION_KEY`, `JWT_PRIVATE_KEY`, …) are documented in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) and the env-var table in [`CLAUDE.md`](https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md).
+
+### 3. Run the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The SPA comes up on `http://localhost:5173`.
+
+> The full multi-service production-style Compose layout (separate backend / frontend / optional Ollama containers) and the Helm chart are described in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md). The root `docker-compose.yml` here is intentionally infrastructure-only for the dev loop.
+
+---
 
 ## Project Structure
-- `backend/`: Spring Boot 4 application using Spring Modulith (single Maven module; logical modules as packages under `com.bablsoft.accessflow`).
-- `docs/`: Project documentation.
-- `docker-compose.yml`: Local infrastructure setup.
+
+```
+accessflow/
+├── backend/          # Spring Boot 4 application (single Maven module, Spring Modulith)
+│   ├── src/main/java/com/bablsoft/accessflow/
+│   │   ├── core/             # Domain entities, repositories, shared service contracts
+│   │   ├── proxy/            # SQL proxy engine, JDBC connection management
+│   │   ├── workflow/         # Review state machine, approval chains, scheduled jobs
+│   │   ├── ai/               # Spring AI adapters (OpenAI / Anthropic / Ollama)
+│   │   ├── security/         # JWT, Spring Security filters, SAML 2.0 SSO
+│   │   ├── notifications/    # Email / Slack / Webhook dispatchers
+│   │   ├── audit/            # INSERT-only, HMAC-chained audit log
+│   │   └── mcp/              # Stateless MCP server for AI agents
+│   └── pom.xml
+├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
+├── docs/             # Authoritative design documentation
+├── docker-compose.yml          # Local infrastructure (Postgres + Redis)
+├── CLAUDE.md         # Agent-facing rulebook (read before changing code)
+└── README.md
+```
+
+---
+
+## Documentation
+
+| File | Description |
+|------|-------------|
+| [`docs/01-overview.md`](https://github.com/bablsoft/accessflow/blob/main/docs/01-overview.md) | Executive summary, problem statement, goals, non-goals |
+| [`docs/02-architecture.md`](https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md) | System architecture, service descriptions, technology stack |
+| [`docs/03-data-model.md`](https://github.com/bablsoft/accessflow/blob/main/docs/03-data-model.md) | Entity schemas, columns, enums, indexes |
+| [`docs/04-api-spec.md`](https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md) | REST endpoints, WebSocket events, payload examples |
+| [`docs/05-backend.md`](https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md) | Modulith layout, proxy engine, workflow state machine, AI analyzer, scheduled jobs |
+| [`docs/06-frontend.md`](https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md) | Frontend structure, routing, state management, SQL editor |
+| [`docs/07-security.md`](https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md) | Auth, RBAC matrix, credential encryption, audit integrity |
+| [`docs/08-notifications.md`](https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md) | Event types, Email / Slack / Webhook config, signed payload schema |
+| [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) | Docker Compose, Helm, environment-variable reference |
+| [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) | Local setup, testing strategy, coding standards, Git workflow |
+| [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md) | v1.0 → v2.x milestone scope |
+| [`docs/13-mcp.md`](https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md) | MCP server, user API keys, exposed tools |
+
+---
+
+## Testing & Quality Gates
+
+Both halves of the codebase ship with strict coverage gates enforced by CI.
+
+**Backend:**
+
+```bash
+cd backend
+./mvnw verify -Pcoverage                        # full build + tests + JaCoCo coverage
+./mvnw test -Dtest=ApplicationModulesTest       # Spring Modulith boundary check
+```
+
+JaCoCo enforces ≥ 90 % line coverage; the `ApiPackageDependencyTest` ArchUnit check refuses third-party imports inside any `<module>/api/` package; `ApplicationModulesTest` refuses cross-module reaches into `internal/` packages.
+
+**Frontend:**
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run test:coverage    # Vitest, ≥ 90 % line / ≥ 80 % branch on included modules
+npm run build
+```
+
+See [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) for the full testing strategy and `CLAUDE.md` for the per-class coverage-parity rule.
+
+---
+
+## Contributing
+
+- **Branches** off `main`: `feature/AF-<n>-<kebab-summary>`, `fix/AF-<n>-<kebab-summary>`, `hotfix/AF-<n>-<kebab-summary>`. Frontend-only work uses the `FE-<n>` prefix.
+- **Commits** use imperative mood, ≤ 72 characters, prefixed by issue: `feat(AF-58): auto-reject queries past approval_timeout_hours`.
+- **PRs** require green CI (backend + frontend), at least one approval, and a description that links the issue.
+- **Before writing code**, read [`CLAUDE.md`](https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md) end-to-end — it is the authoritative rulebook for module boundaries, validation parity, i18n, scheduled-job locking, and the coverage gates. The human-facing companion is [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md).
+- **Update documentation in the same change** — `docs/*.md`, this README, and the env-var table in `CLAUDE.md` must stay in sync with what the code actually does.
+
+---
+
+## Status
+
+AccessFlow is pre-v1.0; expect APIs and migrations to evolve. The current scope and target dates are tracked in [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md).
+
+---
+
+## License
+
+Apache License 2.0.

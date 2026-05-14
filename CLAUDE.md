@@ -18,6 +18,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 - `docs/06-frontend.md` — directory structure, routing, state management
 - `docs/07-security.md` — auth, authorization matrix, encryption rules
 - `docs/11-development.md` — coding standards, testing strategy, Git workflow
+- `README.md` (repo root) — public-facing project overview and quick start; keep in sync when changes affect setup, tech stack, features, project structure, or top-level documentation
 
 ---
 
@@ -740,3 +741,4 @@ Docker images:
 - Do not hard-code secrets — use environment variables.
 - Do not write multi-paragraph comments or doc comments on obvious methods.
 - Do not add features beyond what is requested; do not design for hypothetical future requirements.
+- Do not let `README.md` drift. When a change alters the user-facing pitch, tech stack versions, quick-start commands, project structure, license, or top-level features, update `README.md` in the same commit set — same rule that already applies to `docs/*.md`.
