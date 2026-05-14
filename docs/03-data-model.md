@@ -4,6 +4,8 @@ All entities are stored in AccessFlow's **internal PostgreSQL database**. Custom
 
 > **Naming convention:** All tables use `snake_case`. All primary keys are `UUID`. All timestamps are `TIMESTAMPTZ`.
 
+> **Startup bootstrap.** The `bootstrap` module (see [docs/05-backend.md → "Startup bootstrap"](05-backend.md#startup-bootstrap-env-driven-admin-config) and [docs/09-deployment.md → "Bootstrap configuration"](09-deployment.md#bootstrap-configuration)) seeds the rows below from `ACCESSFLOW_BOOTSTRAP_*` env vars on every backend start. No new tables / columns / enums are introduced for that feature — bootstrap reuses the existing unique constraints (`(organization_id, name)`, `(organization_id, provider)`, or singleton-per-org) as the upsert keys.
+
 ---
 
 ## organizations

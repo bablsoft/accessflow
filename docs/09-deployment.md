@@ -345,6 +345,186 @@ kubectl create secret generic accessflow-jwt-key \
 
 ---
 
+## Bootstrap configuration
+
+AccessFlow can seed the **organization, first admin user, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP** from environment variables at startup. This unlocks fully declarative GitOps deployments — `helm upgrade -f values.yaml` reconciles the database to match what's checked in.
+
+**Authoritative semantics.** When `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, the backend re-applies every declared row on every restart. Rows that match a declared spec are **overwritten**; rows not declared are untouched. Admin-UI edits to declared resources are reverted on the next restart — operators should treat the env-driven set as the source of truth.
+
+### When to use it
+
+| Install path | Use bootstrap? |
+|---|---|
+| Helm / Kubernetes deployment with secrets in `Secret` objects | **Yes** — primary intended use case |
+| Docker Compose dev environment | Optional — `ACCESSFLOW_BOOTSTRAP_*` env vars in the compose file work the same way |
+| Bare-metal / VM install with admin doing one-off setup via the wizard | **No** — leave `ACCESSFLOW_BOOTSTRAP_ENABLED=false` (the default) |
+
+### How env vars map to properties
+
+The backend exposes a single `@ConfigurationProperties("accessflow.bootstrap")` record. Spring Boot's relaxed binding maps each property path to an upper-snake env-var name. Lists use `_<INDEX>_`:
+
+```
+accessflow.bootstrap.enabled                              → ACCESSFLOW_BOOTSTRAP_ENABLED
+accessflow.bootstrap.organization.name                    → ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME
+accessflow.bootstrap.admin.display-name                   → ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME
+accessflow.bootstrap.review-plans[0].name                 → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_NAME
+accessflow.bootstrap.review-plans[0].approver-emails[1]   → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_APPROVER_EMAILS_1
+accessflow.bootstrap.datasources[2].password              → ACCESSFLOW_BOOTSTRAP_DATASOURCES_2_PASSWORD
+```
+
+The canonical property tree lives in [BootstrapProperties.java](../backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/BootstrapProperties.java) and its `spec/` sub-records.
+
+### Reconcile order
+
+`BootstrapRunner` runs once on `ApplicationReadyEvent` in this fixed order:
+
+```
+organization → admin user → notification channels → AI configs →
+review plans (resolve approvers + channels) →
+datasources (resolve review plan + AI config) →
+SAML → OAuth2 → system SMTP
+```
+
+If the organization reconciler fails, bootstrap aborts immediately. For every subsequent step, failures are logged at ERROR and collected; at the end the runner throws `BootstrapException` so the pod fails readiness — the operator sees the message in `kubectl describe pod` / `kubectl logs`.
+
+### Secret hygiene
+
+Sensitive env vars **must** come from Kubernetes `Secret` objects, never from `ConfigMap` or inline `values.yaml`. The chart enforces this via the structured `*SecretRef` shape — see the Helm walkthrough below. The complete list of fields the chart routes through Secrets:
+
+| Spec path | Env var | Kind |
+|---|---|---|
+| `bootstrap.admin.passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD` | BCrypt-hashed at first start; never rotated |
+| `bootstrap.datasources[N].passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_DATASOURCES_<N>_PASSWORD` | Encrypted (AES-256-GCM) before persist |
+| `bootstrap.aiConfigs[N].apiKeySecretRef` | `ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_<N>_API_KEY` | Encrypted before persist |
+| `bootstrap.notificationChannels[N].sensitiveSecretRefs.<field>` | `ACCESSFLOW_BOOTSTRAP_NOTIFICATION_CHANNELS_<N>_CONFIG_<FIELD>` | Encrypted before persist |
+| `bootstrap.oauth2[N].clientSecretRef` | `ACCESSFLOW_BOOTSTRAP_OAUTH2_<N>_CLIENT_SECRET` | Encrypted before persist |
+| `bootstrap.systemSmtp.passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_PASSWORD` | Encrypted before persist |
+
+### Helm walkthrough
+
+#### 1. Pre-create the Secrets
+
+`accessflow-bootstrap-secrets` holds the admin password and any shared secrets (AI keys, Slack webhooks, OAuth2 client secrets, SMTP password):
+
+```bash
+kubectl create secret generic accessflow-bootstrap-secrets \
+  --from-literal=admin-password="$(openssl rand -base64 24)" \
+  --from-literal=anthropic-key="sk-…" \
+  --from-literal=slack-webhook="https://hooks.slack.com/services/…" \
+  --from-literal=google-client-secret="…" \
+  --from-literal=smtp-password="…"
+```
+
+Per-datasource credentials live in their own Secrets:
+
+```bash
+kubectl create secret generic prod-pg-creds \
+  --from-literal=password="…"
+```
+
+#### 2. Populate `values.yaml`
+
+```yaml
+bootstrap:
+  enabled: true
+  organization:
+    name: Acme
+  admin:
+    email: admin@acme.com
+    displayName: Initial Admin
+    passwordSecretRef: { name: accessflow-bootstrap-secrets, key: admin-password }
+  reviewPlans:
+    - name: standard
+      requiresAiReview: true
+      requiresHumanApproval: true
+      minApprovalsRequired: 1
+      approvalTimeoutHours: 24
+      autoApproveReads: false
+      notifyChannelNames: [ops-slack]
+      approverEmails: [admin@acme.com]
+  aiConfigs:
+    - name: claude
+      provider: ANTHROPIC
+      model: claude-sonnet-4-20250514
+      apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: anthropic-key }
+  datasources:
+    - name: prod-postgres
+      dbType: POSTGRESQL
+      host: postgres.prod.svc
+      port: 5432
+      databaseName: app
+      username: af_reader
+      passwordSecretRef: { name: prod-pg-creds, key: password }
+      sslMode: REQUIRE
+      reviewPlanName: standard
+      aiAnalysisEnabled: true
+      aiConfigName: claude
+  notificationChannels:
+    - name: ops-slack
+      channelType: SLACK
+      active: true
+      config:
+        channel: "#ops"
+      sensitiveSecretRefs:
+        webhookUrl: { name: accessflow-bootstrap-secrets, key: slack-webhook }
+  oauth2:
+    - provider: GOOGLE
+      clientId: "1234.apps.googleusercontent.com"
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: google-client-secret }
+      defaultRole: REVIEWER
+      active: true
+  systemSmtp:
+    enabled: true
+    host: smtp.acme.com
+    port: 587
+    username: noreply
+    passwordSecretRef: { name: accessflow-bootstrap-secrets, key: smtp-password }
+    tls: true
+    fromAddress: noreply@acme.com
+    fromName: AccessFlow
+```
+
+A complete fixture that exercises every render path lives at [charts/accessflow/ci/bootstrap-values.yaml](../charts/accessflow/ci/bootstrap-values.yaml) and is wired into the helm-ci workflow.
+
+#### 3. `helm upgrade`
+
+```bash
+helm upgrade --install accessflow charts/accessflow -f values.yaml
+```
+
+`helm template` validates the inputs eagerly — if a required field is missing or a `*SecretRef` is incomplete, the install fails with a clear message (e.g. `bootstrap.enabled=true requires bootstrap.admin.passwordSecretRef.name`). The chart never templates a `Secret` object — pre-create them with `kubectl` per the snippets above.
+
+#### 4. Verify
+
+```bash
+# Confirm the ConfigMap contains the non-secret bootstrap keys
+kubectl get configmap accessflow-backend-env -o yaml | grep ACCESSFLOW_BOOTSTRAP
+
+# Confirm the Deployment has the secret-ref env vars
+kubectl describe pod -l app.kubernetes.io/name=accessflow,app.kubernetes.io/component=backend \
+  | grep -A2 ACCESSFLOW_BOOTSTRAP
+
+# Tail the backend log on first start; look for "Bootstrap: reconciliation completed"
+kubectl logs -l app.kubernetes.io/component=backend --tail=200 | grep Bootstrap
+```
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `helm install` fails with `bootstrap.enabled=true requires bootstrap.organization.name` | Required field empty in `values.yaml` | Set the field; required keys are listed in the validation block in [_bootstrap-env.tpl](../charts/accessflow/templates/_bootstrap-env.tpl) |
+| Pod CrashLoopBackOff after `helm upgrade`, log shows `BootstrapException: datasources: …references unknown review plan 'X'` | Spec references a review plan that isn't in the same `bootstrap.reviewPlans` list | Add the review plan above the datasource list, or reference an existing plan |
+| Datasource entry has `dbType: CUSTOM` and helm fails with `upload CUSTOM JDBC drivers via the admin API` | CUSTOM datasources are not supported via bootstrap | Upload the JAR via `POST /api/v1/admin/jdbc-drivers` and create the datasource from the admin UI |
+| Admin user's password from `accessflow-bootstrap-secrets` no longer logs in | Bootstrap creates the admin once and never rotates the password on subsequent restarts | Use the admin API to rotate the password, then update the K8s Secret to keep them in sync |
+
+### Out of scope (for now)
+
+- **CUSTOM JDBC driver upload** — driver JARs must be uploaded through the admin API.
+- **Deletion of un-declared rows** — bootstrap never deletes; remove rows through the admin API.
+- **Audit-log entries for bootstrap writes** — bootstrap is a system actor; entries are silent today. Tracked in [#196](https://github.com/bablsoft/accessflow/issues/196).
+
+---
+
 ## Configuration Reference
 
 AccessFlow follows the [12-factor](https://12factor.net/config) approach: every config value

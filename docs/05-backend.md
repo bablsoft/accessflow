@@ -416,6 +416,36 @@ To add a new job: place the `@Component` under `<module>/internal/scheduled/`, a
 
 ---
 
+## Startup bootstrap (env-driven admin config)
+
+The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/java/com/bablsoft/accessflow/bootstrap)) reconciles declared admin configuration from `accessflow.bootstrap.*` properties into the database on every backend start. It is the mechanism that lets a Helm/Kubernetes deployment ship organization, admin user, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP through GitOps — no admin-API click-ops required.
+
+**When it runs.** `BootstrapRunner` listens for `ApplicationReadyEvent`. When `accessflow.bootstrap.enabled=false` (the default) it returns immediately. Otherwise it runs the reconcilers in this fixed topological order:
+
+1. **Organization** — looks up by slug, creates if missing. Slug is derived from `bootstrap.organization.name` when `bootstrap.organization.slug` is blank.
+2. **Admin user** — looks up by email. Creates with role=ADMIN if missing. **Does NOT rotate** the password on existing users (operators rotate via the admin API).
+3. **Notification channels** — upsert by `(orgId, name)`.
+4. **AI configs** — upsert by `(orgId, name)`.
+5. **Review plans** — upsert by `(orgId, name)`. Resolves `notifyChannelNames` against step 3 and `approverEmails` against step 2 (or any pre-existing users in the same org).
+6. **Datasources** — upsert by `(orgId, name)`. Resolves `reviewPlanName` and `aiConfigName`. `dbType=CUSTOM` is rejected — operators upload CUSTOM JDBC driver JARs through the admin API.
+7. **SAML** — singleton per org. Only applied when `bootstrap.saml.enabled=true`.
+8. **OAuth2 providers** — upsert by `(orgId, provider)`.
+9. **System SMTP** — singleton per org. Only applied when `bootstrap.systemSmtp.enabled=true`.
+
+**Authoritative semantics.** Every restart re-applies the declared spec, overwriting matching rows in the DB. Rows that are NOT declared are left untouched (no destructive cleanup). Operators who edit a declared row through the admin UI will see their change reverted on the next restart.
+
+**Failure handling.** If the organization reconciler fails, bootstrap aborts immediately. For every subsequent reconciler, failures are logged at ERROR, collected, and the runner throws a `BootstrapException` at the end — the pod fails its readiness probe so the operator sees the failure in `kubectl describe pod` rather than discovering it through silent half-applied state.
+
+**Module boundaries.** `bootstrap` is a Spring Modulith application module with only an `internal/` package — it has no public API of its own. It depends on the public `api/` packages of `core`, `ai`, `security`, and `notifications`, and reuses each domain's `Default*Service` for encryption / persistence (sensitive fields like API keys, datasource passwords, OAuth2 client secrets, and SMTP passwords are AES-256-GCM encrypted by those services, not by bootstrap).
+
+**Validation parity.** The Helm chart validates required `bootstrap.*` values at `helm template` / `helm install` time (`accessflow.bootstrap.validate` in [_bootstrap-env.tpl](../charts/accessflow/templates/_bootstrap-env.tpl)) so misconfig surfaces at deploy time, not at pod start. The backend re-checks the same invariants in each reconciler to defend against non-Helm install paths.
+
+**Follow-ups.** Audit-log entries for bootstrap writes are tracked in [#196](https://github.com/bablsoft/accessflow/issues/196) — bootstrap writes today are silent in the `audit_log` chain.
+
+See [docs/09-deployment.md → "Bootstrap configuration"](09-deployment.md#bootstrap-configuration) for the operator-facing env-var reference and the Helm `bootstrap:` values shape.
+
+---
+
 ## AI Query Analyzer Service
 
 The `AiAnalyzerService` (`accessflow-ai` module) is pluggable via a strategy interface:

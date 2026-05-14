@@ -50,3 +50,9 @@ jobs:
             --set config.encryptionKey.existingSecret=accessflow-encryption-key \
             --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
             > /tmp/rendered-external.yaml
+
+      - name: Render with bootstrap.* fixture (every *SecretRef path)
+        run: |
+          helm template accessflow charts/accessflow \
+            -f charts/accessflow/ci/bootstrap-values.yaml \
+            > /tmp/rendered-bootstrap.yaml
