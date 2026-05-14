@@ -100,14 +100,12 @@
 <div><span class="out">Cloning into 'accessflow'... done.</span></div>
 <div><span class="prompt">$</span> <span class="cmd">cd accessflow</span></div>
 <div><span class="prompt">$</span> <span class="cmd">docker compose up -d</span></div>
-<div><span class="dim">[+]</span> <span class="out">Running 2/2</span></div>
-<div><span class="ok"> ✓</span> <span class="out">postgres-1   Healthy</span>     <span class="dim">12.3s</span></div>
-<div><span class="ok"> ✓</span> <span class="out">redis-1      Started</span>     <span class="dim"> 1.4s</span></div>
-<div><span class="prompt">$</span> <span class="cmd">cd backend &amp;&amp; ./mvnw spring-boot:run</span></div>
-<div><span class="info">→</span> <span class="out">API ready at</span> <span class="ok">http://localhost:8080</span></div>
-<div><span class="prompt">$</span> <span class="cmd">cd ../frontend &amp;&amp; npm run dev</span></div>
-<div><span class="info">→</span> <span class="out">UI ready at</span> <span class="ok">http://localhost:5173</span></div>
-<div><span class="info">→</span> <span class="out">first admin via</span> <span class="warn">ACCESSFLOW_BOOTSTRAP_ADMIN_*</span></div>
+<div><span class="dim">[+]</span> <span class="out">Running 4/4</span></div>
+<div><span class="ok"> ✓</span> <span class="out">postgres   Healthy</span>     <span class="dim">12.3s</span></div>
+<div><span class="ok"> ✓</span> <span class="out">redis      Started</span>     <span class="dim"> 1.4s</span></div>
+<div><span class="ok"> ✓</span> <span class="out">backend    Started</span>     <span class="dim"> 6.1s</span></div>
+<div><span class="ok"> ✓</span> <span class="out">frontend   Started</span>     <span class="dim"> 0.8s</span></div>
+<div><span class="info">→</span> <span class="out">Open</span> <span class="ok">http://localhost:5173</span> <span class="out">— the setup wizard creates the first admin</span></div>
 <div><span class="prompt">$</span><span class="cursor" aria-hidden="true"></span></div>
           </div>
         </div>
@@ -513,7 +511,7 @@
         <div class="section-head">
           <span class="eyebrow">Quick start</span>
           <h2>Up and governing queries in under five minutes.</h2>
-          <p>Pick your platform. The backend bootstraps PostgreSQL with Flyway, mints JWT keys, and seeds the first admin user from environment variables.</p>
+          <p>Pick your platform. The backend runs Flyway migrations on first boot; the first admin is created through the in-app setup wizard the moment you open the SPA.</p>
         </div>
 
         <div class="install-grid">
@@ -533,14 +531,16 @@
                     <span data-copy-label>copy</span>
                   </button>
                 </div>
-<pre><span class="c-com"># Boot infrastructure</span>
+<pre><span class="c-com"># Zero-config demo — open http://localhost:5173 and follow the setup wizard.</span>
+<span class="c-com"># Demo-only JWT / encryption keys are embedded in the file; generate your own</span>
+<span class="c-com"># for anything beyond evaluation (see docs/09-deployment.md).</span>
 <span class="c-kw">services</span>:
   <span class="c-kw">postgres</span>:
-    <span class="c-kw">image</span>: <span class="c-str">postgres:18-alpine</span>
+    <span class="c-kw">image</span>: <span class="c-str">postgres:18</span>
     <span class="c-kw">environment</span>:
       POSTGRES_DB: <span class="c-str">accessflow</span>
       POSTGRES_USER: <span class="c-str">accessflow</span>
-      POSTGRES_PASSWORD: <span class="c-flag">${DB_PASSWORD}</span>
+      POSTGRES_PASSWORD: <span class="c-str">accessflow</span>
 
   <span class="c-kw">redis</span>:
     <span class="c-kw">image</span>: <span class="c-str">redis:8-alpine</span>
@@ -550,16 +550,14 @@
     <span class="c-kw">depends_on</span>: [postgres, redis]
     <span class="c-kw">environment</span>:
       DB_URL: <span class="c-str">jdbc:postgresql://postgres:5432/accessflow</span>
-      ENCRYPTION_KEY: <span class="c-flag">${ENCRYPTION_KEY}</span>
-      JWT_PRIVATE_KEY: <span class="c-flag">${JWT_PRIVATE_KEY}</span>
-      <span class="c-com"># Seed the first admin user on startup</span>
-      ACCESSFLOW_BOOTSTRAP_ENABLED: <span class="c-str">"true"</span>
-      ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: <span class="c-flag">${ADMIN_EMAIL}</span>
-      ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: <span class="c-flag">${ADMIN_PASSWORD}</span>
+      REDIS_URL: <span class="c-str">redis://redis:6379</span>
+      ENCRYPTION_KEY: <span class="c-com"># 64-char hex, demo default embedded</span>
+      JWT_PRIVATE_KEY: <span class="c-com"># PKCS#8 PEM, demo default embedded</span>
     <span class="c-kw">ports</span>: [<span class="c-str">"8080:8080"</span>]
 
   <span class="c-kw">frontend</span>:
     <span class="c-kw">image</span>: <span class="c-str">ghcr.io/bablsoft/accessflow-frontend:latest</span>
+    <span class="c-kw">depends_on</span>: [backend]
     <span class="c-kw">ports</span>: [<span class="c-str">"5173:80"</span>]
 </pre>
               </div>
@@ -618,8 +616,8 @@
 <span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
 <span class="c-kw">cd</span> accessflow
 
-<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8</span>
-<span class="c-kw">docker</span> compose up -d
+<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8 + Mailcrab (dev-only compose)</span>
+<span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
 
 <span class="c-com"># 2. backend — Java 25 · Spring Boot 4 · Maven</span>
 <span class="c-kw">cd</span> backend
@@ -630,7 +628,7 @@
 <span class="c-kw">npm</span> install
 <span class="c-kw">npm</span> run dev
 
-<span class="c-com"># open http://localhost:5173 — admin user from ACCESSFLOW_BOOTSTRAP_ADMIN_*</span>
+<span class="c-com"># open http://localhost:5173 — the in-app setup wizard creates the first admin</span>
 </pre>
               </div>
             </div>

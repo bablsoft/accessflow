@@ -11,14 +11,46 @@
 
 ## Docker Compose
 
-### Full `docker-compose.yml`
+The repository ships [`docker-compose.yml`](../docker-compose.yml) as a **zero-config demo
+stack**: a fresh `docker compose up -d` against a clean clone pulls the published GHCR
+images for the backend and frontend, boots Postgres + Redis alongside them, and gets
+you to a working `http://localhost:5173` where the in-app onboarding wizard creates
+the first organization + admin user.
+
+Use the demo stack to try AccessFlow locally. For anything beyond evaluation, follow
+the **production-style configuration** below — generate your own secrets, lock down
+ports, and bring your own AI provider config.
+
+### Quick start (demo)
+
+```bash
+git clone https://github.com/bablsoft/accessflow.git
+cd accessflow
+docker compose up -d            # pulls 4 images, starts everything
+open http://localhost:5173      # SPA → /setup wizard creates first admin
+```
+
+Four containers come up: `accessflow-postgres`, `accessflow-redis`, `accessflow-backend`
+(`ghcr.io/bablsoft/accessflow-backend:latest`, exposed on host port `8080`), and
+`accessflow-frontend` (`ghcr.io/bablsoft/accessflow-frontend:latest`, host port `5173`).
+No `.env` is required — the `JWT_PRIVATE_KEY` and `ENCRYPTION_KEY` are embedded with
+demo defaults inside the compose file.
+
+> ⚠️ **Demo only.** The embedded JWT private key and encryption key are committed
+> in plaintext for the zero-config experience. They are not safe for any deployment
+> that handles real data. Before pointing the demo at a real customer database or
+> exposing it to other users, follow the production-style configuration below.
+
+### Production-style configuration
+
+Override the demo defaults with your own secrets and tighten the surface area. Drop
+the file below at the repo root (or anywhere else — it is independent of the demo
+compose) and use a real `.env`:
 
 ```yaml
-version: '3.9'
-
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:18
     environment:
       POSTGRES_DB: accessflow
       POSTGRES_USER: accessflow
@@ -33,7 +65,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -51,10 +83,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
-      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
-      AI_API_KEY: ${AI_API_KEY}
       REDIS_URL: redis://redis:6379
-      CORS_ALLOWED_ORIGIN: http://localhost:3000
+      CORS_ALLOWED_ORIGIN: https://accessflow.example.com
     ports:
       - '8080:8080'
     restart: unless-stopped
@@ -67,12 +97,15 @@ services:
     volumes:
       - ./runtime-config.js:/usr/share/nginx/html/runtime-config.js:ro
     ports:
-      - '3000:80'
+      - '5173:80'
     depends_on:
       - backend
     restart: unless-stopped
 
-  # Optional: self-hosted AI (if AI_PROVIDER=ollama)
+  # Optional: self-hosted AI. Provider selection lives in the per-org `ai_config`
+  # table (admin UI → AI configs), not in env vars. Run this if you want Ollama
+  # available on the same Docker network, then configure an org's AI provider
+  # against `http://ollama:11434`.
   ollama:
     image: ollama/ollama:latest
     profiles: ['ollama']
@@ -87,41 +120,29 @@ volumes:
   ollama_data:
 ```
 
-### `.env` file for Docker Compose
+#### `.env` for the production-style stack
 
 ```env
 DB_PASSWORD=change_me_strong_password
-ENCRYPTION_KEY=0123456789abcdef0123456789abcdef  # 32 hex chars = 16 bytes
-JWT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
-AI_PROVIDER=anthropic
-AI_API_KEY=sk-ant-...
+# 64 hex characters = 32 bytes. Generate with: openssl rand -hex 32
+ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+# PKCS#8 RSA-2048. Generate with:
+#   openssl genpkey -algorithm RSA -outform PEM -pkeyopt rsa_keygen_bits:2048
+JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
 
-### Quick Start
+The `.env` file controls only what is *missing* from the compose file's inline values
+— Docker Compose `${VAR:-default}` lookups fall back to the embedded demo defaults
+when an env var is unset. To rotate keys, set them in `.env` (or your secret store)
+and `docker compose up -d` will restart the backend with the new values.
 
-```bash
-# 1. Clone the repo
-git clone https://github.com/accessflow/accessflow.git
-cd accessflow
-
-# 2. Generate secrets (helper script)
-./scripts/generate-dev-secrets.sh   # writes .env
-
-# 3. Start all services
-docker compose up -d
-
-# 4. Open the UI
-open http://localhost:3000
-# Default admin: admin@local / changeme  (seeded by Flyway dev migration)
-```
-
-### With Self-Hosted Ollama
+#### With self-hosted Ollama
 
 ```bash
 docker compose --profile ollama up -d
-# Then pull a model:
+# Pull a model into the container:
 docker exec -it accessflow-ollama-1 ollama pull llama3.2
-# Set in .env:  AI_PROVIDER=ollama  (no AI_API_KEY needed)
+# Then in the admin UI: AI configs → New → Provider: Ollama, Base URL: http://ollama:11434
 ```
 
 ---

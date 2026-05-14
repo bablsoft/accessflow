@@ -74,46 +74,45 @@ Library versions in `backend/pom.xml` and `frontend/package.json` are pinned to 
 
 ## Quick Start
 
-### Prerequisites
+### Try it in Docker (zero-config demo)
+
+The only prerequisite is Docker Desktop. From a fresh clone:
+
+```bash
+git clone https://github.com/bablsoft/accessflow.git
+cd accessflow
+docker compose up -d        # pulls Postgres + Redis + the released backend & frontend images
+open http://localhost:5173  # the SPA detects the empty DB and walks you through /setup
+```
+
+The setup wizard creates the first organization and admin user — no `.env`, no key generation, no Maven, no npm.
+
+> ⚠️ The root [`docker-compose.yml`](docker-compose.yml) embeds **demo-only** JWT and encryption keys so it works out of the box. Do not point it at real customer data; for anything beyond evaluation, follow the production-style configuration in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#production-style-configuration).
+
+### Develop from source
+
+For the hot-reload dev loop you'll also need:
 
 - JDK 25 (e.g. `sdk install java 25-tem`)
 - Node.js 20 LTS
-- Docker Desktop (for Postgres + Redis)
 
-### 1. Start infrastructure
-
-The repo ships two Compose files. The root file boots the minimum infrastructure AccessFlow needs to run:
-
-```bash
-docker compose up -d        # Postgres 18 + Redis 8
-```
-
-For a local dev loop that also includes a fake SMTP inbox at <http://localhost:1080>:
+The dev compose boots just the infrastructure (Postgres + Redis + a fake SMTP inbox at <http://localhost:1080>) so it can coexist with `./mvnw spring-boot:run` and `npm run dev`:
 
 ```bash
 docker compose -f backend/docker-compose-dev.yml up -d   # Postgres + Redis + Mailcrab
 ```
 
-### 2. Run the backend
+Then in two more terminals:
 
 ```bash
-cd backend
-./mvnw spring-boot:run
+cd backend && ./mvnw spring-boot:run
 ```
-
-The API comes up on `http://localhost:8080`. Required environment variables (`DB_PASSWORD`, `ENCRYPTION_KEY`, `JWT_PRIVATE_KEY`, …) are documented in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) and the env-var table in [`CLAUDE.md`](https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md).
-
-### 3. Run the frontend
 
 ```bash
-cd frontend
-npm install
-npm run dev
+cd frontend && npm install && npm run dev
 ```
 
-The SPA comes up on `http://localhost:5173`.
-
-> The full multi-service production-style Compose layout (separate backend / frontend / optional Ollama containers) and the Helm chart are described in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md). The root `docker-compose.yml` here is intentionally infrastructure-only for the dev loop.
+The API comes up on `http://localhost:8080` and the SPA on `http://localhost:5173`. Required environment variables (`DB_PASSWORD`, `ENCRYPTION_KEY`, `JWT_PRIVATE_KEY`, …) are documented in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) and the env-var table in [`CLAUDE.md`](https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md).
 
 ### Running released images
 

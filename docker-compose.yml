@@ -1,4 +1,20 @@
-version: '3.9'
+# AccessFlow — zero-config demo stack
+#
+# `docker compose up -d` from a fresh clone brings up Postgres, Redis, the AccessFlow
+# backend, and the frontend using the pre-built GHCR images. No `.env`, no key
+# generation, no other setup needed. Open http://localhost:5173 and follow the
+# on-screen setup wizard to create the first organization + admin user.
+#
+# ⚠️  DEMO ONLY — the JWT private key and encryption key below are committed in
+#     plaintext for the zero-config experience. They are NOT safe for any
+#     deployment that handles real data. For production, follow the
+#     "Production-style configuration" path in docs/09-deployment.md: generate
+#     your own secrets, mount them via a `.env` file or a real secret store,
+#     and never reuse these embedded defaults.
+#
+# Developing AccessFlow from source? Use backend/docker-compose-dev.yml instead
+# — it boots Postgres + Redis + Mailcrab without the application containers, so
+# you can run `./mvnw spring-boot:run` and `npm run dev` against them.
 
 services:
   postgres:
@@ -19,6 +35,7 @@ services:
       - accessflow-network
     ports:
       - "5432:5432"
+    restart: unless-stopped
 
   redis:
     image: redis:8-alpine
@@ -29,6 +46,86 @@ services:
       - accessflow-network
     ports:
       - "6379:6379"
+    restart: unless-stopped
+
+  backend:
+    image: ghcr.io/bablsoft/accessflow-backend:latest
+    container_name: accessflow-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/accessflow
+      DB_USER: accessflow
+      DB_PASSWORD: ${DB_PASSWORD:-accessflow}
+      REDIS_URL: redis://redis:6379
+      # Browser origin allowed by the CORS filter. Must match the URL the user
+      # types into the browser — i.e. the host:port the `frontend` service is
+      # published on below. Change both together.
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:5173}
+      # Public URL embedded in outbound emails, webhook payloads, and OAuth2
+      # callbacks. Same value as CORS_ALLOWED_ORIGIN for the local demo.
+      ACCESSFLOW_PUBLIC_BASE_URL: ${ACCESSFLOW_PUBLIC_BASE_URL:-http://localhost:5173}
+      # ⚠️  DEMO ONLY — do not reuse in production. Generate your own with:
+      #     openssl rand -hex 32
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e}
+      # ⚠️  DEMO ONLY — do not reuse in production. Generate your own with:
+      #     openssl genpkey -algorithm RSA -outform PEM -pkeyopt rsa_keygen_bits:2048
+      JWT_PRIVATE_KEY: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDpKubqwZpI/V7x
+        zdZ1kretfg9BOiEKklPjfE8f4FHLSkog18xIgwLx1nnkD58Gsud3ynGc6kHFdNuJ
+        h1ugqvqnqhvNesPntNdyIMPSw6Ym4mBUzBgXXKSA6v4WxFxugSJyWFT068f0vmzN
+        CFAuW4DKxFXxUslRnUJTCDzEwBjTNmSZ5MunycdRD4enf1k+XAgdu09WrxO7yCsw
+        NAh255KIwQew1PX1Vbl3koz61pcL6Wu6zDsCsClChUAelDrttZulXe5e3d4BPxFt
+        h4JLGkHb41EdGAs/ksZKSS0+5j4FTdZbOwD7mZxNqaGR5sHgD3kTGJGBOUrM/D9O
+        DDkYjBsVAgMBAAECggEAGEZeKhyj2mt+ggAjDrSKqOZR4kGSBQ686xcbCb+J5HdE
+        hmzRGM+C8/iXUhYKQWFI1eDeuS5uUIdc/9F2yaBjXidIo7jfQnVCZOBiYsP5vVye
+        GNXywCPmAIH2mBozYVHSa0Mk/Sa695EHtMTjzB+8pd+Q7wHmcbfEmu5lnTo+m2aA
+        bKF18PE6LvmaSQn9PiB9iCRYVtvN8YeJfV6Ddk953OB1c9s66rU1jU+lKGimFR0V
+        FoDLDOvNX7/B6kPx3jwFiBR14hthR9ImP1ZJBrt6R7/FDBB7w7LREuz9HWaXEIJF
+        DfbqauAjGdUtkJwDPP8pdaPG2At7gHozvbzYVM7SQQKBgQD3KNUAq7zx1R8VWtm/
+        QUhHLoHCkLMtmI9rPNlt/sQR/0ftqr2t7tyjb2T3AvT0bFkfCjIsws1ajKLW5qnO
+        BpR+RfYPMcG9HaM66weqgseLvyxHFhFinfDWdgrmiXErjFvklwDuZCFgx++FtVUC
+        /+aBLYww2uTgNeosdKapb7focQKBgQDxgfM39yqLj9U8DwdLHerU++lGtzIV42HC
+        NJBWrU6bM1osNZDa60QiqB58MJ5+RnJ2pyayrG/ye+ktX3eb1XYk6RFG0rbFoe6u
+        C3cpgDDBUnrAfoH+buIuDBImpukawrwU852snqcYl50XQS08Hhc94RMYIUVjRnNu
+        I1Oy8QMO5QKBgQDG9lrJqHZ4otzb3v/Mw2vAyYJxsvRabyZ86EYMEvuZlUw82abJ
+        3rBE7MZ1Ri8UmCgCIb4UZFjVXMM1hggJryhYok8bGi3g5HvjURIhxBeIusOVEgG6
+        xnP64JmTze6JZPsQgDKitX5dH3YEx92Ahan0MUtahMucZip10Q3c9e8xMQKBgBRu
+        Ec0iM48q07cI7m0EUuFBjjJVPP9tBNAQ8kTi1Et8xJwIzAA49sKXxjxrQH0eKICx
+        Eyz6OV4h7U/RS6T7Ictti/CZ0qxVToOapLH2DinMeGXgTc7gQnHyw3ZRmFaTMqXz
+        FduMcEY8TSWydckoIn8xkxPvfJcxVoJyqpnwmXmhAoGBAOWj1o/5bHoK/DUL4XwF
+        q6ZiCwUK3dUN4ESZSikf8f/wx4KQbZkImUl8G4YteU0B4LxTfpV2cYqOgQC+ZgVH
+        VJzct9S/22a5ic6pJ/Ptc0Qo2972+SL2KID8YU+djJeVuX02D0loje4FlJcazC/2
+        TlbFvcqWpz+LOoXn3aGgJJOr
+        -----END PRIVATE KEY-----
+    networks:
+      - accessflow-network
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/bablsoft/accessflow-frontend:latest
+    container_name: accessflow-frontend
+    # The frontend reads its backend URL at boot from
+    # /usr/share/nginx/html/runtime-config.js, baked into the image with
+    #   apiBaseUrl: "http://localhost:8080"
+    #   wsUrl:     "ws://localhost:8080/ws"
+    # which matches the host port the `backend` service is published on above.
+    # To point this image at a backend on a different host:port (or behind a
+    # reverse proxy), mount your own runtime-config.js — see
+    # docs/09-deployment.md → "Production-style configuration".
+    depends_on:
+      - backend
+    networks:
+      - accessflow-network
+    ports:
+      - "5173:80"
+    restart: unless-stopped
 
 volumes:
   postgres_data:
