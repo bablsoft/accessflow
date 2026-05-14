@@ -5,8 +5,11 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
+import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.security.internal.persistence.repo.OAuth2ConfigRepository;
+import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,9 @@ class AuthControllerIntegrationTest {
     @Autowired WebApplicationContext context;
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
+    @Autowired DatasourceRepository datasourceRepository;
+    @Autowired OAuth2ConfigRepository oauth2ConfigRepository;
+    @Autowired SamlConfigRepository samlConfigRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired com.bablsoft.accessflow.core.api.CredentialEncryptionService encryptionService;
 
@@ -60,6 +66,11 @@ class AuthControllerIntegrationTest {
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
 
+        // Defensive cleanup: other integration tests in this shared Spring context may leave
+        // FK-bearing rows behind that would block organizationRepository.deleteAll().
+        datasourceRepository.deleteAll();
+        oauth2ConfigRepository.deleteAll();
+        samlConfigRepository.deleteAll();
         userRepository.deleteAll();
         organizationRepository.deleteAll();
 
