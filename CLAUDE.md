@@ -6,9 +6,9 @@ This file is the authoritative guide for AI agents implementing AccessFlow. Read
 
 ## Project at a Glance
 
-AccessFlow is an open-source **database access governance platform**. It acts as a full SQL proxy between users and customer databases (PostgreSQL / MySQL), enforcing configurable review and approval workflows before any query executes. Core capabilities: AI-powered SQL analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications.
+AccessFlow is an open-source **database access governance platform**. It acts as a full SQL proxy between users and customer databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be added by uploading its driver JAR (`db_type=CUSTOM`) — enforcing configurable review and approval workflows before any query executes. Core capabilities: AI-powered SQL analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications.
 
-AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO.
+AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, Microsoft, and GitLab; additional providers via DB-driven `oauth2_config` rows).
 
 **Full design docs:** `docs/` — read them before implementing any feature. The authoritative references are:
 - `docs/02-architecture.md` — system architecture and request flow
