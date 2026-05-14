@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "accessflow.backend.fullname" . }}-env
+  labels:
+    {{- include "accessflow.backend.labels" . | nindent 4 }}
+data:
+  SERVER_PORT: {{ .Values.backend.service.port | quote }}
+  DB_URL: {{ include "accessflow.db.url" . | quote }}
+  DB_USER: {{ include "accessflow.db.username" . | quote }}
+  REDIS_URL: {{ include "accessflow.redis.url" . | quote }}
+  CORS_ALLOWED_ORIGIN: {{ .Values.config.corsAllowedOrigin | quote }}
+  ACCESSFLOW_PUBLIC_BASE_URL: {{ .Values.config.publicBaseUrl | quote }}
+  ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL: {{ include "accessflow.oauth2.callbackUrl" . | quote }}
+  {{- if .Values.driverCache.persistence.enabled }}
+  ACCESSFLOW_DRIVER_CACHE: {{ .Values.driverCache.persistence.mountPath | quote }}
+  {{- end }}
+  {{- range $key, $value := .Values.backend.env }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

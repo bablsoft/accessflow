@@ -1,0 +1,49 @@
+name: Helm CI
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'charts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Build chart dependencies
+        run: helm dependency update charts/accessflow
+
+      - name: Lint chart
+        run: helm lint charts/accessflow
+
+      - name: Render with defaults (bundled Postgres + Redis)
+        run: |
+          helm template accessflow charts/accessflow \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
+            > /tmp/rendered-defaults.yaml
+
+      - name: Render with external Postgres + Redis
+        run: |
+          helm template accessflow charts/accessflow \
+            --set postgresql.enabled=false \
+            --set redis.enabled=false \
+            --set externalDatabase.host=db.example.com \
+            --set externalDatabase.existingSecret=external-db-secret \
+            --set externalRedis.url=redis://r.example.com:6379 \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
+            > /tmp/rendered-external.yaml

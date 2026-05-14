@@ -1,0 +1,17 @@
+{{- if .Values.driverCache.persistence.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "accessflow.backend.fullname" . }}-driver-cache
+  labels:
+    {{- include "accessflow.backend.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.driverCache.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.driverCache.persistence.size }}
+  {{- with .Values.driverCache.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}

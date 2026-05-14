@@ -26,3 +26,8 @@ build/
 .env
 .env.local
 frontend/.claude/
+
+# Helm chart dependency artefacts (re-fetched by `helm dependency update`)
+charts/*/charts/
+charts/*/Chart.lock
+charts/*/*.tgz

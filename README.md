@@ -127,6 +127,26 @@ docker pull ghcr.io/bablsoft/accessflow-frontend:1.2.3
 
 The running backend exposes its version at `GET /actuator/info` (`build.version`); the frontend shows it under the brand mark in the sidebar. Maintainers cut a release by running the [`Release` workflow](https://github.com/bablsoft/accessflow/actions/workflows/release.yml) from the Actions tab with a semver `version` input — see [`docs/09-deployment.md → Releases`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#releases) for what the pipeline does.
 
+### Install on Kubernetes (Helm)
+
+Each release also publishes a Helm chart to the repo at `https://bablsoft.github.io/accessflow`:
+
+```bash
+helm repo add accessflow https://bablsoft.github.io/accessflow
+helm repo update
+
+# Create the required secrets first — see charts/accessflow/README.md
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  --values my-values.yaml
+```
+
+The chart bundles optional `bitnami/postgresql` and `bitnami/redis` subcharts (toggle off
+for production with `postgresql.enabled=false` / `redis.enabled=false`) and ships a single
+Ingress that dispatches `/api`+`/ws` → backend, `/` → frontend. Full reference:
+[`charts/accessflow/README.md`](https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md)
+and [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md).
+
 ---
 
 ## Project Structure

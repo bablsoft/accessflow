@@ -1,0 +1,15 @@
+{{- if .Values.podDisruptionBudget.backend.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "accessflow.backend.fullname" . }}
+  labels:
+    {{- include "accessflow.backend.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.podDisruptionBudget.backend.minAvailable }}
+  minAvailable: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "accessflow.backend.selectorLabels" . | nindent 6 }}
+{{- end }}

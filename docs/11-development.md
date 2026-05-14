@@ -116,6 +116,19 @@ npm run test:e2e      # Playwright E2E (requires running backend)
 npm run test:coverage # Coverage report
 ```
 
+### Helm chart
+
+```bash
+helm dependency update charts/accessflow
+helm lint charts/accessflow
+helm template accessflow charts/accessflow > /dev/null
+```
+
+CI runs the same checks in [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml).
+The chart is published to the helm repo at `https://bablsoft.github.io/accessflow` by
+[`release.yml`](../.github/workflows/release.yml) on every tagged release — see
+[`docs/09-deployment.md` → "Chart development" / "Releasing the chart"](09-deployment.md#chart-development).
+
 ### Testcontainers Setup
 
 ```java
@@ -188,13 +201,14 @@ hotfix/AF-{n}-description    → critical fixes (from main, merge back to both)
 
 ## CI/CD Pipelines
 
-The repository ships three GitHub Actions workflows:
+The repository ships four GitHub Actions workflows:
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` touching `backend/**` | Java 25 + Maven build, JaCoCo coverage, JUnit test report |
 | [`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml) | Push / PR to `main` touching `frontend/**` | Node 24 + npm: lint, typecheck, Vitest coverage, Vite build |
-| [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes a GitHub Release with auto-generated notes |
+| [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml) | Push / PR to `main` touching `charts/**` | `helm lint` + `helm template` (default + external-services paths) on the AccessFlow chart |
+| [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes the Helm chart to `gh-pages`, and creates a GitHub Release with auto-generated notes |
 
 ### Release pipeline (`release.yml`)
 
@@ -210,6 +224,7 @@ Triggered manually from the Actions tab. The maintainer provides a semver `versi
    - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + `:latest`
    The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
 7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true` (changelog auto-built from PRs/commits since the previous tag).
+8. **Publishes the Helm chart** — rewrites `charts/accessflow/Chart.yaml` so `version` and `appVersion` both equal `${VERSION}`, runs `helm dependency update`, then `helm/chart-releaser-action@v1.7.0` packages the chart and pushes the `.tgz` plus updated `index.yaml` to the `gh-pages` branch (served at `https://<owner>.github.io/accessflow`). GitHub Pages must be enabled once in **Repo Settings → Pages → Source = `gh-pages`** before the chart repo is reachable; after that, every release adds a new version automatically.
 
 ### Version surfacing
 

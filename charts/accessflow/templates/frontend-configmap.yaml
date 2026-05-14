@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "accessflow.frontend.fullname" . }}-runtime-config
+  labels:
+    {{- include "accessflow.frontend.labels" . | nindent 4 }}
+data:
+  runtime-config.js: |
+    window.__APP_CONFIG__ = {{- $cfg := dict "apiBaseUrl" .Values.config.frontend.apiBaseUrl "wsUrl" .Values.config.frontend.wsUrl }}
+    {{- range $k, $v := .Values.config.frontend.extraConfig }}{{- $_ := set $cfg $k $v }}{{- end }} {{ toJson $cfg }};

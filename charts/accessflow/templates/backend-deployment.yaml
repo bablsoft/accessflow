@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "accessflow.backend.fullname" . }}
+  labels:
+    {{- include "accessflow.backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.backend.enabled }}
+  replicas: {{ .Values.replicaCount.backend }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "accessflow.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "accessflow.backend.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/backend-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "accessflow.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: backend
+          image: "{{ .Values.image.backend.repository }}:{{ include "accessflow.image.tag" (dict "tier" .Values.image.backend "ctx" $) }}"
+          imagePullPolicy: {{ .Values.image.backend.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.service.port }}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "accessflow.backend.fullname" . }}-env
+            {{- with .Values.backend.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.db.passwordSecret" . }}
+                  key: {{ include "accessflow.db.passwordSecretKey" . }}
+            {{- if and (not .Values.redis.enabled) .Values.externalRedis.existingSecret }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalRedis.existingSecret }}
+                  key: {{ default "REDIS_URL" .Values.externalRedis.existingSecretUrlKey }}
+            {{- end }}
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "config.encryptionKey.existingSecret is required" .Values.config.encryptionKey.existingSecret }}
+                  key: {{ default "value" .Values.config.encryptionKey.key }}
+            - name: JWT_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "config.jwtPrivateKey.existingSecret is required" .Values.config.jwtPrivateKey.existingSecret }}
+                  key: {{ default "value" .Values.config.jwtPrivateKey.key }}
+            {{- if .Values.config.auditHmac.existingSecret }}
+            - name: AUDIT_HMAC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.auditHmac.existingSecret }}
+                  key: {{ default "value" .Values.config.auditHmac.key }}
+            {{- end }}
+          {{- if .Values.driverCache.persistence.enabled }}
+          volumeMounts:
+            - name: driver-cache
+              mountPath: {{ .Values.driverCache.persistence.mountPath }}
+          {{- end }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: {{ .Values.backend.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.backend.startupProbe.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: {{ .Values.backend.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.backend.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: {{ .Values.backend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.backend.readinessProbe.failureThreshold }}
+          resources:
+            {{- toYaml .Values.resources.backend | nindent 12 }}
+      {{- if .Values.driverCache.persistence.enabled }}
+      volumes:
+        - name: driver-cache
+          persistentVolumeClaim:
+            claimName: {{ include "accessflow.backend.fullname" . }}-driver-cache
+      {{- end }}
+      {{- with (default .Values.nodeSelector .Values.backend.nodeSelector) }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.tolerations .Values.backend.tolerations) }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with (default .Values.affinity .Values.backend.affinity) }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

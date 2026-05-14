@@ -1,0 +1,29 @@
+apiVersion: v2
+name: accessflow
+description: Database access governance platform — SQL proxy with review workflows, AI analysis, and tamper-evident audit log.
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+home: https://github.com/bablsoft/accessflow
+sources:
+  - https://github.com/bablsoft/accessflow
+maintainers:
+  - name: bablsoft
+    url: https://github.com/bablsoft
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - database
+  - governance
+  - sql
+  - proxy
+  - audit
+  - access-control
+dependencies:
+  - name: postgresql
+    version: "18.6.6"
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled
+  - name: redis
+    version: "25.5.3"
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
