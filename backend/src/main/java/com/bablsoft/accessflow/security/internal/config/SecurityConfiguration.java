@@ -92,6 +92,10 @@ class SecurityConfiguration {
                                 "/api/v1/auth/invitations/*", "/api/v1/auth/invitations/*/accept",
                                 "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset/*").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Actuator health + info are consumed unauthenticated by k8s probes and
+                        // by the frontend version footer (see docs/09-deployment.md). The exposure
+                        // list in application.yml already limits what is reachable here.
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                         // WebSocket handshake is authenticated by JwtHandshakeInterceptor via
                         // ?token= (browsers cannot set Authorization on the WS upgrade).
                         .requestMatchers("/ws").permitAll()

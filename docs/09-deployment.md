@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: accessflow/backend:latest
+    image: ghcr.io/bablsoft/accessflow-backend:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: accessflow/frontend:latest
+    image: ghcr.io/bablsoft/accessflow-frontend:latest
     # The frontend bundle is built with Vite — env vars are *not* read at container
     # runtime. To point the same image at a different backend, mount your own
     # runtime-config.js over the one shipped in the image:
@@ -149,11 +149,11 @@ replicaCount:
 
 image:
   backend:
-    repository: accessflow/backend
+    repository: ghcr.io/bablsoft/accessflow-backend
     tag: "1.0.0"
     pullPolicy: IfNotPresent
   frontend:
-    repository: accessflow/frontend
+    repository: ghcr.io/bablsoft/accessflow-frontend
     tag: "1.0.0"
     pullPolicy: IfNotPresent
 
@@ -420,7 +420,7 @@ window.__APP_CONFIG__ = {
 
 ```yaml
 frontend:
-  image: accessflow/frontend:latest
+  image: ghcr.io/bablsoft/accessflow-frontend:latest
   volumes:
     - ./runtime-config.js:/usr/share/nginx/html/runtime-config.js:ro
   ports:
@@ -520,6 +520,45 @@ readinessProbe:
   initialDelaySeconds: 10
   periodSeconds: 5
 ```
+
+---
+
+## Releases
+
+Releases are published to **GitHub Container Registry** at
+[`ghcr.io/bablsoft/accessflow-backend`](https://github.com/bablsoft/accessflow/pkgs/container/accessflow-backend)
+and
+[`ghcr.io/bablsoft/accessflow-frontend`](https://github.com/bablsoft/accessflow/pkgs/container/accessflow-frontend),
+tagged with the semver release version (e.g. `1.2.3`) and `latest`. Both images are
+multi-arch (`linux/amd64`, `linux/arm64`).
+
+### Cutting a release
+
+Maintainers run the **Release** workflow from the Actions tab
+(`.github/workflows/release.yml`) and supply a `version` input (without the leading
+`v`, e.g. `1.2.3`). The workflow:
+
+1. Bumps `backend/pom.xml` (`mvn versions:set`) and `frontend/package.json`
+   (`npm version`).
+2. Creates a detached commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and
+   pushes only the tag — `main` is never modified, so `main` always reflects
+   `1.0.0-SNAPSHOT` for the next development cycle.
+3. Builds and pushes the two Docker images under both `:X.Y.Z` and `:latest`.
+4. Publishes a **GitHub Release** with auto-generated changelog notes (PRs and
+   commits between the previous tag and this one).
+
+### Version surfacing
+
+The released version is observable end-to-end:
+
+| Source | Where to read it |
+|--------|------------------|
+| Backend | `GET /actuator/info` → `build.version` (populated by Spring Boot's `build-info` Maven goal, exposed unauthenticated alongside `/actuator/health`). |
+| Frontend | Sidebar brand mark (`v1.2.3` under the AccessFlow name). Injected by Vite via `__APP_VERSION__` from the `APP_VERSION` build-arg. |
+| Git tag | `git ls-remote --tags origin` → `refs/tags/vX.Y.Z`. Checking out the tag shows pom.xml and package.json at the bumped version. |
+
+The three are guaranteed to agree because the release workflow uses the same
+single `version` input as build-arg, version-bump target, and tag name.
 
 ---
 

@@ -43,7 +43,8 @@
     "oauth2": "OAuth providers",
     "languages": "Languages",
     "custom_drivers": "Custom JDBC drivers",
-    "profile": "Profile settings"
+    "profile": "Profile settings",
+    "version": "AccessFlow version {{version}}"
   },
   "auth": {
     "login": {
