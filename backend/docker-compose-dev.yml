@@ -35,7 +35,7 @@ services:
 
   mailcrab:
     image: marlonb/mailcrab:latest
-    container_name: loanstracker-mailcrab
+    container_name: accessflow-mailcrab
     ports:
       - "1025:1025"  # SMTP
       - "1080:1080"  # Web UI http://localhost:8025
