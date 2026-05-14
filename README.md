@@ -172,6 +172,7 @@ accessflow/
 │   └── pom.xml
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
 ├── docs/             # Authoritative design documentation
+├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
 ├── docker-compose.yml          # Local infrastructure (Postgres + Redis)
 ├── CLAUDE.md         # Agent-facing rulebook (read before changing code)
 └── README.md
