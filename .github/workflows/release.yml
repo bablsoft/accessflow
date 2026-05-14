@@ -123,21 +123,35 @@ jobs:
         run: |
           yq -i '.version = strenv(VERSION) | .appVersion = strenv(VERSION)' charts/accessflow/Chart.yaml
 
-      # chart-releaser's internal `cr package` calls `helm dependency build`,
-      # which requires (a) a Chart.lock and (b) each dependency repository to be
-      # registered in helm's local config. We register the bitnami repo and
-      # pre-resolve dependencies so cr finds a populated Chart.lock + charts/ dir.
       - name: Register chart dependency repos
         run: helm repo add bitnami https://charts.bitnami.com/bitnami
 
-      - name: Resolve chart dependencies
-        run: helm dependency update charts/accessflow
+      - name: Package chart
+        run: |
+          mkdir -p .cr-release-packages
+          helm dependency update charts/accessflow
+          helm package charts/accessflow --destination .cr-release-packages
 
+      # We publish the chart to gh-pages directly (chart-releaser-action couples
+      # this with a GitHub release asset upload, which fails under the repo's
+      # immutable-releases policy). Plain `helm repo index` + `git push` is
+      # enough for `helm repo add` consumers; release artefacts stay container-only.
       - name: Publish chart to gh-pages
-        uses: helm/chart-releaser-action@v1.7.0
-        with:
-          charts_dir: charts
-          skip_existing: true
-          mark_as_latest: true
         env:
-          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          git fetch origin gh-pages
+          git worktree add /tmp/gh-pages origin/gh-pages
+          cp .cr-release-packages/*.tgz /tmp/gh-pages/
+          if [ -f /tmp/gh-pages/index.yaml ]; then
+            helm repo index /tmp/gh-pages --url "https://${REPO_OWNER}.github.io/accessflow" --merge /tmp/gh-pages/index.yaml
+          else
+            helm repo index /tmp/gh-pages --url "https://${REPO_OWNER}.github.io/accessflow"
+          fi
+          cd /tmp/gh-pages
+          git add .
+          git -c user.email=github-actions[bot]@users.noreply.github.com \
+              -c user.name='github-actions[bot]' \
+              commit -m "Release accessflow-${VERSION}"
+          git push origin HEAD:gh-pages
