@@ -202,6 +202,7 @@ com.bablsoft.accessflow/
 - `SecurityExceptionHandler` (writes directly to `HttpServletResponse`) must use `request.getLocale()` — it cannot use `LocaleContextHolder`.
 - Message key naming convention: `error.<snake_case>` for exception messages; `validation.<field>.<rule>` for Bean Validation messages. Add the key to `messages.properties` in the same commit that adds the exception or constraint.
 - Adding a new language requires only a new `messages_<locale>.properties` file — no code changes.
+- Parity is enforced by `MessagesParityTest` — adding a key to `messages.properties` without translating it in every `messages_<locale>.properties` for each `SupportedLanguage` value fails CI. Orphan keys (present in a locale file but not in the baseline) fail the same test.
 
 ---
 
@@ -611,6 +612,7 @@ CI pipeline (`.github/workflows/frontend-ci.yml`):
 - `dayjs.locale('en')` must be called in `src/main.tsx` before the React tree mounts.
 - The i18n bootstrap (`import './i18n'`) must be the **first import** in `src/main.tsx`.
 - Type-safe keys: `src/i18n.d.ts` declares `CustomTypeOptions` so `t('nonexistent.key')` is a compile error. Do not disable or bypass this check.
+- Parity is enforced by `src/locales/__tests__/locales.parity.test.ts` — adding a key to `en.json` without translating it in every `<locale>.json` registered in `SUPPORTED_LANGUAGES` fails CI. Orphan keys (present in a locale file but not in `en.json`) fail the same test.
 
 ### Loading, Empty, and Skeleton States
 
