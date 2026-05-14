@@ -12,10 +12,15 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.AuthResult;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
+import com.bablsoft.accessflow.security.api.PasswordResetPreview;
+import com.bablsoft.accessflow.security.api.PasswordResetService;
+import com.bablsoft.accessflow.security.api.PasswordResetTokenExpiredException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.security.api.UserInvitationService;
+import com.bablsoft.accessflow.security.internal.web.model.ForgotPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
+import com.bablsoft.accessflow.security.internal.web.model.ResetPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +51,7 @@ class AuthControllerTest {
     private BootstrapService bootstrapService;
     private PasswordEncoder passwordEncoder;
     private UserInvitationService userInvitationService;
+    private PasswordResetService passwordResetService;
     private AuthController controller;
 
     private final RequestAuditContext auditContext =
@@ -59,8 +65,10 @@ class AuthControllerTest {
         bootstrapService = mock(BootstrapService.class);
         passwordEncoder = mock(PasswordEncoder.class);
         userInvitationService = mock(UserInvitationService.class);
+        passwordResetService = mock(PasswordResetService.class);
         controller = new AuthController(authenticationService, auditLogService, userQueryService,
-                bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService);
+                bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService,
+                passwordResetService);
     }
 
     @Test
@@ -263,6 +271,110 @@ class AuthControllerTest {
         var resp = controller.logout("token", new MockHttpServletResponse());
         assertThat(resp.getStatusCode().value()).isEqualTo(204);
         verify(authenticationService).logout("token");
+    }
+
+    @Test
+    void forgotPasswordReturns202AndAuditsKnownEmail() {
+        when(userQueryService.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(userView(UserRoleType.ANALYST)));
+
+        var resp = controller.forgotPassword(
+                new ForgotPasswordRequest("alice@example.com"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(202);
+        verify(passwordResetService).requestReset("alice@example.com");
+        verify(auditLogService).record(any(AuditEntry.class));
+    }
+
+    @Test
+    void forgotPasswordSkipsAuditForUnknownEmail() {
+        when(userQueryService.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+
+        var resp = controller.forgotPassword(
+                new ForgotPasswordRequest("ghost@example.com"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(202);
+        verify(passwordResetService).requestReset("ghost@example.com");
+        verify(auditLogService, never()).record(any(AuditEntry.class));
+    }
+
+    @Test
+    void forgotPasswordSwallowsAuditException() {
+        when(userQueryService.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(userView(UserRoleType.ANALYST)));
+        when(auditLogService.record(any(AuditEntry.class)))
+                .thenThrow(new RuntimeException("audit down"));
+
+        var resp = controller.forgotPassword(
+                new ForgotPasswordRequest("alice@example.com"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(202);
+    }
+
+    @Test
+    void previewPasswordResetDelegatesToService() {
+        var expiresAt = Instant.now().plusSeconds(600);
+        when(passwordResetService.previewByToken("raw-token"))
+                .thenReturn(new PasswordResetPreview("alice@example.com", expiresAt));
+
+        var resp = controller.previewPasswordReset("raw-token");
+
+        assertThat(resp.email()).isEqualTo("alice@example.com");
+        assertThat(resp.expiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void previewPasswordResetPropagatesServiceExceptions() {
+        when(passwordResetService.previewByToken("raw-token"))
+                .thenThrow(new PasswordResetTokenExpiredException());
+
+        assertThatThrownBy(() -> controller.previewPasswordReset("raw-token"))
+                .isInstanceOf(PasswordResetTokenExpiredException.class);
+    }
+
+    @Test
+    void resetPasswordReturns204AndAudits() {
+        var userId = UUID.randomUUID();
+        when(passwordResetService.resetPassword("raw-token", "NewPass123!"))
+                .thenReturn(userId);
+        when(userQueryService.findById(userId))
+                .thenReturn(Optional.of(userView(UserRoleType.ANALYST)));
+
+        var resp = controller.resetPassword("raw-token",
+                new ResetPasswordRequest("NewPass123!"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(204);
+        verify(auditLogService).record(any(AuditEntry.class));
+    }
+
+    @Test
+    void resetPasswordSwallowsAuditException() {
+        var userId = UUID.randomUUID();
+        when(passwordResetService.resetPassword("raw-token", "NewPass123!"))
+                .thenReturn(userId);
+        when(userQueryService.findById(userId))
+                .thenReturn(Optional.of(userView(UserRoleType.ANALYST)));
+        when(auditLogService.record(any(AuditEntry.class)))
+                .thenThrow(new RuntimeException("audit down"));
+
+        var resp = controller.resetPassword("raw-token",
+                new ResetPasswordRequest("NewPass123!"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(204);
+    }
+
+    @Test
+    void resetPasswordSkipsAuditWhenUserLookupMissing() {
+        var userId = UUID.randomUUID();
+        when(passwordResetService.resetPassword("raw-token", "NewPass123!"))
+                .thenReturn(userId);
+        when(userQueryService.findById(userId)).thenReturn(Optional.empty());
+
+        var resp = controller.resetPassword("raw-token",
+                new ResetPasswordRequest("NewPass123!"), auditContext);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(204);
+        verify(auditLogService, never()).record(any(AuditEntry.class));
     }
 
     private static UserView userView(UserRoleType role) {

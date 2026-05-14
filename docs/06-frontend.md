@@ -436,6 +436,8 @@ for deployment recipes (Docker Compose, Helm).
 /setup                              → SetupPage (2-step wizard: org+admin, then optional system SMTP)
 /login                              → LoginPage (also renders the TOTP verification stage)
 /invite/:token                      → AcceptInvitePage (public; previews + accepts a user invitation)
+/forgot-password                    → ForgotPasswordPage (public; request a password-reset email)
+/reset-password/:token              → ResetPasswordPage (public; previews + consumes a password-reset token)
 /auth/saml/callback                 → SamlCallbackPage
 
 /editor                             → QueryEditorPage
@@ -461,7 +463,7 @@ for deployment recipes (Docker Compose, Helm).
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
-All routes except `/login`, `/setup`, `/invite/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/reset-password/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
 
 ### Setup wizard
 

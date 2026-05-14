@@ -7,6 +7,8 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 import { useSetupStore } from '@/store/setupStore';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
@@ -38,7 +40,10 @@ export function App() {
   const location = useLocation();
 
   const isPublicPath =
-    location.pathname === '/setup' || location.pathname.startsWith('/invite/');
+    location.pathname === '/setup' ||
+    location.pathname.startsWith('/invite/') ||
+    location.pathname === '/forgot-password' ||
+    location.pathname.startsWith('/reset-password/');
   if (setupRequired === true && !isPublicPath) {
     return <Navigate to="/setup" replace />;
   }
@@ -56,6 +61,22 @@ export function App() {
           element={
             <Suspense fallback={null}>
               <AcceptInvitePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <Suspense fallback={null}>
+              <ForgotPasswordPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/reset-password/:token"
+          element={
+            <Suspense fallback={null}>
+              <ResetPasswordPage />
             </Suspense>
           }
         />

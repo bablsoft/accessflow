@@ -40,6 +40,10 @@ import com.bablsoft.accessflow.security.api.InvitationAlreadyAcceptedException;
 import com.bablsoft.accessflow.security.api.InvitationExpiredException;
 import com.bablsoft.accessflow.security.api.InvitationNotFoundException;
 import com.bablsoft.accessflow.security.api.InvitationRevokedException;
+import com.bablsoft.accessflow.security.api.PasswordResetTokenAlreadyUsedException;
+import com.bablsoft.accessflow.security.api.PasswordResetTokenExpiredException;
+import com.bablsoft.accessflow.security.api.PasswordResetTokenNotFoundException;
+import com.bablsoft.accessflow.security.api.PasswordResetTokenRevokedException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigInvalidException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigNotFoundException;
 import com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteException;
@@ -552,6 +556,42 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 msg("error.invitation.duplicate_pending"));
         pd.setProperty("error", "DUPLICATE_PENDING_INVITATION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordResetTokenNotFoundException.class)
+    ProblemDetail handlePasswordResetNotFound(PasswordResetTokenNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.password_reset.not_found"));
+        pd.setProperty("error", "PASSWORD_RESET_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordResetTokenExpiredException.class)
+    ProblemDetail handlePasswordResetExpired(PasswordResetTokenExpiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.password_reset.expired"));
+        pd.setProperty("error", "PASSWORD_RESET_EXPIRED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordResetTokenAlreadyUsedException.class)
+    ProblemDetail handlePasswordResetAlreadyUsed(PasswordResetTokenAlreadyUsedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.password_reset.already_used"));
+        pd.setProperty("error", "PASSWORD_RESET_ALREADY_USED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(PasswordResetTokenRevokedException.class)
+    ProblemDetail handlePasswordResetRevoked(PasswordResetTokenRevokedException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.password_reset.revoked"));
+        pd.setProperty("error", "PASSWORD_RESET_REVOKED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

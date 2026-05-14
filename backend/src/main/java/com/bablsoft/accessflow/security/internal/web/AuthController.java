@@ -10,13 +10,17 @@ import com.bablsoft.accessflow.core.api.SetupCommand;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.LoginCommand;
+import com.bablsoft.accessflow.security.api.PasswordResetService;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.security.api.UserInvitationService;
 import com.bablsoft.accessflow.security.internal.web.model.AcceptInvitationRequest;
+import com.bablsoft.accessflow.security.internal.web.model.ForgotPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.InvitationPreviewResponse;
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
 import com.bablsoft.accessflow.security.internal.web.model.LoginResponse;
+import com.bablsoft.accessflow.security.internal.web.model.PasswordResetPreviewResponse;
+import com.bablsoft.accessflow.security.internal.web.model.ResetPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupStatusResponse;
 import com.bablsoft.accessflow.security.internal.web.model.UserSummary;
@@ -61,6 +65,7 @@ class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final RefreshCookieWriter refreshCookieWriter;
     private final UserInvitationService userInvitationService;
+    private final PasswordResetService passwordResetService;
 
     @GetMapping("/setup-status")
     @Operation(summary = "Report whether the deployment still needs first-time admin setup")
@@ -115,6 +120,90 @@ class AuthController {
                 request.displayName());
         recordInvitationAcceptedAudit(accepted.userId(), accepted.organizationId(), auditContext);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/password/forgot")
+    @Operation(summary = "Request a password reset email (public, no auth)")
+    @ApiResponse(responseCode = "202", description = "Request accepted; an email is sent only if a matching active LOCAL account exists")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @SecurityRequirements
+    ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                        RequestAuditContext auditContext) {
+        passwordResetService.requestReset(request.email());
+        recordPasswordResetRequestedAudit(request.email(), auditContext);
+        return ResponseEntity.accepted().build();
+    }
+
+    @GetMapping("/password/reset/{token}")
+    @Operation(summary = "Preview a password reset token (public, no auth)")
+    @ApiResponse(responseCode = "200", description = "Token is valid; preview returned")
+    @ApiResponse(responseCode = "404", description = "Token not found")
+    @ApiResponse(responseCode = "422", description = "Token expired, used, or revoked")
+    @SecurityRequirements
+    PasswordResetPreviewResponse previewPasswordReset(@PathVariable String token) {
+        return PasswordResetPreviewResponse.from(passwordResetService.previewByToken(token));
+    }
+
+    @PostMapping("/password/reset/{token}")
+    @Operation(summary = "Reset the password for the given token (public, no auth)")
+    @ApiResponse(responseCode = "204", description = "Password reset; all sessions revoked")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "404", description = "Token not found")
+    @ApiResponse(responseCode = "422", description = "Token expired, used, or revoked")
+    @SecurityRequirements
+    ResponseEntity<Void> resetPassword(@PathVariable String token,
+                                       @Valid @RequestBody ResetPasswordRequest request,
+                                       RequestAuditContext auditContext) {
+        var userId = passwordResetService.resetPassword(token, request.password());
+        recordPasswordResetCompletedAudit(userId, auditContext);
+        return ResponseEntity.noContent().build();
+    }
+
+    private void recordPasswordResetRequestedAudit(String email, RequestAuditContext context) {
+        try {
+            var user = userQueryService.findByEmail(email).orElse(null);
+            if (user == null) {
+                log.info("Password reset requested for unknown email; skipping audit");
+                return;
+            }
+            var metadata = new HashMap<String, Object>();
+            metadata.put("email", email);
+            metadata.put("source", "self_service");
+            auditLogService.record(new AuditEntry(
+                    AuditAction.USER_PASSWORD_RESET_REQUESTED,
+                    AuditResourceType.USER,
+                    user.id(),
+                    user.organizationId(),
+                    null,
+                    metadata,
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for USER_PASSWORD_RESET_REQUESTED on email {}", email, ex);
+        }
+    }
+
+    private void recordPasswordResetCompletedAudit(UUID userId, RequestAuditContext context) {
+        try {
+            var user = userQueryService.findById(userId).orElse(null);
+            if (user == null) {
+                log.info("Password reset completed for unknown user {}; skipping audit", userId);
+                return;
+            }
+            var metadata = new HashMap<String, Object>();
+            metadata.put("source", "self_service");
+            auditLogService.record(new AuditEntry(
+                    AuditAction.USER_PASSWORD_RESET_COMPLETED,
+                    AuditResourceType.USER,
+                    user.id(),
+                    user.organizationId(),
+                    user.id(),
+                    metadata,
+                    context.ipAddress(),
+                    context.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for USER_PASSWORD_RESET_COMPLETED on user {}", userId, ex);
+        }
     }
 
     private void recordInvitationAcceptedAudit(UUID userId, UUID organizationId,

@@ -124,6 +124,34 @@ class DefaultUserProfileServiceTest {
     }
 
     @Test
+    void resetPasswordRotatesHashAndRevokesSessions() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("new-secret")).thenReturn("new-hash");
+
+        service.resetPassword(userId, "new-secret");
+
+        assertThat(user.getPasswordHash()).isEqualTo("new-hash");
+        verify(sessionRevocationService).revokeAllSessions(userId);
+    }
+
+    @Test
+    void resetPasswordRejectedForSamlAccount() {
+        user.setAuthProvider(AuthProviderType.SAML);
+        user.setPasswordHash(null);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        assertThatThrownBy(() -> service.resetPassword(userId, "new-secret"))
+                .isInstanceOf(PasswordChangeNotAllowedException.class);
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
+    }
+
+    @Test
+    void resetPasswordThrowsWhenUserMissing() {
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.resetPassword(userId, "new-secret"))
+                .isInstanceOf(UserNotFoundException.class);
+    }
+
+    @Test
     void startTotpEnrollmentStoresEncryptedSecretAndReturnsEnrollment() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(totpCodec.newSecret()).thenReturn("secret-xyz");

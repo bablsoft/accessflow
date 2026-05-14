@@ -8,7 +8,7 @@ import {
   LoginOutlined,
   LoadingOutlined,
 } from '@ant-design/icons';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
@@ -25,6 +25,7 @@ import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
   setupSuccess?: boolean;
+  passwordReset?: boolean;
 }
 
 interface LoginFormValues {
@@ -44,10 +45,13 @@ export function LoginPage() {
   const location = useLocation();
   const initialSetupSuccess =
     (location.state as LoginLocationState | null)?.setupSuccess === true;
+  const initialPasswordReset =
+    (location.state as LoginLocationState | null)?.passwordReset === true;
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
   const [setupSuccess, setSetupSuccess] = useState(initialSetupSuccess);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(initialPasswordReset);
   const [stage, setStage] = useState<Stage>('CREDENTIALS');
   const [pendingCredentials, setPendingCredentials] = useState<LoginFormValues | null>(null);
   const login = useAuthStore((s) => s.login);
@@ -55,11 +59,11 @@ export function LoginPage() {
   const [totpForm] = Form.useForm<TotpFormValues>();
 
   useEffect(() => {
-    if (initialSetupSuccess) {
+    if (initialSetupSuccess || initialPasswordReset) {
       // Clear the navigation state so a refresh doesn't re-show the banner.
       navigate(location.pathname, { replace: true, state: null });
     }
-  }, [initialSetupSuccess, location.pathname, navigate]);
+  }, [initialSetupSuccess, initialPasswordReset, location.pathname, navigate]);
 
   const onCredentialsFinish = async (values: LoginFormValues): Promise<void> => {
     setError(null);
@@ -201,6 +205,17 @@ export function LoginPage() {
             />
           )}
 
+          {passwordResetSuccess && (
+            <Alert
+              type="success"
+              message={t('auth.login.password_reset_success_banner')}
+              style={{ marginBottom: 16 }}
+              showIcon
+              closable
+              onClose={() => setPasswordResetSuccess(false)}
+            />
+          )}
+
           {error && (
             <Alert
               type="error"
@@ -324,14 +339,13 @@ export function LoginPage() {
                   marginBottom: 12,
                 }}
               >
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="muted"
                   style={{ fontSize: 11, textDecoration: 'none' }}
-                  onClick={(e) => e.preventDefault()}
                 >
                   {t('auth.login.forgot_link')}
-                </a>
+                </Link>
               </div>
 
               <Button

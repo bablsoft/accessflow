@@ -64,6 +64,15 @@ class DefaultUserProfileService implements UserProfileService {
 
     @Override
     @Transactional
+    public void resetPassword(UUID userId, String newPassword) {
+        var user = loadUser(userId);
+        requireLocalAccount(user, "Password reset is not allowed for non-local accounts");
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        sessionRevocationService.revokeAllSessions(user.getId());
+    }
+
+    @Override
+    @Transactional
     public TotpEnrollment startTotpEnrollment(UUID userId) {
         var user = loadUser(userId);
         requireLocalAccount(user, "Two-factor authentication is not allowed for non-local accounts");
