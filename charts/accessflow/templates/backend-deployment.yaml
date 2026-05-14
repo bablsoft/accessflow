@@ -29,6 +29,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "accessflow.serviceAccountName" . }}
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -63,19 +64,19 @@ spec:
             - name: ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "config.encryptionKeySecret is required" .Values.config.encryptionKeySecret }}
-                  key: value
+                  name: {{ required "config.encryptionKey.existingSecret is required" .Values.config.encryptionKey.existingSecret }}
+                  key: {{ default "value" .Values.config.encryptionKey.key }}
             - name: JWT_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "config.jwtPrivateKeySecret is required" .Values.config.jwtPrivateKeySecret }}
-                  key: value
-            {{- if .Values.config.auditHmacKeySecret }}
+                  name: {{ required "config.jwtPrivateKey.existingSecret is required" .Values.config.jwtPrivateKey.existingSecret }}
+                  key: {{ default "value" .Values.config.jwtPrivateKey.key }}
+            {{- if .Values.config.auditHmac.existingSecret }}
             - name: AUDIT_HMAC_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.config.auditHmacKeySecret }}
-                  key: value
+                  name: {{ .Values.config.auditHmac.existingSecret }}
+                  key: {{ default "value" .Values.config.auditHmac.key }}
             {{- end }}
           {{- if .Values.driverCache.persistence.enabled }}
           volumeMounts:

@@ -118,8 +118,10 @@ jobs:
           version: latest
 
       - name: Set chart version
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          yq -i '.version = "${{ inputs.version }}" | .appVersion = "${{ inputs.version }}"' charts/accessflow/Chart.yaml
+          yq -i '.version = strenv(VERSION) | .appVersion = strenv(VERSION)' charts/accessflow/Chart.yaml
 
       - name: Build chart dependencies
         run: helm dependency update charts/accessflow

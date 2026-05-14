@@ -60,8 +60,8 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `redis.enabled` | `true` | Install the bundled bitnami/redis subchart. Set `false` to use `externalRedis`. |
 | `externalDatabase.host` / `.port` / `.database` / `.username` / `.existingSecret` | `""` | External PostgreSQL settings. |
 | `externalRedis.url` | `""` | External Redis URL (e.g. `redis://host:6379`). |
-| `config.encryptionKeySecret` | `accessflow-encryption-key` | Secret with a `value` key — 32-byte hex AES-256-GCM key. |
-| `config.jwtPrivateKeySecret` | `accessflow-jwt-key` | Secret with a `value` key — RSA-2048 PEM. |
+| `config.encryptionKey.existingSecret` / `.key` | `accessflow-encryption-key` / `value` | Reference to a Kubernetes Secret holding the 32-byte hex AES-256-GCM key. |
+| `config.jwtPrivateKey.existingSecret` / `.key` | `accessflow-jwt-key` / `value` | Reference to a Kubernetes Secret holding the RSA-2048 PEM. |
 | `config.corsAllowedOrigin` | `https://accessflow.company.com` | Frontend origin allowed by CORS. |
 | `config.frontend.apiBaseUrl` / `.wsUrl` | `https://accessflow.company.com[/ws]` | Rendered into the runtime-config.js ConfigMap. |
 | `ingress.enabled` / `.className` / `.hosts` / `.tls` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. |

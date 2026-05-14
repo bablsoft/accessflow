@@ -85,11 +85,19 @@ externalRedis:
 
 # --- Application configuration
 config:
-  # Secrets referenced via existingSecret pattern — chart does not create them.
-  # See docs/09-deployment.md → "Kubernetes Secrets Setup" for the kubectl one-liners.
-  encryptionKeySecret: accessflow-encryption-key   # required, key: value (32 hex bytes)
-  jwtPrivateKeySecret: accessflow-jwt-key          # required, key: value (RSA PEM)
-  auditHmacKeySecret: ""                            # optional, key: value (hex ≥ 32 bytes)
+  # Externally-managed Kubernetes Secret REFERENCES — the chart never creates Secret
+  # objects, only mounts them. The values below are DNS-1123 Secret resource names
+  # (not credentials). See docs/09-deployment.md → "Kubernetes Secrets Setup" for the
+  # kubectl one-liners that create the actual material.
+  encryptionKey:
+    existingSecret: accessflow-encryption-key   # required — 32 hex bytes under key below
+    key: value
+  jwtPrivateKey:
+    existingSecret: accessflow-jwt-key          # required — RSA-2048 PEM under key below
+    key: value
+  auditHmac:
+    existingSecret: ""                          # optional — hex ≥ 32 bytes under key below
+    key: value
   # CORS / public-URL config (non-secret)
   corsAllowedOrigin: https://accessflow.company.com
   publicBaseUrl: https://accessflow.company.com

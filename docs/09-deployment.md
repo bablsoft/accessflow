@@ -178,12 +178,14 @@ redis:
   enabled: true
   architecture: standalone
 
-# Application config
+# Application config — Kubernetes Secret references (chart never creates them).
 config:
-  encryptionKeySecret: accessflow-encryption-key   # key: value
-  jwtPrivateKeySecret: accessflow-jwt-key          # key: value
-  aiProvider: anthropic
-  aiApiKeySecret: accessflow-ai-key                # key: value
+  encryptionKey:
+    existingSecret: accessflow-encryption-key
+    key: value
+  jwtPrivateKey:
+    existingSecret: accessflow-jwt-key
+    key: value
   corsAllowedOrigin: https://accessflow.company.com
   # Frontend runtime config — rendered into a ConfigMap, mounted as
   # /usr/share/nginx/html/runtime-config.js inside the frontend pod.
@@ -331,12 +333,11 @@ kubectl create secret generic accessflow-encryption-key \
 kubectl create secret generic accessflow-jwt-key \
   --from-file=value=./jwt_private_key.pem \
   -n accessflow
-
-# AI API key
-kubectl create secret generic accessflow-ai-key \
-  --from-literal=value='sk-ant-...' \
-  -n accessflow
 ```
+
+> AI provider keys are **not** chart inputs — they're stored per-organization in the
+> `ai_config` table and managed from the admin UI. See
+> [docs/05-backend.md → "AI Query Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 
 ---
 
