@@ -41,6 +41,7 @@ the right.
 | [`docs/`](../docs/) chapter filenames + H1s | Docs grid cards |
 | [`CLAUDE.md`](../CLAUDE.md) (supported db list, env-var defaults) | Hero meta strip, Features tags |
 | [`charts/accessflow/`](../charts/accessflow/) | Helm install tab |
+| [`README.md`](../README.md) quick start + [`docs/04-api-spec.md`](../docs/04-api-spec.md), [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/09-deployment.md`](../docs/09-deployment.md) | [`docs/index.html`](docs/index.html) — user documentation page (run + configure) |
 
 ---
 
@@ -48,11 +49,17 @@ the right.
 
 ```
 website/
-├── index.html      # Single-page document — all sections inline
+├── index.html      # Marketing site — single-page, all sections inline
 ├── styles.css      # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
 ├── app.js          # Vanilla JS: install tabs, copy buttons, how-it-works stepper
+├── docs/
+│   └── index.html  # Public user documentation — run + configure (sidebar TOC)
 └── README.md       # this file
 ```
+
+The marketing site at the root targets visitors evaluating AccessFlow. The
+`docs/index.html` page targets operators and admins who need step-by-step instructions
+for running and configuring a deployment. Both reuse `styles.css` and `app.js`.
 
 No frameworks, no bundlers, no CDN runtime. The Geist + Geist Mono fonts load from
 Google Fonts; everything else is local.
