@@ -13,6 +13,18 @@
   <meta name="theme-color" content="#0A0D11" />
   <meta name="color-scheme" content="dark light" />
 
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
@@ -116,9 +128,29 @@
           <a href="#install">Install</a>
           <a href="#roadmap">Roadmap</a>
           <a href="docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
         </nav>
       </details>
       <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
         <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
             <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
@@ -219,7 +251,7 @@
           <div class="arch-row">
             <div class="arch-cell accent" style="min-width: 360px;">
               <span class="label">API GATEWAY</span>
-              <span class="value">Spring Boot 4 · JWT · Modulith</span>
+              <span class="value">REST + WebSocket gateway · JWT · modular service</span>
             </div>
           </div>
           <div class="arch-conn" aria-hidden="true"></div>
@@ -264,11 +296,11 @@
           </div>
           <div class="arch-callout">
             <span class="k">Runtime</span>
-            <span class="v">Java 25 with virtual threads. Horizontally scalable behind any L7 load balancer.</span>
+            <span class="v">Concurrent request-per-task runtime — horizontally scalable behind any L7 load balancer.</span>
           </div>
           <div class="arch-callout">
             <span class="k">Observability</span>
-            <span class="v">Spring Boot Actuator probes. HMAC-SHA256 chained, append-only metadata audit log of every action.</span>
+            <span class="v">HTTP health and readiness probes. HMAC-SHA256 chained, append-only metadata audit log of every action.</span>
           </div>
         </div>
       </div>
@@ -594,7 +626,7 @@
         <div class="section-head">
           <span class="eyebrow">Quick start</span>
           <h2>Up and governing queries in under five minutes.</h2>
-          <p>Pick your platform. The backend runs Flyway migrations on first boot; the first admin is created through the in-app setup wizard the moment you open the SPA.</p>
+          <p>Pick your platform. The backend initializes its database schema on first boot; the first admin is created through the in-app setup wizard the moment you open the SPA.</p>
         </div>
 
         <div class="install-grid">
@@ -719,14 +751,20 @@
 
           <div class="install-meta">
             <h4>System requirements</h4>
+
+            <h5 class="install-meta-sub">Stack</h5>
             <dl>
-              <dt>Backend</dt><dd>Java 25</dd>
-              <dt>Frontend</dt><dd>Node 24</dd>
               <dt>Internal DB</dt><dd>PostgreSQL 18</dd>
               <dt>Cache</dt><dd>Redis 8</dd>
               <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL</dd>
               <dt>AI backends</dt><dd>Anthropic · Ollama · OpenAI-compat.</dd>
               <dt>License</dt><dd style="color: var(--accent);">Apache 2.0</dd>
+            </dl>
+
+            <h5 class="install-meta-sub">Sizing</h5>
+            <dl>
+              <dt>Evaluation</dt><dd>2 vCPU · 4 GB RAM · 10 GB SSD<br /><span class="install-meta-note">single-node Docker Compose</span></dd>
+              <dt>Production</dt><dd>Backend ≥ 2× (2 vCPU · 2 GB) · Postgres (2 vCPU · 4 GB · 50 GB) · Redis (1 vCPU · 1 GB)<br /><span class="install-meta-note">scale backend replicas behind any L7 load balancer</span></dd>
             </dl>
             <div style="height: 1px; background: var(--line); margin: 20px 0;"></div>
             <div style="display: flex; flex-direction: column; gap: 12px;">

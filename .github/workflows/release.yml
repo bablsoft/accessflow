@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     steps:
       - name: Validate version
         run: |

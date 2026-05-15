@@ -13,6 +13,18 @@
   <meta name="theme-color" content="#0A0D11" />
   <meta name="color-scheme" content="dark light" />
 
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
@@ -120,9 +132,29 @@
           <a href="../index.html#install">Install</a>
           <a href="../index.html#roadmap">Roadmap</a>
           <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
         </nav>
       </details>
       <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
         <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
             <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
@@ -208,10 +240,20 @@
           </p>
 
           <div class="docs-callout info">
-            <strong>Versions referenced.</strong> Backend Java 25 + Spring Boot 4, frontend
-            React 19 + Vite 8 + Node 24. Postgres 18 for internal state, Redis 8 for token
-            revocation and scheduler locks. See <a href="../index.html#install">the Install
-            section</a> on the homepage for the canonical pinned versions.
+            <strong>Versions referenced.</strong> Internal store is PostgreSQL 18; cache is
+            Redis 8 (used for token revocation and scheduler locks). The backend service and
+            the React-based admin SPA are both shipped as container images — see
+            <a href="../index.html#install">the Install section</a> on the homepage for the
+            canonical pinned versions, and the <a href="#run-manual">Manual / from source</a>
+            section below for build-time toolchain requirements.
+          </div>
+          <div class="docs-callout">
+            <strong>Sizing.</strong> Two reference points:
+            <ul>
+              <li><strong>Evaluation</strong> — 2 vCPU · 4 GB RAM · 10 GB SSD on a single host. Fits the Docker Compose demo (backend + frontend + Postgres + Redis) with headroom.</li>
+              <li><strong>Production</strong> — backend is stateless: run two or more replicas of (2 vCPU · 2 GB RAM) behind any L7 load balancer. Internal Postgres needs roughly 2 vCPU · 4 GB RAM · 50 GB SSD (audit log dominates disk growth — provision higher IOPS for high-volume orgs). Redis needs ~1 vCPU · 1 GB RAM. Frontend is static — front it with a CDN or any nginx pod.</li>
+            </ul>
+            Numbers are starting points for an org of roughly fifty reviewers and a few hundred daily queries. Scale backend replicas first when you outgrow them.
           </div>
         </section>
 
@@ -496,7 +538,7 @@
           <p>
             A datasource describes one customer database that AccessFlow proxies. PostgreSQL,
             MySQL, MariaDB, Oracle, and MS SQL Server are bundled; any other JDBC engine works by
-            uploading its driver JAR and setting <em>type</em> to <em>Custom</em>.
+            uploading its database driver and setting <em>type</em> to <em>Custom</em>.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -508,7 +550,7 @@
             <figcaption><code>/datasources/new</code> — four-step wizard: <em>Database type → Connection details → Connection test → Configuration</em>.</figcaption>
           </figure>
           <ol>
-            <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships in the JAR; other drivers are pulled from Maven Central on first use against a pinned SHA-256). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
+            <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships built-in; other drivers download on first use and are verified against a pinned SHA-256 checksum). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
             <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. The password is AES-256-GCM encrypted on write, decrypted once into the HikariCP pool, and never returned in any GET response.</li>
             <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
             <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis + pick an <em>AI configuration</em>. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
@@ -517,7 +559,7 @@
             <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can_read / can_write / can_ddl</em>, allowed schemas, allowed tables, and restricted columns (which are masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user cannot see or query the datasource at all.
           </p>
           <p>
-            <strong>Custom JDBC drivers.</strong> Under <em>Admin → Custom JDBC drivers</em>, click <em>Upload driver</em>, attach the JAR, and supply the vendor name, target database type, fully-qualified driver class, and expected SHA-256. The SHA is re-verified on every pool init and each driver runs in an isolated classloader. The on-disk cache path is <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) — mount it as a persistent volume in Kubernetes.
+            <strong>Custom JDBC drivers.</strong> Under <em>Admin → Custom JDBC drivers</em>, click <em>Upload driver</em>, attach the driver file, and supply the vendor name, target database type, the driver class identifier shown in the vendor's documentation, and the expected SHA-256. The checksum is re-verified every time the pool initializes, and each driver is loaded in an isolated runtime to keep providers from interfering with each other. The on-disk cache path is <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) — mount it as a persistent volume in Kubernetes.
           </p>
 
           <!-- Review plans -->
@@ -671,7 +713,7 @@ APPROVED → FAILED (execution error)</pre>
             Sign-in with Google, GitHub, Microsoft, and GitLab is built-in — operators only need
             to register an OAuth app with the provider and store the client id / secret in
             AccessFlow. Other OIDC providers work the same way; the configuration lives in the
-            database, not in <code>application.yml</code>, so adding a new provider does not
+            database, not in static configuration files, so adding a new provider does not
             require a restart.
           </p>
           <figure class="docs-figure">

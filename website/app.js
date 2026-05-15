@@ -118,9 +118,70 @@
     start();
   }
 
+  function initThemeToggle() {
+    var STORAGE_KEY = 'accessflow.theme';
+    var root = document.documentElement;
+    var buttons = document.querySelectorAll('[data-theme-toggle]');
+    if (!buttons.length) return;
+
+    var mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
+
+    function currentTheme() {
+      var attr = root.getAttribute('data-theme');
+      if (attr === 'light' || attr === 'dark') return attr;
+      return mql && mql.matches ? 'light' : 'dark';
+    }
+
+    function swapDocsImages(theme) {
+      // Browser <picture><source media="(prefers-color-scheme: light)"> doesn't
+      // re-evaluate when JS toggles data-theme — swap the <img src> directly.
+      var pics = document.querySelectorAll(
+        'picture > img[src*="-dark.png"], picture > img[src*="-light.png"]'
+      );
+      pics.forEach(function (img) {
+        var want  = theme === 'light' ? '-light.png' : '-dark.png';
+        var other = theme === 'light' ? '-dark.png'  : '-light.png';
+        if (img.src.indexOf(other) !== -1) {
+          img.src = img.src.replace(other, want);
+        }
+      });
+    }
+
+    function syncButtons() {
+      var t = currentTheme();
+      var goingTo = t === 'light' ? 'dark' : 'light';
+      buttons.forEach(function (btn) {
+        btn.setAttribute('aria-pressed', t === 'light' ? 'true' : 'false');
+        btn.setAttribute('aria-label', 'Switch to ' + goingTo + ' theme');
+      });
+      swapDocsImages(t);
+    }
+
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var next = currentTheme() === 'light' ? 'dark' : 'light';
+        root.setAttribute('data-theme', next);
+        try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* private mode — ignore */ }
+        syncButtons();
+      });
+    });
+
+    if (mql && mql.addEventListener) {
+      mql.addEventListener('change', function () {
+        // OS change only propagates to visitors who haven't made an explicit choice.
+        var stored;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) { stored = null; }
+        if (!stored) syncButtons();
+      });
+    }
+
+    syncButtons();
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initInstallTabs();
     initCopyButtons();
     initFlowStepper();
+    initThemeToggle();
   });
 })();

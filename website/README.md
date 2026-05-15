@@ -34,7 +34,8 @@ the right.
 |---|---|
 | [`README.md`](../README.md) (pitch, quick start) | Hero, Install tabs, terminal preview |
 | [`docs/02-architecture.md`](../docs/02-architecture.md) | Architecture diagram |
-| [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, Install requirements panel |
+| [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
+| (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
 | [`docs/08-notifications.md`](../docs/08-notifications.md) | "Configurable review workflows" feature tile |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) | Roadmap track |
