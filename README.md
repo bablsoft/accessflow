@@ -2,8 +2,7 @@
 
 > Open-source database access governance platform — a SQL proxy that puts review, approval, and audit between your team and production data.
 
-[![Backend CI](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml)
-[![Frontend CI](https://github.com/bablsoft/accessflow/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/frontend-ci.yml)
+[![CI](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml)
 ![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 
 AccessFlow sits as a full SQL proxy in front of your relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be added by uploading its driver JAR. Every query a user submits is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, Microsoft, and GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.

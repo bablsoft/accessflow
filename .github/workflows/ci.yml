@@ -1,16 +1,10 @@
-name: Backend CI
+name: CI
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'backend/**'
-      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
@@ -19,7 +13,33 @@ permissions:
   issues: write
 
 jobs:
-  build:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      helm: ${{ steps.filter.outputs.helm }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            helm:
+              - 'charts/**'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -49,7 +69,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: backend/target/surefire-reports/TEST-*.xml
-          check_name: Test Results
+          check_name: Backend Test Results
           comment_mode: always
 
       - name: Publish coverage report
@@ -58,7 +78,147 @@ jobs:
         with:
           paths: backend/target/site/jacoco/jacoco.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: Code Coverage
+          title: Backend Code Coverage
           update-comment: true
           min-coverage-overall: 0
           min-coverage-changed-files: 0
+
+  frontend:
+    name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        # Coverage thresholds (90% lines/functions/statements, 80% branches)
+        # are enforced inside vite.config.ts — this step fails when they slip.
+        run: npm run test:coverage
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: frontend/test-results/junit.xml
+          check_name: Frontend Test Results
+          comment_mode: always
+
+      - name: Publish coverage report
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          working-directory: frontend
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
+          file-coverage-mode: changes
+          name: Frontend Coverage
+
+  helm:
+    name: Helm
+    needs: changes
+    if: needs.changes.outputs.helm == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Register chart dependency repos
+        run: helm repo add bitnami https://charts.bitnami.com/bitnami
+
+      - name: Build chart dependencies
+        run: helm dependency update charts/accessflow
+
+      - name: Lint chart
+        run: helm lint charts/accessflow
+
+      - name: Render with defaults (bundled Postgres + Redis)
+        run: |
+          helm template accessflow charts/accessflow \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
+            > /tmp/rendered-defaults.yaml
+
+      - name: Render with external Postgres + Redis
+        run: |
+          helm template accessflow charts/accessflow \
+            --set postgresql.enabled=false \
+            --set redis.enabled=false \
+            --set externalDatabase.host=db.example.com \
+            --set externalDatabase.existingSecret=external-db-secret \
+            --set externalRedis.url=redis://r.example.com:6379 \
+            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
+            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
+            > /tmp/rendered-external.yaml
+
+      - name: Render with bootstrap.* fixture (every *SecretRef path)
+        run: |
+          helm template accessflow charts/accessflow \
+            -f charts/accessflow/ci/bootstrap-values.yaml \
+            > /tmp/rendered-bootstrap.yaml
+
+  # Single required status check for branch protection. This job always runs
+  # and succeeds when each upstream job either passed or was correctly skipped
+  # (its path filter did not match). Configure branch protection to require
+  # only this check ("CI / CI Gate") — never the individual area jobs.
+  gate:
+    name: CI Gate
+    needs: [changes, backend, frontend, helm]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all area jobs succeeded or were skipped
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          HELM_RESULT: ${{ needs.helm.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed: $CHANGES_RESULT"
+            exit 1
+          fi
+          status=0
+          for area in backend frontend helm; do
+            var="$(echo "$area" | tr '[:lower:]' '[:upper:]')_RESULT"
+            result="${!var}"
+            case "$result" in
+              success|skipped)
+                echo "$area: $result"
+                ;;
+              *)
+                echo "$area: $result (failed)"
+                status=1
+                ;;
+            esac
+          done
+          exit "$status"
