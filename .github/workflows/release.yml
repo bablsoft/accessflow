@@ -44,7 +44,15 @@ jobs:
 
       - name: Bump frontend version
         working-directory: frontend
-        run: npm version ${{ inputs.version }} --no-git-tag-version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          if [ "$CURRENT" = "$VERSION" ]; then
+            echo "frontend/package.json already at $VERSION, skipping npm version"
+          else
+            npm version "$VERSION" --no-git-tag-version
+          fi
 
       - name: Configure git identity
         uses: fregante/setup-git-user@v2
