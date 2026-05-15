@@ -537,8 +537,8 @@ npm run build          # Vite production build
 
 The coverage `include` list deliberately scopes measurement to pure-logic modules (`src/utils/**`, the analyzer/schema/delay mocks) at the demo stage. As feature work lands and pages/components gain meaningful tests (tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80)), expand the `include` list in the same change. **Any time you add a new pure-logic module, include it in coverage measurement and ship it with tests.**
 
-CI pipeline (`.github/workflows/frontend-ci.yml`):
-- Triggers on changes to `frontend/**` on push to main and on PRs.
+CI pipeline (`frontend` job in `.github/workflows/ci.yml`):
+- Runs when the PR/push touches `frontend/**` (gated by the workflow-level `dorny/paths-filter` step).
 - Steps: `npm ci → lint → typecheck → test:coverage → build`.
 - Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
@@ -725,14 +725,15 @@ Branch names must match the pattern above. Commit messages should be imperative 
 
 ## CI / CD
 
-`.github/workflows/ci.yml` runs on every push / PR touching `backend/**`:
-- Java 25 (Temurin) + Maven `verify -Pcoverage` with JaCoCo gate and JUnit reporter.
+`.github/workflows/ci.yml` runs on every push / PR to `main`. It's a single workflow with conditional area jobs so branch protection can require **one** required check (`CI / CI Gate`) regardless of which area a PR touches:
 
-`.github/workflows/frontend-ci.yml` runs on every push / PR touching `frontend/**`:
-- Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+- `changes` — runs `dorny/paths-filter@v4` to compute which areas (`backend`, `frontend`, `helm`) the diff touches.
+- `backend` — Java 25 (Temurin) + Maven `verify -Pcoverage` with JaCoCo gate and JUnit reporter. Runs only when `backend/**` (or `.github/workflows/ci.yml`) changed.
+- `frontend` — Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. Runs only when `frontend/**` (or the workflow file) changed.
+- `helm` — `helm dependency update` + `helm lint charts/accessflow` + `helm template` (default, external-services, and bootstrap-fixture variants). Runs only when `charts/**` (or the workflow file) changed.
+- `gate` — always runs, `needs: [changes, backend, frontend, helm]` with `if: always()`. Succeeds when each area job is either `success` or `skipped`; fails when any area job's `result` is anything else. **This is the only check name to configure as required in GitHub branch protection** — never the individual area jobs (those report `skipped` and would block PRs that don't touch their path).
 
-`.github/workflows/helm-ci.yml` runs on every push / PR touching `charts/**`:
-- `helm dependency update` + `helm lint charts/accessflow` + `helm template` (default and external-services variants). Catches missing conditionals that only surface when subcharts are disabled.
+Skipped area jobs cost no runner time. Re-running just one area is a "Re-run failed jobs" click on the failing area; the gate re-runs automatically.
 
 `.github/workflows/release.yml` is **manually triggered** (`workflow_dispatch`) and takes a semver `version` input (e.g. `1.2.3` without the leading `v`). On run it:
 1. Bumps `backend/pom.xml` (`mvn versions:set`) and `frontend/package.json` (`npm version`).

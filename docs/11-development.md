@@ -124,7 +124,7 @@ helm lint charts/accessflow
 helm template accessflow charts/accessflow > /dev/null
 ```
 
-CI runs the same checks in [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml).
+CI runs the same checks in the `helm` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 The chart is published to the helm repo at `https://bablsoft.github.io/accessflow` by
 [`release.yml`](../.github/workflows/release.yml) on every tagged release — see
 [`docs/09-deployment.md` → "Chart development" / "Releasing the chart"](09-deployment.md#chart-development).
@@ -201,14 +201,28 @@ hotfix/AF-{n}-description    → critical fixes (from main, merge back to both)
 
 ## CI/CD Pipelines
 
-The repository ships four GitHub Actions workflows:
+The repository ships two GitHub Actions workflows:
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` touching `backend/**` | Java 25 + Maven build, JaCoCo coverage, JUnit test report |
-| [`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml) | Push / PR to `main` touching `frontend/**` | Node 24 + npm: lint, typecheck, Vitest coverage, Vite build |
-| [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml) | Push / PR to `main` touching `charts/**` | `helm lint` + `helm template` (default + external-services paths) on the AccessFlow chart |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` | Single CI workflow with conditional area jobs (`backend`, `frontend`, `helm`) gated by `dorny/paths-filter@v4` and aggregated into one `CI Gate` check — see "Branch-protection-friendly CI" below |
 | [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes the Helm chart to `gh-pages`, and creates a GitHub Release with auto-generated notes |
+
+### Branch-protection-friendly CI (`ci.yml`)
+
+GitHub branch protection doesn't support "conditional required status checks" — a required check that doesn't run on a given PR blocks merge indefinitely. To get the effect users want ("frontend-only PRs only need the frontend job to pass"), `ci.yml` collapses what used to be three separate workflows into one with five jobs:
+
+| Job | Runs when | What it does |
+|-----|-----------|--------------|
+| `changes` | always | Runs `dorny/paths-filter@v4` once, exporting `backend` / `frontend` / `helm` outputs based on the PR diff (and on the workflow file itself, so CI-config-only changes still exercise every area). |
+| `backend` | `needs.changes.outputs.backend == 'true'` | Java 25 + Maven `verify -Pcoverage`, JaCoCo gate, JUnit reporter. |
+| `frontend` | `needs.changes.outputs.frontend == 'true'` | Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. |
+| `helm` | `needs.changes.outputs.helm == 'true'` | `helm dependency update` + `helm lint charts/accessflow` + three `helm template` renders (defaults, external Postgres/Redis, bootstrap fixture). |
+| `gate` | `if: always()` after all four | Walks `needs.<area>.result` and exits non-zero unless every area job is `success` or `skipped`. |
+
+**Branch protection**: in **Repo Settings → Branches → Branch protection rules → main → Require status checks**, add **only `CI / CI Gate`** to the required-checks list. Do not add the area jobs directly — when a PR doesn't touch their path, their `result` is `skipped`, which GitHub treats as "did not pass" and would block the merge. The gate job collapses skipped + successful into a single green check.
+
+**Re-running**: GitHub's "Re-run failed jobs" re-runs only the failing area job and then automatically re-fires `gate`, so you don't pay for a full re-run.
 
 ### Release pipeline (`release.yml`)
 

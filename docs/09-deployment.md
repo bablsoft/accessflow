@@ -326,7 +326,7 @@ helm template accessflow charts/accessflow \
   --set externalRedis.url=redis://r.example.com:6379    # external services
 ```
 
-The same lint + render pair runs in [`.github/workflows/helm-ci.yml`](../.github/workflows/helm-ci.yml)
+The same lint + render pair runs in the `helm` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 on every PR that touches `charts/**`, so chart regressions are caught before merge.
 
 ### Releasing the chart
@@ -505,7 +505,7 @@ bootstrap:
     fromName: AccessFlow
 ```
 
-A complete fixture that exercises every render path lives at [charts/accessflow/ci/bootstrap-values.yaml](../charts/accessflow/ci/bootstrap-values.yaml) and is wired into the helm-ci workflow.
+A complete fixture that exercises every render path lives at [charts/accessflow/ci/bootstrap-values.yaml](../charts/accessflow/ci/bootstrap-values.yaml) and is wired into the `helm` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 #### 3. `helm upgrade`
 
