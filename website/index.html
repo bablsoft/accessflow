@@ -688,7 +688,9 @@
                   </button>
                 </div>
 <pre><span class="c-com"># helm repo add accessflow https://bablsoft.github.io/accessflow</span>
-<span class="c-com"># helm install accessflow accessflow/accessflow -f values.yaml</span>
+<span class="c-com"># helm install accessflow accessflow/accessflow -n accessflow --create-namespace</span>
+<span class="c-com"># Encryption key, JWT key, and Postgres password are auto-generated on first install</span>
+<span class="c-com"># and preserved across upgrades — no Secrets need to be pre-created.</span>
 
 <span class="c-kw">backend</span>:
   <span class="c-kw">replicaCount</span>: 3
@@ -703,17 +705,20 @@
 <span class="c-kw">redis</span>:
   <span class="c-kw">enabled</span>: <span class="c-str">true</span>
 
-<span class="c-kw">secrets</span>:
-  <span class="c-kw">encryptionKey</span>:
-    <span class="c-kw">existingSecret</span>: <span class="c-str">accessflow-encryption-key</span>
-  <span class="c-kw">jwtPrivateKey</span>:
-    <span class="c-kw">existingSecret</span>: <span class="c-str">accessflow-jwt-key</span>
+<span class="c-com"># Override only if you want to manage secrets externally</span>
+<span class="c-com"># (sealed-secrets, External Secrets, Vault, …):</span>
+<span class="c-com"># config:</span>
+<span class="c-com">#   encryptionKey: { existingSecret: my-secret, key: value }</span>
+<span class="c-com">#   jwtPrivateKey: { existingSecret: my-secret, key: jwt }</span>
 
 <span class="c-kw">ingress</span>:
   <span class="c-kw">enabled</span>: <span class="c-str">true</span>
   <span class="c-kw">className</span>: <span class="c-str">nginx</span>
   <span class="c-kw">hosts</span>:
     - <span class="c-kw">host</span>: <span class="c-str">accessflow.company.com</span>
+  <span class="c-com"># TLS is off by default — turn on and supply a Secret to terminate HTTPS</span>
+  <span class="c-kw">tls</span>:
+    <span class="c-kw">enabled</span>: <span class="c-str">false</span>
 </pre>
               </div>
             </div>

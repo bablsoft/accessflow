@@ -64,13 +64,13 @@ spec:
             - name: ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "config.encryptionKey.existingSecret is required" .Values.config.encryptionKey.existingSecret }}
-                  key: {{ default "value" .Values.config.encryptionKey.key }}
+                  name: {{ include "accessflow.encryptionKey.secretName" . }}
+                  key: {{ include "accessflow.encryptionKey.secretKey" . }}
             - name: JWT_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "config.jwtPrivateKey.existingSecret is required" .Values.config.jwtPrivateKey.existingSecret }}
-                  key: {{ default "value" .Values.config.jwtPrivateKey.key }}
+                  name: {{ include "accessflow.jwtPrivateKey.secretName" . }}
+                  key: {{ include "accessflow.jwtPrivateKey.secretKey" . }}
             {{- if .Values.config.auditHmac.existingSecret }}
             - name: AUDIT_HMAC_KEY
               valueFrom:

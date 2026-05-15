@@ -325,8 +325,10 @@
           <h3 id="run-helm">Kubernetes &amp; Helm</h3>
           <p>
             The Helm chart ships at <code>charts/accessflow/</code> and is published to
-            <code>https://bablsoft.github.io/accessflow</code>. Pre-create the required Secrets
-            (the chart will refuse to start if they're missing or empty):
+            <code>https://bablsoft.github.io/accessflow</code>. With defaults, no Secrets need
+            to be pre-created — the chart auto-generates the encryption key, the JWT private
+            key, and the PostgreSQL password on first install, and preserves them across
+            <code>helm upgrade</code>:
           </p>
           <div class="code-block">
             <div class="code-block-head">
@@ -340,26 +342,43 @@
 <span class="c-kw">helm</span> repo add accessflow https://bablsoft.github.io/accessflow
 <span class="c-kw">helm</span> repo update
 
-<span class="c-com"># 2. create namespace + Secrets</span>
-<span class="c-kw">kubectl</span> create namespace accessflow
-
-<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-encryption-key \
-  --from-literal=ENCRYPTION_KEY=<span class="c-str">"$(openssl rand -hex 32)"</span>
+<span class="c-com"># 2. install — chart auto-generates secrets on first run</span>
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f values.yaml
+</pre>
+          </div>
+          <p>
+            Prefer to manage the secrets yourself (sealed-secrets, External Secrets, Vault, …)?
+            Pre-create them and point <code>config.encryptionKey.existingSecret</code>,
+            <code>config.jwtPrivateKey.existingSecret</code>, and
+            <code>postgresql.auth.existingSecret</code> at your own resources:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-encryption-key \
+  --from-literal=value=<span class="c-str">"$(openssl rand -hex 32)"</span>
 
 <span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-jwt-key \
-  --from-file=JWT_PRIVATE_KEY=<span class="c-str">&lt;(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048)</span>
+  --from-file=value=<span class="c-str">&lt;(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048)</span>
 
+<span class="c-com"># bitnami/postgresql expects the password under the key "password"</span>
 <span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-pg-secret \
-  --from-literal=DB_PASSWORD=<span class="c-str">"$(openssl rand -base64 24)"</span>
-
-<span class="c-com"># 3. install</span>
-<span class="c-kw">helm</span> install accessflow accessflow/accessflow -n accessflow -f values.yaml
+  --from-literal=password=<span class="c-str">"$(openssl rand -base64 24)"</span>
 </pre>
           </div>
           <p>
             The chart bundles Bitnami subcharts for Postgres and Redis (toggle off with
             <code>postgresql.enabled=false</code> / <code>redis.enabled=false</code> to point at
-            external instances). Full values reference and the Secret schema:
+            external instances). TLS on the Ingress is <strong>off by default</strong>; set
+            <code>ingress.tls.enabled=true</code> with a <code>secretName</code> and (optionally)
+            a cert-manager annotation to terminate HTTPS. Full values reference:
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#kubernetes--helm">docs/09-deployment.md
             → Kubernetes &amp; Helm</a> and
             <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md">charts/accessflow/README.md</a>.

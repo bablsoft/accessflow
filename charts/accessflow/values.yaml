@@ -44,13 +44,18 @@ serviceAccount:
 
 # --- Internal PostgreSQL subchart (bitnami/postgresql).
 # Set enabled: false to use externalDatabase below instead.
+#
+# When `auth.existingSecret` is left empty (the default), the bitnami subchart
+# auto-generates a random password on first install and stores it in a Secret
+# named "{release-name}-postgresql" (key: "password"). The chart preserves the
+# generated password across upgrades. To bring your own, create a Secret with
+# a "password" key and point `auth.existingSecret` at it.
 postgresql:
   enabled: true
   auth:
     database: accessflow
     username: accessflow
-    # Secret must contain a "password" key (matches Bitnami chart defaults).
-    existingSecret: accessflow-pg-secret
+    existingSecret: ""
   primary:
     persistence:
       enabled: true
@@ -85,16 +90,21 @@ externalRedis:
 
 # --- Application configuration
 config:
-  # Externally-managed Kubernetes Secret REFERENCES — the chart never creates Secret
-  # objects, only mounts them. The values below are DNS-1123 Secret resource names
-  # (not credentials). See docs/09-deployment.md → "Kubernetes Secrets Setup" for the
-  # kubectl one-liners that create the actual material.
+  # Application secrets — when `existingSecret` is empty (the default), the chart
+  # generates fresh material on first install, stores it in a single chart-managed
+  # Secret named "{fullname}-secrets", and preserves the values across upgrades via
+  # `helm.sh/resource-policy: keep` + lookup.
+  #
+  # To bring your own (sealed-secrets, External Secrets, manual `kubectl create
+  # secret`, …), set `existingSecret` to the Secret name and `key` to the entry
+  # inside that Secret. The chart never deletes or rewrites an externally-managed
+  # Secret.
   encryptionKey:
-    existingSecret: ""    # required — Secret name (see docs/09-deployment.md kubectl one-liners)
-    key: value
+    existingSecret: ""    # auto-generated when empty
+    key: value            # ignored when existingSecret is empty
   jwtPrivateKey:
-    existingSecret: ""    # required — Secret name (see docs/09-deployment.md kubectl one-liners)
-    key: value
+    existingSecret: ""    # auto-generated when empty
+    key: value            # ignored when existingSecret is empty
   auditHmac:
     existingSecret: ""    # optional — hex ≥ 32 bytes under key below
     key: value
@@ -165,11 +175,20 @@ driverCache:
     mountPath: /var/lib/accessflow/drivers
 
 # --- Ingress
+#
+# TLS is OFF by default — the chart does not assume any particular cert-issuer
+# (cert-manager, ACME, manually-managed Secret). To enable HTTPS:
+#   1. Set ingress.tls.enabled=true and ingress.tls.secretName to a Secret that
+#      holds tls.crt and tls.key.
+#   2. Either pre-create that Secret manually, or add a cert-manager annotation
+#      under `ingress.annotations` (e.g. cert-manager.io/cluster-issuer:
+#      letsencrypt-prod) so cert-manager provisions it on your behalf.
 ingress:
   enabled: true
   className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+  # Free-form Ingress annotations. Add cert-manager.io/cluster-issuer,
+  # nginx.ingress.kubernetes.io/*, alb.ingress.kubernetes.io/*, etc. here.
+  annotations: {}
   hosts:
     - host: accessflow.company.com
       paths:
@@ -183,9 +202,9 @@ ingress:
           pathType: Prefix
           service: frontend
   tls:
-    - secretName: accessflow-tls
-      hosts:
-        - accessflow.company.com
+    enabled: false
+    # Secret holding tls.crt and tls.key. Required when enabled=true.
+    secretName: accessflow-tls
 
 # --- Resource requests / limits
 resources:
