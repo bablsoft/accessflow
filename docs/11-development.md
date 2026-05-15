@@ -223,7 +223,7 @@ Triggered manually from the Actions tab. The maintainer provides a semver `versi
    - `ghcr.io/<owner>/accessflow-backend:${VERSION}` + `:latest`
    - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + `:latest`
    The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
-7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true` (changelog auto-built from PRs/commits since the previous tag).
+7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true`. The workflow resolves the previous semver tag (`git tag -l 'v*' --sort=-v:refname`, filtered to strict `vX.Y.Z[-suffix]`) and passes it as `previous_tag` so the changelog covers PRs merged since that tag — or every PR, when no prior tag exists (first release).
 8. **Publishes the Helm chart** — rewrites `charts/accessflow/Chart.yaml` so `version` and `appVersion` both equal `${VERSION}`, runs `helm dependency update`, then `helm/chart-releaser-action@v1.7.0` packages the chart and pushes the `.tgz` plus updated `index.yaml` to the `gh-pages` branch (served at `https://<owner>.github.io/accessflow`). GitHub Pages must be enabled once in **Repo Settings → Pages → Source = `gh-pages`** before the chart repo is reachable; after that, every release adds a new version automatically.
 
 ### Version surfacing
