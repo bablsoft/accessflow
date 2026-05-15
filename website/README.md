@@ -41,7 +41,8 @@ the right.
 | [`docs/`](../docs/) chapter filenames + H1s | Docs grid cards |
 | [`CLAUDE.md`](../CLAUDE.md) (supported db list, env-var defaults) | Hero meta strip, Features tags |
 | [`charts/accessflow/`](../charts/accessflow/) | Helm install tab |
-| [`README.md`](../README.md) quick start + [`docs/04-api-spec.md`](../docs/04-api-spec.md), [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/09-deployment.md`](../docs/09-deployment.md) | [`docs/index.html`](docs/index.html) — user documentation page (run + configure) |
+| [`README.md`](../README.md) quick start + [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/09-deployment.md`](../docs/09-deployment.md) | [`docs/index.html`](docs/index.html) — user documentation page (run + configure) |
+| [`frontend/src/pages/admin/`](../frontend/src/pages/admin/), [`frontend/src/pages/datasources/`](../frontend/src/pages/datasources/) — admin SPA pages | [`docs/index.html`](docs/index.html) configuration walkthroughs (Users, Datasources, Review plans, AI configs, Notifications, System SMTP, OAuth, SAML) + matching PNGs under [`images/docs/`](images/docs/) |
 | Existing on-page copy (hero, features, supported DBs, license) | SEO meta block (canonical, OG, Twitter, JSON-LD) in both [`index.html`](index.html) and [`docs/index.html`](docs/index.html) |
 
 ---
@@ -59,6 +60,8 @@ website/
 ├── sitemap.xml     # XML sitemap (homepage + docs page)
 ├── docs/
 │   └── index.html  # Public user documentation — run + configure (sidebar TOC)
+├── images/
+│   └── docs/       # PNG screenshots of admin SPA pages, light + dark per screen
 └── README.md       # this file
 ```
 

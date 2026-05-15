@@ -1336,6 +1336,33 @@ footer {
 .docs-callout.info   { border-left-color: var(--info); }
 .docs-callout.ok     { border-left-color: var(--accent); }
 
+.docs-figure {
+  margin: 20px 0 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--bg-1);
+  overflow: hidden;
+  max-width: 100%;
+}
+.docs-figure picture,
+.docs-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.docs-figure figcaption {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--fg-mute);
+  border-top: 1px solid var(--line);
+  line-height: 1.5;
+}
+.docs-figure figcaption code {
+  color: var(--fg-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
 .docs-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);

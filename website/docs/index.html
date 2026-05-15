@@ -406,10 +406,12 @@
         <section id="configuration" class="docs-section">
           <h2>Configuration</h2>
           <p>
-            Everything below is admin-only. Each entity can be managed through the admin pages of
-            the SPA or through the REST API directly (full payload reference in
-            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">docs/04-api-spec.md</a>).
-            All API calls require an <code>Authorization: Bearer &lt;JWT&gt;</code> header.
+            Everything below is admin-only. This page walks through each entity in the admin UI;
+            every screen has a REST equivalent in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">docs/04-api-spec.md</a>
+            if you'd rather automate. Sign in as the admin you created in
+            <a href="#first-run">first run</a>, then use the left-hand <em>Admin</em> sidebar to
+            jump between sections.
           </p>
 
           <!-- Users -->
@@ -419,35 +421,21 @@
             auto-provisioned on first sign-in if the feature is enabled (see
             <a href="#cfg-saml">SAML</a> and <a href="#cfg-oauth">OAuth</a>).
           </p>
-          <p>
-            <strong>Create a user directly</strong> — <code>POST /api/v1/admin/users</code>:
-          </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"email"</span>:        <span class="c-str">"alice@company.com"</span>,
-  <span class="c-kw">"password"</span>:     <span class="c-str">"InitialPassword123!"</span>,
-  <span class="c-kw">"display_name"</span>: <span class="c-str">"Alice Reviewer"</span>,
-  <span class="c-kw">"role"</span>:         <span class="c-str">"REVIEWER"</span>
-}
-</pre>
-          </div>
-          <p>
-            <strong>Invite a user by email</strong> — <code>POST /api/v1/admin/users/invitations</code>
-            generates a one-time signup token and emails it. The token expires after
-            <code>ACCESSFLOW_SECURITY_INVITATION_TTL</code> (default 7 days).
-          </p>
-          <p>
-            Other endpoints: <code>GET /api/v1/admin/users</code> (paginated list),
-            <code>PUT /api/v1/admin/users/{id}</code> (change role or active flag),
-            <code>DELETE /api/v1/admin/users/{id}</code> (deactivate).
-          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/users-invite-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/users-invite-dark.png"
+                   alt="Invite a teammate modal in the AccessFlow admin Users page, with fields for email, display name, and a role dropdown defaulting to ANALYST."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/users</code> → <em>Invite via email</em>. Enter the recipient's email, pick a role, and AccessFlow emails a one-time signup link.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Invite via email (default).</strong> From <code>/admin/users</code>, click <em>Invite via email</em>, fill in the recipient's email, optional display name, and role, then submit. AccessFlow generates a signup token and emails it; the link expires after <code>ACCESSFLOW_SECURITY_INVITATION_TTL</code> (default 7 days).</li>
+            <li><strong>Create with a password.</strong> Use the dropdown next to the invite button → <em>Create with password</em> to provision a user directly. Useful when SMTP isn't configured yet, or when you want to seed an account synchronously.</li>
+            <li><strong>Edit or deactivate.</strong> Click any row to change the role or flip the active toggle. Deactivated users can't sign in but their audit trail is preserved.</li>
+            <li><strong>Pending invitations</strong> are listed below the user table; resend or revoke them from there.</li>
+          </ol>
 
           <!-- Roles -->
           <h3 id="cfg-roles">User roles &amp; RBAC</h3>
@@ -508,55 +496,28 @@
           <p>
             A datasource describes one customer database that AccessFlow proxies. PostgreSQL,
             MySQL, MariaDB, Oracle, and MS SQL Server are bundled; any other JDBC engine works by
-            uploading its driver JAR and setting <code>db_type=CUSTOM</code>.
+            uploading its driver JAR and setting <em>type</em> to <em>Custom</em>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/datasources-create-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/datasources-create-dark.png"
+                   alt="Add datasource wizard, step one (Database type), showing a grid of bundled drivers — PostgreSQL marked Bundled and MySQL, MariaDB, Oracle, MS SQL Server marked Unavailable until their driver is downloaded."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/new</code> — four-step wizard: <em>Database type → Connection details → Connection test → Configuration</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships in the JAR; other drivers are pulled from Maven Central on first use against a pinned SHA-256). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
+            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. The password is AES-256-GCM encrypted on write, decrypted once into the HikariCP pool, and never returned in any GET response.</li>
+            <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
+            <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis + pick an <em>AI configuration</em>. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
+          </ol>
+          <p>
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can_read / can_write / can_ddl</em>, allowed schemas, allowed tables, and restricted columns (which are masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user cannot see or query the datasource at all.
           </p>
           <p>
-            <strong>Create a datasource</strong> — <code>POST /api/v1/datasources</code>:
-          </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"name"</span>:                  <span class="c-str">"Production PostgreSQL"</span>,
-  <span class="c-kw">"db_type"</span>:               <span class="c-str">"POSTGRESQL"</span>,
-  <span class="c-kw">"host"</span>:                  <span class="c-str">"db.company.com"</span>,
-  <span class="c-kw">"port"</span>:                  5432,
-  <span class="c-kw">"database_name"</span>:         <span class="c-str">"app_prod"</span>,
-  <span class="c-kw">"username"</span>:              <span class="c-str">"accessflow_svc"</span>,
-  <span class="c-kw">"password"</span>:              <span class="c-str">"<i>encrypted at rest</i>"</span>,
-  <span class="c-kw">"ssl_mode"</span>:              <span class="c-str">"REQUIRE"</span>,
-  <span class="c-kw">"require_review_reads"</span>:  <span class="c-str">false</span>,
-  <span class="c-kw">"require_review_writes"</span>: <span class="c-str">true</span>,
-  <span class="c-kw">"review_plan_id"</span>:        <span class="c-str">"<i>uuid of a review plan</i>"</span>,
-  <span class="c-kw">"ai_analysis_enabled"</span>:   <span class="c-str">true</span>,
-  <span class="c-kw">"ai_config_id"</span>:          <span class="c-str">"<i>uuid of an ai_config</i>"</span>
-}
-</pre>
-          </div>
-          <p>
-            <code>password</code> is AES-256-GCM encrypted on write and is never returned in any
-            response. The plaintext is decrypted once during HikariCP pool init and never stored
-            on the heap beyond that.
-          </p>
-          <p>
-            <strong>Grant a user access</strong> — <code>POST /api/v1/datasources/{id}/permissions</code>
-            with <code>{ user_id, can_read, can_write, can_ddl, allowed_schemas, allowed_tables,
-            restricted_columns, expires_at }</code>. Without a permission row, a user cannot see
-            or query the datasource at all.
-          </p>
-          <p>
-            <strong>Custom JDBC drivers.</strong> Upload a driver JAR with
-            <code>POST /api/v1/datasources/drivers</code> (multipart: <code>vendor_name</code>,
-            <code>target_db_type</code>, <code>driver_class</code>,
-            <code>expected_sha256</code>). The SHA-256 is re-verified on every pool init and
-            each driver runs in an isolated classloader. The on-disk cache path is
-            <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) —
-            mount this as a persistent volume in Kubernetes.
+            <strong>Custom JDBC drivers.</strong> Under <em>Admin → Custom JDBC drivers</em>, click <em>Upload driver</em>, attach the JAR, and supply the vendor name, target database type, fully-qualified driver class, and expected SHA-256. The SHA is re-verified on every pool init and each driver runs in an isolated classloader. The on-disk cache path is <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) — mount it as a persistent volume in Kubernetes.
           </p>
 
           <!-- Review plans -->
@@ -566,32 +527,22 @@
             execution. Each plan describes a sequence of stages; each stage names approvers (by
             role or explicit user) and a minimum number of approvals before the query advances.
           </p>
-          <p>
-            <strong>Create a plan</strong> — <code>POST /api/v1/admin/review-plans</code>:
-          </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"name"</span>:                    <span class="c-str">"Production writes — two reviewers"</span>,
-  <span class="c-kw">"description"</span>:             <span class="c-str">"DML on prod needs senior + DBA sign-off."</span>,
-  <span class="c-kw">"requires_ai_review"</span>:      <span class="c-str">true</span>,
-  <span class="c-kw">"requires_human_approval"</span>: <span class="c-str">true</span>,
-  <span class="c-kw">"min_approvals_required"</span>:  2,
-  <span class="c-kw">"approval_timeout_hours"</span>:  24,
-  <span class="c-kw">"auto_approve_reads"</span>:      <span class="c-str">true</span>,
-  <span class="c-kw">"approvers"</span>: [
-    { <span class="c-kw">"role"</span>: <span class="c-str">"REVIEWER"</span>, <span class="c-kw">"stage"</span>: 1 },
-    { <span class="c-kw">"role"</span>: <span class="c-str">"ADMIN"</span>,    <span class="c-kw">"stage"</span>: 2 }
-  ]
-}
-</pre>
-          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/review-plans-create-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/review-plans-create-dark.png"
+                   alt="Add review plan modal with name and description fields, AI-review and human-approval toggles enabled, minimum approvals set to 1, approval timeout 24 hours, and an approver row defaulting to the REVIEWER role at stage 1."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> → <em>Add review plan</em>. Stack approver rows to build multi-stage chains.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/review-plans</code></strong> and click <em>Add review plan</em>.</li>
+            <li><strong>Name and describe</strong> the policy — e.g. "Production writes — two reviewers".</li>
+            <li><strong>Pick the gates.</strong> Toggle <em>Require AI review</em> to score every query before it queues for humans; toggle <em>Require human approval</em> to demand at least one reviewer sign-off. <em>Auto-approve LOW-risk reads</em> lets <code>SELECT</code>s skip humans entirely when AI risk is below the threshold.</li>
+            <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when <code>QueryTimeoutJob</code> auto-rejects an idle <code>PENDING_REVIEW</code> query (cadence configurable via <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>
+            <li><strong>Build the approver chain.</strong> Click <em>Add approver</em> for each stage; each row names a role (or a specific user) and a stage number. Stages advance sequentially, and a single <em>REJECTED</em> decision at any stage terminates the query.</li>
+          </ol>
           <p>
             <strong>Query status transitions.</strong> A query moves through these states:
           </p>
@@ -619,32 +570,25 @@ APPROVED → FAILED (execution error)</pre>
           <ul>
             <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
             <li><strong>OpenAI</strong> (or any OpenAI-compatible endpoint) — default model <code>gpt-4o</code>.</li>
-            <li><strong>Ollama</strong> — self-hosted, set <code>endpoint</code> to the Ollama server URL.</li>
+            <li><strong>Ollama</strong> — self-hosted, set <em>Endpoint</em> to the Ollama server URL.</li>
           </ul>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/ai-configs-create-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/ai-configs-create-dark.png"
+                   alt="New AI configuration wizard, Connection step, with the model pre-filled as claude-sonnet-4-20250514, an empty API key field, and timeout / max prompt tokens / max completion tokens at their defaults."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-configs/new</code> — three-step wizard: <em>Provider → Connection → Test</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama). The wizard pre-fills the default model for the provider you chose.</li>
+            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama; supply an <em>Endpoint</em> URL instead). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
+            <li><strong>Test.</strong> The wizard sends a synthetic SQL snippet to the provider and shows the score, risk level, and any issues so you can confirm the credentials and model are working before you save.</li>
+          </ol>
           <p>
-            <strong>Set the AI config</strong> — <code>PUT /api/v1/admin/ai-configs</code>:
-          </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"provider"</span>: <span class="c-str">"ANTHROPIC"</span>,
-  <span class="c-kw">"model"</span>:    <span class="c-str">"claude-sonnet-4-20250514"</span>,
-  <span class="c-kw">"api_key"</span>:  <span class="c-str">"sk-ant-..."</span>
-}
-</pre>
-          </div>
-          <p>
-            For Ollama, add <code>"endpoint": "http://ollama:11434"</code> (and leave
-            <code>api_key</code> empty). Provider switches take effect immediately — no restart
-            is required. Verify the connection with
-            <code>POST /api/v1/admin/ai-configs/{id}/test</code> before relying on it in a
-            review plan.
+            Provider switches take effect immediately — no restart is required. Once saved, link
+            the configuration to a datasource (<a href="#cfg-datasources">Datasources</a> → <em>Configuration</em> step) or to a review plan, and AccessFlow scores every matching submission against it.
           </p>
           <div class="docs-callout info">
             <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
@@ -662,20 +606,30 @@ APPROVED → FAILED (execution error)</pre>
             organization; multiple channels of the same type can coexist (e.g. one Slack channel
             per team).
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/notification-channels-create-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/notification-channels-create-dark.png"
+                   alt="Add notification channel modal with name, channel type selected as EMAIL, active toggle on, and conditional SMTP fields revealed — host, port, user, password, TLS toggle, from address, and from name."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email / Slack / Webhook fields when you change <em>Type</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/notifications</code></strong> and click <em>Add channel</em>.</li>
+            <li><strong>Pick a type:</strong>
+              <ul>
+                <li><strong>Email</strong> — supply SMTP host, port, optional user / password, TLS, and the <em>From</em> address / display name. Leave the SMTP fields blank to fall back on the <a href="#cfg-smtp">system SMTP</a>.</li>
+                <li><strong>Slack</strong> — paste an incoming-webhook URL; messages use Block Kit so the SQL preview and action buttons render natively.</li>
+                <li><strong>Webhook</strong> — supply a target URL and a signing secret. Every POST carries <code>X-AccessFlow-Signature: sha256=...</code> computed from the body and the secret.</li>
+              </ul>
+            </li>
+            <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
+          </ol>
           <p>
-            <strong>Three channel types</strong> — <code>POST /api/v1/admin/notification-channels</code>:
-          </p>
-          <ul>
-            <li><strong>Email</strong> — <code>config</code> carries <code>smtp_host</code>, <code>smtp_port</code>, <code>smtp_user</code>, <code>smtp_password</code>, <code>smtp_tls</code>, <code>from_address</code>, <code>from_name</code>. Falls back to the system SMTP when omitted.</li>
-            <li><strong>Slack</strong> — <code>config</code> carries an incoming-webhook <code>webhook_url</code>, optional <code>channel</code> override, optional <code>mention_users</code>. Messages use Slack Block Kit so the SQL preview and action buttons render natively.</li>
-            <li><strong>Webhook</strong> — <code>config</code> carries <code>url</code>, <code>secret</code> (used to compute <code>X-AccessFlow-Signature: sha256=...</code>), <code>timeout_seconds</code>, <code>retry_attempts</code>.</li>
-          </ul>
-          <p>
-            Sensitive config fields (<code>smtp_password</code>, <code>webhook_secret</code>) are
-            AES-256-GCM encrypted at rest and are never returned in <code>GET</code> responses.
-            Verify a channel with
-            <code>POST /api/v1/admin/notification-channels/{id}/test</code> — the dispatcher
-            sends a synthetic event and reports delivery success.
+            Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>) are
+            AES-256-GCM encrypted at rest and are never shown in plaintext after the channel is
+            saved.
           </p>
           <div class="docs-callout info">
             <strong>Webhook retry policy.</strong> One immediate attempt plus three scheduled
@@ -690,31 +644,25 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             System SMTP is the fallback for transactional emails — password resets, invitations,
             and any notification email channel that doesn't carry its own SMTP overrides.
-            Configure once per org:
+            Configure once per org.
           </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json — PUT /api/v1/admin/system-smtp</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"host"</span>:         <span class="c-str">"smtp.company.com"</span>,
-  <span class="c-kw">"port"</span>:         587,
-  <span class="c-kw">"username"</span>:     <span class="c-str">"smtp-user"</span>,
-  <span class="c-kw">"password"</span>:     <span class="c-str">"<i>encrypted at rest</i>"</span>,
-  <span class="c-kw">"tls"</span>:          <span class="c-str">true</span>,
-  <span class="c-kw">"from_address"</span>: <span class="c-str">"accessflow@company.com"</span>
-}
-</pre>
-          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/system-smtp-edit-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/system-smtp-edit-dark.png"
+                   alt="System SMTP configuration modal with host, port (587), optional username, password, STARTTLS toggle, from-address, and optional display-name fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/notifications</code> → <em>System SMTP</em> card → <em>Configure</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/notifications</code></strong>. The first card is <em>System SMTP</em> — click <em>Configure</em> (or <em>Edit</em> if it's already set).</li>
+            <li><strong>Fill the form.</strong> Host, port (587 for STARTTLS, 465 for implicit TLS), optional username and password, STARTTLS toggle, and the <em>From</em> address — required and validated as an email. The password field shows <em>"Leave blank to keep the existing password"</em> when editing, so secrets aren't echoed back.</li>
+            <li><strong>Send a test email.</strong> After saving, the card exposes a sink-address input + <em>Send test</em> button so you can verify deliverability without firing a real workflow event.</li>
+          </ol>
           <p>
-            Verify with <code>POST /api/v1/admin/system-smtp/test</code> — the server tries a
-            real send to a sink address you supply. Remove with
-            <code>DELETE /api/v1/admin/system-smtp</code> if you'd rather rely solely on
-            per-channel email config.
+            The password is AES-256-GCM encrypted at rest. Delete the row from the same card if
+            you'd rather rely solely on per-channel email overrides.
           </p>
 
           <!-- OAuth -->
@@ -723,14 +671,23 @@ APPROVED → FAILED (execution error)</pre>
             Sign-in with Google, GitHub, Microsoft, and GitLab is built-in — operators only need
             to register an OAuth app with the provider and store the client id / secret in
             AccessFlow. Other OIDC providers work the same way; the configuration lives in the
-            database (<code>oauth2_config</code> rows), not in <code>application.yml</code>, so
-            adding a new provider does not require a restart.
+            database, not in <code>application.yml</code>, so adding a new provider does not
+            require a restart.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/oauth2-google-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/oauth2-google-dark.png"
+                   alt="OAuth providers admin page with the Google tab selected. An info callout shows the redirect URI to register at the provider with a copy button, followed by Client ID and Client secret fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/oauth2</code> — one tab per built-in provider (Google / GitHub / Microsoft / GitLab). Each tab carries its own redirect URI and provider-specific guidance.</figcaption>
+          </figure>
           <ol>
-            <li>Register an OAuth app at the provider; set the redirect URI to <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth/{provider}/callback</code>.</li>
-            <li>From the admin UI, paste the <code>client_id</code> + <code>client_secret</code> and pick the built-in template (Google / GitHub / Microsoft / GitLab) or fill in the OIDC discovery URL for a custom provider.</li>
-            <li>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code> if the frontend lives at a different origin than the backend's CORS origin (default is <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
-            <li>Optional: enable auto-provisioning so first-time sign-ins create a user with a default role.</li>
+            <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The format is <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth2/callback/{provider}</code>.</li>
+            <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims.</li>
+            <li><strong>Pick a default role</strong> for first-time sign-ins (defaults to <code>READONLY</code>) and flip <em>Active</em> on to enable the provider's button on the login page.</li>
+            <li><strong>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code></strong> if the frontend lives at a different origin than the backend's CORS origin (default <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
           </ol>
           <p>
             Email verification is required before an OAuth account is linked, and account-linking
@@ -743,30 +700,27 @@ APPROVED → FAILED (execution error)</pre>
           <!-- SAML -->
           <h3 id="cfg-saml">SAML 2.0 SSO</h3>
           <p>
-            For SAML-based SSO (Okta, Azure AD, OneLogin, etc.) configure one record per org via
-            <code>PUT /api/v1/admin/saml-config</code>:
+            For SAML-based SSO (Okta, Azure AD, OneLogin, etc.) configure one record per
+            organization. Both SP-initiated and IdP-initiated flows are supported.
           </p>
-          <div class="code-block">
-            <div class="code-block-head">
-              <span class="mono">json</span>
-              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                <span data-copy-label>copy</span>
-              </button>
-            </div>
-<pre>{
-  <span class="c-kw">"sp_entity_id"</span>:     <span class="c-str">"https://accessflow.company.com/saml"</span>,
-  <span class="c-kw">"idp_metadata_url"</span>: <span class="c-str">"https://idp.company.com/saml/metadata"</span>,
-  <span class="c-kw">"keystore"</span>:         <span class="c-str">"<i>base64-encoded JKS or P12</i>"</span>,
-  <span class="c-kw">"keystore_password"</span>:<span class="c-str">"<i>encrypted at rest</i>"</span>
-}
-</pre>
-          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/saml-config-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/saml-config-dark.png"
+                   alt="SAML / SSO admin page with three sections — Identity provider (IdP metadata URL, IdP entity ID, signing certificate PEM textarea), Service provider, and Attributes — each with empty form fields ready to fill."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/saml</code> — a single config form covering IdP metadata, SP entity, and attribute mapping.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/saml</code></strong>.</li>
+            <li><strong>Identity provider.</strong> Paste the <em>IdP metadata URL</em> (preferred — AccessFlow refreshes it periodically), or fall back to <em>IdP entity ID</em> + <em>Signing certificate (PEM)</em> when the IdP doesn't publish metadata over HTTP.</li>
+            <li><strong>Service provider.</strong> Set <em>SP entity ID</em>, <em>ACS URL</em>, and <em>SLO URL</em> — register these with your IdP.</li>
+            <li><strong>Attributes.</strong> Map the IdP assertion attributes that carry <em>email</em>, <em>display name</em>, and <em>role</em>. Pick a default role for users whose assertion doesn't include one, then flip <em>Active</em> on to enable the SAML button on the login page.</li>
+          </ol>
           <p>
-            Both SP-initiated and IdP-initiated flows are supported. Attribute mapping (email,
-            display name, role) and auto-provisioning behaviour are configurable; SAML users
-            rely on the IdP's MFA rather than AccessFlow's TOTP. Full SP metadata, signing-cert
-            rotation, and assertion validation rules live in
+            SAML users rely on the IdP's MFA rather than AccessFlow's TOTP. Full SP metadata,
+            signing-cert rotation, and assertion validation rules live in
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>.
           </p>
         </section>
