@@ -35,8 +35,10 @@
 | `POST` | `/auth/password/forgot` | Public — request a password-reset email. Always returns 202 (enumeration-safe). |
 | `GET` | `/auth/password/reset/{token}` | Public — preview a reset token (email, expiry). |
 | `POST` | `/auth/password/reset/{token}` | Public — set a new password using a valid reset token. Revokes all sessions on success. |
-| `GET` | `/auth/saml/metadata` | Returns SP SAML metadata XML |
-| `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint |
+| `GET` | `/auth/saml/init/{registrationId}` | Builds the IdP-bound `AuthnRequest` and 302s the browser there. `registrationId=default` matches the single registration AccessFlow exposes today. |
+| `GET` | `/auth/saml/metadata/{registrationId}` | Returns SP SAML metadata XML for the named registration |
+| `POST` | `/auth/saml/acs` | SAML Assertion Consumer Service endpoint. After validation the success handler redirects to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<one-time-code>` |
+| `POST` | `/auth/saml/exchange` | Trade the one-time code emitted by the success handler for a JWT pair + refresh cookie |
 | `GET` | `/auth/saml/enabled` | Public — `{ "enabled": boolean }` so the login page can hide the SAML button until an admin activates it |
 | `GET` | `/auth/oauth2/providers` | Public — list enabled OAuth2 providers for the deployment |
 | `GET` | `/auth/oauth2/authorize/{provider}` | Redirects the browser to the provider's authorization endpoint (handled by Spring Security) |
@@ -1830,6 +1832,59 @@ Trade the one-time `code` emitted by the success handler for an access token + r
 ```
 
 **Response 200:** identical shape to `POST /auth/login` (access token, token type, expires-in, user summary). Sets the same `refresh_token` HttpOnly cookie.
+
+**Errors:**
+
+| Code | Status | Cause |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | `code` is missing or empty |
+| `UNAUTHORIZED` | 401 | Code is invalid, expired, or already consumed |
+
+### GET /auth/saml/init/{registrationId}
+
+Handled by Spring Security's SAML2 `Saml2WebSsoAuthenticationRequestFilter`. Builds a signed `AuthnRequest` using the SP keypair (env-var override or auto-generated and persisted in `saml_config`), then 302s the browser to the IdP's SSO endpoint. `{registrationId}` is `default` — AccessFlow exposes a single registration per deployment.
+
+**Response 302:** Redirect to the configured IdP SSO endpoint with the `SAMLRequest` parameter set.
+
+The button on `LoginPage` calls this endpoint via a full-document navigation (`window.location.assign`) because the redirect chain crosses to the IdP and back; it cannot be performed as a fetch.
+
+### GET /auth/saml/metadata/{registrationId}
+
+Returns the AccessFlow SP metadata XML for the named registration. The metadata embeds the SP signing certificate (so the IdP can verify AccessFlow-signed requests), the ACS URL, the SP entity ID, and the configured `NameID` formats. Public — no JWT required. Typically consumed by the IdP at trust-bootstrap time.
+
+**Response 200:** `application/samlmetadata+xml` document.
+
+### POST /auth/saml/acs
+
+Assertion Consumer Service. The IdP POSTs the signed `SAMLResponse` (form-encoded, `SAMLResponse` and optional `RelayState` parameters) to this endpoint. Spring Security validates the signature against the IdP cert stored in `saml_config.signing_cert_pem`, then invokes the success / failure handler.
+
+On success the handler extracts the email / display name / role attributes per `saml_config.attr_*` mappings, JIT-provisions the AccessFlow user with `auth_provider=SAML`, mints a one-time exchange code, and 302s the browser to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<one-time-exchange-code>`. On failure the browser is redirected to the same URL with `?error=<code>`.
+
+Possible error codes:
+
+| Code | Cause |
+|---|---|
+| `SAML_LOGIN_FAILED` | Generic Spring Security SAML2 failure that did not map to a more specific code |
+| `SAML_SIGNATURE_INVALID` | The IdP-signed assertion did not validate against the configured IdP certificate |
+| `SAML_ASSERTION_INVALID` | Malformed XML, wrong destination/issuer, missing subject, or replay window violated |
+| `SAML_EMAIL_MISSING` | The assertion did not include the configured `attr_email` attribute |
+| `SAML_LOCAL_EMAIL_CONFLICT` | An existing AccessFlow account with the same email uses local password auth — admin must intervene |
+| `SAML_NOT_CONFIGURED` | No active SAML registration exists for this deployment |
+| `SAML_UNEXPECTED_AUTH` | Spring Security did not pass back a `Saml2Authentication` (should not happen in practice) |
+| `ACCOUNT_DISABLED` | The matched user is inactive |
+
+Tokens never appear in the redirect URL — only the one-time `code`, which the frontend trades via `POST /auth/saml/exchange` for the standard JWT envelope.
+
+### POST /auth/saml/exchange
+
+Trade the one-time `code` emitted by the SAML success handler for an access token + refresh cookie. Codes are single-use and short-lived (default 60s in Redis, configurable via `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL`). The Redis key namespace (`saml:exchange:`) is distinct from the OAuth2 store so codes cannot be cross-replayed. Public — no JWT required.
+
+**Request:**
+```json
+{ "code": "rAnD0m-BaSe64-UrL" }
+```
+
+**Response 200:** identical shape to `POST /auth/login`. The returned `user.auth_provider` is `SAML`. Sets the same `refresh_token` HttpOnly cookie.
 
 **Errors:**
 

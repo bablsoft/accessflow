@@ -107,8 +107,8 @@ export function LoginPage() {
   };
 
   const samlLogin = () => {
-    // SAML SSO is wired in a follow-up; FE-01 covers /auth/* local auth only.
-    setError({ message: t('auth.login.saml_not_configured') });
+    const base = apiBaseUrl().replace(/\/+$/, '');
+    window.location.assign(`${base}/api/v1/auth/saml/init/default`);
   };
 
   const oauth2ProvidersQuery = useQuery({

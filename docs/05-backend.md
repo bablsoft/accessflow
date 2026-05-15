@@ -69,16 +69,58 @@ accessflow:
     url: ${REDIS_URL:redis://localhost:6379}
 ```
 
-### SAML 2.0 SSO overlay (optional)
+### SAML 2.0 SSO (DB-driven)
 
-```yaml
-accessflow:
-  saml:
-    sp-entity-id: https://accessflow.company.com/saml/metadata
-    idp-metadata-url: ${SAML_IDP_METADATA_URL}
-    keystore-path: ${SAML_KEYSTORE_PATH}
-    keystore-password: ${SAML_KEYSTORE_PASSWORD}
-```
+SAML is configured entirely from the admin UI (`/admin/saml`) — there is no
+`spring.security.saml2.relyingparty.*` in `application.yml`. The flow is:
+
+1. Browser hits `GET /api/v1/auth/saml/init/default`.
+2. `DynamicRelyingPartyRegistrationRepository.findByRegistrationId("default")` builds a Spring
+   Security `RelyingPartyRegistration` on demand from the active `saml_config` row. The IdP
+   asserting-party metadata is bootstrapped from `idp_metadata_url`; the IdP signing cert (used
+   for response verification) is decrypted from `signing_cert_pem`; the SP signing keypair (used
+   to sign AuthnRequests and shipped in the SP metadata XML) comes from
+   `SamlSpKeyProvider.resolve(orgId)`. The repository caches the assembled registration and
+   evicts on `SamlConfigUpdatedEvent` — same pattern as `DynamicClientRegistrationRepository`,
+   no application restart.
+3. Spring's `Saml2WebSsoAuthenticationRequestFilter` builds the signed AuthnRequest and 302s
+   the browser to the IdP SSO endpoint.
+4. The IdP POSTs the signed `SAMLResponse` to `POST /api/v1/auth/saml/acs`. Spring validates
+   the signature against the IdP cert and constructs a `Saml2Authentication`.
+5. `SamlLoginSuccessHandler` runs: maps the assertion attributes through
+   `SamlAttributeMapper` (per `saml_config.attr_email` / `attr_display_name` / `attr_role`),
+   JIT-provisions the user through `UserProvisioningService.findOrProvision` with
+   `AuthProviderType.SAML`, issues a one-time exchange code through `SamlExchangeCodeStore`
+   (Redis, 60 s default TTL — namespace `saml:exchange:` separate from OAuth2), records
+   `USER_LOGIN` audit, and 302s to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<one-time-code>`.
+   Failures go through `SamlLoginFailureHandler`, which maps Spring's `Saml2ErrorCodes`
+   onto short codes (`SAML_SIGNATURE_INVALID`, `SAML_ASSERTION_INVALID`,
+   `SAML_NOT_CONFIGURED`, etc.) and redirects with `?error=<code>`.
+6. The frontend `SamlCallbackPage` POSTs the code to `/api/v1/auth/saml/exchange`.
+   `SamlExchangeController` consumes the code, calls `AuthenticationService.issueForUser`
+   to mint the standard JWT pair, sets the refresh-token cookie via `RefreshCookieWriter`, and
+   returns the same `LoginResponse` shape as `/auth/login`.
+
+SP keypair sourcing (`SamlSpKeyProvider`) follows a hybrid env-var override + auto-generate
+fallback model. When both `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` and
+`ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` are set, those values are used verbatim. Otherwise the
+provider generates a self-signed RSA-2048 keypair on first use, encrypts the private key with
+`ENCRYPTION_KEY`, and persists the pair into `saml_config.sp_private_key_pem` /
+`saml_config.sp_certificate_pem` so it survives restarts. A `ConcurrentHashMap`-backed per-org
+lock prevents two concurrent first-time calls from racing.
+
+`SecurityConfiguration` declares three `SecurityFilterChain` beans:
+
+- `@Order(1)` matches the SAML `/init/**`, `/acs`, `/acs/**`, and `/metadata/**` paths and
+  runs Spring's `saml2Login()` and `saml2Metadata()` configurers with
+  `sessionCreationPolicy(IF_REQUIRED)` (the redirect dance needs the session for a few seconds).
+- `@Order(2)` matches the OAuth2 authorize / callback paths.
+- `@Order(3)` is the stateless chain that owns the rest of the API; `/api/v1/auth/saml/exchange`
+  and `/api/v1/auth/saml/metadata/**` are added to its `permitAll()` list.
+
+Account-linking model — the success handler rejects with `SAML_LOCAL_EMAIL_CONFLICT` if an
+existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin
+must manually convert the account. See [docs/07-security.md](07-security.md).
 
 ### OAuth 2.0 / OIDC login (DB-driven)
 
@@ -106,12 +148,9 @@ OAuth providers are configured entirely from the admin UI (`/admin/oauth2`) — 
    to mint the standard JWT pair, sets the refresh-token cookie via `RefreshCookieWriter`, and
    returns the same `LoginResponse` shape as `/auth/login`.
 
-`SecurityConfiguration` declares two `SecurityFilterChain` beans:
-
-- `@Order(1)` matches only the OAuth2 authorize / callback paths and runs Spring's
-  `oauth2Login()` configurer with `sessionCreationPolicy(IF_REQUIRED)` (the redirect dance
-  needs the session for a few seconds).
-- `@Order(2)` is the existing stateless chain that owns the rest of the API.
+The OAuth2 chain lives at `@Order(2)` in `SecurityConfiguration` (SAML claims `@Order(1)`,
+the stateless API chain is `@Order(3)`). It runs Spring's `oauth2Login()` configurer with
+`sessionCreationPolicy(IF_REQUIRED)` (the redirect dance needs the session for a few seconds).
 
 Account-linking model — the success handler rejects with `OAUTH2_LOCAL_EMAIL_CONFLICT` if an
 existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin

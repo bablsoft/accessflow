@@ -6,6 +6,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
+const SamlCallbackPage = lazy(() => import('@/pages/auth/SamlCallbackPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
@@ -85,6 +86,14 @@ export function App() {
           element={
             <Suspense fallback={null}>
               <OAuthCallbackPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/auth/saml/callback"
+          element={
+            <Suspense fallback={null}>
+              <SamlCallbackPage />
             </Suspense>
           }
         />

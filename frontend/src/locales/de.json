@@ -101,6 +101,22 @@
         "generic": "Single Sign-on ist fehlgeschlagen. Bitte erneut versuchen."
       }
     },
+    "saml_callback": {
+      "exchanging": "Anmeldung läuft…",
+      "error_title": "SAML-Anmeldung wurde nicht abgeschlossen",
+      "back_to_login": "Zurück zur Anmeldung",
+      "error": {
+        "saml_login_failed": "Die Anmeldung über SAML konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
+        "saml_email_missing": "Dein Identity Provider hat kein E-Mail-Attribut zurückgegeben. Bitte deinen Administrator, das Attribut-Mapping zu aktualisieren.",
+        "saml_local_email_conflict": "Es existiert bereits ein AccessFlow-Konto mit dieser E-Mail-Adresse, das ein Passwort verwendet. Bitte deinen Administrator, das Konto vor einem erneuten Versuch auf Single Sign-on umzustellen.",
+        "saml_signature_invalid": "Die Signatur der SAML-Antwort stimmt nicht mit dem konfigurierten IdP-Zertifikat überein. Bitte deinen Administrator, das Zertifikat zu prüfen.",
+        "saml_assertion_invalid": "Die SAML-Antwort konnte nicht validiert werden. Bitte erneut versuchen oder den Administrator die IdP-Konfiguration prüfen lassen.",
+        "saml_not_configured": "SAML SSO ist für diese Bereitstellung nicht konfiguriert.",
+        "saml_unexpected_auth": "SAML SSO hat einen unerwarteten Authentifizierungsstatus zurückgegeben.",
+        "account_disabled": "Dein AccessFlow-Konto ist derzeit deaktiviert.",
+        "generic": "SAML-Anmeldung ist fehlgeschlagen. Bitte erneut versuchen."
+      }
+    },
     "setup": {
       "title": "Ersten Administrator erstellen",
       "subtitle": "Es wurde kein aktiver Administrator gefunden. Richte deine Organisation und das erste Administratorkonto ein, um zu starten.",

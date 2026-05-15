@@ -71,3 +71,11 @@ export async function exchangeOAuth2Code(code: string): Promise<LoginPayload> {
   );
   return { access_token: data.access_token, expires_in: data.expires_in, user: data.user };
 }
+
+export async function exchangeSamlCode(code: string): Promise<LoginPayload> {
+  const { data } = await apiClient.post<RawLoginResponse>(
+    '/api/v1/auth/saml/exchange',
+    { code },
+  );
+  return { access_token: data.access_token, expires_in: data.expires_in, user: data.user };
+}

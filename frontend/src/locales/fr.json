@@ -101,6 +101,22 @@
         "generic": "L'authentification unique a échoué. Veuillez réessayer."
       }
     },
+    "saml_callback": {
+      "exchanging": "Connexion en cours…",
+      "error_title": "La connexion SAML n'a pas abouti",
+      "back_to_login": "Retour à la connexion",
+      "error": {
+        "saml_login_failed": "Nous n'avons pas pu terminer la connexion via SAML. Veuillez réessayer.",
+        "saml_email_missing": "Votre fournisseur d'identité n'a pas renvoyé d'attribut e-mail. Demandez à votre administrateur de mettre à jour la cartographie des attributs.",
+        "saml_local_email_conflict": "Un compte AccessFlow avec cet e-mail utilise déjà un mot de passe. Demandez à un administrateur de basculer le compte en authentification unique avant de réessayer.",
+        "saml_signature_invalid": "La signature de la réponse SAML ne correspond pas au certificat IdP configuré. Demandez à votre administrateur de vérifier le certificat.",
+        "saml_assertion_invalid": "La réponse SAML n'a pas pu être validée. Veuillez réessayer ou demander à votre administrateur de vérifier la configuration de l'IdP.",
+        "saml_not_configured": "L'authentification SAML n'est pas configurée pour ce déploiement.",
+        "saml_unexpected_auth": "L'authentification SAML a renvoyé un état d'authentification inattendu.",
+        "account_disabled": "Votre compte AccessFlow est actuellement désactivé.",
+        "generic": "La connexion SAML a échoué. Veuillez réessayer."
+      }
+    },
     "setup": {
       "title": "Créer le premier administrateur",
       "subtitle": "Aucun administrateur actif n'a été trouvé. Configure ton organisation et le premier compte administrateur pour commencer.",

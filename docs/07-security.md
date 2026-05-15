@@ -38,14 +38,18 @@ The realtime endpoint at `/ws` is exempt from `JwtAuthenticationFilter` and auth
 
 All JWT mechanisms remain in place. Additionally:
 
-- SP-initiated and IdP-initiated SSO flows supported
-- Spring Security SAML2 extension handles assertion parsing and validation
+- SP-initiated flow is exposed at `GET /api/v1/auth/saml/init/default` (302 to IdP). IdP-initiated flows also work because Spring Security SAML2 accepts unsolicited SAMLResponses at `POST /api/v1/auth/saml/acs`.
+- Configuration is **fully DB-driven** (`saml_config` row per organization). Admins paste the IdP metadata URL + IdP signing certificate from `/admin/saml`; no `spring.security.saml2.*` properties.
+- The SP signing keypair (used to sign AuthnRequests and shipped in `GET /api/v1/auth/saml/metadata/{registrationId}`) follows a **hybrid env-var override + auto-generate fallback** sourcing model:
+  - When both `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` and `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` are populated, those values are used verbatim. The operator owns rotation; AccessFlow never persists this material.
+  - Otherwise, on the first call that needs the keypair (`/init`, `/metadata`, or `/acs`) AccessFlow generates a self-signed RSA-2048 keypair, encrypts the private key with `ENCRYPTION_KEY` (AES-256-GCM via `CredentialEncryptionService`), and persists both PEMs into `saml_config.sp_private_key_pem` / `saml_config.sp_certificate_pem` so the values survive restarts.
 - On successful SAML assertion:
-  1. Extract `NameID` as `saml_subject`
-  2. Look up user by `saml_subject` — create if `auto_provision_users=true`
-  3. Map SAML attributes to `display_name`, `email`, `role` per `attribute_mapping` config
-  4. Issue standard JWT pair — same token format as for local logins
-- SAML session lifetime respected: when IdP sends `SessionNotOnOrAfter`, refresh tokens beyond that time are rejected
+  1. Extract `attr_email`, `attr_display_name`, optional `attr_role` per the org's mapping config (defaults `email` / `displayName`).
+  2. Look up the user by email. If they already exist with `auth_provider=SAML`, the row is reused. If they exist with `auth_provider=LOCAL` and a populated `password_hash`, sign-in is rejected with `SAML_LOCAL_EMAIL_CONFLICT` — auto-linking is unsafe because anyone able to assert the same email at the IdP could otherwise take over the local account.
+  3. Otherwise JIT-provision a new user with `auth_provider=SAML` and `role = saml_config.default_role` (or the asserted role when `attr_role` is configured and the value matches a known `UserRoleType`).
+  4. Mint a one-time exchange code in Redis (`saml:exchange:` namespace, 60s default TTL configurable via `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL`) and 302 to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<code>`. The frontend posts the code to `/api/v1/auth/saml/exchange`, which consumes it (single-use) and returns the same JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL.
+- Both successful and failed sign-ins write to `audit_log` via `USER_LOGIN` / `USER_LOGIN_FAILED`.
+- SAML session lifetime: when the IdP sends `SessionNotOnOrAfter`, the access token TTL is capped at that horizon; refresh tokens issued before that timestamp continue to work up to it.
 
 ### OAuth 2.0 / OIDC SSO
 

@@ -592,6 +592,10 @@ Two layers exist:
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:5173` | Frontend origin for CORS policy |
 | `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Optional | `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback` | Where the OAuth2 success/failure handler redirects after the provider roundtrip. The frontend `OAuthCallbackPage` parses `?code=` or `?error=` from the query string. |
 | `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time exchange code in Redis. Codes are single-use; keep short. |
+| `ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL` | Optional | `${CORS_ALLOWED_ORIGIN}/auth/saml/callback` | Where the SAML success / failure handler redirects after the IdP roundtrip. The frontend `SamlCallbackPage` parses `?code=` or `?error=` from the query string. |
+| `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time SAML exchange code in Redis (separate `saml:exchange:` namespace from OAuth2). |
+| `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional | — | PEM-encoded RSA private key for the SP. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. The operator owns rotation. |
+| `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional | — | PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow and persists the encrypted private key + cleartext cert into `saml_config` so it survives restarts. |
 
 #### Customer-DB Proxy (HikariCP + Execution)
 

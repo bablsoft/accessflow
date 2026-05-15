@@ -101,6 +101,22 @@
         "generic": "Single sign-on failed. Please try again."
       }
     },
+    "saml_callback": {
+      "exchanging": "Signing you in…",
+      "error_title": "SAML sign-on did not complete",
+      "back_to_login": "Back to sign in",
+      "error": {
+        "saml_login_failed": "We could not complete the sign-in via SAML. Please try again.",
+        "saml_email_missing": "Your identity provider did not return an email attribute. Ask your administrator to update the attribute mapping.",
+        "saml_local_email_conflict": "An AccessFlow account with this email already uses a password. Ask an administrator to switch the account to single sign-on before retrying.",
+        "saml_signature_invalid": "The SAML response signature did not match the configured IdP certificate. Ask your administrator to verify the certificate.",
+        "saml_assertion_invalid": "The SAML response could not be validated. Please try again or ask your administrator to verify the IdP configuration.",
+        "saml_not_configured": "SAML SSO is not configured for this deployment.",
+        "saml_unexpected_auth": "SAML SSO returned an unexpected authentication state.",
+        "account_disabled": "Your AccessFlow account is currently disabled.",
+        "generic": "SAML sign-on failed. Please try again."
+      }
+    },
     "setup": {
       "title": "Create the first admin",
       "subtitle": "No active admin user was found. Set up your organization and the first admin account to get started.",

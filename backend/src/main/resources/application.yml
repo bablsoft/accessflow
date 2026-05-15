@@ -137,6 +137,19 @@ accessflow:
     frontend-callback-url: ${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL:${accessflow.cors.allowed-origin}/auth/oauth/callback}
     # One-time exchange code lifetime in Redis. Keep short — codes are single-use anyway.
     exchange-code-ttl: ${ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL:PT1M}
+  saml:
+    # Where the SAML success / failure handler redirects after the IdP roundtrip completes.
+    # The frontend parses ?code= or ?error= from the query string and posts to /auth/saml/exchange.
+    frontend-callback-url: ${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL:${accessflow.cors.allowed-origin}/auth/saml/callback}
+    # One-time exchange code lifetime in Redis. Keep short — codes are single-use anyway.
+    exchange-code-ttl: ${ACCESSFLOW_SAML_EXCHANGE_CODE_TTL:PT1M}
+    sp:
+      # Optional. When both env vars are set, this PEM-encoded RSA private key + X.509 cert pair is
+      # used to sign AuthnRequest messages and ship in the SP metadata XML. When unset, AccessFlow
+      # auto-generates a self-signed RSA-2048 keypair on first SAML flow and persists it (encrypted)
+      # in the saml_config row so it survives restarts.
+      signing-key-pem: ${ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM:}
+      signing-cert-pem: ${ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM:}
   # Env-driven startup bootstrap of admin config (org, admin user, review plans, AI configs,
   # datasources, SAML, OAuth2, notification channels, system SMTP). Disabled by default so the
   # setup wizard remains the path for non-K8s installs. See docs/09-deployment.md →

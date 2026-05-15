@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.security.api.SamlConfigView;
 import com.bablsoft.accessflow.security.api.UpdateSamlConfigCommand;
 import com.bablsoft.accessflow.security.internal.persistence.entity.SamlConfigEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
+import com.bablsoft.accessflow.security.internal.saml.events.SamlConfigUpdatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ class DefaultSamlConfigService implements SamlConfigService {
 
     private final SamlConfigRepository repository;
     private final CredentialEncryptionService encryptionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -65,7 +68,9 @@ class DefaultSamlConfigService implements SamlConfigService {
             entity.setActive(command.active());
         }
         entity.setUpdatedAt(Instant.now());
-        return toView(repository.save(entity));
+        var saved = repository.save(entity);
+        eventPublisher.publishEvent(new SamlConfigUpdatedEvent(organizationId));
+        return toView(saved);
     }
 
     private void applySigningCert(SamlConfigEntity entity, String submitted) {
