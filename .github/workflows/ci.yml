@@ -160,12 +160,18 @@ jobs:
       - name: Lint chart
         run: helm lint charts/accessflow
 
-      - name: Render with defaults (bundled Postgres + Redis)
+      - name: Render with defaults (bundled Postgres + Redis, auto-generated secrets)
+        run: |
+          helm template accessflow charts/accessflow \
+            > /tmp/rendered-defaults.yaml
+
+      - name: Render with externally-managed secrets (existingSecret overrides)
         run: |
           helm template accessflow charts/accessflow \
             --set config.encryptionKey.existingSecret=accessflow-encryption-key \
             --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
-            > /tmp/rendered-defaults.yaml
+            --set postgresql.auth.existingSecret=accessflow-pg-secret \
+            > /tmp/rendered-existing-secrets.yaml
 
       - name: Render with external Postgres + Redis
         run: |
@@ -175,9 +181,14 @@ jobs:
             --set externalDatabase.host=db.example.com \
             --set externalDatabase.existingSecret=external-db-secret \
             --set externalRedis.url=redis://r.example.com:6379 \
-            --set config.encryptionKey.existingSecret=accessflow-encryption-key \
-            --set config.jwtPrivateKey.existingSecret=accessflow-jwt-key \
             > /tmp/rendered-external.yaml
+
+      - name: Render with ingress TLS enabled
+        run: |
+          helm template accessflow charts/accessflow \
+            --set ingress.tls.enabled=true \
+            --set ingress.tls.secretName=accessflow-tls \
+            > /tmp/rendered-ingress-tls.yaml
 
       - name: Render with bootstrap.* fixture (every *SecretRef path)
         run: |
