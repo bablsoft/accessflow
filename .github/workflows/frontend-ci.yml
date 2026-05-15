@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
