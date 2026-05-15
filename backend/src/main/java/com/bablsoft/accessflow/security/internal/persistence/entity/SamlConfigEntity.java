@@ -50,6 +50,14 @@ public class SamlConfigEntity {
     @Column(name = "signing_cert_pem", columnDefinition = "text")
     private String signingCertPem;
 
+    @JsonIgnore
+    @Column(name = "sp_private_key_pem", columnDefinition = "text")
+    private String spPrivateKeyPem;
+
+    @JsonIgnore
+    @Column(name = "sp_certificate_pem", columnDefinition = "text")
+    private String spCertificatePem;
+
     @Column(name = "attr_email", nullable = false, length = 255)
     private String attrEmail = "email";
 

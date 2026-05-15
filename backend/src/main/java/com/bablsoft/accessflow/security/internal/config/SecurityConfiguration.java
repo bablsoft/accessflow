@@ -5,6 +5,9 @@ import com.bablsoft.accessflow.security.internal.filter.JwtAuthenticationFilter;
 import com.bablsoft.accessflow.security.internal.oauth2.DynamicClientRegistrationRepository;
 import com.bablsoft.accessflow.security.internal.oauth2.OAuth2LoginFailureHandler;
 import com.bablsoft.accessflow.security.internal.oauth2.OAuth2LoginSuccessHandler;
+import com.bablsoft.accessflow.security.internal.saml.DynamicRelyingPartyRegistrationRepository;
+import com.bablsoft.accessflow.security.internal.saml.SamlLoginFailureHandler;
+import com.bablsoft.accessflow.security.internal.saml.SamlLoginSuccessHandler;
 import com.bablsoft.accessflow.security.internal.web.SecurityExceptionHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +40,39 @@ class SecurityConfiguration {
     private final CorsProperties corsProperties;
 
     /**
+     * Dedicated chain for the SAML redirect dance. {@code /init/{registrationId}} builds an
+     * AuthnRequest and 302s to the IdP; the IdP POSTs the signed SAMLResponse back to
+     * {@code /acs}; Spring's filters validate the assertion and pass the {@code Saml2Authentication}
+     * to {@link SamlLoginSuccessHandler}, which mints a one-time exchange code and redirects to
+     * the frontend. {@code /metadata/{registrationId}} returns the SP descriptor XML.
+     */
+    @Bean
+    @Order(1)
+    SecurityFilterChain samlFilterChain(HttpSecurity http,
+                                        DynamicRelyingPartyRegistrationRepository relyingPartyRegistrations,
+                                        SamlLoginSuccessHandler successHandler,
+                                        SamlLoginFailureHandler failureHandler) throws Exception {
+        http
+                .securityMatcher("/api/v1/auth/saml/init/**",
+                        "/api/v1/auth/saml/acs",
+                        "/api/v1/auth/saml/acs/**",
+                        "/api/v1/auth/saml/metadata/**")
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .saml2Login(s -> s
+                        .relyingPartyRegistrationRepository(relyingPartyRegistrations)
+                        .authenticationRequestUri("/api/v1/auth/saml/init/{registrationId}")
+                        .loginProcessingUrl("/api/v1/auth/saml/acs/{registrationId}")
+                        .successHandler(successHandler)
+                        .failureHandler(failureHandler))
+                .saml2Metadata(m -> m
+                        .metadataUrl("/api/v1/auth/saml/metadata/{registrationId}"));
+        return http.build();
+    }
+
+    /**
      * Dedicated chain for the OAuth2 redirect dance. The provider returns to {@code /callback/*}
      * with a code; Spring's OAuth2LoginAuthenticationFilter exchanges it, populates the
      * authentication, then our success handler issues a one-time exchange code and redirects to
@@ -44,7 +80,7 @@ class SecurityConfiguration {
      * relied on for anything else.
      */
     @Bean
-    @Order(1)
+    @Order(2)
     SecurityFilterChain oauth2FilterChain(HttpSecurity http,
                                           DynamicClientRegistrationRepository clientRegistrationRepository,
                                           OAuth2LoginSuccessHandler successHandler,
@@ -66,7 +102,7 @@ class SecurityConfiguration {
     }
 
     @Bean
-    @Order(2)
+    @Order(3)
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -88,7 +124,7 @@ class SecurityConfiguration {
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout",
                                 "/api/v1/auth/setup", "/api/v1/auth/setup-status",
                                 "/api/v1/auth/oauth2/providers", "/api/v1/auth/oauth2/exchange",
-                                "/api/v1/auth/saml/enabled",
+                                "/api/v1/auth/saml/enabled", "/api/v1/auth/saml/exchange",
                                 "/api/v1/auth/invitations/*", "/api/v1/auth/invitations/*/accept",
                                 "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset/*").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

@@ -74,6 +74,15 @@ describe('api/auth', () => {
     expect(result.access_token).toBe('t');
   });
 
+  it('exchangeSamlCode POSTs the code and unwraps the response', async () => {
+    post.mockResolvedValueOnce({
+      data: { access_token: 's', token_type: 'Bearer', expires_in: 900, user: userPayload },
+    });
+    const result = await authApi.exchangeSamlCode('SAML_CODE');
+    expect(post).toHaveBeenCalledWith('/api/v1/auth/saml/exchange', { code: 'SAML_CODE' });
+    expect(result.access_token).toBe('s');
+  });
+
   it('oauth2ProvidersKeys factory is stable', () => {
     expect(authApi.oauth2ProvidersKeys.all).toEqual(['oauth2Providers']);
   });

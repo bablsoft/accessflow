@@ -101,6 +101,22 @@
         "generic": "El inicio de sesión único falló. Inténtalo de nuevo."
       }
     },
+    "saml_callback": {
+      "exchanging": "Iniciando sesión…",
+      "error_title": "No se completó el inicio de sesión SAML",
+      "back_to_login": "Volver al inicio de sesión",
+      "error": {
+        "saml_login_failed": "No pudimos completar el inicio de sesión vía SAML. Inténtalo de nuevo.",
+        "saml_email_missing": "Tu proveedor de identidad no devolvió un atributo de correo. Pide al administrador que actualice la asignación de atributos.",
+        "saml_local_email_conflict": "Ya existe una cuenta de AccessFlow con este correo que usa contraseña. Pide al administrador que cambie la cuenta a inicio de sesión único antes de reintentar.",
+        "saml_signature_invalid": "La firma de la respuesta SAML no coincide con el certificado IdP configurado. Pide al administrador que verifique el certificado.",
+        "saml_assertion_invalid": "No se pudo validar la respuesta SAML. Inténtalo de nuevo o pide al administrador que verifique la configuración del IdP.",
+        "saml_not_configured": "SAML SSO no está configurado para este despliegue.",
+        "saml_unexpected_auth": "SAML SSO devolvió un estado de autenticación inesperado.",
+        "account_disabled": "Tu cuenta de AccessFlow está actualmente deshabilitada.",
+        "generic": "El inicio de sesión SAML falló. Inténtalo de nuevo."
+      }
+    },
     "setup": {
       "title": "Crear el primer administrador",
       "subtitle": "No se encontró ningún usuario administrador activo. Configura tu organización y la primera cuenta de administrador para empezar.",

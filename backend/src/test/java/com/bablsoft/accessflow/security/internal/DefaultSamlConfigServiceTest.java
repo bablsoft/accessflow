@@ -5,12 +5,14 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.UpdateSamlConfigCommand;
 import com.bablsoft.accessflow.security.internal.persistence.entity.SamlConfigEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
+import com.bablsoft.accessflow.security.internal.saml.events.SamlConfigUpdatedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -26,13 +28,14 @@ class DefaultSamlConfigServiceTest {
 
     @Mock SamlConfigRepository repository;
     @Mock CredentialEncryptionService encryptionService;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     private DefaultSamlConfigService service;
     private final UUID orgId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new DefaultSamlConfigService(repository, encryptionService);
+        service = new DefaultSamlConfigService(repository, encryptionService, eventPublisher);
     }
 
     @Test
@@ -118,6 +121,17 @@ class DefaultSamlConfigServiceTest {
 
         assertThat(view.attrEmail()).isEqualTo("email");
         assertThat(view.attrDisplayName()).isEqualTo("displayName");
+    }
+
+    @Test
+    void updatePublishesSamlConfigUpdatedEvent() {
+        var entity = seeded();
+        when(repository.findByOrganizationId(orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(SamlConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.update(orgId, partialCert(""));
+
+        verify(eventPublisher).publishEvent(new SamlConfigUpdatedEvent(orgId));
     }
 
     private UpdateSamlConfigCommand partialCert(String cert) {
