@@ -25,7 +25,7 @@
     "dayjs": "^1.11.20",
     "i18next": "^26.2.0",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.6",
     "react-i18next": "^17.0.8",
     "react-router-dom": "^7.15.0",
     "sql-formatter": "^15.7.3",
