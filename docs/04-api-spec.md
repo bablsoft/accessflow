@@ -484,7 +484,7 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 | `POST` | `/queries` | Submit a query for review/execution |
 | `GET` | `/queries` | List query requests (filterable by status, datasource, user, date range) |
 | `GET` | `/queries/{id}` | Get full query request details including AI analysis |
-| `DELETE` | `/queries/{id}` | Cancel a pending query (submitter only) |
+| `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI` or `PENDING_REVIEW`) |
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
@@ -616,6 +616,20 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 ```
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
+
+### POST /queries/{id}/cancel — Response 204
+
+Cancels a query that is still pending AI analysis or human review. The request body is empty.
+
+Authorization: only the original submitter may cancel the query (admins cannot cancel on behalf of someone else). Cancellation is permitted only while `status` is `PENDING_AI` or `PENDING_REVIEW`; once the query reaches any other state it is no longer cancellable.
+
+On success the query transitions to `CANCELLED`, a `QUERY_CANCELLED` audit row is written synchronously from the controller (capturing the caller's IP and User-Agent), and a `query.status_changed` WebSocket event is broadcast to subscribers.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `403 FORBIDDEN` — caller is not the original submitter.
+- `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization.
+- `409 QUERY_NOT_CANCELLABLE` — query is no longer in `PENDING_AI` or `PENDING_REVIEW`. The response carries the offending `currentStatus` as an extension property.
 
 ### GET /queries/{id}/results — Response 200
 

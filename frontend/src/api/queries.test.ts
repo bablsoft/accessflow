@@ -81,10 +81,10 @@ describe('api/queries', () => {
     expect(result).toEqual({ id: 'q-1' });
   });
 
-  it('cancelQuery DELETEs /api/v1/queries/{id}', async () => {
-    del.mockResolvedValueOnce({ data: undefined });
+  it('cancelQuery POSTs /api/v1/queries/{id}/cancel', async () => {
+    post.mockResolvedValueOnce({ data: undefined });
     await queriesApi.cancelQuery('q-1');
-    expect(del).toHaveBeenCalledWith('/api/v1/queries/q-1');
+    expect(post).toHaveBeenCalledWith('/api/v1/queries/q-1/cancel');
   });
 
   it('executeQuery POSTs /api/v1/queries/{id}/execute', async () => {

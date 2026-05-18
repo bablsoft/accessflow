@@ -26,6 +26,7 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCom
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
+import com.bablsoft.accessflow.workflow.events.QueryCancelledEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -105,7 +106,7 @@ class DefaultQueryLifecycleServiceTest {
     // ── cancel ────────────────────────────────────────────────────────────────
 
     @Test
-    void cancelTransitionsPendingAiToCancelledAndAudits() {
+    void cancelTransitionsPendingAiToCancelledAndPublishesEvent() {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_AI, QueryType.SELECT)));
 
@@ -113,12 +114,12 @@ class DefaultQueryLifecycleServiceTest {
 
         verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
                 QueryStatus.CANCELLED);
-        var captor = ArgumentCaptor.forClass(AuditEntry.class);
-        verify(auditLogService).record(captor.capture());
-        assertThat(captor.getValue().action()).isEqualTo(AuditAction.QUERY_CANCELLED);
-        assertThat(captor.getValue().resourceId()).isEqualTo(queryId);
-        assertThat(captor.getValue().actorId()).isEqualTo(submitterId);
-        assertThat(captor.getValue().organizationId()).isEqualTo(organizationId);
+        var captor = ArgumentCaptor.forClass(QueryCancelledEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().queryRequestId()).isEqualTo(queryId);
+        assertThat(captor.getValue().submitterUserId()).isEqualTo(submitterId);
+        // Audit row is written from the controller (to capture IP/UA), not the service.
+        verify(auditLogService, never()).record(any());
     }
 
     @Test
@@ -130,6 +131,7 @@ class DefaultQueryLifecycleServiceTest {
 
         verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_REVIEW,
                 QueryStatus.CANCELLED);
+        verify(eventPublisher).publishEvent(any(QueryCancelledEvent.class));
     }
 
     @Test
@@ -145,7 +147,7 @@ class DefaultQueryLifecycleServiceTest {
                 .hasMessageContaining("not yours");
 
         verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
-        verify(auditLogService, never()).record(any());
+        verify(eventPublisher, never()).publishEvent(any(QueryCancelledEvent.class));
     }
 
     @Test
@@ -158,6 +160,7 @@ class DefaultQueryLifecycleServiceTest {
                 .isInstanceOf(QueryNotCancellableException.class);
 
         verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(QueryCancelledEvent.class));
     }
 
     @Test
@@ -177,20 +180,6 @@ class DefaultQueryLifecycleServiceTest {
         assertThatThrownBy(() -> service.cancel(
                 new CancelQueryCommand(queryId, submitterId, UUID.randomUUID())))
                 .isInstanceOf(QueryRequestNotFoundException.class);
-    }
-
-    @Test
-    void cancelSwallowsAuditFailureSilently() {
-        when(queryRequestLookupService.findById(queryId))
-                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_AI, QueryType.SELECT)));
-        org.mockito.Mockito.doThrow(new RuntimeException("audit-down"))
-                .when(auditLogService).record(any());
-
-        // Should not propagate the audit failure to the caller.
-        service.cancel(new CancelQueryCommand(queryId, submitterId, organizationId));
-
-        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
-                QueryStatus.CANCELLED);
     }
 
     // ── execute (success) ─────────────────────────────────────────────────────

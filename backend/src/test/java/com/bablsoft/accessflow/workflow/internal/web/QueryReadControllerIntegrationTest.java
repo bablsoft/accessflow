@@ -1,6 +1,10 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
@@ -51,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -68,6 +73,7 @@ class QueryReadControllerIntegrationTest {
     @MockitoBean QueryLifecycleService queryLifecycleService;
     @MockitoBean QueryResultPersistenceService queryResultPersistenceService;
     @MockitoBean QueryCsvExportService queryCsvExportService;
+    @MockitoBean AuditLogService auditLogService;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -327,14 +333,86 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).hasStatus(200);
     }
 
-    // ── DELETE /api/v1/queries/{id} ─────────────────────────────────────────────
+    // ── POST /api/v1/queries/{id}/cancel ────────────────────────────────────────
 
     @Test
-    void cancelReturns204OnSuccess() {
+    void cancelReturns204OnSuccessAndWritesAuditWithIpAndUserAgent() {
         var qid = UUID.randomUUID();
         doNothing().when(queryLifecycleService).cancel(any());
 
-        var response = mvc.delete().uri("/api/v1/queries/" + qid)
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .header(HttpHeaders.USER_AGENT, "JUnit/5.0")
+                .header("X-Forwarded-For", "203.0.113.42")
+                .exchange();
+
+        assertThat(response).hasStatus(204);
+
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().action()).isEqualTo(AuditAction.QUERY_CANCELLED);
+        assertThat(captor.getValue().resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(captor.getValue().resourceId()).isEqualTo(qid);
+        assertThat(captor.getValue().actorId()).isEqualTo(analyst.getId());
+        assertThat(captor.getValue().organizationId()).isEqualTo(org.getId());
+        assertThat(captor.getValue().ipAddress()).isEqualTo("203.0.113.42");
+        assertThat(captor.getValue().userAgent()).isEqualTo("JUnit/5.0");
+    }
+
+    @Test
+    void cancelReturns403WhenNotSubmitterAndSkipsAudit() {
+        var qid = UUID.randomUUID();
+        doThrow(new AccessDeniedException("not submitter"))
+                .when(queryLifecycleService).cancel(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(403);
+        assertThat(response).bodyJson().extractingPath("$.error").asString().isEqualTo("FORBIDDEN");
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void cancelReturns409WhenAlreadyExecutedAndSkipsAudit() {
+        var qid = UUID.randomUUID();
+        doThrow(new QueryNotCancellableException(qid, QueryStatus.EXECUTED))
+                .when(queryLifecycleService).cancel(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(409);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_NOT_CANCELLABLE");
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void cancelReturns404WhenQueryMissingAndSkipsAudit() {
+        var qid = UUID.randomUUID();
+        doThrow(new QueryRequestNotFoundException(qid))
+                .when(queryLifecycleService).cancel(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_REQUEST_NOT_FOUND");
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void cancelStillReturns204WhenAuditWriteFails() {
+        var qid = UUID.randomUUID();
+        doNothing().when(queryLifecycleService).cancel(any());
+        doThrow(new RuntimeException("audit-down")).when(auditLogService).record(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
                 .exchange();
 
@@ -342,47 +420,13 @@ class QueryReadControllerIntegrationTest {
     }
 
     @Test
-    void cancelReturns403WhenNotSubmitter() {
+    void cancelReturns401WithoutToken() {
         var qid = UUID.randomUUID();
-        doThrow(new AccessDeniedException("not submitter"))
-                .when(queryLifecycleService).cancel(any());
 
-        var response = mvc.delete().uri("/api/v1/queries/" + qid)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
-                .exchange();
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel").exchange();
 
-        assertThat(response).hasStatus(403);
-        assertThat(response).bodyJson().extractingPath("$.error").asString().isEqualTo("FORBIDDEN");
-    }
-
-    @Test
-    void cancelReturns409WhenAlreadyExecuted() {
-        var qid = UUID.randomUUID();
-        doThrow(new QueryNotCancellableException(qid, QueryStatus.EXECUTED))
-                .when(queryLifecycleService).cancel(any());
-
-        var response = mvc.delete().uri("/api/v1/queries/" + qid)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
-                .exchange();
-
-        assertThat(response).hasStatus(409);
-        assertThat(response).bodyJson().extractingPath("$.error").asString()
-                .isEqualTo("QUERY_NOT_CANCELLABLE");
-    }
-
-    @Test
-    void cancelReturns404WhenQueryMissing() {
-        var qid = UUID.randomUUID();
-        doThrow(new QueryRequestNotFoundException(qid))
-                .when(queryLifecycleService).cancel(any());
-
-        var response = mvc.delete().uri("/api/v1/queries/" + qid)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
-                .exchange();
-
-        assertThat(response).hasStatus(404);
-        assertThat(response).bodyJson().extractingPath("$.error").asString()
-                .isEqualTo("QUERY_REQUEST_NOT_FOUND");
+        assertThat(response).hasStatus(401);
+        verify(auditLogService, never()).record(any());
     }
 
     // ── POST /api/v1/queries/{id}/execute ───────────────────────────────────────

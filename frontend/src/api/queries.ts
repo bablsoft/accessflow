@@ -65,7 +65,7 @@ export async function getQuery(id: string): Promise<QueryDetail> {
 }
 
 export async function cancelQuery(id: string): Promise<void> {
-  await apiClient.delete(`${BASE}/${id}`);
+  await apiClient.post(`${BASE}/${id}/cancel`);
 }
 
 export async function executeQuery(id: string): Promise<ExecuteQueryResponse> {
