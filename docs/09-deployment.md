@@ -777,6 +777,9 @@ Two layers exist:
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See [docs/05-backend.md](05-backend.md). |
+| `ACCESSFLOW_LOGGING_STRUCTURED_FORMAT` | Optional | — | When set, console logs are emitted as one JSON object per line in the named schema. Accepted values: `logstash` (recommended for ELK / OpenSearch), `ecs` (Elastic Common Schema, for Elastic SIEM), `gelf` (Graylog). When unset (default), AccessFlow emits the plain-text format with the `[accessflow-app,<traceId>,<spanId>]` prefix. The MDC `traceId` / `spanId` populated by the Micrometer tracing bridge are top-level fields in every JSON variant — no extra wiring needed. See [docs/05-backend.md → "Observability and tracing"](05-backend.md#observability-and-tracing). |
+
+> **Spring Boot banner.** AccessFlow disables the ASCII banner at startup (`spring.main.banner-mode=off`) so it does not pollute JSON log streams or ELK pipelines. Operators who want it back can re-enable it via `SPRING_MAIN_BANNER_MODE=console` (Spring relaxed binding).
 
 > **Overriding any other property.** Spring Boot's relaxed binding lets you override any
 > `application.yml` key via its UPPER_SNAKE_CASE env-var equivalent — e.g.
