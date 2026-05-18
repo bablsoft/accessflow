@@ -4,11 +4,17 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.OrganizationProvisioningService;
 import com.bablsoft.accessflow.core.api.ReviewPlanAdminService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import net.javacrumbs.shedlock.core.LockConfiguration;
+import net.javacrumbs.shedlock.core.LockProvider;
+import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -16,10 +22,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.util.Base64;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
 @ImportTestcontainers(TestcontainersConfig.class)
 class BootstrapIntegrationTest {
 
@@ -27,6 +34,26 @@ class BootstrapIntegrationTest {
     @Autowired UserQueryService userQueryService;
     @Autowired ReviewPlanAdminService reviewPlanAdminService;
     @Autowired JdbcTemplate jdbcTemplate;
+
+    @TestConfiguration
+    static class LockConfig {
+        /**
+         * Replaces the Redis-backed lock provider so the bootstrap reconcile runs without
+         * needing a Redis container in this integration test. The no-op lock always succeeds
+         * and never blocks, mirroring {@code QueryTimeoutJobIntegrationTest.CaptureConfig}.
+         */
+        @Bean("lockProvider")
+        @Primary
+        LockProvider noOpLockProvider() {
+            return (LockConfiguration lockConfig) -> Optional.of(new SimpleLock() {
+                @Override public void unlock() {}
+                @Override public Optional<SimpleLock> extend(java.time.Duration lockAtMostFor,
+                                                             java.time.Duration lockAtLeastFor) {
+                    return Optional.of(this);
+                }
+            });
+        }
+    }
 
     @DynamicPropertySource
     static void bootstrapProperties(DynamicPropertyRegistry registry) throws Exception {

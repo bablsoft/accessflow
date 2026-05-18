@@ -538,6 +538,14 @@
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#bootstrap-configuration">docs/09-deployment.md
             → Bootstrap configuration</a>.
           </div>
+          <div class="docs-callout info">
+            <strong>Multi-replica safety.</strong> Bootstrap is safe under
+            <code>replicaCount.backend &gt; 1</code>: every pod races for a Redis-backed
+            <code>bootstrapReconcile</code> lock (the same Redis instance that powers ShedLock
+            and JWT refresh tokens), so exactly one replica performs the upserts per startup
+            wave. The other replicas log an INFO line and keep serving traffic. No additional
+            env vars to configure.
+          </div>
         </section>
 
         <!-- 4. Configuration -->
