@@ -186,6 +186,36 @@ The chart lives in this repo at [`charts/accessflow/`](../charts/accessflow/) an
 Chart `version` and `appVersion` track the app version 1:1 — `--version X.Y.Z` always installs
 the `X.Y.Z` container images.
 
+### Example values files
+
+Self-contained starting points for the common deployment shapes live under
+[`charts/accessflow/examples/`](../charts/accessflow/examples/) — see the
+[index README](../charts/accessflow/examples/README.md) for the full list.
+The quick rundown:
+
+| File | Scenario |
+|---|---|
+| [`values-minimal.yaml`](../charts/accessflow/examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
+| [`values-production.yaml`](../charts/accessflow/examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
+| [`values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
+| [`values-bootstrap.yaml`](../charts/accessflow/examples/values-bootstrap.yaml) | GitOps: declares organization, admin user, datasources, AI configs, OAuth2, notification channels in-values (see [Bootstrap configuration](#bootstrap-configuration)). |
+| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+
+Layer them with your own site-specific overrides:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f my-site-overrides.yaml
+```
+
+Each example is a **minimal override on top of the chart's `values.yaml`** —
+not a full dump — so you can read it end-to-end and see exactly what's
+being changed. Anything not listed inherits the chart default. The example
+files are sourced from GitHub; they're excluded from the packaged chart via
+`.helmignore` so the published `.tgz` stays lean.
+
 ### Full `values.yaml`
 
 ```yaml

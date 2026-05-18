@@ -1,0 +1,73 @@
+# Air-gapped / on-premise AccessFlow deployment. Images pulled from an
+# internal registry mirror, JDBC driver downloads disabled (the driver
+# cache is pre-seeded by the platform team), TLS Secret managed manually
+# (no cert-manager), bundled Postgres + Redis kept inside the cluster.
+#
+# Pre-requisites:
+#   - The GHCR images are mirrored into your internal registry:
+#       registry.internal.acme.example.com/accessflow/backend:X.Y.Z
+#       registry.internal.acme.example.com/accessflow/frontend:X.Y.Z
+#   - The chart and its subcharts are pulled into a local repo or installed
+#     from a packaged `.tgz` (`helm pull accessflow/accessflow --untar`).
+#   - The TLS Secret `accessflow-tls` exists with tls.crt + tls.key.
+#   - Chart secrets are pre-created (the chart cannot reach an external
+#     registry to fetch its own dependencies during install):
+#       accessflow-secrets       keys: ENCRYPTION_KEY, JWT_PRIVATE_KEY
+#   - A ReadWriteOnce volume claim populated with any CUSTOM JDBC driver
+#     JARs your operators will need (Maven-Central-style directory layout).
+#
+# Usage:
+#   helm install accessflow ./accessflow-X.Y.Z.tgz \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-airgapped.yaml
+
+image:
+  backend:
+    repository: registry.internal.acme.example.com/accessflow/backend
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: registry.internal.acme.example.com/accessflow/frontend
+    pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: internal-registry-credentials
+
+replicaCount:
+  backend: 2
+  frontend: 2
+
+config:
+  encryptionKey:
+    existingSecret: accessflow-secrets
+    key: ENCRYPTION_KEY
+  jwtPrivateKey:
+    existingSecret: accessflow-secrets
+    key: JWT_PRIVATE_KEY
+  corsAllowedOrigin: https://accessflow.internal.acme.example.com
+  publicBaseUrl: https://accessflow.internal.acme.example.com
+  frontend:
+    apiBaseUrl: https://accessflow.internal.acme.example.com
+    wsUrl: wss://accessflow.internal.acme.example.com/ws
+
+backend:
+  env:
+    # Disable on-demand JDBC driver downloads — serve only from the cache.
+    ACCESSFLOW_DRIVERS_OFFLINE: "true"
+
+# Pre-seeded driver cache (mount your pre-populated PV here). Match the
+# storage class your operators use for ReadWriteOnce volumes.
+driverCache:
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessMode: ReadWriteOnce
+    # storageClass: nfs-internal     # uncomment + set to your in-cluster class
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: accessflow.internal.acme.example.com
+  tls:
+    enabled: true
+    secretName: accessflow-tls   # pre-created by the platform team

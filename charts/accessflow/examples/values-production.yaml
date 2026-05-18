@@ -1,0 +1,100 @@
+# Production AccessFlow deployment — HA backend (HPA + PDB + pod anti-
+# affinity), replicated frontend, ingress-nginx with cert-manager-issued
+# TLS, bundled Postgres and Redis with sized persistent volumes. Chart-
+# managed secrets are auto-generated on first install and preserved across
+# `helm upgrade` (and across `helm uninstall` via `helm.sh/resource-policy:
+# keep` on the Secret — see the chart README).
+#
+# Pre-requisites:
+#   - cert-manager installed with a ClusterIssuer named `letsencrypt-prod`
+#     (rename via `ingress.annotations` if yours differs).
+#   - The `ingress-nginx` controller, or update `ingress.className`.
+#   - A default StorageClass (Postgres PVC requests 50Gi).
+#
+# Usage:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml
+
+replicaCount:
+  backend: 3
+  frontend: 2
+
+postgresql:
+  enabled: true
+  primary:
+    persistence:
+      enabled: true
+      size: 50Gi
+
+redis:
+  enabled: true
+  architecture: standalone
+
+config:
+  corsAllowedOrigin: https://accessflow.company.com
+  publicBaseUrl: https://accessflow.company.com
+  frontend:
+    apiBaseUrl: https://accessflow.company.com
+    wsUrl: wss://accessflow.company.com/ws
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 4m
+  hosts:
+    - host: accessflow.company.com
+  tls:
+    enabled: true
+    secretName: accessflow-tls   # provisioned by cert-manager via the annotation above
+
+resources:
+  backend:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  frontend:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# HA: HPA scales backend on CPU; PDB keeps two backends online during voluntary evictions.
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  backend:
+    enabled: true
+    minAvailable: 2
+
+# Spread backend replicas across nodes — single-node failure stays survivable.
+backend:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values: [backend]
+            topologyKey: kubernetes.io/hostname
+
+# Persistent driver cache so on-demand JDBC driver downloads survive restarts.
+driverCache:
+  persistence:
+    enabled: true
+    size: 5Gi

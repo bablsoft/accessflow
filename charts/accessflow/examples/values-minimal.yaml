@@ -1,0 +1,35 @@
+# Minimal AccessFlow deployment — single replica per tier, bundled Postgres
+# and Redis subcharts, chart-managed secrets auto-generated on first install,
+# Ingress over plain HTTP. Suitable for kicking the tires on a personal
+# cluster or sharing a demo URL inside a team. NOT for production — HTTP
+# leaks JWTs over the network.
+#
+# Pre-requisites:
+#   - An Ingress controller (this file targets `ingress-nginx`; override
+#     `ingress.className` for Traefik / ALB / etc.).
+#   - A wildcard DNS record (or matching A record) pointing at the
+#     Ingress controller's external IP.
+#
+# Usage:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-minimal.yaml
+
+replicaCount:
+  backend: 1
+  frontend: 1
+
+config:
+  corsAllowedOrigin: http://accessflow.demo.example.com
+  publicBaseUrl: http://accessflow.demo.example.com
+  frontend:
+    apiBaseUrl: http://accessflow.demo.example.com
+    wsUrl: ws://accessflow.demo.example.com/ws
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    # `paths` is omitted — the chart auto-fills the standard
+    # /api + /ws → backend, / → frontend routing.
+    - host: accessflow.demo.example.com

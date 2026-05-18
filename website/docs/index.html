@@ -383,6 +383,50 @@
             → Kubernetes &amp; Helm</a> and
             <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md">charts/accessflow/README.md</a>.
           </p>
+          <p>
+            Ready-made starting points for the common deployment shapes live under
+            <a href="https://github.com/bablsoft/accessflow/tree/main/charts/accessflow/examples">charts/accessflow/examples/</a> —
+            each file is a minimal override on top of the chart's <code>values.yaml</code>:
+          </p>
+          <ul>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-minimal.yaml"><code>values-minimal.yaml</code></a>
+              — single-replica demo over plain HTTP.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-production.yaml"><code>values-production.yaml</code></a>
+              — HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent JDBC driver cache.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-external-services.yaml"><code>values-external-services.yaml</code></a>
+              — managed Postgres + Redis (RDS / ElastiCache / …) with every secret managed outside the chart.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap.yaml"><code>values-bootstrap.yaml</code></a>
+              — GitOps: organization, admin user, datasources, AI configs, OAuth2, notification channels declared in-values.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-airgapped.yaml"><code>values-airgapped.yaml</code></a>
+              — air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret.
+            </li>
+          </ul>
+          <p>
+            Pick the closest match and layer your own site-specific overrides on top:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f my-site-overrides.yaml
+</pre>
+          </div>
 
           <h3 id="run-manual">Manual / from source</h3>
           <p>

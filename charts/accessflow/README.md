@@ -23,6 +23,29 @@ For production, supply your own `my-values.yaml` (Ingress host, TLS, CORS origin
 
 The chart `version` and `appVersion` are kept in lock-step with AccessFlow releases — `helm install accessflow/accessflow --version 1.2.3` always installs the `1.2.3` images.
 
+## Example values files
+
+Self-contained starting points for the common deployment shapes live under
+[`examples/`](examples/) — pick the closest match and layer your own
+overrides on top:
+
+| File | Scenario |
+|---|---|
+| [`examples/values-minimal.yaml`](examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
+| [`examples/values-production.yaml`](examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
+| [`examples/values-external-services.yaml`](examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
+| [`examples/values-bootstrap.yaml`](examples/values-bootstrap.yaml) | GitOps: declares organization, admin user, datasources, AI configs, OAuth2, notification channels in-values. |
+| [`examples/values-airgapped.yaml`](examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml
+```
+
+The example files are sourced from GitHub — they are intentionally excluded
+from the packaged chart (`.helmignore`) so the `.tgz` stays lean.
+
 ## Prerequisites
 
 - Kubernetes ≥ 1.27

@@ -691,19 +691,26 @@
 <span class="c-com"># helm install accessflow accessflow/accessflow -n accessflow --create-namespace</span>
 <span class="c-com"># Encryption key, JWT key, and Postgres password are auto-generated on first install</span>
 <span class="c-com"># and preserved across upgrades — no Secrets need to be pre-created.</span>
+<span class="c-com">#</span>
+<span class="c-com"># Ready-made starting points for common shapes live under</span>
+<span class="c-com">#   charts/accessflow/examples/   (minimal, production, external-services, bootstrap, airgapped)</span>
 
-<span class="c-kw">backend</span>:
-  <span class="c-kw">replicaCount</span>: 3
-  <span class="c-kw">autoscaling</span>:
-    <span class="c-kw">enabled</span>: <span class="c-str">true</span>
-    <span class="c-kw">minReplicas</span>: 2
-    <span class="c-kw">maxReplicas</span>: 10
+<span class="c-kw">replicaCount</span>:
+  <span class="c-kw">backend</span>: 2
+  <span class="c-kw">frontend</span>: 2
 
-<span class="c-com"># Postgres + Redis ship as Bitnami subcharts — disable for production</span>
+<span class="c-com"># Postgres + Redis ship as Bitnami subcharts — toggle off for managed services</span>
 <span class="c-kw">postgresql</span>:
   <span class="c-kw">enabled</span>: <span class="c-str">true</span>
 <span class="c-kw">redis</span>:
   <span class="c-kw">enabled</span>: <span class="c-str">true</span>
+
+<span class="c-com"># HPA + PDB are off by default — turn on for production</span>
+<span class="c-kw">autoscaling</span>:
+  <span class="c-kw">backend</span>:
+    <span class="c-kw">enabled</span>: <span class="c-str">false</span>
+    <span class="c-kw">minReplicas</span>: 2
+    <span class="c-kw">maxReplicas</span>: 10
 
 <span class="c-com"># Override only if you want to manage secrets externally</span>
 <span class="c-com"># (sealed-secrets, External Secrets, Vault, …):</span>

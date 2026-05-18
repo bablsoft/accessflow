@@ -1,0 +1,133 @@
+# GitOps-friendly AccessFlow deployment: the entire admin configuration
+# (organization, admin user, datasources, AI provider, review plan,
+# notification channel, OAuth2) is declared here and reconciled on every
+# backend startup by the bootstrap module. Resources declared in this file
+# are upserted on every restart and overwrite admin-UI edits to the same
+# keys; resources NOT declared here are left untouched.
+#
+# See docs/09-deployment.md → "Bootstrap configuration" for full semantics.
+#
+# Sensitive fields reference pre-existing Kubernetes Secrets via the
+# *SecretRef sub-objects. The chart never creates Secret objects of its
+# own — pre-create these in the release namespace:
+#
+#   accessflow-bootstrap   keys: admin-password,
+#                                anthropic-key,
+#                                slack-webhook,
+#                                google-client-secret
+#   prod-pg-creds          keys: password         — readonly user for the customer DB
+#
+# Usage:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-bootstrap.yaml
+
+# Production HA baseline (mirrors values-production.yaml).
+replicaCount:
+  backend: 3
+  frontend: 2
+
+config:
+  corsAllowedOrigin: https://accessflow.company.com
+  publicBaseUrl: https://accessflow.company.com
+  frontend:
+    apiBaseUrl: https://accessflow.company.com
+    wsUrl: wss://accessflow.company.com/ws
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: accessflow.company.com
+  tls:
+    enabled: true
+    secretName: accessflow-tls
+
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+
+podDisruptionBudget:
+  backend:
+    enabled: true
+    minAvailable: 2
+
+# --- Declarative admin configuration --------------------------------------
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+    slug: acme
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap
+      key: admin-password
+
+  reviewPlans:
+    - name: standard
+      description: Standard review plan — AI + one human approver
+      requiresAiReview: true
+      requiresHumanApproval: true
+      minApprovalsRequired: 1
+      approvalTimeoutHours: 24
+      autoApproveReads: false
+      notifyChannelNames: [ops-slack]
+      approverEmails: [admin@acme.example.com]
+
+  aiConfigs:
+    - name: claude
+      provider: ANTHROPIC
+      model: claude-sonnet-4-20250514
+      apiKeySecretRef:
+        name: accessflow-bootstrap
+        key: anthropic-key
+      timeoutMs: 30000
+      maxPromptTokens: 4000
+      maxCompletionTokens: 1024
+
+  datasources:
+    - name: prod-postgres
+      dbType: POSTGRESQL
+      host: postgres.prod.svc.cluster.local
+      port: 5432
+      databaseName: app
+      username: af_reader
+      passwordSecretRef:
+        name: prod-pg-creds
+        key: password
+      sslMode: REQUIRE
+      connectionPoolSize: 10
+      maxRowsPerQuery: 10000
+      requireReviewReads: false
+      requireReviewWrites: true
+      reviewPlanName: standard
+      aiAnalysisEnabled: true
+      aiConfigName: claude
+
+  notificationChannels:
+    - name: ops-slack
+      channelType: SLACK
+      active: true
+      config:
+        channel: "#accessflow-ops"
+      sensitiveSecretRefs:
+        webhookUrl:
+          name: accessflow-bootstrap
+          key: slack-webhook
+
+  oauth2:
+    - provider: GOOGLE
+      clientId: "your-google-oauth-client-id.apps.googleusercontent.com"
+      clientSecretRef:
+        name: accessflow-bootstrap
+        key: google-client-secret
+      defaultRole: REVIEWER
+      active: true
