@@ -17,8 +17,8 @@ import java.util.UUID;
  * {@code approval_timeout_hours}.
  *
  * <p>The poll interval is {@code accessflow.workflow.timeout-poll-interval} (default 5 minutes).
- * The {@link SchedulerLock} guarantees only one node in a cluster executes per tick — see
- * {@code RedisLockProviderConfiguration}.
+ * The {@link SchedulerLock} guarantees only one node in a cluster executes per tick — the
+ * Redis-backed {@code LockProvider} lives in the {@code scheduling} module.
  */
 @Component
 @RequiredArgsConstructor

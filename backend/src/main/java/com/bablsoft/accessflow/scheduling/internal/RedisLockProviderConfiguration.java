@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.workflow.internal.config;
+package com.bablsoft.accessflow.scheduling.internal;
 
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.redis.spring.RedisLockProvider;
