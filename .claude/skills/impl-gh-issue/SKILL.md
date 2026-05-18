@@ -32,6 +32,11 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/12-roadmap.md` — milestone scope
 - **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.partqam.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `./mvnw verify`.
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+- **Website** at `website/` — public marketing site, static HTML/CSS/JS, no build step. Edits land directly in HTML.
+  - `website/index.html` — landing page (pitch, supported databases, AI providers, auth methods, feature list, roadmap, quick-start commands, tech stack, docs chapter list, top-level URLs).
+  - `website/docs/index.html` — public user documentation page (deployment instructions, configuration entities — Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation — RBAC role matrix, operator-facing env vars).
+  - `website/README.md` — content-source map describing which app/`docs/` sections each website section is derived from; keep in sync when adding new website sections.
+- **README** at the repo root — public-facing project overview and quick start. Keep in sync when changes affect setup, tech stack, features, project structure, or top-level documentation.
 
 ## Workflow
 
@@ -60,8 +65,10 @@ Follow CLAUDE.md exactly. Highlights worth re-checking before each PR:
 - **Backend**: constructor injection, `*Entity` suffix and `internal/persistence/entity/` placement, Flyway `V{n}__…sql` (never edit existing), `@SchedulerLock` on every `@Scheduled`, no string-concat SQL, `@JsonIgnore` on encrypted fields, i18n keys in `messages.properties`, ≥ 90% line coverage with a dedicated `*Test` per concrete class.
 - **Frontend**: TanStack Query for all server data (no `useEffect` fetching), Zustand only for client state, `t()` for every user-visible string with the key in `src/locales/en.json`, validation parity with backend Bean Validation, `≥ 90%` line / `≥ 80%` branch coverage on included modules.
 
-### 4. **Update docs in the same change**
-Non-negotiable. The PR is incomplete until the matching `docs/*.md` reflects what you built:
+### 4. **Update docs AND the website in the same change**
+Non-negotiable. The PR is incomplete until the matching `docs/*.md`, `README.md`, and `website/` reflect what you built.
+
+**`docs/*.md`:**
 - New endpoint / payload field → `04-api-spec.md`
 - New entity / column / enum → `03-data-model.md`
 - New scheduled job / module rule / proxy step → `05-backend.md`
@@ -69,6 +76,16 @@ Non-negotiable. The PR is incomplete until the matching `docs/*.md` reflects wha
 - New env var → `09-deployment.md` **and** the env-var table in CLAUDE.md
 - Edition-gated feature → `10-editions.md`
 - New dependency → bump the version snapshot in CLAUDE.md (per the `feedback_dependency_versions` memory rule).
+
+**`README.md`** (repo root) — update when the change affects setup, tech stack versions, features, project structure, or top-level documentation.
+
+**Website updates are mandatory — do not skip.** Before opening the PR, ask explicitly: "does this change touch anything user-visible or operator-visible?" If yes, update the website file(s) in the same commit set:
+
+- `website/index.html` — update when the change affects any of: user-facing pitch, supported databases, AI providers, authentication methods, feature list, roadmap milestones, quick-start commands, docs chapter list, tech stack versions, or top-level URLs.
+- `website/docs/index.html` — update when the change affects any of: deployment instructions, configuration entities (Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation), the RBAC role matrix, or operator-facing env vars.
+- `website/README.md` — update the content-source map when you add new website sections or change which app/docs sources they derive from.
+
+The website has no build step — edits land directly in HTML. If you're unsure whether a change is user-visible, default to updating the website rather than skipping; a stale marketing site is a project-level rule violation (per CLAUDE.md → "Do not let `website/` drift").
 
 ### 5. Verify locally
 - Backend: `cd backend && ./mvnw verify -Pcoverage` and `./mvnw test -Dtest=ApplicationModulesTest`.
@@ -84,7 +101,11 @@ Non-negotiable. The PR is incomplete until the matching `docs/*.md` reflects wha
 
 - [ ] Issue fetched and acceptance criteria extracted.
 - [ ] All relevant `docs/*.md` updated in the same commit set.
+- [ ] `README.md` updated if the change affects setup, tech stack, features, project structure, or top-level docs.
+- [ ] `website/index.html` updated if the change affects the pitch, supported databases, AI providers, auth methods, features, roadmap, quick-start, docs chapter list, tech stack, or top-level URLs.
+- [ ] `website/docs/index.html` updated if the change affects deployment instructions, configuration entities, the RBAC role matrix, or operator-facing env vars.
+- [ ] `website/README.md` content-source map updated if new website sections were added.
 - [ ] Backend: `./mvnw verify` green, including `ApplicationModulesTest` and JaCoCo gate.
 - [ ] Frontend: lint + typecheck + `test:coverage` + build all green.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).
-- [ ] PR opened, links the issue, and lists touched docs in the description.
+- [ ] PR opened, links the issue, and lists touched docs **and website files** in the description.
