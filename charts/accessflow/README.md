@@ -57,6 +57,8 @@ kubectl -n accessflow create secret generic accessflow-encryption-key \
   --from-literal=value="$(openssl rand -hex 32)"
 
 # JWT RS256 private key (RSA-2048 PEM). The default `key` is "value".
+# Either PKCS#8 (`-----BEGIN PRIVATE KEY-----`) or the legacy PKCS#1
+# (`-----BEGIN RSA PRIVATE KEY-----`) PEM is accepted.
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_key.pem
 kubectl -n accessflow create secret generic accessflow-jwt-key \
   --from-file=value=./jwt_private_key.pem
@@ -110,7 +112,7 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `replicaCount.backend` | `3` | Backend replica count (overridden by HPA when enabled). |
+| `replicaCount.backend` | `2` | Backend replica count. Honored when `autoscaling.backend.enabled=false` (the default); when the HPA is enabled, its `minReplicas` floor takes over. |
 | `replicaCount.frontend` | `2` | Frontend replica count. |
 | `image.backend.tag` / `image.frontend.tag` | `""` | Override the chart's `appVersion`. Leave empty in normal use. |
 | `postgresql.enabled` | `true` | Install the bundled bitnami/postgresql subchart. Set `false` to use `externalDatabase`. |
@@ -122,12 +124,12 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `config.jwtPrivateKey.existingSecret` / `.key` | `""` (auto-generated) / `value` | Override only if you manage the JWT key externally. |
 | `config.corsAllowedOrigin` | `https://accessflow.company.com` | Frontend origin allowed by CORS. |
 | `config.frontend.apiBaseUrl` / `.wsUrl` | `https://accessflow.company.com[/ws]` | Rendered into the runtime-config.js ConfigMap. |
-| `ingress.enabled` / `.className` / `.hosts` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. |
+| `ingress.enabled` / `.className` / `.hosts` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. `paths` is optional; when omitted, the chart fills in the standard 3-path routing. |
 | `ingress.tls.enabled` / `.secretName` | `false` / `accessflow-tls` | TLS termination at the Ingress. Off by default. |
 | `ingress.annotations` | `{}` | Free-form Ingress annotations (cert-manager, nginx, ALB, …). No cert-manager annotation is set by default. |
 | `resources.backend.*` / `resources.frontend.*` | see `values.yaml` | Pod-level requests / limits. |
-| `autoscaling.backend.enabled` | `true` | Horizontal Pod Autoscaler for backend (CPU-based). |
-| `podDisruptionBudget.backend.enabled` | `true` | PDB protecting backend during rolling updates. |
+| `autoscaling.backend.enabled` | `false` | Horizontal Pod Autoscaler for backend (CPU-based). Off by default so `replicaCount.backend` is the single source of truth on first install. |
+| `podDisruptionBudget.backend.enabled` | `false` | PDB protecting backend during rolling updates. Off by default — enable on production deployments running ≥ 2 replicas. |
 | `driverCache.persistence.enabled` | `false` | Mount a PVC at the backend's custom-driver cache path. |
 
 ## Upgrade

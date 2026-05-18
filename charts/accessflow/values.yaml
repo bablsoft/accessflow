@@ -2,9 +2,10 @@
 # This is the source-of-truth values reference; the structure mirrors
 # docs/09-deployment.md so the chart and its documentation stay in sync.
 
-# -- Number of replicas for each tier
+# -- Number of replicas for each tier. Honored when `autoscaling.*.enabled` is
+# `false`; when an HPA is enabled, `autoscaling.*.minReplicas` takes over.
 replicaCount:
-  backend: 3
+  backend: 2
   frontend: 2
 
 image:
@@ -189,6 +190,9 @@ ingress:
   # Free-form Ingress annotations. Add cert-manager.io/cluster-issuer,
   # nginx.ingress.kubernetes.io/*, alb.ingress.kubernetes.io/*, etc. here.
   annotations: {}
+  # `paths` is optional. When omitted, the chart wires in the standard 3-path
+  # routing shown below (`/api` + `/ws` → backend, `/` → frontend), so a
+  # minimal override like `hosts: [{ host: my-host }]` Just Works.
   hosts:
     - host: accessflow.company.com
       paths:
@@ -224,9 +228,13 @@ resources:
       memory: 256Mi
 
 # --- Horizontal Pod Autoscaler
+#
+# Off by default so `replicaCount.*` is the single source of truth on first install.
+# When `enabled: true`, the HPA owns the replica count and `minReplicas` will
+# scale the Deployment up to (at least) that floor regardless of `replicaCount.*`.
 autoscaling:
   backend:
-    enabled: true
+    enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
@@ -237,9 +245,13 @@ autoscaling:
     targetCPUUtilizationPercentage: 70
 
 # --- Pod disruption budget
+#
+# Off by default — enabling on a single-replica deployment makes voluntary
+# evictions (node drains, cluster upgrades) block forever. Turn on for
+# production deployments that run >= 2 replicas.
 podDisruptionBudget:
   backend:
-    enabled: true
+    enabled: false
     minAvailable: 1
   frontend:
     enabled: false

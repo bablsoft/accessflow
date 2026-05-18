@@ -126,7 +126,8 @@ volumes:
 DB_PASSWORD=change_me_strong_password
 # 64 hex characters = 32 bytes. Generate with: openssl rand -hex 32
 ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-# PKCS#8 RSA-2048. Generate with:
+# RSA-2048 PEM. Both PKCS#8 (`-----BEGIN PRIVATE KEY-----`) and the legacy
+# PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`) form are accepted. Generate with:
 #   openssl genpkey -algorithm RSA -outform PEM -pkeyopt rsa_keygen_bits:2048
 JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
@@ -188,8 +189,10 @@ the `X.Y.Z` container images.
 ### Full `values.yaml`
 
 ```yaml
+# Replicas. Honored when `autoscaling.*.enabled=false` (the default); when an
+# HPA is enabled, `autoscaling.*.minReplicas` becomes the effective floor.
 replicaCount:
-  backend: 3
+  backend: 2
   frontend: 2
 
 image:
@@ -259,6 +262,9 @@ ingress:
   # annotations:
   #   cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
+    # `paths` is optional. Omit it (e.g. `hosts: [{ host: my-host }]`) to
+    # inherit the standard 3-path routing (`/api` + `/ws` → backend, `/` →
+    # frontend) wired into the chart.
     - host: accessflow.company.com
       paths:
         - path: /api
@@ -291,18 +297,24 @@ resources:
       cpu: 500m
       memory: 256Mi
 
-# Horizontal Pod Autoscaler
+# Horizontal Pod Autoscaler.
+# Off by default — `replicaCount.backend` stays the single source of truth on
+# first install. Flip to `enabled: true` for production, at which point the
+# HPA's `minReplicas` floor takes precedence over `replicaCount.backend`.
 autoscaling:
   backend:
-    enabled: true
+    enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
 
-# Pod disruption budget (ensure HA during rolling updates)
+# Pod disruption budget (ensure HA during rolling updates).
+# Off by default — enabling on a single-replica deployment blocks voluntary
+# evictions (node drains, cluster upgrades) forever. Enable for production
+# deployments running ≥ 2 replicas.
 podDisruptionBudget:
   backend:
-    enabled: true
+    enabled: false
     minAvailable: 1
 
 # External Redis (used when redis.enabled=false)
@@ -634,7 +646,7 @@ Two layers exist:
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256-GCM key for datasource credential encryption |
-| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT RS256 signing |
+| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT RS256 signing. Both PKCS#8 (`-----BEGIN PRIVATE KEY-----`) and the legacy PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`) form are accepted. |
 | `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | Optional | `PT15M` | ISO-8601 duration for the access-token TTL |
 | `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | Optional | `P7D` | ISO-8601 duration for the refresh-token TTL (`HttpOnly` cookie) |
 | `AUDIT_HMAC_KEY` | Optional | derived | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
