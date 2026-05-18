@@ -22,6 +22,7 @@ class ApiPackageDependencyTest {
                             "com.bablsoft.accessflow.mcp.api..",
                             "com.bablsoft.accessflow.notifications.api..",
                             "com.bablsoft.accessflow.proxy.api..",
+                            "com.bablsoft.accessflow.scheduling.api..",
                             "com.bablsoft.accessflow.security.api..",
                             "com.bablsoft.accessflow.workflow.api..")
                     .should()

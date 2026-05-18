@@ -537,6 +537,17 @@ SAML → OAuth2 → system SMTP
 
 If the organization reconciler fails, bootstrap aborts immediately. For every subsequent step, failures are logged at ERROR and collected; at the end the runner throws `BootstrapException` so the pod fails readiness — the operator sees the message in `kubectl describe pod` / `kubectl logs`.
 
+### Multi-replica safety
+
+In a Helm release with `replicaCount.backend > 1` (the chart defaults to `2`; `values-production.yaml` ships `3`), every pod fires `ApplicationReadyEvent` concurrently. Bootstrap wraps the reconcile body in a Redis-backed distributed lock named `bootstrapReconcile` (`lockAtMostFor=10m`), so exactly one pod per startup wave performs the upserts. The other pods log `Bootstrap: another node holds the 'bootstrapReconcile' lock; skipping reconciliation on this replica` at INFO and continue serving traffic — they do not fail readiness.
+
+The lock reuses the same Redis instance that powers ShedLock (`@SchedulerLock`) and the JWT refresh-token store; lock keys live under the existing `accessflow:shedlock:` prefix. **No new env vars** — if `REDIS_URL` is set, the lock works. If Redis is unreachable at startup, the lock acquisition throws and the pod fails readiness, the same loud-failure model as `BootstrapException`.
+
+Operational notes:
+- If the winning replica crashes mid-reconcile, the Redis key expires after `lockAtMostFor` and the next pod to restart re-runs every reconciler from scratch (all upserts are idempotent — admin user lookup-by-email, datasource lookup-by-name, etc.).
+- The lock is held only for the duration of the reconcile call. Once it returns, the key is released immediately so a pod that starts a few minutes later can re-bootstrap if needed.
+- Operators with multiple Helm releases pointing at the same Redis instance should keep the chart-level `redis.fullnameOverride` per-release or use distinct Redis databases — the lock prefix is shared across releases that share Redis.
+
 ### Secret hygiene
 
 Sensitive env vars **must** come from Kubernetes `Secret` objects, never from `ConfigMap` or inline `values.yaml`. The chart enforces this via the structured `*SecretRef` shape — see the Helm walkthrough below. The complete list of fields the chart routes through Secrets:

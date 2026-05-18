@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.bootstrap.internal.reconcile.OrganizationReconcil
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.ReviewPlanReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SamlReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SystemSmtpReconciler;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -16,6 +17,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class BootstrapRunner {
+
+    static final String BOOTSTRAP_LOCK_NAME = "bootstrapReconcile";
+    static final Duration BOOTSTRAP_LOCK_AT_MOST_FOR = Duration.ofMinutes(10);
 
     private final BootstrapProperties properties;
     private final OrganizationReconciler organizationReconciler;
@@ -36,6 +41,7 @@ public class BootstrapRunner {
     private final SamlReconciler samlReconciler;
     private final OAuth2Reconciler oauth2Reconciler;
     private final SystemSmtpReconciler systemSmtpReconciler;
+    private final DistributedLockService distributedLockService;
 
     @EventListener(ApplicationReadyEvent.class)
     @Order(0)
@@ -44,6 +50,15 @@ public class BootstrapRunner {
             log.debug("Bootstrap: accessflow.bootstrap.enabled=false, skipping");
             return;
         }
+        boolean executed = distributedLockService.runLocked(
+                BOOTSTRAP_LOCK_NAME, BOOTSTRAP_LOCK_AT_MOST_FOR, this::reconcile);
+        if (!executed) {
+            log.info("Bootstrap: another node holds the '{}' lock; skipping reconciliation on this replica",
+                    BOOTSTRAP_LOCK_NAME);
+        }
+    }
+
+    private void reconcile() {
         log.info("Bootstrap: starting env-driven admin config reconciliation");
 
         UUID organizationId;

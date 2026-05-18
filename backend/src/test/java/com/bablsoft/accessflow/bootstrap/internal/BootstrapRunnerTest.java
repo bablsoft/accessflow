@@ -11,23 +11,26 @@ import com.bablsoft.accessflow.bootstrap.internal.reconcile.SamlReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SystemSmtpReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -44,6 +47,20 @@ class BootstrapRunnerTest {
     @Mock SamlReconciler samlReconciler;
     @Mock OAuth2Reconciler oauth2Reconciler;
     @Mock SystemSmtpReconciler systemSmtpReconciler;
+    @Mock DistributedLockService distributedLockService;
+
+    @BeforeEach
+    void stubLockHeld() {
+        // By default the lock is acquired and the Runnable runs synchronously, so all
+        // existing orchestration assertions keep working without per-test stubs.
+        org.mockito.Mockito.lenient()
+                .when(distributedLockService.runLocked(
+                        eq(BootstrapRunner.BOOTSTRAP_LOCK_NAME), any(), any()))
+                .thenAnswer(inv -> {
+                    ((Runnable) inv.getArgument(2)).run();
+                    return true;
+                });
+    }
 
     @Test
     void skipsWhenDisabled() {
@@ -52,6 +69,7 @@ class BootstrapRunnerTest {
 
         runner.run();
 
+        verifyNoInteractions(distributedLockService);
         verifyNoInteractions(organizationReconciler, adminUserReconciler,
                 notificationChannelReconciler, aiConfigReconciler, reviewPlanReconciler,
                 datasourceReconciler, samlReconciler, oauth2Reconciler, systemSmtpReconciler);
@@ -68,6 +86,10 @@ class BootstrapRunnerTest {
 
         newRunner(props).run();
 
+        verify(distributedLockService).runLocked(
+                eq(BootstrapRunner.BOOTSTRAP_LOCK_NAME),
+                eq(BootstrapRunner.BOOTSTRAP_LOCK_AT_MOST_FOR),
+                any(Runnable.class));
         InOrder order = inOrder(organizationReconciler, adminUserReconciler,
                 notificationChannelReconciler, aiConfigReconciler, reviewPlanReconciler,
                 datasourceReconciler, samlReconciler, oauth2Reconciler, systemSmtpReconciler);
@@ -149,6 +171,31 @@ class BootstrapRunnerTest {
         verify(systemSmtpReconciler).reconcile(any(), any());
     }
 
+    @Test
+    void skipsReconciliationWhenLockNotAcquired() {
+        var props = enabled();
+        org.mockito.Mockito.reset(distributedLockService);
+        when(distributedLockService.runLocked(
+                eq(BootstrapRunner.BOOTSTRAP_LOCK_NAME), any(), any()))
+                .thenReturn(false);
+
+        assertThatCode(() -> newRunner(props).run()).doesNotThrowAnyException();
+
+        verify(distributedLockService).runLocked(
+                eq(BootstrapRunner.BOOTSTRAP_LOCK_NAME),
+                eq(BootstrapRunner.BOOTSTRAP_LOCK_AT_MOST_FOR),
+                any(Runnable.class));
+        verifyNoInteractions(organizationReconciler, adminUserReconciler,
+                notificationChannelReconciler, aiConfigReconciler, reviewPlanReconciler,
+                datasourceReconciler, samlReconciler, oauth2Reconciler, systemSmtpReconciler);
+    }
+
+    @Test
+    void usesTenMinuteLockTtl() {
+        assertThat(BootstrapRunner.BOOTSTRAP_LOCK_AT_MOST_FOR).isEqualTo(Duration.ofMinutes(10));
+        assertThat(BootstrapRunner.BOOTSTRAP_LOCK_NAME).isEqualTo("bootstrapReconcile");
+    }
+
     private BootstrapRunner newRunner(BootstrapProperties props) {
         return new BootstrapRunner(
                 props,
@@ -160,7 +207,8 @@ class BootstrapRunnerTest {
                 datasourceReconciler,
                 samlReconciler,
                 oauth2Reconciler,
-                systemSmtpReconciler);
+                systemSmtpReconciler,
+                distributedLockService);
     }
 
     private BootstrapProperties enabled() {

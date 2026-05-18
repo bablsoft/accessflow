@@ -309,6 +309,7 @@ com.bablsoft.accessflow/
 - Cadence is configured via a property under the owning module's namespace (e.g. `accessflow.workflow.timeout-poll-interval`). Use `@Scheduled(fixedDelayString = "${...:PT5M}")` with an ISO-8601 `Duration` default — never a hard-coded number of seconds.
 - Document each job in [docs/05-backend.md → "Scheduled jobs and clustering"](docs/05-backend.md#scheduled-jobs-and-clustering) (job name, lock name, cadence property, default).
 - Long-running mutations called from a job MUST go through a public `core.api` service interface — workflow may not depend on `core.internal`.
+- **One-shot cluster-wide locks** (e.g. startup bootstrap reconciliation) — `@SchedulerLock` is annotation-only and tied to `@Scheduled`. For non-periodic critical sections, inject `scheduling.api.DistributedLockService` and call `runLocked(name, lockAtMostFor, action)`. It returns `true` if the action executed, `false` if another node held the lock. Same Redis backend, same `accessflow:shedlock:` key prefix. ShedLock types stay inside `scheduling.internal/` so callers don't need third-party imports.
 
 ---
 
