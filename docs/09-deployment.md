@@ -188,27 +188,42 @@ the `X.Y.Z` container images.
 
 ### Example values files
 
-Self-contained starting points for the common deployment shapes live under
+Self-contained starting points live under
 [`charts/accessflow/examples/`](../charts/accessflow/examples/) — see the
 [index README](../charts/accessflow/examples/README.md) for the full list.
-The quick rundown:
+They split into **deployment shapes** (cluster-level: replicas, ingress,
+secrets model) and **bootstrap slices** (declarative admin config). The
+intended pattern is one of each, plus your own site-specific overrides:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml \
+  -f my-site-overrides.yaml
+```
+
+**Deployment shapes:**
 
 | File | Scenario |
 |---|---|
 | [`values-minimal.yaml`](../charts/accessflow/examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
 | [`values-production.yaml`](../charts/accessflow/examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
 | [`values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
-| [`values-bootstrap.yaml`](../charts/accessflow/examples/values-bootstrap.yaml) | GitOps: declares organization, admin user, datasources, AI configs, OAuth2, notification channels in-values (see [Bootstrap configuration](#bootstrap-configuration)). |
 | [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
 
-Layer them with your own site-specific overrides:
+**Bootstrap slices** (each declares organization + first admin and layers on
+top of a deployment shape — see [Bootstrap configuration](#bootstrap-configuration)
+for the semantics):
 
-```bash
-helm install accessflow accessflow/accessflow \
-  --namespace accessflow --create-namespace \
-  -f charts/accessflow/examples/values-production.yaml \
-  -f my-site-overrides.yaml
-```
+| File | Adds |
+|---|---|
+| [`values-bootstrap-minimal.yaml`](../charts/accessflow/examples/values-bootstrap-minimal.yaml) | Just organization + first admin user. Skip the first-run signup screen. |
+| [`values-bootstrap-oauth2-sso.yaml`](../charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml) | OAuth2 providers (Google, Microsoft Entra ID, GitHub). |
+| [`values-bootstrap-saml-sso.yaml`](../charts/accessflow/examples/values-bootstrap-saml-sso.yaml) | SAML 2.0 SP wired to a corporate IdP. |
+| [`values-bootstrap-datasources.yaml`](../charts/accessflow/examples/values-bootstrap-datasources.yaml) | AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL). |
+| [`values-bootstrap-notifications.yaml`](../charts/accessflow/examples/values-bootstrap-notifications.yaml) | System SMTP relay + Slack / email / webhook channels + a fan-out review plan. |
+| [`values-bootstrap.yaml`](../charts/accessflow/examples/values-bootstrap.yaml) | Kitchen-sink reference covering every `bootstrap.*` field at once. |
 
 Each example is a **minimal override on top of the chart's `values.yaml`** —
 not a full dump — so you can read it end-to-end and see exactly what's

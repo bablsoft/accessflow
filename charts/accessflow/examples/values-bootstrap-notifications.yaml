@@ -1,0 +1,104 @@
+# Bootstrap with outbound notifications wired up: a system SMTP relay for
+# transactional email (password resets, invitations, review notifications)
+# plus three channel types (Slack, generic webhook, group email) that
+# review plans can opt into.
+#
+# Sensitive sub-fields (SMTP password, webhook URL, channel secrets) flow
+# through `*SecretRef` / `sensitiveSecretRefs` blocks so no credentials
+# ever live in values.yaml itself.
+#
+# Pre-create this Secret in the release namespace, with one key per
+# secret you reference:
+#   accessflow-bootstrap-secrets
+#     keys: admin-password
+#           smtp-password
+#           slack-webhook
+#           generic-webhook-secret
+#
+# Layer on top of a deployment-shape example:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml \
+#     -f charts/accessflow/examples/values-bootstrap-notifications.yaml
+
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: admin-password
+
+  # --- System SMTP relay -----------------------------------------------------
+  # Used for password resets, user invitations, and outbound review
+  # notifications. The chart sets `tls: true` to require STARTTLS — flip to
+  # `false` only for in-cluster relays that don't speak TLS.
+  systemSmtp:
+    enabled: true
+    host: smtp.acme.example.com
+    port: 587
+    username: accessflow@acme.example.com
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: smtp-password
+    tls: true
+    fromAddress: accessflow@acme.example.com
+    fromName: AccessFlow
+
+  # --- Notification channels -------------------------------------------------
+  # Review plans reference channels by name (see `notifyChannelNames` on a
+  # ReviewPlanSpec). The two-tier model below: a low-volume "executive"
+  # email channel for important approvals, a high-volume Slack channel for
+  # the SRE on-call rotation, and a generic webhook for piping into an
+  # internal observability platform.
+  notificationChannels:
+    - name: ops-slack
+      channelType: SLACK
+      active: true
+      config:
+        channel: "#accessflow-ops"
+      sensitiveSecretRefs:
+        webhookUrl:
+          name: accessflow-bootstrap-secrets
+          key: slack-webhook
+
+    - name: leadership-email
+      channelType: EMAIL
+      active: true
+      config:
+        # Comma-separated list of recipients — group address is fine.
+        toAddresses: "data-leadership@acme.example.com"
+      # No sensitiveSecretRefs needed — uses systemSmtp above.
+
+    - name: observability-webhook
+      channelType: WEBHOOK
+      active: true
+      config:
+        url: "https://events.internal.acme.example.com/accessflow"
+        contentType: "application/json"
+      sensitiveSecretRefs:
+        # HMAC-SHA256 signing key for the X-AccessFlow-Signature header.
+        signingSecret:
+          name: accessflow-bootstrap-secrets
+          key: generic-webhook-secret
+
+  # --- Review plan that fans out to all three channels -----------------------
+  reviewPlans:
+    - name: notify-everyone
+      description: AI + 1 human approver; notify Slack, leadership, observability.
+      requiresAiReview: true
+      requiresHumanApproval: true
+      minApprovalsRequired: 1
+      approvalTimeoutHours: 12
+      autoApproveReads: false
+      notifyChannelNames:
+        - ops-slack
+        - leadership-email
+        - observability-webhook
+      approverEmails:
+        - admin@acme.example.com

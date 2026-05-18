@@ -1,0 +1,70 @@
+# Bootstrap with SAML 2.0 SSO. The first admin user is created with a local
+# password (kept as a break-glass account); everyone else signs in via the
+# corporate IdP (Okta, Azure AD, JumpCloud, Auth0, ADFS, …).
+#
+# AccessFlow is the SAML Service Provider. The IdP needs:
+#   - SP Entity ID = `spEntityId` below (typically the public base URL)
+#   - SP ACS URL   = `https://<your-host>/api/v1/auth/saml/sso/callback`
+#   - SP SLO URL   = `https://<your-host>/api/v1/auth/saml/logout/callback` (optional)
+#
+# The IdP signing certificate is supplied here as PEM (the `signingCertPem`
+# field — embed the certificate body inline). AccessFlow auto-generates
+# the SP signing keypair on first SAML flow and persists it (encrypted)
+# back into the database, so no SP-side key material lives in values.
+#
+# Pre-create this Secret in the release namespace:
+#   accessflow-bootstrap-secrets   key: admin-password
+#
+# Attribute mapping: the `attr*` fields name the SAML response attributes
+# carrying the user's email, display name, and (optional) role. The values
+# differ per IdP — check your IdP's "Attribute Statements" or "Claims"
+# documentation. Common defaults shown below.
+#
+# Layer on top of a deployment-shape example:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml \
+#     -f charts/accessflow/examples/values-bootstrap-saml-sso.yaml
+
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: admin-password
+
+  saml:
+    enabled: true
+
+    # IdP side (provided by your identity team / IdP admin console).
+    idpEntityId: "https://idp.acme.example.com/saml/metadata"
+    idpMetadataUrl: "https://idp.acme.example.com/saml/metadata"
+
+    # SP side (this AccessFlow installation).
+    spEntityId: "https://accessflow.company.com"
+    acsUrl: "https://accessflow.company.com/api/v1/auth/saml/sso/callback"
+    # Single Logout is optional — leave blank to skip.
+    sloUrl: "https://accessflow.company.com/api/v1/auth/saml/logout/callback"
+
+    # IdP signing certificate (PEM body). The `|-` keeps it as one block.
+    signingCertPem: |-
+      -----BEGIN CERTIFICATE-----
+      MIIDxxxx...replace with your IdP cert...
+      -----END CERTIFICATE-----
+
+    # SAML attribute names — defaults shown match Okta. Override for your IdP.
+    attrEmail: "email"
+    attrDisplayName: "displayName"
+    attrRole: "role"                  # optional — omit for "everyone gets defaultRole"
+
+    # Role granted to provisioned users when `attrRole` is unmapped or empty.
+    # Override per group inside the IdP if your role model is more granular.
+    defaultRole: REVIEWER
+
+    active: true

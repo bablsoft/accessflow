@@ -26,22 +26,40 @@ The chart `version` and `appVersion` are kept in lock-step with AccessFlow relea
 ## Example values files
 
 Self-contained starting points for the common deployment shapes live under
-[`examples/`](examples/) — pick the closest match and layer your own
-overrides on top:
+[`examples/`](examples/). They split into **deployment shapes** (cluster-
+level: replicas, ingress, secrets model) and **bootstrap slices**
+(declarative admin config). Pick one of each and layer them:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml
+```
+
+### Deployment shapes
 
 | File | Scenario |
 |---|---|
 | [`examples/values-minimal.yaml`](examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
 | [`examples/values-production.yaml`](examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
 | [`examples/values-external-services.yaml`](examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
-| [`examples/values-bootstrap.yaml`](examples/values-bootstrap.yaml) | GitOps: declares organization, admin user, datasources, AI configs, OAuth2, notification channels in-values. |
 | [`examples/values-airgapped.yaml`](examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
 
-```bash
-helm install accessflow accessflow/accessflow \
-  --namespace accessflow --create-namespace \
-  -f charts/accessflow/examples/values-production.yaml
-```
+### Bootstrap (declarative admin config)
+
+Each adds the `bootstrap:` block — organization, first admin user, and the
+specific slice listed below. Designed to layer on a deployment shape; none
+set ingress / replicas / secrets on their own.
+
+| File | Adds |
+|---|---|
+| [`examples/values-bootstrap-minimal.yaml`](examples/values-bootstrap-minimal.yaml) | Organization + first admin user, nothing else. Skip the first-run signup screen. |
+| [`examples/values-bootstrap-oauth2-sso.yaml`](examples/values-bootstrap-oauth2-sso.yaml) | OAuth2 providers (Google, Microsoft Entra ID, GitHub). |
+| [`examples/values-bootstrap-saml-sso.yaml`](examples/values-bootstrap-saml-sso.yaml) | SAML 2.0 SP wired to a corporate IdP (Okta, Azure AD, JumpCloud, Auth0, ADFS). |
+| [`examples/values-bootstrap-datasources.yaml`](examples/values-bootstrap-datasources.yaml) | AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL). |
+| [`examples/values-bootstrap-notifications.yaml`](examples/values-bootstrap-notifications.yaml) | System SMTP relay + Slack / email / webhook channels + a fan-out review plan. |
+| [`examples/values-bootstrap.yaml`](examples/values-bootstrap.yaml) | Kitchen-sink reference covering every `bootstrap.*` field at once. |
 
 The example files are sourced from GitHub — they are intentionally excluded
 from the packaged chart (`.helmignore`) so the `.tgz` stays lean.
