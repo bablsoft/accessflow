@@ -22,6 +22,7 @@ import {
   samlEnabledKeys,
 } from '@/api/auth';
 import { apiBaseUrl } from '@/api/client';
+import { APP_VERSION } from '@/config/version';
 import type { OAuth2Provider } from '@/types/api';
 
 interface LoginLocationState {
@@ -157,8 +158,12 @@ export function LoginPage() {
             <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>
               {t('common.app_name')}
             </div>
-            <div className="mono muted" style={{ fontSize: 10 }}>
-              v0.1.0
+            <div
+              className="mono muted"
+              style={{ fontSize: 10 }}
+              aria-label={t('nav.version', { version: APP_VERSION })}
+            >
+              v{APP_VERSION}
             </div>
           </div>
         </div>
