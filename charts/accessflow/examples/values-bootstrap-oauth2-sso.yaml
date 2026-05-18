@@ -1,0 +1,74 @@
+# Bootstrap with OAuth2 / OIDC single sign-on. The first admin user is
+# created with a local password so you can still log in if SSO breaks; the
+# OAuth2 providers below let everyone else sign in with their existing
+# Google / Microsoft / GitHub identity. Provisioned users default to the
+# REVIEWER role (override per-provider with `defaultRole`).
+#
+# Built-in templates ship for GOOGLE, GITHUB, MICROSOFT, GITLAB. Other
+# providers require a DB-driven `oauth2_config` row created through the
+# admin API (out of scope for bootstrap).
+#
+# Pre-create this Secret in the release namespace, with one key per
+# provider you enable below:
+#   accessflow-bootstrap-secrets
+#     keys: admin-password
+#           google-client-secret
+#           microsoft-client-secret
+#           github-client-secret
+#
+# Provider-side configuration is the operator's responsibility — register
+# the redirect URI `https://<your-host>/api/v1/auth/oauth/{provider}/callback`
+# with each provider's OAuth console before enabling.
+#
+# Layer on top of a deployment-shape example:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml \
+#     -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml
+
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: admin-password
+
+  oauth2:
+    # Google Workspace — most common. Tenant restriction (hd=acme.example.com)
+    # must be added at the Google Cloud Console side.
+    - provider: GOOGLE
+      clientId: "your-google-oauth-client-id.apps.googleusercontent.com"
+      clientSecretRef:
+        name: accessflow-bootstrap-secrets
+        key: google-client-secret
+      defaultRole: REVIEWER
+      active: true
+
+    # Microsoft Entra ID (formerly Azure AD). `tenantId` restricts sign-in to
+    # a single Entra tenant; use "common" or omit for multi-tenant.
+    - provider: MICROSOFT
+      clientId: "00000000-0000-0000-0000-000000000000"
+      clientSecretRef:
+        name: accessflow-bootstrap-secrets
+        key: microsoft-client-secret
+      tenantId: "your-tenant-id-or-domain.onmicrosoft.com"
+      defaultRole: REVIEWER
+      active: true
+
+    # GitHub OAuth App — useful for engineering-only deployments. Email
+    # visibility on the GitHub side must include the primary address.
+    - provider: GITHUB
+      clientId: "Iv1.xxxxxxxxxxxxxxxx"
+      clientSecretRef:
+        name: accessflow-bootstrap-secrets
+        key: github-client-secret
+      # Override the default OAuth scopes if you need additional permissions.
+      # scopesOverride: "read:user user:email read:org"
+      defaultRole: ANALYST
+      active: true

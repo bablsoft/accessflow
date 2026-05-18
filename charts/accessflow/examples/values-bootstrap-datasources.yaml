@@ -1,0 +1,134 @@
+# "Day-one ready to query" bootstrap: declares the AI provider, a couple
+# of review plans, and three datasources spanning the most common DB types
+# (Postgres, MySQL, MS SQL Server). Operators land in an AccessFlow that
+# is immediately useful — they can submit queries against staging/prod
+# without touching the admin UI first.
+#
+# Pre-create this Secret in the release namespace, with one key per
+# datasource you declare below plus one for the AI API key:
+#   accessflow-bootstrap-secrets
+#     keys: admin-password
+#           anthropic-key
+#   prod-pg-creds        keys: password
+#   staging-mysql-creds  keys: password
+#   reporting-mssql-creds keys: password
+#
+# CUSTOM datasources (any non-bundled JDBC dialect) cannot be bootstrapped —
+# upload the driver JAR via `POST /api/v1/admin/jdbc-drivers` and create
+# the datasource from the admin UI.
+#
+# Layer on top of a deployment-shape example:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml \
+#     -f charts/accessflow/examples/values-bootstrap-datasources.yaml
+
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: admin-password
+
+  # --- AI provider -----------------------------------------------------------
+  # The model picks up automatic SQL risk analysis. Set provider=OLLAMA and
+  # endpoint=http://ollama-svc:11434 for an in-cluster Ollama instance (no
+  # apiKeySecretRef required).
+  aiConfigs:
+    - name: claude
+      provider: ANTHROPIC
+      model: claude-sonnet-4-20250514
+      apiKeySecretRef:
+        name: accessflow-bootstrap-secrets
+        key: anthropic-key
+      timeoutMs: 30000
+      maxPromptTokens: 4000
+      maxCompletionTokens: 1024
+
+  # --- Review plans ----------------------------------------------------------
+  # Two-tier model: a light "read-only" plan that auto-approves SELECTs, and
+  # a strict "writes" plan that demands two human approvers on top of AI.
+  reviewPlans:
+    - name: read-only
+      description: SELECTs go straight to execution; writes are blocked.
+      requiresAiReview: true
+      requiresHumanApproval: false
+      autoApproveReads: true
+      approvalTimeoutHours: 4
+      approverEmails: [admin@acme.example.com]
+
+    - name: writes-two-approvers
+      description: Any write (INSERT/UPDATE/DELETE/DDL) needs AI + two humans.
+      requiresAiReview: true
+      requiresHumanApproval: true
+      minApprovalsRequired: 2
+      approvalTimeoutHours: 24
+      autoApproveReads: false
+      approverEmails:
+        - admin@acme.example.com
+        - sre-lead@acme.example.com
+
+  # --- Datasources -----------------------------------------------------------
+  # Names are unique per organization — pick something operators recognise.
+  # The review plan + AI config are referenced by name; the bootstrap runner
+  # resolves them in-pass, so order doesn't matter inside this file.
+  datasources:
+    - name: prod-postgres
+      dbType: POSTGRESQL
+      host: postgres.prod.svc.cluster.local
+      port: 5432
+      databaseName: app
+      username: af_reader
+      passwordSecretRef:
+        name: prod-pg-creds
+        key: password
+      sslMode: REQUIRE
+      connectionPoolSize: 10
+      maxRowsPerQuery: 10000
+      requireReviewReads: false
+      requireReviewWrites: true
+      reviewPlanName: writes-two-approvers
+      aiAnalysisEnabled: true
+      aiConfigName: claude
+
+    - name: staging-mysql
+      dbType: MYSQL
+      host: mysql.staging.svc.cluster.local
+      port: 3306
+      databaseName: app_staging
+      username: af_reader
+      passwordSecretRef:
+        name: staging-mysql-creds
+        key: password
+      sslMode: REQUIRE
+      connectionPoolSize: 5
+      maxRowsPerQuery: 50000
+      requireReviewReads: false
+      requireReviewWrites: false
+      reviewPlanName: read-only
+      aiAnalysisEnabled: true
+      aiConfigName: claude
+
+    - name: reporting-mssql
+      dbType: MSSQL
+      host: reporting.acme.example.com
+      port: 1433
+      databaseName: warehouse
+      username: af_reader
+      passwordSecretRef:
+        name: reporting-mssql-creds
+        key: password
+      sslMode: REQUIRE
+      connectionPoolSize: 5
+      maxRowsPerQuery: 100000
+      requireReviewReads: false
+      requireReviewWrites: true
+      reviewPlanName: writes-two-approvers
+      aiAnalysisEnabled: true
+      aiConfigName: claude

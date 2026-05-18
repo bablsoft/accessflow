@@ -1,0 +1,32 @@
+# Bare-minimum bootstrap: declare the organization and the first admin user
+# in-values, then operate everything else through the admin UI. Skips the
+# "first run" signup flow that ships with a fresh install.
+#
+# Bootstrap reconciles on every backend start — declared fields are upserted;
+# fields you later edit via the UI get overwritten back to what's declared
+# here. Everything NOT declared (datasources, review plans, AI configs,
+# notification channels, OAuth2, SAML, SMTP) is left untouched by bootstrap.
+#
+# Pre-create this Secret in the release namespace:
+#   accessflow-bootstrap-secrets   key: admin-password
+#
+# Layer on top of a deployment-shape example:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-production.yaml \
+#     -f charts/accessflow/examples/values-bootstrap-minimal.yaml
+
+bootstrap:
+  enabled: true
+
+  organization:
+    name: Acme Corp
+    # slug is derived from `name` when omitted (slugified to lowercase kebab-case)
+    # slug: acme
+
+  admin:
+    email: admin@acme.example.com
+    displayName: Acme Admin
+    passwordSecretRef:
+      name: accessflow-bootstrap-secrets
+      key: admin-password

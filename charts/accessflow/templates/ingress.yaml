@@ -22,11 +22,21 @@ spec:
       secretName: {{ required "ingress.tls.secretName is required when ingress.tls.enabled=true" .Values.ingress.tls.secretName }}
   {{- end }}
   rules:
+    {{- /*
+    Default routing applied to any host that omits `paths`. Keeps short-form
+    overrides (`hosts: [{ host: my-host }]`) working — Helm replaces the
+    default list element wholesale, so without this fallback the rendered
+    Ingress fails validation with "spec.rules[].http.paths: Required value".
+    */}}
+    {{- $defaultPaths := list
+        (dict "path" "/api" "pathType" "Prefix" "service" "backend")
+        (dict "path" "/ws"  "pathType" "Prefix" "service" "backend")
+        (dict "path" "/"    "pathType" "Prefix" "service" "frontend") }}
     {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
-          {{- range .paths }}
+          {{- range (default $defaultPaths .paths) }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
             backend:

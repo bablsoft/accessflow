@@ -1,0 +1,82 @@
+# AccessFlow against managed Postgres + Redis (RDS, Aurora, CloudSQL,
+# ElastiCache, Memorystore, Azure Cache for Redis, …) with every secret
+# managed outside the chart (sealed-secrets, External Secrets Operator,
+# Vault, manual `kubectl create secret`). The chart creates no Kubernetes
+# Secret objects of its own.
+#
+# Pre-create these Secrets in the release namespace before installing:
+#
+#   accessflow-pg-secret        key: password         — Postgres user password
+#   accessflow-redis-secret     key: REDIS_URL        — full Redis URL incl. credentials
+#   accessflow-encryption-key   key: value            — 64-hex AES-256-GCM key (openssl rand -hex 32)
+#   accessflow-jwt-key          key: value            — RSA-2048 PEM (PKCS#1 or PKCS#8)
+#   accessflow-audit-hmac       key: value (optional) — ≥ 32-byte hex HMAC chain key
+#
+# Usage:
+#   helm install accessflow accessflow/accessflow \
+#     --namespace accessflow --create-namespace \
+#     -f charts/accessflow/examples/values-external-services.yaml
+
+replicaCount:
+  backend: 3
+  frontend: 2
+
+# Disable the bundled subcharts — point at managed services instead.
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+externalDatabase:
+  host: accessflow.cluster-xxxxxxxxxxxx.us-east-1.rds.amazonaws.com
+  port: 5432
+  database: accessflow
+  username: accessflow
+  existingSecret: accessflow-pg-secret
+  existingSecretPasswordKey: password
+
+externalRedis:
+  # Either set `url` directly OR reference a Secret with key REDIS_URL.
+  # When `existingSecret` is set, it takes precedence and `url` is ignored.
+  existingSecret: accessflow-redis-secret
+  existingSecretUrlKey: REDIS_URL
+
+config:
+  encryptionKey:
+    existingSecret: accessflow-encryption-key
+    key: value
+  jwtPrivateKey:
+    existingSecret: accessflow-jwt-key
+    key: value
+  auditHmac:
+    existingSecret: accessflow-audit-hmac
+    key: value
+  corsAllowedOrigin: https://accessflow.company.com
+  publicBaseUrl: https://accessflow.company.com
+  frontend:
+    apiBaseUrl: https://accessflow.company.com
+    wsUrl: wss://accessflow.company.com/ws
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: accessflow.company.com
+  tls:
+    enabled: true
+    secretName: accessflow-tls
+
+autoscaling:
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  backend:
+    enabled: true
+    minAvailable: 2

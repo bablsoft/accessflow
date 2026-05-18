@@ -23,6 +23,47 @@ For production, supply your own `my-values.yaml` (Ingress host, TLS, CORS origin
 
 The chart `version` and `appVersion` are kept in lock-step with AccessFlow releases — `helm install accessflow/accessflow --version 1.2.3` always installs the `1.2.3` images.
 
+## Example values files
+
+Self-contained starting points for the common deployment shapes live under
+[`examples/`](examples/). They split into **deployment shapes** (cluster-
+level: replicas, ingress, secrets model) and **bootstrap slices**
+(declarative admin config). Pick one of each and layer them:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml
+```
+
+### Deployment shapes
+
+| File | Scenario |
+|---|---|
+| [`examples/values-minimal.yaml`](examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
+| [`examples/values-production.yaml`](examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
+| [`examples/values-external-services.yaml`](examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
+| [`examples/values-airgapped.yaml`](examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+
+### Bootstrap (declarative admin config)
+
+Each adds the `bootstrap:` block — organization, first admin user, and the
+specific slice listed below. Designed to layer on a deployment shape; none
+set ingress / replicas / secrets on their own.
+
+| File | Adds |
+|---|---|
+| [`examples/values-bootstrap-minimal.yaml`](examples/values-bootstrap-minimal.yaml) | Organization + first admin user, nothing else. Skip the first-run signup screen. |
+| [`examples/values-bootstrap-oauth2-sso.yaml`](examples/values-bootstrap-oauth2-sso.yaml) | OAuth2 providers (Google, Microsoft Entra ID, GitHub). |
+| [`examples/values-bootstrap-saml-sso.yaml`](examples/values-bootstrap-saml-sso.yaml) | SAML 2.0 SP wired to a corporate IdP (Okta, Azure AD, JumpCloud, Auth0, ADFS). |
+| [`examples/values-bootstrap-datasources.yaml`](examples/values-bootstrap-datasources.yaml) | AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL). |
+| [`examples/values-bootstrap-notifications.yaml`](examples/values-bootstrap-notifications.yaml) | System SMTP relay + Slack / email / webhook channels + a fan-out review plan. |
+| [`examples/values-bootstrap.yaml`](examples/values-bootstrap.yaml) | Kitchen-sink reference covering every `bootstrap.*` field at once. |
+
+The example files are sourced from GitHub — they are intentionally excluded
+from the packaged chart (`.helmignore`) so the `.tgz` stays lean.
+
 ## Prerequisites
 
 - Kubernetes ≥ 1.27
@@ -57,6 +98,8 @@ kubectl -n accessflow create secret generic accessflow-encryption-key \
   --from-literal=value="$(openssl rand -hex 32)"
 
 # JWT RS256 private key (RSA-2048 PEM). The default `key` is "value".
+# Either PKCS#8 (`-----BEGIN PRIVATE KEY-----`) or the legacy PKCS#1
+# (`-----BEGIN RSA PRIVATE KEY-----`) PEM is accepted.
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt_private_key.pem
 kubectl -n accessflow create secret generic accessflow-jwt-key \
   --from-file=value=./jwt_private_key.pem
@@ -110,7 +153,7 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `replicaCount.backend` | `3` | Backend replica count (overridden by HPA when enabled). |
+| `replicaCount.backend` | `2` | Backend replica count. Honored when `autoscaling.backend.enabled=false` (the default); when the HPA is enabled, its `minReplicas` floor takes over. |
 | `replicaCount.frontend` | `2` | Frontend replica count. |
 | `image.backend.tag` / `image.frontend.tag` | `""` | Override the chart's `appVersion`. Leave empty in normal use. |
 | `postgresql.enabled` | `true` | Install the bundled bitnami/postgresql subchart. Set `false` to use `externalDatabase`. |
@@ -122,12 +165,12 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `config.jwtPrivateKey.existingSecret` / `.key` | `""` (auto-generated) / `value` | Override only if you manage the JWT key externally. |
 | `config.corsAllowedOrigin` | `https://accessflow.company.com` | Frontend origin allowed by CORS. |
 | `config.frontend.apiBaseUrl` / `.wsUrl` | `https://accessflow.company.com[/ws]` | Rendered into the runtime-config.js ConfigMap. |
-| `ingress.enabled` / `.className` / `.hosts` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. |
+| `ingress.enabled` / `.className` / `.hosts` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. `paths` is optional; when omitted, the chart fills in the standard 3-path routing. |
 | `ingress.tls.enabled` / `.secretName` | `false` / `accessflow-tls` | TLS termination at the Ingress. Off by default. |
 | `ingress.annotations` | `{}` | Free-form Ingress annotations (cert-manager, nginx, ALB, …). No cert-manager annotation is set by default. |
 | `resources.backend.*` / `resources.frontend.*` | see `values.yaml` | Pod-level requests / limits. |
-| `autoscaling.backend.enabled` | `true` | Horizontal Pod Autoscaler for backend (CPU-based). |
-| `podDisruptionBudget.backend.enabled` | `true` | PDB protecting backend during rolling updates. |
+| `autoscaling.backend.enabled` | `false` | Horizontal Pod Autoscaler for backend (CPU-based). Off by default so `replicaCount.backend` is the single source of truth on first install. |
+| `podDisruptionBudget.backend.enabled` | `false` | PDB protecting backend during rolling updates. Off by default — enable on production deployments running ≥ 2 replicas. |
 | `driverCache.persistence.enabled` | `false` | Mount a PVC at the backend's custom-driver cache path. |
 
 ## Upgrade

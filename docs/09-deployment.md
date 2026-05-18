@@ -126,7 +126,8 @@ volumes:
 DB_PASSWORD=change_me_strong_password
 # 64 hex characters = 32 bytes. Generate with: openssl rand -hex 32
 ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-# PKCS#8 RSA-2048. Generate with:
+# RSA-2048 PEM. Both PKCS#8 (`-----BEGIN PRIVATE KEY-----`) and the legacy
+# PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`) form are accepted. Generate with:
 #   openssl genpkey -algorithm RSA -outform PEM -pkeyopt rsa_keygen_bits:2048
 JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
@@ -185,11 +186,58 @@ The chart lives in this repo at [`charts/accessflow/`](../charts/accessflow/) an
 Chart `version` and `appVersion` track the app version 1:1 — `--version X.Y.Z` always installs
 the `X.Y.Z` container images.
 
+### Example values files
+
+Self-contained starting points live under
+[`charts/accessflow/examples/`](../charts/accessflow/examples/) — see the
+[index README](../charts/accessflow/examples/README.md) for the full list.
+They split into **deployment shapes** (cluster-level: replicas, ingress,
+secrets model) and **bootstrap slices** (declarative admin config). The
+intended pattern is one of each, plus your own site-specific overrides:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml \
+  -f my-site-overrides.yaml
+```
+
+**Deployment shapes:**
+
+| File | Scenario |
+|---|---|
+| [`values-minimal.yaml`](../charts/accessflow/examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
+| [`values-production.yaml`](../charts/accessflow/examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
+| [`values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
+| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+
+**Bootstrap slices** (each declares organization + first admin and layers on
+top of a deployment shape — see [Bootstrap configuration](#bootstrap-configuration)
+for the semantics):
+
+| File | Adds |
+|---|---|
+| [`values-bootstrap-minimal.yaml`](../charts/accessflow/examples/values-bootstrap-minimal.yaml) | Just organization + first admin user. Skip the first-run signup screen. |
+| [`values-bootstrap-oauth2-sso.yaml`](../charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml) | OAuth2 providers (Google, Microsoft Entra ID, GitHub). |
+| [`values-bootstrap-saml-sso.yaml`](../charts/accessflow/examples/values-bootstrap-saml-sso.yaml) | SAML 2.0 SP wired to a corporate IdP. |
+| [`values-bootstrap-datasources.yaml`](../charts/accessflow/examples/values-bootstrap-datasources.yaml) | AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL). |
+| [`values-bootstrap-notifications.yaml`](../charts/accessflow/examples/values-bootstrap-notifications.yaml) | System SMTP relay + Slack / email / webhook channels + a fan-out review plan. |
+| [`values-bootstrap.yaml`](../charts/accessflow/examples/values-bootstrap.yaml) | Kitchen-sink reference covering every `bootstrap.*` field at once. |
+
+Each example is a **minimal override on top of the chart's `values.yaml`** —
+not a full dump — so you can read it end-to-end and see exactly what's
+being changed. Anything not listed inherits the chart default. The example
+files are sourced from GitHub; they're excluded from the packaged chart via
+`.helmignore` so the published `.tgz` stays lean.
+
 ### Full `values.yaml`
 
 ```yaml
+# Replicas. Honored when `autoscaling.*.enabled=false` (the default); when an
+# HPA is enabled, `autoscaling.*.minReplicas` becomes the effective floor.
 replicaCount:
-  backend: 3
+  backend: 2
   frontend: 2
 
 image:
@@ -259,6 +307,9 @@ ingress:
   # annotations:
   #   cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
+    # `paths` is optional. Omit it (e.g. `hosts: [{ host: my-host }]`) to
+    # inherit the standard 3-path routing (`/api` + `/ws` → backend, `/` →
+    # frontend) wired into the chart.
     - host: accessflow.company.com
       paths:
         - path: /api
@@ -291,18 +342,24 @@ resources:
       cpu: 500m
       memory: 256Mi
 
-# Horizontal Pod Autoscaler
+# Horizontal Pod Autoscaler.
+# Off by default — `replicaCount.backend` stays the single source of truth on
+# first install. Flip to `enabled: true` for production, at which point the
+# HPA's `minReplicas` floor takes precedence over `replicaCount.backend`.
 autoscaling:
   backend:
-    enabled: true
+    enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
 
-# Pod disruption budget (ensure HA during rolling updates)
+# Pod disruption budget (ensure HA during rolling updates).
+# Off by default — enabling on a single-replica deployment blocks voluntary
+# evictions (node drains, cluster upgrades) forever. Enable for production
+# deployments running ≥ 2 replicas.
 podDisruptionBudget:
   backend:
-    enabled: true
+    enabled: false
     minAvailable: 1
 
 # External Redis (used when redis.enabled=false)
@@ -634,7 +691,7 @@ Two layers exist:
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ENCRYPTION_KEY` | ✓ | — | 32-byte hex AES-256-GCM key for datasource credential encryption |
-| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT RS256 signing |
+| `JWT_PRIVATE_KEY` | ✓ | — | RSA-2048 PEM private key for JWT RS256 signing. Both PKCS#8 (`-----BEGIN PRIVATE KEY-----`) and the legacy PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`) form are accepted. |
 | `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | Optional | `PT15M` | ISO-8601 duration for the access-token TTL |
 | `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | Optional | `P7D` | ISO-8601 duration for the refresh-token TTL (`HttpOnly` cookie) |
 | `AUDIT_HMAC_KEY` | Optional | derived | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
