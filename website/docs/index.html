@@ -324,6 +324,14 @@
             → Docker Compose</a> for the full production-style compose (including the optional
             <code>ollama</code> profile for self-hosted AI).
           </p>
+          <p>
+            <strong>Structured logs for ELK / OpenSearch.</strong> Set
+            <code>ACCESSFLOW_LOGGING_STRUCTURED_FORMAT=logstash</code> (or <code>ecs</code> /
+            <code>gelf</code>) on the backend container and every log line becomes a single JSON
+            object — `traceId` and `spanId` from the Micrometer tracing bridge are top-level
+            fields, so correlation works out of the box. The Spring Boot ASCII banner is hidden by
+            default; set <code>SPRING_MAIN_BANNER_MODE=console</code> to restore it.
+          </p>
 
           <h3 id="run-helm">Kubernetes &amp; Helm</h3>
           <p>

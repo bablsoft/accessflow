@@ -38,6 +38,7 @@ the right.
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
 | [`docs/08-notifications.md`](../docs/08-notifications.md) | "Configurable review workflows" feature tile |
+| [`docs/05-backend.md`](../docs/05-backend.md) "Observability and tracing", [`docs/09-deployment.md`](../docs/09-deployment.md) Observability env-var table | "Observability" architecture callout (homepage) + structured-logs note under "Docker Compose" in [`docs/index.html`](docs/index.html) |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) | Roadmap track |
 | [`docs/`](../docs/) chapter filenames + H1s | Docs grid cards |
 | [`CLAUDE.md`](../CLAUDE.md) (supported db list, env-var defaults) | Hero meta strip, Features tags |
