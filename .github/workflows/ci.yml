@@ -180,6 +180,7 @@ jobs:
             --set redis.enabled=false \
             --set externalDatabase.host=db.example.com \
             --set externalDatabase.existingSecret=external-db-secret \
+            --set audit.db.existingSecret=external-audit-db-secret \
             --set externalRedis.url=redis://r.example.com:6379 \
             > /tmp/rendered-external.yaml
 
