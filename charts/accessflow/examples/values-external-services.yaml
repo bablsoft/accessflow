@@ -6,7 +6,8 @@
 #
 # Pre-create these Secrets in the release namespace before installing:
 #
-#   accessflow-pg-secret        key: password         — Postgres user password
+#   accessflow-pg-secret        keys: password,             — AccessFlow user's password
+#                                     postgres-password     — admin user's password
 #   accessflow-redis-secret     key: REDIS_URL        — full Redis URL incl. credentials
 #   accessflow-encryption-key   key: value            — 64-hex AES-256-GCM key (openssl rand -hex 32)
 #   accessflow-jwt-key          key: value            — RSA-2048 PEM (PKCS#1 or PKCS#8)

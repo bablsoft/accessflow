@@ -368,9 +368,10 @@
 <span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-jwt-key \
   --from-file=value=<span class="c-str">&lt;(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048)</span>
 
-<span class="c-com"># bitnami/postgresql expects the password under the key "password"</span>
+<span class="c-com"># Postgres Secret needs BOTH keys: `password` (AccessFlow user) + `postgres-password` (admin)</span>
 <span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-pg-secret \
-  --from-literal=password=<span class="c-str">"$(openssl rand -base64 24)"</span>
+  --from-literal=password=<span class="c-str">"$(openssl rand -base64 24)"</span> \
+  --from-literal=postgres-password=<span class="c-str">"$(openssl rand -base64 24)"</span>
 </pre>
           </div>
           <p>

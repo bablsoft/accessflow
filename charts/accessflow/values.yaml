@@ -46,17 +46,26 @@ serviceAccount:
 # --- Internal PostgreSQL subchart (bitnami/postgresql).
 # Set enabled: false to use externalDatabase below instead.
 #
-# When `auth.existingSecret` is left empty (the default), the bitnami subchart
-# auto-generates a random password on first install and stores it in a Secret
-# named "{release-name}-postgresql" (key: "password"). The chart preserves the
-# generated password across upgrades. To bring your own, create a Secret with
-# a "password" key and point `auth.existingSecret` at it.
+# `auth.existingSecret` defaults to a Helm template string that resolves to a
+# chart-managed Secret `{release}-accessflow-db` (rendered by templates/db-
+# secret.yaml). That Secret carries `helm.sh/resource-policy: keep` so it
+# survives `helm uninstall` — keeping its random password in sync with the
+# postgresql PVC (which also survives uninstall). Bitnami's own auto-generated
+# Secret would NOT survive uninstall, and the mismatch between regenerated
+# password and PVC-on-disk password was the root cause of #228's "FATAL:
+# password authentication failed for user 'accessflow'" on reinstall.
+#
+# To bring your own Secret (sealed-secrets, External Secrets, Vault, manual
+# `kubectl create secret`), set `auth.existingSecret` to its name. The Secret
+# must expose both keys:
+#   password          — the AccessFlow custom-user password
+#   postgres-password — the postgres admin password
 postgresql:
   enabled: true
   auth:
     database: accessflow
     username: accessflow
-    existingSecret: ""
+    existingSecret: '{{ .Release.Name }}-accessflow-db'
   primary:
     persistence:
       enabled: true

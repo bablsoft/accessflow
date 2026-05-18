@@ -125,29 +125,30 @@ DB JDBC URL — derived from the bundled postgresql subchart or externalDatabase
 PostgreSQL password Secret name.
 
 When postgresql.enabled=true:
-  - If postgresql.auth.existingSecret is set, use it as-is.
-  - Otherwise fall back to the Secret the bitnami subchart auto-generates and
-    manages internally, which is named "{release}-postgresql".
+  - `postgresql.auth.existingSecret` is templated (bitnami runs it through `tpl`),
+    so its default in values.yaml is `'{{ .Release.Name }}-accessflow-db'` —
+    pointing at the chart-managed Secret rendered by `db-secret.yaml`. That Secret
+    carries `helm.sh/resource-policy: keep`, which is what keeps the password in
+    sync with the postgresql PVC across `helm uninstall` + `helm install` cycles
+    (the PVC always survives uninstall; bitnami's own Secret does not, and the
+    mismatch was the cause of #228's "password authentication failed").
+  - Operators who manage the password externally point `existingSecret` at their
+    own Secret (must expose keys `password` and `postgres-password`).
 
 When postgresql.enabled=false (externalDatabase mode):
   - externalDatabase.existingSecret is required.
 */}}
 {{- define "accessflow.db.passwordSecret" -}}
 {{- if .Values.postgresql.enabled -}}
-{{- if .Values.postgresql.auth.existingSecret -}}
-{{ .Values.postgresql.auth.existingSecret }}
-{{- else -}}
-{{ printf "%s-postgresql" .Release.Name }}
-{{- end -}}
+{{- tpl .Values.postgresql.auth.existingSecret . -}}
 {{- else -}}
 {{ required "externalDatabase.existingSecret is required when postgresql.enabled=false" .Values.externalDatabase.existingSecret }}
 {{- end -}}
 {{- end }}
 
 {{/*
-PostgreSQL password Secret key. The bitnami chart stores the custom-user
-password under the key "password" by default — both for the auto-generated
-secret and for any existingSecret passed in.
+PostgreSQL password Secret key — always `password` for the custom user,
+matching bitnami's own naming convention.
 */}}
 {{- define "accessflow.db.passwordSecretKey" -}}
 {{- if .Values.postgresql.enabled -}}
@@ -156,6 +157,55 @@ password
 {{ default "password" .Values.externalDatabase.existingSecretPasswordKey }}
 {{- end -}}
 {{- end }}
+
+{{/*
+Chart-managed db Secret name. Must match the rendered value of
+`postgresql.auth.existingSecret` so bitnami's `tpl` call resolves to the same
+string.
+*/}}
+{{- define "accessflow.db.secrets.fullname" -}}
+{{- printf "%s-accessflow-db" .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Returns "true" when the chart-managed db Secret should render — i.e. the
+operator has left `postgresql.auth.existingSecret` at its default template
+(which resolves to {{ include "accessflow.db.secrets.fullname" . }}) rather
+than overriding with their own Secret name.
+*/}}
+{{- define "accessflow.db.chartManaged" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- $resolved := tpl .Values.postgresql.auth.existingSecret . -}}
+{{- $managed := include "accessflow.db.secrets.fullname" . -}}
+{{- if eq $resolved $managed -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Looks up a key on the chart-managed db Secret so the random passwords survive
+upgrades AND uninstall+reinstall cycles. Falls back to the legacy
+`{release}-postgresql` Secret on the first upgrade from the pre-AF-228 layout
+(bitnami's auto-generated Secret) so existing data dirs keep working.
+
+Usage:
+  {{ include "accessflow.db.lookupOrDefault" (dict "ctx" . "key" "password" "default" "abcdef") }}
+*/}}
+{{- define "accessflow.db.lookupOrDefault" -}}
+{{- $ctx := .ctx -}}
+{{- $managedName := include "accessflow.db.secrets.fullname" $ctx -}}
+{{- $managed := lookup "v1" "Secret" $ctx.Release.Namespace $managedName -}}
+{{- if and $managed $managed.data (hasKey $managed.data .key) -}}
+{{- index $managed.data .key | b64dec -}}
+{{- else -}}
+{{- $legacyName := printf "%s-postgresql" $ctx.Release.Name -}}
+{{- $legacy := lookup "v1" "Secret" $ctx.Release.Namespace $legacyName -}}
+{{- if and $legacy $legacy.data (hasKey $legacy.data .key) -}}
+{{- index $legacy.data .key | b64dec -}}
+{{- else -}}
+{{- .default -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 
 {{/*
 Redis URL — bundled subchart or externalRedis.
