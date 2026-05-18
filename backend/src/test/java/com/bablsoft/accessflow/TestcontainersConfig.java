@@ -7,13 +7,20 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 /**
  * Shared Testcontainers configuration for integration tests.
  * Use with {@code @ImportTestcontainers(TestcontainersConfig.class)}.
+ *
+ * <p>The Postgres container ships an init script that provisions the
+ * {@code accessflow_audit} and {@code accessflow_app} roles consumed by
+ * {@code V38__audit_log_role_separation.sql}. Spring's primary DataSource still
+ * authenticates as the Testcontainer superuser ({@code test}) so existing tests can
+ * freely seed and clean up via JdbcTemplate.
  */
 public final class TestcontainersConfig {
 
     @ServiceConnection
     @SuppressWarnings("resource")
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine")
-            .withCommand("postgres", "-c", "max_connections=500");
+            .withCommand("postgres", "-c", "max_connections=500")
+            .withInitScript("db/test-init-audit-roles.sql");
 
     @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")

@@ -12,14 +12,18 @@ import com.bablsoft.accessflow.audit.internal.persistence.repo.AuditLogRepositor
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.SortOrder;
-import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -28,7 +32,6 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 class DefaultAuditLogService implements AuditLogService {
 
     static final String REASON_ANCHOR_HAS_PREVIOUS = "anchor_has_previous";
@@ -39,39 +42,91 @@ class DefaultAuditLogService implements AuditLogService {
     private final AuditLogRepository repository;
     private final ObjectMapper objectMapper;
     private final AuditChainHasher hasher;
-    private final EntityManager entityManager;
+    private final JdbcTemplate auditJdbcTemplate;
+    private final TransactionTemplate auditTransactionTemplate;
+
+    DefaultAuditLogService(AuditLogRepository repository,
+                           ObjectMapper objectMapper,
+                           AuditChainHasher hasher,
+                           @Qualifier("auditJdbcTemplate") JdbcTemplate auditJdbcTemplate,
+                           @Qualifier("auditTransactionTemplate") TransactionTemplate auditTransactionTemplate) {
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.hasher = hasher;
+        this.auditJdbcTemplate = auditJdbcTemplate;
+        this.auditTransactionTemplate = auditTransactionTemplate;
+    }
 
     @Override
-    @Transactional
     public UUID record(AuditEntry entry) {
         var orgId = entry.organizationId();
         long lockKey = orgId.getMostSignificantBits() ^ orgId.getLeastSignificantBits();
-        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(?1)")
-                .setParameter(1, lockKey)
-                .getSingleResult();
-
-        var prev = repository
-                .findTopByOrganizationIdOrderByCreatedAtDescIdDesc(orgId)
-                .orElse(null);
-        byte[] prevHash = prev == null ? null : prev.getCurrentHash();
-
         var id = UUID.randomUUID();
-        var row = new AuditLogEntity();
-        row.setId(id);
-        row.setOrganizationId(orgId);
-        row.setActorId(entry.actorId());
-        row.setAction(entry.action().name());
-        row.setResourceType(entry.resourceType().dbValue());
-        row.setResourceId(entry.resourceId());
-        row.setMetadata(serializeMetadata(entry.metadata()));
-        row.setIpAddress(entry.ipAddress());
-        row.setUserAgent(entry.userAgent());
         // Postgres TIMESTAMPTZ stores microsecond precision; truncate so the value used in the
         // HMAC canonical form matches what verify() reads back from the database.
-        row.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MICROS));
-        row.setPreviousHash(prevHash);
-        row.setCurrentHash(hasher.hash(row, prevHash));
-        repository.save(row);
+        var createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        var metadataJson = serializeMetadata(entry.metadata());
+
+        auditTransactionTemplate.executeWithoutResult(status -> {
+            // pg_advisory_xact_lock returns void — wrap in a ResultSetExtractor so the
+            // single-null-column response from PostgreSQL doesn't trip queryForObject's
+            // EmptyResultDataAccessException check.
+            auditJdbcTemplate.query("SELECT pg_advisory_xact_lock(?)",
+                    (ResultSetExtractor<Object>) rs -> null, lockKey);
+
+            byte[] prevHash = auditJdbcTemplate.query(
+                    "SELECT current_hash FROM audit_log WHERE organization_id = ? "
+                            + "ORDER BY created_at DESC, id DESC LIMIT 1",
+                    (ResultSetExtractor<byte[]>) rs -> rs.next() ? rs.getBytes(1) : null,
+                    orgId);
+
+            var row = new AuditLogEntity();
+            row.setId(id);
+            row.setOrganizationId(orgId);
+            row.setActorId(entry.actorId());
+            row.setAction(entry.action().name());
+            row.setResourceType(entry.resourceType().dbValue());
+            row.setResourceId(entry.resourceId());
+            row.setMetadata(metadataJson);
+            row.setIpAddress(entry.ipAddress());
+            row.setUserAgent(entry.userAgent());
+            row.setCreatedAt(createdAt);
+            row.setPreviousHash(prevHash);
+            row.setCurrentHash(hasher.hash(row, prevHash));
+
+            auditJdbcTemplate.update(con -> {
+                var ps = con.prepareStatement(
+                        "INSERT INTO audit_log "
+                                + "(id, organization_id, actor_id, action, resource_type, resource_id, "
+                                + " metadata, ip_address, user_agent, created_at, previous_hash, current_hash) "
+                                + "VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::inet, ?, ?, ?, ?)");
+                ps.setObject(1, row.getId());
+                ps.setObject(2, row.getOrganizationId());
+                if (row.getActorId() == null) {
+                    ps.setNull(3, Types.OTHER);
+                } else {
+                    ps.setObject(3, row.getActorId());
+                }
+                ps.setString(4, row.getAction());
+                ps.setString(5, row.getResourceType());
+                if (row.getResourceId() == null) {
+                    ps.setNull(6, Types.OTHER);
+                } else {
+                    ps.setObject(6, row.getResourceId());
+                }
+                ps.setString(7, row.getMetadata());
+                ps.setString(8, row.getIpAddress());
+                ps.setString(9, row.getUserAgent());
+                ps.setTimestamp(10, Timestamp.from(row.getCreatedAt()));
+                if (row.getPreviousHash() == null) {
+                    ps.setNull(11, Types.BINARY);
+                } else {
+                    ps.setBytes(11, row.getPreviousHash());
+                }
+                ps.setBytes(12, row.getCurrentHash());
+                return ps;
+            });
+        });
         return id;
     }
 

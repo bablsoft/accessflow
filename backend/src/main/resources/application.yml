@@ -20,6 +20,12 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    placeholders:
+      # Postgres role names used by V38__audit_log_role_separation.sql. Override only
+      # when the deployment uses a non-default role name (e.g. operator-managed
+      # ${DB_USER}/${AUDIT_DB_USER} env vars wire these to the right values).
+      app_role: ${DB_USER:accessflow}
+      audit_role: ${AUDIT_DB_USER:accessflow_audit}
 
   threads:
     virtual:
@@ -131,6 +137,14 @@ accessflow:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.
     hmac-key: ${AUDIT_HMAC_KEY:}
+    # Separate Postgres role used solely to INSERT into audit_log (issue #67). The role must
+    # own audit_log so that REVOKE on the general DB_USER bites; provisioning lives in the
+    # deployment manifests (deploy/postgres-init/01-audit-role.sql for compose, the Helm
+    # chart's postgresql.primary.initdb.scripts for k8s). The URL is reused from
+    # spring.datasource.url so the audit datasource hits the same Postgres instance.
+    datasource:
+      username: ${AUDIT_DB_USER:accessflow_audit}
+      password: ${AUDIT_DB_PASSWORD:accessflow_audit}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

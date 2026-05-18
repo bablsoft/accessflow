@@ -70,6 +70,44 @@ postgresql:
     persistence:
       enabled: true
       size: 20Gi
+    # initdb scripts run once, on first init of the postgresql PVC, as the postgres
+    # superuser. The audit-role script provisions the `accessflow_audit` role that
+    # V38__audit_log_role_separation.sql transfers audit_log ownership to. Wiring the
+    # password through ${AUDIT_DB_PASSWORD} from a separate Secret keeps this manifest
+    # secret-free — see templates/db-audit-secret.yaml.
+    initdb:
+      scripts:
+        01-audit-role.sh: |
+          #!/bin/bash
+          set -euo pipefail
+          : "${AUDIT_DB_USER:=accessflow_audit}"
+          : "${AUDIT_DB_PASSWORD:?AUDIT_DB_PASSWORD env var is required for the audit role init script}"
+          psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+          DO \$do\$
+          BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AUDIT_DB_USER}') THEN
+                  EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+              ELSE
+                  EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+              END IF;
+          END \$do\$;
+          GRANT CONNECT ON DATABASE "${POSTGRES_DB}" TO "${AUDIT_DB_USER}";
+          GRANT USAGE ON SCHEMA public TO "${AUDIT_DB_USER}";
+          -- Allow the general app role to ALTER TABLE OWNER from V38 without superuser privs.
+          GRANT "${AUDIT_DB_USER}" TO "${POSTGRES_USER}";
+          EOSQL
+    # Surface AUDIT_DB_USER / AUDIT_DB_PASSWORD inside the postgresql container so the
+    # initdb script above can read them. Pulled from the chart-managed audit Secret —
+    # see templates/db-audit-secret.yaml. Password key matches `auth.username`'s
+    # bitnami convention.
+    extraEnvVars:
+      - name: AUDIT_DB_USER
+        value: accessflow_audit
+      - name: AUDIT_DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: '{{ .Release.Name }}-accessflow-audit-db'
+            key: password
 
 # --- Internal Redis subchart (bitnami/redis).
 # Set enabled: false to use externalRedis below instead.
@@ -89,6 +127,27 @@ externalDatabase:
   # (override via existingSecretPasswordKey).
   existingSecret: ""
   existingSecretPasswordKey: password
+
+# --- Audit-writer database role (issue #67).
+#
+# AccessFlow uses a dedicated Postgres role to INSERT into audit_log so the general
+# DB_USER can have UPDATE/DELETE/TRUNCATE revoked on that table. The role is provisioned
+# by `postgresql.primary.initdb.scripts` (see above) when the bundled subchart is in
+# use; for external Postgres the operator provisions it manually — see
+# docs/09-deployment.md → "audit_log role separation".
+audit:
+  db:
+    # Username of the dedicated audit-writer role. Must match what the initdb script
+    # (or your external-Postgres provisioning) created.
+    username: accessflow_audit
+    # Operator-managed Secret holding the audit-role password. **Required** when
+    # postgresql.enabled=false (external Postgres) — the operator provisions the role
+    # on their database and provides its password through this Secret. Ignored when
+    # postgresql.enabled=true: the chart generates and pins a random password under
+    # `{release}-accessflow-audit-db` (kept across uninstall in lock-step with the
+    # postgresql PVC, same as the main DB Secret).
+    existingSecret: ""
+    existingSecretPasswordKey: password
 
 # --- External Redis (used when redis.enabled=false)
 externalRedis:

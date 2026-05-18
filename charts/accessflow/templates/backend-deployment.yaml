@@ -54,6 +54,14 @@ spec:
                 secretKeyRef:
                   name: {{ include "accessflow.db.passwordSecret" . }}
                   key: {{ include "accessflow.db.passwordSecretKey" . }}
+            # Dedicated audit-writer DB role (issue #67). Used by the audit module's
+            # auditDataSource bean to INSERT into audit_log; the general DB_USER has
+            # UPDATE/DELETE/TRUNCATE on audit_log revoked by V38.
+            - name: AUDIT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.auditDb.passwordSecret" . }}
+                  key: {{ include "accessflow.auditDb.passwordSecretKey" . }}
             {{- if and (not .Values.redis.enabled) .Values.externalRedis.existingSecret }}
             - name: REDIS_URL
               valueFrom:

@@ -57,6 +57,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Provisions the accessflow_audit role used by V38 (audit_log role separation).
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U accessflow']
       interval: 10s
@@ -81,6 +83,9 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/accessflow
       DB_USER: accessflow
       DB_PASSWORD: ${DB_PASSWORD}
+      # Dedicated audit-writer role — see "audit_log role separation" below.
+      AUDIT_DB_USER: accessflow_audit
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY}
       REDIS_URL: redis://redis:6379
@@ -124,6 +129,9 @@ volumes:
 
 ```env
 DB_PASSWORD=change_me_strong_password
+# Password for the dedicated audit-writer role provisioned by
+# deploy/postgres-init/01-audit-role.sql (see "audit_log role separation" below).
+AUDIT_DB_PASSWORD=change_me_audit_password
 # 64 hex characters = 32 bytes. Generate with: openssl rand -hex 32
 ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 # RSA-2048 PEM. Both PKCS#8 (`-----BEGIN PRIVATE KEY-----`) and the legacy
@@ -697,8 +705,10 @@ Two layers exist:
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `DB_URL` | ✓ | `jdbc:postgresql://localhost:5432/accessflow` | JDBC URL for AccessFlow internal PostgreSQL |
-| `DB_USER` | ✓ | `accessflow` | PostgreSQL username |
-| `DB_PASSWORD` | ✓ | `accessflow` | PostgreSQL password |
+| `DB_USER` | ✓ | `accessflow` | PostgreSQL username for the general application connection pool. UPDATE/DELETE/TRUNCATE on `audit_log` are revoked by `V38__audit_log_role_separation.sql`; SELECT is retained for the admin read endpoint. |
+| `DB_PASSWORD` | ✓ | `accessflow` | Password for `DB_USER`. |
+| `AUDIT_DB_USER` | Optional | `accessflow_audit` | PostgreSQL username for the dedicated audit-writer role used by the audit module's `auditDataSource` bean to INSERT into `audit_log`. The role must exist before Flyway runs — see ["audit_log role separation"](#audit_log-role-separation) below. |
+| `AUDIT_DB_PASSWORD` | Optional | `accessflow_audit` | Password for `AUDIT_DB_USER`. |
 | `REDIS_URL` | Optional | `redis://localhost:6379` | Redis URL for token revocation, async events, and ShedLock scheduler locks |
 
 #### Security & Auth
@@ -860,27 +870,104 @@ The Helm chart renders this ConfigMap automatically from
 
 ## Database Hardening
 
-### `audit_log` is append-only — revoke UPDATE/DELETE on the application role
+### audit_log role separation
 
 The application **never** issues `UPDATE`, `DELETE`, or `TRUNCATE` against `audit_log` —
 writes go through `AuditLogService.record(...)` which only `INSERT`s, and reads through
 `AuditLogService.query(...)` which only `SELECT`s (see [docs/07-security.md → "Audit log
-integrity"](07-security.md)). Enforce that contract at the database layer in production so a
-future code bug or compromised connection cannot rewrite history:
+integrity"](07-security.md)).
+
+A pair of changes enforces that contract at the database layer:
+
+1. **Two Postgres roles**, not one. The general `DB_USER` (default `accessflow`) handles
+   every connection except audit writes. A dedicated `AUDIT_DB_USER` (default
+   `accessflow_audit`) owns `audit_log` and is the only principal that INSERTs rows.
+2. **Flyway migration `V38__audit_log_role_separation.sql`** runs automatically on backend
+   startup. It transfers ownership of `audit_log` to `AUDIT_DB_USER`, revokes all privileges
+   from `DB_USER`, and re-grants only `SELECT` (for the admin read endpoint). Without
+   ownership, `DB_USER` no longer carries implicit privileges — the REVOKE bites.
+
+The application wires the second role into a separate Hikari pool. `DefaultAuditLogService`
+INSERTs through it; everything else (including reads on `audit_log`) goes through the
+primary `DataSource`.
+
+**The audit role must exist before Flyway runs.** The migration aborts startup with a
+clear error if it does not.
+
+#### Docker Compose
+
+The bundled [`docker-compose.yml`](../docker-compose.yml) bind-mounts
+[`deploy/postgres-init/`](../deploy/postgres-init/) into
+`/docker-entrypoint-initdb.d` on the `postgres` service. The script
+[`01-audit-role.sql`](../deploy/postgres-init/01-audit-role.sql) runs once on first init
+of the Postgres data volume — it creates `accessflow_audit`, grants it `CONNECT` +
+`USAGE`, and grants the `accessflow` role membership in `accessflow_audit` so the
+subsequent `ALTER TABLE OWNER` in V38 succeeds without superuser privileges.
+
+For the demo, `AUDIT_DB_PASSWORD` defaults to `accessflow_audit` (override via the env
+var when running in production).
+
+#### Helm
+
+The bundled chart provisions the role through
+`postgresql.primary.initdb.scripts.01-audit-role.sh` (see
+[`charts/accessflow/values.yaml`](../charts/accessflow/values.yaml)). The script reads
+the audit-role password from `AUDIT_DB_PASSWORD`, which the bitnami subchart sources
+from the chart-managed Secret `{release}-accessflow-audit-db`. That Secret carries
+`helm.sh/resource-policy: keep` so its value survives `helm uninstall` in lock-step with
+the postgresql PVC (the same pattern used by the main DB Secret in
+[`templates/db-secret.yaml`](../charts/accessflow/templates/db-secret.yaml)).
+
+The backend Deployment exposes the same Secret to the application as `AUDIT_DB_PASSWORD`
+and emits `AUDIT_DB_USER` from the ConfigMap so the audit `DataSource` bean can
+authenticate.
+
+To bring your own audit Secret (sealed-secrets, External Secrets Operator, Vault…),
+override `audit.db.existingSecret` in your values. This path is fully supported only
+when `postgresql.enabled=false` (external Postgres) — when the bundled subchart is in
+use, the chart always manages the audit-db Secret to keep the initdb script and the
+backend pointing at the same value.
+
+#### External Postgres (or managed DBaaS)
+
+When `postgresql.enabled=false`, run the role provisioning manually against your managed
+database before the first `helm install`:
 
 ```sql
--- Run once, after Flyway has applied V9__create_audit_log.sql.
--- Replace `accessflow` with the role used by DB_USER.
-REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM accessflow;
-GRANT  SELECT, INSERT          ON audit_log TO   accessflow;
+-- Replace placeholders to match your deployment.
+CREATE ROLE accessflow_audit LOGIN PASSWORD '<strong password>';
+GRANT CONNECT ON DATABASE accessflow TO accessflow_audit;
+GRANT USAGE  ON SCHEMA public TO accessflow_audit;
+-- So V38 can ALTER TABLE OWNER without superuser privileges.
+GRANT accessflow_audit TO accessflow;
 ```
 
-`SELECT` is retained because the admin audit-log UI
-(`GET /api/v1/admin/audit-log`) reads from the same role.
+Then store the password under a Kubernetes Secret and point the chart at it:
 
-A fully separate "audit writer" role distinct from the general application user remains a
-deferred enhancement (see [docs/07-security.md → "Deferred"](07-security.md)); the `REVOKE`
-above is the interim hardening that requires no application changes.
+```yaml
+audit:
+  db:
+    username: accessflow_audit
+    existingSecret: accessflow-pg-audit-secret
+    existingSecretPasswordKey: password
+```
+
+See [`charts/accessflow/examples/values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml)
+for the full external-services template.
+
+#### Verifying the grants
+
+After deployment, confirm at the database layer that the general role can no longer
+mutate `audit_log`:
+
+```bash
+# Connect as the general DB_USER (NOT the audit role or postgres superuser).
+psql "$DB_URL" -c "DELETE FROM audit_log WHERE id IS NULL"
+# Expected: ERROR:  permission denied for table audit_log
+```
+
+The integration test `AuditRoleSeparationIntegrationTest` asserts the same property as
+part of every backend build.
 
 ---
 

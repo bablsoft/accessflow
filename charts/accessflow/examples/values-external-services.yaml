@@ -8,6 +8,11 @@
 #
 #   accessflow-pg-secret        keys: password,             — AccessFlow user's password
 #                                     postgres-password     — admin user's password
+#   accessflow-pg-audit-secret  key: password         — dedicated audit-writer role's password
+#                                                       (the role itself must be provisioned
+#                                                       on the external Postgres — see
+#                                                       docs/09-deployment.md → "audit_log
+#                                                       role separation")
 #   accessflow-redis-secret     key: REDIS_URL        — full Redis URL incl. credentials
 #   accessflow-encryption-key   key: value            — 64-hex AES-256-GCM key (openssl rand -hex 32)
 #   accessflow-jwt-key          key: value            — RSA-2048 PEM (PKCS#1 or PKCS#8)
@@ -36,6 +41,14 @@ externalDatabase:
   username: accessflow
   existingSecret: accessflow-pg-secret
   existingSecretPasswordKey: password
+
+audit:
+  db:
+    # Pre-provisioned on the external Postgres — see docs/09-deployment.md
+    # → "audit_log role separation" for the role-creation snippet.
+    username: accessflow_audit
+    existingSecret: accessflow-pg-audit-secret
+    existingSecretPasswordKey: password
 
 externalRedis:
   # Either set `url` directly OR reference a Secret with key REDIS_URL.

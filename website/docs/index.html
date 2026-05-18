@@ -312,6 +312,9 @@
 <span class="c-kw">JWT_PRIVATE_KEY</span>=<span class="c-str">"$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2&gt;/dev/null)"</span>
 
 <span class="c-kw">DB_PASSWORD</span>=<span class="c-str">change-me</span>
+<span class="c-com"># Password for the dedicated audit-writer role (issue #67). Provisioned by</span>
+<span class="c-com"># deploy/postgres-init/01-audit-role.sql — see "audit_log role separation".</span>
+<span class="c-kw">AUDIT_DB_PASSWORD</span>=<span class="c-str">change-me-audit</span>
 <span class="c-kw">CORS_ALLOWED_ORIGIN</span>=<span class="c-str">https://accessflow.company.com</span>
 <span class="c-kw">ACCESSFLOW_PUBLIC_BASE_URL</span>=<span class="c-str">https://accessflow.company.com</span>
 </pre>

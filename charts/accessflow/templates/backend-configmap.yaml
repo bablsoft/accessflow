@@ -8,6 +8,7 @@ data:
   SERVER_PORT: {{ .Values.backend.service.port | quote }}
   DB_URL: {{ include "accessflow.db.url" . | quote }}
   DB_USER: {{ include "accessflow.db.username" . | quote }}
+  AUDIT_DB_USER: {{ include "accessflow.auditDb.username" . | quote }}
   REDIS_URL: {{ include "accessflow.redis.url" . | quote }}
   CORS_ALLOWED_ORIGIN: {{ .Values.config.corsAllowedOrigin | quote }}
   ACCESSFLOW_PUBLIC_BASE_URL: {{ .Values.config.publicBaseUrl | quote }}
