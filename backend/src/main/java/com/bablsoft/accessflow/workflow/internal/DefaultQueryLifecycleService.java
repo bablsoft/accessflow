@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
+import com.bablsoft.accessflow.workflow.events.QueryCancelledEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,8 +70,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             throw new QueryNotCancellableException(query.id(), current);
         }
         queryRequestStateService.transitionTo(query.id(), current, QueryStatus.CANCELLED);
-        recordAudit(AuditAction.QUERY_CANCELLED, query.id(), command.callerUserId(),
-                command.callerOrganizationId(), Map.of());
+        eventPublisher.publishEvent(new QueryCancelledEvent(query.id(), command.callerUserId()));
     }
 
     @Override

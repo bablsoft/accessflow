@@ -1,5 +1,10 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
@@ -25,7 +30,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +41,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
@@ -53,6 +58,7 @@ class QueryReadController {
     private final QueryLifecycleService queryLifecycleService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryCsvExportService queryCsvExportService;
+    private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
 
     @GetMapping
@@ -140,17 +146,36 @@ class QueryReadController {
         return QueryDetailResponse.from(detail);
     }
 
-    @DeleteMapping("/{id}")
+    @PostMapping("/{id}/cancel")
     @Operation(summary = "Cancel a pending query (submitter only)")
     @ApiResponse(responseCode = "204", description = "Query cancelled")
     @ApiResponse(responseCode = "403", description = "Caller is not the submitter")
     @ApiResponse(responseCode = "404", description = "Query not found")
     @ApiResponse(responseCode = "409", description = "Query is no longer cancellable")
-    ResponseEntity<Void> cancel(@PathVariable UUID id, Authentication authentication) {
+    ResponseEntity<Void> cancel(@PathVariable UUID id, Authentication authentication,
+                                RequestAuditContext auditContext) {
         var caller = (JwtClaims) authentication.getPrincipal();
         queryLifecycleService.cancel(new CancelQueryCommand(id, caller.userId(),
                 caller.organizationId()));
+        recordCancelAudit(caller, id, auditContext);
         return ResponseEntity.noContent().build();
+    }
+
+    private void recordCancelAudit(JwtClaims caller, UUID queryId,
+                                   RequestAuditContext auditContext) {
+        try {
+            auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_CANCELLED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    new HashMap<>(),
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_CANCELLED on query {}", queryId, ex);
+        }
     }
 
     @PostMapping("/{id}/execute")
