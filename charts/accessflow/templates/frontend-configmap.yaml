@@ -1,3 +1,4 @@
+{{- include "accessflow.config.validateUrls" . -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

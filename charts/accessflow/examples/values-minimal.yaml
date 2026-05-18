@@ -20,11 +20,11 @@ replicaCount:
   frontend: 1
 
 config:
-  corsAllowedOrigin: http://accessflow.demo.example.com
-  publicBaseUrl: http://accessflow.demo.example.com
+  corsAllowedOrigin: https://accessflow.demo.example.com
+  publicBaseUrl: https://accessflow.demo.example.com
   frontend:
-    apiBaseUrl: http://accessflow.demo.example.com
-    wsUrl: ws://accessflow.demo.example.com/ws
+    apiBaseUrl: https://accessflow.demo.example.com
+    wsUrl: wss://accessflow.demo.example.com/ws
 
 ingress:
   enabled: true

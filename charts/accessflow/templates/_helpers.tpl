@@ -230,6 +230,36 @@ OAuth2 frontend callback URL — defaults to ${corsAllowedOrigin}/auth/oauth/cal
 {{- end }}
 
 {{/*
+Fail the render with a clear message when the runtime URLs don't carry a
+scheme. Without this guard, a value like `apiBaseUrl: demo.acme.example.com`
+makes axios treat the string as a relative path — the browser resolves it
+against the current page, producing requests like
+`https://demo.acme.example.com/demo.acme.example.com/api/v1/...` and a
+non-obvious "frontend can't reach backend" failure mode.
+
+Invoked from frontend-configmap.yaml (always rendered) so the failure
+surfaces at `helm install` / `helm template` time, not at runtime.
+*/}}
+{{- define "accessflow.config.validateUrls" -}}
+{{- $api := .Values.config.frontend.apiBaseUrl -}}
+{{- if not (or (hasPrefix "http://" $api) (hasPrefix "https://" $api)) -}}
+{{- fail (printf "config.frontend.apiBaseUrl must be a full URL starting with http:// or https://, got %q" $api) -}}
+{{- end -}}
+{{- $ws := .Values.config.frontend.wsUrl -}}
+{{- if not (or (hasPrefix "ws://" $ws) (hasPrefix "wss://" $ws)) -}}
+{{- fail (printf "config.frontend.wsUrl must be a full URL starting with ws:// or wss://, got %q" $ws) -}}
+{{- end -}}
+{{- $cors := .Values.config.corsAllowedOrigin -}}
+{{- if not (or (hasPrefix "http://" $cors) (hasPrefix "https://" $cors)) -}}
+{{- fail (printf "config.corsAllowedOrigin must be a full URL starting with http:// or https://, got %q" $cors) -}}
+{{- end -}}
+{{- $base := .Values.config.publicBaseUrl -}}
+{{- if not (or (hasPrefix "http://" $base) (hasPrefix "https://" $base)) -}}
+{{- fail (printf "config.publicBaseUrl must be a full URL starting with http:// or https://, got %q" $base) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Chart-managed Secret name holding auto-generated app secrets
 (encryption key, JWT signing key, audit HMAC key). The chart only creates this
 Secret when at least one of the corresponding `existingSecret` fields is empty.
