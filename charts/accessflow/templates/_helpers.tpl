@@ -208,6 +208,67 @@ Usage:
 {{- end -}}
 
 {{/*
+Audit-writer DB role (issue #67). The dedicated Postgres role that owns audit_log after
+V38__audit_log_role_separation.sql; AccessFlow's auditDataSource bean uses these creds
+to INSERT into audit_log while the general DB_USER retains SELECT only.
+*/}}
+{{- define "accessflow.auditDb.username" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- default "accessflow_audit" .Values.audit.db.username -}}
+{{- else -}}
+{{- $u := .Values.audit.db.username -}}
+{{- if not $u -}}{{- fail "audit.db.username is required when postgresql.enabled=false" -}}{{- end -}}
+{{- $u -}}
+{{- end -}}
+{{- end }}
+
+{{- define "accessflow.auditDb.secrets.fullname" -}}
+{{- printf "%s-accessflow-audit-db" .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Chart-managed audit-db Secret only renders when the bundled postgresql subchart is in
+use AND the operator has not supplied their own Secret. With an external Postgres
+(`postgresql.enabled=false`), the operator provisions the role + Secret manually and
+points `audit.db.existingSecret` at it.
+*/}}
+{{/*
+The chart manages the audit-db Secret whenever the bundled postgresql subchart is in
+use; the operator's `audit.db.existingSecret` only takes effect with an external
+Postgres (postgresql.enabled=false), where it is required.
+*/}}
+{{- define "accessflow.auditDb.chartManaged" -}}
+{{- if .Values.postgresql.enabled -}}true{{- end -}}
+{{- end -}}
+
+{{- define "accessflow.auditDb.passwordSecret" -}}
+{{- if .Values.postgresql.enabled -}}
+{{ include "accessflow.auditDb.secrets.fullname" . }}
+{{- else -}}
+{{ required "audit.db.existingSecret is required when postgresql.enabled=false" .Values.audit.db.existingSecret }}
+{{- end -}}
+{{- end -}}
+
+{{- define "accessflow.auditDb.passwordSecretKey" -}}
+{{- if .Values.postgresql.enabled -}}
+password
+{{- else -}}
+{{ default "password" .Values.audit.db.existingSecretPasswordKey }}
+{{- end -}}
+{{- end -}}
+
+{{- define "accessflow.auditDb.lookupOrDefault" -}}
+{{- $ctx := .ctx -}}
+{{- $name := include "accessflow.auditDb.secrets.fullname" $ctx -}}
+{{- $managed := lookup "v1" "Secret" $ctx.Release.Namespace $name -}}
+{{- if and $managed $managed.data (hasKey $managed.data .key) -}}
+{{- index $managed.data .key | b64dec -}}
+{{- else -}}
+{{- .default -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Redis URL — bundled subchart or externalRedis.
 */}}
 {{- define "accessflow.redis.url" -}}

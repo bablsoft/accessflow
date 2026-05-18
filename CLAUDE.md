@@ -214,8 +214,10 @@ com.bablsoft.accessflow/
 |----------|---------|
 | `SERVER_PORT` | Backend HTTP port (default `8080`). |
 | `DB_URL` | JDBC URL for AccessFlow PostgreSQL |
-| `DB_USER` | PostgreSQL username |
-| `DB_PASSWORD` | PostgreSQL password |
+| `DB_USER` | PostgreSQL username for the general application connection pool. After `V38__audit_log_role_separation.sql`, this role has SELECT on `audit_log` only — UPDATE/DELETE/TRUNCATE are revoked. |
+| `DB_PASSWORD` | Password for `DB_USER`. |
+| `AUDIT_DB_USER` | PostgreSQL username for the dedicated audit-writer role used by the audit module's `auditDataSource` bean to INSERT into `audit_log`. Defaults to `accessflow_audit`. The role must exist before Flyway runs — provisioned by [`deploy/postgres-init/01-audit-role.sql`](deploy/postgres-init/01-audit-role.sql) (Docker Compose) and `charts/accessflow/values.yaml` → `postgresql.primary.initdb.scripts` (Helm). See [docs/09-deployment.md → "audit_log role separation"](docs/09-deployment.md#audit_log-role-separation). |
+| `AUDIT_DB_PASSWORD` | Password for `AUDIT_DB_USER`. |
 | `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
 | `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
 | `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | ISO-8601 duration for the JWT access-token TTL (default `PT15M`). |

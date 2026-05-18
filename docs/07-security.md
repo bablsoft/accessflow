@@ -252,7 +252,7 @@ AccessFlow uses defense-in-depth against injection attacks:
 
 ## Audit Log Integrity
 
-The `audit_log` table is tamper-evident. The cryptographic chain (added in V26) makes any post-hoc edit, deletion, or reordering detectable; deployment-level role separation is still tracked separately (see "Deferred").
+The `audit_log` table is tamper-evident. The cryptographic chain (added in V26) makes any post-hoc edit, deletion, or reordering detectable, and deployment-level role separation (V38) enforces append-only writes at the database layer.
 
 Implemented today:
 
@@ -263,11 +263,10 @@ Implemented today:
 - **HMAC-SHA256 hash chain.** Every new row carries `previous_hash` (the predecessor's `current_hash`, NULL only for the org's first chained row) and `current_hash = HMAC-SHA256(key, canonical(row) ‖ previous_hash)`. The canonical form is a length-prefixed concatenation of `id`, `organization_id`, `actor_id`, `action`, `resource_type`, `resource_id`, normalised JSON metadata, `ip_address`, `user_agent`, and ISO-8601 `created_at` — length-prefixed so the encoding is injective. The key is `AUDIT_HMAC_KEY` (hex-encoded, ≥ 32 bytes); when unset, the audit module derives the key from `ENCRYPTION_KEY` via HKDF-SHA256 with info string `accessflow-audit-hmac-v1` and logs a single WARN. Startup fails if neither key is available.
 - **Per-organization insert serialization.** `DefaultAuditLogService.record(...)` takes a Postgres advisory lock (`pg_advisory_xact_lock(orgIdHigh ^ orgIdLow)`) inside the transaction before reading the prior row's hash, so concurrent writes to the same org cannot interleave and break the chain. The lock releases automatically on commit/rollback.
 - **Verifier endpoint.** `GET /api/v1/admin/audit-log/verify` (ADMIN only) walks the chain in ASC order, recomputes each row's HMAC, and returns the first row whose recorded `previous_hash` or `current_hash` does not match — see `docs/04-api-spec.md`. The verifier is scoped to the caller's organization. Pre-V26 rows have NULL hashes and are skipped without counting.
+- **Separate audit-writer DB role.** Issue #67 / V38. A dedicated Postgres role (`AUDIT_DB_USER`, default `accessflow_audit`) owns `audit_log` and is the only principal that can INSERT through application code. The general `DB_USER` keeps SELECT for the admin read endpoint, but UPDATE/DELETE/TRUNCATE are revoked at the database layer — a compromised general connection cannot rewrite or wipe history. Writes are routed through a separate Hikari pool (`auditDataSource` bean in `audit/internal/config`); reads continue through the primary JPA `DataSource`. The migration aborts startup if the audit role is not provisioned ahead of time (see `deploy/postgres-init/01-audit-role.sql` for the Compose path and `charts/accessflow/values.yaml` → `postgresql.primary.initdb.scripts` for Helm).
 
 Deferred (tracked as separate GitHub issues):
 
-- The application database user has **INSERT-only** privilege on `audit_log`. No UPDATE or DELETE. Today the application uses a single Postgres role; the second role with INSERT-only grant is a deployment-level change tracked separately.
-- A **separate audit writer DB user** for audit log inserts, distinct from the general application user.
 - Exporting hashes in `GET /admin/audit-log` row responses (the verifier is the canonical tamper-detection surface today).
 
 ---

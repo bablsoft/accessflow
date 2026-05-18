@@ -26,6 +26,10 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-accessflow}
     volumes:
       - postgres_data:/var/lib/postgresql
+      # Init script provisions the accessflow_audit role that owns audit_log after
+      # V38__audit_log_role_separation.sql. Runs once on first init of the data volume
+      # (see deploy/postgres-init/01-audit-role.sql).
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U accessflow"]
       interval: 10s
@@ -60,6 +64,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/accessflow
       DB_USER: accessflow
       DB_PASSWORD: ${DB_PASSWORD:-accessflow}
+      # Separate Postgres role used solely for INSERTs into audit_log (issue #67).
+      # Provisioned by deploy/postgres-init/01-audit-role.sql.
+      AUDIT_DB_USER: accessflow_audit
+      AUDIT_DB_PASSWORD: ${AUDIT_DB_PASSWORD:-accessflow_audit}
       REDIS_URL: redis://redis:6379
       # Browser origin allowed by the CORS filter. Must match the URL the user
       # types into the browser — i.e. the host:port the `frontend` service is

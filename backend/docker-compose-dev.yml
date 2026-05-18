@@ -10,6 +10,9 @@ services:
       - "5432:5432"
     volumes:
       - accessflow_dev_postgres_data:/var/lib/postgresql/data
+      # Provisions the accessflow_audit role that V38__audit_log_role_separation.sql
+      # transfers audit_log ownership to. Runs once on first init of the data volume.
+      - ../deploy/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U accessflow -d accessflow"]
       interval: 10s
