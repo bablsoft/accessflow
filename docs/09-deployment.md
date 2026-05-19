@@ -501,6 +501,8 @@ AccessFlow can seed the **organization, first admin user, review plans, AI confi
 
 **Authoritative semantics.** When `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, the backend re-applies every declared row on every restart. Rows that match a declared spec are **overwritten**; rows not declared are untouched. Admin-UI edits to declared resources are reverted on the next restart — operators should treat the env-driven set as the source of truth.
 
+**Auditability.** Every bootstrap upsert is audited. The backend caches a SHA-256 fingerprint of each declared spec in `bootstrap_state` and, on subsequent restarts, short-circuits resources whose spec has not changed — so restarting with unchanged env vars writes **zero** new `audit_log` rows. When a spec genuinely differs from the persisted state (or runs for the first time), the corresponding row appears in `audit_log` with `actor_id = NULL` and `metadata.source = "BOOTSTRAP"`, participating in the same per-org HMAC chain as user-driven audits. See [docs/05-backend.md → "Bootstrap audit semantics"](05-backend.md#bootstrap-audit-semantics).
+
 ### When to use it
 
 | Install path | Use bootstrap? |

@@ -15,7 +15,10 @@ public enum AuditResourceType {
     AI_CONFIG("ai_config"),
     CUSTOM_JDBC_DRIVER("custom_jdbc_driver"),
     SYSTEM_SMTP("system_smtp"),
-    USER_INVITATION("user_invitation");
+    USER_INVITATION("user_invitation"),
+    ORGANIZATION("organization"),
+    OAUTH2_CONFIG("oauth2_config"),
+    SAML_CONFIG("saml_config");
 
     private final String dbValue;
 

@@ -1,15 +1,23 @@
 package com.bablsoft.accessflow.bootstrap.internal.reconcile;
 
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
+import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.SystemSmtpSpec;
 import com.bablsoft.accessflow.core.api.SaveSystemSmtpCommand;
 import com.bablsoft.accessflow.core.api.SystemSmtpService;
+import com.bablsoft.accessflow.core.api.SystemSmtpView;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +32,8 @@ import static org.mockito.Mockito.when;
 class SystemSmtpReconcilerTest {
 
     @Mock SystemSmtpService systemSmtpService;
+    @Mock BootstrapStateTracker stateTracker;
+    @Spy SpecFingerprinter fingerprinter = new SpecFingerprinter();
     @InjectMocks SystemSmtpReconciler reconciler;
 
     private static final UUID ORG_ID = UUID.randomUUID();
@@ -66,6 +76,7 @@ class SystemSmtpReconcilerTest {
 
     @Test
     void appliesSaveWhenEnabled() {
+        when(systemSmtpService.findForOrganization(ORG_ID)).thenReturn(Optional.empty());
         when(systemSmtpService.saveOrUpdate(eq(ORG_ID), any(SaveSystemSmtpCommand.class)))
                 .thenAnswer(inv -> null);
 
@@ -80,10 +91,53 @@ class SystemSmtpReconcilerTest {
         assertThat(captor.getValue().port()).isEqualTo(587);
         assertThat(captor.getValue().plaintextPassword()).isEqualTo("pw");
         assertThat(captor.getValue().tls()).isTrue();
+
+        var eventCaptor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
+        verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
+                eq(BootstrapResourceType.SYSTEM_SMTP), eq(ORG_ID),
+                org.mockito.ArgumentMatchers.anyString(), eventCaptor.capture());
+        assertThat(eventCaptor.getValue().resourceType()).isEqualTo(BootstrapResourceType.SYSTEM_SMTP);
+        assertThat(eventCaptor.getValue().resourceId()).isEqualTo(ORG_ID);
+    }
+
+    @Test
+    void skipsUpdateAndEventWhenFingerprintMatches() {
+        when(fingerprinter.fingerprint(any())).thenReturn("matching-fp");
+        when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.SYSTEM_SMTP, ORG_ID))
+                .thenReturn(Optional.of("matching-fp"));
+
+        var spec = new SystemSmtpSpec(true, "smtp.acme.com", 587, "noreply", "pw",
+                true, "noreply@acme.com", "AccessFlow");
+
+        reconciler.reconcile(ORG_ID, spec);
+
+        verify(systemSmtpService, never()).saveOrUpdate(any(), any());
+        verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void diffComparesAgainstStoredView() {
+        when(systemSmtpService.findForOrganization(ORG_ID))
+                .thenReturn(Optional.of(new SystemSmtpView(ORG_ID, "old-host", 25, "old-user",
+                        false, "old@acme.com", "Old", Instant.now())));
+        when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.SYSTEM_SMTP, ORG_ID))
+                .thenReturn(Optional.of("stale"));
+        when(systemSmtpService.saveOrUpdate(eq(ORG_ID), any(SaveSystemSmtpCommand.class)))
+                .thenAnswer(inv -> null);
+
+        reconciler.reconcile(ORG_ID, new SystemSmtpSpec(true, "smtp.acme.com", 587, "noreply", "pw",
+                true, "noreply@acme.com", "AccessFlow"));
+
+        var eventCaptor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
+        verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
+                eq(BootstrapResourceType.SYSTEM_SMTP), eq(ORG_ID),
+                org.mockito.ArgumentMatchers.anyString(), eventCaptor.capture());
+        assertThat(eventCaptor.getValue().changedFields()).contains("host", "port");
     }
 
     @Test
     void tlsDefaultsToTrueWhenNull() {
+        when(systemSmtpService.findForOrganization(ORG_ID)).thenReturn(Optional.empty());
         when(systemSmtpService.saveOrUpdate(eq(ORG_ID), any(SaveSystemSmtpCommand.class)))
                 .thenAnswer(inv -> null);
 

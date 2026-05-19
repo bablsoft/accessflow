@@ -4,6 +4,9 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -132,6 +135,69 @@ class AuditEventListener {
                         Map.of("auto_approved", true),
                         null,
                         null));
+    }
+
+    @ApplicationModuleListener
+    void onBootstrapResourceUpserted(BootstrapResourceUpsertedEvent event) {
+        try {
+            var action = resolveBootstrapAction(event.resourceType(), event.changeKind());
+            var resourceType = resolveBootstrapResourceType(event.resourceType());
+            var metadata = new HashMap<String, Object>();
+            metadata.put("source", "BOOTSTRAP");
+            metadata.put("change_kind", event.changeKind().name());
+            if (!event.changedFields().isEmpty()) {
+                metadata.put("changed_fields", event.changedFields());
+            }
+            metadata.putAll(event.summaryMetadata());
+            auditLogService.record(new AuditEntry(
+                    action,
+                    resourceType,
+                    event.resourceId(),
+                    event.organizationId(),
+                    null,
+                    metadata,
+                    null,
+                    null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for BootstrapResourceUpsertedEvent {} {} {}",
+                    event.resourceType(), event.changeKind(), event.resourceId(), ex);
+        }
+    }
+
+    private static AuditAction resolveBootstrapAction(BootstrapResourceType type, BootstrapChangeKind kind) {
+        return switch (type) {
+            case ORGANIZATION -> AuditAction.ORGANIZATION_CREATED;
+            case ADMIN_USER -> AuditAction.USER_CREATED;
+            case NOTIFICATION_CHANNEL -> kind == BootstrapChangeKind.CREATE
+                    ? AuditAction.NOTIFICATION_CHANNEL_CREATED
+                    : AuditAction.NOTIFICATION_CHANNEL_UPDATED;
+            case AI_CONFIG -> kind == BootstrapChangeKind.CREATE
+                    ? AuditAction.AI_CONFIG_CREATED
+                    : AuditAction.AI_CONFIG_UPDATED;
+            case REVIEW_PLAN -> kind == BootstrapChangeKind.CREATE
+                    ? AuditAction.REVIEW_PLAN_CREATED
+                    : AuditAction.REVIEW_PLAN_UPDATED;
+            case DATASOURCE -> kind == BootstrapChangeKind.CREATE
+                    ? AuditAction.DATASOURCE_CREATED
+                    : AuditAction.DATASOURCE_UPDATED;
+            case SAML_CONFIG -> AuditAction.SAML_CONFIG_UPDATED;
+            case OAUTH2_CONFIG -> AuditAction.OAUTH2_CONFIG_UPDATED;
+            case SYSTEM_SMTP -> AuditAction.SYSTEM_SMTP_UPDATED;
+        };
+    }
+
+    private static AuditResourceType resolveBootstrapResourceType(BootstrapResourceType type) {
+        return switch (type) {
+            case ORGANIZATION -> AuditResourceType.ORGANIZATION;
+            case ADMIN_USER -> AuditResourceType.USER;
+            case NOTIFICATION_CHANNEL -> AuditResourceType.NOTIFICATION_CHANNEL;
+            case AI_CONFIG -> AuditResourceType.AI_CONFIG;
+            case REVIEW_PLAN -> AuditResourceType.REVIEW_PLAN;
+            case DATASOURCE -> AuditResourceType.DATASOURCE;
+            case SAML_CONFIG -> AuditResourceType.SAML_CONFIG;
+            case OAUTH2_CONFIG -> AuditResourceType.OAUTH2_CONFIG;
+            case SYSTEM_SMTP -> AuditResourceType.SYSTEM_SMTP;
+        };
     }
 
     @ApplicationModuleListener

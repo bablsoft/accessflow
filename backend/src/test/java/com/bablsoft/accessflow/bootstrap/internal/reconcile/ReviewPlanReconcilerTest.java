@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.bootstrap.internal.reconcile;
 
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
+import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.ReviewPlanSpec;
 import com.bablsoft.accessflow.core.api.CreateReviewPlanCommand;
 import com.bablsoft.accessflow.core.api.ReviewPlanAdminService;
@@ -14,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,11 +34,15 @@ class ReviewPlanReconcilerTest {
 
     @Mock ReviewPlanAdminService reviewPlanAdminService;
     @Mock AdminUserReconciler adminUserReconciler;
+    @Mock BootstrapStateTracker stateTracker;
+
+    private final SpecFingerprinter fingerprinter = new SpecFingerprinter();
 
     private static final UUID ORG_ID = UUID.randomUUID();
 
     private ReviewPlanReconciler reconciler() {
-        return new ReviewPlanReconciler(reviewPlanAdminService, adminUserReconciler);
+        return new ReviewPlanReconciler(reviewPlanAdminService, adminUserReconciler,
+                stateTracker, fingerprinter);
     }
 
     @Test
@@ -75,6 +84,53 @@ class ReviewPlanReconcilerTest {
 
         assertThat(result).containsEntry("standard", existingId);
         verify(reviewPlanAdminService, never()).create(any());
+    }
+
+    @Test
+    void skipsUpdateAndEventWhenFingerprintMatches() {
+        var existingId = UUID.randomUUID();
+        when(reviewPlanAdminService.list(ORG_ID)).thenReturn(List.of(view(existingId, "standard")));
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+                List.of(), List.of());
+        // Real fingerprinter — pre-compute the same map the reconciler builds
+        var specMap = new java.util.LinkedHashMap<String, Object>();
+        specMap.put("name", "standard");
+        specMap.put("description", null);
+        specMap.put("requires_ai_review", null);
+        specMap.put("requires_human_approval", null);
+        specMap.put("min_approvals_required", null);
+        specMap.put("approval_timeout_hours", null);
+        specMap.put("auto_approve_reads", null);
+        specMap.put("notify_channels", List.of());
+        specMap.put("approvers", List.of());
+        var fp = fingerprinter.fingerprint(specMap);
+        when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.REVIEW_PLAN, existingId))
+                .thenReturn(Optional.of(fp));
+
+        reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
+
+        verify(reviewPlanAdminService, never()).update(any(), any(), any());
+        verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void publishesEventOnCreate() {
+        var planId = UUID.randomUUID();
+        when(reviewPlanAdminService.list(ORG_ID)).thenReturn(List.of());
+        when(reviewPlanAdminService.create(any(CreateReviewPlanCommand.class)))
+                .thenAnswer(inv -> view(planId, "standard"));
+
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+                List.of(), List.of());
+
+        reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
+
+        var captor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
+        verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
+                eq(BootstrapResourceType.REVIEW_PLAN), eq(planId),
+                org.mockito.ArgumentMatchers.anyString(), captor.capture());
+        assertThat(captor.getValue().resourceType()).isEqualTo(BootstrapResourceType.REVIEW_PLAN);
+        assertThat(captor.getValue().resourceId()).isEqualTo(planId);
     }
 
     @Test

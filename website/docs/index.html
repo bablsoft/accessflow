@@ -554,6 +554,15 @@
             wave. The other replicas log an INFO line and keep serving traffic. No additional
             env vars to configure.
           </div>
+          <div class="docs-callout info">
+            <strong>Auditability.</strong> Bootstrap upserts are recorded in
+            <code>audit_log</code> with <code>actor_id = NULL</code> and
+            <code>metadata.source = "BOOTSTRAP"</code>, so operators can answer "who changed
+            this — me, or a helm upgrade?" from a single source of truth. Restarting with
+            unchanged env vars writes zero new rows (the reconciler caches a SHA-256
+            fingerprint of each declared spec in <code>bootstrap_state</code> and short-circuits
+            on a match).
+          </div>
         </section>
 
         <!-- 4. Configuration -->

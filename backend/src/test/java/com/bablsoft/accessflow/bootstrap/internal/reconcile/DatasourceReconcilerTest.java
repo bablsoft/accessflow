@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.bootstrap.internal.reconcile;
 
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
+import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.DatasourceSpec;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -14,11 +18,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +39,8 @@ import static org.mockito.Mockito.when;
 class DatasourceReconcilerTest {
 
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock BootstrapStateTracker stateTracker;
+    @Spy SpecFingerprinter fingerprinter = new SpecFingerprinter();
     @InjectMocks DatasourceReconciler reconciler;
 
     private static final UUID ORG_ID = UUID.randomUUID();
@@ -99,6 +107,42 @@ class DatasourceReconcilerTest {
                 Map.of(), Map.of());
 
         verify(datasourceAdminService, never()).create(any());
+    }
+
+    @Test
+    void skipsUpdateAndEventWhenFingerprintMatches() {
+        var existingId = UUID.randomUUID();
+        when(datasourceAdminService.listForAdmin(eq(ORG_ID), any(PageRequest.class)))
+                .thenReturn(new PageResponse<>(List.of(view(existingId, "prod-pg")), 0, 500, 0, 1));
+        when(fingerprinter.fingerprint(any())).thenReturn("matching-fp");
+        when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.DATASOURCE, existingId))
+                .thenReturn(Optional.of("matching-fp"));
+
+        reconciler.reconcile(ORG_ID, List.of(ds("prod-pg", DbType.POSTGRESQL, null, null)),
+                Map.of(), Map.of());
+
+        verify(datasourceAdminService, never()).update(any(), any(), any());
+        verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void publishesEventOnCreate() {
+        var newId = UUID.randomUUID();
+        when(datasourceAdminService.listForAdmin(eq(ORG_ID), any(PageRequest.class)))
+                .thenReturn(new PageResponse<>(List.of(), 0, 500, 0, 0));
+        when(datasourceAdminService.create(any(CreateDatasourceCommand.class)))
+                .thenAnswer(inv -> view(newId, "prod-pg"));
+
+        reconciler.reconcile(ORG_ID, List.of(ds("prod-pg", DbType.POSTGRESQL, null, null)),
+                Map.of(), Map.of());
+
+        var captor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
+        verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
+                eq(BootstrapResourceType.DATASOURCE), eq(newId),
+                org.mockito.ArgumentMatchers.anyString(), captor.capture());
+        assertThat(captor.getValue().resourceType()).isEqualTo(BootstrapResourceType.DATASOURCE);
+        assertThat(captor.getValue().resourceId()).isEqualTo(newId);
+        assertThat(captor.getValue().summaryMetadata()).containsEntry("db_type", "POSTGRESQL");
     }
 
     @Test
