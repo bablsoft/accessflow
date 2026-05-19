@@ -21,7 +21,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
-| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter (admin fan-out tracked under [accessflow#102](https://github.com/bablsoft/accessflow/issues/102)) | implemented |
+| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter and every active ADMIN user in the org (de-duplicated when the submitter is themselves an admin) | implemented |
 
 `AI_HIGH_RISK` only fires for `RiskLevel.CRITICAL`; lower risk levels still surface via the standard `QUERY_SUBMITTED` notification.
 
@@ -298,7 +298,7 @@ in `NotificationContextBuilder`:
 | `QUERY_SUBMITTED` | Eligible reviewers at the lowest stage of the datasource's review plan, excluding the submitter |
 | `QUERY_APPROVED` | The original submitter |
 | `QUERY_REJECTED` | The original submitter |
-| `REVIEW_TIMEOUT` | The original submitter |
+| `REVIEW_TIMEOUT` | The original submitter and every active org admin (de-duplicated) |
 | `AI_HIGH_RISK` | All active org admins |
 | `TEST` | Skipped — never persisted to the inbox |
 

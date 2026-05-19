@@ -322,6 +322,52 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void reviewTimeoutFansOutToSubmitterAndActiveOrgAdmins() {
+        var adminA = user(UUID.randomUUID(), "admin-a@example.com", UserRoleType.ADMIN);
+        var adminB = user(UUID.randomUUID(), "admin-b@example.com", UserRoleType.ADMIN);
+        var inactiveAdmin = new UserView(UUID.randomUUID(), "inactive@example.com", "Inactive",
+                UserRoleType.ADMIN, orgId, false, AuthProviderType.LOCAL, "h", null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(adminA, adminB, inactiveAdmin));
+
+        var ctx = builder.build(NotificationEventType.REVIEW_TIMEOUT, queryId, null, null, 24)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("alice@example.com", "admin-a@example.com", "admin-b@example.com");
+    }
+
+    @Test
+    void reviewTimeoutDeduplicatesSubmitterWhoIsAlsoAnAdmin() {
+        var submitterAdmin = user(submitterId, "alice@example.com", UserRoleType.ADMIN);
+        var otherAdmin = user(UUID.randomUUID(), "admin-b@example.com", UserRoleType.ADMIN);
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(submitterAdmin));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(submitterAdmin, otherAdmin));
+
+        var ctx = builder.build(NotificationEventType.REVIEW_TIMEOUT, queryId, null, null, 24)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("alice@example.com", "admin-b@example.com");
+    }
+
+    @Test
+    void reviewTimeoutWithoutSubmitterStillFansOutToAdmins() {
+        when(userQuery.findById(submitterId)).thenReturn(Optional.empty());
+        var admin = user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN);
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+
+        var ctx = builder.build(NotificationEventType.REVIEW_TIMEOUT, queryId, null, null, 24)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("admin@example.com");
+    }
+
+    @Test
     void buildLeavesApprovalTimeoutHoursNullForNonTimeoutEvents() {
         var approved = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
