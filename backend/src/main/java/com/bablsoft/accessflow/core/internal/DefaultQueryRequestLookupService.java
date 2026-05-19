@@ -157,6 +157,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getStatus(),
                 aiAnalysis != null ? aiAnalysis.getRiskLevel() : null,
                 aiAnalysis != null ? aiAnalysis.getRiskScore() : null,
+                aiAnalysis != null && aiAnalysis.isFailed(),
                 entity.getCreatedAt());
     }
 
@@ -222,7 +223,9 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getAiProvider(),
                 entity.getAiModel(),
                 entity.getPromptTokens(),
-                entity.getCompletionTokens());
+                entity.getCompletionTokens(),
+                entity.isFailed(),
+                entity.getErrorMessage());
     }
 
     private static QueryRequestSnapshot toSnapshot(QueryRequestEntity entity) {

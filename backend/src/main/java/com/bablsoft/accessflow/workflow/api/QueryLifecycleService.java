@@ -36,11 +36,29 @@ public interface QueryLifecycleService {
      */
     ExecutionOutcome execute(ExecuteQueryCommand command);
 
+    /**
+     * Re-runs AI analysis on a query whose previous analysis failed. Restricted to reviewers and
+     * admins by the security layer. The pre-existing failed {@code ai_analyses} row is removed
+     * and {@link com.bablsoft.accessflow.ai.api.AiAnalyzerService#analyzeSubmittedQuery(UUID)} is
+     * invoked again, which inserts a fresh row and publishes the usual completion / failure
+     * events.
+     *
+     * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if the query is not
+     *         found in the caller's organization.
+     * @throws QueryNotReanalyzableException if the query is not in {@code PENDING_REVIEW} or
+     *         the linked analysis is not marked failed.
+     */
+    void reanalyze(ReanalyzeQueryCommand command);
+
     record CancelQueryCommand(UUID queryRequestId, UUID callerUserId, UUID callerOrganizationId) {
     }
 
     record ExecuteQueryCommand(UUID queryRequestId, UUID callerUserId, UUID callerOrganizationId,
                                boolean isAdmin) {
+    }
+
+    record ReanalyzeQueryCommand(UUID queryRequestId, UUID callerUserId,
+                                 UUID callerOrganizationId) {
     }
 
     record ExecutionOutcome(UUID queryRequestId, QueryStatus status,

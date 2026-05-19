@@ -10,5 +10,7 @@ public record PersistAiAnalysisCommand(
         boolean missingIndexesDetected,
         Long affectsRowEstimate,
         int promptTokens,
-        int completionTokens) {
+        int completionTokens,
+        boolean failed,
+        String errorMessage) {
 }

@@ -331,6 +331,15 @@
       "no_justification": "Requester did not provide a justification.",
       "card_ai": "AI analysis",
       "ai_awaiting": "Awaiting analysis…",
+      "ai_failed_banner_title": "AI analysis failed",
+      "ai_failed_banner_detail": "Review is proceeding without an AI recommendation. Reason: {{reason}}",
+      "ai_failed_accordion_title": "AI analysis failed",
+      "ai_failed_accordion_body": "The previous AI analysis didn't complete, so no risk score is available. You can re-analyze to try again.",
+      "ai_failed_reason_label": "Reason",
+      "ai_failed_reanalyze": "Re-analyze",
+      "ai_failed_reanalyze_pending": "Re-analyzing…",
+      "ai_failed_reanalyze_success": "AI re-analysis started.",
+      "ai_failed_reanalyze_error": "Could not start AI re-analysis.",
       "card_execution": "Execution result",
       "stat_rows": "rows affected",
       "stat_duration": "duration",
@@ -1092,5 +1101,8 @@
       "sha256_required": "SHA-256 is required.",
       "sha256_pattern": "Enter exactly 64 hexadecimal characters."
     }
+  },
+  "risk": {
+    "ai_na": "AI N/A"
   }
 }

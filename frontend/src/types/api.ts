@@ -493,6 +493,7 @@ export interface QueryListItem {
   status: QueryStatus;
   risk_level: RiskLevel | null;
   risk_score: number | null;
+  ai_failed: boolean;
   created_at: string;
 }
 
@@ -508,6 +509,8 @@ export interface AiAnalysisDetail {
   ai_model: string;
   prompt_tokens: number;
   completion_tokens: number;
+  failed: boolean;
+  error_message: string | null;
 }
 
 export interface ReviewDecisionDetail {

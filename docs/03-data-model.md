@@ -268,6 +268,8 @@ Stores the result of an AI analysis run for a query request.
 | `affects_row_estimate` | BIGINT nullable — estimated rows impacted |
 | `prompt_tokens` | INTEGER |
 | `completion_tokens` | INTEGER |
+| `failed` | BOOLEAN DEFAULT false — `true` when the AI provider call failed and the row is a sentinel placeholder (per AF-249). The detail / list APIs surface this flag so the frontend can render an "AI analysis failed" state instead of treating the sentinel `risk_level=CRITICAL` as a real risk verdict. |
+| `error_message` | TEXT nullable — the analyzer failure reason when `failed=true`. Mirrors the `reason` field of `AiAnalysisFailedEvent`. Null on successful analyses. |
 | `created_at` | TIMESTAMPTZ |
 
 ### `issues` JSONB Structure

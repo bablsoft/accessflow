@@ -17,6 +17,7 @@ public record QueryListItem(
         QueryStatus status,
         RiskLevel riskLevel,
         Integer riskScore,
+        boolean aiFailed,
         Instant createdAt) {
 
     public static QueryListItem from(QueryListItemView view) {
@@ -29,6 +30,7 @@ public record QueryListItem(
                 view.status(),
                 view.aiRiskLevel(),
                 view.aiRiskScore(),
+                view.aiFailed(),
                 view.createdAt());
     }
 

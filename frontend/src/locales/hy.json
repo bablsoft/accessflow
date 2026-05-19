@@ -331,6 +331,15 @@
       "no_justification": "Հայցողը հիմնավորում չի տրամադրել։",
       "card_ai": "AI վերլուծություն",
       "ai_awaiting": "Սպասում է վերլուծության…",
+      "ai_failed_banner_title": "AI վերլուծությունը ձախողվեց",
+      "ai_failed_banner_detail": "Վերանայումը շարունակվում է առանց AI առաջարկության։ Պատճառ՝ {{reason}}",
+      "ai_failed_accordion_title": "AI վերլուծությունը ձախողվեց",
+      "ai_failed_accordion_body": "Նախորդ AI վերլուծությունը չի ավարտվել, ուստի ռիսկի գնահատական չկա։ Կարող եք կրկին փորձել։",
+      "ai_failed_reason_label": "Պատճառ",
+      "ai_failed_reanalyze": "Կրկին վերլուծել",
+      "ai_failed_reanalyze_pending": "Կրկին վերլուծվում է…",
+      "ai_failed_reanalyze_success": "AI կրկնակի վերլուծությունը սկսված է։",
+      "ai_failed_reanalyze_error": "Չհաջողվեց սկսել AI կրկնակի վերլուծությունը։",
       "card_execution": "Կատարման արդյունք",
       "stat_rows": "ազդակիր տողեր",
       "stat_duration": "տևողություն",
@@ -1092,5 +1101,8 @@
       "sha256_required": "SHA-256-ը պարտադիր է։",
       "sha256_pattern": "Մուտքագրեք ճիշտ 64 տասնվեցական նիշ։"
     }
+  },
+  "risk": {
+    "ai_na": "AI հասանելի չէ"
   }
 }

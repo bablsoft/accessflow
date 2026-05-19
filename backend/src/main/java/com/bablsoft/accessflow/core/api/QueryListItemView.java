@@ -19,5 +19,6 @@ public record QueryListItemView(
         QueryStatus status,
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
+        boolean aiFailed,
         Instant createdAt) {
 }

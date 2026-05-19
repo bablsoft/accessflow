@@ -71,6 +71,12 @@ public class AiAnalysisEntity {
     @Column(name = "completion_tokens", nullable = false)
     private int completionTokens = 0;
 
+    @Column(nullable = false)
+    private boolean failed = false;
+
+    @Column(name = "error_message", columnDefinition = "text")
+    private String errorMessage;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

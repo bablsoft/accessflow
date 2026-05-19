@@ -25,6 +25,8 @@ class DefaultAiAnalysisLookupService implements AiAnalysisLookupService {
                         a.getQueryRequest().getId(),
                         a.getRiskLevel(),
                         a.getRiskScore(),
-                        a.getSummary()));
+                        a.getSummary(),
+                        a.isFailed(),
+                        a.getErrorMessage()));
     }
 }

@@ -331,6 +331,15 @@
       "no_justification": "Заявитель не указал обоснование.",
       "card_ai": "ИИ-анализ",
       "ai_awaiting": "Ожидание анализа…",
+      "ai_failed_banner_title": "ИИ-анализ не удался",
+      "ai_failed_banner_detail": "Проверка продолжается без рекомендации ИИ. Причина: {{reason}}",
+      "ai_failed_accordion_title": "ИИ-анализ не удался",
+      "ai_failed_accordion_body": "Предыдущий ИИ-анализ не завершился, поэтому оценка риска недоступна. Можно повторить попытку.",
+      "ai_failed_reason_label": "Причина",
+      "ai_failed_reanalyze": "Повторить анализ",
+      "ai_failed_reanalyze_pending": "Повторный анализ…",
+      "ai_failed_reanalyze_success": "Повторный ИИ-анализ запущен.",
+      "ai_failed_reanalyze_error": "Не удалось запустить повторный ИИ-анализ.",
       "card_execution": "Результат выполнения",
       "stat_rows": "затронуто строк",
       "stat_duration": "длительность",
@@ -1092,5 +1101,8 @@
       "sha256_required": "SHA-256 обязателен.",
       "sha256_pattern": "Введите ровно 64 шестнадцатеричных символа."
     }
+  },
+  "risk": {
+    "ai_na": "ИИ н/д"
   }
 }

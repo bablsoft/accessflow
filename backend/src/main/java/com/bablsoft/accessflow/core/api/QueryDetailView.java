@@ -41,7 +41,9 @@ public record QueryDetailView(
             AiProviderType aiProvider,
             String aiModel,
             int promptTokens,
-            int completionTokens) {
+            int completionTokens,
+            boolean failed,
+            String errorMessage) {
     }
 
     public record ReviewDecisionView(

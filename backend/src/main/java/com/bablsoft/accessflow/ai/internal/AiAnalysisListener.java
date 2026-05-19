@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalyzerService;
+import com.bablsoft.accessflow.core.events.AiReanalysisRequestedEvent;
 import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.modulith.events.ApplicationModuleListener;
@@ -14,6 +15,11 @@ class AiAnalysisListener {
 
     @ApplicationModuleListener
     void onSubmitted(QuerySubmittedEvent event) {
+        aiAnalyzerService.analyzeSubmittedQuery(event.queryRequestId());
+    }
+
+    @ApplicationModuleListener
+    void onReanalysisRequested(AiReanalysisRequestedEvent event) {
         aiAnalyzerService.analyzeSubmittedQuery(event.queryRequestId());
     }
 }

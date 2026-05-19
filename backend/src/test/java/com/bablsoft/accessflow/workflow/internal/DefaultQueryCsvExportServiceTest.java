@@ -56,7 +56,7 @@ class DefaultQueryCsvExportServiceTest {
                 "alice@example.com",
                 "Alice \"the\" Analyst",
                 QueryType.SELECT, QueryStatus.EXECUTED,
-                RiskLevel.MEDIUM, 42,
+                RiskLevel.MEDIUM, 42, false,
                 Instant.parse("2026-05-11T10:00:00Z"));
         when(queryRequestLookupService.countForOrganization(filter)).thenReturn(1L);
         doAnswer(invocation -> {
@@ -80,7 +80,7 @@ class DefaultQueryCsvExportServiceTest {
         var view = new QueryListItemView(
                 UUID.randomUUID(), UUID.randomUUID(), "ds", UUID.randomUUID(),
                 "x@example.com", "X", QueryType.UPDATE, QueryStatus.PENDING_AI,
-                null, null, Instant.parse("2026-05-11T10:00:00Z"));
+                null, null, false, Instant.parse("2026-05-11T10:00:00Z"));
         when(queryRequestLookupService.countForOrganization(filter)).thenReturn(1L);
         doAnswer(invocation -> {
             Consumer<QueryListItemView> consumer = invocation.getArgument(2);

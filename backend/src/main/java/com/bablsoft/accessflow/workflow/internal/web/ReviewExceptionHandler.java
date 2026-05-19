@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
+import com.bablsoft.accessflow.workflow.api.QueryNotReanalyzableException;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -61,6 +62,16 @@ class ReviewExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 msg("error.query_not_executable"));
         pd.setProperty("error", "QUERY_NOT_EXECUTABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("currentStatus", ex.currentStatus().name());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryNotReanalyzableException.class)
+    ProblemDetail handleQueryNotReanalyzable(QueryNotReanalyzableException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.query_not_reanalyzable"));
+        pd.setProperty("error", "QUERY_NOT_REANALYZABLE");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("currentStatus", ex.currentStatus().name());
         return pd;

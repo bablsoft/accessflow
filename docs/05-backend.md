@@ -432,7 +432,7 @@ Decision rules:
 | (default) | `PENDING_REVIEW` |
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
 
-`AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. (The AI module persists a sentinel `CRITICAL` analysis row on failure so the reviewer has context.)
+`AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.
 
 ### Implementation: review decisions
 
@@ -686,7 +686,7 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
    | `QueryAutoApprovedEvent` | `QUERY_APPROVED` (system actor, `actor_id = NULL`, metadata `{"auto_approved": true}`) |
    | `DatasourceDeactivatedEvent` | `DATASOURCE_UPDATED` with metadata `{"change":"deactivated"}` |
 
-`AuditAction` extends the doc enum with `QUERY_AI_FAILED` so the read API can filter for failed AI runs without parsing the JSONB metadata.
+`AuditAction` extends the doc enum with `QUERY_AI_FAILED` so the read API can filter for failed AI runs without parsing the JSONB metadata. `QUERY_AI_REANALYZE_REQUESTED` is written synchronously from `QueryReadController.reanalyze` whenever a reviewer or admin re-runs analysis through [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202); the row captures the caller's IP and User-Agent in addition to the standard fields.
 
 ### Read endpoint
 

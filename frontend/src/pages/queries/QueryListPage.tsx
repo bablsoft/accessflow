@@ -133,12 +133,15 @@ export function QueryListPage() {
     {
       title: t('queries.list.col_risk'),
       width: 130,
-      render: (_v, r) =>
-        r.risk_level != null && r.risk_score != null ? (
-          <RiskPill level={r.risk_level} score={r.risk_score} />
-        ) : (
-          <span className="muted" style={{ fontSize: 11 }}>—</span>
-        ),
+      render: (_v, r) => {
+        if (r.ai_failed) {
+          return <RiskPill level="LOW" failed />;
+        }
+        if (r.risk_level != null && r.risk_score != null) {
+          return <RiskPill level={r.risk_level} score={r.risk_score} />;
+        }
+        return <span className="muted" style={{ fontSize: 11 }}>—</span>;
+      },
     },
     {
       title: t('queries.list.col_datasource'),

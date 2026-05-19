@@ -38,9 +38,24 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
         entity.setAffectsRowEstimate(command.affectsRowEstimate());
         entity.setPromptTokens(command.promptTokens());
         entity.setCompletionTokens(command.completionTokens());
+        entity.setFailed(command.failed());
+        entity.setErrorMessage(command.errorMessage());
         entity.setCreatedAt(Instant.now());
         var saved = aiAnalysisRepository.save(entity);
         queryRequest.setAiAnalysisId(saved.getId());
         return saved.getId();
+    }
+
+    @Override
+    @Transactional
+    public void deleteForQuery(UUID queryRequestId) {
+        var queryRequest = queryRequestRepository.findById(queryRequestId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Query request not found: " + queryRequestId));
+        var existingId = queryRequest.getAiAnalysisId();
+        queryRequest.setAiAnalysisId(null);
+        if (existingId != null) {
+            aiAnalysisRepository.deleteById(existingId);
+        }
     }
 }
