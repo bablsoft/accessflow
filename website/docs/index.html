@@ -767,7 +767,7 @@ APPROVED → FAILED (execution error)</pre>
                    alt="Add notification channel modal with name, channel type selected as EMAIL, active toggle on, and conditional SMTP fields revealed — host, port, user, password, TLS toggle, from address, and from name."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email / Slack / Webhook fields when you change <em>Type</em>.</figcaption>
+            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email, Slack, Webhook, Discord, Telegram, and Microsoft Teams fields when you change <em>Type</em>.</figcaption>
           </figure>
           <ol>
             <li><strong>Open <code>/admin/notifications</code></strong> and click <em>Add channel</em>.</li>
@@ -776,14 +776,17 @@ APPROVED → FAILED (execution error)</pre>
                 <li><strong>Email</strong> — supply SMTP host, port, optional user / password, TLS, and the <em>From</em> address / display name. Leave the SMTP fields blank to fall back on the <a href="#cfg-smtp">system SMTP</a>.</li>
                 <li><strong>Slack</strong> — paste an incoming-webhook URL; messages use Block Kit so the SQL preview and action buttons render natively.</li>
                 <li><strong>Webhook</strong> — supply a target URL and a signing secret. Every POST carries <code>X-AccessFlow-Signature: sha256=...</code> computed from the body and the secret.</li>
+                <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
+                <li><strong>Telegram</strong> — create a bot via <a href="https://core.telegram.org/bots/tutorial">@BotFather</a>, add it to the target group/channel, and configure the <em>bot token</em> plus numeric <em>chat ID</em>. Messages use MarkdownV2 formatting.</li>
+                <li><strong>Microsoft Teams</strong> — paste the channel's Incoming Webhook (or Power Automate webhook) URL. Messages render as an Adaptive Card with a <em>View in AccessFlow</em> action button.</li>
               </ul>
             </li>
             <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
           </ol>
           <p>
-            Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>) are
-            AES-256-GCM encrypted at rest and are never shown in plaintext after the channel is
-            saved.
+            Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>,
+            <em>Telegram bot token</em>) are AES-256-GCM encrypted at rest and are never shown in
+            plaintext after the channel is saved.
           </p>
           <div class="docs-callout info">
             <strong>Webhook retry policy.</strong> One immediate attempt plus three scheduled

@@ -18,12 +18,14 @@ import java.util.Objects;
 /**
  * Reads and writes the JSONB {@code notification_channels.config} blob.
  *
- * <p>Inbound API uses unsuffixed sensitive keys ({@code smtp_password}, {@code secret}) which the
- * codec encrypts via {@link CredentialEncryptionService} and stores under the suffixed keys
- * ({@code smtp_password_encrypted}, {@code secret_encrypted}). On read for API the codec replaces
- * the encrypted keys with the masked placeholder under the unsuffixed names. On read for dispatch
- * the codec returns a typed {@link EmailChannelConfig} / {@link SlackChannelConfig} /
- * {@link WebhookChannelConfig} with decrypted secrets.
+ * <p>Inbound API uses unsuffixed sensitive keys ({@code smtp_password}, {@code secret},
+ * {@code bot_token}) which the codec encrypts via {@link CredentialEncryptionService} and stores
+ * under the suffixed keys ({@code smtp_password_encrypted}, {@code secret_encrypted},
+ * {@code bot_token_encrypted}). On read for API the codec replaces the encrypted keys with the
+ * masked placeholder under the unsuffixed names. On read for dispatch the codec returns a typed
+ * {@link EmailChannelConfig} / {@link SlackChannelConfig} / {@link WebhookChannelConfig} /
+ * {@link DiscordChannelConfig} / {@link TelegramChannelConfig} / {@link MsTeamsChannelConfig}
+ * with decrypted secrets.
  */
 @Component
 @RequiredArgsConstructor
@@ -49,6 +51,13 @@ public class ChannelConfigCodec {
     static final String KEY_SECRET_ENCRYPTED = "secret_encrypted";
     static final String KEY_TIMEOUT_SECONDS = "timeout_seconds";
 
+    static final String KEY_DISCORD_USERNAME = "username";
+    static final String KEY_DISCORD_AVATAR_URL = "avatar_url";
+
+    static final String KEY_BOT_TOKEN = "bot_token";
+    static final String KEY_BOT_TOKEN_ENCRYPTED = "bot_token_encrypted";
+    static final String KEY_CHAT_ID = "chat_id";
+
     private final ObjectMapper objectMapper;
     private final CredentialEncryptionService encryptionService;
 
@@ -61,6 +70,9 @@ public class ChannelConfigCodec {
             case EMAIL -> validateEmail(config);
             case SLACK -> validateSlack(config);
             case WEBHOOK -> validateWebhook(config);
+            case DISCORD -> validateDiscord(config);
+            case TELEGRAM -> validateTelegram(config);
+            case MS_TEAMS -> validateMsTeams(config);
         }
         encryptSensitive(config);
         return writeJson(config);
@@ -85,6 +97,9 @@ public class ChannelConfigCodec {
             case EMAIL -> validateEmail(existing);
             case SLACK -> validateSlack(existing);
             case WEBHOOK -> validateWebhook(existing);
+            case DISCORD -> validateDiscord(existing);
+            case TELEGRAM -> validateTelegram(existing);
+            case MS_TEAMS -> validateMsTeams(existing);
         }
         encryptSensitive(existing);
         return writeJson(existing);
@@ -103,6 +118,10 @@ public class ChannelConfigCodec {
         if (view.containsKey(KEY_SECRET_ENCRYPTED)) {
             view.remove(KEY_SECRET_ENCRYPTED);
             view.put(KEY_SECRET, MASK);
+        }
+        if (view.containsKey(KEY_BOT_TOKEN_ENCRYPTED)) {
+            view.remove(KEY_BOT_TOKEN_ENCRYPTED);
+            view.put(KEY_BOT_TOKEN, MASK);
         }
         return view;
     }
@@ -139,6 +158,28 @@ public class ChannelConfigCodec {
                 intOrDefault(c.get(KEY_TIMEOUT_SECONDS), 10));
     }
 
+    public DiscordChannelConfig decodeDiscord(String storedJson) {
+        var c = readJson(storedJson);
+        return new DiscordChannelConfig(
+                requireUri(c, KEY_WEBHOOK_URL),
+                stringOrNull(c.get(KEY_DISCORD_USERNAME)),
+                stringOrNull(c.get(KEY_DISCORD_AVATAR_URL)));
+    }
+
+    public TelegramChannelConfig decodeTelegram(String storedJson) {
+        var c = readJson(storedJson);
+        var encrypted = stringOrNull(c.get(KEY_BOT_TOKEN_ENCRYPTED));
+        var botTokenPlain = encrypted != null ? encryptionService.decrypt(encrypted) : null;
+        return new TelegramChannelConfig(
+                botTokenPlain,
+                requireString(c, KEY_CHAT_ID));
+    }
+
+    public MsTeamsChannelConfig decodeMsTeams(String storedJson) {
+        var c = readJson(storedJson);
+        return new MsTeamsChannelConfig(requireUri(c, KEY_WEBHOOK_URL));
+    }
+
     private Map<String, Object> sanitizeInput(Map<String, Object> input) {
         if (input == null) {
             return new LinkedHashMap<>();
@@ -160,6 +201,9 @@ public class ChannelConfigCodec {
         if (MASK.equals(config.get(KEY_SECRET))) {
             config.remove(KEY_SECRET);
         }
+        if (MASK.equals(config.get(KEY_BOT_TOKEN))) {
+            config.remove(KEY_BOT_TOKEN);
+        }
     }
 
     private void encryptSensitive(Map<String, Object> config) {
@@ -170,6 +214,10 @@ public class ChannelConfigCodec {
         var secret = stringOrNull(config.remove(KEY_SECRET));
         if (secret != null && !secret.isBlank()) {
             config.put(KEY_SECRET_ENCRYPTED, encryptionService.encrypt(secret));
+        }
+        var botToken = stringOrNull(config.remove(KEY_BOT_TOKEN));
+        if (botToken != null && !botToken.isBlank()) {
+            config.put(KEY_BOT_TOKEN_ENCRYPTED, encryptionService.encrypt(botToken));
         }
     }
 
@@ -197,6 +245,24 @@ public class ChannelConfigCodec {
             throw new NotificationChannelConfigException(
                     "Webhook channel config requires '" + KEY_SECRET + "'");
         }
+    }
+
+    private void validateDiscord(Map<String, Object> config) {
+        requireUri(config, KEY_WEBHOOK_URL);
+    }
+
+    private void validateTelegram(Map<String, Object> config) {
+        requireString(config, KEY_CHAT_ID);
+        var hasPlaintext = stringOrNull(config.get(KEY_BOT_TOKEN)) != null;
+        var hasCipher = stringOrNull(config.get(KEY_BOT_TOKEN_ENCRYPTED)) != null;
+        if (!hasPlaintext && !hasCipher) {
+            throw new NotificationChannelConfigException(
+                    "Telegram channel config requires '" + KEY_BOT_TOKEN + "'");
+        }
+    }
+
+    private void validateMsTeams(Map<String, Object> config) {
+        requireUri(config, KEY_WEBHOOK_URL);
     }
 
     private Map<String, Object> readJson(String json) {

@@ -768,6 +768,7 @@ Two layers exist:
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | Optional | `PT30S` | ISO-8601 duration — delay before the first webhook retry |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | Optional | `PT2M` | ISO-8601 duration — delay before the second webhook retry |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | Optional | `PT10M` | ISO-8601 duration — delay before the third (final) webhook retry |
+| `ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL` | Optional | `https://api.telegram.org/` | Telegram Bot API base URL used by `TELEGRAM` notification channels. Override for air-gapped installs that route through an internal proxy. Trailing slash is added automatically when missing. |
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | Optional | `P7D` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations`. Pending invitations past this duration are treated as expired on preview/accept; admins can resend to issue a fresh token. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | Optional | `PT1H` | ISO-8601 duration. TTL of password-reset tokens issued by `POST /api/v1/auth/password/forgot`. Tokens are single-use; users must request a new one if the link expires. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Optional | `http://localhost:5173` | Base URL embedded in password-reset emails. Set this to your production frontend origin (e.g. `https://accessflow.example.com`); the emailed link is `{base}/reset-password/{token}`. |

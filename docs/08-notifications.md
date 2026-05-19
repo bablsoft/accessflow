@@ -193,6 +193,65 @@ assert hmac.compare_digest(f"sha256={expected}", received_signature)
 
 ---
 
+### Discord
+
+Generic **HTTP POST** to a Discord [Incoming Webhook](https://discord.com/developers/docs/resources/webhook#execute-webhook). AccessFlow emits a single rich embed mirroring the Slack Block Kit layout (header, summary fields, SQL preview, review URL).
+
+**Configuration:**
+```json
+{
+  "webhook_url": "https://discord.com/api/webhooks/123/abc",
+  "username": "AccessFlow",
+  "avatar_url": "https://accessflow.example.com/logo.png"
+}
+```
+
+- `webhook_url` (required) — Discord channel webhook URL.
+- `username` (optional) — overrides the bot's display name on a per-message basis.
+- `avatar_url` (optional) — overrides the bot's avatar on a per-message basis.
+
+The embed colour reflects the AI risk level (`LOW` green, `MEDIUM` yellow, `HIGH` orange, `CRITICAL` red). For `REVIEW_TIMEOUT` events the embed adds an `Auto-rejected after` field showing the `approval_timeout_hours` so submitters can tell the message apart from a reviewer rejection.
+
+Non-2xx Discord responses raise `NotificationDeliveryException`; the dispatcher logs the failure and moves on to the next channel. Discord does not currently use the webhook retry scheduler that the generic `WEBHOOK` channel uses.
+
+---
+
+### Telegram
+
+Posts to the Telegram Bot API's [`sendMessage`](https://core.telegram.org/bots/api#sendmessage) endpoint as MarkdownV2. Operators create a bot via [@BotFather](https://core.telegram.org/bots/tutorial), add it to the target chat/channel, and record the chat ID (groups & channels are negative integers).
+
+**Configuration:**
+```json
+{
+  "bot_token": "123456:ABC-DEF...",
+  "chat_id": "-1001234567890"
+}
+```
+
+- `bot_token` (required, AES-encrypted at rest, masked on read).
+- `chat_id` (required) — numeric chat/channel ID or a `@channelname` mention.
+
+The message uses MarkdownV2 formatting with the SQL preview rendered inside a fenced code block. The Telegram API base URL is configurable via `accessflow.notifications.telegram-api-base-url` (default `https://api.telegram.org/`) so air-gapped installs can route through an internal proxy.
+
+---
+
+### Microsoft Teams
+
+Posts an [Adaptive Card](https://learn.microsoft.com/en-us/adaptive-cards/) (schema 1.5) wrapped in the `attachments` envelope expected by Teams Incoming Webhooks and the newer Power Automate "Post to a channel when a webhook request is received" workflow.
+
+**Configuration:**
+```json
+{
+  "webhook_url": "https://example.webhook.office.com/webhookb2/..."
+}
+```
+
+- `webhook_url` (required) — Teams Incoming Webhook URL (legacy O365 connector or Power Automate flow URL).
+
+The card includes a header (with risk-coloured accent), a `FactSet` summary, a monospace SQL preview, and an `Action.OpenUrl` button linking back to the AccessFlow query detail page. For `REVIEW_TIMEOUT` the fact set adds an `Auto-rejected after` row showing the configured `approval_timeout_hours`.
+
+---
+
 ## Admin: Testing Channels
 
 `POST /admin/notification-channels/{id}/test` sends a test payload for the configured channel type:
@@ -200,6 +259,8 @@ assert hmac.compare_digest(f"sha256={expected}", received_signature)
 - **Email:** Sends a test email to the configured `from_address` (or an address specified in the request body)
 - **Slack:** Posts "✅ AccessFlow notification channel test successful" to the configured channel
 - **Webhook:** Posts a `{"event": "TEST", "timestamp": "..."}` payload to the webhook URL
+- **Discord / MS Teams:** Posts a one-line confirmation embed/card to the configured webhook URL
+- **Telegram:** Posts a one-line MarkdownV2 confirmation to the configured chat ID
 
 ---
 

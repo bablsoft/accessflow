@@ -11,13 +11,16 @@ import {
   Switch,
 } from 'antd';
 import {
+  ApiOutlined,
   EditOutlined,
   MailOutlined,
   MessageOutlined,
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
+  RocketOutlined,
   SendOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +63,10 @@ interface ChannelFormValues {
   url?: string;
   secret?: string;
   timeout_seconds?: number;
+  discord_username?: string;
+  discord_avatar_url?: string;
+  bot_token?: string;
+  chat_id?: string;
 }
 
 export function NotificationsPage() {
@@ -226,16 +233,42 @@ function ChannelCard({
   testing: boolean;
 }) {
   const { t } = useTranslation();
-  const icon =
-    ch.channel_type === 'EMAIL' ? (
-      <MailOutlined style={{ fontSize: 18 }} />
-    ) : ch.channel_type === 'SLACK' ? (
-      <MessageOutlined style={{ fontSize: 18 }} />
-    ) : (
-      <SendOutlined style={{ fontSize: 18 }} />
-    );
-  const iconColor =
-    ch.channel_type === 'EMAIL' ? '#2563eb' : ch.channel_type === 'SLACK' ? '#7c3aed' : '#ea580c';
+  const icon = (() => {
+    switch (ch.channel_type) {
+      case 'EMAIL':
+        return <MailOutlined style={{ fontSize: 18 }} />;
+      case 'SLACK':
+        return <MessageOutlined style={{ fontSize: 18 }} />;
+      case 'WEBHOOK':
+        return <SendOutlined style={{ fontSize: 18 }} />;
+      case 'DISCORD':
+        return <RocketOutlined style={{ fontSize: 18 }} />;
+      case 'TELEGRAM':
+        return <ApiOutlined style={{ fontSize: 18 }} />;
+      case 'MS_TEAMS':
+        return <TeamOutlined style={{ fontSize: 18 }} />;
+      default:
+        return <SendOutlined style={{ fontSize: 18 }} />;
+    }
+  })();
+  const iconColor = (() => {
+    switch (ch.channel_type) {
+      case 'EMAIL':
+        return '#2563eb';
+      case 'SLACK':
+        return '#7c3aed';
+      case 'WEBHOOK':
+        return '#ea580c';
+      case 'DISCORD':
+        return '#5865f2';
+      case 'TELEGRAM':
+        return '#229ed9';
+      case 'MS_TEAMS':
+        return '#4b53bc';
+      default:
+        return '#64748b';
+    }
+  })();
   return (
     <div
       style={{
@@ -341,6 +374,29 @@ function ConfigPreview({ channel }: { channel: NotificationChannel }) {
       </>
     );
   }
+  if (channel.channel_type === 'DISCORD') {
+    const url = String(cfg.webhook_url ?? '');
+    return (
+      <>
+        username: {String(cfg.username ?? '—')}
+        <br />
+        webhook: {url ? url.slice(0, 38) + (url.length > 38 ? '…' : '') : '—'}
+      </>
+    );
+  }
+  if (channel.channel_type === 'TELEGRAM') {
+    return (
+      <>
+        chat_id: {String(cfg.chat_id ?? '—')}
+        <br />
+        bot token: {String(cfg.bot_token ?? '—')}
+      </>
+    );
+  }
+  if (channel.channel_type === 'MS_TEAMS') {
+    const url = String(cfg.webhook_url ?? '');
+    return <>webhook: {url ? url.slice(0, 38) + (url.length > 38 ? '…' : '') : '—'}</>;
+  }
   const url = String(cfg.url ?? '');
   return (
     <>
@@ -388,6 +444,10 @@ function ChannelFormModal({
         url: c.url as string | undefined,
         secret: c.secret as string | undefined,
         timeout_seconds: c.timeout_seconds as number | undefined,
+        discord_username: c.username as string | undefined,
+        discord_avatar_url: c.avatar_url as string | undefined,
+        bot_token: c.bot_token as string | undefined,
+        chat_id: c.chat_id as string | undefined,
       });
     } else {
       form.resetFields();
@@ -412,6 +472,15 @@ function ChannelFormModal({
     } else if (values.channel_type === 'SLACK') {
       setIf('webhook_url', values.webhook_url);
       setIf('channel', values.slack_channel);
+    } else if (values.channel_type === 'DISCORD') {
+      setIf('webhook_url', values.webhook_url);
+      setIf('username', values.discord_username);
+      setIf('avatar_url', values.discord_avatar_url);
+    } else if (values.channel_type === 'TELEGRAM') {
+      setIf('bot_token', values.bot_token);
+      setIf('chat_id', values.chat_id);
+    } else if (values.channel_type === 'MS_TEAMS') {
+      setIf('webhook_url', values.webhook_url);
     } else {
       setIf('url', values.url);
       setIf('secret', values.secret);
@@ -469,6 +538,9 @@ function ChannelFormModal({
               { value: 'EMAIL', label: 'EMAIL' },
               { value: 'SLACK', label: 'SLACK' },
               { value: 'WEBHOOK', label: 'WEBHOOK' },
+              { value: 'DISCORD', label: 'DISCORD' },
+              { value: 'TELEGRAM', label: 'TELEGRAM' },
+              { value: 'MS_TEAMS', label: 'MS_TEAMS' },
             ]}
           />
         </Form.Item>
@@ -565,6 +637,60 @@ function ChannelFormModal({
               <InputNumber min={1} max={120} style={{ width: '100%' }} />
             </Form.Item>
           </>
+        )}
+
+        {channelType === 'DISCORD' && (
+          <>
+            <Form.Item
+              name="webhook_url"
+              label={t('admin.notifications.label_discord_webhook_url')}
+              rules={[{ required: true, type: 'url' }]}
+            >
+              <Input placeholder="https://discord.com/api/webhooks/…" />
+            </Form.Item>
+            <Form.Item
+              name="discord_username"
+              label={t('admin.notifications.label_discord_username')}
+            >
+              <Input placeholder="AccessFlow" />
+            </Form.Item>
+            <Form.Item
+              name="discord_avatar_url"
+              label={t('admin.notifications.label_discord_avatar_url')}
+              rules={[{ type: 'url' }]}
+            >
+              <Input placeholder="https://example.com/avatar.png" />
+            </Form.Item>
+          </>
+        )}
+
+        {channelType === 'TELEGRAM' && (
+          <>
+            <Form.Item
+              name="bot_token"
+              label={t('admin.notifications.label_telegram_bot_token')}
+              rules={[{ required: !editing }]}
+            >
+              <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
+            </Form.Item>
+            <Form.Item
+              name="chat_id"
+              label={t('admin.notifications.label_telegram_chat_id')}
+              rules={[{ required: true }]}
+            >
+              <Input placeholder="-1001234567890" />
+            </Form.Item>
+          </>
+        )}
+
+        {channelType === 'MS_TEAMS' && (
+          <Form.Item
+            name="webhook_url"
+            label={t('admin.notifications.label_ms_teams_webhook_url')}
+            rules={[{ required: true, type: 'url' }]}
+          >
+            <Input placeholder="https://example.webhook.office.com/webhookb2/…" />
+          </Form.Item>
         )}
       </Form>
     </Modal>

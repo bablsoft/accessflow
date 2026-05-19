@@ -36,7 +36,7 @@ class NotificationsPropertiesTest {
 
     @Test
     void propertiesFallsBackToDefaultRetryWhenNull() {
-        var props = new NotificationsProperties(URI.create("https://app.example.test"), null);
+        var props = new NotificationsProperties(URI.create("https://app.example.test"), null, null);
         assertThat(props.retry()).isNotNull();
         assertThat(props.retry().first()).isEqualTo(Duration.ofSeconds(30));
     }
@@ -45,7 +45,27 @@ class NotificationsPropertiesTest {
     void propertiesPreservesProvidedRetry() {
         var custom = new NotificationsProperties.Retry(
                 Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3));
-        var props = new NotificationsProperties(URI.create("https://app.example.test"), custom);
+        var props = new NotificationsProperties(URI.create("https://app.example.test"), custom, null);
         assertThat(props.retry()).isSameAs(custom);
+    }
+
+    @Test
+    void telegramBaseUrlDefaultsToPublicApi() {
+        var props = new NotificationsProperties(URI.create("https://app.example.test"), null, null);
+        assertThat(props.telegramApiBaseUrl().toString()).isEqualTo("https://api.telegram.org/");
+    }
+
+    @Test
+    void telegramBaseUrlAppendsTrailingSlash() {
+        var props = new NotificationsProperties(URI.create("https://app.example.test"), null,
+                URI.create("https://proxy.example/tg"));
+        assertThat(props.telegramApiBaseUrl().toString()).isEqualTo("https://proxy.example/tg/");
+    }
+
+    @Test
+    void telegramBaseUrlPreservesExistingTrailingSlash() {
+        var props = new NotificationsProperties(URI.create("https://app.example.test"), null,
+                URI.create("https://proxy.example/tg/"));
+        assertThat(props.telegramApiBaseUrl().toString()).isEqualTo("https://proxy.example/tg/");
     }
 }

@@ -1020,6 +1020,9 @@ Required `config` keys per channel type:
 - `EMAIL`: `smtp_host`, `smtp_port`, `smtp_password`, `from_address` (optional: `smtp_user`, `smtp_tls` (default true), `from_name`).
 - `SLACK`: `webhook_url` (optional: `channel`, `mention_users`).
 - `WEBHOOK`: `url`, `secret` (optional: `timeout_seconds` default 10).
+- `DISCORD`: `webhook_url` (optional: `username`, `avatar_url`).
+- `TELEGRAM`: `bot_token`, `chat_id`. The `bot_token` is AES-encrypted at rest and replaced with `********` on read; pass the literal `********` back on `PUT` to preserve the existing ciphertext.
+- `MS_TEAMS`: `webhook_url`.
 
 #### PUT /admin/notification-channels/{id}
 

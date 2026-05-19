@@ -253,6 +253,99 @@ class ChannelConfigCodecTest {
         assertThat(codec.decodeWebhook(merged).secretPlain()).isEqualTo("kept");
     }
 
+    @Test
+    void encodesDiscordChannel() {
+        var json = codec.encodeForPersistence(NotificationChannelType.DISCORD, Map.of(
+                "webhook_url", "https://discord.com/api/webhooks/123/abc",
+                "username", "AccessFlow",
+                "avatar_url", "https://accessflow.example/logo.png"));
+
+        var typed = codec.decodeDiscord(json);
+        assertThat(typed.webhookUrl().toString())
+                .isEqualTo("https://discord.com/api/webhooks/123/abc");
+        assertThat(typed.username()).isEqualTo("AccessFlow");
+        assertThat(typed.avatarUrl()).isEqualTo("https://accessflow.example/logo.png");
+
+        var view = codec.decodeForApi(json);
+        assertThat(view).containsEntry("webhook_url", "https://discord.com/api/webhooks/123/abc");
+    }
+
+    @Test
+    void rejectsDiscordWithoutWebhookUrl() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.DISCORD, Map.of(
+                "username", "bot")))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("webhook_url");
+    }
+
+    @Test
+    void encodesTelegramChannelAndMasksBotToken() {
+        var json = codec.encodeForPersistence(NotificationChannelType.TELEGRAM, Map.of(
+                "bot_token", "123:abc",
+                "chat_id", "-100123"));
+
+        assertThat(json).contains("bot_token_encrypted")
+                .contains("enc:123:abc")
+                .doesNotContain("\"bot_token\":\"123:abc\"");
+
+        var typed = codec.decodeTelegram(json);
+        assertThat(typed.botTokenPlain()).isEqualTo("123:abc");
+        assertThat(typed.chatId()).isEqualTo("-100123");
+
+        var view = codec.decodeForApi(json);
+        assertThat(view).containsEntry("bot_token", "********")
+                .doesNotContainKey("bot_token_encrypted")
+                .containsEntry("chat_id", "-100123");
+    }
+
+    @Test
+    void rejectsTelegramWithoutBotToken() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.TELEGRAM, Map.of(
+                "chat_id", "-100123")))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("bot_token");
+    }
+
+    @Test
+    void rejectsTelegramWithoutChatId() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.TELEGRAM, Map.of(
+                "bot_token", "123:abc")))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("chat_id");
+    }
+
+    @Test
+    void mergeRotatesTelegramBotTokenAndPreservesOnMask() {
+        var original = codec.encodeForPersistence(NotificationChannelType.TELEGRAM, Map.of(
+                "bot_token", "old",
+                "chat_id", "-100"));
+
+        var rotated = codec.mergeForPersistence(NotificationChannelType.TELEGRAM, original, Map.of(
+                "bot_token", "new"));
+        assertThat(codec.decodeTelegram(rotated).botTokenPlain()).isEqualTo("new");
+
+        var kept = codec.mergeForPersistence(NotificationChannelType.TELEGRAM, original, Map.of(
+                "bot_token", "********"));
+        assertThat(codec.decodeTelegram(kept).botTokenPlain()).isEqualTo("old");
+    }
+
+    @Test
+    void encodesMsTeamsChannel() {
+        var json = codec.encodeForPersistence(NotificationChannelType.MS_TEAMS, Map.of(
+                "webhook_url", "https://example.webhook.office.com/webhookb2/abc"));
+
+        var typed = codec.decodeMsTeams(json);
+        assertThat(typed.webhookUrl().toString())
+                .isEqualTo("https://example.webhook.office.com/webhookb2/abc");
+    }
+
+    @Test
+    void rejectsMsTeamsWithoutWebhookUrl() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.MS_TEAMS, Map.of()))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("webhook_url");
+    }
+
     /**
      * Trivial reversible "encryption" used to exercise the round-trip without depending on
      * core's package-private AES helper. Prepends a marker so encrypted values are visibly

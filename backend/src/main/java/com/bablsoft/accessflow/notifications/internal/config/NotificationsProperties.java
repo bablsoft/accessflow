@@ -11,11 +11,22 @@ import java.time.Duration;
 @Validated
 public record NotificationsProperties(
         @NotNull URI publicBaseUrl,
-        @NotNull Retry retry) {
+        @NotNull Retry retry,
+        URI telegramApiBaseUrl) {
+
+    private static final URI DEFAULT_TELEGRAM_API_BASE_URL = URI.create("https://api.telegram.org/");
 
     public NotificationsProperties {
         if (retry == null) {
             retry = Retry.defaults();
+        }
+        if (telegramApiBaseUrl == null) {
+            telegramApiBaseUrl = DEFAULT_TELEGRAM_API_BASE_URL;
+        } else {
+            var raw = telegramApiBaseUrl.toString();
+            if (!raw.endsWith("/")) {
+                telegramApiBaseUrl = URI.create(raw + "/");
+            }
         }
     }
 
