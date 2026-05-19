@@ -392,17 +392,23 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 
 ## notification_channels
 
-Stores notification channel configurations (email, Slack, webhook).
+Stores notification channel configurations (email, Slack, webhook, Discord, Telegram, Microsoft Teams).
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
-| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` |
+| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` \| `DISCORD` \| `TELEGRAM` \| `MS_TEAMS` |
 | `name` | VARCHAR(255) — human label |
 | `config` | JSONB — channel-specific config (sensitive fields AES-encrypted) |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
+
+Sensitive `config` fields encrypted with AES-256-GCM and masked on read:
+
+- `EMAIL` → `smtp_password` → `smtp_password_encrypted`
+- `WEBHOOK` → `secret` → `secret_encrypted`
+- `TELEGRAM` → `bot_token` → `bot_token_encrypted`
 
 ---
 

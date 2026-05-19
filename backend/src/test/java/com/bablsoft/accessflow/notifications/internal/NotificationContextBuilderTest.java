@@ -62,7 +62,8 @@ class NotificationContextBuilderTest {
         localizationConfig = mock(LocalizationConfigService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
-                NotificationsProperties.Retry.defaults());
+                NotificationsProperties.Retry.defaults(),
+                null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
 
@@ -300,7 +301,8 @@ class NotificationContextBuilderTest {
     void buildReviewUrlPreservesNonTrailingSlashBase() {
         var props = new NotificationsProperties(
                 URI.create("https://no-trailing.example"),
-                NotificationsProperties.Retry.defaults());
+                NotificationsProperties.Retry.defaults(),
+                null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)

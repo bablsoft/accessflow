@@ -3,5 +3,8 @@ package com.bablsoft.accessflow.notifications.api;
 public enum NotificationChannelType {
     EMAIL,
     SLACK,
-    WEBHOOK
+    WEBHOOK,
+    DISCORD,
+    TELEGRAM,
+    MS_TEAMS
 }

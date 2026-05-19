@@ -15,7 +15,7 @@ export type QueryStatus =
 export type QueryType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type ChannelType = 'EMAIL' | 'SLACK' | 'WEBHOOK';
+export type ChannelType = 'EMAIL' | 'SLACK' | 'WEBHOOK' | 'DISCORD' | 'TELEGRAM' | 'MS_TEAMS';
 export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'OLLAMA';
 
 export interface User {

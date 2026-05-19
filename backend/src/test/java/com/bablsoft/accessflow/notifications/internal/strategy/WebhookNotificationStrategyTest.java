@@ -64,7 +64,8 @@ class WebhookNotificationStrategyTest {
         properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
                 new NotificationsProperties.Retry(
-                        Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3)));
+                        Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3)),
+                null);
         strategy = new WebhookNotificationStrategy(
                 codec, payloadFactory, RestClient.create(),
                 taskScheduler, properties, channelRepository);

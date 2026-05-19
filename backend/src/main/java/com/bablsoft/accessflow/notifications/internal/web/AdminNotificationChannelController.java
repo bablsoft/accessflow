@@ -28,7 +28,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/admin/notification-channels")
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Notification Channels", description = "Admin management of email/Slack/webhook notification channels")
+@Tag(name = "Notification Channels", description = "Admin management of email, Slack, webhook, Discord, Telegram, and Microsoft Teams notification channels")
 @RequiredArgsConstructor
 class AdminNotificationChannelController {
 
