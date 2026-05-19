@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
 import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
 import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -280,6 +281,75 @@ class AuditEventListenerTest {
                 .containsExactly(AuditAction.SAML_CONFIG_UPDATED,
                         AuditAction.OAUTH2_CONFIG_UPDATED,
                         AuditAction.SYSTEM_SMTP_UPDATED);
+    }
+
+    @Test
+    void onNotificationDeliveryExhaustedRecordsAuditRow() {
+        var channelId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onNotificationDeliveryExhausted(new NotificationDeliveryExhaustedEvent(
+                organizationId,
+                channelId,
+                "WEBHOOK",
+                "QUERY_APPROVED",
+                4,
+                503,
+                "503 Service Unavailable"));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.NOTIFICATION_DELIVERY_EXHAUSTED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.NOTIFICATION_CHANNEL);
+        assertThat(entry.resourceId()).isEqualTo(channelId);
+        assertThat(entry.organizationId()).isEqualTo(organizationId);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.ipAddress()).isNull();
+        assertThat(entry.userAgent()).isNull();
+        assertThat(entry.metadata())
+                .containsEntry("source", "DISPATCHER")
+                .containsEntry("channel_id", channelId.toString())
+                .containsEntry("channel_type", "WEBHOOK")
+                .containsEntry("event_type", "QUERY_APPROVED")
+                .containsEntry("attempt_count", 4)
+                .containsEntry("last_http_status", 503)
+                .containsEntry("last_error", "503 Service Unavailable");
+    }
+
+    @Test
+    void onNotificationDeliveryExhaustedOmitsHttpStatusAndErrorWhenNull() {
+        var channelId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onNotificationDeliveryExhausted(new NotificationDeliveryExhaustedEvent(
+                organizationId,
+                channelId,
+                "WEBHOOK",
+                "QUERY_SUBMITTED",
+                4,
+                null,
+                null));
+
+        var metadata = captor.getValue().metadata();
+        assertThat(metadata).doesNotContainKey("last_http_status");
+        assertThat(metadata).doesNotContainKey("last_error");
+        assertThat(metadata).containsEntry("attempt_count", 4);
+    }
+
+    @Test
+    void onNotificationDeliveryExhaustedSwallowsAuditFailure() {
+        when(auditLogService.record(any())).thenThrow(new RuntimeException("db down"));
+
+        listener.onNotificationDeliveryExhausted(new NotificationDeliveryExhaustedEvent(
+                organizationId,
+                UUID.randomUUID(),
+                "WEBHOOK",
+                "QUERY_REJECTED",
+                4,
+                500,
+                "boom"));
+        // No exception should propagate.
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
 import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
 import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -198,6 +199,36 @@ class AuditEventListener {
             case OAUTH2_CONFIG -> AuditResourceType.OAUTH2_CONFIG;
             case SYSTEM_SMTP -> AuditResourceType.SYSTEM_SMTP;
         };
+    }
+
+    @ApplicationModuleListener
+    void onNotificationDeliveryExhausted(NotificationDeliveryExhaustedEvent event) {
+        try {
+            var metadata = new HashMap<String, Object>();
+            metadata.put("source", "DISPATCHER");
+            metadata.put("channel_id", event.channelId().toString());
+            metadata.put("channel_type", event.channelType());
+            metadata.put("event_type", event.eventType());
+            metadata.put("attempt_count", event.attemptCount());
+            if (event.lastHttpStatus() != null) {
+                metadata.put("last_http_status", event.lastHttpStatus());
+            }
+            if (event.lastError() != null) {
+                metadata.put("last_error", event.lastError());
+            }
+            auditLogService.record(new AuditEntry(
+                    AuditAction.NOTIFICATION_DELIVERY_EXHAUSTED,
+                    AuditResourceType.NOTIFICATION_CHANNEL,
+                    event.channelId(),
+                    event.organizationId(),
+                    null,
+                    metadata,
+                    null,
+                    null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for NotificationDeliveryExhaustedEvent {} {}",
+                    event.channelId(), event.eventType(), ex);
+        }
     }
 
     @ApplicationModuleListener

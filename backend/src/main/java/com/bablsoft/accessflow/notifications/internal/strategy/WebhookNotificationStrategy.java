@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -11,6 +12,7 @@ import com.bablsoft.accessflow.notifications.internal.persistence.entity.Notific
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
@@ -27,25 +29,30 @@ import java.util.UUID;
 @Slf4j
 class WebhookNotificationStrategy implements NotificationChannelStrategy {
 
+    private static final int LAST_ERROR_MAX_LENGTH = 500;
+
     private final ChannelConfigCodec codec;
     private final WebhookPayloadFactory payloadFactory;
     private final RestClient restClient;
     private final TaskScheduler taskScheduler;
     private final NotificationsProperties properties;
     private final NotificationChannelRepository channelRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     WebhookNotificationStrategy(ChannelConfigCodec codec,
                                 WebhookPayloadFactory payloadFactory,
                                 RestClient restClient,
                                 @Qualifier("notificationsTaskScheduler") TaskScheduler taskScheduler,
                                 NotificationsProperties properties,
-                                NotificationChannelRepository channelRepository) {
+                                NotificationChannelRepository channelRepository,
+                                ApplicationEventPublisher eventPublisher) {
         this.codec = codec;
         this.payloadFactory = payloadFactory;
         this.restClient = restClient;
         this.taskScheduler = taskScheduler;
         this.properties = properties;
         this.channelRepository = channelRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -76,9 +83,9 @@ class WebhookNotificationStrategy implements NotificationChannelStrategy {
         } catch (NotificationDeliveryException ex) {
             var nextDelay = nextRetryDelay(attempt);
             if (nextDelay == null) {
-                // TODO(audit): record exhausted webhook delivery once the audit module exists.
                 log.error("Webhook delivery exhausted retries for channel {} ({})",
                         channelId, eventType, ex);
+                publishExhaustedEvent(channel, eventType, attempt + 1, ex);
                 return;
             }
             log.warn("Webhook delivery attempt {} failed for channel {} ({}); retrying in {}",
@@ -87,6 +94,41 @@ class WebhookNotificationStrategy implements NotificationChannelStrategy {
                     () -> attempt(channelId, eventType, body, attempt + 1),
                     Instant.now().plus(nextDelay));
         }
+    }
+
+    private void publishExhaustedEvent(NotificationChannelEntity channel,
+                                       NotificationEventType eventType,
+                                       int attemptCount,
+                                       NotificationDeliveryException ex) {
+        try {
+            eventPublisher.publishEvent(new NotificationDeliveryExhaustedEvent(
+                    channel.getOrganizationId(),
+                    channel.getId(),
+                    NotificationChannelType.WEBHOOK.name(),
+                    eventType.name(),
+                    attemptCount,
+                    extractHttpStatus(ex),
+                    truncate(ex.getMessage())));
+        } catch (RuntimeException publishEx) {
+            log.error("Failed to publish NotificationDeliveryExhaustedEvent for channel {} ({})",
+                    channel.getId(), eventType, publishEx);
+        }
+    }
+
+    private static Integer extractHttpStatus(NotificationDeliveryException ex) {
+        if (ex.getCause() instanceof RestClientResponseException rcre) {
+            return rcre.getStatusCode().value();
+        }
+        return null;
+    }
+
+    private static String truncate(String message) {
+        if (message == null) {
+            return null;
+        }
+        return message.length() > LAST_ERROR_MAX_LENGTH
+                ? message.substring(0, LAST_ERROR_MAX_LENGTH)
+                : message;
     }
 
     private void attemptOnce(NotificationChannelEntity channel, NotificationEventType eventType,
