@@ -165,6 +165,8 @@ class SlackNotificationStrategyTest {
                 null,
                 URI.create("https://app.example.com/queries/abc"),
                 List.of(),
-                Instant.now());
+                Instant.now(),
+                "en",
+                null);
     }
 }

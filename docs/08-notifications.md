@@ -21,7 +21,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
-| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter (admin fan-out tracked under [accessflow#102](https://github.com/bablsoft/accessflow/issues/102)) | implemented — currently reuses the `QUERY_REJECTED` email/Slack template; a dedicated template is tracked under [accessflow#101](https://github.com/bablsoft/accessflow/issues/101) |
+| `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter (admin fan-out tracked under [accessflow#102](https://github.com/bablsoft/accessflow/issues/102)) | implemented |
 
 `AI_HIGH_RISK` only fires for `RiskLevel.CRITICAL`; lower risk levels still surface via the standard `QUERY_SUBMITTED` notification.
 
@@ -48,11 +48,20 @@ Uses **Spring Boot Mail** (Jakarta Mail / JavaMail).
 }
 ```
 
-Email bodies are rendered using **Thymeleaf** HTML templates located in `resources/templates/email/`. One template per event type. Templates include:
+Email bodies are rendered using **Thymeleaf** HTML templates located in `resources/templates/email/`. One template per event type:
+
+- `email/query-ready-for-review.html` — `QUERY_SUBMITTED` and `AI_HIGH_RISK`
+- `email/query-approved.html` — `QUERY_APPROVED`
+- `email/query-rejected.html` — `QUERY_REJECTED`
+- `email/query-review-timeout.html` — `REVIEW_TIMEOUT` (auto-rejection prompted by `QueryTimeoutJob`; renders an explicit explanatory banner with the configured `approval_timeout_hours` and an amber accent so the submitter can visually distinguish it from a reviewer rejection)
+
+Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)
 - AI risk badge (color-coded)
 - Direct link to query detail page in the AccessFlow UI
 - Approve / Reject action links for review request emails (link to UI, not direct API calls)
+
+Template labels, subjects, and CTAs are resolved through `i18n/messages.properties` under the `notification.email.*` key family. The render locale is the organization's `localization_config.default_language` (BCP-47), threaded through `NotificationContext.locale` and resolved by `EmailNotificationStrategy.resolveLocale(...)` with a hard fallback to English. Per-recipient locale (`UserPreferenceService.findPreferredLanguage`) is intentionally not consulted yet — tracked as a follow-up.
 
 #### System SMTP fallback
 
@@ -88,6 +97,7 @@ Messages use **Block Kit** formatting:
 - SQL preview in a `code` block (first 300 chars)
 - Action buttons: **View in AccessFlow** (link to UI query detail page)
 - For `QUERY_SUBMITTED` events: **Approve** and **Reject** buttons are deep links to the UI (not direct API calls — reviewers must be authenticated)
+- For `REVIEW_TIMEOUT` events: the header uses `⌛ Query Auto-Rejected (review timeout)` and the summary section adds an `*Auto-rejected after:*` field showing the configured `approval_timeout_hours` so the submitter can tell the message apart from a reviewer rejection. Slack header text and field labels remain English in this release; localising the Slack channel is tracked as a follow-up.
 
 **Example Slack Block Kit payload:**
 ```json

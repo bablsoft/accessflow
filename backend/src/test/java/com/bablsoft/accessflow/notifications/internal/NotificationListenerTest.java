@@ -37,7 +37,7 @@ class NotificationListenerTest {
         var id = UUID.randomUUID();
         listener.onQueryReadyForReview(new QueryReadyForReviewEvent(id));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_SUBMITTED), eq(id),
-                isNull(), isNull());
+                isNull(), isNull(), isNull());
     }
 
     @Test
@@ -46,7 +46,7 @@ class NotificationListenerTest {
         var reviewer = UUID.randomUUID();
         listener.onQueryApproved(new QueryApprovedEvent(id, reviewer));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_APPROVED), eq(id),
-                eq(reviewer), isNull());
+                eq(reviewer), isNull(), isNull());
     }
 
     @Test
@@ -54,7 +54,7 @@ class NotificationListenerTest {
         var id = UUID.randomUUID();
         listener.onQueryAutoApproved(new QueryAutoApprovedEvent(id));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_APPROVED), eq(id),
-                isNull(), isNull());
+                isNull(), isNull(), isNull());
     }
 
     @Test
@@ -63,15 +63,15 @@ class NotificationListenerTest {
         var reviewer = UUID.randomUUID();
         listener.onQueryRejected(new QueryRejectedEvent(id, reviewer));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_REJECTED), eq(id),
-                eq(reviewer), isNull());
+                eq(reviewer), isNull(), isNull());
     }
 
     @Test
-    void timedOutDispatchesReviewTimeoutWithoutReviewer() {
+    void timedOutDispatchesReviewTimeoutWithApprovalTimeoutHours() {
         var id = UUID.randomUUID();
         listener.onQueryTimedOut(new QueryTimedOutEvent(id, 24));
         verify(dispatcher).dispatch(eq(NotificationEventType.REVIEW_TIMEOUT), eq(id),
-                isNull(), isNull());
+                isNull(), isNull(), eq(24));
     }
 
     @Test
@@ -80,24 +80,25 @@ class NotificationListenerTest {
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(), RiskLevel.LOW));
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(), RiskLevel.MEDIUM));
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(), RiskLevel.HIGH));
-        verify(dispatcher, never()).dispatch(any(), any(), any(), any());
+        verify(dispatcher, never()).dispatch(any(), any(), any(), any(), any());
 
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(), RiskLevel.CRITICAL));
         verify(dispatcher).dispatch(eq(NotificationEventType.AI_HIGH_RISK), eq(id),
-                isNull(), isNull());
+                isNull(), isNull(), isNull());
     }
 
     @Test
     void dispatchExceptionIsSwallowed() {
         var id = UUID.randomUUID();
         doThrow(new RuntimeException("boom"))
-                .when(dispatcher).dispatch(any(), any(), any(), any());
+                .when(dispatcher).dispatch(any(), any(), any(), any(), any());
 
         // None of these should propagate.
         listener.onQueryReadyForReview(new QueryReadyForReviewEvent(id));
         listener.onQueryApproved(new QueryApprovedEvent(id, UUID.randomUUID()));
         listener.onQueryAutoApproved(new QueryAutoApprovedEvent(id));
         listener.onQueryRejected(new QueryRejectedEvent(id, UUID.randomUUID()));
+        listener.onQueryTimedOut(new QueryTimedOutEvent(id, 24));
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(),
                 RiskLevel.CRITICAL));
     }

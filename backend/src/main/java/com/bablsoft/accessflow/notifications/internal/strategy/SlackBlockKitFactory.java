@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.slack.api.model.block.ActionsBlock;
 import com.slack.api.model.block.HeaderBlock;
@@ -69,6 +70,10 @@ class SlackBlockKitFactory {
         }
         if (ctx.reviewerDisplayName() != null) {
             fields.add(mrkdwn("*Reviewer:*\n" + ctx.reviewerDisplayName()));
+        }
+        if (ctx.eventType() == NotificationEventType.REVIEW_TIMEOUT
+                && ctx.approvalTimeoutHours() != null) {
+            fields.add(mrkdwn("*Auto-rejected after:*\n" + ctx.approvalTimeoutHours() + " hours"));
         }
         return SectionBlock.builder().fields(fields).build();
     }

@@ -99,6 +99,6 @@ class SystemEmailFallbackTest {
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/x"),
                 List.of(new RecipientView(UUID.randomUUID(), "a@example.com", "A")),
-                Instant.now());
+                Instant.now(), "en", null);
     }
 }

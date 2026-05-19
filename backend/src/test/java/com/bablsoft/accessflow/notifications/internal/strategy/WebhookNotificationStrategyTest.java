@@ -205,7 +205,7 @@ class WebhookNotificationStrategyTest {
                 UUID.randomUUID(), "alice@example.com", "Alice",
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/abc"),
-                List.of(), Instant.now());
+                List.of(), Instant.now(), "en", null);
     }
 
     private record CapturedRequest(String event, String signature, String delivery, String body) {

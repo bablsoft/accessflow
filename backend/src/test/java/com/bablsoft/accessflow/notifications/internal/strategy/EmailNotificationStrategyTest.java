@@ -15,13 +15,16 @@ import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.MessageSource;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -29,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -42,6 +46,7 @@ class EmailNotificationStrategyTest {
     private SpringTemplateEngine templateEngine;
     private EmailNotificationStrategy.MailSenderFactory factory;
     private JavaMailSender sender;
+    private MessageSource messageSource;
     private EmailNotificationStrategy strategy;
 
     @BeforeEach
@@ -50,7 +55,8 @@ class EmailNotificationStrategyTest {
         templateEngine = mock(SpringTemplateEngine.class);
         factory = mock(EmailNotificationStrategy.MailSenderFactory.class);
         sender = mock(JavaMailSender.class);
-        strategy = new EmailNotificationStrategy(codec, templateEngine, factory);
+        messageSource = mock(MessageSource.class);
+        strategy = new EmailNotificationStrategy(codec, templateEngine, factory, messageSource);
 
         when(factory.create(any())).thenReturn(sender);
         when(sender.createMimeMessage()).thenAnswer(inv -> {
@@ -59,6 +65,8 @@ class EmailNotificationStrategyTest {
         });
         when(templateEngine.process(anyString(), any())).thenReturn("<html>body</html>");
         when(codec.decodeEmail(anyString())).thenReturn(emailConfig("Sender Name"));
+        when(messageSource.getMessage(anyString(), any(), any(Locale.class)))
+                .thenAnswer(inv -> "subject:" + inv.getArgument(0));
     }
 
     @Test
@@ -93,7 +101,8 @@ class EmailNotificationStrategyTest {
                 "SELECT 1", "SELECT 1", "SELECT 1",
                 null, null, null, UUID.randomUUID(), "ds",
                 UUID.randomUUID(), "x@example.com", "X", null, null, null, null,
-                URI.create("https://app.example.com/queries/x"), null, Instant.now());
+                URI.create("https://app.example.com/queries/x"), null, Instant.now(),
+                "en", null);
         strategy.deliver(ctx, channel());
         verify(sender, never()).send(any(MimeMessage.class));
     }
@@ -129,6 +138,74 @@ class EmailNotificationStrategyTest {
                 new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
         strategy.deliver(ctx, channel());
         verify(templateEngine).process(eq("email/query-ready-for-review"), any());
+    }
+
+    @Test
+    void deliverUsesReviewTimeoutTemplateForTimeoutEvent() {
+        var ctx = ctx(NotificationEventType.REVIEW_TIMEOUT, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")),
+                "en", 24);
+        strategy.deliver(ctx, channel());
+        verify(templateEngine).process(eq("email/query-review-timeout"), any());
+    }
+
+    @Test
+    void deliverPassesApprovalTimeoutHoursToTemplateContext() {
+        var ctx = ctx(NotificationEventType.REVIEW_TIMEOUT, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")),
+                "en", 24);
+        strategy.deliver(ctx, channel());
+        var captor = ArgumentCaptor.forClass(Context.class);
+        verify(templateEngine).process(eq("email/query-review-timeout"), captor.capture());
+        assertThat(captor.getValue().getVariable("approvalTimeoutHours")).isEqualTo(24);
+    }
+
+    @Test
+    void deliverLeavesApprovalTimeoutHoursNullForNonTimeoutEvents() {
+        var ctx = ctx(NotificationEventType.QUERY_APPROVED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+        strategy.deliver(ctx, channel());
+        var captor = ArgumentCaptor.forClass(Context.class);
+        verify(templateEngine).process(eq("email/query-approved"), captor.capture());
+        assertThat(captor.getValue().getVariable("approvalTimeoutHours")).isNull();
+    }
+
+    @Test
+    void subjectResolvedFromMessageSourceUsingContextLocale() throws Exception {
+        when(messageSource.getMessage(
+                eq("notification.email.subject.review_timeout"),
+                any(),
+                eq(Locale.forLanguageTag("es"))))
+                .thenReturn("[AccessFlow] Consulta auto-rechazada en Production");
+        var ctx = ctx(NotificationEventType.REVIEW_TIMEOUT, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")),
+                "es", 24);
+
+        strategy.deliver(ctx, channel());
+
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        assertThat(captor.getValue().getSubject())
+                .isEqualTo("[AccessFlow] Consulta auto-rechazada en Production");
+    }
+
+    @Test
+    void subjectLocaleFallsBackToEnglishWhenContextLocaleBlank() throws Exception {
+        when(messageSource.getMessage(
+                eq("notification.email.subject.query_approved"),
+                any(),
+                eq(Locale.ENGLISH)))
+                .thenReturn("[AccessFlow] Query approved on Production");
+        var ctx = ctx(NotificationEventType.QUERY_APPROVED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")),
+                null, null);
+
+        strategy.deliver(ctx, channel());
+
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        assertThat(captor.getValue().getSubject())
+                .isEqualTo("[AccessFlow] Query approved on Production");
     }
 
     @Test
@@ -214,6 +291,13 @@ class EmailNotificationStrategyTest {
 
     private static NotificationContext ctx(NotificationEventType eventType,
                                            List<RecipientView> recipients) {
+        return ctx(eventType, recipients, "en", null);
+    }
+
+    private static NotificationContext ctx(NotificationEventType eventType,
+                                           List<RecipientView> recipients,
+                                           String locale,
+                                           Integer approvalTimeoutHours) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -236,10 +320,8 @@ class EmailNotificationStrategyTest {
                 "looks risky",
                 URI.create("https://app.example.com/queries/abc"),
                 recipients,
-                Instant.now());
-    }
-
-    private static <T> T eq(T value) {
-        return org.mockito.ArgumentMatchers.eq(value);
+                Instant.now(),
+                locale,
+                approvalTimeoutHours);
     }
 }

@@ -29,29 +29,32 @@ class NotificationListener {
 
     @ApplicationModuleListener
     void onQueryReadyForReview(QueryReadyForReviewEvent event) {
-        safeDispatch(NotificationEventType.QUERY_SUBMITTED, event.queryRequestId(), null, null);
+        safeDispatch(NotificationEventType.QUERY_SUBMITTED, event.queryRequestId(),
+                null, null, null);
     }
 
     @ApplicationModuleListener
     void onQueryApproved(QueryApprovedEvent event) {
         safeDispatch(NotificationEventType.QUERY_APPROVED, event.queryRequestId(),
-                event.reviewerId(), null);
+                event.reviewerId(), null, null);
     }
 
     @ApplicationModuleListener
     void onQueryAutoApproved(QueryAutoApprovedEvent event) {
-        safeDispatch(NotificationEventType.QUERY_APPROVED, event.queryRequestId(), null, null);
+        safeDispatch(NotificationEventType.QUERY_APPROVED, event.queryRequestId(),
+                null, null, null);
     }
 
     @ApplicationModuleListener
     void onQueryRejected(QueryRejectedEvent event) {
         safeDispatch(NotificationEventType.QUERY_REJECTED, event.queryRequestId(),
-                event.reviewerId(), null);
+                event.reviewerId(), null, null);
     }
 
     @ApplicationModuleListener
     void onQueryTimedOut(QueryTimedOutEvent event) {
-        safeDispatch(NotificationEventType.REVIEW_TIMEOUT, event.queryRequestId(), null, null);
+        safeDispatch(NotificationEventType.REVIEW_TIMEOUT, event.queryRequestId(),
+                null, null, event.approvalTimeoutHours());
     }
 
     @ApplicationModuleListener
@@ -59,13 +62,16 @@ class NotificationListener {
         if (event.riskLevel() != RiskLevel.CRITICAL) {
             return;
         }
-        safeDispatch(NotificationEventType.AI_HIGH_RISK, event.queryRequestId(), null, null);
+        safeDispatch(NotificationEventType.AI_HIGH_RISK, event.queryRequestId(),
+                null, null, null);
     }
 
     private void safeDispatch(NotificationEventType type, UUID queryRequestId,
-                              UUID reviewerUserId, String reviewerComment) {
+                              UUID reviewerUserId, String reviewerComment,
+                              Integer approvalTimeoutHours) {
         try {
-            dispatcher.dispatch(type, queryRequestId, reviewerUserId, reviewerComment);
+            dispatcher.dispatch(type, queryRequestId, reviewerUserId, reviewerComment,
+                    approvalTimeoutHours);
         } catch (RuntimeException ex) {
             log.error("Notification dispatch failed for event {} on query {}",
                     type, queryRequestId, ex);

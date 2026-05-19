@@ -11,7 +11,10 @@ import java.util.UUID;
 
 /**
  * Carries everything the channel strategies need to render a notification. Built once per event
- * and passed by reference to each strategy.
+ * and passed by reference to each strategy. {@code locale} is the BCP-47 code resolved from the
+ * organization's default language and drives both subject-line resolution and Thymeleaf
+ * {@code #{...}} lookups. {@code approvalTimeoutHours} is only populated for
+ * {@link NotificationEventType#REVIEW_TIMEOUT} events.
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -35,5 +38,7 @@ public record NotificationContext(
         String reviewerComment,
         URI reviewUrl,
         List<RecipientView> recipients,
-        Instant occurredAt) {
+        Instant occurredAt,
+        String locale,
+        Integer approvalTimeoutHours) {
 }

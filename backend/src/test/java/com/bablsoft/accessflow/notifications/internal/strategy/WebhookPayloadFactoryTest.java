@@ -71,6 +71,8 @@ class WebhookPayloadFactoryTest {
                 null,
                 URI.create("https://app.example.com/queries/abc"),
                 List.of(),
-                Instant.parse("2026-05-06T10:15:00Z"));
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                null);
     }
 }

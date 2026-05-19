@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DatasourceView;
+import com.bablsoft.accessflow.core.api.LocalizationConfigService;
+import com.bablsoft.accessflow.core.api.LocalizationConfigView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -42,6 +44,7 @@ class NotificationContextBuilderTest {
     private AiAnalysisLookupService aiLookup;
     private DatasourceAdminService datasourceAdmin;
     private UserQueryService userQuery;
+    private LocalizationConfigService localizationConfig;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -56,11 +59,12 @@ class NotificationContextBuilderTest {
         aiLookup = mock(AiAnalysisLookupService.class);
         datasourceAdmin = mock(DatasourceAdminService.class);
         userQuery = mock(UserQueryService.class);
+        localizationConfig = mock(LocalizationConfigService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults());
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, props);
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -68,6 +72,8 @@ class NotificationContextBuilderTest {
                 "alice@example.com", UserRoleType.ANALYST)));
         when(aiLookup.findByQueryRequestId(queryId)).thenReturn(Optional.of(
                 new AiAnalysisSummaryView(UUID.randomUUID(), queryId, RiskLevel.HIGH, 80, "danger")));
+        when(localizationConfig.getOrDefault(orgId)).thenReturn(
+                new LocalizationConfigView(orgId, List.of("en"), "en", "en"));
     }
 
     @Test
@@ -87,7 +93,7 @@ class NotificationContextBuilderTest {
     @Test
     void buildReturnsEmptyWhenQueryUnknown() {
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.empty());
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null);
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null);
         assertThat(ctx).isEmpty();
     }
 
@@ -100,7 +106,7 @@ class NotificationContextBuilderTest {
         when(userQuery.findById(reviewerId)).thenReturn(Optional.of(user(reviewerId,
                 "rev@example.com", UserRoleType.REVIEWER)));
 
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
 
         assertThat(ctx.organizationId()).isEqualTo(orgId);
@@ -127,7 +133,7 @@ class NotificationContextBuilderTest {
         when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.REVIEWER))
                 .thenReturn(List.of(reviewer));
 
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
 
         assertThat(ctx.recipients()).hasSize(1);
@@ -141,7 +147,7 @@ class NotificationContextBuilderTest {
         when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.REVIEWER))
                 .thenReturn(List.of(user(submitterId, "alice@example.com", UserRoleType.REVIEWER)));
 
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
 
         assertThat(ctx.recipients()).isEmpty();
@@ -161,7 +167,7 @@ class NotificationContextBuilderTest {
         when(userQuery.findById(stage2Reviewer)).thenReturn(Optional.of(
                 user(stage2Reviewer, "stage2@example.com", UserRoleType.REVIEWER)));
 
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
 
         assertThat(ctx.recipients()).extracting(RecipientView::email)
@@ -171,7 +177,7 @@ class NotificationContextBuilderTest {
     @Test
     void querySubmittedReturnsEmptyWhenPlanMissing() {
         when(reviewPlanLookup.findForDatasource(datasourceId)).thenReturn(Optional.empty());
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.recipients()).isEmpty();
     }
@@ -180,7 +186,7 @@ class NotificationContextBuilderTest {
     void querySubmittedReturnsEmptyWhenNoApprovers() {
         when(reviewPlanLookup.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(plan(List.of(), List.of())));
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.recipients()).isEmpty();
     }
@@ -195,7 +201,7 @@ class NotificationContextBuilderTest {
                 "h", null, null, false, Instant.now());
         when(userQuery.findById(reviewerId)).thenReturn(Optional.of(inactive));
 
-        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.recipients()).isEmpty();
     }
@@ -207,7 +213,7 @@ class NotificationContextBuilderTest {
                 user(reviewerId, "bob@example.com", UserRoleType.ADMIN)));
 
         var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId,
-                reviewerId, "comment").orElseThrow();
+                reviewerId, "comment", null).orElseThrow();
 
         assertThat(ctx.recipients()).extracting(RecipientView::email)
                 .containsExactly("alice@example.com");
@@ -219,7 +225,7 @@ class NotificationContextBuilderTest {
     @Test
     void queryRejectedRecipientsContainOnlySubmitter() {
         var ctx = builder.build(NotificationEventType.QUERY_REJECTED, queryId, null,
-                "no thanks").orElseThrow();
+                "no thanks", null).orElseThrow();
         assertThat(ctx.recipients()).hasSize(1);
         assertThat(ctx.recipients().get(0).email()).isEqualTo("alice@example.com");
         assertThat(ctx.reviewerUserId()).isNull();
@@ -234,7 +240,7 @@ class NotificationContextBuilderTest {
         when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
                 .thenReturn(List.of(adminA, adminB, inactive));
 
-        var ctx = builder.build(NotificationEventType.AI_HIGH_RISK, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.AI_HIGH_RISK, queryId, null, null, null)
                 .orElseThrow();
 
         assertThat(ctx.recipients()).extracting(RecipientView::email)
@@ -243,7 +249,7 @@ class NotificationContextBuilderTest {
 
     @Test
     void testEventRecipientsContainSubmitter() {
-        var ctx = builder.build(NotificationEventType.TEST, queryId, null, null).orElseThrow();
+        var ctx = builder.build(NotificationEventType.TEST, queryId, null, null, null).orElseThrow();
         assertThat(ctx.recipients()).hasSize(1);
         assertThat(ctx.recipients().get(0).email()).isEqualTo("alice@example.com");
     }
@@ -251,14 +257,14 @@ class NotificationContextBuilderTest {
     @Test
     void testEventReturnsEmptyRecipientsWhenSubmitterMissing() {
         when(userQuery.findById(submitterId)).thenReturn(Optional.empty());
-        var ctx = builder.build(NotificationEventType.TEST, queryId, null, null).orElseThrow();
+        var ctx = builder.build(NotificationEventType.TEST, queryId, null, null, null).orElseThrow();
         assertThat(ctx.recipients()).isEmpty();
     }
 
     @Test
     void buildHandlesMissingAiAnalysisGracefully() {
         when(aiLookup.findByQueryRequestId(queryId)).thenReturn(Optional.empty());
-        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.riskLevel()).isNull();
         assertThat(ctx.riskScore()).isNull();
@@ -272,7 +278,7 @@ class NotificationContextBuilderTest {
                 new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
                         longSql, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW)));
 
-        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.sqlPreview200()).hasSize(201).endsWith("…");
         assertThat(ctx.sqlPreview300()).hasSize(301).endsWith("…");
@@ -284,7 +290,7 @@ class NotificationContextBuilderTest {
                 new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
                         null, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW)));
 
-        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null)
+        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.sqlPreview200()).isEmpty();
         assertThat(ctx.sqlPreview300()).isEmpty();
@@ -296,11 +302,53 @@ class NotificationContextBuilderTest {
                 URI.create("https://no-trailing.example"),
                 NotificationsProperties.Retry.defaults());
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, props);
-        var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null)
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
+        var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())
                 .isEqualTo("https://no-trailing.example/queries/" + queryId);
+    }
+
+    @Test
+    void buildPopulatesApprovalTimeoutHoursForReviewTimeout() {
+        var ctx = builder.build(NotificationEventType.REVIEW_TIMEOUT, queryId, null, null, 24)
+                .orElseThrow();
+        assertThat(ctx.approvalTimeoutHours()).isEqualTo(24);
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("alice@example.com");
+    }
+
+    @Test
+    void buildLeavesApprovalTimeoutHoursNullForNonTimeoutEvents() {
+        var approved = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
+                .orElseThrow();
+        assertThat(approved.approvalTimeoutHours()).isNull();
+
+        var rejected = builder.build(NotificationEventType.QUERY_REJECTED, queryId, null, null, null)
+                .orElseThrow();
+        assertThat(rejected.approvalTimeoutHours()).isNull();
+    }
+
+    @Test
+    void buildPopulatesLocaleFromOrgDefault() {
+        when(localizationConfig.getOrDefault(orgId)).thenReturn(
+                new LocalizationConfigView(orgId, List.of("en", "es"), "es", "en"));
+
+        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
+                .orElseThrow();
+
+        assertThat(ctx.locale()).isEqualTo("es");
+    }
+
+    @Test
+    void buildPassesThroughNullLocaleFromOrgConfig() {
+        when(localizationConfig.getOrDefault(orgId)).thenReturn(
+                new LocalizationConfigView(orgId, List.of(), null, null));
+
+        var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
+                .orElseThrow();
+
+        assertThat(ctx.locale()).isNull();
     }
 
     private QueryRequestSnapshot snapshot() {
