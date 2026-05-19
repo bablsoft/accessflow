@@ -34,6 +34,89 @@ spec:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
+      {{- if .Values.postgresql.enabled }}
+      # initContainer provisions the dedicated `accessflow_audit` Postgres role
+      # (issue #67) before the backend's Flyway boot runs V38, which transfers
+      # ownership of audit_log to that role. We run this as a backend initContainer
+      # rather than a bitnami `primary.initdb.scripts` entry because the bitnami
+      # init flow runs scripts under a md5-auth pg_hba.conf with quirky
+      # POSTGRES_DB vs POSTGRES_DATABASE env-var naming — the previous attempt
+      # crash-looped both ways (#228). Connecting as the postgres admin via the
+      # service from a separate pod side-steps both issues. The SQL is idempotent
+      # so re-runs (rolling updates, pod restarts) are harmless.
+      initContainers:
+        - name: audit-role-provisioner
+          # upstream postgres:18-alpine — ships psql + pg_isready, ~80 MB. The
+          # bitnami chart's own image tag ships as `latest` which we don't want
+          # to depend on for reproducibility.
+          image: docker.io/library/postgres:18-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 70
+          env:
+            - name: PGHOST
+              value: {{ printf "%s-postgresql" .Release.Name | quote }}
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: postgres
+            - name: PGDATABASE
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.db.passwordSecret" . }}
+                  key: postgres-password
+            - name: AUDIT_DB_USER
+              value: {{ include "accessflow.auditDb.username" . | quote }}
+            - name: AUDIT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.auditDb.passwordSecret" . }}
+                  key: {{ include "accessflow.auditDb.passwordSecretKey" . }}
+            - name: APP_DB_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+          command:
+            - /bin/bash
+            - -euo
+            - pipefail
+            - -c
+            - |
+              # Wait until postgres accepts TCP connections + auth. Hikari on the
+              # backend container will retry too, but failing here is more visible.
+              for attempt in $(seq 1 60); do
+                if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" >/dev/null 2>&1; then
+                  break
+                fi
+                echo "waiting for postgres (attempt $attempt/60)..."
+                sleep 2
+              done
+              psql -v ON_ERROR_STOP=1 -w <<-EOSQL
+                DO \$do\$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AUDIT_DB_USER}') THEN
+                        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+                    ELSE
+                        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+                    END IF;
+                END \$do\$;
+                GRANT CONNECT ON DATABASE "${PGDATABASE}" TO "${AUDIT_DB_USER}";
+                -- ALTER TABLE audit_log OWNER TO accessflow_audit (in V38) requires the
+                -- new owner to have CREATE on the table's schema — USAGE alone is not
+                -- enough, even when the role doing the alter is the schema owner.
+                GRANT USAGE, CREATE ON SCHEMA public TO "${AUDIT_DB_USER}";
+                -- Membership lets the app role ALTER TABLE OWNER in V38 without superuser privs.
+                GRANT "${AUDIT_DB_USER}" TO "${APP_DB_USER}";
+              EOSQL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      {{- end }}
       containers:
         - name: backend
           image: "{{ .Values.image.backend.repository }}:{{ include "accessflow.image.tag" (dict "tier" .Values.image.backend "ctx" $) }}"
