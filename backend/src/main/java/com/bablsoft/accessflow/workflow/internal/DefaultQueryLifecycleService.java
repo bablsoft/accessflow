@@ -4,6 +4,8 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
+import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
@@ -21,6 +23,8 @@ import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
+import com.bablsoft.accessflow.workflow.api.QueryNotReanalyzableException;
+import com.bablsoft.accessflow.core.events.AiReanalysisRequestedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryCancelledEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +54,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final QueryExecutor queryExecutor;
     private final SqlParserService sqlParserService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
+    private final AiAnalysisLookupService aiAnalysisLookupService;
+    private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -71,6 +77,20 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         }
         queryRequestStateService.transitionTo(query.id(), current, QueryStatus.CANCELLED);
         eventPublisher.publishEvent(new QueryCancelledEvent(query.id(), command.callerUserId()));
+    }
+
+    @Override
+    public void reanalyze(ReanalyzeQueryCommand command) {
+        var query = loadOrThrow(command.queryRequestId(), command.callerOrganizationId());
+        if (query.status() != QueryStatus.PENDING_REVIEW) {
+            throw new QueryNotReanalyzableException(query.id(), query.status());
+        }
+        aiAnalysisLookupService.findByQueryRequestId(query.id())
+                .filter(view -> view.failed())
+                .orElseThrow(() -> new QueryNotReanalyzableException(query.id(), query.status()));
+        aiAnalysisPersistenceService.deleteForQuery(query.id());
+        eventPublisher.publishEvent(new AiReanalysisRequestedEvent(query.id(),
+                command.callerUserId()));
     }
 
     @Override

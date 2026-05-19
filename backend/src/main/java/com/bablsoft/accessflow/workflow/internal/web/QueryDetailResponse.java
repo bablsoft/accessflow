@@ -63,7 +63,9 @@ public record QueryDetailResponse(
             AiProviderType aiProvider,
             String aiModel,
             int promptTokens,
-            int completionTokens) {
+            int completionTokens,
+            boolean failed,
+            String errorMessage) {
 
         static AiAnalysisDetail from(QueryDetailView.AiAnalysisDetail src) {
             if (src == null) {
@@ -80,7 +82,9 @@ public record QueryDetailResponse(
                     src.aiProvider(),
                     src.aiModel(),
                     src.promptTokens(),
-                    src.completionTokens());
+                    src.completionTokens(),
+                    src.failed(),
+                    src.errorMessage());
         }
     }
 

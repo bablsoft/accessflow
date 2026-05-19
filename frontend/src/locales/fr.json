@@ -331,6 +331,15 @@
       "no_justification": "Le demandeur n'a pas fourni de justification.",
       "card_ai": "Analyse IA",
       "ai_awaiting": "En attente d'analyse…",
+      "ai_failed_banner_title": "Échec de l'analyse IA",
+      "ai_failed_banner_detail": "La revue se poursuit sans recommandation de l'IA. Raison : {{reason}}",
+      "ai_failed_accordion_title": "Échec de l'analyse IA",
+      "ai_failed_accordion_body": "L'analyse IA précédente ne s'est pas terminée, donc aucun score de risque n'est disponible. Vous pouvez réessayer.",
+      "ai_failed_reason_label": "Raison",
+      "ai_failed_reanalyze": "Réanalyser",
+      "ai_failed_reanalyze_pending": "Réanalyse en cours…",
+      "ai_failed_reanalyze_success": "Réanalyse IA lancée.",
+      "ai_failed_reanalyze_error": "Impossible de lancer la réanalyse IA.",
       "card_execution": "Résultat d'exécution",
       "stat_rows": "lignes affectées",
       "stat_duration": "durée",
@@ -1092,5 +1101,8 @@
       "sha256_required": "Le SHA-256 est obligatoire.",
       "sha256_pattern": "Saisissez exactement 64 caractères hexadécimaux."
     }
+  },
+  "risk": {
+    "ai_na": "IA n. d."
   }
 }

@@ -269,7 +269,39 @@ class DefaultQueryRequestLookupServiceTest {
         assertThat(detail.aiAnalysis().riskLevel()).isEqualTo(RiskLevel.LOW);
         assertThat(detail.aiAnalysis().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
         assertThat(detail.aiAnalysis().promptTokens()).isEqualTo(120);
+        assertThat(detail.aiAnalysis().failed()).isFalse();
+        assertThat(detail.aiAnalysis().errorMessage()).isNull();
         assertThat(detail.reviewDecisions()).isEmpty();
+    }
+
+    @Test
+    void findDetailByIdCopiesFailureFlagAndReason() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_REVIEW);
+        var aiId = UUID.randomUUID();
+        entity.setAiAnalysisId(aiId);
+        var ai = new AiAnalysisEntity();
+        ai.setId(aiId);
+        ai.setRiskLevel(RiskLevel.CRITICAL);
+        ai.setRiskScore(100);
+        ai.setSummary("AI analysis failed: provider unavailable");
+        ai.setIssues("[]");
+        ai.setAiProvider(AiProviderType.ANTHROPIC);
+        ai.setAiModel("unknown");
+        ai.setFailed(true);
+        ai.setErrorMessage("provider unavailable");
+
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(aiAnalysisRepository.findById(aiId)).thenReturn(Optional.of(ai));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.aiAnalysis().failed()).isTrue();
+        assertThat(detail.aiAnalysis().errorMessage()).isEqualTo("provider unavailable");
     }
 
     @Test

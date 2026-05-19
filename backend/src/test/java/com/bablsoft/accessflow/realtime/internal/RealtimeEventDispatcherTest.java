@@ -137,7 +137,8 @@ class RealtimeEventDispatcherTest {
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(aiAnalysisLookupService.findByQueryRequestId(queryId))
                 .thenReturn(Optional.of(new AiAnalysisSummaryView(
-                        UUID.randomUUID(), queryId, RiskLevel.MEDIUM, 55, "ok")));
+                        UUID.randomUUID(), queryId, RiskLevel.MEDIUM, 55, "ok",
+                        false, null)));
         var event = new AiAnalysisCompletedEvent(queryId, UUID.randomUUID(), RiskLevel.MEDIUM);
 
         dispatcher.onAiAnalysisCompleted(event);
@@ -161,7 +162,8 @@ class RealtimeEventDispatcherTest {
                 .thenReturn(datasourceView("orders-prod"));
         when(aiAnalysisLookupService.findByQueryRequestId(queryId))
                 .thenReturn(Optional.of(new AiAnalysisSummaryView(
-                        UUID.randomUUID(), queryId, RiskLevel.HIGH, 80, "danger")));
+                        UUID.randomUUID(), queryId, RiskLevel.HIGH, 80, "danger",
+                        false, null)));
 
         dispatcher.onQueryReadyForReview(new QueryReadyForReviewEvent(queryId));
 

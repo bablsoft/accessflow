@@ -331,6 +331,15 @@
       "no_justification": "Der Antragsteller hat keine Begründung angegeben.",
       "card_ai": "KI-Analyse",
       "ai_awaiting": "Warten auf Analyse…",
+      "ai_failed_banner_title": "KI-Analyse fehlgeschlagen",
+      "ai_failed_banner_detail": "Die Prüfung läuft ohne KI-Empfehlung weiter. Grund: {{reason}}",
+      "ai_failed_accordion_title": "KI-Analyse fehlgeschlagen",
+      "ai_failed_accordion_body": "Die vorherige KI-Analyse wurde nicht abgeschlossen, daher ist kein Risikoscore verfügbar. Du kannst es erneut versuchen.",
+      "ai_failed_reason_label": "Grund",
+      "ai_failed_reanalyze": "Erneut analysieren",
+      "ai_failed_reanalyze_pending": "Wird erneut analysiert…",
+      "ai_failed_reanalyze_success": "KI-Reanalyse gestartet.",
+      "ai_failed_reanalyze_error": "KI-Reanalyse konnte nicht gestartet werden.",
       "card_execution": "Ausführungsergebnis",
       "stat_rows": "betroffene Zeilen",
       "stat_duration": "Dauer",
@@ -1092,5 +1101,8 @@
       "sha256_required": "SHA-256 ist erforderlich.",
       "sha256_pattern": "Bitte genau 64 hexadezimale Zeichen eingeben."
     }
+  },
+  "risk": {
+    "ai_na": "KI n. v."
   }
 }

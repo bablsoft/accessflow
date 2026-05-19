@@ -72,7 +72,8 @@ class NotificationContextBuilderTest {
         when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
                 "alice@example.com", UserRoleType.ANALYST)));
         when(aiLookup.findByQueryRequestId(queryId)).thenReturn(Optional.of(
-                new AiAnalysisSummaryView(UUID.randomUUID(), queryId, RiskLevel.HIGH, 80, "danger")));
+                new AiAnalysisSummaryView(UUID.randomUUID(), queryId, RiskLevel.HIGH, 80, "danger",
+                        false, null)));
         when(localizationConfig.getOrDefault(orgId)).thenReturn(
                 new LocalizationConfigView(orgId, List.of("en"), "en", "en"));
     }

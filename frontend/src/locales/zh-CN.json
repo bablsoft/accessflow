@@ -331,6 +331,15 @@
       "no_justification": "申请人未提供说明。",
       "card_ai": "AI 分析",
       "ai_awaiting": "正在等待分析…",
+      "ai_failed_banner_title": "AI 分析失败",
+      "ai_failed_banner_detail": "审核将继续，但没有 AI 建议。原因：{{reason}}",
+      "ai_failed_accordion_title": "AI 分析失败",
+      "ai_failed_accordion_body": "上一次 AI 分析未能完成，因此没有可用的风险评分。您可以重新尝试。",
+      "ai_failed_reason_label": "原因",
+      "ai_failed_reanalyze": "重新分析",
+      "ai_failed_reanalyze_pending": "正在重新分析…",
+      "ai_failed_reanalyze_success": "已开始 AI 重新分析。",
+      "ai_failed_reanalyze_error": "无法启动 AI 重新分析。",
       "card_execution": "执行结果",
       "stat_rows": "受影响的行数",
       "stat_duration": "耗时",
@@ -1092,5 +1101,8 @@
       "sha256_required": "SHA-256 为必填项。",
       "sha256_pattern": "请输入正好 64 个十六进制字符。"
     }
+  },
+  "risk": {
+    "ai_na": "AI 不可用"
   }
 }

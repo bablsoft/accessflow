@@ -11,5 +11,7 @@ public record AiAnalysisSummaryView(
         UUID queryRequestId,
         RiskLevel riskLevel,
         int riskScore,
-        String summary) {
+        String summary,
+        boolean failed,
+        String errorMessage) {
 }

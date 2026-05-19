@@ -68,6 +68,10 @@ export async function cancelQuery(id: string): Promise<void> {
   await apiClient.post(`${BASE}/${id}/cancel`);
 }
 
+export async function reanalyzeQuery(id: string): Promise<void> {
+  await apiClient.post(`${BASE}/${id}/reanalyze`);
+}
+
 export async function executeQuery(id: string): Promise<ExecuteQueryResponse> {
   const { data } = await apiClient.post<ExecuteQueryResponse>(`${BASE}/${id}/execute`);
   return data;

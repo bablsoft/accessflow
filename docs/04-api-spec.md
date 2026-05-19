@@ -592,7 +592,9 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "summary": "Single-row UPDATE with indexed WHERE clause. No issues detected.",
     "issues": [],
     "missing_indexes_detected": false,
-    "affects_row_estimate": 1
+    "affects_row_estimate": 1,
+    "failed": false,
+    "error_message": null
   },
   "review_decisions": [
     {
@@ -630,6 +632,24 @@ On success the query transitions to `CANCELLED`, a `QUERY_CANCELLED` audit row i
 - `403 FORBIDDEN` — caller is not the original submitter.
 - `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization.
 - `409 QUERY_NOT_CANCELLABLE` — query is no longer in `PENDING_AI` or `PENDING_REVIEW`. The response carries the offending `currentStatus` as an extension property.
+
+### POST /queries/{id}/reanalyze — Response 202
+
+Re-runs AI analysis on a query whose previous AI analysis failed. The request body is empty.
+
+Authorization: only `REVIEWER` or `ADMIN` may call this endpoint.
+
+Behavior: the existing sentinel `ai_analyses` row (with `failed=true`) is removed, an `AiReanalysisRequestedEvent` is published, and the `ai` module's `@ApplicationModuleListener` runs the analysis asynchronously. The endpoint returns immediately with `202 Accepted`. The fresh analysis row is broadcast via the existing `ai.analysis_complete` WebSocket event when it succeeds (or `ai.analysis_failed` if it fails again). The controller writes a `QUERY_AI_REANALYZE_REQUESTED` audit row synchronously (capturing the caller's IP and User-Agent).
+
+Re-analysis is only valid when:
+- the query is in `PENDING_REVIEW`, **and**
+- a previous `ai_analyses` row exists with `failed=true`.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `403 FORBIDDEN` — caller is not a `REVIEWER` or `ADMIN`.
+- `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization.
+- `409 QUERY_NOT_REANALYZABLE` — query is not in `PENDING_REVIEW`, or the previous analysis did not fail. The response carries the offending `currentStatus` as an extension property.
 
 ### GET /queries/{id}/results — Response 200
 

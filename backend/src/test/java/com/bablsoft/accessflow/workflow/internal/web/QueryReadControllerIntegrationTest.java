@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecutionOutcome;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
+import com.bablsoft.accessflow.workflow.api.QueryNotReanalyzableException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,8 +80,10 @@ class QueryReadControllerIntegrationTest {
     private OrganizationEntity org;
     private UserEntity analyst;
     private UserEntity admin;
+    private UserEntity reviewer;
     private String analystToken;
     private String adminToken;
+    private String reviewerToken;
 
     @DynamicPropertySource
     static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
@@ -110,8 +113,10 @@ class QueryReadControllerIntegrationTest {
 
         analyst = makeUser("analyst@example.com", "Analyst", UserRoleType.ANALYST);
         admin = makeUser("admin@example.com", "Admin", UserRoleType.ADMIN);
+        reviewer = makeUser("reviewer@example.com", "Reviewer", UserRoleType.REVIEWER);
         analystToken = tokenFor(analyst);
         adminToken = tokenFor(admin);
+        reviewerToken = tokenFor(reviewer);
     }
 
     private UserEntity makeUser(String email, String name, UserRoleType role) {
@@ -148,7 +153,7 @@ class QueryReadControllerIntegrationTest {
         var dsId = UUID.randomUUID();
         var item = new QueryListItemView(qid, dsId, "Prod PG", analyst.getId(),
                 analyst.getEmail(), analyst.getDisplayName(),
-                QueryType.SELECT, QueryStatus.PENDING_AI, RiskLevel.LOW, 12,
+                QueryType.SELECT, QueryStatus.PENDING_AI, RiskLevel.LOW, 12, false,
                 Instant.parse("2026-05-01T10:00:00Z"));
         var page = new com.bablsoft.accessflow.core.api.PageResponse<>(
                 List.of(item), 0, 20, 1L, 1);
@@ -331,6 +336,116 @@ class QueryReadControllerIntegrationTest {
                 .exchange();
 
         assertThat(response).hasStatus(200);
+    }
+
+    // ── POST /api/v1/queries/{id}/reanalyze ─────────────────────────────────────
+
+    @Test
+    void reanalyzeReturns202OnSuccessAndWritesAuditAsReviewer() {
+        var qid = UUID.randomUUID();
+        doNothing().when(queryLifecycleService).reanalyze(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .header(HttpHeaders.USER_AGENT, "JUnit/5.0")
+                .header("X-Forwarded-For", "203.0.113.99")
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().action())
+                .isEqualTo(AuditAction.QUERY_AI_REANALYZE_REQUESTED);
+        assertThat(captor.getValue().resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(captor.getValue().resourceId()).isEqualTo(qid);
+        assertThat(captor.getValue().actorId()).isEqualTo(reviewer.getId());
+        assertThat(captor.getValue().organizationId()).isEqualTo(org.getId());
+        assertThat(captor.getValue().ipAddress()).isEqualTo("203.0.113.99");
+        assertThat(captor.getValue().userAgent()).isEqualTo("JUnit/5.0");
+    }
+
+    @Test
+    void reanalyzeReturns202ForAdminCaller() {
+        var qid = UUID.randomUUID();
+        doNothing().when(queryLifecycleService).reanalyze(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        verify(auditLogService).record(any());
+    }
+
+    @Test
+    void reanalyzeReturns403ForAnalystCaller() {
+        var qid = UUID.randomUUID();
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(403);
+        verify(queryLifecycleService, never()).reanalyze(any());
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void reanalyzeReturns409WhenNotInPendingReviewAndSkipsAudit() {
+        var qid = UUID.randomUUID();
+        doThrow(new QueryNotReanalyzableException(qid, QueryStatus.APPROVED))
+                .when(queryLifecycleService).reanalyze(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(409);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_NOT_REANALYZABLE");
+        assertThat(response).bodyJson().extractingPath("$.currentStatus").asString()
+                .isEqualTo("APPROVED");
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void reanalyzeReturns404WhenQueryMissingAndSkipsAudit() {
+        var qid = UUID.randomUUID();
+        doThrow(new QueryRequestNotFoundException(qid))
+                .when(queryLifecycleService).reanalyze(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_REQUEST_NOT_FOUND");
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void reanalyzeReturns401WithoutToken() {
+        var qid = UUID.randomUUID();
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze").exchange();
+
+        assertThat(response).hasStatus(401);
+        verify(queryLifecycleService, never()).reanalyze(any());
+    }
+
+    @Test
+    void reanalyzeStillReturns202WhenAuditWriteFails() {
+        var qid = UUID.randomUUID();
+        doNothing().when(queryLifecycleService).reanalyze(any());
+        doThrow(new RuntimeException("audit-down")).when(auditLogService).record(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/reanalyze")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(202);
     }
 
     // ── POST /api/v1/queries/{id}/cancel ────────────────────────────────────────

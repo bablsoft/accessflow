@@ -117,7 +117,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             var command = new PersistAiAnalysisCommand(
                     result.aiProvider(), result.aiModel(), result.riskScore(), result.riskLevel(),
                     result.summary(), issuesJson, result.missingIndexesDetected(),
-                    result.affectsRowEstimate(), result.promptTokens(), result.completionTokens());
+                    result.affectsRowEstimate(), result.promptTokens(), result.completionTokens(),
+                    false, null);
             var analysisId = aiAnalysisPersistenceService.persist(queryRequestId, command);
             eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId, result.riskLevel()));
         } catch (AiAnalysisException | AiAnalysisParseException e) {
@@ -156,7 +157,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         var fallback = resolveSentinelConfig(aiConfigId);
         var command = new PersistAiAnalysisCommand(
                 fallback.provider(), fallback.model(), 100, RiskLevel.CRITICAL,
-                "AI analysis failed: " + reason, "[]", false, null, 0, 0);
+                "AI analysis failed: " + reason, "[]", false, null, 0, 0,
+                true, reason);
         try {
             aiAnalysisPersistenceService.persist(queryRequestId, command);
         } catch (RuntimeException persistError) {

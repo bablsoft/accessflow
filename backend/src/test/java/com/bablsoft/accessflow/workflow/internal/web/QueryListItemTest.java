@@ -21,7 +21,7 @@ class QueryListItemTest {
         var view = new QueryListItemView(queryId, dsId, "Prod PG",
                 userId, "alice@example.com", "Alice",
                 QueryType.SELECT, QueryStatus.PENDING_REVIEW,
-                RiskLevel.HIGH, 80,
+                RiskLevel.HIGH, 80, false,
                 Instant.parse("2026-05-01T10:00:00Z"));
 
         var item = QueryListItem.from(view);
@@ -34,6 +34,7 @@ class QueryListItemTest {
         assertThat(item.status()).isEqualTo(QueryStatus.PENDING_REVIEW);
         assertThat(item.riskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(item.riskScore()).isEqualTo(80);
+        assertThat(item.aiFailed()).isFalse();
         assertThat(item.createdAt()).isEqualTo(Instant.parse("2026-05-01T10:00:00Z"));
     }
 
@@ -41,12 +42,26 @@ class QueryListItemTest {
     void fromHandlesNullRiskFields() {
         var view = new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), "a@b.com", "A",
-                QueryType.SELECT, QueryStatus.PENDING_AI, null, null,
+                QueryType.SELECT, QueryStatus.PENDING_AI, null, null, false,
                 Instant.now());
 
         var item = QueryListItem.from(view);
 
         assertThat(item.riskLevel()).isNull();
         assertThat(item.riskScore()).isNull();
+        assertThat(item.aiFailed()).isFalse();
+    }
+
+    @Test
+    void fromCarriesAiFailedFlag() {
+        var view = new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                UUID.randomUUID(), "a@b.com", "A",
+                QueryType.SELECT, QueryStatus.PENDING_REVIEW,
+                RiskLevel.CRITICAL, 100, true,
+                Instant.now());
+
+        var item = QueryListItem.from(view);
+
+        assertThat(item.aiFailed()).isTrue();
     }
 }

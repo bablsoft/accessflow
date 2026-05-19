@@ -26,7 +26,8 @@ class QueryDetailResponseTest {
         var ai = new QueryDetailView.AiAnalysisDetail(
                 aiId, RiskLevel.MEDIUM, 42, "summary",
                 "[{\"severity\":\"HIGH\"}]", true, 17L,
-                AiProviderType.ANTHROPIC, "claude-sonnet-4", 100, 50);
+                AiProviderType.ANTHROPIC, "claude-sonnet-4", 100, 50,
+                false, null);
         var reviewerId = UUID.randomUUID();
         var decisionId = UUID.randomUUID();
         var decision = new QueryDetailView.ReviewDecisionView(
@@ -85,6 +86,30 @@ class QueryDetailResponseTest {
         assertThat(aiOut.aiModel()).isEqualTo("claude-sonnet-4");
         assertThat(aiOut.promptTokens()).isEqualTo(100);
         assertThat(aiOut.completionTokens()).isEqualTo(50);
+        assertThat(aiOut.failed()).isFalse();
+        assertThat(aiOut.errorMessage()).isNull();
+    }
+
+    @Test
+    void aiAnalysisDetailCarriesFailureFlagAndReason() {
+        var ai = new QueryDetailView.AiAnalysisDetail(
+                UUID.randomUUID(), RiskLevel.CRITICAL, 100,
+                "AI analysis failed: provider unavailable",
+                "[]", false, null,
+                AiProviderType.ANTHROPIC, "unknown", 0, 0,
+                true, "provider unavailable");
+        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
+                "x", ai, null, null, null,
+                null, null,
+                List.of(),
+                Instant.now(), Instant.now());
+
+        var response = QueryDetailResponse.from(view);
+
+        assertThat(response.aiAnalysis().failed()).isTrue();
+        assertThat(response.aiAnalysis().errorMessage()).isEqualTo("provider unavailable");
     }
 
     @Test
@@ -110,7 +135,8 @@ class QueryDetailResponseTest {
         var ai = new QueryDetailView.AiAnalysisDetail(
                 UUID.randomUUID(), RiskLevel.LOW, 5, "ok",
                 null, false, null,
-                AiProviderType.OPENAI, "gpt-4o", 0, 0);
+                AiProviderType.OPENAI, "gpt-4o", 0, 0,
+                false, null);
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,

@@ -17,6 +17,8 @@ import com.bablsoft.accessflow.workflow.api.QueryCsvExportService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
+import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ReanalyzeQueryCommand;
+import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -175,6 +177,41 @@ class QueryReadController {
                     auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for QUERY_CANCELLED on query {}", queryId, ex);
+        }
+    }
+
+    @PostMapping("/{id}/reanalyze")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @Operation(summary = "Re-run AI analysis on a query whose previous AI analysis failed")
+    @ApiResponse(responseCode = "202", description = "Re-analysis accepted; runs asynchronously")
+    @ApiResponse(responseCode = "403", description = "Caller is not a reviewer or admin")
+    @ApiResponse(responseCode = "404", description = "Query not found in caller's organization")
+    @ApiResponse(responseCode = "409", description = "Query is not eligible for re-analysis "
+            + "(wrong status or previous analysis did not fail)")
+    ResponseEntity<Void> reanalyze(@PathVariable UUID id, Authentication authentication,
+                                   RequestAuditContext auditContext) {
+        var caller = (JwtClaims) authentication.getPrincipal();
+        queryLifecycleService.reanalyze(new ReanalyzeQueryCommand(id, caller.userId(),
+                caller.organizationId()));
+        recordReanalyzeAudit(caller, id, auditContext);
+        return ResponseEntity.accepted().build();
+    }
+
+    private void recordReanalyzeAudit(JwtClaims caller, UUID queryId,
+                                      RequestAuditContext auditContext) {
+        try {
+            auditLogService.record(new AuditEntry(
+                    AuditAction.QUERY_AI_REANALYZE_REQUESTED,
+                    AuditResourceType.QUERY_REQUEST,
+                    queryId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    new HashMap<>(),
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for QUERY_AI_REANALYZE_REQUESTED on query {}",
+                    queryId, ex);
         }
     }
 

@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
+import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
+import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -14,6 +17,8 @@ import com.bablsoft.accessflow.core.api.QueryResultPersistenceService.SaveResult
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
+import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.events.AiReanalysisRequestedEvent;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
@@ -24,8 +29,10 @@ import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
+import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ReanalyzeQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
+import com.bablsoft.accessflow.workflow.api.QueryNotReanalyzableException;
 import com.bablsoft.accessflow.workflow.events.QueryCancelledEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +74,8 @@ class DefaultQueryLifecycleServiceTest {
     @Mock QueryExecutor queryExecutor;
     @Mock SqlParserService sqlParserService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
+    @Mock AiAnalysisLookupService aiAnalysisLookupService;
+    @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
@@ -88,6 +97,8 @@ class DefaultQueryLifecycleServiceTest {
                 queryExecutor,
                 sqlParserService,
                 permissionLookupService,
+                aiAnalysisLookupService,
+                aiAnalysisPersistenceService,
                 auditLogService,
                 new ObjectMapper(),
                 messageSource,
@@ -417,5 +428,98 @@ class DefaultQueryLifecycleServiceTest {
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().metadata()).containsEntry("error", "RuntimeException");
+    }
+
+    // ── reanalyze ─────────────────────────────────────────────────────────────
+
+    private AiAnalysisSummaryView failedAnalysis() {
+        return new AiAnalysisSummaryView(UUID.randomUUID(), queryId, RiskLevel.CRITICAL, 100,
+                "AI analysis failed: provider unavailable", true, "provider unavailable");
+    }
+
+    private AiAnalysisSummaryView succeededAnalysis() {
+        return new AiAnalysisSummaryView(UUID.randomUUID(), queryId, RiskLevel.LOW, 10,
+                "ok", false, null);
+    }
+
+    @Test
+    void reanalyzeDeletesStaleRowAndPublishesEvent() {
+        var callerId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+        when(aiAnalysisLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(failedAnalysis()));
+
+        service.reanalyze(new ReanalyzeQueryCommand(queryId, callerId, organizationId));
+
+        verify(aiAnalysisPersistenceService).deleteForQuery(queryId);
+        var captor = ArgumentCaptor.forClass(AiReanalysisRequestedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().queryRequestId()).isEqualTo(queryId);
+        assertThat(captor.getValue().requestedByUserId()).isEqualTo(callerId);
+    }
+
+    @Test
+    void reanalyzeThrowsWhenQueryStatusIsNotPendingReview() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+
+        assertThatThrownBy(() -> service.reanalyze(
+                new ReanalyzeQueryCommand(queryId, UUID.randomUUID(), organizationId)))
+                .isInstanceOf(QueryNotReanalyzableException.class);
+
+        verify(aiAnalysisPersistenceService, never()).deleteForQuery(any());
+        verify(eventPublisher, never()).publishEvent(any(AiReanalysisRequestedEvent.class));
+    }
+
+    @Test
+    void reanalyzeThrowsWhenPreviousAnalysisDidNotFail() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+        when(aiAnalysisLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(succeededAnalysis()));
+
+        assertThatThrownBy(() -> service.reanalyze(
+                new ReanalyzeQueryCommand(queryId, UUID.randomUUID(), organizationId)))
+                .isInstanceOf(QueryNotReanalyzableException.class);
+
+        verify(aiAnalysisPersistenceService, never()).deleteForQuery(any());
+        verify(eventPublisher, never()).publishEvent(any(AiReanalysisRequestedEvent.class));
+    }
+
+    @Test
+    void reanalyzeThrowsWhenNoAnalysisExists() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+        when(aiAnalysisLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reanalyze(
+                new ReanalyzeQueryCommand(queryId, UUID.randomUUID(), organizationId)))
+                .isInstanceOf(QueryNotReanalyzableException.class);
+
+        verify(aiAnalysisPersistenceService, never()).deleteForQuery(any());
+        verify(eventPublisher, never()).publishEvent(any(AiReanalysisRequestedEvent.class));
+    }
+
+    @Test
+    void reanalyzeThrowsNotFoundWhenQueryMissing() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reanalyze(
+                new ReanalyzeQueryCommand(queryId, UUID.randomUUID(), organizationId)))
+                .isInstanceOf(QueryRequestNotFoundException.class);
+    }
+
+    @Test
+    void reanalyzeThrowsNotFoundWhenQueryBelongsToDifferentOrg() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+
+        assertThatThrownBy(() -> service.reanalyze(
+                new ReanalyzeQueryCommand(queryId, UUID.randomUUID(), UUID.randomUUID())))
+                .isInstanceOf(QueryRequestNotFoundException.class);
+
+        verify(eventPublisher, never()).publishEvent(any(AiReanalysisRequestedEvent.class));
     }
 }

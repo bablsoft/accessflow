@@ -7,9 +7,11 @@ import {
   CloseOutlined,
   CopyOutlined,
   EditOutlined,
+  ExclamationCircleOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
   PlayCircleOutlined,
+  ReloadOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -25,7 +27,7 @@ import { IssueCard } from '@/components/editor/IssueCard';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
-import { cancelQuery, executeQuery, getQuery, queryKeys } from '@/api/queries';
+import { cancelQuery, executeQuery, getQuery, queryKeys, reanalyzeQuery } from '@/api/queries';
 import {
   approveQuery,
   rejectQuery,
@@ -71,6 +73,18 @@ export function QueryDetailPage() {
       } else {
         message.error(t('queries.detail.on_execute_error'));
       }
+    },
+  });
+
+  const reanalyzeMutation = useMutation({
+    mutationFn: () => reanalyzeQuery(id!),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.detail(id!) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      message.success(t('queries.detail.ai_failed_reanalyze_success'));
+    },
+    onError: () => {
+      message.error(t('queries.detail.ai_failed_reanalyze_error'));
     },
   });
 
@@ -141,6 +155,9 @@ export function QueryDetailPage() {
     (query.status === 'PENDING_AI' || query.status === 'PENDING_REVIEW');
   const canExecute =
     query.status === 'APPROVED' && (submitterId === user.id || user.role === 'ADMIN');
+  const aiFailed = query.ai_analysis?.failed === true;
+  const aiFailureReason = query.ai_analysis?.error_message ?? '';
+  const canReanalyze = isReviewer && aiFailed && query.status === 'PENDING_REVIEW';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -200,6 +217,31 @@ export function QueryDetailPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {aiFailed && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<ExclamationCircleOutlined />}
+              message={t('queries.detail.ai_failed_banner_title')}
+              description={t('queries.detail.ai_failed_banner_detail', {
+                reason: aiFailureReason || '—',
+              })}
+              action={
+                canReanalyze ? (
+                  <Button
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    loading={reanalyzeMutation.isPending}
+                    onClick={() => reanalyzeMutation.mutate()}
+                  >
+                    {reanalyzeMutation.isPending
+                      ? t('queries.detail.ai_failed_reanalyze_pending')
+                      : t('queries.detail.ai_failed_reanalyze')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
           {query.status === 'TIMED_OUT' && (
             <Alert
               type="warning"
@@ -239,7 +281,11 @@ export function QueryDetailPage() {
           </Card>
 
           <Card
-            title={t('queries.detail.card_ai')}
+            title={
+              aiFailed
+                ? t('queries.detail.ai_failed_accordion_title')
+                : t('queries.detail.card_ai')
+            }
             icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
             extra={
               query.ai_analysis ? (
@@ -247,27 +293,73 @@ export function QueryDetailPage() {
                   <RiskPill
                     level={query.ai_analysis.risk_level}
                     score={query.ai_analysis.risk_score}
+                    failed={aiFailed}
                   />
-                  <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 11 }}>
-                    {query.ai_analysis.ai_provider.toLowerCase()} · {query.ai_analysis.ai_model}
-                  </span>
+                  {!aiFailed && (
+                    <span className="mono muted" style={{ marginLeft: 'auto', fontSize: 11 }}>
+                      {query.ai_analysis.ai_provider.toLowerCase()} · {query.ai_analysis.ai_model}
+                    </span>
+                  )}
                 </>
               ) : null
             }
           >
-            <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
-              {query.ai_analysis?.summary ?? (
-                <span className="muted">{t('queries.detail.ai_awaiting')}</span>
-              )}
-            </div>
-            {query.ai_analysis && query.ai_analysis.issues.length > 0 && (
-              <div
-                style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}
-              >
-                {query.ai_analysis.issues.map((iss, i) => (
-                  <IssueCard key={i} issue={iss} />
-                ))}
+            {aiFailed ? (
+              <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                <div style={{ marginBottom: 12 }}>
+                  {t('queries.detail.ai_failed_accordion_body')}
+                </div>
+                <div
+                  style={{
+                    background: 'var(--bg-sunken)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    marginBottom: 12,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                  }}
+                >
+                  <span className="muted" style={{ marginRight: 8 }}>
+                    {t('queries.detail.ai_failed_reason_label')}:
+                  </span>
+                  {aiFailureReason || '—'}
+                </div>
+                {canReanalyze && (
+                  <Button
+                    type="primary"
+                    icon={<ReloadOutlined />}
+                    loading={reanalyzeMutation.isPending}
+                    onClick={() => reanalyzeMutation.mutate()}
+                  >
+                    {reanalyzeMutation.isPending
+                      ? t('queries.detail.ai_failed_reanalyze_pending')
+                      : t('queries.detail.ai_failed_reanalyze')}
+                  </Button>
+                )}
               </div>
+            ) : (
+              <>
+                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                  {query.ai_analysis?.summary ?? (
+                    <span className="muted">{t('queries.detail.ai_awaiting')}</span>
+                  )}
+                </div>
+                {query.ai_analysis && query.ai_analysis.issues.length > 0 && (
+                  <div
+                    style={{
+                      padding: '0 14px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    {query.ai_analysis.issues.map((iss, i) => (
+                      <IssueCard key={i} issue={iss} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </Card>
 
@@ -383,18 +475,26 @@ function buildStages(query: QueryDetail): TimelineStage[] {
       done: true,
     },
   ];
+  const aiFailed = query.ai_analysis?.failed === true;
   out.push({
-    label: 'AI analysis',
+    label: aiFailed ? 'AI analysis failed' : 'AI analysis',
     who: query.ai_analysis
       ? `${query.ai_analysis.ai_provider.toLowerCase()} / ${query.ai_analysis.ai_model}`
       : 'pending',
     time: query.ai_analysis ? query.created_at : null,
-    done: ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(query.status),
+    done:
+      !aiFailed &&
+      ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(
+        query.status,
+      ),
     active: query.status === 'PENDING_AI',
-    detail: query.ai_analysis
+    failed: aiFailed,
+    detail: aiFailed
+      ? query.ai_analysis?.error_message ?? 'failed'
+      : query.ai_analysis
       ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
       : 'analyzing…',
-    riskLevel: query.ai_analysis?.risk_level ?? null,
+    riskLevel: aiFailed ? null : query.ai_analysis?.risk_level ?? null,
   });
   if (query.status !== 'APPROVED' || query.duration_ms == null) {
     const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT'].includes(query.status);

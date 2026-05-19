@@ -169,6 +169,7 @@ See `docs/13-mcp.md` for the end-user guide.
 | Approve / reject queries | — | — | ✓ | ✓ |
 | Approve own submitted queries | — | — | — | — |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ |
+| Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ |
 | Create / edit datasources | — | — | — | ✓ |
 | Manage user permissions | — | — | — | ✓ |
 | Create / edit review plans | — | — | — | ✓ |
