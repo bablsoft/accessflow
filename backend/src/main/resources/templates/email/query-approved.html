@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
 <head>
     <meta charset="UTF-8">
-    <title>Query approved</title>
+    <title th:text="#{notification.email.query_approved.title}">Query approved</title>
     <style>
         body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
         pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
@@ -11,16 +11,17 @@
     </style>
 </head>
 <body>
-    <h2>Your query was approved</h2>
+    <h2 th:text="#{notification.email.query_approved.heading}">Your query was approved</h2>
     <p class="meta">
-        <strong>Datasource:</strong> <span th:text="${datasourceName} ?: '—'">—</span><br>
-        <strong>Approved by:</strong>
-        <span th:text="${reviewerDisplayName} ?: 'auto-approved'">auto-approved</span>
+        <strong th:text="#{notification.email.common.datasource_label}">Datasource:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.query_approved.approved_by_label}">Approved by:</strong>
+        <span th:text="${reviewerDisplayName} ?: #{notification.email.query_approved.auto_approved_fallback}">auto-approved</span>
     </p>
-    <p><strong>SQL preview:</strong></p>
+    <p><strong th:text="#{notification.email.common.sql_preview_label}">SQL preview:</strong></p>
     <pre th:text="${sqlPreview}"></pre>
     <p>
-        <a class="btn" th:href="${reviewUrl}" th:text="'Open in AccessFlow'">Open in AccessFlow</a>
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.common.open_cta}">Open in AccessFlow</a>
     </p>
 </body>
 </html>

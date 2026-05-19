@@ -57,9 +57,10 @@ class NotificationDispatcher {
     }
 
     void dispatch(NotificationEventType eventType, UUID queryRequestId,
-                  UUID reviewerUserId, String reviewerComment) {
+                  UUID reviewerUserId, String reviewerComment,
+                  Integer approvalTimeoutHours) {
         var contextOpt = contextBuilder.build(eventType, queryRequestId, reviewerUserId,
-                reviewerComment);
+                reviewerComment, approvalTimeoutHours);
         if (contextOpt.isEmpty()) {
             log.debug("Skipping {} for unknown query {}", eventType, queryRequestId);
             return;

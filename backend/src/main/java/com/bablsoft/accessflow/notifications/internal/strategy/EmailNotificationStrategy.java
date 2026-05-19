@@ -13,6 +13,7 @@ import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -33,6 +34,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
     private final ChannelConfigCodec codec;
     private final SpringTemplateEngine templateEngine;
     private final MailSenderFactory mailSenderFactory;
+    private final MessageSource messageSource;
 
     @Override
     public NotificationChannelType supports() {
@@ -129,7 +131,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
     }
 
     private String renderHtml(String template, NotificationContext ctx) {
-        var context = new Context(Locale.US);
+        var context = new Context(resolveLocale(ctx));
         context.setVariable("eventType", ctx.eventType());
         context.setVariable("queryRequestId", ctx.queryRequestId());
         context.setVariable("queryType", ctx.queryType());
@@ -142,6 +144,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("submitterDisplayName", ctx.submitterDisplayName());
         context.setVariable("reviewerDisplayName", ctx.reviewerDisplayName());
         context.setVariable("reviewerComment", ctx.reviewerComment());
+        context.setVariable("approvalTimeoutHours", ctx.approvalTimeoutHours());
         context.setVariable("reviewUrl",
                 ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
         return templateEngine.process(template, context);
@@ -151,22 +154,37 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         return switch (eventType) {
             case QUERY_SUBMITTED -> "email/query-ready-for-review";
             case QUERY_APPROVED -> "email/query-approved";
-            case QUERY_REJECTED, REVIEW_TIMEOUT -> "email/query-rejected";
+            case QUERY_REJECTED -> "email/query-rejected";
+            case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case TEST -> null;
         };
     }
 
-    private static String subject(NotificationContext ctx) {
-        return switch (ctx.eventType()) {
-            case QUERY_SUBMITTED -> "[AccessFlow] Query awaiting review on " + ctx.datasourceName();
-            case QUERY_APPROVED -> "[AccessFlow] Query approved on " + ctx.datasourceName();
-            case QUERY_REJECTED -> "[AccessFlow] Query rejected on " + ctx.datasourceName();
-            case REVIEW_TIMEOUT -> "[AccessFlow] Query auto-rejected (review timeout) on "
-                    + ctx.datasourceName();
-            case AI_HIGH_RISK -> "[AccessFlow] High-risk query flagged on " + ctx.datasourceName();
-            case TEST -> "AccessFlow notification test";
+    private String subject(NotificationContext ctx) {
+        var key = subjectKey(ctx.eventType());
+        var args = ctx.eventType() == NotificationEventType.TEST
+                ? null
+                : new Object[]{ctx.datasourceName()};
+        return messageSource.getMessage(key, args, resolveLocale(ctx));
+    }
+
+    private static String subjectKey(NotificationEventType eventType) {
+        return switch (eventType) {
+            case QUERY_SUBMITTED -> "notification.email.subject.query_submitted";
+            case QUERY_APPROVED -> "notification.email.subject.query_approved";
+            case QUERY_REJECTED -> "notification.email.subject.query_rejected";
+            case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
+            case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
+            case TEST -> "notification.email.subject.test";
         };
+    }
+
+    private static Locale resolveLocale(NotificationContext ctx) {
+        if (ctx.locale() == null || ctx.locale().isBlank()) {
+            return Locale.ENGLISH;
+        }
+        return Locale.forLanguageTag(ctx.locale());
     }
 
     /**

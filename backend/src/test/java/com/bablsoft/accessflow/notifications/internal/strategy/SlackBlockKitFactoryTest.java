@@ -74,7 +74,49 @@ class SlackBlockKitFactoryTest {
         assertThat(header.getText().getText()).contains("Query Approved");
     }
 
+    @Test
+    void reviewTimeoutHeaderIncludesHourglassAndTimeoutLabel() {
+        var ctx = ctxWith(NotificationEventType.REVIEW_TIMEOUT, 24);
+        var payload = factory.buildEventPayload(ctx, null);
+        var header = (HeaderBlock) payload.getBlocks().get(0);
+        assertThat(header.getText().getText())
+                .contains("⌛")
+                .contains("Query Auto-Rejected");
+    }
+
+    @Test
+    void reviewTimeoutPayloadIncludesAutoRejectedAfterField() {
+        var ctx = ctxWith(NotificationEventType.REVIEW_TIMEOUT, 24);
+        var payload = factory.buildEventPayload(ctx, null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .anyMatch(t -> t.contains("Auto-rejected after:") && t.contains("24 hours"));
+    }
+
+    @Test
+    void nonTimeoutPayloadOmitsAutoRejectedAfterField() {
+        var ctx = ctxWith(NotificationEventType.QUERY_REJECTED);
+        var payload = factory.buildEventPayload(ctx, null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .noneMatch(t -> t.contains("Auto-rejected after:"));
+    }
+
+    @Test
+    void reviewTimeoutWithoutApprovalTimeoutHoursOmitsField() {
+        var ctx = ctxWith(NotificationEventType.REVIEW_TIMEOUT, null);
+        var payload = factory.buildEventPayload(ctx, null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .noneMatch(t -> t.contains("Auto-rejected after:"));
+    }
+
     private static NotificationContext ctxWith(NotificationEventType eventType) {
+        return ctxWith(eventType, null);
+    }
+
+    private static NotificationContext ctxWith(NotificationEventType eventType,
+                                               Integer approvalTimeoutHours) {
         return new NotificationContext(
                 eventType,
                 UUID.randomUUID(),
@@ -97,6 +139,8 @@ class SlackBlockKitFactoryTest {
                 null,
                 URI.create("https://app.example.com/queries/abc"),
                 List.of(),
-                Instant.parse("2026-05-06T10:15:00Z"));
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                approvalTimeoutHours);
     }
 }

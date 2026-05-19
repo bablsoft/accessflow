@@ -57,9 +57,9 @@ class NotificationDispatcherTest {
 
     @Test
     void unknownQueryShortCircuits() {
-        when(contextBuilder.build(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(contextBuilder.build(any(), any(), any(), any(), any())).thenReturn(Optional.empty());
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(channelRepository, never())
                 .findAllByOrganizationIdAndIdInAndActiveTrue(any(), any());
@@ -71,7 +71,7 @@ class NotificationDispatcherTest {
         whenContextBuilds();
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(channelRepository, never())
                 .findAllByOrganizationIdAndIdInAndActiveTrue(any(), any());
@@ -88,7 +88,7 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
                 .thenReturn(List.of(emailCh, webhookCh));
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(emailStrategy).deliver(any(), eq(emailCh));
         verify(webhookStrategy).deliver(any(), eq(webhookCh));
@@ -102,7 +102,7 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId))
                 .thenReturn(List.of(slackCh, emailCh));
 
-        dispatcher.dispatch(NotificationEventType.AI_HIGH_RISK, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.AI_HIGH_RISK, queryRequestId, null, null, null);
 
         // Slack strategy isn't registered in this test so it's skipped silently.
         verify(emailStrategy).deliver(any(), eq(emailCh));
@@ -121,7 +121,7 @@ class NotificationDispatcherTest {
                 .thenReturn(List.of(emailCh, webhookCh));
         doThrow(new RuntimeException("boom")).when(emailStrategy).deliver(any(), any());
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(emailStrategy).deliver(any(), eq(emailCh));
         verify(webhookStrategy).deliver(any(), eq(webhookCh));
@@ -139,7 +139,7 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
                 .thenReturn(List.of(emailCh));
 
-        emptyDispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        emptyDispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(emailStrategy, never()).deliver(any(), any());
     }
@@ -147,7 +147,7 @@ class NotificationDispatcherTest {
     @Test
     void systemEmailFallbackInvokedWhenNoEmailChannel() {
         var reviewer = UUID.randomUUID();
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@example.com", "A")))));
@@ -157,7 +157,7 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
                 .thenReturn(List.of(webhookCh));
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(systemEmailFallback).deliverIfPossible(any());
         verify(emailStrategy, never()).deliver(any(), any());
@@ -166,7 +166,7 @@ class NotificationDispatcherTest {
     @Test
     void systemEmailFallbackSkippedWhenEmailChannelDelivers() {
         var reviewer = UUID.randomUUID();
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@example.com", "A")))));
@@ -176,7 +176,7 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
                 .thenReturn(List.of(emailCh));
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         verify(emailStrategy).deliver(any(), eq(emailCh));
         verify(systemEmailFallback, never()).deliverIfPossible(any());
@@ -184,13 +184,13 @@ class NotificationDispatcherTest {
 
     @Test
     void systemEmailFallbackSkippedWhenEventHasNoTemplate() {
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.TEST,
                         List.of(new RecipientView(UUID.randomUUID(), "a@example.com", "A")))));
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
 
-        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null, null);
 
         verify(systemEmailFallback, never()).deliverIfPossible(any());
     }
@@ -199,14 +199,14 @@ class NotificationDispatcherTest {
     void persistsInAppNotificationsForReviewers() {
         var reviewerA = UUID.randomUUID();
         var reviewerB = UUID.randomUUID();
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.QUERY_SUBMITTED,
                         List.of(new RecipientView(reviewerA, "a@x", "A"),
                                 new RecipientView(reviewerB, "b@x", "B")))));
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
 
-        dispatcher.dispatch(NotificationEventType.QUERY_SUBMITTED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_SUBMITTED, queryRequestId, null, null, null);
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.QUERY_SUBMITTED),
@@ -218,13 +218,13 @@ class NotificationDispatcherTest {
 
     @Test
     void skipsTestEventForInAppPersistence() {
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.TEST,
                         List.of(new RecipientView(UUID.randomUUID(), "x@x", "X")))));
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of());
 
-        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null, null);
 
         verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any());
     }
@@ -232,7 +232,7 @@ class NotificationDispatcherTest {
     @Test
     void persistenceFailureIsSwallowed() {
         var reviewer = UUID.randomUUID();
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@x", "A")))));
@@ -243,14 +243,14 @@ class NotificationDispatcherTest {
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
                 .thenReturn(List.of(emailCh));
 
-        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null);
+        dispatcher.dispatch(NotificationEventType.QUERY_APPROVED, queryRequestId, null, null, null);
 
         // Channels still receive the event even though in-app persistence failed.
         verify(emailStrategy).deliver(any(), eq(emailCh));
     }
 
     private void whenContextBuilds() {
-        when(contextBuilder.build(any(), eq(queryRequestId), any(), any()))
+        when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContext()));
     }
 
@@ -265,7 +265,7 @@ class NotificationDispatcherTest {
                 UUID.randomUUID(), "submit@example.com", "Sub",
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/x"),
-                recipients, Instant.now());
+                recipients, Instant.now(), "en", null);
     }
 
     private NotificationChannelEntity channel(NotificationChannelType type) {
@@ -290,6 +290,6 @@ class NotificationDispatcherTest {
                 UUID.randomUUID(), "submit@example.com", "Sub",
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/x"),
-                List.of(), Instant.now());
+                List.of(), Instant.now(), "en", null);
     }
 }

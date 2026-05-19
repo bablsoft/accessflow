@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
@@ -37,6 +38,7 @@ class NotificationContextBuilder {
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final DatasourceAdminService datasourceAdminService;
     private final UserQueryService userQueryService;
+    private final LocalizationConfigService localizationConfigService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -46,7 +48,8 @@ class NotificationContextBuilder {
     }
 
     Optional<NotificationContext> build(NotificationEventType eventType, UUID queryRequestId,
-                                        UUID reviewerUserId, String reviewerComment) {
+                                        UUID reviewerUserId, String reviewerComment,
+                                        Integer approvalTimeoutHours) {
         var snapshot = queryRequestLookupService.findById(queryRequestId).orElse(null);
         if (snapshot == null) {
             return Optional.empty();
@@ -60,6 +63,8 @@ class NotificationContextBuilder {
         var ai = aiAnalysisLookupService.findByQueryRequestId(queryRequestId).orElse(null);
         var plan = reviewPlanLookupService.findForDatasource(snapshot.datasourceId()).orElse(null);
         var recipients = resolveRecipients(eventType, snapshot, plan, submitter);
+        var locale = localizationConfigService.getOrDefault(snapshot.organizationId())
+                .defaultLanguage();
         return Optional.of(new NotificationContext(
                 eventType,
                 snapshot.organizationId(),
@@ -82,7 +87,9 @@ class NotificationContextBuilder {
                 reviewerComment,
                 buildReviewUrl(snapshot.id()),
                 recipients,
-                Instant.now()));
+                Instant.now(),
+                locale,
+                approvalTimeoutHours));
     }
 
     private List<RecipientView> resolveRecipients(NotificationEventType eventType,
