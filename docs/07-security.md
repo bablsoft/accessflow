@@ -86,6 +86,34 @@ the browser to `${ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL}?code=…`. The fronte
 code to `/api/v1/auth/oauth2/exchange`, which consumes it (single-use) and returns the same
 JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL itself.
 
+**Membership and domain restrictions.** Two optional per-provider allowlists on
+`oauth2_config` restrict who may complete sign-in once the email has been resolved:
+
+- `allowed_email_domains` — case-insensitive match against the resolved email's domain. Empty
+  / NULL means any domain is accepted. This is the surface used to lock down a Google
+  Workspace deployment to its corporate domain.
+- `allowed_organizations` — provider-native membership identifiers. Empty / NULL means
+  AccessFlow does not call the provider for membership. The success handler computes the
+  user's membership set via `OAuth2MembershipResolver` and rejects the login unless the
+  allowlist intersects it. Per-provider semantics:
+  - **GITHUB** — calls `GET https://api.github.com/user/orgs` with the issued access token
+    and compares the returned `login` values (case-sensitive). The token must carry the
+    `read:org` scope, otherwise only public memberships are visible. Activating a GitHub
+    config with a non-empty `allowed_organizations` while `scopes_override` does not include
+    `read:org` is rejected with `OAUTH2_CONFIG_INVALID` (HTTP 422) — operators must add
+    `read:org` to the scopes-override field explicitly.
+  - **GITLAB** — reads the OIDC `groups` claim from userinfo (full group paths, e.g.
+    `acme/team`). Empty when the `groups` scope is not included.
+  - **MICROSOFT** — reads the `groups` claim, which contains AAD group object IDs. Azure AD
+    must be configured to emit it (App registration → Token configuration → groups claim).
+  - **GOOGLE** — `allowed_organizations` is ignored; the equivalent surface is
+    `allowed_email_domains` (matching the Workspace `hd` concept).
+
+Failed restrictions redirect with `?error=OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` or
+`?error=OAUTH2_ORG_NOT_ALLOWED`. The handler **fails closed**: a HTTP error from the GitHub
+orgs API yields an empty membership set, so a configured allowlist will reject the login
+rather than silently allowing it.
+
 **Secret storage.** `oauth2_config.client_secret_encrypted` is AES-256-GCM ciphertext via
 the existing `CredentialEncryptionService`. The entity field is `@JsonIgnore` and the admin
 API returns `"********"` whenever a secret is stored — the plaintext never leaves

@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.InactiveUserException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigService;
+import com.bablsoft.accessflow.security.api.OAuth2ConfigView;
 import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,10 +32,11 @@ import java.util.HashMap;
 import java.util.Locale;
 
 /**
- * Runs after a provider callback completes. Extracts identity from the userinfo claims, performs
- * JIT user provisioning, mints a one-time exchange code in Redis, and redirects the browser to
- * the frontend callback URL with that code. The frontend swaps the code for an AccessFlow JWT
- * pair via {@code POST /api/v1/auth/oauth2/exchange}.
+ * Runs after a provider callback completes. Extracts identity from the userinfo claims, enforces
+ * the per-provider {@code allowed_email_domains} / {@code allowed_organizations} allowlists if
+ * configured, performs JIT user provisioning, mints a one-time exchange code in Redis, and
+ * redirects the browser to the frontend callback URL with that code. The frontend swaps the code
+ * for an AccessFlow JWT pair via {@code POST /api/v1/auth/oauth2/exchange}.
  */
 @Component
 @RequiredArgsConstructor
@@ -48,6 +50,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final OAuth2ExchangeCodeStore exchangeCodeStore;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final OAuth2EmailResolver emailResolver;
+    private final OAuth2MembershipResolver membershipResolver;
     private final OAuth2RedirectProperties properties;
     private final AuditLogService auditLogService;
 
@@ -85,6 +88,19 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         var organizationId = organizationLookupService.singleOrganization();
         var config = oauth2ConfigService.getOrDefault(organizationId, provider);
 
+        if (!emailDomainAllowed(config, resolved.email())) {
+            log.info("OAuth2 login refused — email {} domain not in allowlist for provider {}",
+                    resolved.email(), provider);
+            redirectWithError(response, "OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED");
+            return;
+        }
+        if (!organizationAllowed(config, provider, attributes, accessToken)) {
+            log.info("OAuth2 login refused — user {} not a member of any allowed organization for provider {}",
+                    resolved.email(), provider);
+            redirectWithError(response, "OAUTH2_ORG_NOT_ALLOWED");
+            return;
+        }
+
         try {
             var user = userProvisioningService.findOrProvision(
                     organizationId,
@@ -103,6 +119,41 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             log.info("OAuth2 login refused — inactive user for email {}", ex.email());
             redirectWithError(response, "ACCOUNT_DISABLED");
         }
+    }
+
+    private boolean emailDomainAllowed(OAuth2ConfigView config, String email) {
+        var allowed = config.allowedEmailDomains();
+        if (allowed == null || allowed.isEmpty()) {
+            return true;
+        }
+        var at = email.indexOf('@');
+        if (at < 0 || at == email.length() - 1) {
+            return false;
+        }
+        var domain = email.substring(at + 1).toLowerCase(Locale.ROOT);
+        for (var entry : allowed) {
+            if (entry != null && entry.equalsIgnoreCase(domain)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean organizationAllowed(OAuth2ConfigView config,
+                                        OAuth2ProviderType provider,
+                                        java.util.Map<String, Object> attributes,
+                                        String accessToken) {
+        var allowed = config.allowedOrganizations();
+        if (allowed == null || allowed.isEmpty()) {
+            return true;
+        }
+        var memberships = membershipResolver.resolveOrganizations(provider, attributes, accessToken);
+        for (var entry : allowed) {
+            if (entry != null && memberships.contains(entry)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String resolveAccessToken(OAuth2AuthenticationToken token) {

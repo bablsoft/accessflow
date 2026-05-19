@@ -1837,6 +1837,8 @@ Possible error codes:
 | `OAUTH2_EMAIL_UNVERIFIED` | Provider says the email is not verified |
 | `OAUTH2_LOCAL_EMAIL_CONFLICT` | An existing AccessFlow account with the same email uses local password auth — admin must intervene |
 | `OAUTH2_UNKNOWN_PROVIDER` | The `{provider}` segment did not match a known registration id |
+| `OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` | The provider's email domain is not in the config's `allowed_email_domains` allowlist |
+| `OAUTH2_ORG_NOT_ALLOWED` | The provider-side membership (GitHub orgs, GitLab/Microsoft groups) did not intersect the config's `allowed_organizations` allowlist |
 | `ACCOUNT_DISABLED` | The matched user is inactive |
 
 ### POST /auth/oauth2/exchange
@@ -1925,6 +1927,8 @@ Returns one entry per supported OAuth2 provider (always four rows). Rows the adm
     "client_secret": "********",
     "scopes_override": null,
     "tenant_id": null,
+    "allowed_organizations": [],
+    "allowed_email_domains": ["example.com"],
     "default_role": "ANALYST",
     "active": true,
     "created_at": "2026-05-06T10:00:00Z",
@@ -1948,16 +1952,18 @@ Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext;
   "client_secret": "the-new-secret-or-********",
   "scopes_override": "openid email profile",
   "tenant_id": null,
+  "allowed_organizations": ["bablsoft"],
+  "allowed_email_domains": ["example.com"],
   "default_role": "ANALYST",
   "active": true
 }
 ```
 
-Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`).
+Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`), `allowed_organizations` / `allowed_email_domains` each ≤ 100 non-blank entries of ≤ 255 chars. Both allowlists are tri-state on update: omit / send `null` to leave them unchanged, send `[]` to clear, send a non-empty array to replace.
 
 **Response 200:** Updated configuration (same shape as GET, `client_secret` replaced with `"********"` if set).
 **Response 400:** Validation error.
-**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, or without a `tenant_id` for Microsoft.
+**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, without a `tenant_id` for Microsoft, or for `provider=GITHUB` with a non-empty `allowed_organizations` while `scopes_override` does not contain `read:org`.
 
 ### DELETE /admin/oauth2-config/{provider}
 

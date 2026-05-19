@@ -97,6 +97,8 @@
         "oauth2_local_email_conflict": "An AccessFlow account with this email already uses a password. Ask an administrator to switch the account to single sign-on before retrying.",
         "oauth2_unexpected_auth": "Single sign-on returned an unexpected authentication state.",
         "oauth2_unknown_provider": "Single sign-on returned an unknown provider.",
+        "oauth2_org_not_allowed": "Your provider account does not belong to an organization that AccessFlow allows.",
+        "oauth2_email_domain_not_allowed": "Your email address is not in an AccessFlow-allowed domain.",
         "account_disabled": "Your AccessFlow account is currently disabled.",
         "generic": "Single sign-on failed. Please try again."
       }
@@ -177,7 +179,10 @@
       "client_secret_max": "Client secret must be at most 2048 characters.",
       "scopes_max": "Scopes override must be at most 1024 characters.",
       "tenant_id_max": "Tenant ID must be at most 255 characters.",
-      "default_role_required": "Default role is required."
+      "default_role_required": "Default role is required.",
+      "allowed_max": "List must contain at most 100 entries.",
+      "allowed_entry_blank": "Entries cannot be blank.",
+      "allowed_entry_max": "Each entry must be at most 255 characters."
     },
     "system_smtp": {
       "host_required": "SMTP host is required.",
@@ -798,6 +803,23 @@
       "label_scopes_help": "Space-separated. Leave empty to use the provider defaults.",
       "label_tenant_id": "Tenant ID",
       "label_tenant_id_help": "Use \"common\" for any Microsoft account, \"organizations\" for any work/school account, or a specific tenant GUID.",
+      "label_allowed_organizations": "Allowed organizations",
+      "label_allowed_email_domains": "Allowed email domains",
+      "allowed_orgs_help": {
+        "google": "Google enforces this via email domain — use the field below. This list is ignored for Google.",
+        "github": "GitHub organization logins (case-sensitive). Requires the read:org scope. Empty = any GitHub user may sign in.",
+        "microsoft": "Microsoft Entra AAD group object IDs. The app must be configured to emit the \"groups\" claim. Empty = any user from the tenant may sign in.",
+        "gitlab": "GitLab full group paths from the \"groups\" OIDC claim. Empty = any GitLab user may sign in."
+      },
+      "allowed_orgs_placeholder": {
+        "google": "Use the email domains field below",
+        "github": "bablsoft, acme-corp",
+        "microsoft": "11111111-2222-3333-4444-555555555555",
+        "gitlab": "acme/team"
+      },
+      "allowed_domains_help": "Comma- or space-separated. Matched case-insensitively against the email domain. Empty = any email domain accepted.",
+      "github_read_org_scope_warning_title": "GitHub will not return private org membership",
+      "github_read_org_scope_warning": "An allowed-organizations list is set but the scopes override does not include read:org. Saving while active is enabled will be rejected by the server. Add read:org to the scopes override.",
       "label_default_role": "Default role for new users",
       "label_active": "Active",
       "client_id_tooltip": {

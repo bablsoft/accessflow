@@ -843,6 +843,15 @@ APPROVED → FAILED (execution error)</pre>
           <ol>
             <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The format is <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth2/callback/{provider}</code>.</li>
             <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims.</li>
+            <li><strong>(Optional) Restrict who may sign in.</strong> Use <em>Allowed organizations</em> and <em>Allowed email domains</em> on the same tab:
+              <ul>
+                <li><strong>Google</strong> — populate <em>Allowed email domains</em> with your Workspace domain(s); the organization list is ignored.</li>
+                <li><strong>GitHub</strong> — list the org logins users must belong to (e.g. <code>bablsoft</code>) in <em>Allowed organizations</em>. AccessFlow calls <code>GET /user/orgs</code>, so the <em>Scopes override</em> must include <code>read:org</code> — saving an active config without it returns a 422 with a clear message.</li>
+                <li><strong>Microsoft</strong> — list AAD group object IDs in <em>Allowed organizations</em>. The Entra app registration must be configured (Token configuration → groups) to emit the <code>groups</code> claim.</li>
+                <li><strong>GitLab</strong> — list full group paths from the OIDC <code>groups</code> claim (e.g. <code>acme/team</code>).</li>
+              </ul>
+              Empty lists mean no restriction. Users who fail the check are redirected to the login page with <code>OAUTH2_ORG_NOT_ALLOWED</code> or <code>OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED</code>.
+            </li>
             <li><strong>Pick a default role</strong> for first-time sign-ins (defaults to <code>READONLY</code>) and flip <em>Active</em> on to enable the provider's button on the login page.</li>
             <li><strong>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code></strong> if the frontend lives at a different origin than the backend's CORS origin (default <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
           </ol>

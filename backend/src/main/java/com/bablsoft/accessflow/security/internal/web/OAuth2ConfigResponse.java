@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
 import com.bablsoft.accessflow.security.api.UpdateOAuth2ConfigCommand;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 record OAuth2ConfigResponse(
@@ -16,6 +17,8 @@ record OAuth2ConfigResponse(
         String clientSecret,
         String scopesOverride,
         String tenantId,
+        List<String> allowedOrganizations,
+        List<String> allowedEmailDomains,
         UserRoleType defaultRole,
         boolean active,
         Instant createdAt,
@@ -30,6 +33,8 @@ record OAuth2ConfigResponse(
                 view.clientSecretConfigured() ? UpdateOAuth2ConfigCommand.MASKED_SECRET : null,
                 view.scopesOverride(),
                 view.tenantId(),
+                view.allowedOrganizations(),
+                view.allowedEmailDomains(),
                 view.defaultRole(),
                 view.active(),
                 view.createdAt(),

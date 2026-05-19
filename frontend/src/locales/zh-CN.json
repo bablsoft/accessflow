@@ -97,6 +97,8 @@
         "oauth2_local_email_conflict": "已存在使用此邮箱的密码登录 AccessFlow 账户。请联系管理员将该账户切换为单点登录后再重试。",
         "oauth2_unexpected_auth": "单点登录返回了意外的认证状态。",
         "oauth2_unknown_provider": "单点登录返回了未知的服务商。",
+        "oauth2_org_not_allowed": "您的服务商账号不属于 AccessFlow 允许的任何组织。",
+        "oauth2_email_domain_not_allowed": "您的邮箱域名不在 AccessFlow 允许的范围内。",
         "account_disabled": "您的 AccessFlow 账户当前已被禁用。",
         "generic": "单点登录失败,请稍后再试。"
       }
@@ -177,7 +179,10 @@
       "client_secret_max": "Client secret 长度不能超过 2048 个字符。",
       "scopes_max": "Scopes 覆盖长度不能超过 1024 个字符。",
       "tenant_id_max": "Tenant ID 长度不能超过 255 个字符。",
-      "default_role_required": "默认角色为必填项。"
+      "default_role_required": "默认角色为必填项。",
+      "allowed_max": "列表条目不能超过 100 个。",
+      "allowed_entry_blank": "条目不能为空。",
+      "allowed_entry_max": "每个条目长度不能超过 255 个字符。"
     },
     "system_smtp": {
       "host_required": "SMTP 主机为必填项。",
@@ -798,6 +803,23 @@
       "label_scopes_help": "以空格分隔。留空以使用服务商默认值。",
       "label_tenant_id": "Tenant ID",
       "label_tenant_id_help": "对任意 Microsoft 账户使用 “common”,对任意工作/学校账户使用 “organizations”,或指定具体的 tenant GUID。",
+      "label_allowed_organizations": "允许的组织",
+      "label_allowed_email_domains": "允许的邮箱域名",
+      "allowed_orgs_help": {
+        "google": "Google 通过邮箱域名实现该限制 — 请使用下方字段。Google 会忽略此列表。",
+        "github": "GitHub 组织 login(区分大小写)。需要 read:org 作用域。留空 = 任何 GitHub 用户均可登录。",
+        "microsoft": "Microsoft Entra AAD 组的 object ID。应用必须配置为发出 \"groups\" claim。留空 = 该租户内任意用户可登录。",
+        "gitlab": "来自 OIDC \"groups\" claim 的 GitLab 完整组路径。留空 = 任何 GitLab 用户均可登录。"
+      },
+      "allowed_orgs_placeholder": {
+        "google": "请使用下方的邮箱域名字段",
+        "github": "bablsoft, acme-corp",
+        "microsoft": "11111111-2222-3333-4444-555555555555",
+        "gitlab": "acme/team"
+      },
+      "allowed_domains_help": "以逗号或空格分隔。与邮箱域名不区分大小写匹配。留空 = 接受任意域名。",
+      "github_read_org_scope_warning_title": "GitHub 不会返回私有组织成员资格",
+      "github_read_org_scope_warning": "已设置允许的组织列表,但 Scopes 覆盖未包含 read:org。启用此配置后,服务器会拒绝保存。请在 Scopes 覆盖中加入 read:org。",
       "label_default_role": "新用户的默认角色",
       "label_active": "已启用",
       "client_id_tooltip": {

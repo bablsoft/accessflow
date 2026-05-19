@@ -36,6 +36,8 @@ public class OAuth2Reconciler {
                 spec.clientSecret(),
                 spec.scopesOverride(),
                 spec.tenantId(),
+                spec.allowedOrganizations(),
+                spec.allowedEmailDomains(),
                 spec.defaultRole(),
                 spec.active() == null ? Boolean.TRUE : spec.active()));
         log.info("Bootstrap: applied OAuth2 provider {} for organization {}", spec.provider(), organizationId);

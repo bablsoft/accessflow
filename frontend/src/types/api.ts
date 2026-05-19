@@ -207,6 +207,8 @@ export interface OAuth2Config {
   client_secret: string | null;
   scopes_override: string | null;
   tenant_id: string | null;
+  allowed_organizations: string[] | null;
+  allowed_email_domains: string[] | null;
   default_role: Role;
   active: boolean;
   created_at: string;
@@ -218,6 +220,8 @@ export interface UpdateOAuth2ConfigInput {
   client_secret?: string | null;
   scopes_override?: string | null;
   tenant_id?: string | null;
+  allowed_organizations?: string[] | null;
+  allowed_email_domains?: string[] | null;
   default_role: Role;
   active: boolean;
 }

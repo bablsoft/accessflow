@@ -58,6 +58,8 @@ class DefaultOAuth2ConfigServiceTest {
         assertThat(entries).allSatisfy(v -> {
             assertThat(v.active()).isFalse();
             assertThat(v.clientSecretConfigured()).isFalse();
+            assertThat(v.allowedOrganizations()).isEmpty();
+            assertThat(v.allowedEmailDomains()).isEmpty();
         });
     }
 
@@ -72,6 +74,8 @@ class DefaultOAuth2ConfigServiceTest {
         assertThat(view.active()).isFalse();
         assertThat(view.clientId()).isNull();
         assertThat(view.defaultRole()).isEqualTo(UserRoleType.ANALYST);
+        assertThat(view.allowedOrganizations()).isEmpty();
+        assertThat(view.allowedEmailDomains()).isEmpty();
     }
 
     @Test
@@ -82,7 +86,8 @@ class DefaultOAuth2ConfigServiceTest {
         when(encryptionService.encrypt("secret123")).thenReturn("ENC(secret123)");
 
         var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
-                "client-abc", "secret123", "openid email", null, UserRoleType.REVIEWER, true));
+                "client-abc", "secret123", "openid email", null, null, null,
+                UserRoleType.REVIEWER, true));
 
         assertThat(view.provider()).isEqualTo(OAuth2ProviderType.GOOGLE);
         assertThat(view.clientId()).isEqualTo("client-abc");
@@ -105,7 +110,7 @@ class DefaultOAuth2ConfigServiceTest {
 
         service.update(orgId, OAuth2ProviderType.GITHUB,
                 new UpdateOAuth2ConfigCommand(null, UpdateOAuth2ConfigCommand.MASKED_SECRET,
-                        null, null, UserRoleType.ANALYST, true));
+                        null, null, null, null, UserRoleType.ANALYST, true));
 
         var captor = ArgumentCaptor.forClass(OAuth2ConfigEntity.class);
         verify(repository).save(captor.capture());
@@ -124,7 +129,8 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var view = service.update(orgId, OAuth2ProviderType.GITLAB,
-                new UpdateOAuth2ConfigCommand(null, "", null, null, UserRoleType.ANALYST, null));
+                new UpdateOAuth2ConfigCommand(null, "", null, null, null, null,
+                        UserRoleType.ANALYST, null));
 
         assertThat(view.clientSecretConfigured()).isFalse();
         assertThat(view.active()).isFalse();
@@ -137,7 +143,8 @@ class DefaultOAuth2ConfigServiceTest {
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("client_id required");
 
         assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GOOGLE,
-                new UpdateOAuth2ConfigCommand(null, null, null, null, UserRoleType.ANALYST, true)))
+                new UpdateOAuth2ConfigCommand(null, null, null, null, null, null,
+                        UserRoleType.ANALYST, true)))
                 .isInstanceOf(OAuth2ConfigInvalidException.class);
     }
 
@@ -149,9 +156,74 @@ class DefaultOAuth2ConfigServiceTest {
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("tenant required");
 
         assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.MICROSOFT,
-                new UpdateOAuth2ConfigCommand("c", "s", null, null, UserRoleType.ANALYST, true)))
+                new UpdateOAuth2ConfigCommand("c", "s", null, null, null, null,
+                        UserRoleType.ANALYST, true)))
                 .isInstanceOf(OAuth2ConfigInvalidException.class)
                 .hasMessageContaining("tenant");
+    }
+
+    @Test
+    void updateRejectsGithubActivationWithAllowedOrgsButWithoutReadOrgScope() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("read:org required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB,
+                new UpdateOAuth2ConfigCommand("c", "s", "read:user user:email", null,
+                        List.of("bablsoft"), null, UserRoleType.ANALYST, true)))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("read:org");
+    }
+
+    @Test
+    void updateAllowsGithubActivationWhenAllowedOrgsSetAndReadOrgPresent() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.GITHUB, new UpdateOAuth2ConfigCommand(
+                "c", "s", "read:user user:email read:org", null,
+                List.of("bablsoft", "acme"), null, UserRoleType.ANALYST, true));
+
+        assertThat(view.allowedOrganizations()).containsExactly("bablsoft", "acme");
+        assertThat(view.active()).isTrue();
+    }
+
+    @Test
+    void updateNormalizesEmailDomainsToLowercaseAndDeduplicates() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GOOGLE))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
+                "c", "s", null, null,
+                null, List.of("Example.com", "  ACME.com  ", "example.com"),
+                UserRoleType.ANALYST, true));
+
+        assertThat(view.allowedEmailDomains()).containsExactly("example.com", "acme.com");
+    }
+
+    @Test
+    void updateClearsAllowlistsWhenEmptyListProvided() {
+        var entity = seeded(OAuth2ProviderType.GOOGLE);
+        entity.setClientId("c");
+        entity.setClientSecretEncrypted("E");
+        entity.setActive(true);
+        entity.setAllowedOrganizations(new String[]{"x"});
+        entity.setAllowedEmailDomains(new String[]{"y.com"});
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GOOGLE))
+                .thenReturn(Optional.of(entity));
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
+                null, UpdateOAuth2ConfigCommand.MASKED_SECRET, null, null,
+                List.of(), List.of(), UserRoleType.ANALYST, true));
+
+        assertThat(view.allowedOrganizations()).isEmpty();
+        assertThat(view.allowedEmailDomains()).isEmpty();
     }
 
     @Test

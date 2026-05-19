@@ -632,7 +632,19 @@ bootstrap:
     - provider: GOOGLE
       clientId: "1234.apps.googleusercontent.com"
       clientSecretRef: { name: accessflow-bootstrap-secrets, key: google-client-secret }
+      # Optional: restrict sign-in to specific email domains (Google Workspace lock-down).
+      allowedEmailDomains:
+        - acme.com
       defaultRole: REVIEWER
+      active: true
+    - provider: GITHUB
+      clientId: "Iv1.abc123"
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: github-client-secret }
+      # GitHub allowed-organizations require the `read:org` scope.
+      scopesOverride: "read:user user:email read:org"
+      allowedOrganizations:
+        - bablsoft
+      defaultRole: ANALYST
       active: true
   systemSmtp:
     enabled: true

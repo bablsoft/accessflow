@@ -97,6 +97,8 @@
         "oauth2_local_email_conflict": "Ya existe una cuenta de AccessFlow con este correo que usa contraseña. Pide al administrador que cambie la cuenta a inicio de sesión único antes de reintentar.",
         "oauth2_unexpected_auth": "El inicio de sesión único devolvió un estado de autenticación inesperado.",
         "oauth2_unknown_provider": "El inicio de sesión único devolvió un proveedor desconocido.",
+        "oauth2_org_not_allowed": "Tu cuenta del proveedor no pertenece a ninguna organización autorizada por AccessFlow.",
+        "oauth2_email_domain_not_allowed": "Tu dominio de correo no está autorizado en AccessFlow.",
         "account_disabled": "Tu cuenta de AccessFlow está actualmente deshabilitada.",
         "generic": "El inicio de sesión único falló. Inténtalo de nuevo."
       }
@@ -177,7 +179,10 @@
       "client_secret_max": "El Client secret no puede tener más de 2048 caracteres.",
       "scopes_max": "La sobrescritura de scopes no puede tener más de 1024 caracteres.",
       "tenant_id_max": "El Tenant ID no puede tener más de 255 caracteres.",
-      "default_role_required": "El rol predeterminado es obligatorio."
+      "default_role_required": "El rol predeterminado es obligatorio.",
+      "allowed_max": "La lista no puede contener más de 100 entradas.",
+      "allowed_entry_blank": "Las entradas no pueden estar en blanco.",
+      "allowed_entry_max": "Cada entrada no puede tener más de 255 caracteres."
     },
     "system_smtp": {
       "host_required": "El host SMTP es obligatorio.",
@@ -798,6 +803,23 @@
       "label_scopes_help": "Separados por espacios. Déjalo vacío para usar los valores predeterminados del proveedor.",
       "label_tenant_id": "Tenant ID",
       "label_tenant_id_help": "Usa \"common\" para cualquier cuenta de Microsoft, \"organizations\" para cualquier cuenta profesional o educativa, o un GUID de tenant específico.",
+      "label_allowed_organizations": "Organizaciones permitidas",
+      "label_allowed_email_domains": "Dominios de correo permitidos",
+      "allowed_orgs_help": {
+        "google": "Google lo aplica vía dominio de correo: usa el campo de abajo. Esta lista se ignora para Google.",
+        "github": "Logins de organizaciones de GitHub (distingue mayúsculas/minúsculas). Requiere el scope read:org. Vacío = cualquier usuario de GitHub puede iniciar sesión.",
+        "microsoft": "IDs de objeto de grupos AAD de Microsoft Entra. La aplicación debe estar configurada para emitir el claim \"groups\". Vacío = cualquier usuario del tenant puede iniciar sesión.",
+        "gitlab": "Rutas completas de grupo de GitLab desde el claim OIDC \"groups\". Vacío = cualquier usuario de GitLab puede iniciar sesión."
+      },
+      "allowed_orgs_placeholder": {
+        "google": "Usa el campo de dominios de correo de abajo",
+        "github": "bablsoft, acme-corp",
+        "microsoft": "11111111-2222-3333-4444-555555555555",
+        "gitlab": "acme/team"
+      },
+      "allowed_domains_help": "Separados por coma o espacio. Coincidencia insensible a mayúsculas con el dominio del correo. Vacío = cualquier dominio aceptado.",
+      "github_read_org_scope_warning_title": "GitHub no devolverá la pertenencia a organizaciones privadas",
+      "github_read_org_scope_warning": "Se ha configurado una lista de organizaciones permitidas, pero la sobrescritura de scopes no incluye read:org. El servidor rechazará el guardado si la configuración está activa. Añade read:org a la sobrescritura de scopes.",
       "label_default_role": "Rol predeterminado para nuevos usuarios",
       "label_active": "Activo",
       "client_id_tooltip": {

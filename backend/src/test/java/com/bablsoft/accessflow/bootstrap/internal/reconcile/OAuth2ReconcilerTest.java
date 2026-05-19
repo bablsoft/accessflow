@@ -39,9 +39,9 @@ class OAuth2ReconcilerTest {
 
         reconciler.reconcile(ORG_ID, List.of(
                 new OAuth2Spec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec", null, null,
-                        UserRoleType.REVIEWER, true),
+                        null, null, UserRoleType.REVIEWER, true),
                 new OAuth2Spec(OAuth2ProviderType.GITHUB, "gh-id", "gh-sec", null, null,
-                        UserRoleType.REVIEWER, true)));
+                        null, null, UserRoleType.REVIEWER, true)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE), captor.capture());
@@ -51,9 +51,26 @@ class OAuth2ReconcilerTest {
     }
 
     @Test
+    void roundTripsAllowlists() {
+        when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB),
+                any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
+
+        reconciler.reconcile(ORG_ID, List.of(
+                new OAuth2Spec(OAuth2ProviderType.GITHUB, "gh-id", "gh-sec",
+                        "read:user user:email read:org", null,
+                        List.of("bablsoft"), List.of("example.com"),
+                        UserRoleType.ANALYST, true)));
+
+        var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
+        verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB), captor.capture());
+        assertThat(captor.getValue().allowedOrganizations()).containsExactly("bablsoft");
+        assertThat(captor.getValue().allowedEmailDomains()).containsExactly("example.com");
+    }
+
+    @Test
     void throwsWhenProviderMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(null, "x", "y", null, null, null, true))))
+                new OAuth2Spec(null, "x", "y", null, null, null, null, null, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider");
     }
@@ -61,7 +78,8 @@ class OAuth2ReconcilerTest {
     @Test
     void throwsWhenClientIdMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, " ", "secret", null, null, null, true))))
+                new OAuth2Spec(OAuth2ProviderType.GOOGLE, " ", "secret", null, null,
+                        null, null, null, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("clientId");
     }
@@ -72,7 +90,8 @@ class OAuth2ReconcilerTest {
                 any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
 
         reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "id", "sec", null, null, null, null)));
+                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "id", "sec", null, null,
+                        null, null, null, null)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE), captor.capture());
