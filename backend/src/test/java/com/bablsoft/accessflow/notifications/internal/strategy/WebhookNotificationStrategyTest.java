@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
@@ -15,6 +16,8 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.web.client.RestClient;
 
@@ -35,6 +38,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class WebhookNotificationStrategyTest {
@@ -47,6 +54,7 @@ class WebhookNotificationStrategyTest {
     private RecordingTaskScheduler taskScheduler;
     private NotificationsProperties properties;
     private WebhookPayloadFactory payloadFactory;
+    private ApplicationEventPublisher eventPublisher;
     private WebhookNotificationStrategy strategy;
     private NotificationChannelEntity channel;
 
@@ -61,6 +69,7 @@ class WebhookNotificationStrategyTest {
         channelRepository = mock(NotificationChannelRepository.class);
         taskScheduler = new RecordingTaskScheduler();
         payloadFactory = mock(WebhookPayloadFactory.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
         properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
                 new NotificationsProperties.Retry(
@@ -68,7 +77,7 @@ class WebhookNotificationStrategyTest {
                 null);
         strategy = new WebhookNotificationStrategy(
                 codec, payloadFactory, RestClient.create(),
-                taskScheduler, properties, channelRepository);
+                taskScheduler, properties, channelRepository, eventPublisher);
 
         channel = new NotificationChannelEntity();
         channel.setId(UUID.randomUUID());
@@ -135,6 +144,39 @@ class WebhookNotificationStrategyTest {
         assertThat(taskScheduler.scheduled).isEmpty();
         // Total HTTP calls = 4 (1 initial + 3 retries).
         assertThat(requests).hasSize(4);
+    }
+
+    @Test
+    void exhaustedRetriesPublishSingleExhaustedEvent() {
+        nextResponseCode.set(503);
+        strategy.deliver(ctx(), channel);
+        // No event after the initial failure — only after exhaustion.
+        verifyNoInteractions(eventPublisher);
+        runAllScheduled();
+        runAllScheduled();
+        // Three retries scheduled and run; still no event yet.
+        verify(eventPublisher, never()).publishEvent(any(NotificationDeliveryExhaustedEvent.class));
+        runAllScheduled();
+        runAllScheduled();
+
+        var captor = ArgumentCaptor.forClass(NotificationDeliveryExhaustedEvent.class);
+        verify(eventPublisher, times(1)).publishEvent(captor.capture());
+
+        var event = captor.getValue();
+        assertThat(event.channelId()).isEqualTo(channel.getId());
+        assertThat(event.organizationId()).isEqualTo(channel.getOrganizationId());
+        assertThat(event.channelType()).isEqualTo(NotificationChannelType.WEBHOOK.name());
+        assertThat(event.eventType()).isEqualTo(NotificationEventType.QUERY_SUBMITTED.name());
+        assertThat(event.attemptCount()).isEqualTo(4);
+        assertThat(event.lastHttpStatus()).isEqualTo(503);
+        assertThat(event.lastError()).contains("503");
+    }
+
+    @Test
+    void successfulDeliveryDoesNotPublishExhaustedEvent() {
+        nextResponseCode.set(204);
+        strategy.deliver(ctx(), channel);
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

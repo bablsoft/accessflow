@@ -189,7 +189,7 @@ expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 assert hmac.compare_digest(f"sha256={expected}", received_signature)
 ```
 
-**Retry policy:** One initial attempt followed by up to three scheduled retries at +30 s, +2 min, +10 min — four total attempts. Retries are scheduled on a virtual-thread `TaskScheduler`; each attempt re-fetches the channel and generates a fresh `X-AccessFlow-Delivery` UUID. Per-attempt delays are configurable via `accessflow.notifications.retry.{first,second,third}` (default `PT30S`, `PT2M`, `PT10M`). After exhaustion the dispatcher logs an `ERROR` line including the channel id, event type, and last exception. Audit-log integration is deferred until the audit module ships.
+**Retry policy:** One initial attempt followed by up to three scheduled retries at +30 s, +2 min, +10 min — four total attempts. Retries are scheduled on a virtual-thread `TaskScheduler`; each attempt re-fetches the channel and generates a fresh `X-AccessFlow-Delivery` UUID. Per-attempt delays are configurable via `accessflow.notifications.retry.{first,second,third}` (default `PT30S`, `PT2M`, `PT10M`). After exhaustion the dispatcher logs an `ERROR` line and publishes a `NotificationDeliveryExhaustedEvent`; the audit module's `AuditEventListener` consumes it and writes a `NOTIFICATION_DELIVERY_EXHAUSTED` audit row (resource `notification_channel`, `actor_id = NULL`) carrying `source: "DISPATCHER"`, `channel_id`, `channel_type`, `event_type`, `attempt_count`, optional `last_http_status`, optional `last_error` (truncated to 500 chars). Other channels (Slack/Discord/Teams/Telegram/Email) have different retry semantics and are not yet audited on exhaustion.
 
 ---
 
