@@ -170,13 +170,16 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 > AF-16 added steps 6, 7-completion, and 8: the `workflow.internal.QueryReviewStateMachine`
 > consumes `AiAnalysisCompletedEvent` / `AiAnalysisFailedEvent` to advance out of `PENDING_AI`,
 > and `workflow.internal.web.ReviewController` exposes `/api/v1/reviews/pending`,
-> `/approve`, `/reject`, `/request-changes` for human approvers. AST-level schema allow-listing
-> (step 3) and the executor invocation (steps 9, 10, 11) ship in follow-up issues.
+> `/approve`, `/reject`, `/request-changes` for human approvers. AF-247 added step 4 — AST-level
+> schema/table allow-listing — by walking each parsed `Statement` with JSqlParser's
+> `TablesNamesFinder` and intersecting the resulting set with the permission's
+> `allowed_schemas` / `allowed_tables` columns inside `DefaultQuerySubmissionService`. The
+> executor invocation (steps 9, 10, 11) ships in follow-up issues.
 
 1. **Receive request** — `POST /api/v1/queries` hits the controller, which delegates to `QueryProxyService`.
 2. **Permission check** — Load `DatasourceUserPermission` for `(user, datasource)`. Verify `can_read` / `can_write` / `can_ddl` as appropriate. Reject with 403 if no permission record exists.
 3. **SQL parsing** — Parse SQL using `JSqlParser` via `SqlParserService` (`proxy/api/`). Determine `QueryType` (SELECT, INSERT, UPDATE, DELETE, DDL, OTHER). Reject unparseable SQL and stacked / multi-statement input with 422 (`InvalidSqlException` → `error: "INVALID_SQL"`). The one exception is a `BEGIN; … COMMIT;` envelope: when the parser detects leading `BEGIN`/`BEGIN WORK`/`BEGIN TRANSACTION`/`START TRANSACTION` and trailing `COMMIT`/`COMMIT WORK`/`COMMIT TRANSACTION`/`END` markers (lexically — JSqlParser 5.3 cannot itself parse `BEGIN` as a transaction-start), it strips them, re-parses the body, and requires every inner statement to be INSERT/UPDATE/DELETE. Mixing SELECT with DML, SELECT-only transactions, DDL inside the body, `ROLLBACK`/`SAVEPOINT`/nested `BEGIN`, unmatched markers, and an empty body are all rejected with distinct 422 messages. The parsed result records `transactional=true` and the list of inner statement texts so the executor can re-issue them under a single JDBC transaction.
-4. **Schema allow-list check** — If `allowed_schemas` or `allowed_tables` is set on the permission, validate parsed statement only touches permitted objects. Reject with 403 if violated.
+4. **Schema allow-list check** — If `allowed_schemas` or `allowed_tables` is set on the permission, the workflow service walks the parsed JSqlParser AST with `TablesNamesFinder`, collects every referenced table into `SqlParseResult.referencedTables`, and rejects with 403 if any referenced table sits outside the allow-list. Empty/null on both columns keeps the historical "all tables permitted" behaviour. See the [Schema / table allow-list enforcement](#schema--table-allow-list-enforcement) subsection below for the match algorithm and normalisation rules.
 5. **Review plan lookup** — Load the `ReviewPlan` assigned to the datasource. Determine whether AI review and/or human approval is required for this `QueryType`.
 6. **Fast path** — If neither AI nor human review is required (e.g. `auto_approve_reads=true` for a SELECT), skip to step 9.
 7. **AI analysis** — If `requires_ai_review=true`, publish `QuerySubmittedEvent`. The `AiAnalyzerService` picks it up asynchronously. Query status → `PENDING_AI`. When complete, status → `PENDING_REVIEW` (or `APPROVED` if no human review needed).
@@ -351,6 +354,25 @@ exceeding it streams returns `413 CUSTOM_DRIVER_TOO_LARGE`.
 - Proxy uses `PreparedStatement` exclusively — no string interpolation.
 - Schema/table allow-listing validated at the AST level (not string matching).
 - DDL blocked by default; requires explicit `can_ddl=true` permission.
+
+### Schema / table allow-list enforcement
+
+`SqlParserService` populates `SqlParseResult.referencedTables` by walking each parsed `Statement` with JSqlParser's `TablesNamesFinder`. CTE aliases are excluded automatically. Single-statement input yields the table set for that statement; a `BEGIN; …; COMMIT;` envelope yields the union across every inner statement. JSqlParser returns fully-qualified names via `Table.getFullyQualifiedName()` — `schema.table` when the writer qualified it, `table` when they didn't. The parser strips ASCII identifier quotes (`"`, `` ` ``, `[`, `]`) and ASCII-lowercases the result so admin-typed allow-list entries match user SQL regardless of quoting style.
+
+`DefaultQuerySubmissionService.verifyAllowedTables(...)` runs after the `can_read` / `can_write` / `can_ddl` capability check. The decision is:
+
+- If both `allowed_schemas` and `allowed_tables` are null or empty → no check (status quo "all tables permitted").
+- Otherwise, for each normalised referenced table `T`:
+  - allow if `T` appears verbatim in `allowed_tables`;
+  - allow if `T` is `schema.table` and `schema` appears in `allowed_schemas`;
+  - otherwise reject.
+- Rejection throws `AccessDeniedException` → HTTP 403 (`error: FORBIDDEN`) and emits a `WARN` log with the rejected table list, the user id, and the datasource id. The localised detail uses the `error.permission.table_not_allowed` message bundle key.
+
+Edge cases:
+
+- **Unqualified references** (`SELECT * FROM users`) match `allowed_tables` only when the bare table name is listed without a schema prefix. An admin who set `allowed_schemas=['public']` must either add the unqualified name to `allowed_tables` or require fully-qualified SQL. The parser cannot know PostgreSQL's runtime `search_path`, so the conservative reject-by-default keeps the gate predictable.
+- **Quoted mixed-case identifiers** (`"Public"."Users"`) are lowercased — case-insensitive matching is v1.0's behaviour across the board.
+- **Admins** (`SubmissionInput.isAdmin=true`) bypass the entire permission lookup, including the allow-list check.
 
 ### Column-level masking
 

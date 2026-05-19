@@ -28,7 +28,9 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -175,6 +177,173 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     @Test
+    void allowListEmptyAcceptsAnyTable() {
+        stubParse("SELECT * FROM public.orders", QueryType.SELECT, Set.of("public.orders"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of(), List.of());
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM public.orders", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void allowListNullAcceptsAnyTable() {
+        stubParse("SELECT * FROM public.orders", QueryType.SELECT, Set.of("public.orders"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, null, null);
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM public.orders", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void schemaOnlyAllowListAcceptsTableInSchema() {
+        stubParse("SELECT * FROM public.orders", QueryType.SELECT, Set.of("public.orders"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of("public"), List.of());
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM public.orders", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void schemaOnlyAllowListRejectsTableInOtherSchema() {
+        stubParse("SELECT * FROM secrets.api_tokens", QueryType.SELECT,
+                Set.of("secrets.api_tokens"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of("public"), List.of());
+        stubAllowListMessageSource();
+
+        assertThatThrownBy(() -> service.submit(input("SELECT * FROM secrets.api_tokens", false)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("secrets.api_tokens");
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void schemaOnlyAllowListRejectsUnqualifiedReference() {
+        stubParse("SELECT * FROM users", QueryType.SELECT, Set.of("users"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of("public"), List.of());
+        stubAllowListMessageSource();
+
+        assertThatThrownBy(() -> service.submit(input("SELECT * FROM users", false)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("users");
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void tableOnlyAllowListAcceptsExactMatch() {
+        stubParse("SELECT * FROM public.users", QueryType.SELECT, Set.of("public.users"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of(), List.of("public.users"));
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM public.users", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void tableOnlyAllowListRejectsOtherTable() {
+        stubParse("SELECT * FROM public.orders", QueryType.SELECT, Set.of("public.orders"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of(), List.of("public.users"));
+        stubAllowListMessageSource();
+
+        assertThatThrownBy(() -> service.submit(input("SELECT * FROM public.orders", false)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("public.orders");
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void mixedAllowListAcceptsEitherDimension() {
+        stubParse("SELECT a.id, b.id FROM public.a a JOIN secrets.audit b ON a.id=b.id",
+                QueryType.SELECT, Set.of("public.a", "secrets.audit"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of("public"), List.of("secrets.audit"));
+        stubPersist();
+
+        var result = service.submit(input(
+                "SELECT a.id, b.id FROM public.a a JOIN secrets.audit b ON a.id=b.id", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void mixedAllowListRejectsTableOutsideBothDimensions() {
+        stubParse("SELECT * FROM secrets.api_tokens", QueryType.SELECT,
+                Set.of("secrets.api_tokens"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of("public"), List.of("secrets.audit"));
+        stubAllowListMessageSource();
+
+        assertThatThrownBy(() -> service.submit(input("SELECT * FROM secrets.api_tokens", false)))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void allowListMatchIsCaseInsensitive() {
+        // Parser normalizes to lowercase, but admin may have entered mixed-case allow-list values.
+        stubParse("SELECT * FROM Public.Users", QueryType.SELECT, Set.of("public.users"));
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null, List.of(), List.of("Public.Users"));
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM Public.Users", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+    }
+
+    @Test
+    void transactionalBatchUnionOfTablesIsChecked() {
+        String sql = "BEGIN; INSERT INTO public.a (id) VALUES (1); "
+                + "UPDATE secrets.b SET x=1 WHERE y=2; COMMIT;";
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(
+                QueryType.INSERT, true,
+                List.of("INSERT INTO public.a (id) VALUES (1)",
+                        "UPDATE secrets.b SET x = 1 WHERE y = 2"),
+                Set.of("public.a", "secrets.b")));
+        stubActiveDatasourceForUser();
+        stubPermission(true, true, false, null, List.of("public"), List.of());
+        stubAllowListMessageSource();
+
+        assertThatThrownBy(() -> service.submit(input(sql, false)))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("secrets.b");
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void adminBypassesAllowList() {
+        stubParse("SELECT * FROM secrets.api_tokens", QueryType.SELECT,
+                Set.of("secrets.api_tokens"));
+        when(datasourceAdminService.getForAdmin(datasourceId, organizationId))
+                .thenReturn(datasourceView(true));
+        stubPersist();
+
+        var result = service.submit(input("SELECT * FROM secrets.api_tokens", true));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
+        verify(permissionLookupService, never()).findFor(any(), any());
+    }
+
+    @Test
     void persistsCommandWithParsedTypeAndJustification() {
         stubParse("SELECT 1", QueryType.SELECT);
         stubActiveDatasourceForUser();
@@ -199,7 +368,12 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     private void stubParse(String sql, QueryType type) {
-        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(type, sql));
+        stubParse(sql, type, Set.of());
+    }
+
+    private void stubParse(String sql, QueryType type, Set<String> referencedTables) {
+        when(sqlParserService.parse(sql)).thenReturn(
+                new SqlParseResult(type, false, List.of(sql), referencedTables));
     }
 
     private void stubActiveDatasourceForUser() {
@@ -209,11 +383,26 @@ class DefaultQuerySubmissionServiceTest {
 
     private void stubPermission(boolean canRead, boolean canWrite, boolean canDdl,
                                 Instant expiresAt) {
+        stubPermission(canRead, canWrite, canDdl, expiresAt, List.of(), List.of());
+    }
+
+    private void stubPermission(boolean canRead, boolean canWrite, boolean canDdl,
+                                Instant expiresAt,
+                                List<String> allowedSchemas, List<String> allowedTables) {
         when(permissionLookupService.findFor(eq(userId), eq(datasourceId)))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
                         canRead, canWrite, canDdl,
-                        List.of(), List.of(), List.of(), expiresAt)));
+                        allowedSchemas, allowedTables, List.of(), expiresAt)));
+    }
+
+    private void stubAllowListMessageSource() {
+        when(messageSource.getMessage(eq("error.permission.table_not_allowed"),
+                any(Object[].class), any(Locale.class)))
+                .thenAnswer(inv -> {
+                    Object[] args = inv.getArgument(1);
+                    return "Disallowed tables: " + args[0];
+                });
     }
 
     private UUID stubPersist() {

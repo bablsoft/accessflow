@@ -519,7 +519,7 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 
 **Errors:**
 - `400 VALIDATION_ERROR` — request body missing `datasource_id` or `sql`.
-- `403 FORBIDDEN` — caller has no active permission row for this datasource, or the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL). Admins bypass this check.
+- `403 FORBIDDEN` — caller has no active permission row for this datasource, the row is missing the capability matching the query type (`can_read` for SELECT, `can_write` for INSERT/UPDATE/DELETE, `can_ddl` for DDL), or the SQL references a table outside the permission's `allowed_schemas` / `allowed_tables` allow-list (walked at the JSqlParser AST level; see [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement)). Admins bypass this check.
 - `404 DATASOURCE_NOT_FOUND` — datasource does not exist in the caller's organization, or — for non-admin callers — the caller has no permission row for it.
 - `422 INVALID_SQL` — SQL did not parse, contained multiple statements without a `BEGIN/COMMIT` envelope, or classified as `OTHER`. The `detail` field carries the specific reason. Distinct sub-cases include:
   - mixed SELECT with INSERT/UPDATE/DELETE inside a transaction → "Transactions cannot mix SELECT with INSERT/UPDATE/DELETE; submit them as separate query requests";
