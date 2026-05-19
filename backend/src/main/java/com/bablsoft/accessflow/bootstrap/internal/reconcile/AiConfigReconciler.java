@@ -4,12 +4,18 @@ import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
+import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
+import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AiConfigSpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +27,8 @@ import java.util.UUID;
 public class AiConfigReconciler {
 
     private final AiConfigService aiConfigService;
+    private final BootstrapStateTracker stateTracker;
+    private final SpecFingerprinter fingerprinter;
 
     public Map<String, UUID> reconcile(UUID organizationId, List<AiConfigSpec> specs) {
         var byName = new HashMap<String, UUID>();
@@ -42,10 +50,12 @@ public class AiConfigReconciler {
             throw new IllegalStateException("AI config '%s' is missing 'model'".formatted(spec.name()));
         }
 
+        var specMap = specFields(spec);
+        var specFingerprint = fingerprinter.fingerprint(specMap);
+
         var existing = findByName(organizationId, spec.name());
-        if (existing.isPresent()) {
-            var view = existing.get();
-            var updated = aiConfigService.update(view.id(), organizationId, new UpdateAiConfigCommand(
+        if (existing.isEmpty()) {
+            var created = aiConfigService.create(organizationId, new CreateAiConfigCommand(
                     spec.name(),
                     spec.provider(),
                     spec.model(),
@@ -54,11 +64,30 @@ public class AiConfigReconciler {
                     spec.timeoutMs(),
                     spec.maxPromptTokens(),
                     spec.maxCompletionTokens()));
-            log.info("Bootstrap: updated AI config '{}' (id={})", spec.name(), updated.id());
-            return updated.id();
+            log.info("Bootstrap: created AI config '{}' (id={})", spec.name(), created.id());
+            stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
+                    created.id(), specFingerprint,
+                    new BootstrapResourceUpsertedEvent(
+                            organizationId,
+                            BootstrapResourceType.AI_CONFIG,
+                            created.id(),
+                            BootstrapChangeKind.CREATE,
+                            List.of(),
+                            Map.of("name", created.name(), "provider", created.provider().name())));
+            return created.id();
         }
 
-        var created = aiConfigService.create(organizationId, new CreateAiConfigCommand(
+        var view = existing.get();
+        var storedFingerprint = stateTracker
+                .findFingerprint(organizationId, BootstrapResourceType.AI_CONFIG, view.id())
+                .orElse(null);
+        if (specFingerprint.equals(storedFingerprint)) {
+            log.debug("Bootstrap: AI config '{}' unchanged, skipping update", spec.name());
+            return view.id();
+        }
+
+        var viewMap = viewFields(view);
+        var updated = aiConfigService.update(view.id(), organizationId, new UpdateAiConfigCommand(
                 spec.name(),
                 spec.provider(),
                 spec.model(),
@@ -67,13 +96,47 @@ public class AiConfigReconciler {
                 spec.timeoutMs(),
                 spec.maxPromptTokens(),
                 spec.maxCompletionTokens()));
-        log.info("Bootstrap: created AI config '{}' (id={})", spec.name(), created.id());
-        return created.id();
+        log.info("Bootstrap: updated AI config '{}' (id={})", spec.name(), updated.id());
+        stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
+                updated.id(), specFingerprint,
+                new BootstrapResourceUpsertedEvent(
+                        organizationId,
+                        BootstrapResourceType.AI_CONFIG,
+                        updated.id(),
+                        BootstrapChangeKind.UPDATE,
+                        fingerprinter.diff(viewMap, specMap),
+                        Map.of("name", updated.name(), "provider", updated.provider().name())));
+        return updated.id();
     }
 
     private Optional<AiConfigView> findByName(UUID organizationId, String name) {
         return aiConfigService.list(organizationId).stream()
                 .filter(view -> view.name().equalsIgnoreCase(name))
                 .findFirst();
+    }
+
+    private static Map<String, Object> specFields(AiConfigSpec spec) {
+        var map = new LinkedHashMap<String, Object>();
+        map.put("name", spec.name());
+        map.put("provider", spec.provider().name());
+        map.put("model", spec.model());
+        map.put("endpoint", spec.endpoint());
+        map.put("api_key", spec.apiKey());
+        map.put("timeout_ms", spec.timeoutMs());
+        map.put("max_prompt_tokens", spec.maxPromptTokens());
+        map.put("max_completion_tokens", spec.maxCompletionTokens());
+        return map;
+    }
+
+    private static Map<String, Object> viewFields(AiConfigView view) {
+        var map = new LinkedHashMap<String, Object>();
+        map.put("name", view.name());
+        map.put("provider", view.provider().name());
+        map.put("model", view.model());
+        map.put("endpoint", view.endpoint());
+        map.put("timeout_ms", view.timeoutMs());
+        map.put("max_prompt_tokens", view.maxPromptTokens());
+        map.put("max_completion_tokens", view.maxCompletionTokens());
+        return map;
     }
 }

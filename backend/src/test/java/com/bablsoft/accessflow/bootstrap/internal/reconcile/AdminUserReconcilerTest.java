@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.bootstrap.internal.reconcile;
 
+import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
@@ -31,6 +35,7 @@ class AdminUserReconcilerTest {
     @Mock UserQueryService userQueryService;
     @Mock UserAdminService userAdminService;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock BootstrapStateTracker stateTracker;
     @InjectMocks AdminUserReconciler reconciler;
 
     private static final UUID ORG_ID = UUID.randomUUID();
@@ -81,6 +86,29 @@ class AdminUserReconcilerTest {
         assertThat(captor.getValue().role()).isEqualTo(UserRoleType.ADMIN);
         assertThat(captor.getValue().organizationId()).isEqualTo(ORG_ID);
         assertThat(captor.getValue().passwordHash()).isEqualTo("hashed");
+
+        var eventCaptor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
+        verify(stateTracker).publishWithinTransaction(eventCaptor.capture());
+        var event = eventCaptor.getValue();
+        assertThat(event.resourceType()).isEqualTo(BootstrapResourceType.ADMIN_USER);
+        assertThat(event.changeKind()).isEqualTo(BootstrapChangeKind.CREATE);
+        assertThat(event.resourceId()).isEqualTo(newId);
+        assertThat(event.summaryMetadata())
+                .containsEntry("email", "admin@acme.com")
+                .containsEntry("role", "ADMIN");
+    }
+
+    @Test
+    void doesNotPublishEventWhenAdminAlreadyExists() {
+        var existingId = UUID.randomUUID();
+        var existing = new UserView(existingId, "admin@acme.com", "X", UserRoleType.ADMIN,
+                ORG_ID, true, AuthProviderType.LOCAL, "stored-hash", null, null, false, null);
+        when(userQueryService.findByEmail("admin@acme.com")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("s3cret", "stored-hash")).thenReturn(true);
+
+        reconciler.reconcile(ORG_ID, new AdminSpec("admin@acme.com", "X", "s3cret"));
+
+        verify(stateTracker, never()).publishWithinTransaction(any());
     }
 
     @Test

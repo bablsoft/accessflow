@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.bootstrap.internal.reconcile;
 
+import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
+import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
@@ -11,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -21,6 +27,7 @@ public class AdminUserReconciler {
     private final UserQueryService userQueryService;
     private final UserAdminService userAdminService;
     private final PasswordEncoder passwordEncoder;
+    private final BootstrapStateTracker stateTracker;
 
     public UUID reconcile(UUID organizationId, AdminSpec spec) {
         if (spec == null) {
@@ -59,6 +66,16 @@ public class AdminUserReconciler {
                 passwordEncoder.encode(spec.password()),
                 UserRoleType.ADMIN));
         log.info("Bootstrap: created admin user '{}' (id={})", created.email(), created.id());
+        stateTracker.publishWithinTransaction(new BootstrapResourceUpsertedEvent(
+                organizationId,
+                BootstrapResourceType.ADMIN_USER,
+                created.id(),
+                BootstrapChangeKind.CREATE,
+                List.of(),
+                Map.of(
+                        "email", created.email(),
+                        "display_name", created.displayName(),
+                        "role", UserRoleType.ADMIN.name())));
         return created.id();
     }
 

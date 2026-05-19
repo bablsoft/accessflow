@@ -4,6 +4,9 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapChangeKind;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceType;
+import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -22,6 +25,8 @@ import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -177,5 +182,113 @@ class AuditEventListenerTest {
         listener.onDatasourceDeactivated(new DatasourceDeactivatedEvent(datasourceId));
 
         verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void onBootstrapDatasourceUpdatedRecordsRowWithSourceMetadata() {
+        var resourceId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId,
+                BootstrapResourceType.DATASOURCE,
+                resourceId,
+                BootstrapChangeKind.UPDATE,
+                List.of("host", "port"),
+                Map.of("name", "prod-pg", "db_type", "POSTGRESQL")));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.DATASOURCE_UPDATED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.DATASOURCE);
+        assertThat(entry.resourceId()).isEqualTo(resourceId);
+        assertThat(entry.organizationId()).isEqualTo(organizationId);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.ipAddress()).isNull();
+        assertThat(entry.userAgent()).isNull();
+        assertThat(entry.metadata())
+                .containsEntry("source", "BOOTSTRAP")
+                .containsEntry("change_kind", "UPDATE")
+                .containsEntry("changed_fields", List.of("host", "port"))
+                .containsEntry("name", "prod-pg");
+    }
+
+    @Test
+    void onBootstrapOrganizationCreatedMapsToOrganizationAction() {
+        var resourceId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId,
+                BootstrapResourceType.ORGANIZATION,
+                resourceId,
+                BootstrapChangeKind.CREATE,
+                List.of(),
+                Map.of("name", "Acme")));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.ORGANIZATION_CREATED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.ORGANIZATION);
+        assertThat(entry.metadata()).containsEntry("change_kind", "CREATE");
+        assertThat(entry.metadata()).doesNotContainKey("changed_fields");
+    }
+
+    @Test
+    void onBootstrapNotificationChannelCreateAndUpdateUseDistinctActions() {
+        var resourceId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId,
+                BootstrapResourceType.NOTIFICATION_CHANNEL,
+                resourceId,
+                BootstrapChangeKind.CREATE,
+                List.of(),
+                Map.of()));
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId,
+                BootstrapResourceType.NOTIFICATION_CHANNEL,
+                resourceId,
+                BootstrapChangeKind.UPDATE,
+                List.of("config"),
+                Map.of()));
+
+        assertThat(captor.getAllValues()).extracting(AuditEntry::action)
+                .containsExactly(AuditAction.NOTIFICATION_CHANNEL_CREATED,
+                        AuditAction.NOTIFICATION_CHANNEL_UPDATED);
+    }
+
+    @Test
+    void onBootstrapSamlAndOauthAndSmtpAlwaysEmitUpdateAction() {
+        var resourceId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.SAML_CONFIG, resourceId,
+                BootstrapChangeKind.UPDATE, List.of(), Map.of()));
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.OAUTH2_CONFIG, resourceId,
+                BootstrapChangeKind.UPDATE, List.of(), Map.of("provider", "GOOGLE")));
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.SYSTEM_SMTP, resourceId,
+                BootstrapChangeKind.UPDATE, List.of(), Map.of()));
+
+        assertThat(captor.getAllValues()).extracting(AuditEntry::action)
+                .containsExactly(AuditAction.SAML_CONFIG_UPDATED,
+                        AuditAction.OAUTH2_CONFIG_UPDATED,
+                        AuditAction.SYSTEM_SMTP_UPDATED);
+    }
+
+    @Test
+    void onBootstrapRuntimeFailureIsSwallowed() {
+        when(auditLogService.record(any())).thenThrow(new RuntimeException("db down"));
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.AI_CONFIG, UUID.randomUUID(),
+                BootstrapChangeKind.CREATE, List.of(), Map.of()));
+        // No exception should propagate.
     }
 }

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.bootstrap.internal;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.OrganizationProvisioningService;
 import com.bablsoft.accessflow.core.api.ReviewPlanAdminService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
@@ -8,7 +9,10 @@ import net.javacrumbs.shedlock.core.LockConfiguration;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.core.SimpleLock;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -28,11 +32,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
 @ImportTestcontainers(TestcontainersConfig.class)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BootstrapIntegrationTest {
 
     @Autowired OrganizationProvisioningService organizationProvisioningService;
     @Autowired UserQueryService userQueryService;
     @Autowired ReviewPlanAdminService reviewPlanAdminService;
+    @Autowired AuditLogService auditLogService;
+    @Autowired BootstrapRunner bootstrapRunner;
     @Autowired JdbcTemplate jdbcTemplate;
 
     @TestConfiguration
@@ -93,9 +100,13 @@ class BootstrapIntegrationTest {
         // the seeded rows (admin user, organization) are wiped by those tests' own deleteAll().
         jdbcTemplate.update("DELETE FROM review_plan_approvers");
         jdbcTemplate.update("DELETE FROM review_plans");
+        // bootstrap_state references resource UUIDs that may dangle after the wipes above; clear
+        // them so a subsequent test in the same JVM doesn't short-circuit on a stale fingerprint.
+        jdbcTemplate.update("DELETE FROM bootstrap_state");
     }
 
     @Test
+    @Order(1)
     void seedsOrganizationAdminAndReviewPlan() {
         var orgId = organizationProvisioningService.findBySlug("acme-integration").orElseThrow();
         assertThat(orgId).isNotNull();
@@ -112,5 +123,48 @@ class BootstrapIntegrationTest {
         assertThat(plan.minApprovalsRequired()).isEqualTo(1);
         assertThat(plan.approvers()).hasSize(1);
         assertThat(plan.approvers().get(0).userId()).isEqualTo(admin.id());
+    }
+
+    @Test
+    @Order(2)
+    void rerunningBootstrapWithUnchangedEnvDoesNotWriteAdditionalAuditRows() {
+        // The previous test's @AfterEach wiped review_plans, so call bootstrapRunner.run() to
+        // re-seed and (re-)populate bootstrap_state for the review plan. This first run will
+        // emit a CREATE audit row for the new plan. Subsequent runs with identical env vars
+        // must produce zero new rows — that's what we're asserting.
+        bootstrapRunner.run();
+        flushPendingAudits();
+
+        var orgId = organizationProvisioningService.findBySlug("acme-integration").orElseThrow();
+        var baselineRows = countAuditRows();
+        assertThat(baselineRows).isPositive();
+
+        bootstrapRunner.run();
+        flushPendingAudits();
+
+        assertThat(countAuditRows())
+                .as("rerunning bootstrap with unchanged env vars must not produce new audit rows")
+                .isEqualTo(baselineRows);
+
+        var verification = auditLogService.verify(orgId, null, null);
+        assertThat(verification.ok())
+                .as("HMAC chain must verify after a no-op rerun")
+                .isTrue();
+    }
+
+    private int countAuditRows() {
+        var count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log", Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    private void flushPendingAudits() {
+        // @ApplicationModuleListener handlers run asynchronously after the publishing transaction
+        // commits; give them a brief window to drain before any assertion that depends on
+        // audit_log being up to date.
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

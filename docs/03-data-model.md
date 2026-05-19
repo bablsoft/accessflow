@@ -387,6 +387,33 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
 | `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`). |
 | `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
+| `ORGANIZATION_CREATED` | Emitted by the env-driven bootstrap reconciler when it provisions a brand-new organization. Metadata: `source: "BOOTSTRAP"`, `change_kind: "CREATE"`, `name`, `slug`. |
+| `NOTIFICATION_CHANNEL_CREATED` / `NOTIFICATION_CHANNEL_UPDATED` | Emitted by the bootstrap reconciler when it creates or updates a `notification_channels` row from `accessflow.bootstrap.notificationChannels[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind`, `name`, `channel_type`, optional `changed_fields`. |
+| `OAUTH2_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies a per-provider OAuth2 config from `accessflow.bootstrap.oauth2[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `provider`, `config_type: "oauth2"`, optional `changed_fields`. |
+| `SAML_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies the SAML configuration from `accessflow.bootstrap.saml`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `config_type: "saml"`, optional `changed_fields`. |
+
+Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`, `AI_CONFIG`, `REVIEW_PLAN`, `USER`, and `SYSTEM_SMTP_UPDATED` — `metadata.source = "BOOTSTRAP"` plus `metadata.change_kind` is what distinguishes a bootstrap-driven write from an admin-UI-driven one. See [docs/05-backend.md → "Bootstrap audit semantics"](05-backend.md#bootstrap-audit-semantics).
+
+### Audit Resource Types
+
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`.
+
+---
+
+## bootstrap_state
+
+Per-resource fingerprint cache used by the env-driven `bootstrap` reconciler to detect "no change" between the new spec and the previously persisted state, so a restart with unchanged env vars writes zero new rows to `audit_log`. Added in V41 ([AF-196](https://github.com/bablsoft/accessflow/issues/196)).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID — references `organizations(id)` semantically; no SQL FK so the row survives org deletion (matches the audit-module convention from V14) |
+| `resource_type` | VARCHAR(100) — one of the `BootstrapResourceType` enum names: `ORGANIZATION`, `ADMIN_USER`, `NOTIFICATION_CHANNEL`, `AI_CONFIG`, `REVIEW_PLAN`, `DATASOURCE`, `SAML_CONFIG`, `OAUTH2_CONFIG`, `SYSTEM_SMTP` |
+| `resource_id` | UUID — entity UUID for normal resources, the organization UUID for singleton-per-org configs (SAML, SystemSmtp), or a deterministic UUID derived via `UUID.nameUUIDFromBytes("OAUTH2:" + provider)` for OAuth2-per-provider rows |
+| `spec_fingerprint` | VARCHAR(64) — lowercase hex SHA-256 of the canonical-sorted JSON of the spec |
+| `updated_at` | TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP |
+
+Unique constraint on `(organization_id, resource_type, resource_id)` (`uq_bootstrap_state_key`) so each resource is tracked once per org.
 
 ---
 
