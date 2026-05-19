@@ -582,8 +582,10 @@ Stores OAuth 2.0 / OIDC provider configuration for an organization. One row per 
 | `client_secret_encrypted` | TEXT NOT NULL — AES-256-GCM ciphertext via `CredentialEncryptionService`. `@JsonIgnore`d on the entity; admin API exposes only `client_secret_configured: boolean`. |
 | `scopes_override` | VARCHAR(1024) — space-separated. NULL means use the provider template default. |
 | `tenant_id` | VARCHAR(255) — required for `MICROSOFT` (e.g. `common`, `organizations`, or a tenant GUID); NULL for the others. |
+| `allowed_organizations` | TEXT[] — optional allowlist of provider-native organization identifiers. Login is rejected with `OAUTH2_ORG_NOT_ALLOWED` unless the user's membership intersects this list. NULL/empty = no restriction. Provider semantics: GitHub org logins (case-sensitive, requires the `read:org` scope), GitLab full group paths from the OIDC `groups` claim, Microsoft AAD group object IDs from the `groups` claim. Ignored for `GOOGLE` (use `allowed_email_domains`). |
+| `allowed_email_domains` | TEXT[] — optional allowlist of email domains; login is rejected with `OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` unless the user's email domain (case-insensitive) matches one entry. NULL/empty = no restriction. Doubles as the Google Workspace-domain check. |
 | `default_role` | ENUM `user_role_type` — role assigned to users JIT-provisioned by this provider. Defaults to `ANALYST`. |
-| `active` | BOOLEAN NOT NULL DEFAULT FALSE — only active providers appear on the login page. |
+| `active` | BOOLEAN NOT NULL DEFAULT FALSE — only active providers appear on the login page. Activating a `GITHUB` row with a non-empty `allowed_organizations` is rejected unless `scopes_override` contains `read:org`. |
 | `version` | BIGINT — `@Version` optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 

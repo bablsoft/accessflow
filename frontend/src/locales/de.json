@@ -97,6 +97,8 @@
         "oauth2_local_email_conflict": "Es existiert bereits ein AccessFlow-Konto mit dieser E-Mail-Adresse, das ein Passwort verwendet. Bitte deinen Administrator, das Konto vor einem erneuten Versuch auf Single Sign-on umzustellen.",
         "oauth2_unexpected_auth": "Single Sign-on hat einen unerwarteten Authentifizierungsstatus zurückgegeben.",
         "oauth2_unknown_provider": "Single Sign-on hat einen unbekannten Anbieter zurückgegeben.",
+        "oauth2_org_not_allowed": "Dein Anbieter-Konto gehört zu keiner von AccessFlow zugelassenen Organisation.",
+        "oauth2_email_domain_not_allowed": "Deine E-Mail-Domain ist in AccessFlow nicht zugelassen.",
         "account_disabled": "Dein AccessFlow-Konto ist derzeit deaktiviert.",
         "generic": "Single Sign-on ist fehlgeschlagen. Bitte erneut versuchen."
       }
@@ -177,7 +179,10 @@
       "client_secret_max": "Client Secret darf maximal 2048 Zeichen lang sein.",
       "scopes_max": "Scopes-Überschreibung darf maximal 1024 Zeichen lang sein.",
       "tenant_id_max": "Tenant ID darf maximal 255 Zeichen lang sein.",
-      "default_role_required": "Standardrolle ist erforderlich."
+      "default_role_required": "Standardrolle ist erforderlich.",
+      "allowed_max": "Die Liste darf höchstens 100 Einträge enthalten.",
+      "allowed_entry_blank": "Einträge dürfen nicht leer sein.",
+      "allowed_entry_max": "Jeder Eintrag darf maximal 255 Zeichen lang sein."
     },
     "system_smtp": {
       "host_required": "SMTP-Host ist erforderlich.",
@@ -798,6 +803,23 @@
       "label_scopes_help": "Durch Leerzeichen getrennt. Leer lassen, um die Anbieter-Standardwerte zu verwenden.",
       "label_tenant_id": "Tenant ID",
       "label_tenant_id_help": "Verwenden Sie \"common\" für beliebige Microsoft-Konten, \"organizations\" für Geschäfts- oder Schul­konten oder eine bestimmte Tenant-GUID.",
+      "label_allowed_organizations": "Zugelassene Organisationen",
+      "label_allowed_email_domains": "Zugelassene E-Mail-Domains",
+      "allowed_orgs_help": {
+        "google": "Google setzt dies über die E-Mail-Domain um – verwenden Sie das Feld unten. Diese Liste wird für Google ignoriert.",
+        "github": "GitHub-Organisations-Logins (Groß-/Kleinschreibung). Erfordert den Scope read:org. Leer = jeder GitHub-Benutzer darf sich anmelden.",
+        "microsoft": "Object-IDs von Microsoft-Entra-AAD-Gruppen. Die App muss so konfiguriert sein, dass sie den \"groups\"-Claim ausgibt. Leer = jeder Benutzer aus dem Tenant darf sich anmelden.",
+        "gitlab": "Vollständige GitLab-Gruppenpfade aus dem OIDC-\"groups\"-Claim. Leer = jeder GitLab-Benutzer darf sich anmelden."
+      },
+      "allowed_orgs_placeholder": {
+        "google": "Verwenden Sie das Feld für E-Mail-Domains unten",
+        "github": "bablsoft, acme-corp",
+        "microsoft": "11111111-2222-3333-4444-555555555555",
+        "gitlab": "acme/team"
+      },
+      "allowed_domains_help": "Durch Komma oder Leerzeichen getrennt. Wird ohne Berücksichtigung der Groß-/Kleinschreibung mit der E-Mail-Domain abgeglichen. Leer = jede Domain akzeptiert.",
+      "github_read_org_scope_warning_title": "GitHub liefert keine privaten Organisations­mitgliedschaften",
+      "github_read_org_scope_warning": "Eine Liste zugelassener Organisationen ist gesetzt, aber die Scopes-Überschreibung enthält kein read:org. Beim Speichern mit aktivierter Konfiguration wird der Server den Vorgang ablehnen. Fügen Sie read:org zur Scopes-Überschreibung hinzu.",
       "label_default_role": "Standardrolle für neue Benutzer",
       "label_active": "Aktiv",
       "client_id_tooltip": {

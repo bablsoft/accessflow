@@ -22,11 +22,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 class DefaultOAuth2ConfigService implements OAuth2ConfigService {
+
+    static final String GITHUB_READ_ORG_SCOPE = "read:org";
 
     private final OAuth2ConfigRepository repository;
     private final CredentialEncryptionService encryptionService;
@@ -78,6 +81,12 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
         if (command.tenantId() != null) {
             entity.setTenantId(blankToNull(command.tenantId()));
         }
+        if (command.allowedOrganizations() != null) {
+            entity.setAllowedOrganizations(normalizeOrganizations(command.allowedOrganizations()));
+        }
+        if (command.allowedEmailDomains() != null) {
+            entity.setAllowedEmailDomains(normalizeEmailDomains(command.allowedEmailDomains()));
+        }
         if (command.defaultRole() != null) {
             entity.setDefaultRole(command.defaultRole());
         }
@@ -101,6 +110,13 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                     && (entity.getTenantId() == null || entity.getTenantId().isBlank())) {
                 throw new OAuth2ConfigInvalidException(messageSource.getMessage(
                         "error.oauth2.tenant_id_required_for_microsoft", null,
+                        LocaleContextHolder.getLocale()));
+            }
+            if (provider == OAuth2ProviderType.GITHUB
+                    && hasEntries(entity.getAllowedOrganizations())
+                    && !scopesContain(entity.getScopesOverride(), GITHUB_READ_ORG_SCOPE)) {
+                throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                        "error.oauth2.github_read_org_scope_required", null,
                         LocaleContextHolder.getLocale()));
             }
         }
@@ -157,6 +173,8 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 false,
                 null,
                 null,
+                List.of(),
+                List.of(),
                 UserRoleType.ANALYST,
                 false,
                 now,
@@ -173,6 +191,8 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                         && !entity.getClientSecretEncrypted().isBlank(),
                 entity.getScopesOverride(),
                 entity.getTenantId(),
+                toList(entity.getAllowedOrganizations()),
+                toList(entity.getAllowedEmailDomains()),
                 entity.getDefaultRole(),
                 entity.isActive(),
                 entity.getCreatedAt(),
@@ -192,5 +212,39 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
         if (s == null) return null;
         var trimmed = s.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String[] normalizeOrganizations(List<String> values) {
+        return values.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toArray(String[]::new);
+    }
+
+    private static String[] normalizeEmailDomains(List<String> values) {
+        return values.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(s -> s.trim().toLowerCase(Locale.ROOT))
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toArray(String[]::new);
+    }
+
+    private static boolean hasEntries(String[] arr) {
+        return arr != null && arr.length > 0;
+    }
+
+    private static boolean scopesContain(String scopes, String token) {
+        if (scopes == null || scopes.isBlank()) return false;
+        for (var part : scopes.split("\\s+")) {
+            if (part.equals(token)) return true;
+        }
+        return false;
+    }
+
+    private static List<String> toList(String[] arr) {
+        return arr == null ? List.of() : List.of(arr);
     }
 }

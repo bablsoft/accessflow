@@ -97,6 +97,8 @@
         "oauth2_local_email_conflict": "Un compte AccessFlow avec cet e-mail utilise déjà un mot de passe. Demandez à un administrateur de basculer le compte en authentification unique avant de réessayer.",
         "oauth2_unexpected_auth": "L'authentification unique a renvoyé un état d'authentification inattendu.",
         "oauth2_unknown_provider": "L'authentification unique a renvoyé un fournisseur inconnu.",
+        "oauth2_org_not_allowed": "Votre compte fournisseur n'appartient à aucune organisation autorisée par AccessFlow.",
+        "oauth2_email_domain_not_allowed": "Votre domaine de courriel n'est pas autorisé par AccessFlow.",
         "account_disabled": "Votre compte AccessFlow est actuellement désactivé.",
         "generic": "L'authentification unique a échoué. Veuillez réessayer."
       }
@@ -177,7 +179,10 @@
       "client_secret_max": "Le Client secret ne doit pas dépasser 2048 caractères.",
       "scopes_max": "La substitution des scopes ne doit pas dépasser 1024 caractères.",
       "tenant_id_max": "Le Tenant ID ne doit pas dépasser 255 caractères.",
-      "default_role_required": "Le rôle par défaut est obligatoire."
+      "default_role_required": "Le rôle par défaut est obligatoire.",
+      "allowed_max": "La liste ne peut pas contenir plus de 100 entrées.",
+      "allowed_entry_blank": "Les entrées ne peuvent pas être vides.",
+      "allowed_entry_max": "Chaque entrée ne doit pas dépasser 255 caractères."
     },
     "system_smtp": {
       "host_required": "L'hôte SMTP est obligatoire.",
@@ -798,6 +803,23 @@
       "label_scopes_help": "Séparés par des espaces. Laissez vide pour utiliser les valeurs par défaut du fournisseur.",
       "label_tenant_id": "Tenant ID",
       "label_tenant_id_help": "Utilisez \"common\" pour tout compte Microsoft, \"organizations\" pour tout compte professionnel ou scolaire, ou un GUID de tenant spécifique.",
+      "label_allowed_organizations": "Organisations autorisées",
+      "label_allowed_email_domains": "Domaines de courriel autorisés",
+      "allowed_orgs_help": {
+        "google": "Google applique cette restriction via le domaine du courriel — utilisez le champ ci-dessous. Cette liste est ignorée pour Google.",
+        "github": "Logins d'organisations GitHub (sensible à la casse). Nécessite le scope read:org. Vide = tout utilisateur GitHub peut se connecter.",
+        "microsoft": "IDs d'objet des groupes AAD de Microsoft Entra. L'application doit être configurée pour émettre la revendication \"groups\". Vide = tout utilisateur du tenant peut se connecter.",
+        "gitlab": "Chemins complets de groupes GitLab issus de la revendication OIDC \"groups\". Vide = tout utilisateur GitLab peut se connecter."
+      },
+      "allowed_orgs_placeholder": {
+        "google": "Utilisez le champ des domaines de courriel ci-dessous",
+        "github": "bablsoft, acme-corp",
+        "microsoft": "11111111-2222-3333-4444-555555555555",
+        "gitlab": "acme/team"
+      },
+      "allowed_domains_help": "Séparés par virgule ou espace. Comparaison insensible à la casse avec le domaine du courriel. Vide = tout domaine accepté.",
+      "github_read_org_scope_warning_title": "GitHub ne renverra pas l'appartenance aux organisations privées",
+      "github_read_org_scope_warning": "Une liste d'organisations autorisées est définie mais la substitution des scopes ne contient pas read:org. Le serveur rejettera l'enregistrement tant que la configuration est active. Ajoutez read:org à la substitution des scopes.",
       "label_default_role": "Rôle par défaut pour les nouveaux utilisateurs",
       "label_active": "Actif",
       "client_id_tooltip": {

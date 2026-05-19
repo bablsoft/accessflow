@@ -182,6 +182,49 @@ class AdminOAuth2ConfigControllerIntegrationTest {
     }
 
     @Test
+    void putPersistsAllowlistsAndExposesThemInResponse() {
+        var body = "{\"client_id\":\"c\",\"client_secret\":\"s\","
+                + "\"scopes_override\":\"read:user user:email read:org\","
+                + "\"allowed_organizations\":[\"bablsoft\",\"acme\"],"
+                + "\"allowed_email_domains\":[\"Example.com\",\"acme.com\"],"
+                + "\"default_role\":\"ANALYST\",\"active\":true}";
+
+        var put = mvc.put().uri("/api/v1/admin/oauth2-config/GITHUB")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(put).hasStatus(200);
+        assertThat(put).bodyJson().extractingPath("$.allowed_organizations").asArray()
+                .containsExactly("bablsoft", "acme");
+        assertThat(put).bodyJson().extractingPath("$.allowed_email_domains").asArray()
+                .containsExactly("example.com", "acme.com");
+
+        var stored = repository.findByOrganizationIdAndProvider(org.getId(),
+                OAuth2ProviderType.GITHUB).orElseThrow();
+        assertThat(stored.getAllowedOrganizations()).containsExactly("bablsoft", "acme");
+        assertThat(stored.getAllowedEmailDomains()).containsExactly("example.com", "acme.com");
+    }
+
+    @Test
+    void putRejectsGithubActivationWithAllowedOrgsButWithoutReadOrgScope() {
+        var body = "{\"client_id\":\"c\",\"client_secret\":\"s\","
+                + "\"scopes_override\":\"read:user user:email\","
+                + "\"allowed_organizations\":[\"bablsoft\"],"
+                + "\"default_role\":\"ANALYST\",\"active\":true}";
+
+        var put = mvc.put().uri("/api/v1/admin/oauth2-config/GITHUB")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(put).hasStatus(422);
+        assertThat(put).bodyJson().extractingPath("$.error").asString().isEqualTo("OAUTH2_CONFIG_INVALID");
+    }
+
+    @Test
     void deleteRemovesRow() {
         var firstBody = "{\"client_id\":\"c\",\"client_secret\":\"s\",\"default_role\":\"ANALYST\",\"active\":true}";
         mvc.put().uri("/api/v1/admin/oauth2-config/GITLAB")

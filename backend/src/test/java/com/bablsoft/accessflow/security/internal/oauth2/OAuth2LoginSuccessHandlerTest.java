@@ -16,7 +16,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -37,7 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,6 +52,7 @@ class OAuth2LoginSuccessHandlerTest {
     @Mock OAuth2ExchangeCodeStore exchangeCodeStore;
     @Mock OAuth2AuthorizedClientService authorizedClientService;
     @Mock OAuth2EmailResolver emailResolver;
+    @Mock OAuth2MembershipResolver membershipResolver;
     @Mock AuditLogService auditLogService;
     @Mock HttpServletRequest request;
     @Mock HttpServletResponse response;
@@ -70,7 +69,8 @@ class OAuth2LoginSuccessHandlerTest {
                 Duration.ofMinutes(1));
         handler = new OAuth2LoginSuccessHandler(
                 userProvisioningService, oauth2ConfigService, organizationLookupService,
-                exchangeCodeStore, authorizedClientService, emailResolver, properties, auditLogService);
+                exchangeCodeStore, authorizedClientService, emailResolver, membershipResolver,
+                properties, auditLogService);
     }
 
     @AfterEach
@@ -118,7 +118,7 @@ class OAuth2LoginSuccessHandlerTest {
                 .thenReturn(new OAuth2EmailResolver.Resolved("u@x.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
-                .thenReturn(view(UserRoleType.REVIEWER));
+                .thenReturn(view(OAuth2ProviderType.GOOGLE, UserRoleType.REVIEWER, List.of(), List.of()));
         when(userProvisioningService.findOrProvision(eq(orgId), eq("u@x.com"), eq("User"),
                 eq(AuthProviderType.OAUTH2), eq(UserRoleType.REVIEWER)))
                 .thenReturn(provisionedUser());
@@ -139,7 +139,7 @@ class OAuth2LoginSuccessHandlerTest {
                 .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
-                .thenReturn(view(UserRoleType.ANALYST));
+                .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST, List.of(), List.of()));
         when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
                 .thenThrow(new ExternalLocalAccountConflictException("a@b.com"));
 
@@ -147,6 +147,82 @@ class OAuth2LoginSuccessHandlerTest {
 
         verify(response).sendRedirect(contains("error=OAUTH2_LOCAL_EMAIL_CONFLICT"));
         verify(exchangeCodeStore, never()).issue(any());
+    }
+
+    @Test
+    void rejectsLoginWhenEmailDomainNotAllowed() throws Exception {
+        stubAuthorizedClient("google");
+        var token = oauth2Token("google", Map.of("sub", "1", "email", "u@evil.com"));
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString()))
+                .thenReturn(new OAuth2EmailResolver.Resolved("u@evil.com", "User", true));
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
+                .thenReturn(view(OAuth2ProviderType.GOOGLE, UserRoleType.ANALYST,
+                        List.of(), List.of("example.com", "acme.com")));
+
+        handler.onAuthenticationSuccess(request, response, token);
+
+        verify(response).sendRedirect(contains("error=OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED"));
+        verify(userProvisioningService, never()).findOrProvision(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void allowsLoginWhenEmailDomainMatchesCaseInsensitively() throws Exception {
+        stubAuthorizedClient("google");
+        var token = oauth2Token("google", Map.of("sub", "1", "email", "u@Example.com"));
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString()))
+                .thenReturn(new OAuth2EmailResolver.Resolved("u@Example.com", "User", true));
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
+                .thenReturn(view(OAuth2ProviderType.GOOGLE, UserRoleType.ANALYST,
+                        List.of(), List.of("example.com")));
+        when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
+                .thenReturn(provisionedUser());
+        when(exchangeCodeStore.issue(userId)).thenReturn("OK");
+
+        handler.onAuthenticationSuccess(request, response, token);
+
+        verify(response).sendRedirect("https://app.example.com/auth/oauth/callback?code=OK");
+    }
+
+    @Test
+    void rejectsLoginWhenOrganizationMembershipMissing() throws Exception {
+        stubAuthorizedClient("github");
+        var token = oauth2Token("github", Map.of("id", 1, "email", "a@b.com"));
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString()))
+                .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
+                .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST,
+                        List.of("bablsoft"), List.of()));
+        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString()))
+                .thenReturn(Set.of("some-other-org"));
+
+        handler.onAuthenticationSuccess(request, response, token);
+
+        verify(response).sendRedirect(contains("error=OAUTH2_ORG_NOT_ALLOWED"));
+        verify(userProvisioningService, never()).findOrProvision(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void allowsLoginWhenOrganizationIntersects() throws Exception {
+        stubAuthorizedClient("github");
+        var token = oauth2Token("github", Map.of("id", 1, "email", "a@b.com"));
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString()))
+                .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
+                .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST,
+                        List.of("bablsoft", "acme"), List.of()));
+        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString()))
+                .thenReturn(Set.of("acme", "another"));
+        when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
+                .thenReturn(provisionedUser());
+        when(exchangeCodeStore.issue(userId)).thenReturn("OK2");
+
+        handler.onAuthenticationSuccess(request, response, token);
+
+        verify(response).sendRedirect("https://app.example.com/auth/oauth/callback?code=OK2");
     }
 
     private OAuth2AuthenticationToken oauth2Token(String registrationId, Map<String, Object> attrs) {
@@ -173,9 +249,12 @@ class OAuth2LoginSuccessHandlerTest {
                 .thenReturn(authorizedClient);
     }
 
-    private OAuth2ConfigView view(UserRoleType defaultRole) {
-        return new OAuth2ConfigView(UUID.randomUUID(), orgId, OAuth2ProviderType.GOOGLE,
-                "client-id", true, null, null, defaultRole, true,
+    private OAuth2ConfigView view(OAuth2ProviderType provider, UserRoleType defaultRole,
+                                  List<String> allowedOrgs, List<String> allowedDomains) {
+        return new OAuth2ConfigView(UUID.randomUUID(), orgId, provider,
+                "client-id", true, null, null,
+                allowedOrgs, allowedDomains,
+                defaultRole, true,
                 Instant.now(), Instant.now());
     }
 

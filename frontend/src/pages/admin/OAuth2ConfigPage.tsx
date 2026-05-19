@@ -107,8 +107,17 @@ interface OAuth2FormValues {
   client_secret?: string;
   scopes_override?: string;
   tenant_id?: string;
+  allowed_organizations?: string[];
+  allowed_email_domains?: string[];
   default_role: Role;
   active: boolean;
+}
+
+const GITHUB_READ_ORG_SCOPE = 'read:org';
+
+function scopesContain(scopes: string | undefined | null, token: string): boolean {
+  if (!scopes) return false;
+  return scopes.split(/\s+/).includes(token);
 }
 
 function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
@@ -130,6 +139,8 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       client_secret: config.client_secret ?? '',
       scopes_override: config.scopes_override ?? '',
       tenant_id: config.tenant_id ?? '',
+      allowed_organizations: config.allowed_organizations ?? [],
+      allowed_email_domains: config.allowed_email_domains ?? [],
       default_role: config.default_role,
       active: config.active,
     }),
@@ -165,6 +176,8 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         values.client_secret === MASK ? undefined : blankToNull(values.client_secret),
       scopes_override: blankToNull(values.scopes_override),
       tenant_id: blankToNull(values.tenant_id),
+      allowed_organizations: normalizeOrganizations(values.allowed_organizations),
+      allowed_email_domains: normalizeDomains(values.allowed_email_domains),
       default_role: values.default_role,
       active: values.active,
     });
@@ -286,6 +299,82 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         </Form.Item>
       )}
       <Form.Item
+        name="allowed_organizations"
+        label={
+          <span>
+            {t('admin.oauth2.label_allowed_organizations')}{' '}
+            <Tooltip
+              title={t(`admin.oauth2.allowed_orgs_help.${provider.toLowerCase()}`)}
+            >
+              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+            </Tooltip>
+          </span>
+        }
+        extra={t(`admin.oauth2.allowed_orgs_help.${provider.toLowerCase()}`)}
+        rules={[
+          {
+            validator: (_rule, value: string[] | undefined) =>
+              validateAllowlist(value, t),
+          },
+        ]}
+      >
+        <Select
+          mode="tags"
+          tokenSeparators={[',', ' ']}
+          placeholder={t(`admin.oauth2.allowed_orgs_placeholder.${provider.toLowerCase()}`)}
+          maxTagCount="responsive"
+          disabled={provider === 'GOOGLE'}
+          aria-label={t('admin.oauth2.label_allowed_organizations')}
+        />
+      </Form.Item>
+      <Form.Item
+        name="allowed_email_domains"
+        label={
+          <span>
+            {t('admin.oauth2.label_allowed_email_domains')}{' '}
+            <Tooltip title={t('admin.oauth2.allowed_domains_help')}>
+              <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+            </Tooltip>
+          </span>
+        }
+        extra={t('admin.oauth2.allowed_domains_help')}
+        rules={[
+          {
+            validator: (_rule, value: string[] | undefined) =>
+              validateAllowlist(value, t),
+          },
+        ]}
+      >
+        <Select
+          mode="tags"
+          tokenSeparators={[',', ' ']}
+          placeholder="example.com"
+          maxTagCount="responsive"
+          aria-label={t('admin.oauth2.label_allowed_email_domains')}
+        />
+      </Form.Item>
+      {provider === 'GITHUB' && (
+        <Form.Item shouldUpdate noStyle>
+          {({ getFieldValue }) => {
+            const orgs = (getFieldValue('allowed_organizations') ?? []) as string[];
+            const scopes = (getFieldValue('scopes_override') ?? '') as string;
+            const needsWarning =
+              orgs.filter((o) => o && o.trim().length > 0).length > 0 &&
+              !scopesContain(scopes, GITHUB_READ_ORG_SCOPE);
+            if (!needsWarning) return null;
+            return (
+              <Alert
+                type="warning"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={t('admin.oauth2.github_read_org_scope_warning_title')}
+                description={t('admin.oauth2.github_read_org_scope_warning')}
+              />
+            );
+          }}
+        </Form.Item>
+      )}
+      <Form.Item
         name="default_role"
         label={t('admin.oauth2.label_default_role')}
         rules={[{ required: true, message: t('validation.oauth2.default_role_required') }]}
@@ -344,6 +433,8 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
     client_secret: null,
     scopes_override: null,
     tenant_id: null,
+    allowed_organizations: null,
+    allowed_email_domains: null,
     default_role: 'ANALYST',
     active: false,
     created_at: '',
@@ -354,6 +445,40 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
 function blankToNull(s: string | undefined | null): string | null {
   if (s === undefined || s === null) return null;
   return s.trim().length === 0 ? null : s.trim();
+}
+
+function normalizeOrganizations(values: string[] | undefined): string[] {
+  if (!values) return [];
+  return values
+    .map((v) => (v ?? '').trim())
+    .filter((v) => v.length > 0);
+}
+
+function normalizeDomains(values: string[] | undefined): string[] {
+  if (!values) return [];
+  return values
+    .map((v) => (v ?? '').trim().toLowerCase())
+    .filter((v) => v.length > 0);
+}
+
+function validateAllowlist(
+  values: string[] | undefined,
+  t: (key: string) => string,
+): Promise<void> {
+  if (!values || values.length === 0) return Promise.resolve();
+  if (values.length > 100) {
+    return Promise.reject(new Error(t('validation.oauth2.allowed_max')));
+  }
+  for (const v of values) {
+    const trimmed = (v ?? '').trim();
+    if (trimmed.length === 0) {
+      return Promise.reject(new Error(t('validation.oauth2.allowed_entry_blank')));
+    }
+    if (trimmed.length > 255) {
+      return Promise.reject(new Error(t('validation.oauth2.allowed_entry_max')));
+    }
+  }
+  return Promise.resolve();
 }
 
 function defaultScopesFor(provider: OAuth2Provider): string {
