@@ -1,0 +1,20 @@
+{
+  "name": "accessflow-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "End-to-end Playwright suite for AccessFlow. Spins up Postgres + Redis + backend + frontend via docker-compose.e2e.yml and exercises the real auth flow.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "stack:up": "docker compose -f docker-compose.e2e.yml up --build -d --wait",
+    "stack:down": "docker compose -f docker-compose.e2e.yml down -v",
+    "stack:logs": "docker compose -f docker-compose.e2e.yml logs --tail=200",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,135 @@
+# AccessFlow End-to-End test stack
+#
+# Brings up Postgres + Redis + backend (built from ../backend) + frontend
+# (built from ../frontend) for Playwright to drive. Every service has a
+# healthcheck so `docker compose up --wait` blocks until the stack is ready.
+#
+# The backend boots with `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, which makes the
+# bootstrap reconciler create the org + admin on ApplicationReadyEvent. See
+# e2e/README.md for the seeded admin credentials.
+#
+# No persistent volumes — each compose-up starts from an empty database so
+# the reconciler always re-seeds the admin deterministically.
+#
+# ⚠️  DEMO ONLY — the JWT private key and encryption key below are the same
+#     demo defaults used by the root docker-compose.yml. They are committed
+#     deliberately and are NOT safe for any deployment that handles real data.
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: accessflow
+      POSTGRES_USER: accessflow
+      POSTGRES_PASSWORD: accessflow
+    volumes:
+      - ../deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accessflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - e2e-network
+
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - e2e-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/accessflow
+      DB_USER: accessflow
+      DB_PASSWORD: accessflow
+      AUDIT_DB_USER: accessflow_audit
+      AUDIT_DB_PASSWORD: accessflow_audit
+      REDIS_URL: redis://redis:6379
+      CORS_ALLOWED_ORIGIN: http://localhost:5173
+      ACCESSFLOW_PUBLIC_BASE_URL: http://localhost:5173
+      # Demo-only — see warning at the top of this file.
+      ENCRYPTION_KEY: 40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e
+      JWT_PRIVATE_KEY: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDpKubqwZpI/V7x
+        zdZ1kretfg9BOiEKklPjfE8f4FHLSkog18xIgwLx1nnkD58Gsud3ynGc6kHFdNuJ
+        h1ugqvqnqhvNesPntNdyIMPSw6Ym4mBUzBgXXKSA6v4WxFxugSJyWFT068f0vmzN
+        CFAuW4DKxFXxUslRnUJTCDzEwBjTNmSZ5MunycdRD4enf1k+XAgdu09WrxO7yCsw
+        NAh255KIwQew1PX1Vbl3koz61pcL6Wu6zDsCsClChUAelDrttZulXe5e3d4BPxFt
+        h4JLGkHb41EdGAs/ksZKSS0+5j4FTdZbOwD7mZxNqaGR5sHgD3kTGJGBOUrM/D9O
+        DDkYjBsVAgMBAAECggEAGEZeKhyj2mt+ggAjDrSKqOZR4kGSBQ686xcbCb+J5HdE
+        hmzRGM+C8/iXUhYKQWFI1eDeuS5uUIdc/9F2yaBjXidIo7jfQnVCZOBiYsP5vVye
+        GNXywCPmAIH2mBozYVHSa0Mk/Sa695EHtMTjzB+8pd+Q7wHmcbfEmu5lnTo+m2aA
+        bKF18PE6LvmaSQn9PiB9iCRYVtvN8YeJfV6Ddk953OB1c9s66rU1jU+lKGimFR0V
+        FoDLDOvNX7/B6kPx3jwFiBR14hthR9ImP1ZJBrt6R7/FDBB7w7LREuz9HWaXEIJF
+        DfbqauAjGdUtkJwDPP8pdaPG2At7gHozvbzYVM7SQQKBgQD3KNUAq7zx1R8VWtm/
+        QUhHLoHCkLMtmI9rPNlt/sQR/0ftqr2t7tyjb2T3AvT0bFkfCjIsws1ajKLW5qnO
+        BpR+RfYPMcG9HaM66weqgseLvyxHFhFinfDWdgrmiXErjFvklwDuZCFgx++FtVUC
+        /+aBLYww2uTgNeosdKapb7focQKBgQDxgfM39yqLj9U8DwdLHerU++lGtzIV42HC
+        NJBWrU6bM1osNZDa60QiqB58MJ5+RnJ2pyayrG/ye+ktX3eb1XYk6RFG0rbFoe6u
+        C3cpgDDBUnrAfoH+buIuDBImpukawrwU852snqcYl50XQS08Hhc94RMYIUVjRnNu
+        I1Oy8QMO5QKBgQDG9lrJqHZ4otzb3v/Mw2vAyYJxsvRabyZ86EYMEvuZlUw82abJ
+        3rBE7MZ1Ri8UmCgCIb4UZFjVXMM1hggJryhYok8bGi3g5HvjURIhxBeIusOVEgG6
+        xnP64JmTze6JZPsQgDKitX5dH3YEx92Ahan0MUtahMucZip10Q3c9e8xMQKBgBRu
+        Ec0iM48q07cI7m0EUuFBjjJVPP9tBNAQ8kTi1Et8xJwIzAA49sKXxjxrQH0eKICx
+        Eyz6OV4h7U/RS6T7Ictti/CZ0qxVToOapLH2DinMeGXgTc7gQnHyw3ZRmFaTMqXz
+        FduMcEY8TSWydckoIn8xkxPvfJcxVoJyqpnwmXmhAoGBAOWj1o/5bHoK/DUL4XwF
+        q6ZiCwUK3dUN4ESZSikf8f/wx4KQbZkImUl8G4YteU0B4LxTfpV2cYqOgQC+ZgVH
+        VJzct9S/22a5ic6pJ/Ptc0Qo2972+SL2KID8YU+djJeVuX02D0loje4FlJcazC/2
+        TlbFvcqWpz+LOoXn3aGgJJOr
+        -----END PRIVATE KEY-----
+      # Bootstrap reconciler seeds the deterministic E2E admin on startup.
+      ACCESSFLOW_BOOTSTRAP_ENABLED: "true"
+      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: "E2E Test Org"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
+      ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"
+    healthcheck:
+      # /actuator/health is permitAll. busybox wget is present in the
+      # eclipse-temurin:25-jre-alpine runtime stage of the backend image.
+      # 127.0.0.1 (not localhost) — busybox resolves localhost to ::1 first.
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - "8080:8080"
+    networks:
+      - e2e-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 rather than localhost: inside the container, busybox wget
+      # resolves "localhost" to ::1 first and nginx only binds IPv4 by default.
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5173:80"
+    networks:
+      - e2e-network
+
+networks:
+  e2e-network:
+    driver: bridge

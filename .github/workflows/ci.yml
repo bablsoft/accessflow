@@ -20,6 +20,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       helm: ${{ steps.filter.outputs.helm }}
+      e2e: ${{ steps.filter.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -34,6 +35,11 @@ jobs:
               - '.github/workflows/ci.yml'
             helm:
               - 'charts/**'
+              - '.github/workflows/ci.yml'
+            e2e:
+              - 'e2e/**'
+              - 'frontend/**'
+              - 'backend/**'
               - '.github/workflows/ci.yml'
 
   backend:
@@ -197,13 +203,64 @@ jobs:
             -f charts/accessflow/ci/bootstrap-values.yaml \
             > /tmp/rendered-bootstrap.yaml
 
+  e2e:
+    name: E2E
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the e2e stack
+        # `--wait` blocks until every service's healthcheck reports healthy
+        # (or fails fast). See e2e/docker-compose.e2e.yml for healthchecks.
+        run: docker compose -f docker-compose.e2e.yml up --build -d --wait
+
+      - name: Run Playwright tests
+        run: npm test
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --no-color
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
   # Single required status check for branch protection. This job always runs
   # and succeeds when each upstream job either passed or was correctly skipped
   # (its path filter did not match). Configure branch protection to require
   # only this check ("CI / CI Gate") — never the individual area jobs.
   gate:
     name: CI Gate
-    needs: [changes, backend, frontend, helm]
+    needs: [changes, backend, frontend, helm, e2e]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -213,6 +270,7 @@ jobs:
           BACKEND_RESULT: ${{ needs.backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           HELM_RESULT: ${{ needs.helm.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           set -euo pipefail
           if [[ "$CHANGES_RESULT" != "success" ]]; then
@@ -220,7 +278,7 @@ jobs:
             exit 1
           fi
           status=0
-          for area in backend frontend helm; do
+          for area in backend frontend helm e2e; do
             var="$(echo "$area" | tr '[:lower:]' '[:upper:]')_RESULT"
             result="${!var}"
             case "$result" in

@@ -29,6 +29,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
+├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml
 ├── charts/           # Helm charts — currently charts/accessflow/
 ├── docs/             # Design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
@@ -531,12 +532,13 @@ Built with CodeMirror 6. Required features:
 ```bash
 cd frontend
 npm run test           # Vitest unit + component tests
-npm run test:e2e       # Playwright (requires running backend)
 npm run test:coverage  # Coverage report (enforces threshold)
 npm run lint           # ESLint
 npm run typecheck      # tsc -b --noEmit
 npm run build          # Vite production build
 ```
+
+Playwright E2E tests live at the top-level [`e2e/`](e2e/) directory (NOT under `frontend/`). They have their own `package.json`, `playwright.config.ts`, and `docker-compose.e2e.yml` that builds the backend and frontend images from the working tree and seeds a deterministic admin via the `bootstrap` module. See [e2e/README.md](e2e/README.md) for the local run flow.
 
 **Coverage target: ≥ 90% line coverage** — same gate as the backend. Enforced by Vitest's `coverage.thresholds` in `vite.config.ts`; the build fails when below threshold. Branches must hit ≥ 80%, lines/functions/statements ≥ 90%.
 
@@ -547,10 +549,12 @@ CI pipeline (`frontend` job in `.github/workflows/ci.yml`):
 - Steps: `npm ci → lint → typecheck → test:coverage → build`.
 - Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
+The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It boots the full stack from [e2e/docker-compose.e2e.yml](e2e/docker-compose.e2e.yml) (building backend + frontend images from the working tree), waits on healthchecks, runs Playwright, and is included in the `CI Gate` aggregate.
+
 **Test layering and conventions:**
 - **Unit tests** (`src/utils`, `src/mocks`, store logic): pure logic only, no React.
 - **Component tests** (React Testing Library): assert behaviour from the user's perspective — query by role/label, not test IDs. No snapshot tests of large component trees.
-- **E2E tests** (Playwright, when added): cover login, submit query, approve in review queue, create datasource. Backed by a real backend (compose + Testcontainers) — not by mocks.
+- **E2E tests** (Playwright, in [`e2e/`](e2e/)): drive the real backend + frontend via docker-compose. Seed deterministic state through the `bootstrap` module's env vars — never via test-only endpoints.
 - Mock HTTP at the network layer with **MSW** (when first needed); do not mock Axios directly.
 - Tests live alongside source as `*.test.ts(x)` or in `__tests__/`. Pick one per directory and stay consistent.
 
