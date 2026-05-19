@@ -17,12 +17,16 @@ import net.sf.jsqlparser.statement.delete.Delete;
 import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.select.Select;
 import net.sf.jsqlparser.statement.update.Update;
+import net.sf.jsqlparser.util.TablesNamesFinder;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -61,7 +65,9 @@ class SqlParserServiceImpl implements SqlParserService {
         if (statements.size() > 1) {
             throw new InvalidSqlException(msg("error.sql_multiple_statements"));
         }
-        return new SqlParseResult(classify(statements.get(0)), sql);
+        var statement = statements.get(0);
+        return new SqlParseResult(classify(statement), false, List.of(sql),
+                extractReferencedTables(statement));
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -103,7 +109,11 @@ class SqlParserServiceImpl implements SqlParserService {
         }
         var representativeType = classify(statements.get(0));
         var statementSlices = sliceStatements(statements);
-        return new SqlParseResult(representativeType, true, statementSlices);
+        var referencedTables = new HashSet<String>();
+        for (Statement statement : statements) {
+            referencedTables.addAll(extractReferencedTables(statement));
+        }
+        return new SqlParseResult(representativeType, true, statementSlices, referencedTables);
     }
 
     private List<Statement> parseStatementsOrThrow(String sql) {
@@ -129,6 +139,49 @@ class SqlParserServiceImpl implements SqlParserService {
             out.add(statement.toString());
         }
         return out;
+    }
+
+    private static Set<String> extractReferencedTables(Statement statement) {
+        Set<String> raw;
+        try {
+            raw = new TablesNamesFinder<>().getTables(statement);
+        } catch (RuntimeException ex) {
+            // JSqlParser raises UnsupportedOperationException on a handful of exotic statement
+            // shapes. Leaving the set empty here means the allow-list check at the workflow
+            // layer cannot enforce — DDL is already gated by canDdl, and any unknown statement
+            // class has already been rejected by classify() = QueryType.OTHER upstream.
+            return Set.of();
+        }
+        if (raw == null || raw.isEmpty()) {
+            return Set.of();
+        }
+        var out = new HashSet<String>(raw.size());
+        for (String name : raw) {
+            out.add(normalizeIdentifier(name));
+        }
+        return out;
+    }
+
+    /**
+     * Collapse a {@code schema.table} (or bare {@code table}) reference into a comparable form:
+     * quotes stripped, ASCII-lowercased. PostgreSQL folds unquoted identifiers to lower-case at
+     * resolution time; quoted identifiers preserve case. AccessFlow's v1.0 allow-list match is
+     * case-insensitive across the board so admin-typed entries match user SQL regardless of
+     * quoting style.
+     */
+    static String normalizeIdentifier(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        var stripped = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == '"' || c == '`' || c == '[' || c == ']') {
+                continue;
+            }
+            stripped.append(c);
+        }
+        return stripped.toString().toLowerCase(Locale.ROOT);
     }
 
     private static QueryType classify(Statement statement) {

@@ -208,7 +208,10 @@ Is access expired?
   expires_at < now → 403
          ↓
 Are allowed_schemas / allowed_tables set?
-  YES → validate query AST touches only permitted objects
+  YES → walk parsed JSqlParser AST (TablesNamesFinder), normalise identifiers (strip quotes, lowercase),
+        intersect with allow-list; reject (403, `error.permission.table_not_allowed`) on any miss.
+        Unqualified references match `allowed_tables` only when the bare name is listed —
+        a schemas-only allow-list does NOT cover them.
   Violation → 403
          ↓
 Are restricted_columns set?
@@ -264,7 +267,7 @@ AccessFlow uses defense-in-depth against injection attacks:
 
 2. **PreparedStatement only** — The proxy engine uses `PreparedStatement` exclusively. No string concatenation or interpolation is used to build queries. Transactional batches use one `PreparedStatement` per inner statement, never `Statement.execute()` of a stacked string.
 
-3. **Schema allow-listing at AST level** — If `allowed_tables` is configured, the parsed SQL AST is walked to extract referenced tables. Violations are rejected without touching the database.
+3. **Schema allow-listing at AST level** — If `allowed_schemas` or `allowed_tables` is configured, the parsed SQL AST is walked with JSqlParser's `TablesNamesFinder` to extract referenced tables. Identifiers are normalised (quotes stripped, ASCII-lowercased) before comparison; the union across `BEGIN; …; COMMIT;` envelopes is enforced as a single set. Violations are rejected (HTTP 403) without touching the database. See [docs/05-backend.md → "Schema / table allow-list enforcement"](05-backend.md#schema--table-allow-list-enforcement) for the full match algorithm.
 
 4. **DDL blocked by default** — `can_ddl=false` (the default) prevents CREATE/ALTER/DROP from being executed even if submitted by an ANALYST or REVIEWER.
 

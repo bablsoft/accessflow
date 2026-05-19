@@ -351,4 +351,80 @@ class SqlParserServiceImplTest {
                 .isInstanceOf(InvalidSqlException.class)
                 .hasMessageContaining("COMMIT without matching BEGIN");
     }
+
+    @Test
+    void referencedTablesUnqualifiedSelect() {
+        SqlParseResult result = service.parse("SELECT * FROM users");
+
+        assertThat(result.referencedTables()).containsExactly("users");
+    }
+
+    @Test
+    void referencedTablesQualifiedSelect() {
+        SqlParseResult result = service.parse("SELECT * FROM public.users");
+
+        assertThat(result.referencedTables()).containsExactly("public.users");
+    }
+
+    @Test
+    void referencedTablesJoinAcrossSchemas() {
+        SqlParseResult result = service.parse(
+                "SELECT u.id, o.id FROM users u JOIN public.orders o ON o.user_id = u.id");
+
+        assertThat(result.referencedTables()).containsExactlyInAnyOrder("users", "public.orders");
+    }
+
+    @Test
+    void referencedTablesCteAliasNotCounted() {
+        SqlParseResult result = service.parse(
+                "WITH t AS (SELECT * FROM real_table) SELECT * FROM t");
+
+        assertThat(result.referencedTables()).containsExactly("real_table");
+    }
+
+    @Test
+    void referencedTablesSubqueryInJoin() {
+        SqlParseResult result = service.parse(
+                "SELECT * FROM a JOIN (SELECT id FROM b) s ON s.id = a.id");
+
+        assertThat(result.referencedTables()).containsExactlyInAnyOrder("a", "b");
+    }
+
+    @Test
+    void referencedTablesInsert() {
+        SqlParseResult result =
+                service.parse("INSERT INTO public.users (id, email) VALUES (1, 'a@b.c')");
+
+        assertThat(result.referencedTables()).containsExactly("public.users");
+    }
+
+    @Test
+    void referencedTablesUpdate() {
+        SqlParseResult result = service.parse("UPDATE public.users SET email='a@b.c' WHERE id=1");
+
+        assertThat(result.referencedTables()).containsExactly("public.users");
+    }
+
+    @Test
+    void referencedTablesDelete() {
+        SqlParseResult result = service.parse("DELETE FROM public.users WHERE id=1");
+
+        assertThat(result.referencedTables()).containsExactly("public.users");
+    }
+
+    @Test
+    void referencedTablesQuotedMixedCaseLowercased() {
+        SqlParseResult result = service.parse("SELECT * FROM \"Public\".\"Users\"");
+
+        assertThat(result.referencedTables()).containsExactly("public.users");
+    }
+
+    @Test
+    void referencedTablesUnionAcrossTransactionalBatch() {
+        SqlParseResult result = service.parse(
+                "BEGIN; INSERT INTO a (id) VALUES (1); UPDATE b SET x=1 WHERE y=2; COMMIT;");
+
+        assertThat(result.referencedTables()).containsExactlyInAnyOrder("a", "b");
+        assertThat(result.transactional()).isTrue();
+    }
 }
