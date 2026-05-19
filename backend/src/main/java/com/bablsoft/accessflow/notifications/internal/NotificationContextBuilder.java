@@ -98,9 +98,10 @@ class NotificationContextBuilder {
                                                   UserView submitter) {
         return switch (eventType) {
             case QUERY_SUBMITTED -> reviewersForLowestStage(plan, snapshot);
-            case QUERY_APPROVED, QUERY_REJECTED, REVIEW_TIMEOUT -> submitter != null
+            case QUERY_APPROVED, QUERY_REJECTED -> submitter != null
                     ? List.of(toRecipient(submitter))
                     : List.of();
+            case REVIEW_TIMEOUT -> reviewTimeoutRecipients(snapshot, submitter);
             case AI_HIGH_RISK -> userQueryService
                     .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
                     .stream()
@@ -109,6 +110,20 @@ class NotificationContextBuilder {
                     .toList();
             case TEST -> submitter != null ? List.of(toRecipient(submitter)) : List.of();
         };
+    }
+
+    private List<RecipientView> reviewTimeoutRecipients(QueryRequestSnapshot snapshot,
+                                                        UserView submitter) {
+        var byUserId = new LinkedHashMap<UUID, RecipientView>();
+        if (submitter != null) {
+            byUserId.put(submitter.id(), toRecipient(submitter));
+        }
+        userQueryService
+                .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .forEach(u -> byUserId.putIfAbsent(u.id(), toRecipient(u)));
+        return List.copyOf(byUserId.values());
     }
 
     private List<RecipientView> reviewersForLowestStage(ReviewPlanSnapshot plan,
