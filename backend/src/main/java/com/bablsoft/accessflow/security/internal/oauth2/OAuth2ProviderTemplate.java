@@ -1,15 +1,24 @@
 package com.bablsoft.accessflow.security.internal.oauth2;
 
 import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
+import com.bablsoft.accessflow.security.internal.persistence.entity.OAuth2ConfigEntity;
 
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Static, per-provider OAuth2 metadata: authorization/token/userinfo URLs, default scopes,
+ * Per-provider OAuth2 metadata: authorization/token/userinfo URLs, default scopes,
  * the OIDC flag, and the userinfo claim names this app extracts ({@code email}, display name).
- * The DB-backed config supplies only the client-id/secret/tenant/scopes-override and active flag;
- * everything provider-specific lives here so we never trust admin-entered URLs at runtime.
+ *
+ * <p>For the four built-in providers (GOOGLE, GITHUB, MICROSOFT, GITLAB) the metadata is
+ * static and lives in {@link #TEMPLATES}; the DB-backed config supplies only the
+ * client-id/secret/tenant/scopes-override and active flag, so admin-entered URLs cannot
+ * be used to redirect users elsewhere.
+ *
+ * <p>For the generic {@link OAuth2ProviderType#OIDC} provider, the metadata is supplied by
+ * the {@code oauth2_config} row itself; {@link #fromEntity(OAuth2ConfigEntity)} builds a
+ * template instance from those columns. URLs are operator-editable (admin role, audit-logged)
+ * and never read from an unauthenticated request.
  */
 public final class OAuth2ProviderTemplate {
 
@@ -79,6 +88,45 @@ public final class OAuth2ProviderTemplate {
         return template;
     }
 
+    /**
+     * Returns a template for the given {@code oauth2_config} row. For the four built-in
+     * providers this is equivalent to {@link #forProvider(OAuth2ProviderType)}; for
+     * {@link OAuth2ProviderType#OIDC} it builds the template from the entity's URL and
+     * attribute-name columns, applying defaults for any attribute name left null.
+     */
+    public static OAuth2ProviderTemplate forEntity(OAuth2ConfigEntity entity) {
+        if (entity.getProvider() != OAuth2ProviderType.OIDC) {
+            return forProvider(entity.getProvider());
+        }
+        return new OAuth2ProviderTemplate(
+                OAuth2ProviderType.OIDC,
+                entity.getDisplayName(),
+                entity.getAuthorizationUri(),
+                entity.getTokenUri(),
+                entity.getUserInfoUri(),
+                entity.getJwkSetUri(),
+                entity.getIssuerUri(),
+                Set.of("openid", "email", "profile"),
+                true,
+                blankOrDefault(entity.getUserNameAttribute(), "sub"),
+                blankOrDefault(entity.getEmailAttribute(), "email"),
+                blankOrDefault(entity.getEmailVerifiedAttribute(), "email_verified"),
+                blankOrDefault(entity.getDisplayNameAttribute(), "name"),
+                blankToNull(entity.getGroupsAttribute()));
+    }
+
+    private static String blankOrDefault(String value, String fallback) {
+        if (value == null) return fallback;
+        var trimmed = value.trim();
+        return trimmed.isEmpty() ? fallback : trimmed;
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) return null;
+        var trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private final OAuth2ProviderType provider;
     private final String displayName;
     private final String authorizationUri;
@@ -92,6 +140,7 @@ public final class OAuth2ProviderTemplate {
     private final String emailAttributeName;
     private final String emailVerifiedAttributeName;
     private final String displayNameAttributeName;
+    private final String groupsAttributeName;
 
     private OAuth2ProviderTemplate(OAuth2ProviderType provider,
                                    String displayName,
@@ -106,6 +155,25 @@ public final class OAuth2ProviderTemplate {
                                    String emailAttributeName,
                                    String emailVerifiedAttributeName,
                                    String displayNameAttributeName) {
+        this(provider, displayName, authorizationUri, tokenUri, userInfoUri, jwkSetUri, issuerUri,
+                defaultScopes, oidc, userNameAttributeName, emailAttributeName,
+                emailVerifiedAttributeName, displayNameAttributeName, null);
+    }
+
+    private OAuth2ProviderTemplate(OAuth2ProviderType provider,
+                                   String displayName,
+                                   String authorizationUri,
+                                   String tokenUri,
+                                   String userInfoUri,
+                                   String jwkSetUri,
+                                   String issuerUri,
+                                   Set<String> defaultScopes,
+                                   boolean oidc,
+                                   String userNameAttributeName,
+                                   String emailAttributeName,
+                                   String emailVerifiedAttributeName,
+                                   String displayNameAttributeName,
+                                   String groupsAttributeName) {
         this.provider = provider;
         this.displayName = displayName;
         this.authorizationUri = authorizationUri;
@@ -119,6 +187,7 @@ public final class OAuth2ProviderTemplate {
         this.emailAttributeName = emailAttributeName;
         this.emailVerifiedAttributeName = emailVerifiedAttributeName;
         this.displayNameAttributeName = displayNameAttributeName;
+        this.groupsAttributeName = groupsAttributeName;
     }
 
     public OAuth2ProviderType provider() {
@@ -171,6 +240,10 @@ public final class OAuth2ProviderTemplate {
 
     public String displayNameAttributeName() {
         return displayNameAttributeName;
+    }
+
+    public String groupsAttributeName() {
+        return groupsAttributeName;
     }
 
     private static String substituteTenant(String uri, String tenantId) {

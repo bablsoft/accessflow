@@ -182,7 +182,17 @@
       "default_role_required": "Standardrolle ist erforderlich.",
       "allowed_max": "Die Liste darf höchstens 100 Einträge enthalten.",
       "allowed_entry_blank": "Einträge dürfen nicht leer sein.",
-      "allowed_entry_max": "Jeder Eintrag darf maximal 255 Zeichen lang sein."
+      "allowed_entry_max": "Jeder Eintrag darf maximal 255 Zeichen lang sein.",
+      "display_name_required": "Anzeigename ist erforderlich.",
+      "display_name_max": "Anzeigename darf maximal 255 Zeichen lang sein.",
+      "authorization_uri_required": "Autorisierungs-URL ist erforderlich.",
+      "token_uri_required": "Token-URL ist erforderlich.",
+      "user_info_uri_required": "UserInfo-URL ist erforderlich.",
+      "jwk_set_uri_required": "JWK-Set-URL ist erforderlich.",
+      "issuer_uri_required": "Aussteller-URL ist erforderlich.",
+      "uri_invalid": "Muss eine gültige http(s)-URL sein.",
+      "uri_max": "URL darf maximal 2048 Zeichen lang sein.",
+      "attribute_max": "Claim-Name darf maximal 255 Zeichen lang sein."
     },
     "system_smtp": {
       "host_required": "SMTP-Host ist erforderlich.",
@@ -799,7 +809,8 @@
         "google": "Öffnen Sie die <console>Google Cloud Console &rarr; APIs &amp; Dienste &rarr; Anmeldedaten</console>, erstellen Sie eine OAuth-2.0-Client-ID vom Typ \"Webanwendung\" und fügen Sie die unten stehende Redirect-URI in \"Autorisierte Redirect-URIs\" ein.",
         "github": "Öffnen Sie <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, klicken Sie auf \"New OAuth App\" und fügen Sie die unten stehende Redirect-URI in \"Authorization callback URL\" ein.",
         "microsoft": "Öffnen Sie das <console>Microsoft Entra Admin Center &rarr; App-Registrierungen</console>, registrieren Sie eine neue Anwendung und fügen Sie unter Authentifizierung &rarr; Redirect-URIs einen Web-Plattform-Eintrag mit der unten stehenden URI hinzu. Die Tenant ID finden Sie auf der Übersichtsseite der App.",
-        "gitlab": "Öffnen Sie <console>GitLab &rarr; User Settings &rarr; Applications</console> (oder Admin Area &rarr; Applications für eine organisationsweite Anwendung) und fügen Sie die unten stehende Redirect-URI in \"Redirect URI\" ein."
+        "gitlab": "Öffnen Sie <console>GitLab &rarr; User Settings &rarr; Applications</console> (oder Admin Area &rarr; Applications für eine organisationsweite Anwendung) und fügen Sie die unten stehende Redirect-URI in \"Redirect URI\" ein.",
+        "oidc": "Registrieren Sie einen neuen OAuth-2.0-/OIDC-Client bei Ihrem Identitätsanbieter (Keycloak, Auth0, Okta, Authentik, Zitadel usw.). Verwenden Sie die unten stehende Redirect-URI als erlaubten Callback. Tragen Sie anschließend die Endpunkt-URLs Ihres Anbieters in die folgenden Felder ein – die meisten IdPs veröffentlichen sie unter /.well-known/openid-configuration."
       },
       "callback_url_label": "Redirect-URI, die beim Anbieter eingetragen werden muss",
       "callback_url_help": "Kopieren Sie genau diese URL in die Entwicklerkonsole des Anbieters. AccessFlow akzeptiert den Callback nur unter diesem Pfad.",
@@ -818,13 +829,15 @@
         "google": "Google setzt dies über die E-Mail-Domain um – verwenden Sie das Feld unten. Diese Liste wird für Google ignoriert.",
         "github": "GitHub-Organisations-Logins (Groß-/Kleinschreibung). Erfordert den Scope read:org. Leer = jeder GitHub-Benutzer darf sich anmelden.",
         "microsoft": "Object-IDs von Microsoft-Entra-AAD-Gruppen. Die App muss so konfiguriert sein, dass sie den \"groups\"-Claim ausgibt. Leer = jeder Benutzer aus dem Tenant darf sich anmelden.",
-        "gitlab": "Vollständige GitLab-Gruppenpfade aus dem OIDC-\"groups\"-Claim. Leer = jeder GitLab-Benutzer darf sich anmelden."
+        "gitlab": "Vollständige GitLab-Gruppenpfade aus dem OIDC-\"groups\"-Claim. Leer = jeder GitLab-Benutzer darf sich anmelden.",
+        "oidc": "Gruppenbezeichner aus dem unten als \"Groups-Claim\" konfigurierten Claim. Leer = jeder vom IdP authentifizierte Benutzer darf sich anmelden (alternativ über E-Mail-Domain einschränken)."
       },
       "allowed_orgs_placeholder": {
         "google": "Verwenden Sie das Feld für E-Mail-Domains unten",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Durch Komma oder Leerzeichen getrennt. Wird ohne Berücksichtigung der Groß-/Kleinschreibung mit der E-Mail-Domain abgeglichen. Leer = jede Domain akzeptiert.",
       "github_read_org_scope_warning_title": "GitHub liefert keine privaten Organisations­mitgliedschaften",
@@ -835,14 +848,30 @@
         "google": "Die in der Google Cloud Console erstellte OAuth-2.0-Client-ID. Sieht aus wie 1234567890-abc.apps.googleusercontent.com.",
         "github": "Die Client ID der GitHub OAuth App (auf der Einstellungsseite der App nach der Erstellung sichtbar).",
         "microsoft": "Die Application (client) ID auf der Übersichtsseite der App im Entra Admin Center.",
-        "gitlab": "Die Application ID, die nach der Erstellung der Anwendung in GitLab angezeigt wird."
+        "gitlab": "Die Application ID, die nach der Erstellung der Anwendung in GitLab angezeigt wird.",
+        "oidc": "Die bei Ihrem Identitätsanbieter registrierte OIDC-Client-Kennung."
       },
       "client_secret_tooltip": {
         "google": "Klicken Sie in Google Cloud auf \"Anmeldedaten erstellen\" und laden Sie das Secret herunter – es wird nur einmal angezeigt.",
         "github": "Erzeugen Sie auf der GitHub-OAuth-App-Seite ein neues Client-Secret. Kopieren Sie es sofort; GitHub zeigt es nicht erneut an.",
         "microsoft": "Erstellen Sie unter Zertifikate &amp; Geheimnisse ein neues Client Secret. Kopieren Sie den \"Wert\" (nicht die Secret-ID).",
-        "gitlab": "Wird einmalig direkt nach der Erstellung auf der Anwendungsseite unter \"Secret\" angezeigt."
+        "gitlab": "Wird einmalig direkt nach der Erstellung auf der Anwendungsseite unter \"Secret\" angezeigt.",
+        "oidc": "Das OIDC-Client-Secret, das Ihr Identitätsanbieter bei der Registrierung des Clients ausgegeben hat."
       },
+      "label_display_name": "Anzeigename",
+      "label_display_name_help": "Wird auf der Anmeldeseite auf dem OAuth-Button (\"Anmelden mit …\") angezeigt.",
+      "label_authorization_uri": "Autorisierungs-Endpunkt-URL",
+      "label_token_uri": "Token-Endpunkt-URL",
+      "label_user_info_uri": "UserInfo-Endpunkt-URL",
+      "label_jwk_set_uri": "JWK-Set-URL",
+      "label_issuer_uri": "Aussteller-URL",
+      "label_user_name_attribute": "Claim für Benutzernamen",
+      "label_email_attribute": "Claim für E-Mail",
+      "label_email_verified_attribute": "Claim für verifizierte E-Mail",
+      "label_display_name_attribute": "Claim für Anzeigename",
+      "label_groups_attribute": "Claim für Gruppen",
+      "label_groups_attribute_help": "Erforderlich, wenn \"Zugelassene Organisationen\" gesetzt ist. Name des Claims, der die Gruppen des Benutzers auflistet.",
+      "help_oidc_attribute_defaults": "Claim-Namen sind optional – leer lassen, um die OIDC-Standardwerte zu verwenden (sub, email, email_verified, name).",
       "scopes_tooltip": "Durch Leerzeichen oder Kommas getrennt. Leer lassen, um die Anbieter-Standardwerte ({{defaults}}) zu verwenden.",
       "tenant_id_tooltip": "Microsoft-Entra-Tenant-ID, GUID oder bekannter Alias: \"common\" (beliebiges Microsoft-Konto), \"organizations\" (beliebiges Geschäfts- oder Schul­konto) oder \"consumers\" (nur persönliche Konten).",
       "save_button": "Speichern",

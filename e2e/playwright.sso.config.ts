@@ -18,7 +18,11 @@ const baseURL = process.env.E2E_SSO_BASE_URL ?? 'http://localhost:5175';
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: '**/auth-saml-login.spec.ts',
+  // Both SSO specs run against this stack: the SAML spec drives the
+  // SimpleSAMLphp IdP, the OAuth2 spec drives the navikt/mock-oauth2-server.
+  // Keep this list in sync with the testIgnore list in playwright.config.ts
+  // so neither spec is picked up by the main seeded suite.
+  testMatch: ['**/auth-saml-login.spec.ts', '**/auth-oauth2-login.spec.ts'],
   // The SAML roundtrip (browser → IdP login → SAMLResponse POST → backend
   // ACS → success handler → callback exchange) involves multiple cross-origin
   // navigations through a cold SimpleSAMLphp warm-up, so bump the default
@@ -59,10 +63,17 @@ export default defineConfig({
         // remap them to the published host port (8085) so the browser can
         // follow the Spring SAML redirect to the IdP login form.
         //
-        // See docker-compose.e2e.sso.yml → saml-idp service for the matching
-        // env block.
+        // The OAuth2 spec uses the same trick for navikt/mock-oauth2-server:
+        // backend talks to it via docker DNS on `mock-oauth2-server:8080`
+        // and the browser follows the authorization URL to the same host,
+        // remapped here to 127.0.0.1:8086 (the published port).
+        //
+        // See docker-compose.e2e.sso.yml → saml-idp + mock-oauth2-server
+        // services for the matching env blocks.
         launchOptions: {
-          args: ['--host-resolver-rules=MAP saml-idp:8080 127.0.0.1:8085'],
+          args: [
+            '--host-resolver-rules=MAP saml-idp:8080 127.0.0.1:8085, MAP mock-oauth2-server:8080 127.0.0.1:8086',
+          ],
         },
       },
     },

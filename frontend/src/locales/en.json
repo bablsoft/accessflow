@@ -182,7 +182,17 @@
       "default_role_required": "Default role is required.",
       "allowed_max": "List must contain at most 100 entries.",
       "allowed_entry_blank": "Entries cannot be blank.",
-      "allowed_entry_max": "Each entry must be at most 255 characters."
+      "allowed_entry_max": "Each entry must be at most 255 characters.",
+      "display_name_required": "Display name is required.",
+      "display_name_max": "Display name must be at most 255 characters.",
+      "authorization_uri_required": "Authorization URL is required.",
+      "token_uri_required": "Token URL is required.",
+      "user_info_uri_required": "UserInfo URL is required.",
+      "jwk_set_uri_required": "JWK set URL is required.",
+      "issuer_uri_required": "Issuer URL is required.",
+      "uri_invalid": "Must be a valid http(s) URL.",
+      "uri_max": "URL must be at most 2048 characters.",
+      "attribute_max": "Claim name must be at most 255 characters."
     },
     "system_smtp": {
       "host_required": "SMTP host is required.",
@@ -799,7 +809,8 @@
         "google": "Open the <console>Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</console>, create an OAuth 2.0 Client ID of type \"Web application\", and paste the redirect URI below into \"Authorized redirect URIs\".",
         "github": "Open <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, click \"New OAuth App\", and paste the redirect URI below into \"Authorization callback URL\".",
         "microsoft": "Open the <console>Microsoft Entra admin center &rarr; App registrations</console>, register a new application, and under Authentication &rarr; Redirect URIs add a Web platform entry with the URI below. Capture the tenant ID from the app's overview page.",
-        "gitlab": "Open <console>GitLab &rarr; User Settings &rarr; Applications</console> (or Admin Area &rarr; Applications for an org-wide app), and paste the redirect URI below into \"Redirect URI\"."
+        "gitlab": "Open <console>GitLab &rarr; User Settings &rarr; Applications</console> (or Admin Area &rarr; Applications for an org-wide app), and paste the redirect URI below into \"Redirect URI\".",
+        "oidc": "Register a new OAuth 2.0 / OIDC client in your identity provider (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Use the redirect URI below as the allowed callback. Then paste your provider's endpoint URLs into the fields below — most IdPs publish them at /.well-known/openid-configuration."
       },
       "callback_url_label": "Redirect URI to register with the provider",
       "callback_url_help": "Copy this exact URL into the provider's developer console. AccessFlow accepts the callback only at this path.",
@@ -818,13 +829,15 @@
         "google": "Google enforces this via email domain — use the field below. This list is ignored for Google.",
         "github": "GitHub organization logins (case-sensitive). Requires the read:org scope. Empty = any GitHub user may sign in.",
         "microsoft": "Microsoft Entra AAD group object IDs. The app must be configured to emit the \"groups\" claim. Empty = any user from the tenant may sign in.",
-        "gitlab": "GitLab full group paths from the \"groups\" OIDC claim. Empty = any GitLab user may sign in."
+        "gitlab": "GitLab full group paths from the \"groups\" OIDC claim. Empty = any GitLab user may sign in.",
+        "oidc": "Group identifiers from the claim configured below as \"Groups attribute\". Empty = any user authenticated by the IdP may sign in (or restrict by email domain)."
       },
       "allowed_orgs_placeholder": {
         "google": "Use the email domains field below",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Comma- or space-separated. Matched case-insensitively against the email domain. Empty = any email domain accepted.",
       "github_read_org_scope_warning_title": "GitHub will not return private org membership",
@@ -835,14 +848,30 @@
         "google": "The OAuth 2.0 Client ID created in the Google Cloud Console. Looks like 1234567890-abc.apps.googleusercontent.com.",
         "github": "The GitHub OAuth App's Client ID (visible on the app's settings page once created).",
         "microsoft": "The Application (client) ID shown on the app's Overview page in the Entra admin center.",
-        "gitlab": "The Application ID shown on the application's page after creation in GitLab."
+        "gitlab": "The Application ID shown on the application's page after creation in GitLab.",
+        "oidc": "The OIDC client identifier registered with your identity provider."
       },
       "client_secret_tooltip": {
         "google": "Click \"Create credentials\" in Google Cloud and download the secret — it is only shown once.",
         "github": "Generate a new client secret on the GitHub OAuth App page. Copy it immediately; GitHub does not show it again.",
         "microsoft": "Under Certificates &amp; secrets, create a new Client Secret. Copy the \"Value\" (not the Secret ID).",
-        "gitlab": "Shown once on the application page right after creation under \"Secret\"."
+        "gitlab": "Shown once on the application page right after creation under \"Secret\".",
+        "oidc": "The OIDC client secret issued by your identity provider when the client was registered."
       },
+      "label_display_name": "Display name",
+      "label_display_name_help": "Shown on the login page on the OAuth button (\"Continue with …\").",
+      "label_authorization_uri": "Authorization endpoint URL",
+      "label_token_uri": "Token endpoint URL",
+      "label_user_info_uri": "UserInfo endpoint URL",
+      "label_jwk_set_uri": "JWK set URL",
+      "label_issuer_uri": "Issuer URL",
+      "label_user_name_attribute": "User-name claim",
+      "label_email_attribute": "Email claim",
+      "label_email_verified_attribute": "Email-verified claim",
+      "label_display_name_attribute": "Display-name claim",
+      "label_groups_attribute": "Groups claim",
+      "label_groups_attribute_help": "Required if Allowed organizations is set. Name of the claim that lists the user's groups.",
+      "help_oidc_attribute_defaults": "Attribute claim names are optional — leave blank to use the standard OIDC defaults (sub, email, email_verified, name).",
       "scopes_tooltip": "Space- or comma-separated. Leave empty to use the provider defaults ({{defaults}}).",
       "tenant_id_tooltip": "Microsoft Entra tenant ID, GUID, or a well-known alias: \"common\" (any Microsoft account), \"organizations\" (any work or school account), or \"consumers\" (personal accounts only).",
       "save_button": "Save",

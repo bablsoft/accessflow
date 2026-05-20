@@ -1,6 +1,6 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
 export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2';
-export type OAuth2Provider = 'GOOGLE' | 'GITHUB' | 'MICROSOFT' | 'GITLAB';
+export type OAuth2Provider = 'GOOGLE' | 'GITHUB' | 'MICROSOFT' | 'GITLAB' | 'OIDC';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =
@@ -207,6 +207,17 @@ export interface OAuth2Config {
   client_secret: string | null;
   scopes_override: string | null;
   tenant_id: string | null;
+  display_name: string | null;
+  authorization_uri: string | null;
+  token_uri: string | null;
+  user_info_uri: string | null;
+  jwk_set_uri: string | null;
+  issuer_uri: string | null;
+  user_name_attribute: string | null;
+  email_attribute: string | null;
+  email_verified_attribute: string | null;
+  display_name_attribute: string | null;
+  groups_attribute: string | null;
   allowed_organizations: string[] | null;
   allowed_email_domains: string[] | null;
   default_role: Role;
@@ -220,6 +231,17 @@ export interface UpdateOAuth2ConfigInput {
   client_secret?: string | null;
   scopes_override?: string | null;
   tenant_id?: string | null;
+  display_name?: string | null;
+  authorization_uri?: string | null;
+  token_uri?: string | null;
+  user_info_uri?: string | null;
+  jwk_set_uri?: string | null;
+  issuer_uri?: string | null;
+  user_name_attribute?: string | null;
+  email_attribute?: string | null;
+  email_verified_attribute?: string | null;
+  display_name_attribute?: string | null;
+  groups_attribute?: string | null;
   allowed_organizations?: string[] | null;
   allowed_email_domains?: string[] | null;
   default_role: Role;

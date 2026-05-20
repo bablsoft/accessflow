@@ -182,7 +182,17 @@
       "default_role_required": "Լռելյայն դերը պարտադիր է։",
       "allowed_max": "Ցանկը չի կարող ունենալ ավելի քան 100 գրառում։",
       "allowed_entry_blank": "Գրառումները չեն կարող դատարկ լինել։",
-      "allowed_entry_max": "Յուրաքանչյուր գրառում պետք է լինի ոչ ավելի, քան 255 նիշ։"
+      "allowed_entry_max": "Յուրաքանչյուր գրառում պետք է լինի ոչ ավելի, քան 255 նիշ։",
+      "display_name_required": "Ցուցադրման անունը պարտադիր է։",
+      "display_name_max": "Ցուցադրման անունը չպետք է գերազանցի 255 նիշը։",
+      "authorization_uri_required": "Ավտորիզացիայի URL-ը պարտադիր է։",
+      "token_uri_required": "Token URL-ը պարտադիր է։",
+      "user_info_uri_required": "UserInfo URL-ը պարտադիր է։",
+      "jwk_set_uri_required": "JWK set URL-ը պարտադիր է։",
+      "issuer_uri_required": "Թողարկողի URL-ը պարտադիր է։",
+      "uri_invalid": "Պետք է լինի վավեր http(s) URL։",
+      "uri_max": "URL-ը չպետք է գերազանցի 2048 նիշը։",
+      "attribute_max": "Claim-ի անունը չպետք է գերազանցի 255 նիշը։"
     },
     "system_smtp": {
       "host_required": "SMTP հոստը պարտադիր է։",
@@ -799,7 +809,8 @@
         "google": "Բացեք <console>Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</console>, ստեղծեք «Web application» տիպի OAuth 2.0 Client ID և տեղադրեք ստորև բերված վերահղման URI-ն «Authorized redirect URIs» դաշտում։",
         "github": "Բացեք <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, սեղմեք «New OAuth App» և տեղադրեք ստորև բերված վերահղման URI-ն «Authorization callback URL» դաշտում։",
         "microsoft": "Բացեք <console>Microsoft Entra admin center &rarr; App registrations</console>, գրանցեք նոր հավելված և Authentication &rarr; Redirect URIs բաժնում ավելացրեք Web հարթակի գրառում ստորև բերված URI-ով։ Tenant ID-ն վերցրեք հավելվածի ակնարկի էջից։",
-        "gitlab": "Բացեք <console>GitLab &rarr; User Settings &rarr; Applications</console> (կամ Admin Area &rarr; Applications՝ կազմակերպության մակարդակի հավելվածի համար) և տեղադրեք ստորև բերված վերահղման URI-ն «Redirect URI» դաշտում։"
+        "gitlab": "Բացեք <console>GitLab &rarr; User Settings &rarr; Applications</console> (կամ Admin Area &rarr; Applications՝ կազմակերպության մակարդակի հավելվածի համար) և տեղադրեք ստորև բերված վերահղման URI-ն «Redirect URI» դաշտում։",
+        "oidc": "Գրանցեք նոր OAuth 2.0 / OIDC հաճախորդ ձեր ինքնության մատակարարի մոտ (Keycloak, Auth0, Okta, Authentik, Zitadel և այլն)։ Օգտագործեք ստորև բերված redirect URI-ն որպես թույլատրված callback։ Այնուհետև տեղադրեք ձեր մատակարարի endpoint URL-երը ստորև բերված դաշտերում — IdP-ների մեծ մասը դրանք հրապարակում է /.well-known/openid-configuration-ում։"
       },
       "callback_url_label": "Վերահղման URI, որը պետք է գրանցել մատակարարի մոտ",
       "callback_url_help": "Պատճենեք ուղիղ այս URL-ը մատակարարի մշակողի կոնսոլում։ AccessFlow-ը ընդունում է հետադարձ կանչը միայն այս ուղով։",
@@ -818,13 +829,15 @@
         "google": "Google-ը կիրառում է դա էլ. փոստի դոմենի միջոցով — օգտագործեք ստորև գտնվող դաշտը։ Այս ցանկը Google-ի համար անտեսվում է։",
         "github": "GitHub-ի կազմակերպությունների login-ները (նիշերի ճշգրտությամբ)։ Պահանջում է read:org scope-ը։ Դատարկ = ցանկացած GitHub օգտատեր կարող է մուտք գործել։",
         "microsoft": "Microsoft Entra AAD խմբերի object ID-ները։ Հավելվածը պետք է կարգավորված լինի թողարկելու «groups» claim-ը։ Դատարկ = ցանկացած tenant-ից օգտատեր կարող է մուտք գործել։",
-        "gitlab": "GitLab-ի լրիվ խմբային ուղիները «groups» OIDC claim-ից։ Դատարկ = ցանկացած GitLab օգտատեր կարող է մուտք գործել։"
+        "gitlab": "GitLab-ի լրիվ խմբային ուղիները «groups» OIDC claim-ից։ Դատարկ = ցանկացած GitLab օգտատեր կարող է մուտք գործել։",
+        "oidc": "Խմբերի նույնականացուցիչներ ստորև \"Խմբերի claim\" որպես կարգավորված claim-ից։ Դատարկ = IdP-ի կողմից նույնականացված ցանկացած օգտատեր կարող է մուտք գործել (կամ սահմանափակել email domain-ով)։"
       },
       "allowed_orgs_placeholder": {
         "google": "Օգտագործեք ստորև գտնվող էլ. փոստի դոմենների դաշտը",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Բաժանված ստորակետով կամ բացատով։ Համեմատվում է էլ. փոստի դոմենի հետ առանց ռեգիստրի։ Դատարկ = ցանկացած դոմեն ընդունվում է։",
       "github_read_org_scope_warning_title": "GitHub-ը չի վերադարձնի մասնավոր կազմակերպության անդամակցությունը",
@@ -835,13 +848,15 @@
         "google": "Google Cloud Console-ում ստեղծված OAuth 2.0 Client ID-ն։ Ունի 1234567890-abc.apps.googleusercontent.com տեսքը։",
         "github": "GitHub OAuth հավելվածի Client ID-ն (տեսանելի է հավելվածի կարգավորումների էջում ստեղծվելուց հետո)։",
         "microsoft": "Application (client) ID-ն, որը երևում է հավելվածի ակնարկի էջում Entra admin center-ում։",
-        "gitlab": "Application ID-ն, որը երևում է GitLab-ում հավելվածի ստեղծումից հետո հավելվածի էջում։"
+        "gitlab": "Application ID-ն, որը երևում է GitLab-ում հավելվածի ստեղծումից հետո հավելվածի էջում։",
+        "oidc": "OIDC հաճախորդի նույնականացուցիչ, որը գրանցված է ձեր ինքնության մատակարարի մոտ։"
       },
       "client_secret_tooltip": {
         "google": "Google Cloud-ում սեղմեք «Create credentials» և ներբեռնեք գաղտնիքը, որը ցույց է տրվում միայն մեկ անգամ։",
         "github": "Գեներացրեք նոր client secret GitHub OAuth հավելվածի էջում։ Անմիջապես պատճենեք այն, GitHub-ը այն կրկին չի ցույց տա։",
         "microsoft": "Certificates &amp; secrets բաժնում ստեղծեք նոր Client Secret։ Պատճենեք «Value»-ն (ոչ Secret ID-ն)։",
-        "gitlab": "Ցուցադրվում է մեկ անգամ հավելվածի ստեղծումից անմիջապես հետո՝ «Secret» դաշտում։"
+        "gitlab": "Ցուցադրվում է մեկ անգամ հավելվածի ստեղծումից անմիջապես հետո՝ «Secret» դաշտում։",
+        "oidc": "OIDC հաճախորդի secret, որը տրամադրվել է ձեր ինքնության մատակարարի կողմից հաճախորդը գրանցելիս։"
       },
       "scopes_tooltip": "Բացատներով կամ ստորակետներով։ Թողեք դատարկ՝ մատակարարի լռելյայն արժեքները ({{defaults}}) օգտագործելու համար։",
       "tenant_id_tooltip": "Microsoft Entra-ի Tenant ID, GUID կամ հայտնի alias՝ «common» (ցանկացած Microsoft հաշիվ), «organizations» (ցանկացած աշխատանքային կամ ուսումնական հաշիվ) կամ «consumers» (միայն անձնական հաշիվներ)։",
@@ -850,7 +865,21 @@
       "delete_button": "Հեռացնել",
       "delete_confirm": "Հեռացնե՞լ այս մատակարարի կարգավորումը։ Ընթացիկ մուտք գործած օգտատերերը կմնան մուտքագրված։",
       "delete_success": "OAuth կարգավորումը հեռացված է",
-      "load_error": "Չհաջողվեց բեռնել OAuth կարգավորումը"
+      "load_error": "Չհաջողվեց բեռնել OAuth կարգավորումը",
+      "label_display_name": "Ցուցադրման անուն",
+      "label_display_name_help": "Ցուցադրվում է մուտքի էջում OAuth կոճակի վրա (\"Շարունակել՝ …\")։",
+      "label_authorization_uri": "Ավտորիզացիայի endpoint URL",
+      "label_token_uri": "Token endpoint URL",
+      "label_user_info_uri": "UserInfo endpoint URL",
+      "label_jwk_set_uri": "JWK set URL",
+      "label_issuer_uri": "Թողարկողի URL",
+      "label_user_name_attribute": "Օգտատիրոջ անվան claim",
+      "label_email_attribute": "Էլ. փոստի claim",
+      "label_email_verified_attribute": "Հաստատված էլ. փոստի claim",
+      "label_display_name_attribute": "Ցուցադրման անվան claim",
+      "label_groups_attribute": "Խմբերի claim",
+      "label_groups_attribute_help": "Պարտադիր է, եթե \"Թույլատրված կազմակերպություններ\"-ը սահմանված է։ Claim-ի անունը, որը թվարկում է օգտատիրոջ խմբերը։",
+      "help_oidc_attribute_defaults": "Claim-ների անունները ոչ պարտադիր են — դատարկ թողեք՝ ստանդարտ OIDC-ի լռելյայն արժեքները օգտագործելու համար (sub, email, email_verified, name)։"
     },
     "saml": {
       "title": "SAML / SSO",

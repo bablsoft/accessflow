@@ -182,7 +182,17 @@
       "default_role_required": "Le rôle par défaut est obligatoire.",
       "allowed_max": "La liste ne peut pas contenir plus de 100 entrées.",
       "allowed_entry_blank": "Les entrées ne peuvent pas être vides.",
-      "allowed_entry_max": "Chaque entrée ne doit pas dépasser 255 caractères."
+      "allowed_entry_max": "Chaque entrée ne doit pas dépasser 255 caractères.",
+      "display_name_required": "Le nom d'affichage est requis.",
+      "display_name_max": "Le nom d'affichage doit comporter au maximum 255 caractères.",
+      "authorization_uri_required": "L'URL d'autorisation est requise.",
+      "token_uri_required": "L'URL de jeton est requise.",
+      "user_info_uri_required": "L'URL UserInfo est requise.",
+      "jwk_set_uri_required": "L'URL du jeu JWK est requise.",
+      "issuer_uri_required": "L'URL de l'émetteur est requise.",
+      "uri_invalid": "Doit être une URL http(s) valide.",
+      "uri_max": "L'URL doit comporter au maximum 2048 caractères.",
+      "attribute_max": "Le nom de la revendication doit comporter au maximum 255 caractères."
     },
     "system_smtp": {
       "host_required": "L'hôte SMTP est obligatoire.",
@@ -799,7 +809,8 @@
         "google": "Ouvrez la <console>Google Cloud Console &rarr; APIs et services &rarr; Identifiants</console>, créez un Client ID OAuth 2.0 de type \"Application Web\" et collez l'URI de redirection ci-dessous dans \"URI de redirection autorisés\".",
         "github": "Ouvrez <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, cliquez sur \"New OAuth App\" et collez l'URI de redirection ci-dessous dans \"Authorization callback URL\".",
         "microsoft": "Ouvrez le <console>centre d'administration Microsoft Entra &rarr; Inscriptions d'applications</console>, inscrivez une nouvelle application, puis dans Authentification &rarr; URI de redirection ajoutez une entrée de plateforme Web avec l'URI ci-dessous. Récupérez le Tenant ID sur la page Vue d'ensemble de l'app.",
-        "gitlab": "Ouvrez <console>GitLab &rarr; User Settings &rarr; Applications</console> (ou Admin Area &rarr; Applications pour une application au niveau de l'organisation) et collez l'URI de redirection ci-dessous dans \"Redirect URI\"."
+        "gitlab": "Ouvrez <console>GitLab &rarr; User Settings &rarr; Applications</console> (ou Admin Area &rarr; Applications pour une application au niveau de l'organisation) et collez l'URI de redirection ci-dessous dans \"Redirect URI\".",
+        "oidc": "Enregistrez un nouveau client OAuth 2.0 / OIDC dans votre fournisseur d'identité (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Utilisez l'URI de redirection ci-dessous comme rappel autorisé. Collez ensuite les URL des points de terminaison de votre fournisseur dans les champs ci-dessous — la plupart des IdP les publient à /.well-known/openid-configuration."
       },
       "callback_url_label": "URI de redirection à enregistrer chez le fournisseur",
       "callback_url_help": "Copiez exactement cette URL dans la console développeur du fournisseur. AccessFlow n'accepte le callback qu'à ce chemin.",
@@ -818,13 +829,15 @@
         "google": "Google applique cette restriction via le domaine du courriel — utilisez le champ ci-dessous. Cette liste est ignorée pour Google.",
         "github": "Logins d'organisations GitHub (sensible à la casse). Nécessite le scope read:org. Vide = tout utilisateur GitHub peut se connecter.",
         "microsoft": "IDs d'objet des groupes AAD de Microsoft Entra. L'application doit être configurée pour émettre la revendication \"groups\". Vide = tout utilisateur du tenant peut se connecter.",
-        "gitlab": "Chemins complets de groupes GitLab issus de la revendication OIDC \"groups\". Vide = tout utilisateur GitLab peut se connecter."
+        "gitlab": "Chemins complets de groupes GitLab issus de la revendication OIDC \"groups\". Vide = tout utilisateur GitLab peut se connecter.",
+        "oidc": "Identifiants de groupes provenant de la revendication configurée ci-dessous comme « Revendication des groupes ». Vide = tout utilisateur authentifié par l'IdP peut se connecter (ou restreindre par domaine d'e-mail)."
       },
       "allowed_orgs_placeholder": {
         "google": "Utilisez le champ des domaines de courriel ci-dessous",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Séparés par virgule ou espace. Comparaison insensible à la casse avec le domaine du courriel. Vide = tout domaine accepté.",
       "github_read_org_scope_warning_title": "GitHub ne renverra pas l'appartenance aux organisations privées",
@@ -835,13 +848,15 @@
         "google": "Le Client ID OAuth 2.0 créé dans la Google Cloud Console. Ressemble à 1234567890-abc.apps.googleusercontent.com.",
         "github": "Le Client ID de l'application OAuth GitHub (visible sur la page des paramètres de l'app après sa création).",
         "microsoft": "L'Application (client) ID affiché sur la page Vue d'ensemble de l'app dans le centre d'administration Entra.",
-        "gitlab": "L'Application ID affiché sur la page de l'application après sa création dans GitLab."
+        "gitlab": "L'Application ID affiché sur la page de l'application après sa création dans GitLab.",
+        "oidc": "L'identifiant de client OIDC enregistré auprès de votre fournisseur d'identité."
       },
       "client_secret_tooltip": {
         "google": "Cliquez sur \"Créer des identifiants\" dans Google Cloud et téléchargez le secret — il n'est affiché qu'une fois.",
         "github": "Générez un nouveau client secret sur la page de l'application OAuth GitHub. Copiez-le immédiatement ; GitHub ne le réaffiche pas.",
         "microsoft": "Sous Certificats et secrets, créez un nouveau Client Secret. Copiez la \"Valeur\" (et non l'ID du secret).",
-        "gitlab": "Affiché une seule fois sur la page de l'application juste après sa création, sous \"Secret\"."
+        "gitlab": "Affiché une seule fois sur la page de l'application juste après sa création, sous \"Secret\".",
+        "oidc": "Le secret client OIDC émis par votre fournisseur d'identité lors de l'enregistrement du client."
       },
       "scopes_tooltip": "Séparés par des espaces ou des virgules. Laissez vide pour utiliser les valeurs par défaut du fournisseur ({{defaults}}).",
       "tenant_id_tooltip": "Tenant ID Microsoft Entra, GUID ou alias connu : \"common\" (tout compte Microsoft), \"organizations\" (tout compte professionnel ou scolaire) ou \"consumers\" (comptes personnels uniquement).",
@@ -850,7 +865,21 @@
       "delete_button": "Supprimer",
       "delete_confirm": "Supprimer la configuration de ce fournisseur ? Les utilisateurs déjà connectés le restent.",
       "delete_success": "Configuration OAuth supprimée",
-      "load_error": "Impossible de charger la configuration OAuth"
+      "load_error": "Impossible de charger la configuration OAuth",
+      "label_display_name": "Nom d'affichage",
+      "label_display_name_help": "Affiché sur la page de connexion sur le bouton OAuth (« Continuer avec … »).",
+      "label_authorization_uri": "URL du point de terminaison d'autorisation",
+      "label_token_uri": "URL du point de terminaison de jeton",
+      "label_user_info_uri": "URL du point de terminaison UserInfo",
+      "label_jwk_set_uri": "URL du jeu JWK",
+      "label_issuer_uri": "URL de l'émetteur",
+      "label_user_name_attribute": "Revendication du nom d'utilisateur",
+      "label_email_attribute": "Revendication de l'e-mail",
+      "label_email_verified_attribute": "Revendication d'e-mail vérifié",
+      "label_display_name_attribute": "Revendication du nom d'affichage",
+      "label_groups_attribute": "Revendication des groupes",
+      "label_groups_attribute_help": "Requis si « Organisations autorisées » est défini. Nom de la revendication qui liste les groupes de l'utilisateur.",
+      "help_oidc_attribute_defaults": "Les noms des revendications sont optionnels — laissez vide pour utiliser les valeurs par défaut OIDC (sub, email, email_verified, name)."
     },
     "saml": {
       "title": "SAML / SSO",

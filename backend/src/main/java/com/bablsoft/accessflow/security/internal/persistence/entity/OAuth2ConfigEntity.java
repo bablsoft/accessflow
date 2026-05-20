@@ -54,6 +54,39 @@ public class OAuth2ConfigEntity {
     @Column(name = "tenant_id", length = 255)
     private String tenantId;
 
+    @Column(name = "display_name", length = 255)
+    private String displayName;
+
+    @Column(name = "authorization_uri", length = 2048)
+    private String authorizationUri;
+
+    @Column(name = "token_uri", length = 2048)
+    private String tokenUri;
+
+    @Column(name = "user_info_uri", length = 2048)
+    private String userInfoUri;
+
+    @Column(name = "jwk_set_uri", length = 2048)
+    private String jwkSetUri;
+
+    @Column(name = "issuer_uri", length = 2048)
+    private String issuerUri;
+
+    @Column(name = "user_name_attribute", length = 255)
+    private String userNameAttribute;
+
+    @Column(name = "email_attribute", length = 255)
+    private String emailAttribute;
+
+    @Column(name = "email_verified_attribute", length = 255)
+    private String emailVerifiedAttribute;
+
+    @Column(name = "display_name_attribute", length = 255)
+    private String displayNameAttribute;
+
+    @Column(name = "groups_attribute", length = 255)
+    private String groupsAttribute;
+
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "allowed_organizations", columnDefinition = "text[]")
     private String[] allowedOrganizations;

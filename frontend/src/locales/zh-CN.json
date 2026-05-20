@@ -182,7 +182,17 @@
       "default_role_required": "默认角色为必填项。",
       "allowed_max": "列表条目不能超过 100 个。",
       "allowed_entry_blank": "条目不能为空。",
-      "allowed_entry_max": "每个条目长度不能超过 255 个字符。"
+      "allowed_entry_max": "每个条目长度不能超过 255 个字符。",
+      "display_name_required": "显示名称为必填项。",
+      "display_name_max": "显示名称最多 255 个字符。",
+      "authorization_uri_required": "授权 URL 为必填项。",
+      "token_uri_required": "令牌 URL 为必填项。",
+      "user_info_uri_required": "UserInfo URL 为必填项。",
+      "jwk_set_uri_required": "JWK 集 URL 为必填项。",
+      "issuer_uri_required": "颁发者 URL 为必填项。",
+      "uri_invalid": "必须是有效的 http(s) URL。",
+      "uri_max": "URL 最多 2048 个字符。",
+      "attribute_max": "声明名称最多 255 个字符。"
     },
     "system_smtp": {
       "host_required": "SMTP 主机为必填项。",
@@ -799,7 +809,8 @@
         "google": "打开 <console>Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</console>,创建类型为 “Web application” 的 OAuth 2.0 Client ID,并将下方的重定向 URI 粘贴到 “Authorized redirect URIs”。",
         "github": "打开 <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>,点击 “New OAuth App”,将下方的重定向 URI 粘贴到 “Authorization callback URL”。",
         "microsoft": "打开 <console>Microsoft Entra 管理中心 &rarr; App registrations</console>,注册新应用,在 Authentication &rarr; Redirect URIs 下添加一个使用下方 URI 的 Web 平台条目。Tenant ID 可在应用的“概述”页获取。",
-        "gitlab": "打开 <console>GitLab &rarr; User Settings &rarr; Applications</console>(组织级应用请使用 Admin Area &rarr; Applications),将下方的重定向 URI 粘贴到 “Redirect URI”。"
+        "gitlab": "打开 <console>GitLab &rarr; User Settings &rarr; Applications</console>(组织级应用请使用 Admin Area &rarr; Applications),将下方的重定向 URI 粘贴到 “Redirect URI”。",
+        "oidc": "在您的身份提供商（Keycloak、Auth0、Okta、Authentik、Zitadel 等）中注册一个新的 OAuth 2.0 / OIDC 客户端。将下方的重定向 URI 用作允许的回调。然后将您提供商的端点 URL 粘贴到下面的字段中——大多数 IdP 会在 /.well-known/openid-configuration 上发布它们。"
       },
       "callback_url_label": "需要在服务商处注册的重定向 URI",
       "callback_url_help": "将此 URL 完整复制到服务商的开发者控制台。AccessFlow 仅在此路径接受回调。",
@@ -818,13 +829,15 @@
         "google": "Google 通过邮箱域名实现该限制 — 请使用下方字段。Google 会忽略此列表。",
         "github": "GitHub 组织 login(区分大小写)。需要 read:org 作用域。留空 = 任何 GitHub 用户均可登录。",
         "microsoft": "Microsoft Entra AAD 组的 object ID。应用必须配置为发出 \"groups\" claim。留空 = 该租户内任意用户可登录。",
-        "gitlab": "来自 OIDC \"groups\" claim 的 GitLab 完整组路径。留空 = 任何 GitLab 用户均可登录。"
+        "gitlab": "来自 OIDC \"groups\" claim 的 GitLab 完整组路径。留空 = 任何 GitLab 用户均可登录。",
+        "oidc": "来自下方配置的“群组声明”的群组标识符。空 = 任何经过 IdP 身份验证的用户都可以登录（或按电子邮件域限制）。"
       },
       "allowed_orgs_placeholder": {
         "google": "请使用下方的邮箱域名字段",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "以逗号或空格分隔。与邮箱域名不区分大小写匹配。留空 = 接受任意域名。",
       "github_read_org_scope_warning_title": "GitHub 不会返回私有组织成员资格",
@@ -835,13 +848,15 @@
         "google": "在 Google Cloud Console 中创建的 OAuth 2.0 Client ID,格式类似 1234567890-abc.apps.googleusercontent.com。",
         "github": "GitHub OAuth 应用的 Client ID(应用创建后可在其设置页面查看)。",
         "microsoft": "在 Entra 管理中心应用的“概述”页上显示的 Application (client) ID。",
-        "gitlab": "在 GitLab 中创建应用后在应用页面显示的 Application ID。"
+        "gitlab": "在 GitLab 中创建应用后在应用页面显示的 Application ID。",
+        "oidc": "在您的身份提供商处注册的 OIDC 客户端标识符。"
       },
       "client_secret_tooltip": {
         "google": "在 Google Cloud 点击“创建凭据”并下载密钥,密钥仅显示一次。",
         "github": "在 GitHub OAuth 应用页面生成新的 client secret。请立即复制;GitHub 不会再次显示。",
         "microsoft": "在“证书和密钥”下创建新的 Client Secret,复制“值”(而非 Secret ID)。",
-        "gitlab": "应用创建后在应用页面的“Secret”字段中仅显示一次。"
+        "gitlab": "应用创建后在应用页面的“Secret”字段中仅显示一次。",
+        "oidc": "由您的身份提供商在注册客户端时颁发的 OIDC 客户端密钥。"
       },
       "scopes_tooltip": "以空格或逗号分隔。留空以使用服务商默认值({{defaults}})。",
       "tenant_id_tooltip": "Microsoft Entra tenant ID、GUID 或熟知别名:“common”(任意 Microsoft 账户)、“organizations”(任意工作或学校账户)或 “consumers”(仅个人账户)。",
@@ -850,7 +865,21 @@
       "delete_button": "移除",
       "delete_confirm": "移除该服务商的配置吗?当前已登录的用户仍保持登录状态。",
       "delete_success": "OAuth 配置已移除",
-      "load_error": "无法加载 OAuth 配置"
+      "load_error": "无法加载 OAuth 配置",
+      "label_display_name": "显示名称",
+      "label_display_name_help": "在登录页面上的 OAuth 按钮上显示（\"使用 … 继续\"）。",
+      "label_authorization_uri": "授权端点 URL",
+      "label_token_uri": "令牌端点 URL",
+      "label_user_info_uri": "UserInfo 端点 URL",
+      "label_jwk_set_uri": "JWK 集 URL",
+      "label_issuer_uri": "颁发者 URL",
+      "label_user_name_attribute": "用户名声明",
+      "label_email_attribute": "电子邮件声明",
+      "label_email_verified_attribute": "邮箱已验证声明",
+      "label_display_name_attribute": "显示名称声明",
+      "label_groups_attribute": "群组声明",
+      "label_groups_attribute_help": "如果设置了\"允许的组织\"，则必须填写。列出用户所属群组的声明名称。",
+      "help_oidc_attribute_defaults": "声明名称是可选的——留空以使用标准 OIDC 默认值（sub、email、email_verified、name）。"
     },
     "saml": {
       "title": "SAML / SSO",

@@ -128,12 +128,16 @@ OAuth providers are configured entirely from the admin UI (`/admin/oauth2`) — 
 `spring.security.oauth2.client.*` in `application.yml`. The flow is:
 
 1. Browser hits `GET /api/v1/auth/oauth2/authorize/{provider}` (one of `google`, `github`,
-   `microsoft`, `gitlab`).
+   `microsoft`, `gitlab`, `oidc`).
 2. `DynamicClientRegistrationRepository.findByRegistrationId` builds a Spring Security
-   `ClientRegistration` on demand from the matching `oauth2_config` row. Per-provider static
-   metadata (auth/token/userinfo URLs, default scopes, OIDC flag, attribute extractors) lives
-   in `OAuth2ProviderTemplate`. The repository caches `ClientRegistration`s by registration id
-   and evicts on `OAuth2ConfigUpdatedEvent` / `OAuth2ConfigDeletedEvent` — same pattern as
+   `ClientRegistration` on demand from the matching `oauth2_config` row. For the four built-in
+   providers, per-provider static metadata (auth/token/userinfo URLs, default scopes, OIDC
+   flag, attribute extractors) lives in `OAuth2ProviderTemplate.TEMPLATES`. For the generic
+   `OIDC` provider, `OAuth2ProviderTemplate.forEntity(entity)` builds the template from the
+   row's `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`,
+   `issuer_uri`, and attribute-name columns — `OIDC` is the only provider whose URLs are
+   admin-editable. The repository caches `ClientRegistration`s by registration id and evicts
+   on `OAuth2ConfigUpdatedEvent` / `OAuth2ConfigDeletedEvent` — same pattern as
    `AiAnalyzerStrategyHolder`, no application restart.
 3. Spring's `OAuth2AuthorizationRequestRedirectFilter` redirects the browser to the provider.
 4. The provider redirects back to `GET /api/v1/auth/oauth2/callback/{provider}`. Spring

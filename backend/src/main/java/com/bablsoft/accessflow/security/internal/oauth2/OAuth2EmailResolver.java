@@ -36,13 +36,34 @@ public class OAuth2EmailResolver {
     public Resolved resolve(OAuth2ProviderType provider,
                             Map<String, Object> attributes,
                             String accessToken) {
-        var template = OAuth2ProviderTemplate.forProvider(provider);
-        var email = stringAttr(attributes, template.emailAttributeName());
-        var displayName = stringAttr(attributes, template.displayNameAttributeName());
+        return resolve(provider, attributes, accessToken, null, null, null);
+    }
+
+    public Resolved resolve(OAuth2ProviderType provider,
+                            Map<String, Object> attributes,
+                            String accessToken,
+                            String emailAttributeOverride,
+                            String displayNameAttributeOverride,
+                            String emailVerifiedAttributeOverride) {
+        final String emailAttribute;
+        final String displayNameAttribute;
+        final String emailVerifiedAttribute;
+        if (provider == OAuth2ProviderType.OIDC) {
+            emailAttribute = blankOr(emailAttributeOverride, "email");
+            displayNameAttribute = blankOr(displayNameAttributeOverride, "name");
+            emailVerifiedAttribute = blankOr(emailVerifiedAttributeOverride, "email_verified");
+        } else {
+            var template = OAuth2ProviderTemplate.forProvider(provider);
+            emailAttribute = template.emailAttributeName();
+            displayNameAttribute = template.displayNameAttributeName();
+            emailVerifiedAttribute = template.emailVerifiedAttributeName();
+        }
+        var email = stringAttr(attributes, emailAttribute);
+        var displayName = stringAttr(attributes, displayNameAttribute);
 
         Boolean verified = null;
-        if (template.emailVerifiedAttributeName() != null) {
-            var raw = attributes.get(template.emailVerifiedAttributeName());
+        if (emailVerifiedAttribute != null) {
+            var raw = attributes.get(emailVerifiedAttribute);
             if (raw instanceof Boolean b) {
                 verified = b;
             } else if (raw instanceof String s) {
@@ -101,6 +122,12 @@ public class OAuth2EmailResolver {
         if (name == null) return null;
         var raw = attrs.get(name);
         return raw instanceof String s ? s : null;
+    }
+
+    private static String blankOr(String value, String fallback) {
+        if (value == null) return fallback;
+        var trimmed = value.trim();
+        return trimmed.isEmpty() ? fallback : trimmed;
     }
 
     public record Resolved(String email, String displayName, Boolean emailVerified) {}

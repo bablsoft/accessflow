@@ -4,9 +4,12 @@
 # Google / Microsoft / GitHub identity. Provisioned users default to the
 # REVIEWER role (override per-provider with `defaultRole`).
 #
-# Built-in templates ship for GOOGLE, GITHUB, MICROSOFT, GITLAB. Other
-# providers require a DB-driven `oauth2_config` row created through the
-# admin API (out of scope for bootstrap).
+# Built-in templates ship for GOOGLE, GITHUB, MICROSOFT, GITLAB. A generic
+# `OIDC` provider type covers self-hosted and other OpenID Connect IdPs
+# (Keycloak, Auth0, Okta, Authentik, Zitadel) — supply `displayName` plus
+# the IdP's authorization / token / user-info / JWK-set / issuer URLs on
+# the row. See `bootstrap.oauth2` in docs/09-deployment.md for the full
+# OIDC field set.
 #
 # Pre-create this Secret in the release namespace, with one key per
 # provider you enable below:

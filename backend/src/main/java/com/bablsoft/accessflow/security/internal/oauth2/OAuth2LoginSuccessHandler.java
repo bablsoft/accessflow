@@ -74,7 +74,11 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
         var accessToken = resolveAccessToken(token);
         var attributes = token.getPrincipal().getAttributes();
-        var resolved = emailResolver.resolve(provider, attributes, accessToken);
+        var organizationId = organizationLookupService.singleOrganization();
+        var config = oauth2ConfigService.getOrDefault(organizationId, provider);
+        var resolved = emailResolver.resolve(
+                provider, attributes, accessToken,
+                config.emailAttribute(), config.displayNameAttribute(), config.emailVerifiedAttribute());
 
         if (resolved.email() == null || resolved.email().isBlank()) {
             redirectWithError(response, "OAUTH2_EMAIL_MISSING");
@@ -84,9 +88,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             redirectWithError(response, "OAUTH2_EMAIL_UNVERIFIED");
             return;
         }
-
-        var organizationId = organizationLookupService.singleOrganization();
-        var config = oauth2ConfigService.getOrDefault(organizationId, provider);
 
         if (!emailDomainAllowed(config, resolved.email())) {
             log.info("OAuth2 login refused — email {} domain not in allowlist for provider {}",
@@ -147,7 +148,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         if (allowed == null || allowed.isEmpty()) {
             return true;
         }
-        var memberships = membershipResolver.resolveOrganizations(provider, attributes, accessToken);
+        var memberships = membershipResolver.resolveOrganizations(
+                provider, attributes, accessToken, config.groupsAttribute());
         for (var entry : allowed) {
             if (entry != null && memberships.contains(entry)) {
                 return true;

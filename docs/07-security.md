@@ -59,8 +59,19 @@ table, one row per `(organization_id, provider)`); there are no `spring.security
 properties. Four providers ship with built-in templates: `GOOGLE`, `GITHUB`, `MICROSOFT`,
 `GITLAB`. The admin enters only `client_id`, `client_secret`, optional `scopes_override`, and
 (for Microsoft) `tenant_id`. Authorization / token / userinfo URLs come from
-`OAuth2ProviderTemplate` and are never user-editable, so a misconfigured row cannot redirect
-the browser to a hostile authorization server.
+`OAuth2ProviderTemplate.TEMPLATES` and are never user-editable for these four, so a
+misconfigured row cannot redirect the browser to a hostile authorization server.
+
+A fifth provider, `OIDC`, is generic: the admin supplies `display_name` and the IdP's
+`authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` (plus
+optional attribute-name overrides) directly on the row. This is the integration surface for
+Keycloak, Auth0, Okta, Authentik, Zitadel, and any other generic OIDC provider. Threat-model
+note: OIDC URLs are **admin-only-editable** (RBAC role `ADMIN`, audit-logged via
+`BootstrapResourceUpsertedEvent` and the standard `oauth2_config` audit trail). They are
+never readable or writable from an unauthenticated endpoint, so the "never trust admin-entered
+URLs" invariant the original four-provider design enforced at compile time is preserved for
+unauthenticated traffic. Operators who delegate OIDC URL editing to non-admins are explicitly
+trusting those operators with the equivalent of full SSO control.
 
 **Account-linking model — verified email + safe rejection.** The success handler:
 
@@ -109,6 +120,10 @@ JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL itself.
     must be configured to emit it (App registration → Token configuration → groups claim).
   - **GOOGLE** — `allowed_organizations` is ignored; the equivalent surface is
     `allowed_email_domains` (matching the Workspace `hd` concept).
+  - **OIDC** — reads the claim named by `oauth2_config.groups_attribute`. If that column is
+    NULL/blank, no groups are extracted (allowlist effectively empty). Restrict OIDC sign-in
+    by `allowed_email_domains` instead, or configure the IdP to emit a groups claim and set
+    the column accordingly.
 
 Failed restrictions redirect with `?error=OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` or
 `?error=OAUTH2_ORG_NOT_ALLOWED`. The handler **fails closed**: a HTTP error from the GitHub

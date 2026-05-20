@@ -1834,7 +1834,8 @@ Public — returns the list of OAuth2 providers an admin has enabled for this de
 ```json
 [
   { "provider": "GOOGLE", "display_name": "Google" },
-  { "provider": "GITHUB", "display_name": "GitHub" }
+  { "provider": "GITHUB", "display_name": "GitHub" },
+  { "provider": "OIDC", "display_name": "Keycloak" }
 ]
 ```
 
@@ -1934,7 +1935,7 @@ Trade the one-time `code` emitted by the SAML success handler for an access toke
 
 ### GET /admin/oauth2-config
 
-Returns one entry per supported OAuth2 provider (always four rows). Rows the admin has not yet configured are returned with `id: null`, `client_id: null`, and `active: false` so the UI can render an empty form. The `client_secret` field is `"********"` when a secret is stored, `null` otherwise.
+Returns one entry per supported OAuth2 provider (always five rows: `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`). Rows the admin has not yet configured are returned with `id: null`, `client_id: null`, and `active: false` so the UI can render an empty form. The `client_secret` field is `"********"` when a secret is stored, `null` otherwise. The `display_name`, URL, and attribute-name fields are populated only for `OIDC` rows (they are persisted only for the generic OIDC provider; the four built-in providers ignore them and supply their templates from `OAuth2ProviderTemplate`).
 
 **Response 200:**
 ```json
@@ -1947,6 +1948,17 @@ Returns one entry per supported OAuth2 provider (always four rows). Rows the adm
     "client_secret": "********",
     "scopes_override": null,
     "tenant_id": null,
+    "display_name": null,
+    "authorization_uri": null,
+    "token_uri": null,
+    "user_info_uri": null,
+    "jwk_set_uri": null,
+    "issuer_uri": null,
+    "user_name_attribute": null,
+    "email_attribute": null,
+    "email_verified_attribute": null,
+    "display_name_attribute": null,
+    "groups_attribute": null,
     "allowed_organizations": [],
     "allowed_email_domains": ["example.com"],
     "default_role": "ANALYST",
@@ -1959,7 +1971,7 @@ Returns one entry per supported OAuth2 provider (always four rows). Rows the adm
 
 ### GET /admin/oauth2-config/{provider}
 
-Single-provider variant of the list. `{provider}` is one of `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`.
+Single-provider variant of the list. `{provider}` is one of `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`.
 
 ### PUT /admin/oauth2-config/{provider}
 
@@ -1972,6 +1984,17 @@ Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext;
   "client_secret": "the-new-secret-or-********",
   "scopes_override": "openid email profile",
   "tenant_id": null,
+  "display_name": null,
+  "authorization_uri": null,
+  "token_uri": null,
+  "user_info_uri": null,
+  "jwk_set_uri": null,
+  "issuer_uri": null,
+  "user_name_attribute": null,
+  "email_attribute": null,
+  "email_verified_attribute": null,
+  "display_name_attribute": null,
+  "groups_attribute": null,
   "allowed_organizations": ["bablsoft"],
   "allowed_email_domains": ["example.com"],
   "default_role": "ANALYST",
@@ -1979,11 +2002,13 @@ Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext;
 }
 ```
 
-Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`), `allowed_organizations` / `allowed_email_domains` each ≤ 100 non-blank entries of ≤ 255 chars. Both allowlists are tri-state on update: omit / send `null` to leave them unchanged, send `[]` to clear, send a non-empty array to replace.
+For an `OIDC` row, `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` are required to activate; attribute-name fields are optional and fall back to the standard OIDC claim names (`sub`, `email`, `email_verified`, `name`). `groups_attribute` is the claim used by `OAuth2MembershipResolver` when an OIDC `allowed_organizations` list is configured.
+
+Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`), `display_name` ≤ 255, URL fields ≤ 2048, attribute fields ≤ 255, `allowed_organizations` / `allowed_email_domains` each ≤ 100 non-blank entries of ≤ 255 chars. Both allowlists are tri-state on update: omit / send `null` to leave them unchanged, send `[]` to clear, send a non-empty array to replace. URL fields must parse as valid http(s) URLs when persisted (server-side check).
 
 **Response 200:** Updated configuration (same shape as GET, `client_secret` replaced with `"********"` if set).
 **Response 400:** Validation error.
-**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, without a `tenant_id` for Microsoft, or for `provider=GITHUB` with a non-empty `allowed_organizations` while `scopes_override` does not contain `read:org`.
+**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, without a `tenant_id` for Microsoft, for `provider=GITHUB` with a non-empty `allowed_organizations` while `scopes_override` does not contain `read:org`, or for `provider=OIDC` without `display_name` / any of the five required URLs (or with a URL that is not a valid http(s) URL).
 
 ### DELETE /admin/oauth2-config/{provider}
 

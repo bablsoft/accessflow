@@ -23,9 +23,12 @@ const PROVIDERS: { provider: OAuth2Provider; label: string }[] = [
   { provider: 'GITHUB', label: 'GitHub' },
   { provider: 'MICROSOFT', label: 'Microsoft' },
   { provider: 'GITLAB', label: 'GitLab' },
+  { provider: 'OIDC', label: 'OpenID Connect' },
 ];
 
-const PROVIDER_CONSOLE_URLS: Record<OAuth2Provider, string> = {
+// Upstream console links are provider-specific; OIDC is operator-defined and has
+// no canonical console URL, so it's intentionally omitted here.
+const PROVIDER_CONSOLE_URLS: Partial<Record<OAuth2Provider, string>> = {
   GOOGLE: 'https://console.cloud.google.com/apis/credentials',
   GITHUB: 'https://github.com/settings/developers',
   MICROSOFT: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
@@ -107,6 +110,17 @@ interface OAuth2FormValues {
   client_secret?: string;
   scopes_override?: string;
   tenant_id?: string;
+  display_name?: string;
+  authorization_uri?: string;
+  token_uri?: string;
+  user_info_uri?: string;
+  jwk_set_uri?: string;
+  issuer_uri?: string;
+  user_name_attribute?: string;
+  email_attribute?: string;
+  email_verified_attribute?: string;
+  display_name_attribute?: string;
+  groups_attribute?: string;
   allowed_organizations?: string[];
   allowed_email_domains?: string[];
   default_role: Role;
@@ -139,6 +153,17 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       client_secret: config.client_secret ?? '',
       scopes_override: config.scopes_override ?? '',
       tenant_id: config.tenant_id ?? '',
+      display_name: config.display_name ?? '',
+      authorization_uri: config.authorization_uri ?? '',
+      token_uri: config.token_uri ?? '',
+      user_info_uri: config.user_info_uri ?? '',
+      jwk_set_uri: config.jwk_set_uri ?? '',
+      issuer_uri: config.issuer_uri ?? '',
+      user_name_attribute: config.user_name_attribute ?? '',
+      email_attribute: config.email_attribute ?? '',
+      email_verified_attribute: config.email_verified_attribute ?? '',
+      display_name_attribute: config.display_name_attribute ?? '',
+      groups_attribute: config.groups_attribute ?? '',
       allowed_organizations: config.allowed_organizations ?? [],
       allowed_email_domains: config.allowed_email_domains ?? [],
       default_role: config.default_role,
@@ -176,6 +201,17 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         values.client_secret === MASK ? undefined : blankToNull(values.client_secret),
       scopes_override: blankToNull(values.scopes_override),
       tenant_id: blankToNull(values.tenant_id),
+      display_name: blankToNull(values.display_name),
+      authorization_uri: blankToNull(values.authorization_uri),
+      token_uri: blankToNull(values.token_uri),
+      user_info_uri: blankToNull(values.user_info_uri),
+      jwk_set_uri: blankToNull(values.jwk_set_uri),
+      issuer_uri: blankToNull(values.issuer_uri),
+      user_name_attribute: blankToNull(values.user_name_attribute),
+      email_attribute: blankToNull(values.email_attribute),
+      email_verified_attribute: blankToNull(values.email_verified_attribute),
+      display_name_attribute: blankToNull(values.display_name_attribute),
+      groups_attribute: blankToNull(values.groups_attribute),
       allowed_organizations: normalizeOrganizations(values.allowed_organizations),
       allowed_email_domains: normalizeDomains(values.allowed_email_domains),
       default_role: values.default_role,
@@ -200,15 +236,19 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
             <div>
               <Trans
                 i18nKey={`admin.oauth2.setup_intro.${provider.toLowerCase()}`}
-                components={{
-                  console: (
-                    <a
-                      href={PROVIDER_CONSOLE_URLS[provider]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />
-                  ),
-                }}
+                components={
+                  PROVIDER_CONSOLE_URLS[provider]
+                    ? {
+                        console: (
+                          <a
+                            href={PROVIDER_CONSOLE_URLS[provider]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                      }
+                    : {}
+                }
               />
             </div>
             <div>
@@ -297,6 +337,121 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         >
           <Input className="mono" maxLength={255} placeholder="common" />
         </Form.Item>
+      )}
+      {provider === 'OIDC' && (
+        <>
+          <Form.Item
+            name="display_name"
+            label={t('admin.oauth2.label_display_name')}
+            extra={t('admin.oauth2.label_display_name_help')}
+            rules={[
+              {
+                required: true,
+                message: t('validation.oauth2.display_name_required'),
+              },
+              { max: 255, message: t('validation.oauth2.display_name_max') },
+            ]}
+          >
+            <Input maxLength={255} placeholder="Keycloak" />
+          </Form.Item>
+          <Form.Item
+            name="authorization_uri"
+            label={t('admin.oauth2.label_authorization_uri')}
+            rules={[
+              { required: true, message: t('validation.oauth2.authorization_uri_required') },
+              { type: 'url', message: t('validation.oauth2.uri_invalid') },
+              { max: 2048, message: t('validation.oauth2.uri_max') },
+            ]}
+          >
+            <Input className="mono" placeholder="https://idp.example.com/oauth/authorize" />
+          </Form.Item>
+          <Form.Item
+            name="token_uri"
+            label={t('admin.oauth2.label_token_uri')}
+            rules={[
+              { required: true, message: t('validation.oauth2.token_uri_required') },
+              { type: 'url', message: t('validation.oauth2.uri_invalid') },
+              { max: 2048, message: t('validation.oauth2.uri_max') },
+            ]}
+          >
+            <Input className="mono" placeholder="https://idp.example.com/oauth/token" />
+          </Form.Item>
+          <Form.Item
+            name="user_info_uri"
+            label={t('admin.oauth2.label_user_info_uri')}
+            rules={[
+              { required: true, message: t('validation.oauth2.user_info_uri_required') },
+              { type: 'url', message: t('validation.oauth2.uri_invalid') },
+              { max: 2048, message: t('validation.oauth2.uri_max') },
+            ]}
+          >
+            <Input className="mono" placeholder="https://idp.example.com/userinfo" />
+          </Form.Item>
+          <Form.Item
+            name="jwk_set_uri"
+            label={t('admin.oauth2.label_jwk_set_uri')}
+            rules={[
+              { required: true, message: t('validation.oauth2.jwk_set_uri_required') },
+              { type: 'url', message: t('validation.oauth2.uri_invalid') },
+              { max: 2048, message: t('validation.oauth2.uri_max') },
+            ]}
+          >
+            <Input className="mono" placeholder="https://idp.example.com/jwks" />
+          </Form.Item>
+          <Form.Item
+            name="issuer_uri"
+            label={t('admin.oauth2.label_issuer_uri')}
+            rules={[
+              { required: true, message: t('validation.oauth2.issuer_uri_required') },
+              { type: 'url', message: t('validation.oauth2.uri_invalid') },
+              { max: 2048, message: t('validation.oauth2.uri_max') },
+            ]}
+          >
+            <Input className="mono" placeholder="https://idp.example.com" />
+          </Form.Item>
+          <Alert
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={t('admin.oauth2.help_oidc_attribute_defaults')}
+          />
+          <Form.Item
+            name="user_name_attribute"
+            label={t('admin.oauth2.label_user_name_attribute')}
+            rules={[{ max: 255, message: t('validation.oauth2.attribute_max') }]}
+          >
+            <Input className="mono" maxLength={255} placeholder="sub" />
+          </Form.Item>
+          <Form.Item
+            name="email_attribute"
+            label={t('admin.oauth2.label_email_attribute')}
+            rules={[{ max: 255, message: t('validation.oauth2.attribute_max') }]}
+          >
+            <Input className="mono" maxLength={255} placeholder="email" />
+          </Form.Item>
+          <Form.Item
+            name="email_verified_attribute"
+            label={t('admin.oauth2.label_email_verified_attribute')}
+            rules={[{ max: 255, message: t('validation.oauth2.attribute_max') }]}
+          >
+            <Input className="mono" maxLength={255} placeholder="email_verified" />
+          </Form.Item>
+          <Form.Item
+            name="display_name_attribute"
+            label={t('admin.oauth2.label_display_name_attribute')}
+            rules={[{ max: 255, message: t('validation.oauth2.attribute_max') }]}
+          >
+            <Input className="mono" maxLength={255} placeholder="name" />
+          </Form.Item>
+          <Form.Item
+            name="groups_attribute"
+            label={t('admin.oauth2.label_groups_attribute')}
+            extra={t('admin.oauth2.label_groups_attribute_help')}
+            rules={[{ max: 255, message: t('validation.oauth2.attribute_max') }]}
+          >
+            <Input className="mono" maxLength={255} placeholder="groups" />
+          </Form.Item>
+        </>
       )}
       <Form.Item
         name="allowed_organizations"
@@ -433,6 +588,17 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
     client_secret: null,
     scopes_override: null,
     tenant_id: null,
+    display_name: null,
+    authorization_uri: null,
+    token_uri: null,
+    user_info_uri: null,
+    jwk_set_uri: null,
+    issuer_uri: null,
+    user_name_attribute: null,
+    email_attribute: null,
+    email_verified_attribute: null,
+    display_name_attribute: null,
+    groups_attribute: null,
     allowed_organizations: null,
     allowed_email_domains: null,
     default_role: 'ANALYST',

@@ -114,4 +114,37 @@ class OAuth2EmailResolverTest {
         // We couldn't independently verify — be conservative.
         assertThat(resolved.emailVerified()).isFalse();
     }
+
+    @Test
+    void oidcUsesProvidedAttributeNames() {
+        var resolver = new OAuth2EmailResolver();
+        var attrs = Map.<String, Object>of(
+                "sub", "user-1",
+                "upn", "alice@example.com",
+                "name_claim", "Alice",
+                "is_verified", Boolean.TRUE);
+
+        var resolved = resolver.resolve(OAuth2ProviderType.OIDC, attrs, "token",
+                "upn", "name_claim", "is_verified");
+
+        assertThat(resolved.email()).isEqualTo("alice@example.com");
+        assertThat(resolved.displayName()).isEqualTo("Alice");
+        assertThat(resolved.emailVerified()).isTrue();
+    }
+
+    @Test
+    void oidcFallsBackToStandardClaimsWhenOverridesNull() {
+        var resolver = new OAuth2EmailResolver();
+        var attrs = Map.<String, Object>of(
+                "email", "bob@example.com",
+                "name", "Bob",
+                "email_verified", Boolean.TRUE);
+
+        var resolved = resolver.resolve(OAuth2ProviderType.OIDC, attrs, "token",
+                null, null, null);
+
+        assertThat(resolved.email()).isEqualTo("bob@example.com");
+        assertThat(resolved.displayName()).isEqualTo("Bob");
+        assertThat(resolved.emailVerified()).isTrue();
+    }
 }
