@@ -17,7 +17,7 @@ Frontend dependencies follow a **latest-stable** policy: pin every package to th
 | React Router | latest stable (7.x at 2026-05-06, library mode) | Client-side routing |
 | sql-formatter | latest stable (15.x at 2026-05-06) | SQL formatting (Ctrl+Shift+F) |
 | Vitest + @testing-library/react | latest stable | Unit/component tests |
-| Playwright | latest stable | E2E tests |
+| Playwright (lives in [`e2e/`](../e2e/)) | latest stable | End-to-end tests — separate npm project, own docker-compose stack. See [docs/11-development.md → End-to-End](11-development.md#end-to-end-e2e) |
 
 When upgrading the codebase to a new major, update this snapshot column in the same change so the doc stays in sync.
 

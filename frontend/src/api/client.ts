@@ -32,6 +32,11 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
+// Exposed for Playwright E2E (e2e/) — used to fire authenticated requests from inside the page.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __apiClient?: typeof apiClient }).__apiClient = apiClient;
+}
+
 apiClient.interceptors.request.use((config) => {
   if (isAuthBypass(config.url)) return config;
   const token = useAuthStore.getState().accessToken;

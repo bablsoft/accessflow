@@ -32,6 +32,7 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/12-roadmap.md` — milestone scope
 - **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.partqam.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `./mvnw verify`.
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+- **End-to-end** at `e2e/` — Playwright suite with its own `docker-compose.e2e.yml` that builds backend + frontend from the working tree and seeds a deterministic admin via the `bootstrap` module. Owns auth and (over time) all critical user flows. Run: `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test`.
 - **Website** at `website/` — public marketing site, static HTML/CSS/JS, no build step. Edits land directly in HTML.
   - `website/index.html` — landing page (pitch, supported databases, AI providers, auth methods, feature list, roadmap, quick-start commands, tech stack, docs chapter list, top-level URLs).
   - `website/docs/index.html` — public user documentation page (deployment instructions, configuration entities — Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation — RBAC role matrix, operator-facing env vars).
@@ -64,6 +65,12 @@ Branch names follow `docs/11-development.md` and CLAUDE.md:
 Follow CLAUDE.md exactly. Highlights worth re-checking before each PR:
 - **Backend**: constructor injection, `*Entity` suffix and `internal/persistence/entity/` placement, Flyway `V{n}__…sql` (never edit existing), `@SchedulerLock` on every `@Scheduled`, no string-concat SQL, `@JsonIgnore` on encrypted fields, i18n keys in `messages.properties`, ≥ 90% line coverage with a dedicated `*Test` per concrete class.
 - **Frontend**: TanStack Query for all server data (no `useEffect` fetching), Zustand only for client state, `t()` for every user-visible string with the key in `src/locales/en.json`, validation parity with backend Bean Validation, `≥ 90%` line / `≥ 80%` branch coverage on included modules.
+- **End-to-end (`e2e/`)** — non-negotiable, per CLAUDE.md's "Do not let `e2e/` drift" rule. Before opening the PR, scan the diff for changes that touch user flows:
+  - **Frontend change touches a route, page, form, store, or selector that an existing Playwright spec uses?** Update the spec in the same commit set. Don't merge a frontend change that you know will flip an e2e green run to red. Common drift sources: renaming an `id` / `aria-label` / button text used by a selector, changing the redirect target after login or logout, altering the auth-store or apiClient interface, moving the logout entry in the user menu.
+  - **Frontend change introduces a new user-facing flow** (new route, auth path, user-driven mutation — submit query, approve a review, create a datasource, change a setting that has a server effect)? Add a spec under `e2e/tests/` in the same PR. The default is "add a spec"; if you're skipping it, justify why in the PR description.
+  - **Backend change flips behaviour for an e2e-covered flow** (login payload, refresh-cookie semantics, `bootstrap` reconciler, setup-status endpoint)? Update the spec accordingly.
+  - **Pure presentational refactors** (CSS-only, internal rename with no selector impact) don't need an e2e update — but verify your refactor doesn't break any selector first.
+  - When in doubt, run `cd e2e && npm run stack:up && npm test` locally before the PR. The `e2e` CI job is the load-bearing check.
 
 ### 4. **Update docs AND the website in the same change**
 Non-negotiable. The PR is incomplete until the matching `docs/*.md`, `README.md`, and `website/` reflect what you built.
@@ -90,6 +97,7 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 ### 5. Verify locally
 - Backend: `cd backend && ./mvnw verify -Pcoverage` and `./mvnw test -Dtest=ApplicationModulesTest`.
 - Frontend: `cd frontend && npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
+- **E2E (when frontend or auth/setup/proxy backend code changed):** `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test && npm run stack:down`. The CI `e2e` job runs the same steps — fail-locally-first to keep PR turnaround tight.
 - For UI changes that render in a browser, use the `preview_*` tools (per the harness instructions) — don't ask the user to check manually.
 
 ### 6. Commit and PR
@@ -107,5 +115,6 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 - [ ] `website/README.md` content-source map updated if new website sections were added.
 - [ ] Backend: `./mvnw verify` green, including `ApplicationModulesTest` and JaCoCo gate.
 - [ ] Frontend: lint + typecheck + `test:coverage` + build all green.
+- [ ] `e2e/tests/` updated to match: existing specs still pass against the change, and new user-facing flows (route, auth path, user-driven mutation) have a new spec — or the PR description states explicitly why one wasn't added. Specs ran locally via `npm run stack:up && npm test` when the change touched frontend or auth/setup/proxy backend code.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).
 - [ ] PR opened, links the issue, and lists touched docs **and website files** in the description.

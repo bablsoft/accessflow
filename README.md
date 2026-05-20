@@ -169,6 +169,7 @@ accessflow/
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
+├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)
 ├── docs/             # Authoritative design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
 ├── docker-compose.yml          # Local infrastructure (Postgres + Redis)
@@ -219,6 +220,17 @@ npm run lint
 npm run typecheck
 npm run test:coverage    # Vitest, ≥ 90 % line / ≥ 80 % branch on included modules
 npm run build
+```
+
+**End-to-end:**
+
+```bash
+cd e2e
+npm ci
+npx playwright install --with-deps chromium
+npm run stack:up         # builds backend + frontend, brings up Postgres + Redis, waits on healthchecks
+npm test                 # Playwright auth-flow suite against http://localhost:5173
+npm run stack:down
 ```
 
 See [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) for the full testing strategy and `CLAUDE.md` for the per-class coverage-parity rule.

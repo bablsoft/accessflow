@@ -42,3 +42,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   isAuthenticated: () => get().user !== null,
 }));
+
+// Exposed for Playwright E2E (e2e/) — already reachable via React DevTools, so no extra surface.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __authStore?: typeof useAuthStore }).__authStore = useAuthStore;
+}

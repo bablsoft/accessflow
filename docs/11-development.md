@@ -107,14 +107,60 @@ cd backend && ./mvnw verify -Pcoverage
 |-------|-----------|-------------|
 | Unit | Vitest | Utility functions, store logic, API client helpers |
 | Component | React Testing Library | Key components (SqlEditor, ReviewCard, PermissionMatrix) |
-| E2E | Playwright | Login flow, submit query, review queue approval flow |
+| E2E | Playwright (see `e2e/`) | Login flow, submit query, review queue approval flow |
 
 ```bash
 cd frontend
 npm run test          # Vitest unit + component tests
-npm run test:e2e      # Playwright E2E (requires running backend)
 npm run test:coverage # Coverage report
 ```
+
+### End-to-End (`e2e/`)
+
+Playwright lives at the top-level [`e2e/`](../e2e/) directory — separate from `frontend/`
+so the frontend unit-test loop stays fast and the E2E suite can own its own dependencies,
+TypeScript config, and docker-compose stack.
+
+`e2e/docker-compose.e2e.yml` brings up Postgres + Redis + the AccessFlow backend
+(built from [`backend/Dockerfile`](../backend/Dockerfile)) + the frontend (built from
+[`frontend/Dockerfile`](../frontend/Dockerfile)) with healthchecks on every service.
+The backend boots with `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, which makes the `bootstrap`
+module's reconciler create the deterministic E2E admin on `ApplicationReadyEvent`:
+
+| Setting | Value |
+|---------|-------|
+| Organization | `E2E Test Org` |
+| Email | `e2e@accessflow.test` |
+| Password | `E2ePassword!123` |
+| Role | `ADMIN` |
+
+Local run:
+
+```bash
+cd e2e
+npm ci
+npx playwright install --with-deps chromium
+
+npm run stack:up       # builds + starts the four services, waits on healthchecks
+npm test               # runs the Playwright suite against http://localhost:5173
+npm run stack:down     # tears the stack down and drops volumes
+```
+
+The published 8080 port is the backend; the published 5173 port is the frontend.
+Playwright runs on the host (not inside a container) and the browser talks to both.
+
+`tests/auth.spec.ts` covers the full FE-01 auth flow: login → `/editor` → protected
+endpoint returns 200; intentionally corrupt the access token and confirm the response
+interceptor transparently refreshes via the HttpOnly cookie; logout clears state and
+redirects to `/login`.
+
+**Adding new specs:** the suite runs serially with one worker because every scenario
+shares the one seeded admin. Drop a new `*.spec.ts` under `e2e/tests/` and keep that
+contract in mind. If a spec needs a fresh database, tear down and re-up the stack.
+
+CI: the `e2e` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
+whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It's part of the
+`CI Gate` aggregate, so a failing run blocks the merge.
 
 ### Helm chart
 

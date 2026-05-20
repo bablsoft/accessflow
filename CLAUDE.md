@@ -29,6 +29,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
+├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml
 ├── charts/           # Helm charts — currently charts/accessflow/
 ├── docs/             # Design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
@@ -531,12 +532,21 @@ Built with CodeMirror 6. Required features:
 ```bash
 cd frontend
 npm run test           # Vitest unit + component tests
-npm run test:e2e       # Playwright (requires running backend)
 npm run test:coverage  # Coverage report (enforces threshold)
 npm run lint           # ESLint
 npm run typecheck      # tsc -b --noEmit
 npm run build          # Vite production build
 ```
+
+Playwright E2E tests live at the top-level [`e2e/`](e2e/) directory (NOT under `frontend/`). They have their own `package.json`, `playwright.config.ts`, and `docker-compose.e2e.yml` that builds the backend and frontend images from the working tree and seeds a deterministic admin via the `bootstrap` module. See [e2e/README.md](e2e/README.md) for the local run flow.
+
+**Do not let `e2e/` drift behind the frontend.** A frontend change that breaks an existing spec — or that introduces a new user-facing flow worth covering — must update `e2e/tests/` **in the same commit set**. Concretely:
+
+- **Existing covered flows must keep passing.** When a change touches a route, page, form, store, or selector that an existing spec uses (`/login`, `/editor`, the user-menu/logout dropdown, the auth interceptor, future specs for the review queue, datasource creation, etc.), update the spec — selectors, expected text, assertions — alongside the code. Don't merge a frontend change that you know will turn an e2e green run red.
+- **New user-facing flows.** When a frontend change adds a new route, a new auth path, a new user-driven mutation (submit query, approve, create datasource, change a setting that has a server effect), add a spec to `e2e/tests/` in the same PR — or note explicitly in the PR description why it isn't worth covering yet. The default is "add a spec".
+- **Pure presentational refactors** (CSS-only tweaks, internal component rename, unit-test cleanup) don't need an e2e update — but they also shouldn't break selectors. If your refactor changes an `id`, `aria-label`, or visible label that a spec relies on, update the spec.
+
+The same rule applies to backend changes that flip behaviour for an e2e-covered flow (e.g. modifying the login endpoint payload, the refresh-cookie semantics, or the bootstrap reconciler). When in doubt, run `cd e2e && npm run stack:up && npm test` locally before opening the PR — the e2e CI job is the load-bearing check.
 
 **Coverage target: ≥ 90% line coverage** — same gate as the backend. Enforced by Vitest's `coverage.thresholds` in `vite.config.ts`; the build fails when below threshold. Branches must hit ≥ 80%, lines/functions/statements ≥ 90%.
 
@@ -547,10 +557,12 @@ CI pipeline (`frontend` job in `.github/workflows/ci.yml`):
 - Steps: `npm ci → lint → typecheck → test:coverage → build`.
 - Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
+The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It boots the full stack from [e2e/docker-compose.e2e.yml](e2e/docker-compose.e2e.yml) (building backend + frontend images from the working tree), waits on healthchecks, runs Playwright, and is included in the `CI Gate` aggregate.
+
 **Test layering and conventions:**
 - **Unit tests** (`src/utils`, `src/mocks`, store logic): pure logic only, no React.
 - **Component tests** (React Testing Library): assert behaviour from the user's perspective — query by role/label, not test IDs. No snapshot tests of large component trees.
-- **E2E tests** (Playwright, when added): cover login, submit query, approve in review queue, create datasource. Backed by a real backend (compose + Testcontainers) — not by mocks.
+- **E2E tests** (Playwright, in [`e2e/`](e2e/)): drive the real backend + frontend via docker-compose. Seed deterministic state through the `bootstrap` module's env vars — never via test-only endpoints.
 - Mock HTTP at the network layer with **MSW** (when first needed); do not mock Axios directly.
 - Tests live alongside source as `*.test.ts(x)` or in `__tests__/`. Pick one per directory and stay consistent.
 
@@ -781,4 +793,5 @@ Version surfacing:
 - Do not write multi-paragraph comments or doc comments on obvious methods.
 - Do not add features beyond what is requested; do not design for hypothetical future requirements.
 - Do not let `README.md` drift. When a change alters the user-facing pitch, tech stack versions, quick-start commands, project structure, license, or top-level features, update `README.md` in the same commit set — same rule that already applies to `docs/*.md`.
+- Do not let [`e2e/`](e2e/) drift behind the frontend (or behind the backend's auth / setup / proxy flows). When a frontend change touches a route, page, form, store, or selector that an existing Playwright spec uses, update the spec — selectors, expected text, assertions — in the same commit set. When a frontend change adds a new user-facing flow (route, auth path, user-driven mutation), add a spec to `e2e/tests/` in the same PR or note in the PR description why it isn't worth covering yet (the default is "add a spec"). The same rule applies to backend changes that flip behaviour for an e2e-covered flow (login payload, refresh-cookie semantics, bootstrap reconciler). See the **Testing (Frontend)** section for the full rule.
 - Do not let `website/` drift. The public marketing site at [`website/`](website/) is sourced from the application and `docs/` chapters — when a change alters the user-facing pitch, supported databases, AI providers, authentication methods, feature list, roadmap milestones, quick-start commands, docs chapter list, tech stack versions, or top-level URLs, update [`website/index.html`](website/index.html) (and the content-source map in [`website/README.md`](website/README.md)) in the same commit set. Additionally, when deployment instructions, configuration entities (Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation), the RBAC role matrix, or operator-facing env vars change, update [`website/docs/index.html`](website/docs/index.html) — the public user documentation page — in the same commit set. The site has no build step; edits land directly in HTML.
