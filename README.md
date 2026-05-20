@@ -1,9 +1,26 @@
-# AccessFlow
+<p align="center">
+  <img src="https://raw.githubusercontent.com/bablsoft/accessflow/main/website/favicon.svg" alt="AccessFlow logo" width="96" height="96">
+</p>
 
-> Open-source database access governance platform — a SQL proxy that puts review, approval, and audit between your team and production data.
+<h1 align="center">AccessFlow</h1>
 
-[![CI](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg)](https://github.com/bablsoft/accessflow/actions/workflows/ci.yml)
-![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+<p align="center">
+  <strong>Open-source database access governance platform</strong><br>
+  A SQL proxy that puts review, approval, and audit between your team and production data.
+</p>
+
+<p align="center">
+  <a href="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml"><img src="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
+  <a href="https://accessflow.bablsoft.com/"><img src="https://img.shields.io/badge/Live%20Demo-accessflow.bablsoft.com-1f6feb?logo=githubpages&logoColor=white" alt="Live site"></a>
+</p>
+
+<p align="center">
+  <a href="https://accessflow.bablsoft.com/">Website</a> ·
+  <a href="https://accessflow.bablsoft.com/docs/">Live Docs</a> ·
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/">Design Docs</a>
+</p>
 
 AccessFlow sits as a full SQL proxy in front of your relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be added by uploading its driver JAR. Every query a user submits is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, Microsoft, and GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
 
@@ -17,6 +34,30 @@ Most teams pick one of two extremes for database access:
 - **Ticket-driven DBA access** — every change goes through a manual DBA queue. Safe, but slow enough that engineers route around it.
 
 AccessFlow provides the missing middle: governed, self-service access where every query is reviewable, every approval is traceable, and AI catches the obvious problems before a human ever sees the request.
+
+---
+
+## See it in action
+
+A glance at the day-to-day flows engineers and approvers actually use.
+
+![SQL editor](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/editor-light.png)
+
+*Submit a query — CodeMirror 6 with dialect-aware highlighting, live schema autocomplete, and an inline review-plan preview that shows exactly which approvals the submission will trigger.*
+
+![Review queue](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/reviews-queue-light.png)
+
+*Approve or reject pending writes from one place — the queue is scoped to queries assigned to you, with risk score, query type, and submitter at a glance. A user can never approve their own query.*
+
+![Query history](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/queries-list-light.png)
+
+*Searchable, filterable history of every query — by status, type, risk, datasource, submitter, or date range — with CSV export. Each row links to the full request, AI analysis, approval timeline, and result set.*
+
+![Configure a governed datasource](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/datasources-create-light.png)
+
+*Connect a database in the admin UI — credentials are AES-256-GCM encrypted at rest, the proxy holds them, and end users never see them.*
+
+> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.bablsoft.com/docs/).
 
 ---
 
