@@ -7,9 +7,13 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
+    "test:setup": "playwright test --config=playwright.setup.config.ts",
     "stack:up": "docker compose -f docker-compose.e2e.yml up --build -d --wait",
     "stack:down": "docker compose -f docker-compose.e2e.yml down -v",
     "stack:logs": "docker compose -f docker-compose.e2e.yml logs --tail=200",
+    "stack:setup:up": "docker compose -f docker-compose.e2e.setup.yml up --build -d --wait",
+    "stack:setup:down": "docker compose -f docker-compose.e2e.setup.yml down -v",
+    "stack:setup:logs": "docker compose -f docker-compose.e2e.setup.yml logs --tail=200",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

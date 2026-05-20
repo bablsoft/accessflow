@@ -158,6 +158,25 @@ redirects to `/login`.
 shares the one seeded admin. Drop a new `*.spec.ts` under `e2e/tests/` and keep that
 contract in mind. If a spec needs a fresh database, tear down and re-up the stack.
 
+**Setup-wizard variant stack.** [`e2e/docker-compose.e2e.setup.yml`](../e2e/docker-compose.e2e.setup.yml)
+is a second compose file that boots the same images on ports 5174 / 8081 with
+`ACCESSFLOW_BOOTSTRAP_ENABLED=false` — no admin pre-seeded. It exists so
+[`e2e/tests/auth-setup-wizard.spec.ts`](../e2e/tests/auth-setup-wizard.spec.ts)
+can drive the first-run setup wizard (`/setup`) against a backend that actually
+reports `setup_required: true`. The spec has its own Playwright config
+([`e2e/playwright.setup.config.ts`](../e2e/playwright.setup.config.ts)) with
+`globalSetup`/`globalTeardown` that manage that stack, so a single command runs
+the whole thing:
+
+```bash
+cd e2e
+npm run test:setup
+```
+
+The main suite (`playwright.config.ts`) excludes the setup spec via
+`testIgnore`. The CI `e2e` job runs both — `npm test` against the main stack,
+then `npm run test:setup` against the variant stack.
+
 CI: the `e2e` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
 whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It's part of the
 `CI Gate` aggregate, so a failing run blocks the merge.

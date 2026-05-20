@@ -170,6 +170,60 @@ creation wizard:
 6. Clicks **Next**, **Save and finish**, and asserts the wizard lands on
    `/datasources/{id}/settings` with the *Datasource created* toast.
 
+`tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
+(`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a
+pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
+`GET /api/v1/auth/setup-status` then reports `setup_required: true`, so a
+visit to `/` redirects to the first-run wizard. The spec drives the wizard
+end-to-end:
+
+1. **Redirect** — visiting `/` lands the user on `/setup`.
+2. **Inline validation** — submitting step 1 with a 7-character password
+   surfaces the AntD "Password must be 8–128 characters." error and fires
+   no `POST /api/v1/auth/setup`.
+3. **Account submit** — fixing the password and clicking **Create admin**
+   creates the org + admin (the variant stack's first), authenticates the
+   browser, and reveals step 2 (SMTP).
+4. **SMTP host required** — clicking **Save & finish** with the host field
+   blank surfaces the inline "SMTP host is required." error and fires no
+   `PUT /api/v1/admin/system-smtp`.
+5. **Server-side failure → banner + retry** — `page.route()` mocks the PUT
+   to return a 422 ProblemDetail; the spec asserts the AntD alert renders
+   with the mocked title and that the **Skip for now** button remains
+   enabled (the "user can retry or skip" branch from the issue spec).
+6. **Real Save → /queries** — un-routing the mock and clicking
+   **Save & finish** with a legitimate host persists the SMTP row, navigates
+   to `/queries`, and a follow-up `window.__apiClient.get('/api/v1/me')`
+   call returns 200 with the brand-new admin email and `role: 'ADMIN'`.
+
+This is the only spec that runs against a stack *without* the seeded admin —
+keep it separate from the rest of the suite.
+
+### Running the setup-wizard spec
+
+The variant stack is managed automatically by Playwright's
+`globalSetup`/`globalTeardown` in `playwright.setup.config.ts`, so a single
+command drives the whole thing:
+
+```bash
+cd e2e
+npm run test:setup
+```
+
+If you want to drive the variant stack yourself (debugging, or running with
+`test:headed` against `--config=playwright.setup.config.ts`):
+
+```bash
+npm run stack:setup:up    # builds + brings the variant stack up
+npm run stack:setup:logs  # tail logs
+npm run stack:setup:down  # tear down, drop the Postgres volume
+```
+
+The variant stack uses **different host ports** from the main stack (5174 for
+the frontend, 8081 for the backend) so both can coexist if you want to run
+both suites locally without bouncing one. Mailcrab is omitted from the
+variant — the wizard's SMTP step persists the row but does not dial out.
+
 ## Adding new specs
 
 Drop a new `*.spec.ts` under `tests/`. The suite runs serially with a single
@@ -177,8 +231,17 @@ worker because all scenarios share the one seeded admin — keep that contract
 in mind when adding tests. If you need a fresh database between specs, tear
 the stack down and bring it back up between runs.
 
+Specs that need a **no-admin** stack belong in their own file matched by
+`playwright.setup.config.ts` (today only `auth-setup-wizard.spec.ts`); add
+the file path to `testMatch` and the main config's `testIgnore` if you add
+another. The variant stack rebuilds on every `npm run test:setup` because
+`globalTeardown` runs `down -v`.
+
 ## CI
 
 The suite runs in the `e2e` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. The job is part
-of the `CI Gate` aggregate, so it must be green for the gate to pass.
+whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. The job runs
+**both** suites sequentially: first `npm test` against the main stack, then
+`npm run test:setup` against the setup-variant stack (which manages its own
+stack via the config's `globalSetup`/`globalTeardown`). The job is part of the
+`CI Gate` aggregate, so it must be green for the gate to pass.
