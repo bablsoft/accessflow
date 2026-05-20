@@ -81,6 +81,39 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
         if (command.tenantId() != null) {
             entity.setTenantId(blankToNull(command.tenantId()));
         }
+        if (command.displayName() != null) {
+            entity.setDisplayName(blankToNull(command.displayName()));
+        }
+        if (command.authorizationUri() != null) {
+            entity.setAuthorizationUri(blankToNull(command.authorizationUri()));
+        }
+        if (command.tokenUri() != null) {
+            entity.setTokenUri(blankToNull(command.tokenUri()));
+        }
+        if (command.userInfoUri() != null) {
+            entity.setUserInfoUri(blankToNull(command.userInfoUri()));
+        }
+        if (command.jwkSetUri() != null) {
+            entity.setJwkSetUri(blankToNull(command.jwkSetUri()));
+        }
+        if (command.issuerUri() != null) {
+            entity.setIssuerUri(blankToNull(command.issuerUri()));
+        }
+        if (command.userNameAttribute() != null) {
+            entity.setUserNameAttribute(blankToNull(command.userNameAttribute()));
+        }
+        if (command.emailAttribute() != null) {
+            entity.setEmailAttribute(blankToNull(command.emailAttribute()));
+        }
+        if (command.emailVerifiedAttribute() != null) {
+            entity.setEmailVerifiedAttribute(blankToNull(command.emailVerifiedAttribute()));
+        }
+        if (command.displayNameAttribute() != null) {
+            entity.setDisplayNameAttribute(blankToNull(command.displayNameAttribute()));
+        }
+        if (command.groupsAttribute() != null) {
+            entity.setGroupsAttribute(blankToNull(command.groupsAttribute()));
+        }
         if (command.allowedOrganizations() != null) {
             entity.setAllowedOrganizations(normalizeOrganizations(command.allowedOrganizations()));
         }
@@ -119,6 +152,9 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                         "error.oauth2.github_read_org_scope_required", null,
                         LocaleContextHolder.getLocale()));
             }
+            if (provider == OAuth2ProviderType.OIDC) {
+                validateOidcEntity(entity);
+            }
         }
 
         entity.setUpdatedAt(Instant.now());
@@ -139,7 +175,7 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
     @Transactional(readOnly = true)
     public List<OAuth2ProviderSummaryView> listActive(UUID organizationId) {
         return repository.findAllByOrganizationIdAndActiveTrue(organizationId).stream()
-                .map(e -> new OAuth2ProviderSummaryView(e.getProvider(), displayName(e.getProvider())))
+                .map(e -> new OAuth2ProviderSummaryView(e.getProvider(), displayNameFor(e)))
                 .toList();
     }
 
@@ -173,6 +209,17 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 false,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 List.of(),
                 List.of(),
                 UserRoleType.ANALYST,
@@ -191,6 +238,17 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                         && !entity.getClientSecretEncrypted().isBlank(),
                 entity.getScopesOverride(),
                 entity.getTenantId(),
+                entity.getDisplayName(),
+                entity.getAuthorizationUri(),
+                entity.getTokenUri(),
+                entity.getUserInfoUri(),
+                entity.getJwkSetUri(),
+                entity.getIssuerUri(),
+                entity.getUserNameAttribute(),
+                entity.getEmailAttribute(),
+                entity.getEmailVerifiedAttribute(),
+                entity.getDisplayNameAttribute(),
+                entity.getGroupsAttribute(),
                 toList(entity.getAllowedOrganizations()),
                 toList(entity.getAllowedEmailDomains()),
                 entity.getDefaultRole(),
@@ -199,13 +257,54 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 entity.getUpdatedAt());
     }
 
-    private static String displayName(OAuth2ProviderType provider) {
-        return switch (provider) {
+    private static String displayNameFor(OAuth2ConfigEntity entity) {
+        if (entity.getProvider() == OAuth2ProviderType.OIDC) {
+            var name = entity.getDisplayName();
+            return name == null || name.isBlank() ? "OpenID Connect" : name.trim();
+        }
+        return switch (entity.getProvider()) {
             case GOOGLE -> "Google";
             case GITHUB -> "GitHub";
             case MICROSOFT -> "Microsoft";
             case GITLAB -> "GitLab";
+            case OIDC -> "OpenID Connect";
         };
+    }
+
+    private void validateOidcEntity(OAuth2ConfigEntity entity) {
+        requireOidcField(entity.getDisplayName(), "error.oauth2.oidc_display_name_required");
+        requireOidcUri(entity.getAuthorizationUri(), "error.oauth2.oidc_authorization_uri_required");
+        requireOidcUri(entity.getTokenUri(), "error.oauth2.oidc_token_uri_required");
+        requireOidcUri(entity.getUserInfoUri(), "error.oauth2.oidc_user_info_uri_required");
+        requireOidcUri(entity.getJwkSetUri(), "error.oauth2.oidc_jwk_set_uri_required");
+        requireOidcUri(entity.getIssuerUri(), "error.oauth2.oidc_issuer_uri_required");
+    }
+
+    private void requireOidcField(String value, String missingKey) {
+        if (value == null || value.isBlank()) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    missingKey, null, LocaleContextHolder.getLocale()));
+        }
+    }
+
+    private void requireOidcUri(String value, String missingKey) {
+        requireOidcField(value, missingKey);
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(value.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.oidc_uri_invalid", new Object[] {value},
+                    LocaleContextHolder.getLocale()));
+        }
+        var scheme = uri.getScheme();
+        if (scheme == null
+                || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                || uri.getHost() == null) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.oidc_uri_invalid", new Object[] {value},
+                    LocaleContextHolder.getLocale()));
+        }
     }
 
     private static String blankToNull(String s) {

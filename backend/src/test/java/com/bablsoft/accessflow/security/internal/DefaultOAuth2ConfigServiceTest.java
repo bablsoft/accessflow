@@ -85,9 +85,13 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(encryptionService.encrypt("secret123")).thenReturn("ENC(secret123)");
 
-        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
-                "client-abc", "secret123", "openid email", null, null, null,
-                UserRoleType.REVIEWER, true));
+        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, command()
+                .clientId("client-abc")
+                .clientSecret("secret123")
+                .scopesOverride("openid email")
+                .defaultRole(UserRoleType.REVIEWER)
+                .active(true)
+                .build());
 
         assertThat(view.provider()).isEqualTo(OAuth2ProviderType.GOOGLE);
         assertThat(view.clientId()).isEqualTo("client-abc");
@@ -109,8 +113,10 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         service.update(orgId, OAuth2ProviderType.GITHUB,
-                new UpdateOAuth2ConfigCommand(null, UpdateOAuth2ConfigCommand.MASKED_SECRET,
-                        null, null, null, null, UserRoleType.ANALYST, true));
+                command()
+                        .clientSecret(UpdateOAuth2ConfigCommand.MASKED_SECRET)
+                        .active(true)
+                        .build());
 
         var captor = ArgumentCaptor.forClass(OAuth2ConfigEntity.class);
         verify(repository).save(captor.capture());
@@ -129,8 +135,7 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var view = service.update(orgId, OAuth2ProviderType.GITLAB,
-                new UpdateOAuth2ConfigCommand(null, "", null, null, null, null,
-                        UserRoleType.ANALYST, null));
+                command().clientSecret("").build());
 
         assertThat(view.clientSecretConfigured()).isFalse();
         assertThat(view.active()).isFalse();
@@ -143,8 +148,7 @@ class DefaultOAuth2ConfigServiceTest {
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("client_id required");
 
         assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GOOGLE,
-                new UpdateOAuth2ConfigCommand(null, null, null, null, null, null,
-                        UserRoleType.ANALYST, true)))
+                command().active(true).build()))
                 .isInstanceOf(OAuth2ConfigInvalidException.class);
     }
 
@@ -156,8 +160,7 @@ class DefaultOAuth2ConfigServiceTest {
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("tenant required");
 
         assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.MICROSOFT,
-                new UpdateOAuth2ConfigCommand("c", "s", null, null, null, null,
-                        UserRoleType.ANALYST, true)))
+                command().clientId("c").clientSecret("s").active(true).build()))
                 .isInstanceOf(OAuth2ConfigInvalidException.class)
                 .hasMessageContaining("tenant");
     }
@@ -170,8 +173,10 @@ class DefaultOAuth2ConfigServiceTest {
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("read:org required");
 
         assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB,
-                new UpdateOAuth2ConfigCommand("c", "s", "read:user user:email", null,
-                        List.of("bablsoft"), null, UserRoleType.ANALYST, true)))
+                command().clientId("c").clientSecret("s")
+                        .scopesOverride("read:user user:email")
+                        .allowedOrganizations(List.of("bablsoft"))
+                        .active(true).build()))
                 .isInstanceOf(OAuth2ConfigInvalidException.class)
                 .hasMessageContaining("read:org");
     }
@@ -183,9 +188,11 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(encryptionService.encrypt("s")).thenReturn("E");
 
-        var view = service.update(orgId, OAuth2ProviderType.GITHUB, new UpdateOAuth2ConfigCommand(
-                "c", "s", "read:user user:email read:org", null,
-                List.of("bablsoft", "acme"), null, UserRoleType.ANALYST, true));
+        var view = service.update(orgId, OAuth2ProviderType.GITHUB, command()
+                .clientId("c").clientSecret("s")
+                .scopesOverride("read:user user:email read:org")
+                .allowedOrganizations(List.of("bablsoft", "acme"))
+                .active(true).build());
 
         assertThat(view.allowedOrganizations()).containsExactly("bablsoft", "acme");
         assertThat(view.active()).isTrue();
@@ -198,10 +205,10 @@ class DefaultOAuth2ConfigServiceTest {
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(encryptionService.encrypt("s")).thenReturn("E");
 
-        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
-                "c", "s", null, null,
-                null, List.of("Example.com", "  ACME.com  ", "example.com"),
-                UserRoleType.ANALYST, true));
+        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, command()
+                .clientId("c").clientSecret("s")
+                .allowedEmailDomains(List.of("Example.com", "  ACME.com  ", "example.com"))
+                .active(true).build());
 
         assertThat(view.allowedEmailDomains()).containsExactly("example.com", "acme.com");
     }
@@ -218,12 +225,106 @@ class DefaultOAuth2ConfigServiceTest {
                 .thenReturn(Optional.of(entity));
         when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, new UpdateOAuth2ConfigCommand(
-                null, UpdateOAuth2ConfigCommand.MASKED_SECRET, null, null,
-                List.of(), List.of(), UserRoleType.ANALYST, true));
+        var view = service.update(orgId, OAuth2ProviderType.GOOGLE, command()
+                .clientSecret(UpdateOAuth2ConfigCommand.MASKED_SECRET)
+                .allowedOrganizations(List.of())
+                .allowedEmailDomains(List.of())
+                .active(true).build());
 
         assertThat(view.allowedOrganizations()).isEmpty();
         assertThat(view.allowedEmailDomains()).isEmpty();
+    }
+
+    @Test
+    void updateOidcRejectsActivationWhenDisplayNameMissing() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.OIDC))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("display_name required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.OIDC, command()
+                .clientId("c").clientSecret("s")
+                .authorizationUri("http://idp/authorize")
+                .tokenUri("http://idp/token")
+                .userInfoUri("http://idp/userinfo")
+                .jwkSetUri("http://idp/jwks")
+                .issuerUri("http://idp")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("display_name");
+    }
+
+    @Test
+    void updateOidcRejectsActivationWhenUriMissing() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.OIDC))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("token uri required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.OIDC, command()
+                .clientId("c").clientSecret("s").displayName("Mock IdP")
+                .authorizationUri("http://idp/authorize")
+                .userInfoUri("http://idp/userinfo")
+                .jwkSetUri("http://idp/jwks")
+                .issuerUri("http://idp")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("token uri");
+    }
+
+    @Test
+    void updateOidcRejectsMalformedUri() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.OIDC))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("invalid URL");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.OIDC, command()
+                .clientId("c").clientSecret("s").displayName("Mock IdP")
+                .authorizationUri("not-a-url")
+                .tokenUri("http://idp/token")
+                .userInfoUri("http://idp/userinfo")
+                .jwkSetUri("http://idp/jwks")
+                .issuerUri("http://idp")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class);
+    }
+
+    @Test
+    void updateOidcHappyPathStoresAllFields() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.OIDC))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.OIDC, command()
+                .clientId("c").clientSecret("s")
+                .displayName("Mock IdP")
+                .authorizationUri("http://idp/authorize")
+                .tokenUri("http://idp/token")
+                .userInfoUri("http://idp/userinfo")
+                .jwkSetUri("http://idp/jwks")
+                .issuerUri("http://idp")
+                .userNameAttribute("sub")
+                .emailAttribute("email")
+                .emailVerifiedAttribute("email_verified")
+                .displayNameAttribute("name")
+                .groupsAttribute("groups")
+                .active(true).build());
+
+        assertThat(view.provider()).isEqualTo(OAuth2ProviderType.OIDC);
+        assertThat(view.displayName()).isEqualTo("Mock IdP");
+        assertThat(view.authorizationUri()).isEqualTo("http://idp/authorize");
+        assertThat(view.tokenUri()).isEqualTo("http://idp/token");
+        assertThat(view.userInfoUri()).isEqualTo("http://idp/userinfo");
+        assertThat(view.jwkSetUri()).isEqualTo("http://idp/jwks");
+        assertThat(view.issuerUri()).isEqualTo("http://idp");
+        assertThat(view.userNameAttribute()).isEqualTo("sub");
+        assertThat(view.emailAttribute()).isEqualTo("email");
+        assertThat(view.emailVerifiedAttribute()).isEqualTo("email_verified");
+        assertThat(view.displayNameAttribute()).isEqualTo("name");
+        assertThat(view.groupsAttribute()).isEqualTo("groups");
+        assertThat(view.active()).isTrue();
     }
 
     @Test
@@ -242,6 +343,22 @@ class DefaultOAuth2ConfigServiceTest {
     }
 
     @Test
+    void listActiveOidcUsesEntityDisplayName() {
+        var enabled = seeded(OAuth2ProviderType.OIDC);
+        enabled.setActive(true);
+        enabled.setDisplayName("Mock IdP");
+        when(repository.findAllByOrganizationIdAndActiveTrue(orgId))
+                .thenReturn(List.of(enabled));
+
+        var active = service.listActive(orgId);
+
+        assertThat(active).singleElement().satisfies(s -> {
+            assertThat(s.provider()).isEqualTo(OAuth2ProviderType.OIDC);
+            assertThat(s.displayName()).isEqualTo("Mock IdP");
+        });
+    }
+
+    @Test
     void deletePublishesEvent() {
         service.delete(orgId, OAuth2ProviderType.GITHUB);
 
@@ -256,5 +373,61 @@ class DefaultOAuth2ConfigServiceTest {
         entity.setProvider(provider);
         entity.setDefaultRole(UserRoleType.ANALYST);
         return entity;
+    }
+
+    private static CommandBuilder command() {
+        return new CommandBuilder();
+    }
+
+    /** Builder for {@link UpdateOAuth2ConfigCommand} so tests stay readable as the field set grows. */
+    private static final class CommandBuilder {
+        private String clientId;
+        private String clientSecret;
+        private String scopesOverride;
+        private String tenantId;
+        private String displayName;
+        private String authorizationUri;
+        private String tokenUri;
+        private String userInfoUri;
+        private String jwkSetUri;
+        private String issuerUri;
+        private String userNameAttribute;
+        private String emailAttribute;
+        private String emailVerifiedAttribute;
+        private String displayNameAttribute;
+        private String groupsAttribute;
+        private List<String> allowedOrganizations;
+        private List<String> allowedEmailDomains;
+        private UserRoleType defaultRole = UserRoleType.ANALYST;
+        private Boolean active;
+
+        CommandBuilder clientId(String v) { this.clientId = v; return this; }
+        CommandBuilder clientSecret(String v) { this.clientSecret = v; return this; }
+        CommandBuilder scopesOverride(String v) { this.scopesOverride = v; return this; }
+        CommandBuilder tenantId(String v) { this.tenantId = v; return this; }
+        CommandBuilder displayName(String v) { this.displayName = v; return this; }
+        CommandBuilder authorizationUri(String v) { this.authorizationUri = v; return this; }
+        CommandBuilder tokenUri(String v) { this.tokenUri = v; return this; }
+        CommandBuilder userInfoUri(String v) { this.userInfoUri = v; return this; }
+        CommandBuilder jwkSetUri(String v) { this.jwkSetUri = v; return this; }
+        CommandBuilder issuerUri(String v) { this.issuerUri = v; return this; }
+        CommandBuilder userNameAttribute(String v) { this.userNameAttribute = v; return this; }
+        CommandBuilder emailAttribute(String v) { this.emailAttribute = v; return this; }
+        CommandBuilder emailVerifiedAttribute(String v) { this.emailVerifiedAttribute = v; return this; }
+        CommandBuilder displayNameAttribute(String v) { this.displayNameAttribute = v; return this; }
+        CommandBuilder groupsAttribute(String v) { this.groupsAttribute = v; return this; }
+        CommandBuilder allowedOrganizations(List<String> v) { this.allowedOrganizations = v; return this; }
+        CommandBuilder allowedEmailDomains(List<String> v) { this.allowedEmailDomains = v; return this; }
+        CommandBuilder defaultRole(UserRoleType v) { this.defaultRole = v; return this; }
+        CommandBuilder active(Boolean v) { this.active = v; return this; }
+
+        UpdateOAuth2ConfigCommand build() {
+            return new UpdateOAuth2ConfigCommand(
+                    clientId, clientSecret, scopesOverride, tenantId,
+                    displayName, authorizationUri, tokenUri, userInfoUri, jwkSetUri, issuerUri,
+                    userNameAttribute, emailAttribute, emailVerifiedAttribute,
+                    displayNameAttribute, groupsAttribute,
+                    allowedOrganizations, allowedEmailDomains, defaultRole, active);
+        }
     }
 }

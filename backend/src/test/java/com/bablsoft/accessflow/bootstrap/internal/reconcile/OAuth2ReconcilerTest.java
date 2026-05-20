@@ -51,10 +51,8 @@ class OAuth2ReconcilerTest {
                 any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
 
         reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec", null, null,
-                        null, null, UserRoleType.REVIEWER, true),
-                new OAuth2Spec(OAuth2ProviderType.GITHUB, "gh-id", "gh-sec", null, null,
-                        null, null, UserRoleType.REVIEWER, true)));
+                fixedSpec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec"),
+                fixedSpec(OAuth2ProviderType.GITHUB, "gh-id", "gh-sec")));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE), captor.capture());
@@ -69,9 +67,7 @@ class OAuth2ReconcilerTest {
         when(stateTracker.findFingerprint(eq(ORG_ID), eq(BootstrapResourceType.OAUTH2_CONFIG), any(UUID.class)))
                 .thenReturn(Optional.of("matching-fp"));
 
-        reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec", null, null,
-                        null, null, UserRoleType.REVIEWER, true)));
+        reconciler.reconcile(ORG_ID, List.of(fixedSpec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec")));
 
         verify(oauth2ConfigService, never()).update(any(), any(), any());
         verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
@@ -84,9 +80,7 @@ class OAuth2ReconcilerTest {
         when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE),
                 any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
 
-        reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec", null, null,
-                        null, null, UserRoleType.REVIEWER, true)));
+        reconciler.reconcile(ORG_ID, List.of(fixedSpec(OAuth2ProviderType.GOOGLE, "g-id", "g-sec")));
 
         var eventCaptor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
         verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
@@ -97,11 +91,6 @@ class OAuth2ReconcilerTest {
         assertThat(eventCaptor.getValue().summaryMetadata()).containsEntry("provider", "GOOGLE");
     }
 
-    private static OAuth2ConfigView defaultView(OAuth2ProviderType provider) {
-        return new OAuth2ConfigView(UUID.randomUUID(), ORG_ID, provider, null, false, null, null,
-                List.of(), List.of(), UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
-    }
-
     @Test
     void roundTripsAllowlists() {
         when(oauth2ConfigService.getOrDefault(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB)))
@@ -109,11 +98,12 @@ class OAuth2ReconcilerTest {
         when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB),
                 any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
 
-        reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GITHUB, "gh-id", "gh-sec",
-                        "read:user user:email read:org", null,
-                        List.of("bablsoft"), List.of("example.com"),
-                        UserRoleType.ANALYST, true)));
+        reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.GITHUB, "gh-id", "gh-sec",
+                "read:user user:email read:org", null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                List.of("bablsoft"), List.of("example.com"),
+                UserRoleType.ANALYST, true)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB), captor.capture());
@@ -124,7 +114,9 @@ class OAuth2ReconcilerTest {
     @Test
     void throwsWhenProviderMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(null, "x", "y", null, null, null, null, null, true))))
+                new OAuth2Spec(null, "x", "y", null, null,
+                        null, null, null, null, null, null, null, null, null, null, null,
+                        null, null, null, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider");
     }
@@ -132,8 +124,7 @@ class OAuth2ReconcilerTest {
     @Test
     void throwsWhenClientIdMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, " ", "secret", null, null,
-                        null, null, null, true))))
+                fixedSpec(OAuth2ProviderType.GOOGLE, " ", "secret"))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("clientId");
     }
@@ -145,12 +136,82 @@ class OAuth2ReconcilerTest {
         when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE),
                 any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
 
-        reconciler.reconcile(ORG_ID, List.of(
-                new OAuth2Spec(OAuth2ProviderType.GOOGLE, "id", "sec", null, null,
-                        null, null, null, null)));
+        reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.GOOGLE, "id", "sec", null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE), captor.capture());
         assertThat(captor.getValue().active()).isTrue();
+    }
+
+    @Test
+    void appliesOidcSpec() {
+        when(oauth2ConfigService.getOrDefault(eq(ORG_ID), eq(OAuth2ProviderType.OIDC)))
+                .thenReturn(defaultView(OAuth2ProviderType.OIDC));
+        when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.OIDC),
+                any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
+
+        reconciler.reconcile(ORG_ID, List.of(oidcSpec()));
+
+        var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
+        verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.OIDC), captor.capture());
+        var cmd = captor.getValue();
+        assertThat(cmd.displayName()).isEqualTo("Mock IdP");
+        assertThat(cmd.authorizationUri()).isEqualTo("http://idp/authorize");
+        assertThat(cmd.tokenUri()).isEqualTo("http://idp/token");
+        assertThat(cmd.userInfoUri()).isEqualTo("http://idp/userinfo");
+        assertThat(cmd.jwkSetUri()).isEqualTo("http://idp/jwks");
+        assertThat(cmd.issuerUri()).isEqualTo("http://idp");
+        assertThat(cmd.groupsAttribute()).isEqualTo("groups");
+    }
+
+    @Test
+    void rejectsOidcSpecMissingDisplayName() {
+        assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.OIDC, "c", "s", null, null,
+                null, "http://idp/authorize", "http://idp/token",
+                "http://idp/userinfo", "http://idp/jwks", "http://idp",
+                null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("displayName");
+    }
+
+    @Test
+    void rejectsOidcSpecMissingTokenUri() {
+        assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.OIDC, "c", "s", null, null,
+                "Mock", "http://idp/authorize", null,
+                "http://idp/userinfo", "http://idp/jwks", "http://idp",
+                null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("tokenUri");
+    }
+
+    private static OAuth2ConfigView defaultView(OAuth2ProviderType provider) {
+        return new OAuth2ConfigView(UUID.randomUUID(), ORG_ID, provider, null, false, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                List.of(), List.of(), UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
+    }
+
+    private static OAuth2Spec fixedSpec(OAuth2ProviderType provider, String clientId, String clientSecret) {
+        return new OAuth2Spec(
+                provider, clientId, clientSecret, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, UserRoleType.REVIEWER, true);
+    }
+
+    private static OAuth2Spec oidcSpec() {
+        return new OAuth2Spec(
+                OAuth2ProviderType.OIDC, "c", "s", null, null,
+                "Mock IdP",
+                "http://idp/authorize",
+                "http://idp/token",
+                "http://idp/userinfo",
+                "http://idp/jwks",
+                "http://idp",
+                "sub", "email", "email_verified", "name", "groups",
+                null, null, UserRoleType.ANALYST, true);
     }
 }

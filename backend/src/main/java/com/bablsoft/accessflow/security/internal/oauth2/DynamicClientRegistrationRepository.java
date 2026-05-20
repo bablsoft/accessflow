@@ -90,7 +90,7 @@ public class DynamicClientRegistrationRepository implements ClientRegistrationRe
     }
 
     private ClientRegistration build(OAuth2ConfigEntity entity) {
-        var template = OAuth2ProviderTemplate.forProvider(entity.getProvider());
+        var template = OAuth2ProviderTemplate.forEntity(entity);
         var registrationId = entity.getProvider().name().toLowerCase(Locale.ROOT);
         var scopes = parseScopes(entity.getScopesOverride(), template.defaultScopes());
         var tenant = entity.getTenantId();

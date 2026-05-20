@@ -30,6 +30,9 @@ import java.util.Set;
  *         (object IDs of AAD groups; only emitted when the app's token configuration enables it).</li>
  *     <li><b>GOOGLE</b> — returns an empty set. Google's organization surface is the email domain,
  *         enforced by the {@code allowed_email_domains} allowlist.</li>
+ *     <li><b>OIDC</b> — reads the claim named by {@code groupsAttribute} on the config row. When
+ *         the column is null, returns an empty set so the allowlist (if configured) rejects the
+ *         login rather than failing open.</li>
  * </ul>
  */
 @Component
@@ -51,10 +54,20 @@ public class OAuth2MembershipResolver {
     public Set<String> resolveOrganizations(OAuth2ProviderType provider,
                                             Map<String, Object> attributes,
                                             String accessToken) {
+        return resolveOrganizations(provider, attributes, accessToken, null);
+    }
+
+    public Set<String> resolveOrganizations(OAuth2ProviderType provider,
+                                            Map<String, Object> attributes,
+                                            String accessToken,
+                                            String groupsAttribute) {
         return switch (provider) {
             case GITHUB -> githubOrgLogins(accessToken);
             case GITLAB, MICROSOFT -> claimList(attributes, "groups");
             case GOOGLE -> Set.of();
+            case OIDC -> groupsAttribute == null || groupsAttribute.isBlank()
+                    ? Set.of()
+                    : claimList(attributes, groupsAttribute);
         };
     }
 

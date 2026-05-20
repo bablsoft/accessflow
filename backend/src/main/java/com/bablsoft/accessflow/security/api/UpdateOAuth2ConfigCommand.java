@@ -18,12 +18,33 @@ import java.util.List;
  *     <li>empty list — clear the restriction (any login allowed).</li>
  *     <li>non-empty list — replace the stored list.</li>
  * </ul>
+ *
+ * <p>The {@code displayName}, URL, and attribute-name fields are persisted only for the
+ * generic {@link OAuth2ProviderType#OIDC} provider; the four built-in providers ignore
+ * them and pick up their templates from {@code OAuth2ProviderTemplate}. When the row's
+ * provider is {@code OIDC} and {@code active=true}, the five URL fields and
+ * {@code displayName} must be present (validated by {@code DefaultOAuth2ConfigService}).
+ * Attribute-name fields are optional and fall back to standard OIDC claim names
+ * ({@code sub}, {@code email}, {@code email_verified}, {@code name}). {@code groupsAttribute}
+ * is the claim used by {@code OAuth2MembershipResolver} when an OIDC allowlist is
+ * configured.
  */
 public record UpdateOAuth2ConfigCommand(
         String clientId,
         String clientSecret,
         String scopesOverride,
         String tenantId,
+        String displayName,
+        String authorizationUri,
+        String tokenUri,
+        String userInfoUri,
+        String jwkSetUri,
+        String issuerUri,
+        String userNameAttribute,
+        String emailAttribute,
+        String emailVerifiedAttribute,
+        String displayNameAttribute,
+        String groupsAttribute,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
         UserRoleType defaultRole,

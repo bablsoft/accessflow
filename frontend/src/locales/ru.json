@@ -182,7 +182,17 @@
       "default_role_required": "Роль по умолчанию обязательна.",
       "allowed_max": "Список не может содержать более 100 записей.",
       "allowed_entry_blank": "Записи не могут быть пустыми.",
-      "allowed_entry_max": "Каждая запись не должна превышать 255 символов."
+      "allowed_entry_max": "Каждая запись не должна превышать 255 символов.",
+      "display_name_required": "Отображаемое имя обязательно.",
+      "display_name_max": "Отображаемое имя должно быть не более 255 символов.",
+      "authorization_uri_required": "URL авторизации обязателен.",
+      "token_uri_required": "URL токена обязателен.",
+      "user_info_uri_required": "URL UserInfo обязателен.",
+      "jwk_set_uri_required": "URL набора JWK обязателен.",
+      "issuer_uri_required": "URL издателя обязателен.",
+      "uri_invalid": "Должен быть допустимый http(s) URL.",
+      "uri_max": "URL должен быть не более 2048 символов.",
+      "attribute_max": "Имя claim'а должно быть не более 255 символов."
     },
     "system_smtp": {
       "host_required": "Хост SMTP обязателен.",
@@ -799,7 +809,8 @@
         "google": "Откройте <console>Google Cloud Console &rarr; APIs &amp; Services &rarr; Credentials</console>, создайте OAuth 2.0 Client ID типа «Web application» и вставьте URI перенаправления, указанный ниже, в «Authorized redirect URIs».",
         "github": "Откройте <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, нажмите «New OAuth App» и вставьте URI перенаправления, указанный ниже, в поле «Authorization callback URL».",
         "microsoft": "Откройте <console>центр администрирования Microsoft Entra &rarr; App registrations</console>, зарегистрируйте новое приложение и в разделе Authentication &rarr; Redirect URIs добавьте запись платформы Web с URI ниже. Tenant ID возьмите со страницы обзора приложения.",
-        "gitlab": "Откройте <console>GitLab &rarr; User Settings &rarr; Applications</console> (или Admin Area &rarr; Applications для приложения на уровне организации) и вставьте URI перенаправления, указанный ниже, в поле «Redirect URI»."
+        "gitlab": "Откройте <console>GitLab &rarr; User Settings &rarr; Applications</console> (или Admin Area &rarr; Applications для приложения на уровне организации) и вставьте URI перенаправления, указанный ниже, в поле «Redirect URI».",
+        "oidc": "Зарегистрируйте новый клиент OAuth 2.0 / OIDC у вашего поставщика идентификации (Keycloak, Auth0, Okta, Authentik, Zitadel и т.д.). Используйте URI перенаправления ниже как разрешённый callback. Затем вставьте URL точек доступа вашего поставщика в поля ниже — большинство IdP публикуют их в /.well-known/openid-configuration."
       },
       "callback_url_label": "URI перенаправления для регистрации у провайдера",
       "callback_url_help": "Скопируйте именно этот URL в консоль разработчика провайдера. AccessFlow принимает обратный вызов только по этому пути.",
@@ -818,13 +829,15 @@
         "google": "Google применяет это через почтовый домен — используйте поле ниже. Этот список для Google игнорируется.",
         "github": "Логины организаций GitHub (с учётом регистра). Требуется scope read:org. Пусто = любой пользователь GitHub может войти.",
         "microsoft": "Object ID групп AAD Microsoft Entra. Приложение должно быть настроено на выдачу claim «groups». Пусто = любой пользователь арендатора может войти.",
-        "gitlab": "Полные пути групп GitLab из OIDC-claim «groups». Пусто = любой пользователь GitLab может войти."
+        "gitlab": "Полные пути групп GitLab из OIDC-claim «groups». Пусто = любой пользователь GitLab может войти.",
+        "oidc": "Идентификаторы групп из claim'а, настроенного ниже как \"Claim групп\". Пусто = любой пользователь, аутентифицированный IdP, может войти (или ограничьте по домену электронной почты)."
       },
       "allowed_orgs_placeholder": {
         "google": "Используйте поле почтовых доменов ниже",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Через запятую или пробел. Сопоставление без учёта регистра с доменом из e-mail. Пусто = принимается любой домен.",
       "github_read_org_scope_warning_title": "GitHub не вернёт членство в приватных организациях",
@@ -835,13 +848,15 @@
         "google": "OAuth 2.0 Client ID, созданный в Google Cloud Console. Имеет вид 1234567890-abc.apps.googleusercontent.com.",
         "github": "Client ID OAuth-приложения GitHub (виден на странице настроек приложения после его создания).",
         "microsoft": "Application (client) ID на странице обзора приложения в центре администрирования Entra.",
-        "gitlab": "Application ID, отображаемый на странице приложения после его создания в GitLab."
+        "gitlab": "Application ID, отображаемый на странице приложения после его создания в GitLab.",
+        "oidc": "Идентификатор OIDC-клиента, зарегистрированный у вашего поставщика идентификации."
       },
       "client_secret_tooltip": {
         "google": "Нажмите «Создать учётные данные» в Google Cloud и скачайте секрет — он показывается только один раз.",
         "github": "Сгенерируйте новый client secret на странице OAuth-приложения GitHub. Скопируйте его сразу — GitHub не покажет его повторно.",
         "microsoft": "В разделе «Сертификаты и секреты» создайте новый Client Secret. Скопируйте «Значение» (а не ID секрета).",
-        "gitlab": "Показывается один раз на странице приложения сразу после создания в поле «Secret»."
+        "gitlab": "Показывается один раз на странице приложения сразу после создания в поле «Secret».",
+        "oidc": "Секрет OIDC-клиента, выданный вашим поставщиком идентификации при регистрации клиента."
       },
       "scopes_tooltip": "Через пробел или запятую. Оставьте пустым, чтобы использовать значения по умолчанию провайдера ({{defaults}}).",
       "tenant_id_tooltip": "Tenant ID Microsoft Entra, GUID или известный alias: «common» (любая учётная запись Microsoft), «organizations» (любая рабочая или учебная учётная запись) или «consumers» (только личные учётные записи).",
@@ -850,7 +865,21 @@
       "delete_button": "Удалить",
       "delete_confirm": "Удалить конфигурацию этого провайдера? Уже вошедшие пользователи останутся в системе.",
       "delete_success": "Конфигурация OAuth удалена",
-      "load_error": "Не удалось загрузить конфигурацию OAuth"
+      "load_error": "Не удалось загрузить конфигурацию OAuth",
+      "label_display_name": "Отображаемое имя",
+      "label_display_name_help": "Отображается на странице входа на кнопке OAuth (\"Продолжить с …\").",
+      "label_authorization_uri": "URL точки авторизации",
+      "label_token_uri": "URL точки токена",
+      "label_user_info_uri": "URL точки UserInfo",
+      "label_jwk_set_uri": "URL набора JWK",
+      "label_issuer_uri": "URL издателя",
+      "label_user_name_attribute": "Claim имени пользователя",
+      "label_email_attribute": "Claim электронной почты",
+      "label_email_verified_attribute": "Claim подтверждённой почты",
+      "label_display_name_attribute": "Claim отображаемого имени",
+      "label_groups_attribute": "Claim групп",
+      "label_groups_attribute_help": "Требуется, если установлены \"Разрешённые организации\". Имя claim'а, который перечисляет группы пользователя.",
+      "help_oidc_attribute_defaults": "Имена claim'ов опциональны — оставьте пустыми, чтобы использовать стандартные значения OIDC (sub, email, email_verified, name)."
     },
     "saml": {
       "title": "SAML / SSO",

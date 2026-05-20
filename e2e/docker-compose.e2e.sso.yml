@@ -104,6 +104,30 @@ services:
     networks:
       - e2e-sso-network
 
+  mock-oauth2-server:
+    # navikt/mock-oauth2-server is a tiny standalone OAuth 2.0 / OIDC provider
+    # used as a stand-in for Google / Auth0 / Keycloak in tests. Its issuer
+    # path is derived from the request Host header, so the same hostname
+    # (mock-oauth2-server:8080) is honoured both by the backend (over the
+    # docker network) and the browser (via Chromium's --host-resolver-rules
+    # remap to 127.0.0.1:8086 — see playwright.sso.config.ts).
+    #
+    # The image hosts an interactive "Debugger" login form at /<issuer>/authorize
+    # that lets tests set the subject / claims and submit, returning an
+    # authorization code that the backend exchanges for a JWT. Default issuer
+    # path is "/default" — the OIDC config below points at that issuer.
+    image: ghcr.io/navikt/mock-oauth2-server:2.1.10
+    # No healthcheck: the image is a JIB-built distroless JVM with no shell or
+    # HTTP probe tooling (no wget, no curl, no sh). The server warms up in
+    # ~2-3 s. The backend resolves OIDC metadata lazily on the first authorize
+    # request (DynamicClientRegistrationRepository.build), so by the time the
+    # Playwright spec clicks the OAuth2 button, mock-oauth2-server has been
+    # ready for many seconds.
+    ports:
+      - "8086:8080"
+    networks:
+      - e2e-sso-network
+
   backend:
     build:
       context: ../backend
@@ -115,6 +139,8 @@ services:
         condition: service_healthy
       saml-idp:
         condition: service_healthy
+      mock-oauth2-server:
+        condition: service_started
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/accessflow
       DB_USER: accessflow
@@ -179,6 +205,24 @@ services:
       ACCESSFLOW_BOOTSTRAP_SAML_ATTR_DISPLAY_NAME: displayName
       ACCESSFLOW_BOOTSTRAP_SAML_DEFAULT_ROLE: ANALYST
       ACCESSFLOW_BOOTSTRAP_SAML_ACTIVE: "true"
+      # Bootstrap a generic OIDC provider pointed at the mock-oauth2-server
+      # container. The issuer URL uses the docker-network hostname; both the
+      # backend (over docker DNS) and the browser (via Chromium's
+      # --host-resolver-rules MAP mock-oauth2-server:8080 127.0.0.1:8086)
+      # resolve it to the right place, so the `iss` claim in the issued JWT
+      # matches what the backend's ClientRegistration expects either way.
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_PROVIDER: OIDC
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_DISPLAY_NAME: Mock OAuth2
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_CLIENT_ID: accessflow-e2e
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_CLIENT_SECRET: e2e-client-secret
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_AUTHORIZATION_URI: http://mock-oauth2-server:8080/default/authorize
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_TOKEN_URI: http://mock-oauth2-server:8080/default/token
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_USER_INFO_URI: http://mock-oauth2-server:8080/default/userinfo
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_JWK_SET_URI: http://mock-oauth2-server:8080/default/jwks
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_ISSUER_URI: http://mock-oauth2-server:8080/default
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_SCOPES_OVERRIDE: "openid email profile"
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_DEFAULT_ROLE: ANALYST
+      ACCESSFLOW_BOOTSTRAP_OAUTH2_0_ACTIVE: "true"
       # IdP signing certificate — the default self-signed cert baked into
       # kristophjunge/test-saml-idp:1.15 at /var/www/simplesamlphp/cert/server.crt.
       # DynamicRelyingPartyRegistrationRepository requires this column to be

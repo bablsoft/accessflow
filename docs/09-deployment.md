@@ -648,6 +648,29 @@ bootstrap:
         - bablsoft
       defaultRole: ANALYST
       active: true
+    - provider: OIDC
+      # Generic OAuth 2.0 / OIDC — works with Keycloak, Auth0, Okta, Authentik,
+      # Zitadel, etc. The displayName is rendered as "Continue with {displayName}"
+      # on the login page. Most IdPs publish the five URLs below at
+      # /.well-known/openid-configuration.
+      displayName: Keycloak
+      clientId: accessflow
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: oidc-client-secret }
+      authorizationUri: https://keycloak.example.com/realms/acme/protocol/openid-connect/auth
+      tokenUri: https://keycloak.example.com/realms/acme/protocol/openid-connect/token
+      userInfoUri: https://keycloak.example.com/realms/acme/protocol/openid-connect/userinfo
+      jwkSetUri: https://keycloak.example.com/realms/acme/protocol/openid-connect/certs
+      issuerUri: https://keycloak.example.com/realms/acme
+      # Optional. Override these only if your IdP uses non-standard claim names.
+      # userNameAttribute: sub
+      # emailAttribute: email
+      # emailVerifiedAttribute: email_verified
+      # displayNameAttribute: name
+      # Optional. Required if you want to restrict sign-in via allowedOrganizations.
+      # groupsAttribute: groups
+      scopesOverride: "openid email profile"
+      defaultRole: ANALYST
+      active: true
   systemSmtp:
     enabled: true
     host: smtp.acme.com

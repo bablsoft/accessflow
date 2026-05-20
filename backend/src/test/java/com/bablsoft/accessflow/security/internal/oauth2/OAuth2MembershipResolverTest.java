@@ -123,4 +123,26 @@ class OAuth2MembershipResolverTest {
 
         assertThat(orgs).isEmpty();
     }
+
+    @Test
+    void oidcExtractsGroupsFromConfiguredClaim() {
+        var resolver = new OAuth2MembershipResolver();
+        Map<String, Object> attrs = Map.of("custom_groups", List.of("group-a", "group-b"));
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.OIDC, attrs, "tok", "custom_groups");
+
+        assertThat(orgs).containsExactlyInAnyOrder("group-a", "group-b");
+    }
+
+    @Test
+    void oidcReturnsEmptyWhenGroupsAttributeUnset() {
+        var resolver = new OAuth2MembershipResolver();
+        Map<String, Object> attrs = Map.of("custom_groups", List.of("group-a"));
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.OIDC, attrs, "tok", null);
+
+        assertThat(orgs).isEmpty();
+    }
 }

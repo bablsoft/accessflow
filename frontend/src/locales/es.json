@@ -182,7 +182,17 @@
       "default_role_required": "El rol predeterminado es obligatorio.",
       "allowed_max": "La lista no puede contener más de 100 entradas.",
       "allowed_entry_blank": "Las entradas no pueden estar en blanco.",
-      "allowed_entry_max": "Cada entrada no puede tener más de 255 caracteres."
+      "allowed_entry_max": "Cada entrada no puede tener más de 255 caracteres.",
+      "display_name_required": "El nombre para mostrar es obligatorio.",
+      "display_name_max": "El nombre para mostrar debe tener como máximo 255 caracteres.",
+      "authorization_uri_required": "La URL de autorización es obligatoria.",
+      "token_uri_required": "La URL de token es obligatoria.",
+      "user_info_uri_required": "La URL UserInfo es obligatoria.",
+      "jwk_set_uri_required": "La URL del conjunto JWK es obligatoria.",
+      "issuer_uri_required": "La URL del emisor es obligatoria.",
+      "uri_invalid": "Debe ser una URL http(s) válida.",
+      "uri_max": "La URL debe tener como máximo 2048 caracteres.",
+      "attribute_max": "El nombre del claim debe tener como máximo 255 caracteres."
     },
     "system_smtp": {
       "host_required": "El host SMTP es obligatorio.",
@@ -799,7 +809,8 @@
         "google": "Abre la <console>Consola de Google Cloud &rarr; APIs y servicios &rarr; Credenciales</console>, crea un Client ID OAuth 2.0 de tipo \"Aplicación web\" y pega la URI de redirección de abajo en \"URIs de redirección autorizadas\".",
         "github": "Abre <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, haz clic en \"New OAuth App\" y pega la URI de redirección de abajo en \"Authorization callback URL\".",
         "microsoft": "Abre el <console>centro de administración de Microsoft Entra &rarr; Registros de aplicaciones</console>, registra una nueva aplicación y, en Autenticación &rarr; URIs de redirección, añade una entrada de plataforma Web con la URI de abajo. Toma el Tenant ID de la página de información general de la aplicación.",
-        "gitlab": "Abre <console>GitLab &rarr; User Settings &rarr; Applications</console> (o Admin Area &rarr; Applications para una aplicación a nivel de organización) y pega la URI de redirección de abajo en \"Redirect URI\"."
+        "gitlab": "Abre <console>GitLab &rarr; User Settings &rarr; Applications</console> (o Admin Area &rarr; Applications para una aplicación a nivel de organización) y pega la URI de redirección de abajo en \"Redirect URI\".",
+        "oidc": "Registre un nuevo cliente OAuth 2.0 / OIDC en su proveedor de identidad (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Use la URI de redirección de abajo como callback permitido. Luego pegue las URL de los puntos finales de su proveedor en los campos siguientes; la mayoría de los IdP los publican en /.well-known/openid-configuration."
       },
       "callback_url_label": "URI de redirección que debes registrar en el proveedor",
       "callback_url_help": "Copia exactamente esta URL en la consola de desarrollador del proveedor. AccessFlow solo acepta la respuesta en esta ruta.",
@@ -818,13 +829,15 @@
         "google": "Google lo aplica vía dominio de correo: usa el campo de abajo. Esta lista se ignora para Google.",
         "github": "Logins de organizaciones de GitHub (distingue mayúsculas/minúsculas). Requiere el scope read:org. Vacío = cualquier usuario de GitHub puede iniciar sesión.",
         "microsoft": "IDs de objeto de grupos AAD de Microsoft Entra. La aplicación debe estar configurada para emitir el claim \"groups\". Vacío = cualquier usuario del tenant puede iniciar sesión.",
-        "gitlab": "Rutas completas de grupo de GitLab desde el claim OIDC \"groups\". Vacío = cualquier usuario de GitLab puede iniciar sesión."
+        "gitlab": "Rutas completas de grupo de GitLab desde el claim OIDC \"groups\". Vacío = cualquier usuario de GitLab puede iniciar sesión.",
+        "oidc": "Identificadores de grupos del reclamo configurado abajo como \"Reclamo de grupos\". Vacío = cualquier usuario autenticado por el IdP puede iniciar sesión (o restrinja por dominio de correo)."
       },
       "allowed_orgs_placeholder": {
         "google": "Usa el campo de dominios de correo de abajo",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
-        "gitlab": "acme/team"
+        "gitlab": "acme/team",
+        "oidc": "accessflow-admins"
       },
       "allowed_domains_help": "Separados por coma o espacio. Coincidencia insensible a mayúsculas con el dominio del correo. Vacío = cualquier dominio aceptado.",
       "github_read_org_scope_warning_title": "GitHub no devolverá la pertenencia a organizaciones privadas",
@@ -835,13 +848,15 @@
         "google": "El Client ID OAuth 2.0 creado en la Consola de Google Cloud. Tiene un formato similar a 1234567890-abc.apps.googleusercontent.com.",
         "github": "El Client ID de la aplicación OAuth en GitHub (visible en la página de configuración de la aplicación una vez creada).",
         "microsoft": "El Application (client) ID que aparece en la página de información general de la aplicación en el centro de administración de Entra.",
-        "gitlab": "El Application ID que aparece en la página de la aplicación tras crearla en GitLab."
+        "gitlab": "El Application ID que aparece en la página de la aplicación tras crearla en GitLab.",
+        "oidc": "El identificador de cliente OIDC registrado con su proveedor de identidad."
       },
       "client_secret_tooltip": {
         "google": "Haz clic en \"Crear credenciales\" en Google Cloud y descarga el secreto: solo se muestra una vez.",
         "github": "Genera un nuevo client secret en la página de la aplicación OAuth de GitHub. Cópialo de inmediato; GitHub no lo muestra de nuevo.",
         "microsoft": "En Certificados y secretos, crea un nuevo Client Secret. Copia el \"Valor\" (no el ID del secreto).",
-        "gitlab": "Se muestra una sola vez en la página de la aplicación justo después de crearla, en \"Secret\"."
+        "gitlab": "Se muestra una sola vez en la página de la aplicación justo después de crearla, en \"Secret\".",
+        "oidc": "El secreto de cliente OIDC emitido por su proveedor de identidad cuando se registró el cliente."
       },
       "scopes_tooltip": "Separados por espacios o comas. Déjalo vacío para usar los valores predeterminados del proveedor ({{defaults}}).",
       "tenant_id_tooltip": "Tenant ID de Microsoft Entra, GUID o un alias conocido: \"common\" (cualquier cuenta de Microsoft), \"organizations\" (cualquier cuenta profesional o educativa) o \"consumers\" (solo cuentas personales).",
@@ -850,7 +865,21 @@
       "delete_button": "Eliminar",
       "delete_confirm": "¿Eliminar la configuración de este proveedor? Los usuarios actualmente conectados permanecerán conectados.",
       "delete_success": "Configuración de OAuth eliminada",
-      "load_error": "No se pudo cargar la configuración de OAuth"
+      "load_error": "No se pudo cargar la configuración de OAuth",
+      "label_display_name": "Nombre para mostrar",
+      "label_display_name_help": "Se muestra en la página de inicio de sesión en el botón OAuth (\"Continuar con …\").",
+      "label_authorization_uri": "URL del punto final de autorización",
+      "label_token_uri": "URL del punto final de token",
+      "label_user_info_uri": "URL del punto final UserInfo",
+      "label_jwk_set_uri": "URL del conjunto JWK",
+      "label_issuer_uri": "URL del emisor",
+      "label_user_name_attribute": "Claim del nombre de usuario",
+      "label_email_attribute": "Claim del correo",
+      "label_email_verified_attribute": "Claim de correo verificado",
+      "label_display_name_attribute": "Claim del nombre para mostrar",
+      "label_groups_attribute": "Claim de grupos",
+      "label_groups_attribute_help": "Requerido si \"Organizaciones permitidas\" está establecido. Nombre del claim que lista los grupos del usuario.",
+      "help_oidc_attribute_defaults": "Los nombres de los claims son opcionales — deje en blanco para usar los valores predeterminados de OIDC (sub, email, email_verified, name)."
     },
     "saml": {
       "title": "SAML / SSO",

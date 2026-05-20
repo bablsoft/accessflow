@@ -1,9 +1,11 @@
 package com.bablsoft.accessflow.security.internal.oauth2;
 
 import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
+import com.bablsoft.accessflow.security.internal.persistence.entity.OAuth2ConfigEntity;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OAuth2ProviderTemplateTest {
 
@@ -52,12 +54,82 @@ class OAuth2ProviderTemplateTest {
     }
 
     @Test
-    void allProvidersExposeDisplayName() {
+    void allFixedProvidersExposeDisplayName() {
         for (var provider : OAuth2ProviderType.values()) {
+            if (provider == OAuth2ProviderType.OIDC) continue;
             var t = OAuth2ProviderTemplate.forProvider(provider);
             assertThat(t.displayName()).isNotBlank();
             assertThat(t.provider()).isEqualTo(provider);
         }
+    }
+
+    @Test
+    void forProviderRejectsOidcSinceItHasNoStaticDefaults() {
+        assertThatThrownBy(() -> OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.OIDC))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void forEntityBuildsOidcTemplateFromColumns() {
+        var entity = oidcEntity();
+        entity.setUserNameAttribute("uid");
+        entity.setEmailAttribute("upn");
+        entity.setEmailVerifiedAttribute("verified_flag");
+        entity.setDisplayNameAttribute("preferred_username");
+        entity.setGroupsAttribute("roles");
+
+        var t = OAuth2ProviderTemplate.forEntity(entity);
+
+        assertThat(t.provider()).isEqualTo(OAuth2ProviderType.OIDC);
+        assertThat(t.displayName()).isEqualTo("Mock IdP");
+        assertThat(t.authorizationUri(null)).isEqualTo("http://idp/authorize");
+        assertThat(t.tokenUri(null)).isEqualTo("http://idp/token");
+        assertThat(t.userInfoUri()).isEqualTo("http://idp/userinfo");
+        assertThat(t.jwkSetUri(null)).isEqualTo("http://idp/jwks");
+        assertThat(t.issuerUri(null)).isEqualTo("http://idp");
+        assertThat(t.isOidc()).isTrue();
+        assertThat(t.defaultScopes()).contains("openid", "email", "profile");
+        assertThat(t.userNameAttributeName()).isEqualTo("uid");
+        assertThat(t.emailAttributeName()).isEqualTo("upn");
+        assertThat(t.emailVerifiedAttributeName()).isEqualTo("verified_flag");
+        assertThat(t.displayNameAttributeName()).isEqualTo("preferred_username");
+        assertThat(t.groupsAttributeName()).isEqualTo("roles");
+    }
+
+    @Test
+    void forEntityOidcAppliesStandardAttributeDefaultsWhenBlank() {
+        var entity = oidcEntity();
+
+        var t = OAuth2ProviderTemplate.forEntity(entity);
+
+        assertThat(t.userNameAttributeName()).isEqualTo("sub");
+        assertThat(t.emailAttributeName()).isEqualTo("email");
+        assertThat(t.emailVerifiedAttributeName()).isEqualTo("email_verified");
+        assertThat(t.displayNameAttributeName()).isEqualTo("name");
+        assertThat(t.groupsAttributeName()).isNull();
+    }
+
+    @Test
+    void forEntityDelegatesToStaticTemplateForFixedProviders() {
+        var entity = new OAuth2ConfigEntity();
+        entity.setProvider(OAuth2ProviderType.GOOGLE);
+
+        var t = OAuth2ProviderTemplate.forEntity(entity);
+
+        assertThat(t.provider()).isEqualTo(OAuth2ProviderType.GOOGLE);
+        assertThat(t.authorizationUri(null)).startsWith("https://accounts.google.com/");
+    }
+
+    private static OAuth2ConfigEntity oidcEntity() {
+        var entity = new OAuth2ConfigEntity();
+        entity.setProvider(OAuth2ProviderType.OIDC);
+        entity.setDisplayName("Mock IdP");
+        entity.setAuthorizationUri("http://idp/authorize");
+        entity.setTokenUri("http://idp/token");
+        entity.setUserInfoUri("http://idp/userinfo");
+        entity.setJwkSetUri("http://idp/jwks");
+        entity.setIssuerUri("http://idp");
+        return entity;
     }
 
 }
