@@ -45,6 +45,14 @@ class SecurityConfiguration {
      * {@code /acs}; Spring's filters validate the assertion and pass the {@code Saml2Authentication}
      * to {@link SamlLoginSuccessHandler}, which mints a one-time exchange code and redirects to
      * the frontend. {@code /metadata/{registrationId}} returns the SP descriptor XML.
+     *
+     * <p>CORS is intentionally NOT applied here. SAML endpoints are reached via top-level
+     * browser navigations (init / metadata) and via a browser-issued cross-origin form POST
+     * from the IdP (ACS) — both of which always carry an {@code Origin} header set to the
+     * IdP's domain (which AccessFlow does not know in advance). Wiring the regular
+     * {@code corsConfigurationSource()} (which only allows the configured frontend origin)
+     * onto this chain causes Spring's {@code DefaultCorsProcessor} to return
+     * {@code 403 "Invalid CORS request"} on the SAML POST and break the flow.
      */
     @Bean
     @Order(1)
@@ -59,7 +67,7 @@ class SecurityConfiguration {
                         "/api/v1/auth/saml/metadata/**")
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .saml2Login(s -> s
                         .relyingPartyRegistrationRepository(relyingPartyRegistrations)

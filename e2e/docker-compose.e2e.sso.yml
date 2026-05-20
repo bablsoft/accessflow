@@ -1,0 +1,250 @@
+# AccessFlow End-to-End test stack — SSO variant (SAML)
+#
+# Same shape as docker-compose.e2e.yml, but adds a `kristophjunge/test-saml-idp`
+# (SimpleSAMLphp) container as a mock IdP and bootstraps the SAML config so
+# `GET /api/v1/auth/saml/enabled` reports true and the LoginPage renders the
+# "Continue with SAML SSO" button. The spec drives the full IdP roundtrip.
+#
+# Distinct host ports (5175 / 8082 / 8085) and a distinct compose project
+# name (`accessflow-e2e-sso`) so this stack can coexist with the main
+# (docker-compose.e2e.yml — 5173 / 8080) and setup-wizard
+# (docker-compose.e2e.setup.yml — 5174 / 8081) variants.
+#
+# How the mock IdP wires together:
+#   * The IdP container publishes Apache on host port 8085. Its
+#     SIMPLESAMLPHP_BASEURLPATH is set to the absolute URL
+#     `http://localhost:8085/simplesaml/`, so SimpleSAMLphp emits the SAME
+#     entityID / SSO URL in metadata regardless of whether the request came
+#     from the backend (over the docker network) or the browser (host).
+#   * The backend fetches metadata at boot via the docker network alias
+#     `saml-idp:8080` — but the entityID and SSO URL inside that XML are
+#     `http://localhost:8085/...`, which is what the browser later follows.
+#   * Spring SAML's RelyingPartyRegistrations.fromMetadataLocation picks the
+#     IdP's signing cert out of the XML — no manual cert pinning.
+#
+# Frontend container runtime config is overridden via bind-mount of
+# `./runtime-config.sso.js` so the browser talks to backend on 8082.
+#
+# Demo IdP users baked into the image: user1 / user1pass (email
+# user1@example.com), user2 / user2pass.
+#
+# ⚠️  DEMO ONLY — the JWT private key and encryption key below are the same
+#     demo defaults used by the root docker-compose.yml. They are committed
+#     deliberately and are NOT safe for any deployment that handles real data.
+
+name: accessflow-e2e-sso
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: accessflow
+      POSTGRES_USER: accessflow
+      POSTGRES_PASSWORD: accessflow
+    volumes:
+      - ../deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U accessflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - e2e-sso-network
+
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - e2e-sso-network
+
+  saml-idp:
+    # SimpleSAMLphp IdP pre-configured to sign SAML assertions for a single
+    # SP. Two demo users are baked into the image: user1 / user1pass (email
+    # user1@example.com) and user2 / user2pass. The auth-saml-login.spec.ts
+    # drives user1 through the login flow.
+    #
+    # SimpleSAMLphp derives the entityID + SSOService.php URL from the
+    # request's Host header — `SIMPLESAMLPHP_BASEURLPATH` does NOT override
+    # this behaviour in the 1.15 image. So:
+    #   * The backend fetches metadata via the docker-network alias
+    #     `saml-idp:8080`, which produces a metadata XML with
+    #     `entityID="http://saml-idp:8080/simplesaml/..."` and the same
+    #     SSOService.php Location.
+    #   * Spring SAML extracts that SSO URL and redirects the browser there.
+    #   * Playwright's chromium is launched with `--host-resolver-rules` so
+    #     `saml-idp:8080` resolves to `127.0.0.1:8085` (the published port
+    #     on the host). See playwright.sso.config.ts.
+    # SP entity ID and ACS URL are configured against the backend's
+    # browser-facing URLs (host port 8082) — the IdP's signed
+    # SAMLResponse is auto-form-submitted from the browser to that URL.
+    image: kristophjunge/test-saml-idp:1.15
+    environment:
+      SIMPLESAMLPHP_SP_ENTITY_ID: http://localhost:8082/api/v1/auth/saml/metadata/default
+      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: http://localhost:8082/api/v1/auth/saml/acs/default
+      SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE: http://localhost:8082/api/v1/auth/saml/logout
+      SIMPLESAMLPHP_ADMIN_PASSWORD: secret
+      SIMPLESAMLPHP_SECRET_SALT: e2e-sso-variant-salt
+    healthcheck:
+      # Apache returns 200 on /simplesaml/saml2/idp/metadata.php once
+      # SimpleSAMLphp finishes warming up. The image is debian-based with
+      # curl available (wget is not installed), so we use `curl -sf` here
+      # instead of the busybox-style `wget --spider` used by the other
+      # services in this file.
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://127.0.0.1:8080/simplesaml/saml2/idp/metadata.php || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    ports:
+      - "8085:8080"
+    networks:
+      - e2e-sso-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      saml-idp:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/accessflow
+      DB_USER: accessflow
+      DB_PASSWORD: accessflow
+      AUDIT_DB_USER: accessflow_audit
+      AUDIT_DB_PASSWORD: accessflow_audit
+      REDIS_URL: redis://redis:6379
+      CORS_ALLOWED_ORIGIN: http://localhost:5175
+      ACCESSFLOW_PUBLIC_BASE_URL: http://localhost:5175
+      # Demo-only — see warning at the top of this file.
+      ENCRYPTION_KEY: 40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e
+      JWT_PRIVATE_KEY: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDpKubqwZpI/V7x
+        zdZ1kretfg9BOiEKklPjfE8f4FHLSkog18xIgwLx1nnkD58Gsud3ynGc6kHFdNuJ
+        h1ugqvqnqhvNesPntNdyIMPSw6Ym4mBUzBgXXKSA6v4WxFxugSJyWFT068f0vmzN
+        CFAuW4DKxFXxUslRnUJTCDzEwBjTNmSZ5MunycdRD4enf1k+XAgdu09WrxO7yCsw
+        NAh255KIwQew1PX1Vbl3koz61pcL6Wu6zDsCsClChUAelDrttZulXe5e3d4BPxFt
+        h4JLGkHb41EdGAs/ksZKSS0+5j4FTdZbOwD7mZxNqaGR5sHgD3kTGJGBOUrM/D9O
+        DDkYjBsVAgMBAAECggEAGEZeKhyj2mt+ggAjDrSKqOZR4kGSBQ686xcbCb+J5HdE
+        hmzRGM+C8/iXUhYKQWFI1eDeuS5uUIdc/9F2yaBjXidIo7jfQnVCZOBiYsP5vVye
+        GNXywCPmAIH2mBozYVHSa0Mk/Sa695EHtMTjzB+8pd+Q7wHmcbfEmu5lnTo+m2aA
+        bKF18PE6LvmaSQn9PiB9iCRYVtvN8YeJfV6Ddk953OB1c9s66rU1jU+lKGimFR0V
+        FoDLDOvNX7/B6kPx3jwFiBR14hthR9ImP1ZJBrt6R7/FDBB7w7LREuz9HWaXEIJF
+        DfbqauAjGdUtkJwDPP8pdaPG2At7gHozvbzYVM7SQQKBgQD3KNUAq7zx1R8VWtm/
+        QUhHLoHCkLMtmI9rPNlt/sQR/0ftqr2t7tyjb2T3AvT0bFkfCjIsws1ajKLW5qnO
+        BpR+RfYPMcG9HaM66weqgseLvyxHFhFinfDWdgrmiXErjFvklwDuZCFgx++FtVUC
+        /+aBLYww2uTgNeosdKapb7focQKBgQDxgfM39yqLj9U8DwdLHerU++lGtzIV42HC
+        NJBWrU6bM1osNZDa60QiqB58MJ5+RnJ2pyayrG/ye+ktX3eb1XYk6RFG0rbFoe6u
+        C3cpgDDBUnrAfoH+buIuDBImpukawrwU852snqcYl50XQS08Hhc94RMYIUVjRnNu
+        I1Oy8QMO5QKBgQDG9lrJqHZ4otzb3v/Mw2vAyYJxsvRabyZ86EYMEvuZlUw82abJ
+        3rBE7MZ1Ri8UmCgCIb4UZFjVXMM1hggJryhYok8bGi3g5HvjURIhxBeIusOVEgG6
+        xnP64JmTze6JZPsQgDKitX5dH3YEx92Ahan0MUtahMucZip10Q3c9e8xMQKBgBRu
+        Ec0iM48q07cI7m0EUuFBjjJVPP9tBNAQ8kTi1Et8xJwIzAA49sKXxjxrQH0eKICx
+        Eyz6OV4h7U/RS6T7Ictti/CZ0qxVToOapLH2DinMeGXgTc7gQnHyw3ZRmFaTMqXz
+        FduMcEY8TSWydckoIn8xkxPvfJcxVoJyqpnwmXmhAoGBAOWj1o/5bHoK/DUL4XwF
+        q6ZiCwUK3dUN4ESZSikf8f/wx4KQbZkImUl8G4YteU0B4LxTfpV2cYqOgQC+ZgVH
+        VJzct9S/22a5ic6pJ/Ptc0Qo2972+SL2KID8YU+djJeVuX02D0loje4FlJcazC/2
+        TlbFvcqWpz+LOoXn3aGgJJOr
+        -----END PRIVATE KEY-----
+      # Deterministic admin so the spec can fall back to password login if it
+      # ever needs to (currently it does not). The org is the JIT-provisioning
+      # target for the SAML user.
+      ACCESSFLOW_BOOTSTRAP_ENABLED: "true"
+      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: "E2E Test Org"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
+      ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"
+      # Bootstrap SAML config — reconciled into saml_config on
+      # ApplicationReadyEvent, see SamlReconciler. The idp-metadata-url uses
+      # the docker-network alias so the backend can reach the IdP at boot;
+      # the entityID inside that XML is `http://localhost:8085/...` so the
+      # browser-facing SSO redirect matches what Spring SAML mints.
+      ACCESSFLOW_BOOTSTRAP_SAML_ENABLED: "true"
+      ACCESSFLOW_BOOTSTRAP_SAML_IDP_METADATA_URL: http://saml-idp:8080/simplesaml/saml2/idp/metadata.php
+      # entityID inside the IdP's metadata when fetched via the docker
+      # network — Spring SAML pins this for SAMLResponse issuer validation.
+      ACCESSFLOW_BOOTSTRAP_SAML_IDP_ENTITY_ID: http://saml-idp:8080/simplesaml/saml2/idp/metadata.php
+      ACCESSFLOW_BOOTSTRAP_SAML_SP_ENTITY_ID: http://localhost:8082/api/v1/auth/saml/metadata/default
+      ACCESSFLOW_BOOTSTRAP_SAML_ACS_URL: http://localhost:8082/api/v1/auth/saml/acs/default
+      ACCESSFLOW_BOOTSTRAP_SAML_ATTR_EMAIL: email
+      ACCESSFLOW_BOOTSTRAP_SAML_ATTR_DISPLAY_NAME: displayName
+      ACCESSFLOW_BOOTSTRAP_SAML_DEFAULT_ROLE: ANALYST
+      ACCESSFLOW_BOOTSTRAP_SAML_ACTIVE: "true"
+      # IdP signing certificate — the default self-signed cert baked into
+      # kristophjunge/test-saml-idp:1.15 at /var/www/simplesamlphp/cert/server.crt.
+      # DynamicRelyingPartyRegistrationRepository requires this column to be
+      # populated (it won't trust the cert published inside metadata alone);
+      # the bootstrap reconciler encrypts and persists this PEM into
+      # saml_config.idp_signing_cert_pem. If the IdP image bumps a cert,
+      # update this block.
+      ACCESSFLOW_BOOTSTRAP_SAML_SIGNING_CERT_PEM: |
+        -----BEGIN CERTIFICATE-----
+        MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+        BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+        aWRnaXRzIFB0eSBMdGQwHhcNMTYxMjMxMTQzNDQ3WhcNNDgwNjI1MTQzNDQ3WjBF
+        MQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50
+        ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+        CgKCAQEAzUCFozgNb1h1M0jzNRSCjhOBnR+uVbVpaWfXYIR+AhWDdEe5ryY+Cgav
+        Og8bfLybyzFdehlYdDRgkedEB/GjG8aJw06l0qF4jDOAw0kEygWCu2mcH7XOxRt+
+        YAH3TVHa/Hu1W3WjzkobqqqLQ8gkKWWM27fOgAZ6GieaJBN6VBSMMcPey3HWLBmc
+        +TYJmv1dbaO2jHhKh8pfKw0W12VM8P1PIO8gv4Phu/uuJYieBWKixBEyy0lHjyix
+        YFCR12xdh4CA47q958ZRGnnDUGFVE1QhgRacJCOZ9bd5t9mr8KLaVBYTCJo5ERE8
+        jymab5dPqe5qKfJsCZiqWglbjUo9twIDAQABo1AwTjAdBgNVHQ4EFgQUxpuwcs/C
+        YQOyui+r1G+3KxBNhxkwHwYDVR0jBBgwFoAUxpuwcs/CYQOyui+r1G+3KxBNhxkw
+        DAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAiWUKs/2x/viNCKi3Y6b
+        lEuCtAGhzOOZ9EjrvJ8+COH3Rag3tVBWrcBZ3/uhhPq5gy9lqw4OkvEws99/5jFs
+        X1FJ6MKBgqfuy7yh5s1YfM0ANHYczMmYpZeAcQf2CGAaVfwTTfSlzNLsF2lW/ly7
+        yapFzlYSJLGoVE+OHEu8g5SlNACUEfkXw+5Eghh+KzlIN7R6Q7r2ixWNFBC/jWf7
+        NKUfJyX8qIG5md1YUeT6GBW9Bm2/1/RiO24JTaYlfLdKK9TYb8sG5B+OLab2DImG
+        99CJ25RkAcSobWNF5zD0O6lgOo3cEdB/ksCq3hmtlC/DlLZ/D8CJ+7VuZnS1rR2n
+        aQ==
+        -----END CERTIFICATE-----
+    healthcheck:
+      # /actuator/health is permitAll. busybox wget is present in the
+      # eclipse-temurin:25-jre-alpine runtime stage of the backend image.
+      # 127.0.0.1 (not localhost) — busybox resolves localhost to ::1 first.
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - "8082:8080"
+    networks:
+      - e2e-sso-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      # Override the baked-in runtime-config.js so the browser talks to the
+      # variant backend on host port 8082 instead of the default 8080.
+      - ./runtime-config.sso.js:/usr/share/nginx/html/runtime-config.js:ro
+    healthcheck:
+      # 127.0.0.1 rather than localhost: inside the container, busybox wget
+      # resolves "localhost" to ::1 first and nginx only binds IPv4 by default.
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5175:80"
+    networks:
+      - e2e-sso-network
+
+networks:
+  e2e-sso-network:
+    driver: bridge

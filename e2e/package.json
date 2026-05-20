@@ -8,12 +8,16 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:setup": "playwright test --config=playwright.setup.config.ts",
+    "test:sso": "playwright test --config=playwright.sso.config.ts",
     "stack:up": "docker compose -f docker-compose.e2e.yml up --build -d --wait",
     "stack:down": "docker compose -f docker-compose.e2e.yml down -v",
     "stack:logs": "docker compose -f docker-compose.e2e.yml logs --tail=200",
     "stack:setup:up": "docker compose -f docker-compose.e2e.setup.yml up --build -d --wait",
     "stack:setup:down": "docker compose -f docker-compose.e2e.setup.yml down -v",
     "stack:setup:logs": "docker compose -f docker-compose.e2e.setup.yml logs --tail=200",
+    "stack:sso:up": "docker compose -f docker-compose.e2e.sso.yml up --build -d --wait",
+    "stack:sso:down": "docker compose -f docker-compose.e2e.sso.yml down -v",
+    "stack:sso:logs": "docker compose -f docker-compose.e2e.sso.yml logs --tail=200",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
