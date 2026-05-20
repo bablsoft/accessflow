@@ -54,16 +54,23 @@ npm run stack:logs
   via [`../deploy/postgres-init/01-audit-role.sql`](../deploy/postgres-init/01-audit-role.sql),
   mounted into `/docker-entrypoint-initdb.d/`.
 - **Redis** (`redis:8-alpine`) on the compose network.
+- **Mailcrab** (`marlonb/mailcrab:latest`) — SMTP catcher. The backend's
+  bootstrap reconciler points system SMTP at `mailcrab:1025`, so any
+  transactional email the product sends (today: password-reset emails) is
+  captured here instead of leaving the stack. Mailcrab's HTTP/JSON API is
+  published on `localhost:1080` so `tests/auth-forgot-password.spec.ts` can
+  poll it for the rendered email and scrape the one-time token from the URL.
 - **Backend** built from [`../backend/Dockerfile`](../backend/Dockerfile). Boots
   with `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, which makes the bootstrap reconciler
-  create the org + admin on `ApplicationReadyEvent`. Published on `localhost:8080`.
+  create the org + admin (and seed system SMTP pointing at Mailcrab) on
+  `ApplicationReadyEvent`. Published on `localhost:8080`.
 - **Frontend** built from [`../frontend/Dockerfile`](../frontend/Dockerfile),
   served by nginx. Published on `localhost:5173`. Its runtime config defaults
   `apiBaseUrl` to `http://localhost:8080`, which matches the published backend
   port — so the browser talks to the backend directly via CORS.
 
 Every service has a healthcheck and the `npm run stack:up` script passes
-`--wait`, so the command does not return until all four are healthy (or fails
+`--wait`, so the command does not return until all five are healthy (or fails
 fast).
 
 ## What the suite tests
@@ -96,6 +103,30 @@ login form so regressions in `LoginPage` error rendering or
    synthetic `application/problem+json` body carrying a known `traceId`.
    The spec asserts the alert banner renders and that
    `TraceIdFooter` shows the truncated trace id.
+
+`tests/auth-forgot-password.spec.ts` covers the password-reset recovery path
+end-to-end, including the SMTP send + email scrape via Mailcrab:
+
+1. **Invalid token** — visiting `/reset-password/this-token-does-not-exist`
+   renders the generic "This reset link is invalid or has expired." Alert and
+   no password form.
+2. **Mismatched confirm** — fills `password` and `confirm_password` with
+   different values, asserts the inline "Passwords do not match." AntD
+   validation error fires, and confirms no `POST /api/v1/auth/password/reset/`
+   request leaves the browser.
+3. **Happy path** — clicks the *Forgot?* link on `/login`, submits the admin
+   email, polls Mailcrab (`GET http://localhost:1080/api/message/{id}`) for
+   the rendered email, extracts the one-time token from the reset URL with
+   `/\/reset-password\/([A-Za-z0-9_-]+)/`, sets a new password, asserts the
+   "Password updated. Sign in to continue." banner on `/login`, and logs in
+   with the new password to confirm it landed.
+4. **Replay used token** — consumes a fresh token, then re-visits the same
+   URL and asserts the server-rejected (USED, HTTP 422) state renders the
+   invalid-link Alert.
+
+A `test.afterAll` mints one final reset token and applies it to put the
+admin password back to `E2ePassword!123` so the rest of the suite stays
+unaffected.
 
 `tests/datasource-create-wizard.spec.ts` drives the four-step datasource
 creation wizard:
