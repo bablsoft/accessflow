@@ -19,7 +19,7 @@
     "@codemirror/view": "^6.42.0",
     "@tanstack/react-query": "^5.100.9",
     "antd": "^6.3.7",
-    "axios": "^1.16.0",
+    "axios": "^1.16.1",
     "codemirror": "^6.0.2",
     "dayjs": "^1.11.20",
     "i18next": "^26.2.0",
