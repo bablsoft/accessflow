@@ -47,6 +47,7 @@
     "version": "AccessFlow версия {{version}}"
   },
   "auth": {
+    "session_expired": "Сессия истекла",
     "login": {
       "title": "Войдите в свой рабочий профиль",
       "subtitle": "Введите учётные данные, чтобы продолжить.",

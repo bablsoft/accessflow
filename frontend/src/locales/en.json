@@ -47,6 +47,7 @@
     "version": "AccessFlow version {{version}}"
   },
   "auth": {
+    "session_expired": "Session expired",
     "login": {
       "title": "Sign in to your workspace",
       "subtitle": "Enter your credentials to continue.",

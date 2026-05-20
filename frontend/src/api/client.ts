@@ -1,6 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { getApiBaseUrl } from '@/config/runtimeConfig';
+import { getMessageApi } from '@/utils/messageBridge';
+import i18n from '@/i18n';
 import * as authApi from './auth';
 
 interface RetriableConfig extends InternalAxiosRequestConfig {
@@ -56,9 +58,9 @@ const runRefresh = async (): Promise<string> => {
 
 const onRefreshFailure = () => {
   useAuthStore.getState().clear();
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-    window.location.assign('/login');
-  }
+  // <AuthGuard> reacts to `user === null` and navigates to /login via React
+  // Router — no full page reload, so the toast portal survives the redirect.
+  getMessageApi()?.error(i18n.t('auth.session_expired'));
 };
 
 apiClient.interceptors.response.use(

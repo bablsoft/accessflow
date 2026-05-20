@@ -47,6 +47,7 @@
     "version": "AccessFlow 版本 {{version}}"
   },
   "auth": {
+    "session_expired": "会话已过期",
     "login": {
       "title": "登录到您的工作区",
       "subtitle": "请输入您的凭据以继续。",

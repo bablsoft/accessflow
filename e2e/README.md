@@ -87,6 +87,20 @@ fast).
    the in-memory token.
 3. **Logout** clears the auth store and redirects to `/login`.
 
+`tests/auth-session-expiry.spec.ts` covers the **failure** branch of the same
+refresh interceptor — i.e. the case where `/auth/refresh` itself returns 401
+because the refresh cookie has been revoked out-of-band (logout from another
+tab, admin revocation, cookie eviction, …). The spec logs in, calls
+`context.clearCookies()` to drop the `HttpOnly` refresh cookie at the browser
+level, corrupts the in-memory access token via `window.__authStore.setState`,
+and fires `window.__apiClient.get('/api/v1/me')`. It then asserts that:
+
+1. A **"Session expired"** AntD toast appears (rendered via the
+   `messageBridge` set inside `<AntdApp>` by `MessageBridgeBinder`).
+2. `<AuthGuard>` redirects the SPA to `/login` (no full page reload — the
+   toast portal survives the redirect).
+3. The auth store is fully cleared (`user === null`, `accessToken === null`).
+
 `tests/auth-login-failures.spec.ts` covers the four failure modes of the
 login form so regressions in `LoginPage` error rendering or
 `authStore.login` error mapping fail loudly:

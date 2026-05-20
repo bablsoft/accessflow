@@ -512,4 +512,6 @@ button disappears from `/login` after the page is refreshed.
 
 The Axios response interceptor in `api/client.ts` skips the auto-refresh path for `/auth/*` URLs so the `TOTP_REQUIRED` 401 reaches the LoginPage component without being absorbed.
 
+When the refresh attempt **itself** fails (the cookie is gone or revoked, the server replies 401 on `/auth/refresh`), the interceptor clears the auth store and surfaces an `auth.session_expired` toast via the `messageBridge` (a module-level handle to the AntD `App`-scoped `message` instance, bound by `<MessageBridgeBinder />` inside `<AntdApp>`). The SPA redirect to `/login` is then driven by `<AuthGuard>` reacting to `user === null` — a soft React Router navigation, not a full page reload, so the toast portal survives the redirect. The end-to-end failure path is covered by `e2e/tests/auth-session-expiry.spec.ts`.
+
 The Topbar replaces the standalone logout button with an Ant `Dropdown` whose menu items are **Profile settings** (`/profile`) and **Sign out**. On narrow viewports the display-name pill collapses to the icon via `topbar.css`.

@@ -1,10 +1,17 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+const { refresh, getMessageApi } = vi.hoisted(() => ({
+  refresh: vi.fn(),
+  getMessageApi: vi.fn(),
+}));
 
 vi.mock('./auth', () => ({
   refresh: (...a: unknown[]) => refresh(...a),
+}));
+
+vi.mock('@/utils/messageBridge', () => ({
+  getMessageApi: () => getMessageApi(),
 }));
 
 import { apiBaseUrl, apiClient } from './client';
@@ -58,27 +65,13 @@ const sessionPayload = {
   },
 };
 
-const originalLocation = window.location;
-
 describe('api/client interceptors', () => {
   beforeEach(() => {
     refresh.mockReset();
+    getMessageApi.mockReset();
     adapterResponses.length = 0;
     recorded.length = 0;
     useAuthStore.getState().clear();
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      writable: true,
-      value: { ...originalLocation, pathname: '/editor', assign: vi.fn() },
-    });
-  });
-
-  afterEach(() => {
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      writable: true,
-      value: originalLocation,
-    });
   });
 
   it('attaches Authorization header from the store', async () => {
@@ -132,14 +125,26 @@ describe('api/client interceptors', () => {
     expect(r2.data).toEqual({ b: 2 });
   });
 
-  it('clears the store and redirects when refresh itself fails', async () => {
+  it('clears the store and surfaces a session-expired toast when refresh fails', async () => {
     useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
     refresh.mockRejectedValueOnce(new Error('refresh-failed'));
+    const errorSpy = vi.fn();
+    getMessageApi.mockReturnValue({ error: errorSpy });
     adapterResponses.push({ status: 401 });
     await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().accessToken).toBeNull();
-    expect(window.location.assign).toHaveBeenCalledWith('/login');
+    expect(errorSpy).toHaveBeenCalledWith('Session expired');
+  });
+
+  it('still clears the store when no message bridge is bound', async () => {
+    useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
+    refresh.mockRejectedValueOnce(new Error('refresh-failed'));
+    getMessageApi.mockReturnValue(null);
+    adapterResponses.push({ status: 401 });
+    await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
+    expect(useAuthStore.getState().user).toBeNull();
+    expect(useAuthStore.getState().accessToken).toBeNull();
   });
 
   it('does not loop refresh when the refresh URL itself returns 401', async () => {
