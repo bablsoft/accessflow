@@ -42,6 +42,27 @@ services:
     networks:
       - e2e-network
 
+  mailcrab:
+    # Mail catcher — captures all outbound SMTP from the backend and exposes
+    # captured messages over an HTTP/JSON API on port 1080. Used by
+    # tests/auth-forgot-password.spec.ts to fetch the rendered reset email and
+    # extract the one-time token from the URL. Plaintext SMTP on 1025; no auth.
+    image: marlonb/mailcrab:latest
+    healthcheck:
+      # Mailcrab returns 200 + JSON array (`[]` when empty) on /api/messages,
+      # which doubles as a liveness probe. The image is alpine-based and has
+      # wget available.
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:1080/api/messages || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      # HTTP/JSON API published to host so Playwright can poll it. SMTP (1025)
+      # stays internal — only the backend container talks to it.
+      - "1080:1080"
+    networks:
+      - e2e-network
+
   backend:
     build:
       context: ../backend
@@ -50,6 +71,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mailcrab:
         condition: service_healthy
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/accessflow
@@ -97,6 +120,15 @@ services:
       ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
       ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
       ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"
+      # System SMTP points at the in-stack Mailcrab catcher so password reset
+      # (and any future transactional email) actually issues tokens and lets
+      # auth-forgot-password.spec.ts pull the rendered email back.
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_ENABLED: "true"
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_HOST: mailcrab
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_PORT: "1025"
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_TLS: "false"
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_ADDRESS: noreply@accessflow.test
+      ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_NAME: AccessFlow E2E
     healthcheck:
       # /actuator/health is permitAll. busybox wget is present in the
       # eclipse-temurin:25-jre-alpine runtime stage of the backend image.
