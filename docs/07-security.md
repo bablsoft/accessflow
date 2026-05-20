@@ -50,6 +50,7 @@ All JWT mechanisms remain in place. Additionally:
   4. Mint a one-time exchange code in Redis (`saml:exchange:` namespace, 60s default TTL configurable via `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL`) and 302 to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<code>`. The frontend posts the code to `/api/v1/auth/saml/exchange`, which consumes it (single-use) and returns the same JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL.
 - Both successful and failed sign-ins write to `audit_log` via `USER_LOGIN` / `USER_LOGIN_FAILED`.
 - SAML session lifetime: when the IdP sends `SessionNotOnOrAfter`, the access token TTL is capped at that horizon; refresh tokens issued before that timestamp continue to work up to it.
+- **Load-bearing regression check:** [`e2e/tests/auth-saml-login.spec.ts`](../e2e/tests/auth-saml-login.spec.ts) drives the full IdP roundtrip against a `kristophjunge/test-saml-idp` (SimpleSAMLphp) container in [`e2e/docker-compose.e2e.sso.yml`](../e2e/docker-compose.e2e.sso.yml). Run via `cd e2e && npm run test:sso`; CI runs it as part of the `e2e` job.
 
 ### OAuth 2.0 / OIDC SSO
 

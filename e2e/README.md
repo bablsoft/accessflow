@@ -199,6 +199,41 @@ end-to-end:
 This is the only spec that runs against a stack *without* the seeded admin —
 keep it separate from the rest of the suite.
 
+`tests/auth-saml-login.spec.ts` runs against a **third variant stack**
+([`docker-compose.e2e.sso.yml`](docker-compose.e2e.sso.yml) on ports 5175 /
+8082 / 8085) that boots the same seeded admin **plus** a
+[`kristophjunge/test-saml-idp`](https://github.com/kristophjunge/docker-test-saml-idp)
+container (SimpleSAMLphp). The backend's `ACCESSFLOW_BOOTSTRAP_SAML_*` env
+vars point at the IdP — the [`SamlReconciler`](../backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/reconcile/SamlReconciler.java)
+upserts the row on `ApplicationReadyEvent`, so `GET /api/v1/auth/saml/enabled`
+reports `true` and the LoginPage renders the **Continue with SAML SSO**
+button. SimpleSAMLphp's `SIMPLESAMLPHP_BASEURLPATH` is set to the absolute
+URL `http://localhost:8085/simplesaml/` so the metadata it emits is
+browser-followable from the host, even though the backend fetches it via the
+docker-network alias `saml-idp:8080`. Demo IdP users are baked into the
+image:
+
+| Username | Password   | Email               |
+|----------|-----------|----------------------|
+| `user1`  | `user1pass` | `user1@example.com` |
+| `user2`  | `user2pass` | `user2@example.com` |
+
+The spec drives three scenarios:
+
+1. **Happy path** — clicks **Continue with SAML SSO**, completes the IdP
+   login as `user1`, and asserts the browser lands on `/editor` with a
+   JIT-provisioned user (`auth_provider: 'SAML'`) from
+   `GET /api/v1/me`.
+2. **Wrong IdP password** — submits the IdP form with a wrong password and
+   asserts the browser stays on the IdP origin (never reaches the AccessFlow
+   callback).
+3. **Server-side SAML rejection** — direct-visits
+   `/auth/saml/callback?error=SAML_SIGNATURE_INVALID` (and
+   `?error=SAML_LOGIN_FAILED`) to exercise the
+   [`SamlCallbackPage`](../frontend/src/pages/auth/SamlCallbackPage.tsx)
+   error-rendering branch the [`SamlLoginFailureHandler`](../backend/src/main/java/com/bablsoft/accessflow/security/internal/saml/SamlLoginFailureHandler.java)
+   produces when Spring SAML rejects the response.
+
 ### Running the setup-wizard spec
 
 The variant stack is managed automatically by Playwright's
@@ -224,6 +259,31 @@ the frontend, 8081 for the backend) so both can coexist if you want to run
 both suites locally without bouncing one. Mailcrab is omitted from the
 variant — the wizard's SMTP step persists the row but does not dial out.
 
+### Running the SAML SSO spec
+
+The SSO-variant stack is also managed via Playwright's
+`globalSetup`/`globalTeardown` in
+[`playwright.sso.config.ts`](playwright.sso.config.ts):
+
+```bash
+cd e2e
+npm run test:sso
+```
+
+To drive the variant stack yourself (debugging, or `test:headed` against
+`--config=playwright.sso.config.ts`):
+
+```bash
+npm run stack:sso:up    # builds + brings the SSO variant up (frontend 5175,
+                        # backend 8082, mock IdP 8085)
+npm run stack:sso:logs  # tail logs (backend + IdP + frontend + postgres + redis)
+npm run stack:sso:down  # tear down, drop the Postgres volume
+```
+
+Distinct host ports (5175 / 8082 / 8085) and a distinct compose project
+name (`accessflow-e2e-sso`) so this variant can coexist with the main
+(5173 / 8080) and setup-wizard (5174 / 8081) stacks.
+
 ## Adding new specs
 
 Drop a new `*.spec.ts` under `tests/`. The suite runs serially with a single
@@ -231,17 +291,24 @@ worker because all scenarios share the one seeded admin — keep that contract
 in mind when adding tests. If you need a fresh database between specs, tear
 the stack down and bring it back up between runs.
 
-Specs that need a **no-admin** stack belong in their own file matched by
-`playwright.setup.config.ts` (today only `auth-setup-wizard.spec.ts`); add
-the file path to `testMatch` and the main config's `testIgnore` if you add
-another. The variant stack rebuilds on every `npm run test:setup` because
+Specs that need a different stack belong in their own variant config:
+
+- **No-admin stack** — `playwright.setup.config.ts` (today only
+  `auth-setup-wizard.spec.ts`).
+- **Mock SAML IdP stack** — `playwright.sso.config.ts` (today only
+  `auth-saml-login.spec.ts`).
+
+When you add another spec to one of these, update the variant config's
+`testMatch` AND the main `playwright.config.ts` `testIgnore`. The variant
+stacks rebuild on every `npm run test:setup` / `npm run test:sso` because
 `globalTeardown` runs `down -v`.
 
 ## CI
 
 The suite runs in the `e2e` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. The job runs
-**both** suites sequentially: first `npm test` against the main stack, then
-`npm run test:setup` against the setup-variant stack (which manages its own
-stack via the config's `globalSetup`/`globalTeardown`). The job is part of the
-`CI Gate` aggregate, so it must be green for the gate to pass.
+**three** suites sequentially: first `npm test` against the main stack, then
+`npm run test:setup` against the setup-variant stack, then `npm run test:sso`
+against the SSO-variant stack (each variant manages its own stack via its
+config's `globalSetup`/`globalTeardown`). The job is part of the `CI Gate`
+aggregate, so it must be green for the gate to pass.

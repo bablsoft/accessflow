@@ -262,6 +262,24 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.e2e.setup.yml down -v || true
 
+      # The SAML SSO spec runs against a third stack that adds a
+      # kristophjunge/test-saml-idp (SimpleSAMLphp) container and bootstraps
+      # the saml_config row pointing at it. globalSetup/Teardown in
+      # playwright.sso.config.ts bring docker-compose.e2e.sso.yml up/down on
+      # ports 5175 / 8082 / 8085.
+      - name: Run SAML SSO spec
+        if: always()
+        run: npm run test:sso
+
+      - name: Dump SSO-variant stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.sso.yml logs --no-color
+
+      - name: Tear down SSO-variant stack
+        # Belt-and-suspenders — globalTeardown handles this on success.
+        if: always()
+        run: docker compose -f docker-compose.e2e.sso.yml down -v || true
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

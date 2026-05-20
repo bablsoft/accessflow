@@ -174,8 +174,30 @@ npm run test:setup
 ```
 
 The main suite (`playwright.config.ts`) excludes the setup spec via
-`testIgnore`. The CI `e2e` job runs both — `npm test` against the main stack,
-then `npm run test:setup` against the variant stack.
+`testIgnore`.
+
+**SAML SSO variant stack.** [`e2e/docker-compose.e2e.sso.yml`](../e2e/docker-compose.e2e.sso.yml)
+is a third compose file that boots the same images on ports 5175 / 8082 plus
+a [`kristophjunge/test-saml-idp`](https://github.com/kristophjunge/docker-test-saml-idp)
+SimpleSAMLphp container on 8085. The backend's
+`ACCESSFLOW_BOOTSTRAP_SAML_*` env vars point at the mock IdP so the
+[`SamlReconciler`](../backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/reconcile/SamlReconciler.java)
+upserts the `saml_config` row on startup and the LoginPage renders the
+**Continue with SAML SSO** button. [`e2e/tests/auth-saml-login.spec.ts`](../e2e/tests/auth-saml-login.spec.ts)
+drives the full IdP roundtrip (login as `user1@example.com`, JIT-provision,
+land on `/editor`) plus the two failure modes (wrong IdP password; direct
+visit to `/auth/saml/callback?error=…`). Has its own Playwright config
+([`e2e/playwright.sso.config.ts`](../e2e/playwright.sso.config.ts)) and is
+excluded from the main suite via the same `testIgnore` pattern:
+
+```bash
+cd e2e
+npm run test:sso
+```
+
+The CI `e2e` job runs all three sequentially — `npm test` against the main
+stack, then `npm run test:setup` against the setup-wizard variant, then
+`npm run test:sso` against the SSO variant.
 
 CI: the `e2e` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
 whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It's part of the

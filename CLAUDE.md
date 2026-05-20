@@ -29,7 +29,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
-├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (+ .setup.yml variant)
+├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (+ .setup.yml and .sso.yml variants)
 ├── charts/           # Helm charts — currently charts/accessflow/
 ├── docs/             # Design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)
@@ -538,7 +538,7 @@ npm run typecheck      # tsc -b --noEmit
 npm run build          # Vite production build
 ```
 
-Playwright E2E tests live at the top-level [`e2e/`](e2e/) directory (NOT under `frontend/`). They have their own `package.json`, `playwright.config.ts`, and `docker-compose.e2e.yml` that builds the backend and frontend images from the working tree and seeds a deterministic admin via the `bootstrap` module. A second compose file, [`e2e/docker-compose.e2e.setup.yml`](e2e/docker-compose.e2e.setup.yml), boots the same images on ports 5174 / 8081 with **no admin seeded** for the first-run setup wizard spec — driven by [`e2e/playwright.setup.config.ts`](e2e/playwright.setup.config.ts) via `npm run test:setup`. See [e2e/README.md](e2e/README.md) for the local run flow.
+Playwright E2E tests live at the top-level [`e2e/`](e2e/) directory (NOT under `frontend/`). They have their own `package.json`, `playwright.config.ts`, and `docker-compose.e2e.yml` that builds the backend and frontend images from the working tree and seeds a deterministic admin via the `bootstrap` module. A second compose file, [`e2e/docker-compose.e2e.setup.yml`](e2e/docker-compose.e2e.setup.yml), boots the same images on ports 5174 / 8081 with **no admin seeded** for the first-run setup wizard spec — driven by [`e2e/playwright.setup.config.ts`](e2e/playwright.setup.config.ts) via `npm run test:setup`. A third compose file, [`e2e/docker-compose.e2e.sso.yml`](e2e/docker-compose.e2e.sso.yml), boots the same images on ports 5175 / 8082 plus a `kristophjunge/test-saml-idp` (SimpleSAMLphp) mock IdP on 8085 — used by [`e2e/tests/auth-saml-login.spec.ts`](e2e/tests/auth-saml-login.spec.ts), driven by [`e2e/playwright.sso.config.ts`](e2e/playwright.sso.config.ts) via `npm run test:sso`. See [e2e/README.md](e2e/README.md) for the local run flow.
 
 **Do not let `e2e/` drift behind the frontend.** A frontend change that breaks an existing spec — or that introduces a new user-facing flow worth covering — must update `e2e/tests/` **in the same commit set**. Concretely:
 
@@ -557,7 +557,7 @@ CI pipeline (`frontend` job in `.github/workflows/ci.yml`):
 - Steps: `npm ci → lint → typecheck → test:coverage → build`.
 - Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
 
-The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It boots the full stack from [e2e/docker-compose.e2e.yml](e2e/docker-compose.e2e.yml) (building backend + frontend images from the working tree), waits on healthchecks, runs Playwright, then runs `npm run test:setup` — which boots the second stack from [e2e/docker-compose.e2e.setup.yml](e2e/docker-compose.e2e.setup.yml) to exercise the first-run setup wizard. Both runs together are included in the `CI Gate` aggregate.
+The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It boots the full stack from [e2e/docker-compose.e2e.yml](e2e/docker-compose.e2e.yml) (building backend + frontend images from the working tree), waits on healthchecks, runs Playwright, then runs `npm run test:setup` — which boots the second stack from [e2e/docker-compose.e2e.setup.yml](e2e/docker-compose.e2e.setup.yml) to exercise the first-run setup wizard — and finally `npm run test:sso`, which boots the third stack from [e2e/docker-compose.e2e.sso.yml](e2e/docker-compose.e2e.sso.yml) (mock SimpleSAMLphp IdP) to exercise the SAML SSO login flow. All three runs together are included in the `CI Gate` aggregate.
 
 **Test layering and conventions:**
 - **Unit tests** (`src/utils`, `src/mocks`, store logic): pure logic only, no React.
