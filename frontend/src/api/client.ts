@@ -1,6 +1,9 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '@/store/authStore';
 import { getApiBaseUrl } from '@/config/runtimeConfig';
+import { getMessageApi } from '@/utils/messageBridge';
+import { getNavigate } from '@/utils/navigationBridge';
+import i18n from '@/i18n';
 import * as authApi from './auth';
 
 interface RetriableConfig extends InternalAxiosRequestConfig {
@@ -56,7 +59,18 @@ const runRefresh = async (): Promise<string> => {
 
 const onRefreshFailure = () => {
   useAuthStore.getState().clear();
-  if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+  getMessageApi()?.error(i18n.t('auth.session_expired'));
+  // Soft SPA navigation via React Router keeps the AntD message portal
+  // mounted, so the toast remains visible across the redirect. Falls back
+  // to window.location.assign only when the bridge isn't bound (e.g. before
+  // the React tree mounts).
+  if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+    return;
+  }
+  const navigate = getNavigate();
+  if (navigate) {
+    navigate('/login', { replace: true });
+  } else if (typeof window !== 'undefined') {
     window.location.assign('/login');
   }
 };

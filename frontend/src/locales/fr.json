@@ -47,6 +47,7 @@
     "version": "AccessFlow version {{version}}"
   },
   "auth": {
+    "session_expired": "Session expirée",
     "login": {
       "title": "Connecte-toi à ton espace",
       "subtitle": "Entre tes identifiants pour continuer.",

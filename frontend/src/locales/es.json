@@ -47,6 +47,7 @@
     "version": "AccessFlow versión {{version}}"
   },
   "auth": {
+    "session_expired": "Sesión caducada",
     "login": {
       "title": "Inicia sesión en tu espacio de trabajo",
       "subtitle": "Introduce tus credenciales para continuar.",
