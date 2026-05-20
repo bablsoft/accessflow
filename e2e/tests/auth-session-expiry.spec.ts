@@ -24,8 +24,8 @@ async function getAuthState(
 // 401-refresh-retry loop (corrupt access token → /auth/refresh succeeds → request
 // is replayed). This spec covers the failure branch: the refresh cookie has been
 // revoked out-of-band, so /auth/refresh itself returns 401. The interceptor's
-// onRefreshFailure handler must clear the auth store and surface a session-expired
-// toast; <AuthGuard> then drives the SPA redirect to /login.
+// onRefreshFailure handler must clear the auth store, surface a session-expired
+// toast, and drive a soft SPA redirect to /login via the navigation bridge.
 //
 // The issue lists two scenarios ("logout from another context" and "refresh
 // interceptor exhausts retries"). Both converge on the same onRefreshFailure
@@ -86,8 +86,12 @@ test('refresh failure with revoked cookie clears state, toasts, redirects to /lo
     }
   });
 
-  // ── 5. Toast renders and AuthGuard redirects to /login ───────────────────────────
-  await expect(page.getByText('Session expired')).toBeVisible({ timeout: 10_000 });
+  // ── 5. Toast renders and navigationBridge redirects to /login ────────────────────
+  // The AntD message renders into multiple wrappers inside .ant-message-notice;
+  // scope by class so the locator matches the single message container.
+  await expect(
+    page.locator('.ant-message-notice', { hasText: 'Session expired' }),
+  ).toBeVisible({ timeout: 10_000 });
   await page.waitForURL('**/login', { timeout: 10_000 });
 
   // ── 6. Auth store is cleared ─────────────────────────────────────────────────────

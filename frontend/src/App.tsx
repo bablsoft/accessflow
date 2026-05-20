@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthGuard } from '@/components/common/AuthGuard';
 import { MessageBridgeBinder } from '@/components/common/MessageBridgeBinder';
+import { NavigationBridgeBinder } from '@/components/common/NavigationBridgeBinder';
 import { AppLayout } from '@/layouts/AppLayout';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
@@ -56,6 +57,7 @@ export function App() {
   return (
     <AntdApp>
       <MessageBridgeBinder />
+      <NavigationBridgeBinder />
       <Routes>
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />

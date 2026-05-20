@@ -1,9 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const { refresh, getMessageApi } = vi.hoisted(() => ({
+const { refresh, getMessageApi, getNavigate } = vi.hoisted(() => ({
   refresh: vi.fn(),
   getMessageApi: vi.fn(),
+  getNavigate: vi.fn(),
 }));
 
 vi.mock('./auth', () => ({
@@ -12,6 +13,10 @@ vi.mock('./auth', () => ({
 
 vi.mock('@/utils/messageBridge', () => ({
   getMessageApi: () => getMessageApi(),
+}));
+
+vi.mock('@/utils/navigationBridge', () => ({
+  getNavigate: () => getNavigate(),
 }));
 
 import { apiBaseUrl, apiClient } from './client';
@@ -65,13 +70,29 @@ const sessionPayload = {
   },
 };
 
+const originalLocation = window.location;
+
 describe('api/client interceptors', () => {
   beforeEach(() => {
     refresh.mockReset();
     getMessageApi.mockReset();
+    getNavigate.mockReset();
     adapterResponses.length = 0;
     recorded.length = 0;
     useAuthStore.getState().clear();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...originalLocation, pathname: '/editor', assign: vi.fn() },
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: originalLocation,
+    });
   });
 
   it('attaches Authorization header from the store', async () => {
@@ -125,22 +146,54 @@ describe('api/client interceptors', () => {
     expect(r2.data).toEqual({ b: 2 });
   });
 
-  it('clears the store and surfaces a session-expired toast when refresh fails', async () => {
+  it('clears the store, toasts session-expired, and navigates via the bridge when refresh fails', async () => {
     useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
     refresh.mockRejectedValueOnce(new Error('refresh-failed'));
     const errorSpy = vi.fn();
+    const navigateSpy = vi.fn();
     getMessageApi.mockReturnValue({ error: errorSpy });
+    getNavigate.mockReturnValue(navigateSpy);
     adapterResponses.push({ status: 401 });
     await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().accessToken).toBeNull();
     expect(errorSpy).toHaveBeenCalledWith('Session expired');
+    expect(navigateSpy).toHaveBeenCalledWith('/login', { replace: true });
+    expect(window.location.assign).not.toHaveBeenCalled();
+  });
+
+  it('falls back to window.location.assign when the navigation bridge is unbound', async () => {
+    useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
+    refresh.mockRejectedValueOnce(new Error('refresh-failed'));
+    getMessageApi.mockReturnValue({ error: vi.fn() });
+    getNavigate.mockReturnValue(null);
+    adapterResponses.push({ status: 401 });
+    await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
+    expect(window.location.assign).toHaveBeenCalledWith('/login');
+  });
+
+  it('skips the redirect when already on /login', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { ...originalLocation, pathname: '/login', assign: vi.fn() },
+    });
+    useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
+    refresh.mockRejectedValueOnce(new Error('refresh-failed'));
+    const navigateSpy = vi.fn();
+    getMessageApi.mockReturnValue({ error: vi.fn() });
+    getNavigate.mockReturnValue(navigateSpy);
+    adapterResponses.push({ status: 401 });
+    await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
+    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 
   it('still clears the store when no message bridge is bound', async () => {
     useAuthStore.getState().setSession({ ...sessionPayload, access_token: 'stale' });
     refresh.mockRejectedValueOnce(new Error('refresh-failed'));
     getMessageApi.mockReturnValue(null);
+    getNavigate.mockReturnValue(vi.fn());
     adapterResponses.push({ status: 401 });
     await expect(apiClient.get('/api/v1/queries')).rejects.toThrow('refresh-failed');
     expect(useAuthStore.getState().user).toBeNull();

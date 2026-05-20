@@ -97,8 +97,9 @@ and fires `window.__apiClient.get('/api/v1/me')`. It then asserts that:
 
 1. A **"Session expired"** AntD toast appears (rendered via the
    `messageBridge` set inside `<AntdApp>` by `MessageBridgeBinder`).
-2. `<AuthGuard>` redirects the SPA to `/login` (no full page reload — the
-   toast portal survives the redirect).
+2. The `navigationBridge` (bound by `NavigationBridgeBinder`) drives a soft
+   React Router navigation to `/login` — no full page reload, so the toast
+   portal survives the redirect.
 3. The auth store is fully cleared (`user === null`, `accessToken === null`).
 
 `tests/auth-login-failures.spec.ts` covers the four failure modes of the
