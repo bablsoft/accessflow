@@ -2,8 +2,42 @@ apiVersion: v1
 entries:
   accessflow:
   - apiVersion: v2
+    appVersion: 0.8.0
+    created: "2026-05-20T15:07:35.743043142Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 18.6.6
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 25.5.3
+    description: Database access governance platform — SQL proxy with review workflows,
+      AI analysis, and tamper-evident audit log.
+    digest: 2029ce063138c18cd71ec63a7614f9721c41adb970f6f6de523967ddf5e53607
+    home: https://github.com/bablsoft/accessflow
+    keywords:
+    - database
+    - governance
+    - sql
+    - proxy
+    - audit
+    - access-control
+    kubeVersion: '>=1.27.0-0'
+    maintainers:
+    - name: bablsoft
+      url: https://github.com/bablsoft
+    name: accessflow
+    sources:
+    - https://github.com/bablsoft/accessflow
+    type: application
+    urls:
+    - https://bablsoft.github.io/accessflow/accessflow-0.8.0.tgz
+    version: 0.8.0
+  - apiVersion: v2
     appVersion: 0.7.0
-    created: "2026-05-19T10:50:26.692042727Z"
+    created: "2026-05-20T15:07:35.729371249Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -37,7 +71,7 @@ entries:
     version: 0.7.0
   - apiVersion: v2
     appVersion: 0.6.0
-    created: "2026-05-19T10:50:26.679211635Z"
+    created: "2026-05-20T15:07:35.716407876Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -71,7 +105,7 @@ entries:
     version: 0.6.0
   - apiVersion: v2
     appVersion: 0.5.0
-    created: "2026-05-19T10:50:26.66603631Z"
+    created: "2026-05-20T15:07:35.70411016Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -105,7 +139,7 @@ entries:
     version: 0.5.0
   - apiVersion: v2
     appVersion: 0.4.0
-    created: "2026-05-19T10:50:26.653097489Z"
+    created: "2026-05-20T15:07:35.691370443Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -139,7 +173,7 @@ entries:
     version: 0.4.0
   - apiVersion: v2
     appVersion: 0.3.0
-    created: "2026-05-19T10:50:26.640240469Z"
+    created: "2026-05-20T15:07:35.679124935Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -173,7 +207,7 @@ entries:
     version: 0.3.0
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2026-05-19T10:50:26.628410463Z"
+    created: "2026-05-20T15:07:35.66748746Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -207,7 +241,7 @@ entries:
     version: 0.2.0
   - apiVersion: v2
     appVersion: 0.0.7
-    created: "2026-05-19T10:50:26.615917204Z"
+    created: "2026-05-20T15:07:35.65506036Z"
     dependencies:
     - condition: postgresql.enabled
       name: postgresql
@@ -239,4 +273,4 @@ entries:
     urls:
     - https://bablsoft.github.io/accessflow/accessflow-0.0.7.tgz
     version: 0.0.7
-generated: "2026-05-19T10:50:26.604381762Z"
+generated: "2026-05-20T15:07:35.643514504Z"
