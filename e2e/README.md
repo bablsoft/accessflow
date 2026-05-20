@@ -80,6 +80,23 @@ fast).
    the in-memory token.
 3. **Logout** clears the auth store and redirects to `/login`.
 
+`tests/auth-login-failures.spec.ts` covers the four failure modes of the
+login form so regressions in `LoginPage` error rendering or
+`authStore.login` error mapping fail loudly:
+
+1. **Empty email** — submitting with the email blank surfaces the AntD
+   `Form.Item` "Email is required." error and fires no `POST /auth/login`.
+2. **Invalid email format** — `not-an-email` triggers "Enter a valid email
+   address." and fires no request.
+3. **Wrong password (real 401)** — the seeded admin email plus
+   `WrongPassword!` returns 401; the spec asserts the `role="alert"` banner
+   with "Invalid email or password.", the `TraceIdFooter` label, that the
+   password field is cleared, and that the email is retained.
+4. **Server 500 (intercepted)** — `page.route()` injects a 500 with a
+   synthetic `application/problem+json` body carrying a known `traceId`.
+   The spec asserts the alert banner renders and that
+   `TraceIdFooter` shows the truncated trace id.
+
 `tests/datasource-create-wizard.spec.ts` drives the four-step datasource
 creation wizard:
 
