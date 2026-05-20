@@ -128,6 +128,32 @@ A `test.afterAll` mints one final reset token and applies it to put the
 admin password back to `E2ePassword!123` so the rest of the suite stays
 unaffected.
 
+`tests/auth-invitation.spec.ts` covers the admin → invitee onboarding loop
+end-to-end, including the SMTP send + email scrape via Mailcrab:
+
+1. **Invalid token** — visiting `/invite/this-token-does-not-exist` renders the
+   error alert and no password form.
+2. **Mismatched confirm** — admin invites a fresh address, the spec scrapes the
+   token from Mailcrab, opens `/invite/{token}`, fills mismatched passwords, and
+   asserts the inline "Passwords do not match." validation fires while no
+   `POST /api/v1/auth/invitations/{token}/accept` request leaves the browser.
+3. **Happy path** — two browser contexts (admin + invitee). Admin logs in, opens
+   the **Invite via email** modal, sends an invitation for a per-run unique
+   address, and asserts the pending-invitations table updates. The spec pulls
+   the token from Mailcrab, the invitee context visits `/invite/{token}`,
+   asserts the preview greeting renders ("You have been invited to E2E Test Org
+   as ANALYST"), sets a new password, gets redirected to `/login`, and finally
+   logs in as the brand-new user to confirm it lands on `/editor`.
+4. **Replay accepted token** — re-visits the same token after acceptance and
+   asserts the server-rejected (`INVITATION_ALREADY_ACCEPTED`, HTTP 422) state
+   renders the error alert.
+
+Test scenarios are kept isolated by using `invitee-${randomUUID()}@e2e.local` as
+the invited address so CI retries and partial re-runs don't trip the
+`DUPLICATE_PENDING_INVITATION` (409) or `EMAIL_ALREADY_EXISTS` (409) guards.
+Tests 3 and 4 share the captured token via a module-scoped `let`, which is
+safe because Playwright runs the suite serially with `workers: 1`.
+
 `tests/datasource-create-wizard.spec.ts` drives the four-step datasource
 creation wizard:
 
