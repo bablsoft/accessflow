@@ -11,6 +11,8 @@ const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 import { useSetupStore } from '@/store/setupStore';
+import { useAuthStore } from '@/store/authStore';
+import { resolveRouteGuard } from '@/utils/routeGuard';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
@@ -38,18 +40,16 @@ import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
   const setupRequired = useSetupStore((s) => s.setupRequired);
+  const user = useAuthStore((s) => s.user);
   const location = useLocation();
 
-  const isPublicPath =
-    location.pathname === '/setup' ||
-    location.pathname.startsWith('/invite/') ||
-    location.pathname === '/forgot-password' ||
-    location.pathname.startsWith('/reset-password/');
-  if (setupRequired === true && !isPublicPath) {
-    return <Navigate to="/setup" replace />;
-  }
-  if (setupRequired === false && location.pathname === '/setup') {
-    return <Navigate to="/login" replace />;
+  const guard = resolveRouteGuard({
+    setupRequired,
+    user,
+    pathname: location.pathname,
+  });
+  if (guard.type === 'navigate') {
+    return <Navigate to={guard.to} replace />;
   }
 
   return (

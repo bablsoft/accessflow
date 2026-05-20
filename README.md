@@ -231,6 +231,7 @@ npx playwright install --with-deps chromium
 npm run stack:up         # builds backend + frontend, brings up Postgres + Redis, waits on healthchecks
 npm test                 # Playwright auth-flow suite against http://localhost:5173
 npm run stack:down
+npm run test:setup       # first-run setup-wizard spec against a no-admin variant stack (ports 5174 / 8081)
 ```
 
 See [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) for the full testing strategy and `CLAUDE.md` for the per-class coverage-parity rule.

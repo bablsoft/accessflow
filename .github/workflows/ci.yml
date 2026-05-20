@@ -237,9 +237,30 @@ jobs:
       - name: Run Playwright tests
         run: npm test
 
-      - name: Dump stack logs on failure
+      - name: Dump main stack logs on failure
         if: failure()
         run: docker compose -f docker-compose.e2e.yml logs --no-color
+
+      - name: Tear down main stack
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v
+
+      # The setup-wizard spec runs against a separate stack with no admin
+      # pre-seeded (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). Its
+      # globalSetup/Teardown in playwright.setup.config.ts bring
+      # docker-compose.e2e.setup.yml up/down on ports 5174/8081.
+      - name: Run setup-wizard spec
+        if: always()
+        run: npm run test:setup
+
+      - name: Dump setup-variant stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.setup.yml logs --no-color
+
+      - name: Tear down setup-variant stack
+        # Belt-and-suspenders — globalTeardown handles this on success.
+        if: always()
+        run: docker compose -f docker-compose.e2e.setup.yml down -v || true
 
       - name: Upload Playwright report
         if: always()
@@ -249,10 +270,6 @@ jobs:
           path: e2e/playwright-report
           if-no-files-found: ignore
           retention-days: 7
-
-      - name: Tear down stack
-        if: always()
-        run: docker compose -f docker-compose.e2e.yml down -v
 
   # Single required status check for branch protection. This job always runs
   # and succeeds when each upstream job either passed or was correctly skipped

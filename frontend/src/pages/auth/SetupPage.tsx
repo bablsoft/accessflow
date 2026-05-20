@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Button, Form, Input, Switch } from 'antd';
+import { Alert, Button, Form, Input, InputNumber, Switch } from 'antd';
 import { ArrowRightOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -277,15 +277,14 @@ export function SetupPage() {
                 name="port"
                 rules={[
                   { required: true, message: t('validation.system_smtp.port_range') },
-                  {
-                    type: 'number',
-                    min: 1,
-                    max: 65535,
-                    message: t('validation.system_smtp.port_range'),
-                  },
                 ]}
               >
-                <Input type="number" placeholder="587" />
+                <InputNumber
+                  min={1}
+                  max={65535}
+                  placeholder="587"
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
 
               <Form.Item
