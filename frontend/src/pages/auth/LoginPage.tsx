@@ -80,6 +80,8 @@ export function LoginPage() {
         setError(null);
       } else {
         setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });
+        // Clear the password so the user re-types it on retry; keep the email.
+        form.setFieldValue('password', '');
       }
     } finally {
       setLoading(false);
