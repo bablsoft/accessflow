@@ -80,6 +80,22 @@ fast).
    the in-memory token.
 3. **Logout** clears the auth store and redirects to `/login`.
 
+`tests/datasource-create-wizard.spec.ts` drives the four-step datasource
+creation wizard:
+
+1. Logs in as the seeded admin and opens `/datasources/new` via the
+   **Add datasource** button on the list page.
+2. Picks the bundled **PostgreSQL** option (asserting the `Bundled` badge).
+3. Asserts the connection form is pre-filled with port `5432` and SSL mode
+   `VERIFY_FULL`, then switches SSL mode to `DISABLE` so the bare `postgres:18`
+   container (no TLS configured) accepts the JDBC handshake.
+4. Fills name / host / database / username / password targeting the compose
+   network's own Postgres (`postgres:5432/accessflow`).
+5. Clicks **Save and test**, then **Test connection**, and asserts the success
+   Alert shows a real `Connected · {ms} ms` latency.
+6. Clicks **Next**, **Save and finish**, and asserts the wizard lands on
+   `/datasources/{id}/settings` with the *Datasource created* toast.
+
 ## Adding new specs
 
 Drop a new `*.spec.ts` under `tests/`. The suite runs serially with a single
