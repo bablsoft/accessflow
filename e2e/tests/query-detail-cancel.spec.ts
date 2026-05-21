@@ -177,6 +177,14 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
     ).toBeVisible({ timeout: 15_000 });
 
+    // AF-307 follow-up: the seeded datasource has ai_analysis_enabled=false,
+    // so the AI stage must render the "skipped" surface (timeline label,
+    // card title, and card body), NOT the "Awaiting analysis…" fallback.
+    await expect(page.getByText('AI analysis skipped', { exact: true })).toBeVisible();
+    await expect(page.getByText('AI analysis (skipped)', { exact: true })).toBeVisible();
+    await expect(page.getByText(/AI analysis was skipped/)).toBeVisible();
+    await expect(page.getByText('Awaiting analysis…')).toHaveCount(0);
+
     // Open the Popconfirm — the underlying Button still carries the
     // "Cancel query" label, Popconfirm only adds an OK/Cancel pair in a portal.
     await page.getByRole('button', { name: 'Cancel query' }).click();
