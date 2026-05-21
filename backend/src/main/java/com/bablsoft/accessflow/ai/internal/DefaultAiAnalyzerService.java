@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
+import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +91,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         if (!descriptor.aiAnalysisEnabled()) {
             log.info("AI analysis skipped for query {} — datasource {} has ai_analysis_enabled=false",
                     queryRequestId, datasourceId);
+            eventPublisher.publishEvent(
+                    new AiAnalysisSkippedEvent(queryRequestId, "ai_analysis_enabled=false"));
             return;
         }
         if (descriptor.aiConfigId() == null) {
