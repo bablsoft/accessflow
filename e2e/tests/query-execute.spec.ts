@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { test, expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   approveQueryViaApi,
   createPostgresDatasource,
+  createReviewPlanViaApi,
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
@@ -12,6 +13,7 @@ import {
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
+  type CreatedReviewPlan,
 } from '../helpers/datasources';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
@@ -45,9 +47,13 @@ async function typeInEditor(page: Page, sql: string): Promise<void> {
   await page.keyboard.press('Escape');
 }
 
-// Pick the seeded datasource on /editor. Mirrors the helper in
-// query-submit.spec.ts; both wait on the schema introspection response keyed
-// by the datasource id so the page is fully hydrated before we type.
+// Pick the seeded datasource on /editor. Unlike query-submit.spec.ts we
+// can't wait on the schema introspection response — when the helper
+// datasource is the only active one in the org, /editor auto-selects it on
+// load and clicking the same option a second time doesn't re-fire the fetch
+// or close the dropdown (AntD treats it as a no-op). Press Escape after the
+// click to ensure the dropdown is dismissed regardless; the SQL we type
+// doesn't rely on schema autocomplete.
 async function pickDatasource(page: Page, ds: CreatedDatasource): Promise<void> {
   const dsSelect = page.getByRole('combobox').first();
   await dsSelect.click();
@@ -55,10 +61,7 @@ async function pickDatasource(page: Page, ds: CreatedDatasource): Promise<void> 
     .locator('.ant-select-item-option')
     .filter({ hasText: ds.name })
     .click();
-  await page.waitForResponse(
-    (r) => r.url().includes(`/api/v1/datasources/${ds.id}/schema`) && r.ok(),
-    { timeout: 15_000 },
-  );
+  await page.keyboard.press('Escape');
 }
 
 // Submit via UI ending on /queries/<uuid>. Returns the new query id parsed
@@ -71,6 +74,13 @@ async function submitViaEditor(
 ): Promise<string> {
   await page.goto('/editor');
   await pickDatasource(page, ds);
+  // The /editor onboarding banner re-fetches setup state on mount and
+  // re-renders when the plan + datasource it just learned about flip the
+  // "Create a review plan" / "Add your first datasource" steps to DONE. The
+  // re-render blurs CodeMirror mid-type and drops subsequent keystrokes
+  // (observed: only the first character lands). Wait for the network to be
+  // idle so the re-render has already happened before we focus the editor.
+  await page.waitForLoadState('networkidle');
   await typeInEditor(page, sql);
   await page
     .getByPlaceholder('Why are you running this query?')
@@ -82,10 +92,16 @@ async function submitViaEditor(
   return match[1];
 }
 
+// Two contexts + multiple logins + reload + WS-free poll mean test 1 can
+// take longer than the default 30s budget; test 3 also waits ~3s for the
+// statement timeout to fire. Bump the per-test budget for this describe.
+test.describe.configure({ timeout: 90_000 });
+
 test.describe.serial('query execute (happy path + failures, AF-267)', () => {
   let adminAccessToken = '';
   let approverEmail = '';
   let approverAccessToken = '';
+  let reviewPlan: CreatedReviewPlan | null = null;
   let datasource: CreatedDatasource | null = null;
 
   test.beforeAll(async ({ request }) => {
@@ -118,8 +134,19 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       APPROVER_PASSWORD,
     );
 
+    // A datasource without a review plan has its pending queries filtered
+    // out by DefaultReviewService:189 and prepareDecision throws
+    // ReviewerNotEligibleException (403). Seed a one-stage ADMIN-role plan so
+    // both UI-driven (test 1) and API-driven (tests 2–3) approvals succeed.
+    reviewPlan = await createReviewPlanViaApi(request, adminAccessToken, {
+      name: `E2E Review Plan AF267 ${Date.now()}`,
+      approvers: [{ role: 'ADMIN', stage: 1 }],
+      minApprovalsRequired: 1,
+    });
+
     datasource = await createPostgresDatasource(request, adminAccessToken, {
       name: `Postgres E2E AF267 ${Date.now()}`,
+      reviewPlanId: reviewPlan.id,
     });
   });
 
@@ -242,8 +269,10 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     page,
     request,
   }) => {
+    if (!reviewPlan) throw new Error('reviewPlan not created in beforeAll');
     const throwaway = await createPostgresDatasource(request, adminAccessToken, {
       name: `Postgres E2E AF267-DOWN ${Date.now()}`,
+      reviewPlanId: reviewPlan.id,
     });
 
     const submitted = await submitQueryViaApi(
@@ -267,9 +296,12 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
 
     await page.getByRole('button', { name: 'Execute now' }).click();
 
-    await expect(page.getByText('Execution failed')).toBeVisible({
-      timeout: 15_000,
-    });
+    // Two matches without scoping: the AntD toast (role=alert) and the
+    // timeline/banner copy that renders when status is FAILED. The toast is
+    // the user-visible signal we care about here.
+    await expect(
+      page.getByRole('alert').getByText('Execution failed'),
+    ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('FAILED'),
     ).toBeVisible({ timeout: 15_000 });
@@ -310,9 +342,9 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     // trip + invalidation + re-render adds a few seconds. Stay well under the
     // 30s Playwright per-test budget.
     const failureTimeout = (STATEMENT_TIMEOUT_SECONDS + 10) * 1000;
-    await expect(page.getByText('Execution failed')).toBeVisible({
-      timeout: failureTimeout,
-    });
+    await expect(
+      page.getByRole('alert').getByText('Execution failed'),
+    ).toBeVisible({ timeout: failureTimeout });
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('FAILED'),
     ).toBeVisible({ timeout: failureTimeout });

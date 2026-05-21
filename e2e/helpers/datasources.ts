@@ -46,6 +46,13 @@ export interface CreatePostgresDatasourceOptions {
   username?: string;
   /** JDBC password. Defaults to `accessflow`. */
   password?: string;
+  /**
+   * Optional review plan id to attach to the datasource. When omitted the
+   * datasource has no plan — submitted queries reach PENDING_REVIEW but no
+   * reviewer can approve them (DefaultReviewService:189-192 requires a plan
+   * for actionability). Specs that drive approval MUST set this.
+   */
+  reviewPlanId?: string;
 }
 
 // POST /api/v1/auth/login → returns the access token. Mirrors the inline
@@ -94,6 +101,7 @@ export async function createPostgresDatasource(
     ai_analysis_enabled: false,
     ai_config_id: null,
     custom_driver_id: null,
+    review_plan_id: opts.reviewPlanId ?? null,
   };
   const res = await request.post(`${apiBase()}/api/v1/datasources`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -248,6 +256,58 @@ export async function acceptInvitationViaApi(
   if (!res.ok()) {
     throw new Error(`Accept invitation failed: ${res.status()} ${await res.text()}`);
   }
+}
+
+export interface ReviewPlanApprover {
+  role?: 'ADMIN' | 'REVIEWER';
+  userId?: string;
+  stage: number;
+}
+
+export interface CreatedReviewPlan {
+  id: string;
+  name: string;
+}
+
+// POST /api/v1/review-plans — required by approval flows. Without a plan
+// attached to the datasource, `listPendingForReviewer` filters the query out
+// and `prepareDecision` throws ReviewerNotEligibleException (403). Default
+// approver is a single ADMIN at stage 1 with min_approvals_required=1; the
+// timeout default mirrors the server-side default for clarity.
+export async function createReviewPlanViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  opts: {
+    name?: string;
+    approvers?: ReviewPlanApprover[];
+    requiresHumanApproval?: boolean;
+    minApprovalsRequired?: number;
+    approvalTimeoutHours?: number;
+  } = {},
+): Promise<CreatedReviewPlan> {
+  const body = {
+    name: opts.name ?? `E2E Review Plan ${Date.now()}`,
+    description: 'created by helpers/datasources.ts for e2e',
+    requires_ai_review: false,
+    requires_human_approval: opts.requiresHumanApproval ?? true,
+    min_approvals_required: opts.minApprovalsRequired ?? 1,
+    approval_timeout_hours: opts.approvalTimeoutHours ?? 24,
+    auto_approve_reads: false,
+    notify_channels: [],
+    approvers: (opts.approvers ?? [{ role: 'ADMIN', stage: 1 }]).map((a) => ({
+      user_id: a.userId ?? null,
+      role: a.role ?? null,
+      stage: a.stage,
+    })),
+  };
+  const res = await request.post(`${apiBase()}/api/v1/review-plans`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: body,
+  });
+  if (!res.ok()) {
+    throw new Error(`Create review plan failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedReviewPlan;
 }
 
 // POST /api/v1/datasources/{id} updates not exposed today, so the spec
