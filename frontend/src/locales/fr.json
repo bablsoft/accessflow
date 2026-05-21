@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Commentaire optionnel pour l'auteur…",
       "review_request_changes": "Demander des modifications",
       "review_request_changes_required": "Un commentaire est requis pour demander des modifications.",
+      "review_reject_required": "Un commentaire est requis pour rejeter une requête.",
+      "changes_requested_banner_title": "Modifications demandées",
+      "changes_requested_banner_body": "{{reviewer}} a demandé des modifications {{when}} : {{comment}}",
       "on_request_changes_success": "Modifications demandées · auteur notifié",
       "metadata_title": "Métadonnées",
       "not_found_message": "Requête introuvable.",
@@ -399,7 +402,10 @@
     "empty_title": "Tout est à jour",
     "empty_description": "Aucune requête ne t'attend pour le moment.",
     "on_approve": "Approuvée · transmise à l'exécution",
-    "on_reject": "Rejetée · auteur notifié"
+    "on_reject": "Rejetée · auteur notifié",
+    "reject_modal_title": "Rejeter la requête",
+    "reject_modal_placeholder": "Explique pourquoi cette requête est rejetée…",
+    "reject_modal_confirm": "Rejeter"
   },
   "timeline": {
     "title": "Chronologie d'approbation"

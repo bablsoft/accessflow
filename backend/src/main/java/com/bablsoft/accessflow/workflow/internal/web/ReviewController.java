@@ -76,13 +76,13 @@ class ReviewController {
     @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
     @Operation(summary = "Reject a query awaiting review")
     @ApiResponse(responseCode = "200", description = "Decision recorded; query transitioned to REJECTED")
-    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "400", description = "Validation error (comment is required)")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
     @ApiResponse(responseCode = "403", description = "Caller is the submitter, not a reviewer, or not an eligible approver")
     @ApiResponse(responseCode = "404", description = "Query not found")
     @ApiResponse(responseCode = "409", description = "Query is not in PENDING_REVIEW")
     ReviewDecisionResponse reject(@PathVariable UUID queryId,
-                                  @Valid @RequestBody ReviewDecisionRequest body,
+                                  @Valid @RequestBody ReviewRejectRequest body,
                                   Authentication authentication,
                                   RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);

@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Comentario opcional para el autor…",
       "review_request_changes": "Solicitar cambios",
       "review_request_changes_required": "Se requiere un comentario al solicitar cambios.",
+      "review_reject_required": "Se requiere un comentario al rechazar una consulta.",
+      "changes_requested_banner_title": "Cambios solicitados",
+      "changes_requested_banner_body": "{{reviewer}} solicitó cambios {{when}}: {{comment}}",
       "on_request_changes_success": "Cambios solicitados · autor notificado",
       "metadata_title": "Metadatos",
       "not_found_message": "Consulta no encontrada.",
@@ -399,7 +402,10 @@
     "empty_title": "Todo al día",
     "empty_description": "No hay consultas esperándote ahora mismo.",
     "on_approve": "Aprobada · reenviada a ejecución",
-    "on_reject": "Rechazada · autor notificado"
+    "on_reject": "Rechazada · autor notificado",
+    "reject_modal_title": "Rechazar consulta",
+    "reject_modal_placeholder": "Explica por qué se rechaza esta consulta…",
+    "reject_modal_confirm": "Rechazar"
   },
   "timeline": {
     "title": "Cronología de aprobación"

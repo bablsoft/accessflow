@@ -68,6 +68,7 @@ accessflow-ui/
 │   │   │   ├── ReviewCard.tsx      # Query card in review queue
 │   │   │   ├── ApprovalTimeline.tsx # Visual timeline of review stages
 │   │   │   ├── ReviewDecisionForm.tsx # Approve/reject form with comment
+│   │   │   ├── RejectModal.tsx     # Modal w/ required-comment textarea for /reviews reject
 │   │   │   └── AiAnalysisAccordion.tsx # Expandable AI analysis details
 │   │   │
 │   │   ├── datasources/
@@ -174,7 +175,8 @@ Available to users with `REVIEWER` or `ADMIN` role:
 
 - Paginated list of queries in `PENDING_REVIEW` status assigned to this reviewer
 - Each card shows: datasource name, submitter, query type, AI risk badge, time elapsed, SQL preview
-- Quick approve/reject inline on card; full detail opens in a right-side drawer
+- Quick approve inline on the card. Reject opens `RejectModal` ([components/review/RejectModal.tsx](../frontend/src/components/review/RejectModal.tsx)) — a comment is required (the confirm button stays disabled until the textarea is non-whitespace), mirroring the backend `@NotBlank` constraint on `POST /reviews/{id}/reject`.
+- Full detail opens in a right-side drawer
 - `ApprovalTimeline` shows which reviewers in the plan have already decided
 
 ### QueryDetailPage
@@ -188,6 +190,7 @@ Full detail view for any query:
 - Cancel button (if query is in `PENDING_*` status and viewer is the submitter)
 - When `status === 'TIMED_OUT'`, a warning callout above the SQL block names the review plan, the configured `approval_timeout_hours`, and how long ago the timeout fired. The metadata sidebar surfaces `plan` / `timeout.hours` for any query whose datasource has a review plan, regardless of status. Status-pill colour and label come from `statusColors.ts` (`TIMED_OUT` → warn-amber palette, label "TIMED OUT").
 - When `ai_analysis.failed === true` (AF-249), a warning `Alert` at the top of the main column tells the reviewer that AI analysis didn't complete and that review is proceeding without an AI recommendation; the analyzer's reason is shown both in the banner detail and in a dedicated failure variant of the AI accordion. The `RiskPill` in the accordion header switches to a neutral grey "AI N/A" variant (`failed` prop on `RiskPill`). For `REVIEWER` / `ADMIN` callers a primary "Re-analyze" button (in both the banner and the accordion) calls `POST /queries/{id}/reanalyze`; the page invalidates its TanStack Query entries on success and picks up the new analysis via the existing `ai.analysis_complete` WebSocket event. The list page (`QueryListPage`) renders the same "AI N/A" pill in the risk column when `ai_failed=true` on the list row, so a CRITICAL-looking sentinel is never mistaken for a real risk verdict.
+- When the latest entry in `review_decisions[]` has `decision: REQUESTED_CHANGES` AND the query is still `PENDING_REVIEW` (AF-269), an info `Alert` at the top of the main column tells the submitter that the reviewer asked for changes — body interpolates `{{reviewer}}`, `{{when}}`, and `{{comment}}`. The reviewer decision panel itself requires a non-empty comment for both **Reject** (disabled until typed) and **Request changes** (already disabled); approving still allows an empty comment. The rejected stage of `ApprovalTimeline` carries the last `REJECTED` decision's comment (wrapped in `"…"` so the existing italic style in [ApprovalTimeline.tsx](../frontend/src/components/review/ApprovalTimeline.tsx) applies).
 - When `ai_analysis === null` and the query has already advanced out of `PENDING_AI` (AF-307), the AI step is rendered as **bypassed** rather than waiting. The card title becomes "AI analysis (skipped)" with a muted body — "AI analysis was skipped — this datasource has AI analysis disabled." — and the `ApprovalTimeline` shows a gray stage labeled "AI analysis skipped" (dot uses `--fg-muted`). The skipped state is derived on the frontend (`!ai_analysis && status !== 'PENDING_AI'`); the backend persists no `ai_analyses` row on the skip path. While the query is still in `PENDING_AI`, the original "Awaiting analysis…" fallback continues to render.
 
 ### DatasourceCreateWizardPage *(ADMIN)*

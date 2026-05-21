@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
+import { RejectModal } from '@/components/review/RejectModal';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
 import { queryKeys } from '@/api/queries';
@@ -27,6 +28,7 @@ export function ReviewQueuePage() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState('mine');
+  const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -58,9 +60,11 @@ export function ReviewQueuePage() {
     onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
   const reject = useMutation({
-    mutationFn: (id: string) => rejectQuery(id),
-    onSuccess: (_, id) => {
-      invalidateAfterDecision(id);
+    mutationFn: ({ id, comment }: { id: string; comment: string }) =>
+      rejectQuery(id, comment),
+    onSuccess: (_, vars) => {
+      invalidateAfterDecision(vars.id);
+      setRejectTargetId(null);
       message.error(t('reviews.on_reject'));
     },
     onError: (err) => showApiError(message, err, reviewErrorMessage),
@@ -108,7 +112,7 @@ export function ReviewQueuePage() {
                 item={q}
                 onOpen={() => navigate(`/queries/${q.id}`)}
                 onApprove={() => approve.mutate(q.id)}
-                onReject={() => reject.mutate(q.id)}
+                onReject={() => setRejectTargetId(q.id)}
               />
             ))}
             {list.length === 0 && (
@@ -120,6 +124,15 @@ export function ReviewQueuePage() {
           </>
         )}
       </div>
+      <RejectModal
+        open={rejectTargetId !== null}
+        loading={reject.isPending}
+        onCancel={() => setRejectTargetId(null)}
+        onConfirm={(comment) => {
+          if (!rejectTargetId || !comment) return;
+          reject.mutate({ id: rejectTargetId, comment });
+        }}
+      />
     </div>
   );
 }

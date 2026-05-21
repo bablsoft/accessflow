@@ -38,11 +38,11 @@ export async function approveQuery(
 
 export async function rejectQuery(
   queryId: string,
-  comment?: string,
+  comment: string,
 ): Promise<ReviewDecisionResult> {
   const { data } = await apiClient.post<ReviewDecisionResult>(
     `${BASE}/${queryId}/reject`,
-    { comment: comment ?? null },
+    { comment },
   );
   return data;
 }

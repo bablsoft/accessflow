@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Необязательный комментарий автору…",
       "review_request_changes": "Запросить изменения",
       "review_request_changes_required": "При запросе изменений требуется комментарий.",
+      "review_reject_required": "Для отклонения запроса требуется комментарий.",
+      "changes_requested_banner_title": "Запрошены изменения",
+      "changes_requested_banner_body": "{{reviewer}} запросил(а) изменения {{when}}: {{comment}}",
       "on_request_changes_success": "Изменения запрошены · автор уведомлён",
       "metadata_title": "Метаданные",
       "not_found_message": "Запрос не найден.",
@@ -399,7 +402,10 @@
     "empty_title": "Всё в порядке",
     "empty_description": "Сейчас вас никакие запросы не ждут.",
     "on_approve": "Одобрено · отправлено на выполнение",
-    "on_reject": "Отклонено · автор уведомлён"
+    "on_reject": "Отклонено · автор уведомлён",
+    "reject_modal_title": "Отклонить запрос",
+    "reject_modal_placeholder": "Объясните, почему этот запрос отклоняется…",
+    "reject_modal_confirm": "Отклонить"
   },
   "timeline": {
     "title": "Хронология утверждения"

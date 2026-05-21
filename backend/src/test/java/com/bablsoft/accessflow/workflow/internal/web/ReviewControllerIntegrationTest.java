@@ -294,6 +294,34 @@ class ReviewControllerIntegrationTest {
     }
 
     @Test
+    void rejectReturns400WhenCommentBlank() {
+        var queryId = UUID.randomUUID();
+        var response = mvc.post().uri("/api/v1/reviews/{queryId}/reject", queryId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"comment\":\"\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    void rejectReturns400WhenCommentMissing() {
+        var queryId = UUID.randomUUID();
+        var response = mvc.post().uri("/api/v1/reviews/{queryId}/reject", queryId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
     void approveIdempotentReplayWritesNoAuditRow() {
         var queryId = UUID.randomUUID();
         when(reviewService.approve(eq(queryId), any(), any()))
