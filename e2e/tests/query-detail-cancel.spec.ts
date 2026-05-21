@@ -207,16 +207,22 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     await expect(row.getByText('CANCELLED', { exact: true })).toBeVisible();
   });
 
-  // ── 2. Non-submitter (invited ANALYST) viewing the detail page ────────────
-  test('non-submitter (analyst) viewing the detail page sees no Cancel button', async ({
+  // ── 2. Non-submitter (invited ADMIN) viewing the detail page ──────────────
+  test('non-submitter (second admin) viewing the detail page sees no Cancel button', async ({
     browser,
     request,
   }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    // Admin is the submitter; the analyst we'll invite below is not. Fresh
-    // query so test 1's CANCELLED row doesn't muddy the assertion (we need
-    // the status pill to read PENDING REVIEW for the analyst's view).
+    // Bootstrap admin is the submitter; the second admin we invite below is
+    // not. Fresh query so test 1's CANCELLED row doesn't muddy the assertion
+    // (we need the status pill to read PENDING REVIEW for the second admin's
+    // view).
+    //
+    // The invitee is provisioned as ADMIN, not ANALYST, because an ANALYST
+    // with no explicit datasource permission can't view another user's query
+    // (GET /api/v1/queries/{id} returns 404). ADMIN has org-wide visibility,
+    // which is all we need to exercise canCancel === false for a non-submitter.
     const submitted = await submitQuery(
       request,
       adminAccessToken,
@@ -230,9 +236,9 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     // Random email so a re-run doesn't collide with the row left behind by the
     // previous run — invitation acceptance provisions a real user we don't
     // clean up (matches the auth-invitation spec's behavior).
-    const invitee = `af266-analyst-${randomUUID()}@e2e.local`;
+    const invitee = `af266-admin-${randomUUID()}@e2e.local`;
     const adminCtx = await browser.newContext();
-    const analystCtx = await browser.newContext();
+    const inviteeCtx = await browser.newContext();
     try {
       const adminPage = await adminCtx.newPage();
       await loginViaUi(adminPage, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -243,7 +249,16 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       const dialog = adminPage.getByRole('dialog');
       await expect(dialog.getByText('Invite a teammate')).toBeVisible({ timeout: 10_000 });
       await dialog.getByLabel('Email').fill(invitee);
-      // Role default is ANALYST — leave the Select untouched.
+
+      // Pick ADMIN from the Role select (default is ANALYST). The AntD Select
+      // renders its options into a portal; the option text is the literal
+      // "ADMIN" string from UsersPage.tsx options array.
+      await dialog.getByLabel('Role').click();
+      await adminPage
+        .locator('.ant-select-item-option')
+        .filter({ hasText: /^ADMIN$/ })
+        .click();
+
       await dialog.getByRole('button', { name: 'Send invitation' }).click();
       await expect(adminPage.getByText('Invitation email sent')).toBeVisible({
         timeout: 10_000,
@@ -251,34 +266,34 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
 
       const token = await waitForInviteToken(request, invitee);
 
-      const analystPage = await analystCtx.newPage();
-      await analystPage.goto(`/invite/${token}`);
-      await analystPage
+      const inviteePage = await inviteeCtx.newPage();
+      await inviteePage.goto(`/invite/${token}`);
+      await inviteePage
         .getByLabel('Password', { exact: true })
         .fill(INVITEE_PASSWORD);
-      await analystPage
+      await inviteePage
         .getByLabel('Confirm password', { exact: true })
         .fill(INVITEE_PASSWORD);
-      await analystPage.locator('button[type="submit"]').click();
-      await analystPage.waitForURL('**/login', { timeout: 10_000 });
+      await inviteePage.locator('button[type="submit"]').click();
+      await inviteePage.waitForURL('**/login', { timeout: 10_000 });
 
-      await analystPage.locator('#login-email').fill(invitee);
-      await analystPage.locator('#login-password').fill(INVITEE_PASSWORD);
-      await analystPage.locator('button[type="submit"]').click();
-      await analystPage.waitForURL('**/editor', { timeout: 15_000 });
+      await inviteePage.locator('#login-email').fill(invitee);
+      await inviteePage.locator('#login-password').fill(INVITEE_PASSWORD);
+      await inviteePage.locator('button[type="submit"]').click();
+      await inviteePage.waitForURL('**/editor', { timeout: 15_000 });
 
-      await analystPage.goto(`/queries/${submitted.id}`);
+      await inviteePage.goto(`/queries/${submitted.id}`);
       await expect(
-        analystPage.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+        inviteePage.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
       ).toBeVisible({ timeout: 15_000 });
 
       // canCancel === false for non-submitter, so the Button never renders.
       await expect(
-        analystPage.getByRole('button', { name: 'Cancel query' }),
+        inviteePage.getByRole('button', { name: 'Cancel query' }),
       ).toHaveCount(0);
     } finally {
       await adminCtx.close();
-      await analystCtx.close();
+      await inviteeCtx.close();
     }
   });
 
