@@ -66,4 +66,12 @@ describe('ApprovalTimeline', () => {
     const { container } = render(<ApprovalTimeline stages={stages} />);
     expect(dotStyleAt(container, 0)).toContain('--risk-low');
   });
+
+  it('uses fg-muted color for a skipped stage', () => {
+    const stages: TimelineStage[] = [
+      { label: 'AI analysis skipped', who: 'skipped', skipped: true },
+    ];
+    const { container } = render(<ApprovalTimeline stages={stages} />);
+    expect(dotStyleAt(container, 0)).toContain('--fg-muted');
+  });
 });

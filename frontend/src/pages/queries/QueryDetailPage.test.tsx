@@ -313,3 +313,55 @@ describe('QueryDetailPage — submitter cancel (AF-266)', () => {
     });
   });
 });
+
+function skippedQuery(): QueryDetail {
+  const q = failedQuery();
+  q.status = 'PENDING_REVIEW';
+  q.ai_analysis = null;
+  return q;
+}
+
+function pendingAiQuery(): QueryDetail {
+  const q = failedQuery();
+  q.status = 'PENDING_AI';
+  q.ai_analysis = null;
+  return q;
+}
+
+describe('QueryDetailPage — AI analysis skipped surface (AF-307)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders skipped card title, body, and timeline label when ai_analysis is null and status is past PENDING_AI', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(skippedQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('AI analysis (skipped)')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'AI analysis was skipped — this datasource has AI analysis disabled.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('AI analysis skipped')).toBeInTheDocument();
+    // The pending fallback must not appear when skipped.
+    expect(screen.queryByText('Awaiting analysis…')).toBeNull();
+  });
+
+  it('keeps the "Awaiting analysis…" fallback when status is still PENDING_AI', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(pendingAiQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Awaiting analysis…')).toBeInTheDocument();
+    expect(screen.queryByText('AI analysis (skipped)')).toBeNull();
+    expect(screen.queryByText('AI analysis skipped')).toBeNull();
+  });
+});

@@ -12,6 +12,7 @@ export interface TimelineStage {
   rejected?: boolean;
   failed?: boolean;
   cancelled?: boolean;
+  skipped?: boolean;
   detail?: string | null;
   riskLevel?: RiskLevel | null;
 }
@@ -41,7 +42,7 @@ export function ApprovalTimeline({ stages }: { stages: TimelineStage[] }) {
                 ? 'var(--risk-low)'
                 : s.active
                   ? 'var(--accent)'
-                  : s.cancelled
+                  : s.cancelled || s.skipped
                     ? 'var(--fg-muted)'
                     : 'var(--border-strong)';
           return (

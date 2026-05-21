@@ -125,10 +125,12 @@ export function QueryDetailPage() {
     onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
+  const aiSkipped = !!query && !query.ai_analysis && query.status !== 'PENDING_AI';
+
   const stages: TimelineStage[] = useMemo(() => {
     if (!query) return [];
-    return buildStages(query);
-  }, [query]);
+    return buildStages(query, aiSkipped, t);
+  }, [query, aiSkipped, t]);
 
   if (isLoading) {
     return (
@@ -293,7 +295,9 @@ export function QueryDetailPage() {
             title={
               aiFailed
                 ? t('queries.detail.ai_failed_accordion_title')
-                : t('queries.detail.card_ai')
+                : aiSkipped
+                  ? t('queries.detail.card_ai_skipped')
+                  : t('queries.detail.card_ai')
             }
             icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
             extra={
@@ -351,7 +355,11 @@ export function QueryDetailPage() {
               <>
                 <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
                   {query.ai_analysis?.summary ?? (
-                    <span className="muted">{t('queries.detail.ai_awaiting')}</span>
+                    <span className="muted">
+                      {aiSkipped
+                        ? t('queries.detail.ai_skipped_body')
+                        : t('queries.detail.ai_awaiting')}
+                    </span>
                   )}
                 </div>
                 {query.ai_analysis && query.ai_analysis.issues.length > 0 && (
@@ -475,7 +483,11 @@ export function QueryDetailPage() {
   );
 }
 
-function buildStages(query: QueryDetail): TimelineStage[] {
+function buildStages(
+  query: QueryDetail,
+  aiSkipped: boolean,
+  t: (key: string) => string,
+): TimelineStage[] {
   const out: TimelineStage[] = [
     {
       label: 'Submitted',
@@ -485,26 +497,39 @@ function buildStages(query: QueryDetail): TimelineStage[] {
     },
   ];
   const aiFailed = query.ai_analysis?.failed === true;
-  out.push({
-    label: aiFailed ? 'AI analysis failed' : 'AI analysis',
-    who: query.ai_analysis
-      ? `${query.ai_analysis.ai_provider.toLowerCase()} / ${query.ai_analysis.ai_model}`
-      : 'pending',
-    time: query.ai_analysis ? query.created_at : null,
-    done:
-      !aiFailed &&
-      ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(
-        query.status,
-      ),
-    active: query.status === 'PENDING_AI',
-    failed: aiFailed,
-    detail: aiFailed
-      ? query.ai_analysis?.error_message ?? 'failed'
-      : query.ai_analysis
-      ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
-      : 'analyzing…',
-    riskLevel: aiFailed ? null : query.ai_analysis?.risk_level ?? null,
-  });
+  if (aiSkipped) {
+    out.push({
+      label: t('queries.detail.timeline_ai_skipped_label'),
+      who: t('queries.detail.timeline_ai_skipped_who'),
+      time: query.created_at,
+      done: false,
+      active: false,
+      skipped: true,
+      detail: null,
+      riskLevel: null,
+    });
+  } else {
+    out.push({
+      label: aiFailed ? 'AI analysis failed' : 'AI analysis',
+      who: query.ai_analysis
+        ? `${query.ai_analysis.ai_provider.toLowerCase()} / ${query.ai_analysis.ai_model}`
+        : 'pending',
+      time: query.ai_analysis ? query.created_at : null,
+      done:
+        !aiFailed &&
+        ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(
+          query.status,
+        ),
+      active: query.status === 'PENDING_AI',
+      failed: aiFailed,
+      detail: aiFailed
+        ? query.ai_analysis?.error_message ?? 'failed'
+        : query.ai_analysis
+        ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
+        : 'analyzing…',
+      riskLevel: aiFailed ? null : query.ai_analysis?.risk_level ?? null,
+    });
+  }
   if (query.status !== 'APPROVED' || query.duration_ms == null) {
     const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT'].includes(query.status);
     const reviewLabel =
