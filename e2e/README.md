@@ -185,6 +185,34 @@ creation wizard:
 6. Clicks **Next**, **Save and finish**, and asserts the wizard lands on
    `/datasources/{id}/settings` with the *Datasource created* toast.
 
+`tests/query-submit.spec.ts` covers the core "pick datasource → write SQL →
+submit" loop on `/editor` against the real backend. The spec uses the shared
+`createPostgresDatasource` helper in [`helpers/datasources.ts`](helpers/datasources.ts)
+to seed the datasource over REST (the wizard spec already covers the UI
+flow — re-driving it here would just retest the wizard). Four serial tests:
+
+1. **Happy path** — picks the seeded datasource, waits for the schema
+   introspection response, types `SELECT 1` into CodeMirror (with a
+   trailing `Escape` to dismiss any autocomplete popup), fills the
+   justification, clicks **Submit for review**, and asserts the
+   `Query submitted · …` toast renders *before* the URL flips to
+   `/queries/<uuid>` (the toast unmounts on navigation).
+2. **Empty SQL** — Submit is disabled until at least one character is
+   typed; clearing the editor disables it again.
+3. **Malformed SQL** (`SELEC 1`) — the backend returns 422 with
+   `error: 'INVALID_SQL'`, the editor surfaces the generic
+   *Could not submit query* toast, and the URL stays on `/editor`.
+   Inline gutter / line-column rendering (the literal #264 ask) is a
+   separate frontend feature not yet shipped — the assertion gets
+   updated when that lands.
+4. **Empty datasource list** — `page.route` stubs `GET /api/v1/datasources`
+   with an empty page, then asserts the editor renders the empty-state
+   copy and no Submit button.
+
+The Analyze button is gated by `ai_analysis_enabled && ai_config_id` on
+the datasource; the e2e stack has no AI provider wired in, so the spec
+deliberately doesn't exercise it.
+
 `tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
 (`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a
 pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
