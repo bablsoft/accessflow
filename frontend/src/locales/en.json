@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Optional comment for the submitter…",
       "review_request_changes": "Request changes",
       "review_request_changes_required": "A comment is required when requesting changes.",
+      "review_reject_required": "A comment is required when rejecting a query.",
+      "changes_requested_banner_title": "Changes requested",
+      "changes_requested_banner_body": "{{reviewer}} asked for changes {{when}}: {{comment}}",
       "on_request_changes_success": "Requested changes · submitter notified",
       "metadata_title": "Metadata",
       "not_found_message": "Query not found.",
@@ -399,7 +402,10 @@
     "empty_title": "All caught up",
     "empty_description": "No queries are waiting on you right now.",
     "on_approve": "Approved · forwarded to execution",
-    "on_reject": "Rejected · submitter notified"
+    "on_reject": "Rejected · submitter notified",
+    "reject_modal_title": "Reject query",
+    "reject_modal_placeholder": "Explain why this query is being rejected…",
+    "reject_modal_confirm": "Reject"
   },
   "timeline": {
     "title": "Approval timeline"

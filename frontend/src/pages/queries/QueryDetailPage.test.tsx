@@ -43,10 +43,18 @@ vi.mock('@/api/queries', () => ({
   },
 }));
 
+const { approveQueryMock, rejectQueryMock, requestChangesMock } = vi.hoisted(
+  () => ({
+    approveQueryMock: vi.fn(),
+    rejectQueryMock: vi.fn(),
+    requestChangesMock: vi.fn(),
+  }),
+);
+
 vi.mock('@/api/reviews', () => ({
-  approveQuery: vi.fn(),
-  rejectQuery: vi.fn(),
-  requestChanges: vi.fn(),
+  approveQuery: approveQueryMock,
+  rejectQuery: rejectQueryMock,
+  requestChanges: requestChangesMock,
   reviewKeys: { all: ['reviews'] as const },
 }));
 
@@ -327,6 +335,131 @@ function pendingAiQuery(): QueryDetail {
   q.ai_analysis = null;
   return q;
 }
+
+function rejectedQuery(): QueryDetail {
+  const q = pendingReviewQuery();
+  q.status = 'REJECTED';
+  q.review_decisions = [
+    {
+      id: 'd-1',
+      reviewer: {
+        id: 'u-reviewer',
+        email: 'reviewer@example.com',
+        display_name: 'Rev McReviewer',
+      },
+      decision: 'REJECTED',
+      comment: 'narrow the WHERE clause',
+      stage: 1,
+      decided_at: '2026-05-01T10:05:00Z',
+    },
+  ];
+  return q;
+}
+
+function changesRequestedQuery(): QueryDetail {
+  const q = pendingReviewQuery();
+  q.review_decisions = [
+    {
+      id: 'd-2',
+      reviewer: {
+        id: 'u-reviewer',
+        email: 'reviewer@example.com',
+        display_name: 'Rev McReviewer',
+      },
+      decision: 'REQUESTED_CHANGES',
+      comment: 'add LIMIT 100',
+      stage: 1,
+      decided_at: '2026-05-01T10:06:00Z',
+    },
+  ];
+  return q;
+}
+
+describe('QueryDetailPage — reviewer decision panel (AF-269)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    approveQueryMock.mockReset();
+    rejectQueryMock.mockReset();
+    requestChangesMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('disables the Reject button when the comment textarea is empty', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    const rejectButton = await screen.findByRole('button', { name: /Reject/ });
+    expect(rejectButton).toBeDisabled();
+  });
+
+  it('enables Reject once a non-empty comment is typed and fires rejectQuery', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+    rejectQueryMock.mockResolvedValue({
+      query_request_id: 'q-1',
+      decision_id: 'd-1',
+      decision: 'REJECTED',
+      resulting_status: 'REJECTED',
+      idempotent_replay: false,
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const textarea = await screen.findByPlaceholderText(/Optional comment/);
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'too risky' } });
+    });
+
+    const rejectButton = screen.getAllByRole('button').find((b) => /Reject/.test(b.textContent ?? ''))!;
+    expect(rejectButton).not.toBeDisabled();
+    await act(async () => {
+      fireEvent.click(rejectButton);
+    });
+    await waitFor(() => {
+      expect(rejectQueryMock).toHaveBeenCalledWith('q-1', 'too risky');
+    });
+  });
+
+  it('renders the "Changes requested" banner when the latest decision is REQUESTED_CHANGES and status is PENDING_REVIEW', async () => {
+    // Submitter view — must NOT be the reviewer that decided.
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(changesRequestedQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Changes requested')).toBeInTheDocument();
+    expect(screen.getByText(/add LIMIT 100/)).toBeInTheDocument();
+  });
+
+  it('does NOT render the banner when the latest decision is APPROVED', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = changesRequestedQuery();
+    q.review_decisions[0]!.decision = 'APPROVED';
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText('Changes requested')).toBeNull();
+  });
+
+  it('surfaces the rejection comment in the timeline rejected stage', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(rejectedQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    // ApprovalTimeline wraps the comment in double quotes to opt into italic.
+    expect(
+      await screen.findByText('"narrow the WHERE clause"'),
+    ).toBeInTheDocument();
+  });
+});
 
 describe('QueryDetailPage — AI analysis skipped surface (AF-307)', () => {
   beforeEach(() => {

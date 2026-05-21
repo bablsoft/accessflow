@@ -74,18 +74,12 @@ describe('api/reviews', () => {
     expect(post).toHaveBeenCalledWith('/api/v1/reviews/q-1/approve', { comment: null });
   });
 
-  it('rejectQuery POSTs /api/v1/reviews/{id}/reject with comment', async () => {
+  it('rejectQuery POSTs /api/v1/reviews/{id}/reject with required comment', async () => {
     post.mockResolvedValueOnce({
       data: { ...decisionFixture, decision: 'REJECTED', resulting_status: 'REJECTED' },
     });
     await reviewsApi.rejectQuery('q-1', 'too risky');
     expect(post).toHaveBeenCalledWith('/api/v1/reviews/q-1/reject', { comment: 'too risky' });
-  });
-
-  it('rejectQuery POSTs with comment=null when omitted', async () => {
-    post.mockResolvedValueOnce({ data: decisionFixture });
-    await reviewsApi.rejectQuery('q-1');
-    expect(post).toHaveBeenCalledWith('/api/v1/reviews/q-1/reject', { comment: null });
   });
 
   it('requestChanges POSTs /api/v1/reviews/{id}/request-changes with required comment', async () => {

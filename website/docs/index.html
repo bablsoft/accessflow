@@ -707,6 +707,17 @@
             <li><strong>Build the approver chain.</strong> Click <em>Add approver</em> for each stage; each row names a role (or a specific user) and a stage number. Stages advance sequentially, and a single <em>REJECTED</em> decision at any stage terminates the query.</li>
           </ol>
           <p>
+            <strong>Reviewer decisions.</strong> Reviewers can <em>Approve</em>, <em>Reject</em>, or
+            <em>Request changes</em>. <em>Reject</em> and <em>Request changes</em> both require a
+            non-empty comment — the server enforces this (<code>HTTP 400 VALIDATION_ERROR</code>),
+            and the UI disables the confirm button until the textarea is populated. The comment is
+            persisted on the decision row, rendered on the rejected stage of the timeline on
+            <code>/queries/&lt;id&gt;</code>, and surfaced to the submitter as a "Changes requested"
+            alert whenever the latest decision is <code>REQUESTED_CHANGES</code> and the query is
+            still <code>PENDING_REVIEW</code>. <em>Approve</em> still treats the comment as
+            optional.
+          </p>
+          <p>
             <strong>Query status transitions.</strong> A query moves through these states:
           </p>
 <pre class="docs-pre-plain">PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED

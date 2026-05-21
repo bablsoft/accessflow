@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Ընտրովի մեկնաբանություն ներկայացնողին…",
       "review_request_changes": "Հարցնել փոփոխություններ",
       "review_request_changes_required": "Փոփոխությունների հարցման ժամանակ մեկնաբանությունը պարտադիր է։",
+      "review_reject_required": "Հարցումը մերժելու համար մեկնաբանությունը պարտադիր է։",
+      "changes_requested_banner_title": "Փոփոխությունները հարցված են",
+      "changes_requested_banner_body": "{{reviewer}}-ը հարցրել է փոփոխություններ {{when}}՝ {{comment}}",
       "on_request_changes_success": "Փոփոխությունները հարցված են · ներկայացնողը ծանուցված է",
       "metadata_title": "Մետատվյալներ",
       "not_found_message": "Հարցումը չի գտնվել։",
@@ -399,7 +402,10 @@
     "empty_title": "Ամեն ինչ կարգին է",
     "empty_description": "Ներկայումս ձեզ ոչ մի հարցում չի սպասում։",
     "on_approve": "Հաստատված · ուղարկված կատարման",
-    "on_reject": "Մերժված · ներկայացնողը ծանուցված է"
+    "on_reject": "Մերժված · ներկայացնողը ծանուցված է",
+    "reject_modal_title": "Մերժել հարցումը",
+    "reject_modal_placeholder": "Բացատրեք, թե ինչու է այս հարցումը մերժվում…",
+    "reject_modal_confirm": "Մերժել"
   },
   "timeline": {
     "title": "Հաստատման ժամանակացույց"

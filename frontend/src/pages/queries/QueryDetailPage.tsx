@@ -106,7 +106,7 @@ export function QueryDetailPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => rejectQuery(id!, comment.trim() || undefined),
+    mutationFn: () => rejectQuery(id!, comment.trim()),
     onSuccess: () => {
       invalidateAfterDecision();
       setComment('');
@@ -126,6 +126,15 @@ export function QueryDetailPage() {
   });
 
   const aiSkipped = !!query && !query.ai_analysis && query.status !== 'PENDING_AI';
+
+  const latestDecision = useMemo(() => {
+    const decisions = query?.review_decisions ?? [];
+    return decisions.length > 0 ? decisions[decisions.length - 1] : null;
+  }, [query]);
+  const changesRequested =
+    !!query &&
+    query.status === 'PENDING_REVIEW' &&
+    latestDecision?.decision === 'REQUESTED_CHANGES';
 
   const stages: TimelineStage[] = useMemo(() => {
     if (!query) return [];
@@ -228,6 +237,22 @@ export function QueryDetailPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {changesRequested && latestDecision && (
+            <Alert
+              type="info"
+              showIcon
+              icon={<EditOutlined />}
+              message={t('queries.detail.changes_requested_banner_title')}
+              description={t('queries.detail.changes_requested_banner_body', {
+                reviewer: userDisplay(
+                  latestDecision.reviewer.display_name,
+                  latestDecision.reviewer.email,
+                ),
+                when: timeAgo(latestDecision.decided_at),
+                comment: latestDecision.comment ?? '',
+              })}
+            />
+          )}
           {aiFailed && (
             <Alert
               type="warning"
@@ -446,7 +471,19 @@ export function QueryDetailPage() {
                   danger
                   icon={<CloseOutlined />}
                   loading={rejectMutation.isPending}
-                  onClick={() => rejectMutation.mutate()}
+                  disabled={!comment.trim()}
+                  title={
+                    comment.trim()
+                      ? undefined
+                      : t('queries.detail.review_reject_required')
+                  }
+                  onClick={() => {
+                    if (!comment.trim()) {
+                      message.error(t('queries.detail.review_reject_required'));
+                      return;
+                    }
+                    rejectMutation.mutate();
+                  }}
                 >
                   {t('common.reject')}
                 </Button>
@@ -539,6 +576,7 @@ function buildStages(
         ? 'Timed out'
         : 'Human review';
     let reviewerWho: string;
+    let rejectionDetail: string | null = null;
     if (query.status === 'REJECTED') {
       const decisions = query.review_decisions ?? [];
       const lastReject = [...decisions]
@@ -547,6 +585,8 @@ function buildStages(
       reviewerWho = lastReject
         ? userDisplay(lastReject.reviewer.display_name, lastReject.reviewer.email)
         : '—';
+      // Leading quote opts into the italic comment style in ApprovalTimeline.tsx.
+      rejectionDetail = lastReject?.comment ? `"${lastReject.comment}"` : null;
     } else {
       reviewerWho = reviewDone ? '—' : 'awaiting reviewer';
     }
@@ -557,7 +597,7 @@ function buildStages(
       done: reviewDone,
       active: query.status === 'PENDING_REVIEW',
       rejected: query.status === 'REJECTED' || query.status === 'TIMED_OUT',
-      detail: null,
+      detail: rejectionDetail,
     });
   }
   if (query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {

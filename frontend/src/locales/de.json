@@ -367,6 +367,9 @@
       "review_comment_placeholder": "Optionaler Kommentar für den Einreicher…",
       "review_request_changes": "Änderungen anfordern",
       "review_request_changes_required": "Beim Anfordern von Änderungen ist ein Kommentar erforderlich.",
+      "review_reject_required": "Beim Ablehnen einer Abfrage ist ein Kommentar erforderlich.",
+      "changes_requested_banner_title": "Änderungen angefordert",
+      "changes_requested_banner_body": "{{reviewer}} hat {{when}} Änderungen angefordert: {{comment}}",
       "on_request_changes_success": "Änderungen angefordert · Einreicher benachrichtigt",
       "metadata_title": "Metadaten",
       "not_found_message": "Abfrage nicht gefunden.",
@@ -399,7 +402,10 @@
     "empty_title": "Alles erledigt",
     "empty_description": "Aktuell warten keine Abfragen auf dich.",
     "on_approve": "Genehmigt · zur Ausführung weitergeleitet",
-    "on_reject": "Abgelehnt · Einreicher benachrichtigt"
+    "on_reject": "Abgelehnt · Einreicher benachrichtigt",
+    "reject_modal_title": "Abfrage ablehnen",
+    "reject_modal_placeholder": "Begründe, warum diese Abfrage abgelehnt wird…",
+    "reject_modal_confirm": "Ablehnen"
   },
   "timeline": {
     "title": "Genehmigungs-Zeitleiste"

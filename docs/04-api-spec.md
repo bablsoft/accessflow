@@ -773,7 +773,7 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
 }
 ```
 
-`comment` is optional. The query is immediately transitioned to `REJECTED`.
+`comment` is **required** (≥ 1 non-whitespace character, ≤ 4,000 characters) — an empty or missing comment returns HTTP 400 `VALIDATION_ERROR`. The query is immediately transitioned to `REJECTED`. The persisted comment surfaces in the rejected stage of the timeline on `/queries/:id` so the submitter sees the reason without scraping the audit log.
 
 ### POST /reviews/{queryId}/request-changes — Request Body
 
@@ -783,7 +783,7 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
 }
 ```
 
-`comment` is **required** (HTTP 400 if blank). The decision is recorded with type `REQUESTED_CHANGES`; the query remains in `PENDING_REVIEW` so the submitter (or another reviewer) can act on the comment.
+`comment` is **required** (≥ 1 non-whitespace character, ≤ 4,000 characters; HTTP 400 `VALIDATION_ERROR` if blank or missing). The decision is recorded with type `REQUESTED_CHANGES`; the query remains in `PENDING_REVIEW` so the submitter (or another reviewer) can act on the comment. The frontend renders a "Changes requested" alert at the top of `/queries/:id` whenever the latest `review_decisions[]` entry has `decision: REQUESTED_CHANGES` and the query is still `PENDING_REVIEW`.
 
 ### Common Response Body (approve / reject / request-changes)
 
