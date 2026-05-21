@@ -26,7 +26,8 @@
     "dark_theme": "Tema oscuro",
     "retry": "Reintentar",
     "language": "Idioma",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "ok": "OK"
   },
   "nav": {
     "editor": "Editor SQL",
@@ -216,6 +217,8 @@
     "review_self_forbidden": "No puedes revisar una consulta que tú mismo has enviado.",
     "reviewer_not_eligible": "No eres aprobador en esta etapa.",
     "review_query_not_pending": "Esta consulta ya no está pendiente de revisión.",
+    "query_not_cancellable": "Esta consulta ya no se puede cancelar (ya avanzó).",
+    "query_cancel_generic": "No se pudo cancelar la consulta. Inténtelo de nuevo.",
     "review_query_not_found": "Esta consulta ya no está disponible.",
     "review_generic": "No se pudo registrar la decisión de revisión. Inténtalo de nuevo.",
     "review_plan_in_use": "Este plan de revisión está asociado a una fuente de datos y no se puede eliminar.",
@@ -365,6 +368,8 @@
       "not_found_message": "Consulta no encontrada.",
       "back_to_history": "Volver al historial",
       "cancel_query": "Cancelar consulta",
+      "cancel_confirm_title": "¿Cancelar esta consulta?",
+      "cancel_confirm_body": "La consulta se marcará como CANCELADA y se eliminará de la cola de revisión. Esta acción no se puede deshacer.",
       "on_approve_success": "Aprobada · reenviada a ejecución",
       "on_reject_success": "Rechazada · autor notificado",
       "on_cancel_success": "Consulta cancelada",

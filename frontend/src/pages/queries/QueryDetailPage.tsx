@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Input, Skeleton } from 'antd';
+import { Alert, App, Button, Input, Popconfirm, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -34,7 +34,7 @@ import {
   requestChanges,
   reviewKeys,
 } from '@/api/reviews';
-import { reviewErrorMessage } from '@/utils/apiErrors';
+import { queryCancelErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
@@ -61,6 +61,7 @@ export function QueryDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
       message.info(t('queries.detail.on_cancel_success'));
     },
+    onError: (err) => showApiError(message, err, queryCancelErrorMessage),
   });
 
   const executeMutation = useMutation({
@@ -183,14 +184,22 @@ export function QueryDetailPage() {
             </Button>
             <Button icon={<CopyOutlined />}>{t('common.duplicate')}</Button>
             {canCancel && (
-              <Button
-                danger
-                icon={<CloseOutlined />}
-                loading={cancelMutation.isPending}
-                onClick={() => cancelMutation.mutate()}
+              <Popconfirm
+                title={t('queries.detail.cancel_confirm_title')}
+                description={t('queries.detail.cancel_confirm_body')}
+                okText={t('common.ok')}
+                okButtonProps={{ danger: true }}
+                cancelText={t('common.cancel')}
+                onConfirm={() => cancelMutation.mutate()}
               >
-                {t('queries.detail.cancel_query')}
-              </Button>
+                <Button
+                  danger
+                  icon={<CloseOutlined />}
+                  loading={cancelMutation.isPending}
+                >
+                  {t('queries.detail.cancel_query')}
+                </Button>
+              </Popconfirm>
             )}
             {canExecute && (
               <Button

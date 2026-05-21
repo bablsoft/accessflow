@@ -12,6 +12,7 @@ import {
   profileErrorMessage,
   resetPasswordErrorMessage,
   reviewErrorMessage,
+  queryCancelErrorMessage,
   reviewPlanErrorMessage,
   setupErrorMessage,
 } from '../apiErrors';
@@ -401,6 +402,37 @@ describe('reviewPlanErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(reviewPlanErrorMessage(undefined))
       .toBe('Could not save the review plan. Please try again.');
+  });
+});
+
+describe('queryCancelErrorMessage', () => {
+  it('maps QUERY_NOT_CANCELLABLE to the friendly cancel-conflict message', () => {
+    expect(
+      queryCancelErrorMessage(
+        buildAxiosError(409, { error: 'QUERY_NOT_CANCELLABLE', currentStatus: 'APPROVED' }),
+      ),
+    ).toBe('This query can no longer be cancelled (it has already advanced).');
+  });
+
+  it('falls back to ProblemDetail.title for unknown codes', () => {
+    expect(queryCancelErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
+  });
+
+  it('falls back to ProblemDetail.detail when title is missing', () => {
+    expect(queryCancelErrorMessage(buildAxiosError(500, { detail: 'why' }))).toBe('why');
+  });
+
+  it('falls back to the axios error message', () => {
+    expect(queryCancelErrorMessage(new AxiosError('Network Error'))).toBe('Network Error');
+  });
+
+  it('handles non-axios errors', () => {
+    expect(queryCancelErrorMessage(new Error('boom'))).toBe('boom');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(queryCancelErrorMessage(undefined))
+      .toBe('Could not cancel the query. Please try again.');
   });
 });
 

@@ -26,7 +26,8 @@
     "dark_theme": "Thème sombre",
     "retry": "Réessayer",
     "language": "Langue",
-    "close": "Fermer"
+    "close": "Fermer",
+    "ok": "OK"
   },
   "nav": {
     "editor": "Éditeur SQL",
@@ -216,6 +217,8 @@
     "review_self_forbidden": "Tu ne peux pas examiner une requête que tu as soumise toi-même.",
     "reviewer_not_eligible": "Tu n'es pas approbateur à cette étape.",
     "review_query_not_pending": "Cette requête n'est plus en attente de revue.",
+    "query_not_cancellable": "Cette requête ne peut plus être annulée (elle a déjà avancé).",
+    "query_cancel_generic": "Impossible d'annuler la requête. Veuillez réessayer.",
     "review_query_not_found": "Cette requête n'est plus disponible.",
     "review_generic": "Impossible d'enregistrer la décision. Réessaie.",
     "review_plan_in_use": "Ce plan de revue est attaché à une source de données et ne peut pas être supprimé.",
@@ -365,6 +368,8 @@
       "not_found_message": "Requête introuvable.",
       "back_to_history": "Retour à l'historique",
       "cancel_query": "Annuler la requête",
+      "cancel_confirm_title": "Annuler cette requête ?",
+      "cancel_confirm_body": "La requête sera marquée ANNULÉE et retirée de la file de revue. Cette action est irréversible.",
       "on_approve_success": "Approuvée · transmise à l'exécution",
       "on_reject_success": "Rejetée · auteur notifié",
       "on_cancel_success": "Requête annulée",

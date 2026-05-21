@@ -3,10 +3,22 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
+import { AxiosError, type AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';
 import type { QueryDetail, Role } from '@/types/api';
 import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
+
+function buildAxiosError(status: number, data: unknown): AxiosError {
+  const response = {
+    data,
+    status,
+    statusText: '',
+    headers: {},
+    config: {} as never,
+  } as AxiosResponse;
+  return new AxiosError('Request failed', undefined, undefined, undefined, response);
+}
 
 const { getQueryMock, cancelQueryMock, executeQueryMock, reanalyzeQueryMock } = vi.hoisted(() => ({
   getQueryMock: vi.fn(),
@@ -208,5 +220,96 @@ describe('QueryDetailPage — AI failure surface (AF-249)', () => {
 
     expect(await screen.findByText('looks fine')).toBeInTheDocument();
     expect(screen.queryByText(/Review is proceeding without an AI recommendation/i)).toBeNull();
+  });
+});
+
+function pendingReviewQuery(): QueryDetail {
+  const q = failedQuery();
+  q.status = 'PENDING_REVIEW';
+  q.ai_analysis = {
+    ...q.ai_analysis!,
+    risk_level: 'LOW',
+    risk_score: 10,
+    summary: 'fine',
+    failed: false,
+    error_message: null,
+  };
+  return q;
+}
+
+describe('QueryDetailPage — submitter cancel (AF-266)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('submitter on PENDING_REVIEW confirms Popconfirm → cancelQuery is called', async () => {
+    // failedQuery().submitted_by.id === 'u-submitter', so the auth user must match.
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+    cancelQueryMock.mockResolvedValue(undefined);
+
+    render(wrap(<QueryDetailPage />));
+
+    const cancelBtn = await screen.findByRole('button', { name: /Cancel query/i });
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+
+    // AntD renders OK / Cancel into a portal under document.body — RTL finds it.
+    const okBtn = await screen.findByRole('button', { name: /^OK$/i });
+    await act(async () => {
+      fireEvent.click(okBtn);
+    });
+
+    await waitFor(() => {
+      expect(cancelQueryMock).toHaveBeenCalledWith('q-1');
+    });
+  });
+
+  it('non-submitter on PENDING_REVIEW does not see the Cancel button', async () => {
+    setUser('REVIEWER', 'u-reviewer');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    // Wait for the page to render before asserting absence.
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('button', { name: /Cancel query/i })).toBeNull();
+  });
+
+  it('renders an error toast when cancel rejects with 409 QUERY_NOT_CANCELLABLE', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+    cancelQueryMock.mockRejectedValue(
+      buildAxiosError(409, {
+        type: 'about:blank',
+        title: 'Conflict',
+        status: 409,
+        detail: 'Query is not cancellable',
+        error: 'QUERY_NOT_CANCELLABLE',
+        currentStatus: 'APPROVED',
+      }),
+    );
+
+    render(wrap(<QueryDetailPage />));
+
+    const cancelBtn = await screen.findByRole('button', { name: /Cancel query/i });
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+    const okBtn = await screen.findByRole('button', { name: /^OK$/i });
+    await act(async () => {
+      fireEvent.click(okBtn);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('This query can no longer be cancelled (it has already advanced).'),
+      ).toBeInTheDocument();
+    });
   });
 });
