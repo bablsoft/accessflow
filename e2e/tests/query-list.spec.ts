@@ -13,17 +13,16 @@ const API_BASE = process.env.E2E_API_BASE ?? 'http://localhost:8080';
 // Shared across the serial tests — provisioned once in beforeAll, torn down
 // in afterAll. The two datasources let us prove the datasource filter
 // actually narrows the result set; the three queries give us two rows in
-// PENDING_AI (one per datasource) and a third in CANCELLED to prove the
+// PENDING_REVIEW (one per datasource) and a third in CANCELLED to prove the
 // status filter narrows as well.
 //
-// Why PENDING_AI and not PENDING_REVIEW as the issue body suggests:
-// the e2e stack has no AI provider wired in and the seeded datasources use
-// ai_analysis_enabled=false. DefaultAiAnalyzerService skips analysis without
-// publishing a completion / failure event, so QueryReviewStateMachine never
-// fires and the query stays in PENDING_AI forever. PENDING_REVIEW is
-// unreachable here without seeding a second user (to approve someone else's
-// query) or a real AI config. PENDING_AI exercises the same status-filter
-// mechanic.
+// Status is PENDING_REVIEW (not PENDING_AI) because the seeded datasources
+// use ai_analysis_enabled=false. Per AF-307, DefaultAiAnalyzerService
+// publishes AiAnalysisSkippedEvent in that case, and QueryReviewStateMachine
+// advances the query to PENDING_REVIEW (no review plan is seeded → safe
+// default). The transition runs in an @ApplicationModuleListener after the
+// submit transaction commits, so beforeAll polls the API until each query
+// has settled into the expected status before the assertions run.
 let datasourceA: CreatedDatasource | null = null;
 let datasourceB: CreatedDatasource | null = null;
 let queryAId = '';
@@ -82,6 +81,34 @@ async function cancelQuery(
   }
 }
 
+// Submit returns PENDING_AI immediately; the AF-307 skip listener flips the
+// status to PENDING_REVIEW asynchronously. Poll GET /api/v1/queries/{id}
+// until the status matches `expected` (or we hit the timeout).
+async function waitForQueryStatus(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+  expected: string,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.get(`${API_BASE}/api/v1/queries/${id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.ok()) {
+      const body = (await res.json()) as { status: string };
+      last = body.status;
+      if (body.status === expected) return;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(
+    `Query ${id} did not reach status ${expected} within ${timeoutMs}ms (last seen: ${last || '<no response>'})`,
+  );
+}
+
 // Wait until the GET /api/v1/queries response that backs the list page has
 // landed and the page-level Skeleton has been replaced by the real table
 // body. Anchors every subsequent assertion to a settled DOM.
@@ -110,8 +137,9 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
       name: `Postgres E2E B ${Date.now()}`,
     });
 
-    // q1 on A, q2 on B → both PENDING_AI. q3 on A → cancelled to give us a
-    // second status (CANCELLED) without needing a second user to approve.
+    // q1 on A, q2 on B → both settle into PENDING_REVIEW once the AF-307
+    // skip listener fires. q3 on A → cancelled to give us a second status
+    // (CANCELLED) without needing a second user to approve.
     const q1 = await submitQuery(
       request,
       adminAccessToken,
@@ -137,6 +165,12 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
     );
     queryCancelledId = q3.id;
     await cancelQuery(request, adminAccessToken, q3.id);
+
+    // Wait for the async PENDING_AI → PENDING_REVIEW transition on q1/q2
+    // before any assertion runs. q3 is already terminal (CANCELLED) from
+    // the synchronous cancel call above.
+    await waitForQueryStatus(request, adminAccessToken, queryAId, 'PENDING_REVIEW');
+    await waitForQueryStatus(request, adminAccessToken, queryBId, 'PENDING_REVIEW');
   });
 
   test.afterAll(async ({ request }) => {
@@ -176,15 +210,16 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
       page.getByText(queryCancelledId.slice(0, 8), { exact: true }),
     ).toBeVisible();
 
-    // ── Status filter → PENDING_AI. ──────────────────────────────────────
+    // ── Status filter → PENDING REVIEW. ──────────────────────────────────
     // QueryListPage labels each status as `s.replace('_', ' ')`, so the
-    // dropdown option text is exactly "PENDING AI". The filter strip's
-    // first combobox is the status Select.
+    // dropdown option text is exactly "PENDING REVIEW". The filter strip's
+    // first combobox is the status Select. q1/q2 settled into PENDING_REVIEW
+    // in beforeAll (AF-307: skip path advances out of PENDING_AI).
     const statusSelect = page.getByRole('combobox').nth(0);
     await statusSelect.click();
     await page
       .locator('.ant-select-item-option')
-      .filter({ hasText: /^PENDING AI$/ })
+      .filter({ hasText: /^PENDING REVIEW$/ })
       .click();
     await waitForListReady(page);
 
