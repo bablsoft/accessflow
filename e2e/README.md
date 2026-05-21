@@ -213,6 +213,40 @@ The Analyze button is gated by `ai_analysis_enabled && ai_config_id` on
 the datasource; the e2e stack has no AI provider wired in, so the spec
 deliberately doesn't exercise it.
 
+`tests/query-execute.spec.ts` (AF-267) closes the happy-path loop from
+**submit → review → approve → execute → render results** plus two failure
+modes. `beforeAll` invites a per-run unique second admin so the approver
+differs from the submitter (`DefaultReviewService` rejects self-approval).
+Three serial tests:
+
+1. **Happy path** — two browser contexts. Submitter logs in as the bootstrap
+   admin, picks the seeded datasource, submits `SELECT 1, 2, 3`. Approver
+   logs in (separate context), navigates to `/reviews`, locates the card by
+   full UUID, clicks **Approve**, and asserts the *Approved · forwarded to
+   execution* toast. Submitter reloads, asserts the status pill flips to
+   `APPROVED`, clicks **Execute now**, and asserts the *Query executed*
+   toast, the `EXECUTED` status pill, the **Results** card, exactly three
+   column headers, and one row containing `[1, 2, 3]`.
+2. **Deleted datasource → FAILED** — creates a throwaway datasource,
+   submits + approves via API, then `DELETE`s the datasource (soft delete
+   sets `active=false`). Clicking **Execute now** sends the lifecycle
+   service down its catch branch (`DatasourceUnavailableException`), which
+   marks the query `FAILED` and returns 202 with `status: FAILED`. The
+   spec asserts the *Execution failed* toast and the `FAILED` status pill.
+3. **Statement timeout → FAILED** — submits `SELECT pg_sleep(5)` against
+   the seeded datasource and approves via API. The e2e compose file pins
+   `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` to `PT3S` (the default is
+   30s), so the sleep is cancelled at ~3s. Postgres surfaces SQLState
+   `57014`, which `SqlExceptionTranslator` maps to
+   `QueryExecutionTimeoutException`; the lifecycle service catches it the
+   same way and marks the query `FAILED`.
+
+The `PT3S` proxy timeout override only affects the lifecycle service's
+execute path. None of the other specs run SQL through the proxy, so the
+override is invisible to them. If you add a new spec that executes a
+long-running SQL statement against the seeded datasource, bear this
+cap in mind.
+
 `tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
 (`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a
 pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
