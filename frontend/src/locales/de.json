@@ -26,7 +26,8 @@
     "dark_theme": "Dunkles Thema",
     "retry": "Erneut versuchen",
     "language": "Sprache",
-    "close": "Schließen"
+    "close": "Schließen",
+    "ok": "OK"
   },
   "nav": {
     "editor": "SQL-Editor",
@@ -216,6 +217,8 @@
     "review_self_forbidden": "Du kannst keine Abfrage prüfen, die du selbst eingereicht hast.",
     "reviewer_not_eligible": "Du bist in dieser Stufe kein Genehmiger.",
     "review_query_not_pending": "Diese Abfrage ist nicht mehr in der Prüfung.",
+    "query_not_cancellable": "Diese Abfrage kann nicht mehr abgebrochen werden (sie wurde bereits weitergeleitet).",
+    "query_cancel_generic": "Abfrage konnte nicht abgebrochen werden. Bitte erneut versuchen.",
     "review_query_not_found": "Diese Abfrage ist nicht mehr verfügbar.",
     "review_generic": "Die Prüfentscheidung konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "review_plan_in_use": "Dieser Prüfplan ist mit einer Datenquelle verknüpft und kann nicht gelöscht werden.",
@@ -365,6 +368,8 @@
       "not_found_message": "Abfrage nicht gefunden.",
       "back_to_history": "Zurück zum Verlauf",
       "cancel_query": "Abfrage abbrechen",
+      "cancel_confirm_title": "Diese Abfrage abbrechen?",
+      "cancel_confirm_body": "Die Abfrage wird als ABGEBROCHEN markiert und aus der Prüfwarteschlange entfernt. Dies kann nicht rückgängig gemacht werden.",
       "on_approve_success": "Genehmigt · zur Ausführung weitergeleitet",
       "on_reject_success": "Abgelehnt · Einreicher benachrichtigt",
       "on_cancel_success": "Abfrage abgebrochen",

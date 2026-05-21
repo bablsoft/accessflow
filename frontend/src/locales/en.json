@@ -26,7 +26,8 @@
     "dark_theme": "Dark theme",
     "retry": "Retry",
     "language": "Language",
-    "close": "Close"
+    "close": "Close",
+    "ok": "OK"
   },
   "nav": {
     "editor": "Query editor",
@@ -216,6 +217,8 @@
     "review_self_forbidden": "You cannot review a query you submitted yourself.",
     "reviewer_not_eligible": "You are not an approver at this stage.",
     "review_query_not_pending": "This query is no longer pending review.",
+    "query_not_cancellable": "This query can no longer be cancelled (it has already advanced).",
+    "query_cancel_generic": "Could not cancel the query. Please try again.",
     "review_query_not_found": "This query is no longer available.",
     "review_generic": "Could not record the review decision. Please try again.",
     "review_plan_in_use": "This review plan is attached to a datasource and cannot be deleted.",
@@ -365,6 +368,8 @@
       "not_found_message": "Query not found.",
       "back_to_history": "Back to history",
       "cancel_query": "Cancel query",
+      "cancel_confirm_title": "Cancel this query?",
+      "cancel_confirm_body": "The query will be marked CANCELLED and removed from the review queue. This cannot be undone.",
       "on_approve_success": "Approved · forwarded to execution",
       "on_reject_success": "Rejected · submitter notified",
       "on_cancel_success": "Query cancelled",

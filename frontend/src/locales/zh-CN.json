@@ -26,7 +26,8 @@
     "dark_theme": "深色主题",
     "retry": "重试",
     "language": "语言",
-    "close": "关闭"
+    "close": "关闭",
+    "ok": "确定"
   },
   "nav": {
     "editor": "SQL 编辑器",
@@ -216,6 +217,8 @@
     "review_self_forbidden": "您不能审核自己提交的查询。",
     "reviewer_not_eligible": "您在当前阶段无权审核。",
     "review_query_not_pending": "该查询不再处于待审核状态。",
+    "query_not_cancellable": "该查询已无法取消（已进入下一阶段）。",
+    "query_cancel_generic": "无法取消查询，请重试。",
     "review_query_not_found": "该查询已不可用。",
     "review_generic": "无法记录审核决定，请重试。",
     "review_plan_in_use": "该审核计划已附加到一个数据源，无法删除。",
@@ -365,6 +368,8 @@
       "not_found_message": "未找到查询。",
       "back_to_history": "返回历史",
       "cancel_query": "取消查询",
+      "cancel_confirm_title": "取消该查询？",
+      "cancel_confirm_body": "查询将被标记为已取消并从审核队列中移除。此操作无法撤销。",
       "on_approve_success": "已批准 · 已转发到执行",
       "on_reject_success": "已拒绝 · 已通知提交者",
       "on_cancel_success": "查询已取消",

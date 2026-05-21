@@ -262,6 +262,22 @@ export function customDriverErrorMessage(err: unknown): string {
   return i18n.t('errors.custom_driver_generic');
 }
 
+export function queryCancelErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'QUERY_NOT_CANCELLABLE') {
+      return i18n.t('errors.query_not_cancellable');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.query_cancel_generic');
+}
+
 export function reviewPlanErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;
