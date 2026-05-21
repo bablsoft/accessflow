@@ -129,6 +129,11 @@ services:
       ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_TLS: "false"
       ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_ADDRESS: noreply@accessflow.test
       ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_NAME: AccessFlow E2E
+      # Statement timeout lowered from the 30s default so the AF-267 timeout
+      # spec (SELECT pg_sleep(5) → FAILED) fires in ~3s instead of bumping
+      # past Playwright's per-test timeout. Other specs run sub-millisecond
+      # SQL so this override is invisible to them.
+      ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT: PT3S
     healthcheck:
       # /actuator/health is permitAll. busybox wget is present in the
       # eclipse-temurin:25-jre-alpine runtime stage of the backend image.

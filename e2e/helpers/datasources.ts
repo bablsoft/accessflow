@@ -1,12 +1,18 @@
 import type { APIRequestContext } from '@playwright/test';
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
+const DEFAULT_MAILCRAB_BASE = 'http://localhost:1080';
+const INVITE_URL_REGEX = /\/invite\/([A-Za-z0-9_-]+)/;
 
 // Resolve the backend URL the helpers should hit. Mirrors the convention used
 // by tests/auth-totp-login.spec.ts so the same E2E_API_BASE override drives
 // both call sites.
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
+}
+
+function mailcrabBase(): string {
+  return process.env.E2E_MAILCRAB_BASE ?? DEFAULT_MAILCRAB_BASE;
 }
 
 // Minimal shape returned by `POST /api/v1/datasources` — kept local so the
@@ -40,6 +46,13 @@ export interface CreatePostgresDatasourceOptions {
   username?: string;
   /** JDBC password. Defaults to `accessflow`. */
   password?: string;
+  /**
+   * Optional review plan id to attach to the datasource. When omitted the
+   * datasource has no plan — submitted queries reach PENDING_REVIEW but no
+   * reviewer can approve them (DefaultReviewService:189-192 requires a plan
+   * for actionability). Specs that drive approval MUST set this.
+   */
+  reviewPlanId?: string;
 }
 
 // POST /api/v1/auth/login → returns the access token. Mirrors the inline
@@ -88,6 +101,7 @@ export async function createPostgresDatasource(
     ai_analysis_enabled: false,
     ai_config_id: null,
     custom_driver_id: null,
+    review_plan_id: opts.reviewPlanId ?? null,
   };
   const res = await request.post(`${apiBase()}/api/v1/datasources`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -118,4 +132,255 @@ export async function deleteDatasource(
       `Datasource cleanup (${id}) returned ${res.status()}: ${await res.text()}`,
     );
   }
+}
+
+export interface SubmittedQuery {
+  id: string;
+  status: string;
+}
+
+// POST /api/v1/queries — keep the body shape in sync with QueryEditorPage's
+// SubmitQueryRequest (datasource_id + sql + optional justification). Used by
+// specs that need a query in PENDING_REVIEW without driving the editor UI.
+export async function submitQueryViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  datasourceId: string,
+  sql: string,
+  justification = 'e2e: helper-submitted query',
+): Promise<SubmittedQuery> {
+  const res = await request.post(`${apiBase()}/api/v1/queries`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: { datasource_id: datasourceId, sql, justification },
+  });
+  if (!res.ok()) {
+    throw new Error(`Submit query failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as SubmittedQuery;
+}
+
+// Submit returns PENDING_AI immediately; the AF-307 skip listener flips status
+// to PENDING_REVIEW asynchronously when ai_analysis_enabled=false on the
+// datasource. Poll GET /api/v1/queries/{id} until the status matches `expected`.
+export async function waitForQueryStatus(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+  expected: string,
+  timeoutMs = 15_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.get(`${apiBase()}/api/v1/queries/${id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (res.ok()) {
+      const body = (await res.json()) as { status: string };
+      last = body.status;
+      if (body.status === expected) return;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error(
+    `Query ${id} did not reach status ${expected} within ${timeoutMs}ms (last seen: ${last || '<no response>'})`,
+  );
+}
+
+// POST /api/v1/reviews/{queryId}/approve — the comment field is optional on
+// the backend (ReviewDecisionRequest), so callers can pass it through or omit.
+// The backend enforces that the approver is NOT the submitter (403) so callers
+// must hand in a token that belongs to a different user.
+export async function approveQueryViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  queryId: string,
+  comment?: string,
+): Promise<void> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/reviews/${queryId}/approve`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      data: comment ? { comment } : {},
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Approve query failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+export interface InvitedUser {
+  id: string;
+  email: string;
+  role: string;
+}
+
+// POST /api/v1/admin/users/invitations — requires an ADMIN token. The
+// invitation token itself is NOT returned in the response (the backend emails
+// it via Mailcrab), so callers chain this with waitForInviteToken to extract
+// the token, then acceptInvitationViaApi to provision the user.
+export async function inviteUserViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  email: string,
+  displayName: string,
+  role: 'ADMIN' | 'REVIEWER' | 'ANALYST',
+): Promise<InvitedUser> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/admin/users/invitations`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: { email, displayName, role },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Invite user failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as InvitedUser;
+}
+
+// POST /api/v1/auth/invitations/{token}/accept — public endpoint, no auth. The
+// backend creates the user with the password as their LOCAL credential.
+export async function acceptInvitationViaApi(
+  request: APIRequestContext,
+  token: string,
+  password: string,
+  displayName?: string,
+): Promise<void> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/auth/invitations/${token}/accept`,
+    {
+      data: displayName ? { password, displayName } : { password },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Accept invitation failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+export interface ReviewPlanApprover {
+  role?: 'ADMIN' | 'REVIEWER';
+  userId?: string;
+  stage: number;
+}
+
+export interface CreatedReviewPlan {
+  id: string;
+  name: string;
+}
+
+// POST /api/v1/review-plans — required by approval flows. Without a plan
+// attached to the datasource, `listPendingForReviewer` filters the query out
+// and `prepareDecision` throws ReviewerNotEligibleException (403). Default
+// approver is a single ADMIN at stage 1 with min_approvals_required=1; the
+// timeout default mirrors the server-side default for clarity.
+export async function createReviewPlanViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  opts: {
+    name?: string;
+    approvers?: ReviewPlanApprover[];
+    requiresHumanApproval?: boolean;
+    minApprovalsRequired?: number;
+    approvalTimeoutHours?: number;
+  } = {},
+): Promise<CreatedReviewPlan> {
+  const body = {
+    name: opts.name ?? `E2E Review Plan ${Date.now()}`,
+    description: 'created by helpers/datasources.ts for e2e',
+    requires_ai_review: false,
+    requires_human_approval: opts.requiresHumanApproval ?? true,
+    min_approvals_required: opts.minApprovalsRequired ?? 1,
+    approval_timeout_hours: opts.approvalTimeoutHours ?? 24,
+    auto_approve_reads: false,
+    notify_channels: [],
+    approvers: (opts.approvers ?? [{ role: 'ADMIN', stage: 1 }]).map((a) => ({
+      user_id: a.userId ?? null,
+      role: a.role ?? null,
+      stage: a.stage,
+    })),
+  };
+  const res = await request.post(`${apiBase()}/api/v1/review-plans`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: body,
+  });
+  if (!res.ok()) {
+    throw new Error(`Create review plan failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedReviewPlan;
+}
+
+// POST /api/v1/datasources/{id} updates not exposed today, so the spec
+// triggers DATASOURCE_UNAVAILABLE by DELETEing the row between approval and
+// execute. Kept here so the lifecycle helpers all live in one place.
+
+interface MailcrabSummary {
+  id: string;
+  to?: Array<{ email?: string } | string>;
+}
+
+interface MailcrabMessage extends MailcrabSummary {
+  text?: string;
+  html?: string;
+}
+
+function recipientMatches(summary: MailcrabSummary, recipient: string): boolean {
+  if (!summary.to) return false;
+  return summary.to.some((entry) => {
+    if (typeof entry === 'string') {
+      return entry.toLowerCase().includes(recipient.toLowerCase());
+    }
+    return entry.email?.toLowerCase() === recipient.toLowerCase();
+  });
+}
+
+// Drop every captured email so subsequent waitForInviteToken calls don't
+// match a previous run's invitation. Safe to call between tests.
+export async function purgeMailcrab(request: APIRequestContext): Promise<void> {
+  const res = await request.post(`${mailcrabBase()}/api/delete-all`);
+  if (!res.ok() && res.status() !== 404) {
+    throw new Error(`Mailcrab purge failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+// Polls Mailcrab for the most recent email addressed to `recipient` and
+// extracts the one-time invitation token from the `/invite/{token}` URL in
+// the body. Mirrors the inline implementation in tests/query-detail-cancel.spec.ts
+// so future specs can reuse it.
+export async function waitForInviteToken(
+  request: APIRequestContext,
+  recipient: string,
+  timeoutMs = 15_000,
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs;
+  let lastError = '';
+  while (Date.now() < deadline) {
+    const listRes = await request.get(`${mailcrabBase()}/api/messages`);
+    if (listRes.ok()) {
+      const summaries = (await listRes.json()) as MailcrabSummary[];
+      const match = [...summaries]
+        .reverse()
+        .find((m) => recipientMatches(m, recipient));
+      if (match) {
+        const detailRes = await request.get(
+          `${mailcrabBase()}/api/message/${match.id}`,
+        );
+        if (detailRes.ok()) {
+          const detail = (await detailRes.json()) as MailcrabMessage;
+          const body = `${detail.text ?? ''}\n${detail.html ?? ''}`;
+          const m = body.match(INVITE_URL_REGEX);
+          if (m) return m[1];
+          lastError = `Email found for ${recipient} but no invite token URL in body`;
+        } else {
+          lastError = `Mailcrab GET /api/message/${match.id} returned ${detailRes.status()}`;
+        }
+      } else {
+        lastError = `No Mailcrab message addressed to ${recipient} yet (${summaries.length} total)`;
+      }
+    } else {
+      lastError = `Mailcrab GET /api/messages returned ${listRes.status()}`;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Timed out waiting for invitation email: ${lastError}`);
 }
