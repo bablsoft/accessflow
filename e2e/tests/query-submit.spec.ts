@@ -113,6 +113,16 @@ test.describe.serial('query submission from /editor', () => {
 
     await page.waitForURL(/\/queries\/[0-9a-f-]{36}$/, { timeout: 15_000 });
     expect(new URL(page.url()).pathname).toMatch(/^\/queries\/[0-9a-f-]{36}$/);
+
+    // Regression guard for #307: the seeded datasource has ai_analysis_enabled=false
+    // (helpers/datasources.ts:88). Pre-fix the query would race-show PENDING AI in the
+    // <StatusPill> next to the query id (QueryDetailPage.tsx:169) and stay there forever
+    // because the analyzer silently returned without publishing any event. Post-fix the
+    // analyzer publishes AiAnalysisSkippedEvent and the workflow state machine flips
+    // status to PENDING_REVIEW. statusLabel() turns the enum into a space-delimited label
+    // (statusColors.ts:22), so we assert on the visible text.
+    await expect(page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'))
+      .toBeVisible({ timeout: 15_000 });
   });
 
   // ── 2. Empty SQL — Submit is disabled until at least one char is typed ───────────

@@ -182,6 +182,31 @@ class AiAnalysisListenerIntegrationTest {
     }
 
     @Test
+    void onSubmittedSkipsAnalysisAndAdvancesWhenAiDisabled() {
+        // Flip the seeded datasource to ai_analysis_enabled=false BEFORE publishing the event.
+        // Regression guard for #307: the listener used to silently return, leaving the query
+        // stuck in PENDING_AI forever. Now it must publish AiAnalysisSkippedEvent, which the
+        // workflow state machine consumes to advance to PENDING_REVIEW (no review plan seeded
+        // here → safe default).
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            var query = queryRequestRepository.findById(queryRequestId).orElseThrow();
+            var ds = query.getDatasource();
+            ds.setAiAnalysisEnabled(false);
+            datasourceRepository.save(ds);
+        });
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                eventPublisher.publishEvent(new QuerySubmittedEvent(queryRequestId)));
+
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> {
+                    var query = queryRequestRepository.findById(queryRequestId).orElseThrow();
+                    assertThat(query.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+                    assertThat(aiAnalysisRepository.findByQueryRequest_Id(queryRequestId)).isEmpty();
+                });
+    }
+
+    @Test
     void onSubmittedPersistsSentinelOnStrategyFailure() {
         when(strategy.analyze(any(), any(), any(), any(), any()))
                 .thenThrow(new com.bablsoft.accessflow.ai.api.AiAnalysisException("provider down"));

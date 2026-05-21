@@ -425,7 +425,7 @@ When a `(user_id, datasource_id)` permission row carries `restricted_columns` (a
 
 ### Implementation: AI-completion → review transition
 
-`workflow.internal.QueryReviewStateMachine` is a Spring Modulith `@ApplicationModuleListener` consuming `AiAnalysisCompletedEvent` and `AiAnalysisFailedEvent` from the `core` module's events. It runs `AFTER_COMMIT` of the AI module's persistence transaction, so the `ai_analyses` row and `query_requests.ai_analysis_id` link are already visible.
+`workflow.internal.QueryReviewStateMachine` is a Spring Modulith `@ApplicationModuleListener` consuming `AiAnalysisCompletedEvent`, `AiAnalysisFailedEvent`, and `AiAnalysisSkippedEvent` from the `core` module's events. It runs `AFTER_COMMIT` of the AI module's persistence transaction, so the `ai_analyses` row and `query_requests.ai_analysis_id` link are already visible.
 
 Decision rules:
 
@@ -437,6 +437,8 @@ Decision rules:
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
 
 `AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.
+
+`AiAnalysisSkippedEvent` (added in AF-307) covers the case where the datasource has `ai_analysis_enabled = false`. The state machine respects `plan.requires_human_approval`: when human review is not required the query transitions `PENDING_AI → APPROVED`; otherwise (plan requires human approval, or no plan is configured) it transitions to `PENDING_REVIEW`. The fast-path `auto_approve_reads` shortcut is **never** applied — without an AI risk signal, the SELECT/low-risk shortcut cannot be evaluated. No sentinel `ai_analyses` row is persisted, so the frontend renders the analysis step as bypassed rather than failed.
 
 ### Implementation: review decisions
 
@@ -566,13 +568,21 @@ the transaction commits) and the cached delegate for that id is evicted — the 
 Spring context refresh.
 
 The analyzer service resolves which row to use by reading
-`DatasourceConnectionDescriptor.aiConfigId` from `DatasourceLookupService.findById(...)`. If
-the datasource has `ai_analysis_enabled = false` or `ai_config_id is null`, the listener
-silently skips and the editor preview rejects with `AiAnalysisException`. Admins are
-prevented from saving an inconsistent state — `DatasourceAdminServiceImpl.create/update`
-throws `MissingAiConfigForDatasourceException` (HTTP 422) when AI analysis is enabled but no
-config is bound, and `IllegalAiConfigBindingException` (HTTP 422) when the requested
-`ai_config_id` belongs to a different organization.
+`DatasourceConnectionDescriptor.aiConfigId` from `DatasourceLookupService.findById(...)`. Two
+opt-out paths exist:
+
+- `ai_analysis_enabled = false` — the listener publishes `AiAnalysisSkippedEvent` (see the
+  state-machine section above) which advances the query out of `PENDING_AI` without persisting
+  any `ai_analyses` row. The editor preview still rejects with `AiAnalysisException`
+  (`analyzePreview` requires AI to be enabled).
+- `ai_config_id is null` while `ai_analysis_enabled = true` — treated as an admin
+  misconfiguration: the listener persists a sentinel `CRITICAL` analysis row marked
+  `failed=true` and publishes `AiAnalysisFailedEvent`, so a human reviewer sees the broken
+  binding on `QueryDetailPage` and can fix it. Admins are prevented from saving an inconsistent
+  state — `DatasourceAdminServiceImpl.create/update` throws
+  `MissingAiConfigForDatasourceException` (HTTP 422) when AI analysis is enabled but no config
+  is bound, and `IllegalAiConfigBindingException` (HTTP 422) when the requested `ai_config_id`
+  belongs to a different organization.
 
 If the looked-up `ai_config` row has no API key set (and the provider needs one — Anthropic /
 OpenAI), the holder throws `AiAnalysisException` whose message is resolved via `MessageSource`

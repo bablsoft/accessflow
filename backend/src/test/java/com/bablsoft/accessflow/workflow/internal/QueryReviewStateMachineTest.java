@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
+import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import org.junit.jupiter.api.Test;
@@ -186,6 +187,77 @@ class QueryReviewStateMachineTest {
         stateMachine.onAiFailed(new AiAnalysisFailedEvent(queryId, "boom"));
 
         verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+    }
+
+    @Test
+    void aiSkippedAutoApprovesWhenHumanApprovalNotRequired() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, false, RiskLevel.HIGH);
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.APPROVED);
+        verify(eventPublisher).publishEvent(any(QueryAutoApprovedEvent.class));
+    }
+
+    @Test
+    void aiSkippedRoutesToPendingReviewWhenHumanApprovalRequired() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+    }
+
+    @Test
+    void aiSkippedRoutesToPendingReviewWhenNoReviewPlan() {
+        givenPendingAiQuery(QueryType.SELECT);
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+    }
+
+    @Test
+    void aiSkippedDoesNotFastPathSelectsWithAutoApproveReads() {
+        // Without an AI risk signal, the SELECT/low-risk fast-path cannot apply — the query
+        // must still go through human review when the plan requires it.
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(true, true, RiskLevel.LOW);
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+    }
+
+    @Test
+    void aiSkippedIgnoresQueryNotInPendingAi() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED)));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void aiSkippedIgnoresUnknownQuery() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     private void givenPendingAiQuery(QueryType type) {

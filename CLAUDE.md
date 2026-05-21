@@ -295,7 +295,9 @@ com.bablsoft.accessflow/
   PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
                              ↘ REJECTED   (manual reviewer rejection)
                              ↘ TIMED_OUT  (approval-timeout auto-reject by QueryTimeoutJob)
-             ↘ PENDING_REVIEW (if AI not required)
+             ↘ PENDING_REVIEW or APPROVED (if AI not required —
+                                            datasource.ai_analysis_enabled=false;
+                                            APPROVED only when plan.requires_human_approval=false)
   PENDING_REVIEW → CANCELLED (submitter only)
   APPROVED → FAILED (execution error)
   ```

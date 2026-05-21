@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
+import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +24,12 @@ import java.util.UUID;
 
 /**
  * Drives the {@code PENDING_AI → PENDING_REVIEW | APPROVED} transition by listening to the AI
- * module's completion / failure events. AI failure unconditionally lands in
+ * module's completion / failure / skipped events. AI failure unconditionally lands in
  * {@code PENDING_REVIEW} so a human can inspect the query — auto-approve is a positive-signal
- * fast-path; a missing AI result is not symmetric to a low-risk one.
+ * fast-path; a missing AI result is not symmetric to a low-risk one. The skipped path
+ * (datasource has {@code ai_analysis_enabled = false}) respects {@code plan.requires_human_approval}
+ * — auto-approving when human review isn't required — but never short-circuits via
+ * {@code auto_approve_reads}, since the SELECT/low-risk fast-path needs an AI risk signal.
  */
 @Component
 @RequiredArgsConstructor
@@ -56,6 +60,23 @@ class QueryReviewStateMachine {
     }
 
     @ApplicationModuleListener
+    void onAiSkipped(AiAnalysisSkippedEvent event) {
+        var query = queryRequestLookupService.findById(event.queryRequestId()).orElse(null);
+        if (query == null) {
+            log.warn("AiAnalysisSkippedEvent for unknown query {}", event.queryRequestId());
+            return;
+        }
+        if (query.status() != QueryStatus.PENDING_AI) {
+            log.warn("AiAnalysisSkippedEvent for query {} not in PENDING_AI (status={})",
+                    query.id(), query.status());
+            return;
+        }
+        var nextStatus = decideNextStatusOnSkip(query);
+        queryRequestStateService.transitionTo(query.id(), QueryStatus.PENDING_AI, nextStatus);
+        publishTerminalOrPending(query.id(), nextStatus);
+    }
+
+    @ApplicationModuleListener
     void onAiFailed(AiAnalysisFailedEvent event) {
         var query = queryRequestLookupService.findById(event.queryRequestId()).orElse(null);
         if (query == null) {
@@ -70,6 +91,14 @@ class QueryReviewStateMachine {
         queryRequestStateService.transitionTo(query.id(), QueryStatus.PENDING_AI,
                 QueryStatus.PENDING_REVIEW);
         eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id()));
+    }
+
+    private QueryStatus decideNextStatusOnSkip(QueryRequestSnapshot query) {
+        var plan = reviewPlanLookupService.findForDatasource(query.datasourceId()).orElse(null);
+        if (plan != null && !plan.requiresHumanApproval()) {
+            return QueryStatus.APPROVED;
+        }
+        return QueryStatus.PENDING_REVIEW;
     }
 
     private QueryStatus decideNextStatus(QueryRequestSnapshot query, RiskLevel riskLevel) {

@@ -26,6 +26,7 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
+import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -214,7 +215,7 @@ class DefaultAiAnalyzerServiceTest {
     }
 
     @Test
-    void analyzeSubmittedQueryIsSkippedWhenAiAnalysisDisabled() {
+    void analyzeSubmittedQueryPublishesSkippedEventWhenAiAnalysisDisabled() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
                 "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
@@ -224,7 +225,13 @@ class DefaultAiAnalyzerServiceTest {
         service.analyzeSubmittedQuery(queryRequestId);
 
         verify(aiAnalysisPersistenceService, never()).persist(any(), any());
-        verify(eventPublisher, never()).publishEvent(any());
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue())
+                .isInstanceOfSatisfying(AiAnalysisSkippedEvent.class, ev -> {
+                    assertThat(ev.queryRequestId()).isEqualTo(queryRequestId);
+                    assertThat(ev.reason()).isEqualTo("ai_analysis_enabled=false");
+                });
     }
 
     @Test
