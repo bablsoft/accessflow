@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { Pill } from './Pill';
 import type { QueryType } from '@/types/api';
+import { queryTypeLabel } from '@/utils/enumLabels';
 
 const COLORS: Record<QueryType, { fg: string; bg: string; border: string }> = {
   SELECT: { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' },
@@ -10,10 +12,11 @@ const COLORS: Record<QueryType, { fg: string; bg: string; border: string }> = {
 };
 
 export function QueryTypePill({ type, size }: { type: QueryType; size?: 'sm' | 'md' }) {
+  const { t } = useTranslation();
   const c = COLORS[type];
   return (
     <Pill fg={c.fg} bg={c.bg} border={c.border} size={size}>
-      {type}
+      {queryTypeLabel(t, type)}
     </Pill>
   );
 }

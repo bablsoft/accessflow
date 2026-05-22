@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { Pill } from './Pill';
 import type { Role } from '@/types/api';
+import { roleLabel } from '@/utils/enumLabels';
 
 const COLORS: Record<Role, { fg: string; bg: string; border: string }> = {
   ADMIN: { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' },
@@ -9,10 +11,11 @@ const COLORS: Record<Role, { fg: string; bg: string; border: string }> = {
 };
 
 export function RolePill({ role, size }: { role: Role; size?: 'sm' | 'md' }) {
+  const { t } = useTranslation();
   const c = COLORS[role];
   return (
     <Pill fg={c.fg} bg={c.bg} border={c.border} size={size}>
-      {role}
+      {roleLabel(t, role)}
     </Pill>
   );
 }

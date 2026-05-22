@@ -121,7 +121,7 @@ test.describe.serial('query submission from /editor', () => {
     // analyzer publishes AiAnalysisSkippedEvent and the workflow state machine flips
     // status to PENDING_REVIEW. statusLabel() turns the enum into a space-delimited label
     // (statusColors.ts:22), so we assert on the visible text.
-    await expect(page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'))
+    await expect(page.getByRole('heading', { level: 1 }).getByText('Pending review'))
       .toBeVisible({ timeout: 15_000 });
   });
 

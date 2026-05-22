@@ -36,6 +36,7 @@ import {
   updateChannel,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { channelTypeLabel, enumOptions } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
 import type {
@@ -46,6 +47,14 @@ import type {
 } from '@/types/api';
 
 const MASK = '********';
+const CHANNEL_TYPES: readonly ChannelType[] = [
+  'EMAIL',
+  'SLACK',
+  'WEBHOOK',
+  'DISCORD',
+  'TELEGRAM',
+  'MS_TEAMS',
+] as const;
 
 interface ChannelFormValues {
   name: string;
@@ -309,7 +318,7 @@ function ChannelCard({
             )}
           </div>
           <div className="mono muted" style={{ fontSize: 11, marginTop: 2 }}>
-            {ch.channel_type}
+            {channelTypeLabel(t, ch.channel_type)}
           </div>
         </div>
       </div>
@@ -534,14 +543,7 @@ function ChannelFormModal({
         >
           <Select
             disabled={!!editing}
-            options={[
-              { value: 'EMAIL', label: 'EMAIL' },
-              { value: 'SLACK', label: 'SLACK' },
-              { value: 'WEBHOOK', label: 'WEBHOOK' },
-              { value: 'DISCORD', label: 'DISCORD' },
-              { value: 'TELEGRAM', label: 'TELEGRAM' },
-              { value: 'MS_TEAMS', label: 'MS_TEAMS' },
-            ]}
+            options={enumOptions(CHANNEL_TYPES, channelTypeLabel, t)}
           />
         </Form.Item>
         <Form.Item

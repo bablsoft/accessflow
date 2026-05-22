@@ -289,6 +289,12 @@ deliberately has no global search input.
 
 The seven supported locales (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`) are bundled at build time in `src/locales/*.json`. Adding a new language is a single new JSON file plus an entry in `SUPPORTED_LANGUAGES`/`LANGUAGE_DISPLAY_NAMES` in `src/i18n.ts`. Translations missing from a non-English locale fall back to English at runtime via i18next's `fallbackLng`.
 
+#### Enum labels
+
+Backend enums (`QueryStatus`, `QueryType`, `RiskLevel`, `Role`, `DbType`, `SslMode`, `ChannelType`, `AiProvider`, `AuthProvider`, `OAuth2Provider`) are never rendered as raw `UPPER_SNAKE_CASE` to users. Instead, every value has a translation key under `enums.<enum_name>.<VALUE>` in `src/locales/en.json` (mirrored in every other locale to keep `locales.parity.test.ts` green). Use the pure helpers in [`src/utils/enumLabels.ts`](../frontend/src/utils/enumLabels.ts) — `queryStatusLabel`, `roleLabel`, `dbTypeLabel`, etc. — which take the `t` function from `useTranslation()` and a typed enum value, and return the translated label. For `<Select>` option arrays use `enumOptions(VALUES, label, t)` to map a list of enum values to `{ value, label }` pairs in one call. The value sent over the wire stays the raw enum string; only the label changes.
+
+Add new enums by extending `frontend/src/types/api.ts` with the union, adding an `enums.<enum_name>` block to every locale JSON, exporting a helper from `enumLabels.ts`, and shipping a matching test case in `enumLabels.test.ts` — the parity test and type-safe `i18n.d.ts` will fail CI if any of these steps is skipped.
+
 `/admin/languages` is the admin counterpart: `LanguagesConfigPage` renders three controls — multi-select for `available_languages`, single-select for `default_language` (filtered to that allow-list), single-select for `ai_review_language` (full seven-language list, independent of user choice). On save it `PUT`s `/admin/localization-config` and invalidates both `['localization', 'admin']` and `['localization', 'me']` so the topbar switcher picks up the new allow-list immediately.
 
 `NotificationBell` (in the same folder) wraps an Ant Design `<Badge>` + `<Dropdown>`

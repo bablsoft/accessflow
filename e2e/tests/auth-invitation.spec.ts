@@ -195,7 +195,7 @@ test.describe('invitation acceptance flow', () => {
       // new row should land within a short timeout.
       const inviteeRow = adminPage.getByRole('row').filter({ hasText: invitee });
       await expect(inviteeRow).toBeVisible({ timeout: 10_000 });
-      await expect(inviteeRow.getByText('PENDING')).toBeVisible();
+      await expect(inviteeRow.getByText('Pending')).toBeVisible();
 
       // Scrape the one-time token out of the captured email.
       const token = await waitForInviteToken(request, invitee);

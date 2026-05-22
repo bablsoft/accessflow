@@ -181,7 +181,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       await expect(
         submitterPage
           .getByRole('heading', { level: 1 })
-          .getByText('PENDING REVIEW'),
+          .getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
       // Approver context: open /reviews and approve the new row. ReviewCard
@@ -208,7 +208,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       // cached PENDING REVIEW for ~30s, so we trigger a refetch via reload.
       await submitterPage.reload();
       await expect(
-        submitterPage.getByRole('heading', { level: 1 }).getByText('APPROVED'),
+        submitterPage.getByRole('heading', { level: 1 }).getByText('Approved'),
       ).toBeVisible({ timeout: 15_000 });
 
       // Execute. The button is only shown when canExecute === true, which the
@@ -224,7 +224,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
         timeout: 15_000,
       });
       await expect(
-        submitterPage.getByRole('heading', { level: 1 }).getByText('EXECUTED'),
+        submitterPage.getByRole('heading', { level: 1 }).getByText('Executed'),
       ).toBeVisible({ timeout: 15_000 });
 
       // Results card title from queries.detail.card_results. The Results card
@@ -291,7 +291,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('APPROVED'),
+      page.getByRole('heading', { level: 1 }).getByText('Approved'),
     ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Execute now' }).click();
@@ -303,7 +303,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       page.getByRole('alert').getByText('Execution failed'),
     ).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('FAILED'),
+      page.getByRole('heading', { level: 1 }).getByText('Failed'),
     ).toBeVisible({ timeout: 15_000 });
   });
 
@@ -333,7 +333,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('APPROVED'),
+      page.getByRole('heading', { level: 1 }).getByText('Approved'),
     ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Execute now' }).click();
@@ -346,7 +346,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       page.getByRole('alert').getByText('Execution failed'),
     ).toBeVisible({ timeout: failureTimeout });
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('FAILED'),
+      page.getByRole('heading', { level: 1 }).getByText('Failed'),
     ).toBeVisible({ timeout: failureTimeout });
   });
 });

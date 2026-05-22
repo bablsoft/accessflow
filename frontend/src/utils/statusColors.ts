@@ -18,5 +18,3 @@ export const statusColor = (status: QueryStatus): ColorTriple => {
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };
-
-export const statusLabel = (s: QueryStatus): string => s.replaceAll('_', ' ');

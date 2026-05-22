@@ -13,8 +13,11 @@ import {
 } from '@/api/admin';
 import { apiBaseUrl } from '@/api/client';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { enumOptions, roleLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import type { OAuth2Config, OAuth2Provider, Role, UpdateOAuth2ConfigInput } from '@/types/api';
+
+const ROLE_VALUES: readonly Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'] as const;
 
 const MASK = '********';
 
@@ -534,14 +537,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         label={t('admin.oauth2.label_default_role')}
         rules={[{ required: true, message: t('validation.oauth2.default_role_required') }]}
       >
-        <Select
-          options={[
-            { value: 'ADMIN', label: 'ADMIN' },
-            { value: 'REVIEWER', label: 'REVIEWER' },
-            { value: 'ANALYST', label: 'ANALYST' },
-            { value: 'READONLY', label: 'READONLY' },
-          ]}
-        />
+        <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
       </Form.Item>
       <Form.Item name="active" label={t('admin.oauth2.label_active')} valuePropName="checked">
         <Switch />

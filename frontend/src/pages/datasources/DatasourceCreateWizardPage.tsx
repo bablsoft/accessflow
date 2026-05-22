@@ -16,6 +16,7 @@ import {
 import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
+import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import type {
   ConnectionTestResult,
@@ -360,7 +361,7 @@ export default function DatasourceCreateWizardPage() {
               rules={[{ required: true }]}
             >
               <Select
-                options={SSL_MODES.map((m) => ({ value: m, label: m }))}
+                options={enumOptions(SSL_MODES, sslModeLabel, t)}
               />
             </Form.Item>
           </div>
@@ -528,7 +529,7 @@ export default function DatasourceCreateWizardPage() {
                 placeholder={t('datasources.create.field_ai_config_placeholder')}
                 options={(aiConfigsQuery.data ?? []).map((c) => ({
                   value: c.id,
-                  label: `${c.name} · ${c.provider}`,
+                  label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
                 }))}
               />
             </Form.Item>

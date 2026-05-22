@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { statusColor, statusLabel } from '../statusColors';
+import { statusColor } from '../statusColors';
 import type { QueryStatus } from '@/types/api';
 
 describe('statusColor', () => {
@@ -34,17 +34,3 @@ describe('statusColor', () => {
   });
 });
 
-describe('statusLabel', () => {
-  it('replaces underscores with spaces', () => {
-    expect(statusLabel('PENDING_AI')).toBe('PENDING AI');
-    expect(statusLabel('PENDING_REVIEW')).toBe('PENDING REVIEW');
-  });
-
-  it('returns single-word statuses unchanged', () => {
-    expect(statusLabel('APPROVED')).toBe('APPROVED');
-  });
-
-  it('formats TIMED_OUT with a space', () => {
-    expect(statusLabel('TIMED_OUT')).toBe('TIMED OUT');
-  });
-});

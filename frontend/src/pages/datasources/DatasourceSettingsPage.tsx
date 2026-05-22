@@ -34,6 +34,7 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
+import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
@@ -164,7 +165,7 @@ export function DatasourceSettingsPage() {
         title={ds.name}
         subtitle={
           <>
-            <span className="mono">{ds.db_type}</span> · {ds.host}:{ds.port} /{' '}
+            <span className="mono">{dbTypeLabel(t, ds.db_type)}</span> · {ds.host}:{ds.port} /{' '}
             {ds.database_name}
           </>
         }
@@ -281,7 +282,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               <Input />
             </Form.Item>
             <Form.Item label={t('datasources.settings.label_db_type')}>
-              <Input value={ds.db_type} disabled />
+              <Input value={dbTypeLabel(t, ds.db_type)} disabled />
             </Form.Item>
             <Form.Item
               label={t('datasources.settings.label_host')}
@@ -408,7 +409,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                     placeholder={t('datasources.settings.ai_config_placeholder')}
                     options={(aiConfigsQuery.data ?? []).map((c) => ({
                       value: c.id,
-                      label: `${c.name} · ${c.provider}`,
+                      label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
                     }))}
                   />
                 </Form.Item>

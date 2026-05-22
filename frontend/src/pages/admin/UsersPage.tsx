@@ -39,6 +39,12 @@ import {
   userKeys,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import {
+  authProviderLabel,
+  enumOptions,
+  invitationStatusLabel,
+  roleLabel,
+} from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
@@ -51,6 +57,9 @@ import type {
   User,
   UserInvitation,
 } from '@/types/api';
+
+const ROLE_VALUES: readonly Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'] as const;
+const AUTH_PROVIDER_VALUES: readonly AuthProvider[] = ['LOCAL', 'SAML', 'OAUTH2'] as const;
 
 interface InviteFormValues {
   email: string;
@@ -239,10 +248,7 @@ export function UsersPage() {
           style={{ width: 130 }}
           options={[
             { value: 'all', label: t('admin.users.filter_all_roles') },
-            { value: 'ADMIN', label: 'ADMIN' },
-            { value: 'REVIEWER', label: 'REVIEWER' },
-            { value: 'ANALYST', label: 'ANALYST' },
-            { value: 'READONLY', label: 'READONLY' },
+            ...enumOptions(ROLE_VALUES, roleLabel, t),
           ]}
         />
         <Select
@@ -251,9 +257,7 @@ export function UsersPage() {
           style={{ width: 150 }}
           options={[
             { value: 'all', label: t('admin.users.filter_all_providers') },
-            { value: 'LOCAL', label: 'LOCAL' },
-            { value: 'SAML', label: 'SAML' },
-            { value: 'OAUTH2', label: 'OAUTH2' },
+            ...enumOptions(AUTH_PROVIDER_VALUES, authProviderLabel, t),
           ]}
         />
       </div>
@@ -309,9 +313,9 @@ export function UsersPage() {
                 title: t('admin.users.col_auth'),
                 dataIndex: 'auth_provider',
                 width: 110,
-                render: (v) => (
+                render: (v: AuthProvider) => (
                   <span className="mono" style={{ fontSize: 11 }}>
-                    {v}
+                    {authProviderLabel(t, v)}
                   </span>
                 ),
               },
@@ -501,14 +505,7 @@ function InviteUserModal({
           <Input maxLength={255} />
         </Form.Item>
         <Form.Item name="role" label={t('admin.users.label_role')} rules={[{ required: true }]}>
-          <Select
-            options={[
-              { value: 'ADMIN', label: 'ADMIN' },
-              { value: 'REVIEWER', label: 'REVIEWER' },
-              { value: 'ANALYST', label: 'ANALYST' },
-              { value: 'READONLY', label: 'READONLY' },
-            ]}
-          />
+          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
         </Form.Item>
       </Form>
     </Modal>
@@ -569,14 +566,7 @@ function EditUserModal({
           <Input maxLength={255} />
         </Form.Item>
         <Form.Item name="role" label={t('admin.users.label_role')} rules={[{ required: true }]}>
-          <Select
-            options={[
-              { value: 'ADMIN', label: 'ADMIN' },
-              { value: 'REVIEWER', label: 'REVIEWER' },
-              { value: 'ANALYST', label: 'ANALYST' },
-              { value: 'READONLY', label: 'READONLY' },
-            ]}
-          />
+          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
         </Form.Item>
         <Form.Item name="active" label={t('admin.users.label_active')} valuePropName="checked">
           <Switch />
@@ -649,14 +639,7 @@ function InviteByEmailModal({
           label={t('admin.users.label_role')}
           rules={[{ required: true, message: t('validation.invite.role_required') }]}
         >
-          <Select
-            options={[
-              { value: 'ADMIN', label: 'ADMIN' },
-              { value: 'REVIEWER', label: 'REVIEWER' },
-              { value: 'ANALYST', label: 'ANALYST' },
-              { value: 'READONLY', label: 'READONLY' },
-            ]}
-          />
+          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
         </Form.Item>
       </Form>
     </Modal>
@@ -704,7 +687,9 @@ function PendingInvitationsSection({
           {
             title: t('admin.users.invite_status'),
             dataIndex: 'status',
-            render: (status: UserInvitation['status']) => <Pill>{status}</Pill>,
+            render: (status: UserInvitation['status']) => (
+              <Pill>{invitationStatusLabel(t, status)}</Pill>
+            ),
           },
           {
             title: t('admin.users.invite_expires_at'),

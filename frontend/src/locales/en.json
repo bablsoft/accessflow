@@ -33,7 +33,10 @@
     "editor": "Query editor",
     "queries": "Query history",
     "reviews": "Review queue",
-    "admin_divider": "Admin",
+    "group_workflow": "Workflow",
+    "group_data": "Data sources",
+    "group_security": "Security & Access",
+    "group_system": "System",
     "datasources": "Datasources",
     "users": "Users",
     "review_plans": "Review plans",
@@ -1149,5 +1152,81 @@
   },
   "risk": {
     "ai_na": "AI N/A"
+  },
+  "enums": {
+    "query_status": {
+      "PENDING_AI": "Pending AI",
+      "PENDING_REVIEW": "Pending review",
+      "APPROVED": "Approved",
+      "EXECUTED": "Executed",
+      "REJECTED": "Rejected",
+      "TIMED_OUT": "Timed out",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
+    },
+    "query_type": {
+      "SELECT": "Select",
+      "INSERT": "Insert",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "DDL": "DDL"
+    },
+    "risk_level": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "CRITICAL": "Critical"
+    },
+    "role": {
+      "ADMIN": "Admin",
+      "REVIEWER": "Reviewer",
+      "ANALYST": "Analyst",
+      "READONLY": "Read-only"
+    },
+    "db_type": {
+      "POSTGRESQL": "PostgreSQL",
+      "MYSQL": "MySQL",
+      "MARIADB": "MariaDB",
+      "ORACLE": "Oracle",
+      "MSSQL": "Microsoft SQL Server",
+      "CUSTOM": "Custom"
+    },
+    "ssl_mode": {
+      "DISABLE": "Disable",
+      "REQUIRE": "Require",
+      "VERIFY_CA": "Verify CA",
+      "VERIFY_FULL": "Verify full"
+    },
+    "channel_type": {
+      "EMAIL": "Email",
+      "SLACK": "Slack",
+      "WEBHOOK": "Webhook",
+      "DISCORD": "Discord",
+      "TELEGRAM": "Telegram",
+      "MS_TEAMS": "Microsoft Teams"
+    },
+    "ai_provider": {
+      "OPENAI": "OpenAI",
+      "ANTHROPIC": "Anthropic",
+      "OLLAMA": "Ollama"
+    },
+    "auth_provider": {
+      "LOCAL": "Local",
+      "SAML": "SAML",
+      "OAUTH2": "OAuth 2.0"
+    },
+    "oauth2_provider": {
+      "GOOGLE": "Google",
+      "GITHUB": "GitHub",
+      "MICROSOFT": "Microsoft",
+      "GITLAB": "GitLab",
+      "OIDC": "OIDC"
+    },
+    "invitation_status": {
+      "PENDING": "Pending",
+      "ACCEPTED": "Accepted",
+      "REVOKED": "Revoked",
+      "EXPIRED": "Expired"
+    }
   }
 }

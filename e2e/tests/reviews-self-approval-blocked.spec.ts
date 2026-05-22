@@ -98,7 +98,7 @@ test.describe.serial('reviews self-approval blocked (AF-270)', () => {
       // button is fully unmounted, not just disabled.
       await page.goto(`/queries/${submitted.id}`);
       await expect(
-        page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+        page.getByRole('heading', { level: 1 }).getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
       await expect(
         page.getByRole('button', { name: 'Approve' }),

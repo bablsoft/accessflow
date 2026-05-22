@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
+import { dbTypeLabel } from '@/utils/enumLabels';
 import type { Datasource } from '@/types/api';
 
 interface SchemaTreeProps {
@@ -65,7 +66,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
               background: 'var(--risk-low)',
             }}
           />
-          {ds.db_type} · {ds.host}:{ds.port}
+          {dbTypeLabel(t, ds.db_type)} · {ds.host}:{ds.port}
         </div>
       </div>
       <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
