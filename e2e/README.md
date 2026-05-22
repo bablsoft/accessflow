@@ -185,6 +185,31 @@ creation wizard:
 6. Clicks **Next**, **Save and finish**, and asserts the wizard lands on
    `/datasources/{id}/settings` with the *Datasource created* toast.
 
+`tests/datasource-list.spec.ts` (AF-271) locks down the three regression-prone
+interactions on `/datasources`:
+
+1. **Search narrows by name** — seeds two datasources whose names embed a
+   `ALPHA`/`BRAVO` suffix, asserts both cards render, types `ALPHA` into the
+   search box and asserts only one card stays visible. Filter is client-side,
+   no network wait. A `zzz-no-match-zzz` fill then proves the empty branch
+   fires (the page reuses the empty-state copy for "filter matches nothing").
+2. **Delete via settings page** — clicks the BRAVO card → settings → the
+   page-level **Soft-delete datasource** button, confirms the `Modal.confirm`
+   dialog (scoping the OK click to the dialog because the page-level button
+   shares the same label), and asserts the spec lands back on `/datasources`
+   with the *Datasource deactivated* toast and the BRAVO card's pill flipped
+   to **inactive**. ALPHA must still show **active**.
+3. **Empty state** — stubs the `GET /api/v1/datasources` response with
+   `page.route()` to return an empty page (mirrors the pattern in
+   `query-list.spec.ts`) and asserts the empty-state copy renders with no
+   cards visible.
+
+The issue body asks for a fourth case — "delete a datasource that has queries
+against it → backend 409 → error toast" — but the backend's
+`DatasourceAdminServiceImpl.deactivate()` always returns 204 (no
+dependent-query guard). That case is intentionally dropped; see the top-of-file
+comment in the spec.
+
 `tests/query-submit.spec.ts` covers the core "pick datasource → write SQL →
 submit" loop on `/editor` against the real backend. The spec uses the shared
 `createPostgresDatasource` helper in [`helpers/datasources.ts`](helpers/datasources.ts)
