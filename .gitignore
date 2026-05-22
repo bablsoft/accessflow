@@ -5,6 +5,11 @@ target/
 *.ear
 *.log
 
+# E2E custom-driver fixtures (AF-274) — committed binaries required by
+# tests/admin-custom-drivers.spec.ts. Regeneration recipe lives in
+# e2e/fixtures/drivers/README.md.
+!e2e/fixtures/drivers/*.jar
+
 # IntelliJ IDEA
 .idea/
 *.iml
