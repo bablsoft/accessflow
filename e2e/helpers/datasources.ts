@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import type { APIRequestContext } from '@playwright/test';
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
@@ -74,6 +76,144 @@ export async function loginViaApi(
     throw new Error(`Login response missing access_token: ${JSON.stringify(json)}`);
   }
   return json.access_token;
+}
+
+// SHA-256 of a file on disk, hex-encoded. Used by the AF-274 custom-driver
+// upload spec to compute the `expected_sha256` form field at runtime so the
+// committed fixture JAR can be regenerated without touching test constants.
+export async function sha256OfFile(path: string): Promise<string> {
+  const bytes = await readFile(path);
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
+export interface CreatedCustomDriver {
+  id: string;
+  jar_sha256: string;
+  vendor_name: string;
+}
+
+export interface UploadCustomDriverOptions {
+  jarPath: string;
+  vendorName: string;
+  driverClass: string;
+  targetDbType?: 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
+  /**
+   * Override the SHA-256 that gets sent as `expected_sha256`. Default: the
+   * real SHA of the JAR file, so the backend accepts the upload. The AF-274
+   * spec only needs the override for the invalid-JAR path (which it drives
+   * through the UI), so this knob is here for symmetry rather than current
+   * use.
+   */
+  expectedSha256?: string;
+}
+
+// POST /api/v1/datasources/drivers (multipart). Mirrors the
+// CustomJdbcDriverController contract: jar + vendor_name + target_db_type +
+// driver_class + expected_sha256. The spec calls this for arrangement (the
+// in-use guard test) so it can skip the upload modal and go straight to the
+// delete-while-bound assertion.
+export async function uploadCustomDriverViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  opts: UploadCustomDriverOptions,
+): Promise<CreatedCustomDriver> {
+  const jarBytes = await readFile(opts.jarPath);
+  const sha = opts.expectedSha256 ?? createHash('sha256').update(jarBytes).digest('hex');
+  const filename = opts.jarPath.split('/').pop() ?? 'driver.jar';
+  const res = await request.post(`${apiBase()}/api/v1/datasources/drivers`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    multipart: {
+      jar: {
+        name: filename,
+        mimeType: 'application/java-archive',
+        buffer: jarBytes,
+      },
+      vendor_name: opts.vendorName,
+      target_db_type: opts.targetDbType ?? 'CUSTOM',
+      driver_class: opts.driverClass,
+      expected_sha256: sha,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(
+      `Upload custom driver failed: ${res.status()} ${await res.text()}`,
+    );
+  }
+  return (await res.json()) as CreatedCustomDriver;
+}
+
+// DELETE /api/v1/datasources/drivers/{id} — best-effort `afterAll` cleanup,
+// same shape as deleteDatasource(). Logs a warning on non-204 so a stack
+// that was already torn down (or a driver a previous run never created)
+// doesn't fail the suite. 409 is treated as a real failure (something else
+// kept the driver bound) and is logged loudly.
+export async function deleteCustomDriverViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(
+    `${apiBase()}/api/v1/datasources/drivers/${id}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok() && res.status() !== 404) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Custom driver cleanup (${id}) returned ${res.status()}: ${await res.text()}`,
+    );
+  }
+}
+
+export interface CreateCustomDatasourceOptions {
+  /** Override the generated name. Required by uniqueness constraint on reruns. */
+  name?: string;
+  /** UUID of an uploaded custom driver, returned by uploadCustomDriverViaApi. */
+  customDriverId: string;
+  /**
+   * JDBC URL. `validateDriverChoice` requires non-blank and the shape
+   * `^jdbc:[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`. POST /api/v1/datasources does NOT
+   * test connectivity at create time for CUSTOM drivers, so the URL can be
+   * a sentinel; the default `jdbc:stub:e2e-af274` is intentionally
+   * unroutable.
+   */
+  jdbcUrlOverride?: string;
+}
+
+// POST /api/v1/datasources with db_type=CUSTOM. Bound to the driver passed
+// in opts; intentionally points at an unreachable JDBC URL because the
+// AF-274 spec only needs the *binding* to exist (so deleting the driver
+// returns 409 CUSTOM_DRIVER_IN_USE). validateDriverChoice (server side)
+// also requires host/port/database_name to be null for CUSTOM.
+export async function createCustomDatasource(
+  request: APIRequestContext,
+  accessToken: string,
+  opts: CreateCustomDatasourceOptions,
+): Promise<CreatedDatasource> {
+  const body = {
+    name: opts.name ?? `Custom E2E ${Date.now()}`,
+    db_type: 'CUSTOM',
+    host: null,
+    port: null,
+    database_name: null,
+    username: 'e2e',
+    password: 'e2e',
+    ssl_mode: 'DISABLE',
+    ai_analysis_enabled: false,
+    ai_config_id: null,
+    custom_driver_id: opts.customDriverId,
+    jdbc_url_override: opts.jdbcUrlOverride ?? 'jdbc:stub:e2e-af274',
+    review_plan_id: null,
+  };
+  const res = await request.post(`${apiBase()}/api/v1/datasources`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: body,
+  });
+  if (!res.ok()) {
+    throw new Error(
+      `Create custom datasource failed: ${res.status()} ${await res.text()}`,
+    );
+  }
+  return (await res.json()) as CreatedDatasource;
 }
 
 // POST /api/v1/datasources targeting the compose Postgres. The wizard spec

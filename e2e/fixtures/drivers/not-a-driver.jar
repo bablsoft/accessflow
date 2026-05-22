@@ -1,0 +1,8 @@
+This file pretends to be a JAR but contains plain text. The frontend
+upload dragger accepts it on filename only (.jar extension), so it
+travels to the backend, where URLClassLoader fails to load the
+declared driver class and the API returns 422 CUSTOM_DRIVER_INVALID_JAR.
+
+Used by e2e/tests/admin-custom-drivers.spec.ts to exercise the backend
+invalid-JAR path through the real UI. Do not "fix" this file — it is
+intentionally garbage.
