@@ -910,6 +910,7 @@ Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource s
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
+| `DELETE` | `/admin/notification-channels/{id}` | Delete a notification channel |
 | `POST` | `/admin/notification-channels/{id}/test` | Send a test notification |
 | `GET` | `/admin/ai-config` | Get current AI analyzer configuration |
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
@@ -1062,6 +1063,13 @@ Partial update. Any field omitted is left unchanged. Sending `"smtp_password": "
 **Response 200:** The updated channel.
 **Response 404:** Channel not found in caller's organization. `error: NOTIFICATION_CHANNEL_NOT_FOUND`.
 **Response 422:** Resulting config is invalid. `error: NOTIFICATION_CHANNEL_CONFIG_INVALID`.
+
+#### DELETE /admin/notification-channels/{id}
+
+Deletes the notification channel. Hard delete — no soft-delete or in-use guard; webhook retries already scheduled before the delete still complete.
+
+**Response 204:** Deleted (writes a `NOTIFICATION_CHANNEL_DELETED` audit row).
+**Response 404:** Channel not found in caller's organization. `error: NOTIFICATION_CHANNEL_NOT_FOUND`.
 
 #### POST /admin/notification-channels/{id}/test
 

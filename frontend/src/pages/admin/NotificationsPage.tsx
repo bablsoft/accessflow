@@ -6,12 +6,14 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Skeleton,
   Switch,
 } from 'antd';
 import {
   ApiOutlined,
+  DeleteOutlined,
   EditOutlined,
   MailOutlined,
   MessageOutlined,
@@ -30,6 +32,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
 import {
   createChannel,
+  deleteChannel,
   listChannels,
   notificationChannelKeys,
   testChannel,
@@ -123,6 +126,15 @@ export function NotificationsPage() {
     onError: (err) => showApiError(message, err, adminErrorMessage),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteChannel(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: notificationChannelKeys.all });
+      message.success(t('admin.notifications.delete_success'));
+    },
+    onError: (err) => showApiError(message, err, adminErrorMessage),
+  });
+
   const channels = channelsQuery.data ?? [];
 
   return (
@@ -177,7 +189,9 @@ export function NotificationsPage() {
                     testMutation.mutate({ id: c.id });
                   }
                 }}
+                onDelete={() => deleteMutation.mutate(c.id)}
                 testing={testMutation.isPending}
+                deleting={deleteMutation.isPending}
               />
             ))}
           </div>
@@ -234,12 +248,16 @@ function ChannelCard({
   ch,
   onEdit,
   onTest,
+  onDelete,
   testing,
+  deleting,
 }: {
   ch: NotificationChannel;
   onEdit: () => void;
   onTest: () => void;
+  onDelete: () => void;
   testing: boolean;
+  deleting: boolean;
 }) {
   const { t } = useTranslation();
   const icon = (() => {
@@ -357,6 +375,22 @@ function ChannelCard({
         <Button size="small" icon={<EditOutlined />} onClick={onEdit}>
           {t('common.edit')}
         </Button>
+        <Popconfirm
+          title={t('admin.notifications.delete_confirm_title')}
+          description={t('admin.notifications.delete_confirm_body', { name: ch.name })}
+          okText={t('common.delete')}
+          okButtonProps={{ danger: true }}
+          cancelText={t('common.cancel')}
+          onConfirm={onDelete}
+        >
+          <Button
+            size="small"
+            icon={<DeleteOutlined />}
+            danger
+            loading={deleting}
+            aria-label={t('admin.notifications.action_delete')}
+          />
+        </Popconfirm>
       </div>
     </div>
   );

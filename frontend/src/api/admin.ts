@@ -176,6 +176,10 @@ export async function testChannel(
   return data;
 }
 
+export async function deleteChannel(id: string): Promise<void> {
+  await apiClient.delete(`${CHANNELS_BASE}/${id}`);
+}
+
 // ── AI configs ────────────────────────────────────────────────────────────────
 
 export async function listAiConfigs(): Promise<AiConfig[]> {

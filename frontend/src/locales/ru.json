@@ -791,6 +791,10 @@
       "create_success": "Канал создан",
       "update_success": "Канал обновлён",
       "test_success": "Тестовое уведомление отправлено",
+      "delete_success": "Канал уведомлений удалён",
+      "delete_confirm_title": "Удалить канал уведомлений?",
+      "delete_confirm_body": "Канал «{{name}}» будет удалён.",
+      "action_delete": "Удалить канал",
       "test_email_label": "Переопределить получателя (только EMAIL)",
       "system_smtp": {
         "title": "Системный SMTP",

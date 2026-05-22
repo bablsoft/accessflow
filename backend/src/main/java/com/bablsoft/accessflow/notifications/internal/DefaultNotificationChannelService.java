@@ -93,6 +93,14 @@ class DefaultNotificationChannelService implements NotificationChannelService {
     }
 
     @Override
+    @Transactional
+    public void delete(UUID id, UUID organizationId) {
+        var entity = channelRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new NotificationChannelNotFoundException(id));
+        channelRepository.delete(entity);
+    }
+
+    @Override
     public void sendTest(UUID id, UUID organizationId, String optionalEmailOverride) {
         var entity = channelRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new NotificationChannelNotFoundException(id));
