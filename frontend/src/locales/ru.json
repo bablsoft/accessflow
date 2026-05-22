@@ -33,7 +33,10 @@
     "editor": "Редактор SQL",
     "queries": "История запросов",
     "reviews": "Очередь проверки",
-    "admin_divider": "Администрирование",
+    "group_workflow": "Рабочий процесс",
+    "group_data": "Источники данных",
+    "group_security": "Безопасность и доступ",
+    "group_system": "Система",
     "datasources": "Источники данных",
     "users": "Пользователи",
     "review_plans": "Планы проверки",
@@ -1149,5 +1152,81 @@
   },
   "risk": {
     "ai_na": "ИИ н/д"
+  },
+  "enums": {
+    "query_status": {
+      "PENDING_AI": "Ожидает ИИ",
+      "PENDING_REVIEW": "Ожидает проверки",
+      "APPROVED": "Одобрено",
+      "EXECUTED": "Выполнено",
+      "REJECTED": "Отклонено",
+      "TIMED_OUT": "Время истекло",
+      "FAILED": "Сбой",
+      "CANCELLED": "Отменено"
+    },
+    "query_type": {
+      "SELECT": "Select",
+      "INSERT": "Insert",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "DDL": "DDL"
+    },
+    "risk_level": {
+      "LOW": "Низкий",
+      "MEDIUM": "Средний",
+      "HIGH": "Высокий",
+      "CRITICAL": "Критический"
+    },
+    "role": {
+      "ADMIN": "Администратор",
+      "REVIEWER": "Рецензент",
+      "ANALYST": "Аналитик",
+      "READONLY": "Только чтение"
+    },
+    "db_type": {
+      "POSTGRESQL": "PostgreSQL",
+      "MYSQL": "MySQL",
+      "MARIADB": "MariaDB",
+      "ORACLE": "Oracle",
+      "MSSQL": "Microsoft SQL Server",
+      "CUSTOM": "Пользовательский"
+    },
+    "ssl_mode": {
+      "DISABLE": "Отключить",
+      "REQUIRE": "Требовать",
+      "VERIFY_CA": "Проверять центр сертификации",
+      "VERIFY_FULL": "Полная проверка"
+    },
+    "channel_type": {
+      "EMAIL": "Электронная почта",
+      "SLACK": "Slack",
+      "WEBHOOK": "Webhook",
+      "DISCORD": "Discord",
+      "TELEGRAM": "Telegram",
+      "MS_TEAMS": "Microsoft Teams"
+    },
+    "ai_provider": {
+      "OPENAI": "OpenAI",
+      "ANTHROPIC": "Anthropic",
+      "OLLAMA": "Ollama"
+    },
+    "auth_provider": {
+      "LOCAL": "Локальный",
+      "SAML": "SAML",
+      "OAUTH2": "OAuth 2.0"
+    },
+    "oauth2_provider": {
+      "GOOGLE": "Google",
+      "GITHUB": "GitHub",
+      "MICROSOFT": "Microsoft",
+      "GITLAB": "GitLab",
+      "OIDC": "OIDC"
+    },
+    "invitation_status": {
+      "PENDING": "В ожидании",
+      "ACCEPTED": "Принято",
+      "REVOKED": "Отозвано",
+      "EXPIRED": "Истекло"
+    }
   }
 }

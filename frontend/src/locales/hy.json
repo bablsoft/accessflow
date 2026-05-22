@@ -33,7 +33,10 @@
     "editor": "SQL խմբագիր",
     "queries": "Հարցումների պատմություն",
     "reviews": "Վերանայման հերթ",
-    "admin_divider": "Կառավարում",
+    "group_workflow": "Աշխատանքային հոսք",
+    "group_data": "Տվյալների աղբյուրներ",
+    "group_security": "Անվտանգություն և մուտք",
+    "group_system": "Համակարգ",
     "datasources": "Տվյալների աղբյուրներ",
     "users": "Օգտատերեր",
     "review_plans": "Վերանայման պլաններ",
@@ -1149,5 +1152,81 @@
   },
   "risk": {
     "ai_na": "AI հասանելի չէ"
+  },
+  "enums": {
+    "query_status": {
+      "PENDING_AI": "AI-ի սպասում",
+      "PENDING_REVIEW": "Սպասում է վերանայման",
+      "APPROVED": "Հաստատված",
+      "EXECUTED": "Կատարված",
+      "REJECTED": "Մերժված",
+      "TIMED_OUT": "Ժամկետանց",
+      "FAILED": "Ձախողված",
+      "CANCELLED": "Չեղարկված"
+    },
+    "query_type": {
+      "SELECT": "Select",
+      "INSERT": "Insert",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "DDL": "DDL"
+    },
+    "risk_level": {
+      "LOW": "Ցածր",
+      "MEDIUM": "Միջին",
+      "HIGH": "Բարձր",
+      "CRITICAL": "Կրիտիկական"
+    },
+    "role": {
+      "ADMIN": "Ադմինիստրատոր",
+      "REVIEWER": "Վերանայող",
+      "ANALYST": "Վերլուծաբան",
+      "READONLY": "Միայն ընթերցում"
+    },
+    "db_type": {
+      "POSTGRESQL": "PostgreSQL",
+      "MYSQL": "MySQL",
+      "MARIADB": "MariaDB",
+      "ORACLE": "Oracle",
+      "MSSQL": "Microsoft SQL Server",
+      "CUSTOM": "Հատուկ"
+    },
+    "ssl_mode": {
+      "DISABLE": "Անջատել",
+      "REQUIRE": "Պարտադիր",
+      "VERIFY_CA": "Ստուգել CA",
+      "VERIFY_FULL": "Լրիվ ստուգում"
+    },
+    "channel_type": {
+      "EMAIL": "Էլ. փոստ",
+      "SLACK": "Slack",
+      "WEBHOOK": "Webhook",
+      "DISCORD": "Discord",
+      "TELEGRAM": "Telegram",
+      "MS_TEAMS": "Microsoft Teams"
+    },
+    "ai_provider": {
+      "OPENAI": "OpenAI",
+      "ANTHROPIC": "Anthropic",
+      "OLLAMA": "Ollama"
+    },
+    "auth_provider": {
+      "LOCAL": "Տեղական",
+      "SAML": "SAML",
+      "OAUTH2": "OAuth 2.0"
+    },
+    "oauth2_provider": {
+      "GOOGLE": "Google",
+      "GITHUB": "GitHub",
+      "MICROSOFT": "Microsoft",
+      "GITLAB": "GitLab",
+      "OIDC": "OIDC"
+    },
+    "invitation_status": {
+      "PENDING": "Սպասում է",
+      "ACCEPTED": "Ընդունված",
+      "REVOKED": "Չեղարկված",
+      "EXPIRED": "Ժամկետանց"
+    }
   }
 }

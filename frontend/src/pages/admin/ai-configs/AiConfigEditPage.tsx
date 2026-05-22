@@ -19,6 +19,7 @@ import {
   updateAiConfig,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { aiProviderLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import type { UpdateAiConfigInput } from '@/types/api';
 
@@ -138,7 +139,7 @@ export default function AiConfigEditPage() {
         title={t('admin.ai_configs.edit_title', { name: cfg.name })}
         subtitle={
           <span>
-            <Tag>{cfg.provider}</Tag>
+            <Tag>{aiProviderLabel(t, cfg.provider)}</Tag>
             <span className="mono muted" style={{ marginLeft: 8 }}>
               {cfg.model}
             </span>

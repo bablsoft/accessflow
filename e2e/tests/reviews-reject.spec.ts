@@ -179,7 +179,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
         await expect(
           submitterPage
             .getByRole('heading', { level: 1 })
-            .getByText('REJECTED'),
+            .getByText('Rejected'),
         ).toBeVisible({ timeout: 15_000 });
         // ApprovalTimeline wraps the comment in literal double-quotes.
         await expect(
@@ -224,7 +224,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
       await expect(
         approverPage
           .getByRole('heading', { level: 1 })
-          .getByText('PENDING REVIEW'),
+          .getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
       const textarea = approverPage.getByPlaceholder(
@@ -244,7 +244,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
       await expect(
         approverPage
           .getByRole('heading', { level: 1 })
-          .getByText('PENDING REVIEW'),
+          .getByText('Pending review'),
       ).toBeVisible({ timeout: 5_000 });
     } finally {
       await approverCtx.close();
@@ -348,7 +348,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
       await expect(
         approverPage
           .getByRole('heading', { level: 1 })
-          .getByText('PENDING REVIEW'),
+          .getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
       // Approver B approves via API — race to make A's page stale.

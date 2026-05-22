@@ -32,8 +32,11 @@ import {
 } from '@/api/reviewPlans';
 import { setupProgressKeys } from '@/api/admin';
 import { reviewPlanErrorMessage } from '@/utils/apiErrors';
+import { enumOptions, roleLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
-import type { ReviewPlan, ReviewPlanWriteRequest } from '@/types/api';
+import type { ReviewPlan, ReviewPlanWriteRequest, Role } from '@/types/api';
+
+const APPROVER_ROLES: readonly Role[] = ['REVIEWER', 'ADMIN'] as const;
 
 interface ApproverFormRow {
   user_id: string | null;
@@ -434,10 +437,7 @@ export function ReviewPlansPage() {
                         <Select
                           allowClear
                           placeholder={t('admin.review_plans.select_role_placeholder')}
-                          options={[
-                            { value: 'REVIEWER', label: 'REVIEWER' },
-                            { value: 'ADMIN', label: 'ADMIN' },
-                          ]}
+                          options={enumOptions(APPROVER_ROLES, roleLabel, t)}
                         />
                       </Form.Item>
                       <Form.Item

@@ -13,6 +13,12 @@ import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { Avatar } from '@/components/common/Avatar';
 import { exportQueriesCsv, listQueries, queryKeys } from '@/api/queries';
 import { timeAgo } from '@/utils/dateFormat';
+import {
+  enumOptions,
+  queryStatusLabel,
+  queryTypeLabel,
+  riskLevelLabel,
+} from '@/utils/enumLabels';
 import { userDisplay } from '@/utils/userDisplay';
 import type {
   QueryListItem,
@@ -209,7 +215,7 @@ export function QueryListPage() {
           onChange={(v) => { setStatus(v); setPage(0); }}
           options={[
             { value: 'all', label: t('queries.list.filter_all_statuses') },
-            ...STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') })),
+            ...enumOptions(STATUSES, queryStatusLabel, t),
           ]}
           style={{ width: 160 }}
         />
@@ -218,7 +224,7 @@ export function QueryListPage() {
           onChange={(v) => { setType(v); setPage(0); }}
           options={[
             { value: 'all', label: t('queries.list.filter_all_types') },
-            ...TYPES.map((tp) => ({ value: tp, label: tp })),
+            ...enumOptions(TYPES, queryTypeLabel, t),
           ]}
           style={{ width: 130 }}
         />
@@ -227,7 +233,7 @@ export function QueryListPage() {
           onChange={(v) => setRisk(v)}
           options={[
             { value: 'all', label: t('queries.list.filter_all_risk') },
-            ...RISKS.map((r) => ({ value: r, label: r })),
+            ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
           style={{ width: 130 }}
         />

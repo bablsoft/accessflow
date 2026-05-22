@@ -210,16 +210,16 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
       page.getByText(queryCancelledId.slice(0, 8), { exact: true }),
     ).toBeVisible();
 
-    // ── Status filter → PENDING REVIEW. ──────────────────────────────────
-    // QueryListPage labels each status as `s.replace('_', ' ')`, so the
-    // dropdown option text is exactly "PENDING REVIEW". The filter strip's
-    // first combobox is the status Select. q1/q2 settled into PENDING_REVIEW
-    // in beforeAll (AF-307: skip path advances out of PENDING_AI).
+    // ── Status filter → Pending review. ──────────────────────────────────
+    // QueryListPage builds dropdown labels via queryStatusLabel(t, status) which
+    // resolves to `enums.query_status.PENDING_REVIEW` = "Pending review". The
+    // filter strip's first combobox is the status Select. q1/q2 settled into
+    // PENDING_REVIEW in beforeAll (AF-307: skip path advances out of PENDING_AI).
     const statusSelect = page.getByRole('combobox').nth(0);
     await statusSelect.click();
     await page
       .locator('.ant-select-item-option')
-      .filter({ hasText: /^PENDING REVIEW$/ })
+      .filter({ hasText: /^Pending review$/ })
       .click();
     await waitForListReady(page);
 

@@ -22,6 +22,7 @@ import type { Role } from '@/types/api';
 import type { AuthUser } from '@/api/auth';
 import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
+import { roleLabel } from '@/utils/enumLabels';
 import { Avatar } from './Avatar';
 import { LogoMark } from './LogoMark';
 import './sidebar.css';
@@ -34,12 +35,12 @@ interface NavItem {
   roles: Role[];
   badge?: 'pending';
 }
-interface NavDivider {
-  type: 'divider';
+
+interface NavGroup {
+  id: string;
   label: string;
-  roles: Role[];
+  items: NavItem[];
 }
-type NavEntry = NavItem | NavDivider;
 
 interface SidebarProps {
   user: AuthUser;
@@ -56,24 +57,50 @@ export function Sidebar({
   const { t } = useTranslation();
   const location = useLocation();
 
-  const NAV: NavEntry[] = [
-    { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
-    { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-    { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
-    { type: 'divider', label: t('nav.admin_divider'), roles: ['ADMIN'] },
-    { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
-    { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
-    { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
-    { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
-    { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
-    { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
-    { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
-    { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
-    { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
-    { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, roles: ['ADMIN'] },
+  const GROUPS: NavGroup[] = [
+    {
+      id: 'workflow',
+      label: t('nav.group_workflow'),
+      items: [
+        { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
+      ],
+    },
+    {
+      id: 'data',
+      label: t('nav.group_data'),
+      items: [
+        { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
+        { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
+      ],
+    },
+    {
+      id: 'security',
+      label: t('nav.group_security'),
+      items: [
+        { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
+        { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
+        { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
+        { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
+        { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, roles: ['ADMIN'] },
+      ],
+    },
+    {
+      id: 'system',
+      label: t('nav.group_system'),
+      items: [
+        { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
+        { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
+        { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
+      ],
+    },
   ];
 
-  const items = NAV.filter((n) => n.roles.includes(user.role));
+  const visibleGroups = GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((it) => it.roles.includes(user.role)) }))
+    .filter((g) => g.items.length > 0);
+
   return (
     <>
       <aside className={`af-sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
@@ -101,41 +128,45 @@ export function Sidebar({
           </button>
         </div>
         <nav className="af-sidebar-nav">
-          {items.map((item, i) => {
-            if ('type' in item) {
-              if (collapsed) return <div key={`d-${i}`} className="af-sidebar-divider-line" />;
-              return (
-                <div key={`d-${i}`} className="af-sidebar-divider mono">
-                  {item.label}
+          {visibleGroups.map((group, gi) => (
+            <div key={group.id} className="af-sidebar-group">
+              {collapsed ? (
+                gi > 0 ? <div className="af-sidebar-divider-line" /> : null
+              ) : (
+                <div className="af-sidebar-divider mono" aria-label={group.label}>
+                  {group.label}
                 </div>
-              );
-            }
-            const isActive =
-              location.pathname === item.to ||
-              (item.to !== '/' && location.pathname.startsWith(item.to + '/'));
-            return (
-              <NavLink
-                key={item.id}
-                to={item.to}
-                className={`af-sidebar-item${isActive ? ' active' : ''}`}
-                title={collapsed ? item.label : undefined}
-              >
-                <span className="af-sidebar-icon">{item.icon}</span>
-                {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
-                {item.badge === 'pending' && pendingCount > 0 && (
-                  collapsed ? (
-                    <span className="af-badge-dot" />
-                  ) : (
-                    <span className="af-sidebar-badge mono">{pendingCount}</span>
-                  )
-                )}
-              </NavLink>
-            );
-          })}
+              )}
+              {group.items.map((item) => {
+                const isActive =
+                  location.pathname === item.to ||
+                  (item.to !== '/' && location.pathname.startsWith(item.to + '/'));
+                return (
+                  <NavLink
+                    key={item.id}
+                    to={item.to}
+                    className={`af-sidebar-item${isActive ? ' active' : ''}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <span className="af-sidebar-icon">{item.icon}</span>
+                    {!collapsed && <span style={{ flex: 1, textAlign: 'left' }}>{item.label}</span>}
+                    {item.badge === 'pending' && pendingCount > 0 && (
+                      collapsed ? (
+                        <span className="af-badge-dot" />
+                      ) : (
+                        <span className="af-sidebar-badge mono">{pendingCount}</span>
+                      )
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="af-sidebar-footer">
           {(() => {
             const label = userDisplay(user.display_name, user.email);
+            const role = roleLabel(t, user.role);
             return (
               <div
                 style={{
@@ -144,7 +175,7 @@ export function Sidebar({
                   gap: 10,
                   justifyContent: collapsed ? 'center' : 'flex-start',
                 }}
-                title={collapsed ? `${label} · ${user.role}` : undefined}
+                title={collapsed ? `${label} · ${role}` : undefined}
               >
                 <Avatar name={label} size={28} />
                 {!collapsed && (
@@ -160,7 +191,7 @@ export function Sidebar({
                     >
                       {label}
                     </div>
-                    <div className="mono muted" style={{ fontSize: 10 }}>{user.role}</div>
+                    <div className="mono muted" style={{ fontSize: 10 }}>{role}</div>
                   </div>
                 )}
               </div>

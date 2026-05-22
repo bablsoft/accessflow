@@ -33,7 +33,10 @@
     "editor": "SQL 编辑器",
     "queries": "查询历史",
     "reviews": "审核队列",
-    "admin_divider": "管理",
+    "group_workflow": "工作流",
+    "group_data": "数据源",
+    "group_security": "安全与访问",
+    "group_system": "系统",
     "datasources": "数据源",
     "users": "用户",
     "review_plans": "审核计划",
@@ -1149,5 +1152,81 @@
   },
   "risk": {
     "ai_na": "AI 不可用"
+  },
+  "enums": {
+    "query_status": {
+      "PENDING_AI": "等待 AI",
+      "PENDING_REVIEW": "等待审核",
+      "APPROVED": "已批准",
+      "EXECUTED": "已执行",
+      "REJECTED": "已拒绝",
+      "TIMED_OUT": "已超时",
+      "FAILED": "失败",
+      "CANCELLED": "已取消"
+    },
+    "query_type": {
+      "SELECT": "Select",
+      "INSERT": "Insert",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "DDL": "DDL"
+    },
+    "risk_level": {
+      "LOW": "低",
+      "MEDIUM": "中",
+      "HIGH": "高",
+      "CRITICAL": "严重"
+    },
+    "role": {
+      "ADMIN": "管理员",
+      "REVIEWER": "审核员",
+      "ANALYST": "分析师",
+      "READONLY": "只读"
+    },
+    "db_type": {
+      "POSTGRESQL": "PostgreSQL",
+      "MYSQL": "MySQL",
+      "MARIADB": "MariaDB",
+      "ORACLE": "Oracle",
+      "MSSQL": "Microsoft SQL Server",
+      "CUSTOM": "自定义"
+    },
+    "ssl_mode": {
+      "DISABLE": "禁用",
+      "REQUIRE": "必需",
+      "VERIFY_CA": "验证 CA",
+      "VERIFY_FULL": "完整验证"
+    },
+    "channel_type": {
+      "EMAIL": "电子邮件",
+      "SLACK": "Slack",
+      "WEBHOOK": "Webhook",
+      "DISCORD": "Discord",
+      "TELEGRAM": "Telegram",
+      "MS_TEAMS": "Microsoft Teams"
+    },
+    "ai_provider": {
+      "OPENAI": "OpenAI",
+      "ANTHROPIC": "Anthropic",
+      "OLLAMA": "Ollama"
+    },
+    "auth_provider": {
+      "LOCAL": "本地",
+      "SAML": "SAML",
+      "OAUTH2": "OAuth 2.0"
+    },
+    "oauth2_provider": {
+      "GOOGLE": "Google",
+      "GITHUB": "GitHub",
+      "MICROSOFT": "Microsoft",
+      "GITLAB": "GitLab",
+      "OIDC": "OIDC"
+    },
+    "invitation_status": {
+      "PENDING": "等待中",
+      "ACCEPTED": "已接受",
+      "REVOKED": "已撤销",
+      "EXPIRED": "已过期"
+    }
   }
 }

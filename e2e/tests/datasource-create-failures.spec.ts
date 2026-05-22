@@ -51,7 +51,7 @@ async function openConnectionStep(page: Page): Promise<void> {
   await postgresOption.click();
 
   await page.getByRole('combobox', { name: /SSL mode/ }).click();
-  await page.locator('.ant-select-item-option').filter({ hasText: /^DISABLE$/ }).click();
+  await page.locator('.ant-select-item-option').filter({ hasText: /^Disable$/ }).click();
 }
 
 // Fill the connection form's required fields. Same `#name` / `#host` / … ids

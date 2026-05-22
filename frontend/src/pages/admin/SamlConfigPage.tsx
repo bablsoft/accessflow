@@ -7,8 +7,11 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { getSamlConfig, samlConfigKeys, updateSamlConfig } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { enumOptions, roleLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import type { Role, UpdateSamlConfigInput } from '@/types/api';
+
+const ROLE_VALUES: readonly Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'] as const;
 
 const MASK = '********';
 
@@ -177,14 +180,7 @@ export function SamlConfigPage() {
                 label={t('admin.saml.label_default_role')}
                 rules={[{ required: true }]}
               >
-                <Select
-                  options={[
-                    { value: 'ADMIN', label: 'ADMIN' },
-                    { value: 'REVIEWER', label: 'REVIEWER' },
-                    { value: 'ANALYST', label: 'ANALYST' },
-                    { value: 'READONLY', label: 'READONLY' },
-                  ]}
-                />
+                <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
               </Form.Item>
               <Form.Item
                 name="active"

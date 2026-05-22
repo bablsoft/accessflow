@@ -15,6 +15,7 @@ import {
   testAiConfig,
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
+import { aiProviderLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import type { AiConfig, AiProvider } from '@/types/api';
 
@@ -77,7 +78,7 @@ export function AiConfigListPage() {
       dataIndex: 'provider',
       key: 'provider',
       render: (provider: AiProvider) => (
-        <Tag color={PROVIDER_COLOR[provider]}>{provider}</Tag>
+        <Tag color={PROVIDER_COLOR[provider]}>{aiProviderLabel(t, provider)}</Tag>
       ),
     },
     {

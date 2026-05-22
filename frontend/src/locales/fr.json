@@ -33,7 +33,10 @@
     "editor": "Éditeur SQL",
     "queries": "Historique des requêtes",
     "reviews": "File de revue",
-    "admin_divider": "Administration",
+    "group_workflow": "Flux de travail",
+    "group_data": "Sources de données",
+    "group_security": "Sécurité et accès",
+    "group_system": "Système",
     "datasources": "Sources de données",
     "users": "Utilisateurs",
     "review_plans": "Plans de revue",
@@ -1149,5 +1152,81 @@
   },
   "risk": {
     "ai_na": "IA n. d."
+  },
+  "enums": {
+    "query_status": {
+      "PENDING_AI": "En attente de l'IA",
+      "PENDING_REVIEW": "En attente de revue",
+      "APPROVED": "Approuvée",
+      "EXECUTED": "Exécutée",
+      "REJECTED": "Rejetée",
+      "TIMED_OUT": "Expirée",
+      "FAILED": "Échouée",
+      "CANCELLED": "Annulée"
+    },
+    "query_type": {
+      "SELECT": "Select",
+      "INSERT": "Insert",
+      "UPDATE": "Update",
+      "DELETE": "Delete",
+      "DDL": "DDL"
+    },
+    "risk_level": {
+      "LOW": "Faible",
+      "MEDIUM": "Moyen",
+      "HIGH": "Élevé",
+      "CRITICAL": "Critique"
+    },
+    "role": {
+      "ADMIN": "Administrateur",
+      "REVIEWER": "Réviseur",
+      "ANALYST": "Analyste",
+      "READONLY": "Lecture seule"
+    },
+    "db_type": {
+      "POSTGRESQL": "PostgreSQL",
+      "MYSQL": "MySQL",
+      "MARIADB": "MariaDB",
+      "ORACLE": "Oracle",
+      "MSSQL": "Microsoft SQL Server",
+      "CUSTOM": "Personnalisé"
+    },
+    "ssl_mode": {
+      "DISABLE": "Désactiver",
+      "REQUIRE": "Exiger",
+      "VERIFY_CA": "Vérifier l'autorité",
+      "VERIFY_FULL": "Vérification complète"
+    },
+    "channel_type": {
+      "EMAIL": "E-mail",
+      "SLACK": "Slack",
+      "WEBHOOK": "Webhook",
+      "DISCORD": "Discord",
+      "TELEGRAM": "Telegram",
+      "MS_TEAMS": "Microsoft Teams"
+    },
+    "ai_provider": {
+      "OPENAI": "OpenAI",
+      "ANTHROPIC": "Anthropic",
+      "OLLAMA": "Ollama"
+    },
+    "auth_provider": {
+      "LOCAL": "Local",
+      "SAML": "SAML",
+      "OAUTH2": "OAuth 2.0"
+    },
+    "oauth2_provider": {
+      "GOOGLE": "Google",
+      "GITHUB": "GitHub",
+      "MICROSOFT": "Microsoft",
+      "GITLAB": "GitLab",
+      "OIDC": "OIDC"
+    },
+    "invitation_status": {
+      "PENDING": "En attente",
+      "ACCEPTED": "Acceptée",
+      "REVOKED": "Révoquée",
+      "EXPIRED": "Expirée"
+    }
   }
 }

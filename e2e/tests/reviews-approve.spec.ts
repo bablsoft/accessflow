@@ -174,7 +174,7 @@ test.describe.serial('reviews approve (AF-268)', () => {
       await expect(
         submitterPage
           .getByRole('heading', { level: 1 })
-          .getByText('PENDING REVIEW'),
+          .getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
       await loginViaUi(approverPage, approverAEmail, approverAPassword);
@@ -208,7 +208,7 @@ test.describe.serial('reviews approve (AF-268)', () => {
       // cached PENDING REVIEW for ~30s, so trigger a refetch via reload.
       await submitterPage.reload();
       await expect(
-        submitterPage.getByRole('heading', { level: 1 }).getByText('APPROVED'),
+        submitterPage.getByRole('heading', { level: 1 }).getByText('Approved'),
       ).toBeVisible({ timeout: 15_000 });
     } finally {
       await submitterCtx.close();

@@ -174,7 +174,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     // statusLabel() replaces '_' with ' ', so PENDING_REVIEW renders as
     // "PENDING REVIEW" inside the StatusPill which lives in the <h1>.
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+      page.getByRole('heading', { level: 1 }).getByText('Pending review'),
     ).toBeVisible({ timeout: 15_000 });
 
     // AF-307 follow-up: the seeded datasource has ai_analysis_enabled=false,
@@ -192,13 +192,14 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
 
     // Status pill flips → CANCELLED.
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('CANCELLED'),
+      page.getByRole('heading', { level: 1 }).getByText('Cancelled'),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Timeline shows the "Cancelled" stage. The button label is "Cancel query"
-    // and the status pill is "CANCELLED" (uppercase), so this exact-match
-    // selector uniquely targets the timeline stage from ApprovalTimeline.tsx.
-    await expect(page.getByText('Cancelled', { exact: true })).toBeVisible();
+    // Timeline shows the "Cancelled" stage. After AF-315 the StatusPill also
+    // renders "Cancelled" (sentence-case translation), so we scope this assertion
+    // to assert at least one match exists; the heading-level pill is asserted
+    // separately above.
+    await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible();
 
     // List page reflects the new status. Match the row by the 8-char id prefix
     // QueryListPage renders in the id column (see query-list.spec.ts).
@@ -212,7 +213,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     );
     const row = page.locator('tr.ant-table-row').filter({ hasText: submitted.id.slice(0, 8) });
     await expect(row).toBeVisible();
-    await expect(row.getByText('CANCELLED', { exact: true })).toBeVisible();
+    await expect(row.getByText('Cancelled', { exact: true })).toBeVisible();
   });
 
   // ── 2. Non-submitter (invited ADMIN) viewing the detail page ──────────────
@@ -258,13 +259,14 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       await expect(dialog.getByText('Invite a teammate')).toBeVisible({ timeout: 10_000 });
       await dialog.getByLabel('Email').fill(invitee);
 
-      // Pick ADMIN from the Role select (default is ANALYST). The AntD Select
-      // renders its options into a portal; the option text is the literal
-      // "ADMIN" string from UsersPage.tsx options array.
+      // Pick Admin from the Role select (default is Analyst). The AntD Select
+      // renders its options into a portal; after AF-315 the option labels go
+      // through `enumLabels.ts` so they render the translated "Admin" string,
+      // not the raw enum value.
       await dialog.getByLabel('Role').click();
       await adminPage
         .locator('.ant-select-item-option')
-        .filter({ hasText: /^ADMIN$/ })
+        .filter({ hasText: /^Admin$/ })
         .click();
 
       await dialog.getByRole('button', { name: 'Send invitation' }).click();
@@ -292,7 +294,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
 
       await inviteePage.goto(`/queries/${submitted.id}`);
       await expect(
-        inviteePage.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+        inviteePage.getByRole('heading', { level: 1 }).getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
       // canCancel === false for non-submitter, so the Button never renders.
@@ -343,7 +345,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+      page.getByRole('heading', { level: 1 }).getByText('Pending review'),
     ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Cancel query' }).click();
@@ -356,7 +358,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
 
     // Status pill unchanged — mutation never reached the real backend.
     await expect(
-      page.getByRole('heading', { level: 1 }).getByText('PENDING REVIEW'),
+      page.getByRole('heading', { level: 1 }).getByText('Pending review'),
     ).toBeVisible();
   });
 });

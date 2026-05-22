@@ -9,6 +9,7 @@ import { Pill } from '@/components/common/Pill';
 import { DatasourceIcon } from '@/components/datasources/DatasourceIcon';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
+import { dbTypeLabel, sslModeLabel } from '@/utils/enumLabels';
 import type { Datasource, ReviewPlan } from '@/types/api';
 
 export function DatasourceListPage() {
@@ -189,10 +190,10 @@ function DsCard({ ds, plan, onOpen, onOpenPlan }: CardProps) {
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         <Pill bg="var(--bg-sunken)" size="sm">
-          {ds.db_type}
+          {dbTypeLabel(t, ds.db_type)}
         </Pill>
         <Pill bg="var(--bg-sunken)" size="sm">
-          SSL · {ds.ssl_mode}
+          SSL · {sslModeLabel(t, ds.ssl_mode)}
         </Pill>
         {ds.ai_analysis_enabled && (
           <Pill
