@@ -259,13 +259,14 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       await expect(dialog.getByText('Invite a teammate')).toBeVisible({ timeout: 10_000 });
       await dialog.getByLabel('Email').fill(invitee);
 
-      // Pick ADMIN from the Role select (default is ANALYST). The AntD Select
-      // renders its options into a portal; the option text is the literal
-      // "ADMIN" string from UsersPage.tsx options array.
+      // Pick Admin from the Role select (default is Analyst). The AntD Select
+      // renders its options into a portal; after AF-315 the option labels go
+      // through `enumLabels.ts` so they render the translated "Admin" string,
+      // not the raw enum value.
       await dialog.getByLabel('Role').click();
       await adminPage
         .locator('.ant-select-item-option')
-        .filter({ hasText: /^ADMIN$/ })
+        .filter({ hasText: /^Admin$/ })
         .click();
 
       await dialog.getByRole('button', { name: 'Send invitation' }).click();

@@ -51,17 +51,18 @@ test('admin creates a PostgreSQL datasource through the wizard', async ({ page }
   await expect(portInput).toHaveValue('5432');
 
   // AntD 6's Select renders the chosen value as a text node next to the combobox
-  // (the form item contains both "SSL mode" and "VERIFY_FULL").
+  // (the form item contains both "SSL mode" and the translated SslMode label —
+  // "Verify full" after AF-315 routed enum labels through `enumLabels.ts`).
   const sslFormItem = page.locator('.ant-form-item').filter({ hasText: 'SSL mode' });
-  await expect(sslFormItem).toContainText('VERIFY_FULL');
+  await expect(sslFormItem).toContainText('Verify full');
 
-  // Switch to DISABLE so the connection to the bare postgres:18 container succeeds.
+  // Switch to Disable so the connection to the bare postgres:18 container succeeds.
   // AntD 6's Select renders dropdown items as `.ant-select-item-option` divs,
   // not native role="option" — target by class.
   await page.getByRole('combobox', { name: /SSL mode/ }).click();
-  await page.locator('.ant-select-item-option').filter({ hasText: /^DISABLE$/ }).click();
-  await expect(sslFormItem).toContainText('DISABLE');
-  await expect(sslFormItem).not.toContainText('VERIFY_FULL');
+  await page.locator('.ant-select-item-option').filter({ hasText: /^Disable$/ }).click();
+  await expect(sslFormItem).toContainText('Disable');
+  await expect(sslFormItem).not.toContainText('Verify full');
 
   // Fill the remaining connection fields. AntD Form generates input IDs from
   // each Form.Item's `name`, so #name / #host / #database_name / #username /
