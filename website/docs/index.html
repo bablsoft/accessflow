@@ -802,6 +802,7 @@ APPROVED → FAILED (execution error)</pre>
               </ul>
             </li>
             <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
+            <li><strong>Edit or remove.</strong> Each card also has <em>Edit</em> and <em>Delete</em> buttons. Deleting a channel is immediate (hard delete) — there is no soft-delete, but webhook retries already scheduled before the delete still complete.</li>
           </ol>
           <p>
             Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>,

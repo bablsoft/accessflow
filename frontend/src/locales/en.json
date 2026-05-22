@@ -791,6 +791,10 @@
       "create_success": "Channel created",
       "update_success": "Channel updated",
       "test_success": "Test notification dispatched",
+      "delete_success": "Notification channel deleted",
+      "delete_confirm_title": "Delete notification channel?",
+      "delete_confirm_body": "This will remove the channel named {{name}}.",
+      "action_delete": "Delete channel",
       "test_email_label": "Override recipient (EMAIL only)",
       "system_smtp": {
         "title": "System SMTP",

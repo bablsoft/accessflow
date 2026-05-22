@@ -791,6 +791,10 @@
       "create_success": "已创建通道",
       "update_success": "已更新通道",
       "test_success": "已发送测试通知",
+      "delete_success": "已删除通知通道",
+      "delete_confirm_title": "删除通知通道？",
+      "delete_confirm_body": "名为「{{name}}」的通道将被删除。",
+      "action_delete": "删除通道",
       "test_email_label": "覆盖收件人（仅 EMAIL）",
       "system_smtp": {
         "title": "系统 SMTP",

@@ -12,5 +12,7 @@ public interface NotificationChannelService {
     NotificationChannelView update(UUID id, UUID organizationId,
                                    UpdateNotificationChannelCommand command);
 
+    void delete(UUID id, UUID organizationId);
+
     void sendTest(UUID id, UUID organizationId, String optionalEmailOverride);
 }

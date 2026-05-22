@@ -1,8 +1,13 @@
 package com.bablsoft.accessflow.notifications.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditLogQuery;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -49,6 +54,7 @@ class AdminNotificationChannelControllerIntegrationTest {
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired ChannelConfigCodec channelConfigCodec;
+    @Autowired AuditLogService auditLogService;
 
     private static final AtomicReference<HttpServer> SERVER = new AtomicReference<>();
     private static final ConcurrentLinkedQueue<String> RECEIVED = new ConcurrentLinkedQueue<>();
@@ -204,6 +210,70 @@ class AdminNotificationChannelControllerIntegrationTest {
                 .exchange();
         assertThat(test).hasStatus(200);
         assertThat(RECEIVED).anyMatch(b -> b.contains("\"event\":\"TEST\""));
+    }
+
+    @Test
+    void deleteReturns204AndWritesAudit() throws Exception {
+        var createBody = "{"
+                + "\"name\":\"Doomed\","
+                + "\"channel_type\":\"WEBHOOK\","
+                + "\"config\":{\"url\":\"http://127.0.0.1:" + serverPort + "/hook\","
+                + "\"secret\":\"x\"}}";
+        var created = mvc.post().uri("/api/v1/admin/notification-channels")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody)
+                .exchange();
+        assertThat(created).hasStatus(201);
+        var id = created.getResponse().getContentAsString()
+                .replaceAll(".*\"id\":\"([^\"]+)\".*", "$1");
+
+        var result = mvc.delete().uri("/api/v1/admin/notification-channels/" + id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(204);
+        assertThat(channelRepository.findById(UUID.fromString(id))).isEmpty();
+
+        var audits = auditLogService.query(org.getId(),
+                new AuditLogQuery(null, AuditAction.NOTIFICATION_CHANNEL_DELETED,
+                        AuditResourceType.NOTIFICATION_CHANNEL, null, null, null),
+                PageRequest.of(0, 10));
+        assertThat(audits.content()).hasSize(1);
+    }
+
+    @Test
+    void deleteReturns404ForMissingChannel() {
+        var result = mvc.delete()
+                .uri("/api/v1/admin/notification-channels/" + UUID.randomUUID())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("NOTIFICATION_CHANNEL_NOT_FOUND");
+    }
+
+    @Test
+    void deleteForbiddenForAnalyst() throws Exception {
+        var createBody = "{"
+                + "\"name\":\"Eng webhook\","
+                + "\"channel_type\":\"WEBHOOK\","
+                + "\"config\":{\"url\":\"http://127.0.0.1:" + serverPort + "/hook\","
+                + "\"secret\":\"x\"}}";
+        var created = mvc.post().uri("/api/v1/admin/notification-channels")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody)
+                .exchange();
+        assertThat(created).hasStatus(201);
+        var id = created.getResponse().getContentAsString()
+                .replaceAll(".*\"id\":\"([^\"]+)\".*", "$1");
+
+        var result = mvc.delete().uri("/api/v1/admin/notification-channels/" + id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(result).hasStatus(403);
+        assertThat(channelRepository.findById(UUID.fromString(id))).isPresent();
     }
 
     @Test

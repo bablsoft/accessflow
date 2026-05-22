@@ -172,6 +172,38 @@ class DefaultNotificationChannelServiceTest {
     }
 
     @Test
+    void deleteRemovesChannel() {
+        var existing = channel(NotificationChannelType.WEBHOOK, "to-delete");
+        when(repository.findByIdAndOrganizationId(existing.getId(), orgId))
+                .thenReturn(Optional.of(existing));
+
+        service.delete(existing.getId(), orgId);
+
+        verify(repository).delete(existing);
+    }
+
+    @Test
+    void deleteThrowsWhenChannelMissing() {
+        var id = UUID.randomUUID();
+        when(repository.findByIdAndOrganizationId(id, orgId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(id, orgId))
+                .isInstanceOf(NotificationChannelNotFoundException.class);
+        verify(repository, never()).delete(any(NotificationChannelEntity.class));
+    }
+
+    @Test
+    void deleteThrowsWhenChannelBelongsToDifferentOrg() {
+        var otherOrgId = UUID.randomUUID();
+        var id = UUID.randomUUID();
+        when(repository.findByIdAndOrganizationId(id, otherOrgId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.delete(id, otherOrgId))
+                .isInstanceOf(NotificationChannelNotFoundException.class);
+        verify(repository, never()).delete(any(NotificationChannelEntity.class));
+    }
+
+    @Test
     void sendTestRoutesToMatchingStrategy() {
         var existing = channel(NotificationChannelType.WEBHOOK, "x");
         when(repository.findByIdAndOrganizationId(existing.getId(), orgId))

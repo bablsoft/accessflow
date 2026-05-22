@@ -791,6 +791,10 @@
       "create_success": "Canal creado",
       "update_success": "Canal actualizado",
       "test_success": "Notificación de prueba enviada",
+      "delete_success": "Canal de notificación eliminado",
+      "delete_confirm_title": "¿Eliminar canal de notificación?",
+      "delete_confirm_body": "Se eliminará el canal llamado «{{name}}».",
+      "action_delete": "Eliminar canal",
       "test_email_label": "Sobrescribir destinatario (solo EMAIL)",
       "system_smtp": {
         "title": "SMTP del sistema",

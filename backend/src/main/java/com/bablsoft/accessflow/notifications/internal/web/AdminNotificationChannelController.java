@@ -1,5 +1,10 @@
 package com.bablsoft.accessflow.notifications.internal.web;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.notifications.api.CreateNotificationChannelCommand;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelService;
 import com.bablsoft.accessflow.notifications.api.UpdateNotificationChannelCommand;
@@ -9,9 +14,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +30,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -30,9 +38,11 @@ import java.util.UUID;
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Notification Channels", description = "Admin management of email, Slack, webhook, Discord, Telegram, and Microsoft Teams notification channels")
 @RequiredArgsConstructor
+@Slf4j
 class AdminNotificationChannelController {
 
     private final NotificationChannelService service;
+    private final AuditLogService auditLogService;
 
     @GetMapping
     @Operation(summary = "List notification channels for the caller's organization")
@@ -84,6 +94,20 @@ class AdminNotificationChannelController {
         return NotificationChannelResponse.from(view);
     }
 
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a notification channel")
+    @ApiResponse(responseCode = "204", description = "Deleted")
+    @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
+    @ApiResponse(responseCode = "404", description = "Channel not found in caller's organization")
+    ResponseEntity<Void> delete(@PathVariable UUID id,
+                                Authentication authentication,
+                                RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        service.delete(id, caller.organizationId());
+        recordAudit(AuditAction.NOTIFICATION_CHANNEL_DELETED, id, caller, auditContext);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/test")
     @Operation(summary = "Send a test message via the configured channel")
     @ApiResponse(responseCode = "200", description = "Test delivery succeeded")
@@ -98,6 +122,23 @@ class AdminNotificationChannelController {
         var emailOverride = body != null ? body.email() : null;
         service.sendTest(id, caller.organizationId(), emailOverride);
         return TestNotificationResponse.ok("Test notification dispatched");
+    }
+
+    private void recordAudit(AuditAction action, UUID channelId, JwtClaims caller,
+                             RequestAuditContext auditContext) {
+        try {
+            auditLogService.record(new AuditEntry(
+                    action,
+                    AuditResourceType.NOTIFICATION_CHANNEL,
+                    channelId,
+                    caller.organizationId(),
+                    caller.userId(),
+                    Map.of(),
+                    auditContext.ipAddress(),
+                    auditContext.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for {} on notification_channel {}", action, channelId, ex);
+        }
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

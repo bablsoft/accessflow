@@ -791,6 +791,10 @@
       "create_success": "Ալիքը ստեղծված է",
       "update_success": "Ալիքը թարմացված է",
       "test_success": "Փորձարկման ծանուցումն ուղարկված է",
+      "delete_success": "Ծանուցման ալիքը ջնջվեց",
+      "delete_confirm_title": "Ջնջե՞լ ծանուցման ալիքը։",
+      "delete_confirm_body": "«{{name}}» անունով ալիքը կջնջվի։",
+      "action_delete": "Ջնջել ալիքը",
       "test_email_label": "Վերագրել ստացողին (միայն EMAIL)",
       "system_smtp": {
         "title": "Համակարգային SMTP",
