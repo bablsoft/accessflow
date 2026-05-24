@@ -1829,7 +1829,7 @@ Partial update. Any omitted field is left unchanged. Sending `"signing_cert_pem"
 }
 ```
 
-Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs), attribute names ≤ 255 chars.
+Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs), attribute names ≤ 255 chars. `signing_cert_pem` must be a PEM-encoded X.509 certificate (`-----BEGIN CERTIFICATE-----…-----END CERTIFICATE-----`), the mask sentinel `"********"` (preserves the existing ciphertext), or an empty string (clears the cert) — anything else is rejected with `400 VALIDATION_ERROR`.
 
 **Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
 **Response 400:** Validation error.

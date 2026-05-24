@@ -139,8 +139,9 @@ class AdminSamlConfigControllerIntegrationTest {
 
     @Test
     void putWithMaskedCertPreservesExistingCipher() {
-        // First write a real cert.
-        var firstBody = "{\"signing_cert_pem\":\"REAL\"}";
+        // First write a real (PEM-shaped) cert. The string passes the new
+        // @Pattern check on signingCertPem (AF-280).
+        var firstBody = "{\"signing_cert_pem\":\"-----BEGIN CERTIFICATE-----\\nREAL\\n-----END CERTIFICATE-----\"}";
         mvc.put().uri("/api/v1/admin/saml-config")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -157,6 +158,49 @@ class AdminSamlConfigControllerIntegrationTest {
 
         var afterCipher = repository.findByOrganizationId(org.getId()).orElseThrow().getSigningCertPem();
         assertThat(afterCipher).isEqualTo(originalCipher);
+    }
+
+    @Test
+    void putRejectsMalformedSigningCertPem() {
+        // AF-280: signingCertPem must be empty, the masked sentinel, or a
+        // PEM-encoded X.509 block. Anything else is a 400 VALIDATION_ERROR
+        // before reaching the service layer.
+        var body = "{\"signing_cert_pem\":\"not-a-cert\"}";
+
+        var put = mvc.put().uri("/api/v1/admin/saml-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(put).hasStatus(400);
+        assertThat(put).bodyJson().extractingPath("$.error").asString().isEqualTo("VALIDATION_ERROR");
+
+        // Nothing was persisted.
+        assertThat(repository.findByOrganizationId(org.getId())).isEmpty();
+    }
+
+    @Test
+    void putAcceptsEmptySigningCertPemToClear() {
+        // Seed a cert first.
+        var seedBody = "{\"signing_cert_pem\":\"-----BEGIN CERTIFICATE-----\\nXYZ\\n-----END CERTIFICATE-----\"}";
+        mvc.put().uri("/api/v1/admin/saml-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(seedBody)
+                .exchange();
+        assertThat(repository.findByOrganizationId(org.getId()).orElseThrow().getSigningCertPem())
+                .isNotNull();
+
+        // Empty-string clear path stays valid under the @Pattern (AF-280).
+        var clearBody = "{\"signing_cert_pem\":\"\"}";
+        var put = mvc.put().uri("/api/v1/admin/saml-config")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(clearBody)
+                .exchange();
+        assertThat(put).hasStatus(200);
+        assertThat(repository.findByOrganizationId(org.getId()).orElseThrow().getSigningCertPem())
+                .isNull();
     }
 
     @Test

@@ -923,7 +923,8 @@
       "label_active": "活跃",
       "load_error": "加载 SAML 配置失败",
       "save_success": "已保存 SAML 配置",
-      "save_button": "保存"
+      "save_button": "保存",
+      "error_metadata_url_invalid": "请输入有效的 URL（https://…）"
     },
     "languages": {
       "title": "语言",

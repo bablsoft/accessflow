@@ -923,7 +923,8 @@
       "label_active": "Активен",
       "load_error": "Не удалось загрузить настройку SAML",
       "save_success": "Настройка SAML сохранена",
-      "save_button": "Сохранить"
+      "save_button": "Сохранить",
+      "error_metadata_url_invalid": "Введите корректный URL (https://…)"
     },
     "languages": {
       "title": "Языки",

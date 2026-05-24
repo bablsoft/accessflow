@@ -110,7 +110,10 @@ export function SamlConfigPage() {
             <Form.Item
               name="idp_metadata_url"
               label={t('admin.saml.label_idp_metadata_url')}
-              rules={[{ max: 1024 }]}
+              rules={[
+                { type: 'url', message: t('admin.saml.error_metadata_url_invalid') },
+                { max: 1024 },
+              ]}
             >
               <Input className="mono" maxLength={1024} />
             </Form.Item>

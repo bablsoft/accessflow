@@ -923,7 +923,8 @@
       "label_active": "Activo",
       "load_error": "No se pudo cargar la configuración SAML",
       "save_success": "Configuración SAML guardada",
-      "save_button": "Guardar"
+      "save_button": "Guardar",
+      "error_metadata_url_invalid": "Introduzca una URL válida (https://…)"
     },
     "languages": {
       "title": "Idiomas",
