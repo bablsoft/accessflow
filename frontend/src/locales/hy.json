@@ -923,7 +923,8 @@
       "label_active": "Ակտիվ",
       "load_error": "Չհաջողվեց բեռնել SAML կարգավորումը",
       "save_success": "SAML կարգավորումը պահպանված է",
-      "save_button": "Պահպանել"
+      "save_button": "Պահպանել",
+      "error_metadata_url_invalid": "Մուտքագրեք վավեր URL (https://…)"
     },
     "languages": {
       "title": "Լեզուներ",
