@@ -5,6 +5,7 @@ import { GlobalOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import {
   getMeLocalization,
+  getPublicLocalizationConfig,
   localizationKeys,
   updateMeLocalization,
 } from '@/api/localization';
@@ -12,7 +13,13 @@ import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { isSupportedLanguage, LANGUAGE_DISPLAY_NAMES, type Language } from '@/i18n';
 
-export function LanguageSwitcher() {
+export type LanguageSwitcherMode = 'authenticated' | 'public';
+
+interface LanguageSwitcherProps {
+  mode?: LanguageSwitcherMode;
+}
+
+export function LanguageSwitcher({ mode = 'authenticated' }: LanguageSwitcherProps = {}) {
   const { t } = useTranslation();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
   const language = usePreferencesStore((s) => s.language);
@@ -20,10 +27,18 @@ export function LanguageSwitcher() {
   const queryClient = useQueryClient();
   const { message } = AntdApp.useApp();
 
-  const optionsQuery = useQuery({
+  const publicMode = mode === 'public';
+
+  const meQuery = useQuery({
     queryKey: localizationKeys.me(),
     queryFn: getMeLocalization,
-    enabled: isAuthenticated,
+    enabled: !publicMode && isAuthenticated,
+  });
+
+  const publicQuery = useQuery({
+    queryKey: localizationKeys.public(),
+    queryFn: getPublicLocalizationConfig,
+    enabled: publicMode,
   });
 
   const mutation = useMutation({
@@ -37,9 +52,10 @@ export function LanguageSwitcher() {
     },
   });
 
-  const supported = optionsQuery.data?.available_languages?.filter(isSupportedLanguage) as
-    | Language[]
-    | undefined;
+  const sourceLanguages = publicMode
+    ? publicQuery.data?.available_languages
+    : meQuery.data?.available_languages;
+  const supported = sourceLanguages?.filter(isSupportedLanguage) as Language[] | undefined;
 
   const items: MenuProps['items'] = (supported ?? ['en']).map((code) => ({
     key: code,
@@ -47,7 +63,7 @@ export function LanguageSwitcher() {
     onClick: () => {
       if (code === language) return;
       setLanguage(code);
-      if (isAuthenticated) {
+      if (!publicMode && isAuthenticated) {
         mutation.mutate(code);
       }
     },

@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { LogoMark } from '@/components/common/LogoMark';
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import {
   getSamlEnabled,
   listOAuth2Providers,
@@ -151,6 +152,7 @@ export function LoginPage() {
             gap: 10,
             marginBottom: 28,
             justifyContent: 'center',
+            position: 'relative',
           }}
         >
           <span style={{ color: 'var(--fg)', display: 'inline-flex' }}>
@@ -167,6 +169,9 @@ export function LoginPage() {
             >
               v{APP_VERSION}
             </div>
+          </div>
+          <div style={{ position: 'absolute', right: 0, top: 0 }}>
+            <LanguageSwitcher mode="public" />
           </div>
         </div>
 
