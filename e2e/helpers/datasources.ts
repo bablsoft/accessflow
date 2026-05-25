@@ -450,6 +450,27 @@ export async function createReviewPlanViaApi(
   return (await res.json()) as CreatedReviewPlan;
 }
 
+// DELETE /api/v1/review-plans/{id} — best-effort `afterAll` cleanup, same
+// shape as deleteDatasource(). Tolerates 404 (already gone) and 409
+// (REVIEW_PLAN_IN_USE — happens when a soft-deleted datasource still holds
+// the binding row; the next `stack:down -v` clears it). Both are logged as
+// warnings rather than thrown so a single bad row doesn't fail the suite.
+export async function deleteReviewPlanViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}/api/v1/review-plans/${id}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok() && res.status() !== 404 && res.status() !== 409) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `Review plan cleanup (${id}) returned ${res.status()}: ${await res.text()}`,
+    );
+  }
+}
+
 // POST /api/v1/datasources/{id} updates not exposed today, so the spec
 // triggers DATASOURCE_UNAVAILABLE by DELETEing the row between approval and
 // execute. Kept here so the lifecycle helpers all live in one place.
