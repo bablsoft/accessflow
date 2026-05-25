@@ -706,7 +706,12 @@
       "drawer_title": "Audit event detail",
       "section_action": "Action",
       "section_metadata": "metadata · JSON",
-      "actor_unknown": "(system)"
+      "actor_unknown": "(system)",
+      "verify_chain": "Verify chain",
+      "chain_valid": "Chain valid",
+      "chain_invalid": "Chain invalid",
+      "chain_rows_checked": "{{count}} rows checked",
+      "chain_invalid_detail": "First bad row {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "AI configurations",

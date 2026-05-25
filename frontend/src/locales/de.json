@@ -706,7 +706,12 @@
       "drawer_title": "Audit-Ereignis-Detail",
       "section_action": "Aktion",
       "section_metadata": "Metadaten · JSON",
-      "actor_unknown": "(System)"
+      "actor_unknown": "(System)",
+      "verify_chain": "Kette verifizieren",
+      "chain_valid": "Kette gültig",
+      "chain_invalid": "Kette ungültig",
+      "chain_rows_checked": "{{count}} Zeilen geprüft",
+      "chain_invalid_detail": "Erste fehlerhafte Zeile {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "KI-Konfigurationen",

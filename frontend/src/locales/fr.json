@@ -706,7 +706,12 @@
       "drawer_title": "Détail de l'événement d'audit",
       "section_action": "Action",
       "section_metadata": "métadonnées · JSON",
-      "actor_unknown": "(système)"
+      "actor_unknown": "(système)",
+      "verify_chain": "Vérifier la chaîne",
+      "chain_valid": "Chaîne valide",
+      "chain_invalid": "Chaîne invalide",
+      "chain_rows_checked": "{{count}} lignes vérifiées",
+      "chain_invalid_detail": "Première ligne invalide {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "Configurations d'IA",

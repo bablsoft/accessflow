@@ -706,7 +706,12 @@
       "drawer_title": "Աուդիտի իրադարձության մանրամասները",
       "section_action": "Գործողություն",
       "section_metadata": "մետատվյալներ · JSON",
-      "actor_unknown": "(համակարգ)"
+      "actor_unknown": "(համակարգ)",
+      "verify_chain": "Ստուգել շղթան",
+      "chain_valid": "Շղթան վավեր է",
+      "chain_invalid": "Շղթան անվավեր է",
+      "chain_rows_checked": "Ստուգված է {{count}} տող",
+      "chain_invalid_detail": "Առաջին սխալ տողը {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "AI կարգավորումներ",
