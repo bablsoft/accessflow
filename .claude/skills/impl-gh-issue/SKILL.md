@@ -11,7 +11,7 @@ You are implementing a GitHub issue in the AccessFlow repo. **CLAUDE.md is the a
 
 The user passes one of:
 - An issue number: `42`, `AF-58`, `FE-10`
-- A full URL: `https://github.com/partqam/accessflow/issues/42`
+- A full URL: `https://github.com/bablsoft/accessflow/issues/42`
 
 Resolve the numeric issue with `gh issue view <n> --json number,title,body,labels,assignees,url,state`.
 
@@ -30,7 +30,7 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/10-editions.md` — Community vs Enterprise feature matrix
   - `docs/11-development.md` — coding standards, testing strategy, Git workflow
   - `docs/12-roadmap.md` — milestone scope
-- **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.partqam.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `./mvnw verify`.
+- **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.bablsoft.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `./mvnw verify`.
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **End-to-end** at `e2e/` — Playwright suite with its own `docker-compose.e2e.yml` that builds backend + frontend from the working tree and seeds a deterministic admin via the `bootstrap` module. Owns auth and (over time) all critical user flows. Run: `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test`.
 - **Website** at `website/` — public marketing site, static HTML/CSS/JS, no build step. Edits land directly in HTML.
