@@ -257,6 +257,7 @@ immediately.
 - Searchable, filterable table of all audit events
 - Filters: date range picker, user selector, action type multi-select
 - Row click opens `AuditDetailDrawer` with full metadata JSON
+- **Verify chain** button in the page header calls `GET /api/v1/admin/audit-log/verify` and renders an inline dismissible alert with the outcome (`Chain valid` + rows-checked count on success; `Chain invalid` with `first_bad_row_id` / `first_bad_reason` when tampering is detected)
 
 ### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
 

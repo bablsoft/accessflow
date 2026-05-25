@@ -121,6 +121,46 @@ describe('api/admin', () => {
     });
   });
 
+  it('verifyAuditChain GETs /admin/audit-log/verify without params by default', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        ok: true,
+        rows_checked: 42,
+        first_bad_row_id: null,
+        first_bad_created_at: null,
+        first_bad_reason: null,
+      },
+    });
+    const result = await adminApi.verifyAuditChain();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log/verify', { params: {} });
+    expect(result.ok).toBe(true);
+    expect(result.rows_checked).toBe(42);
+  });
+
+  it('verifyAuditChain forwards from/to filters', async () => {
+    get.mockResolvedValueOnce({
+      data: {
+        ok: false,
+        rows_checked: 7,
+        first_bad_row_id: 'row-7',
+        first_bad_created_at: '2026-05-02T00:00:00Z',
+        first_bad_reason: 'current_hash_mismatch',
+      },
+    });
+    const result = await adminApi.verifyAuditChain({
+      from: '2026-05-01T00:00:00Z',
+      to: '2026-05-08T00:00:00Z',
+    });
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log/verify', {
+      params: {
+        from: '2026-05-01T00:00:00Z',
+        to: '2026-05-08T00:00:00Z',
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.first_bad_reason).toBe('current_hash_mismatch');
+  });
+
   // ── Notification channels ────────────────────────────────────────────────
   it('listChannels GETs /admin/notification-channels', async () => {
     get.mockResolvedValueOnce({ data: [channelFixture] });

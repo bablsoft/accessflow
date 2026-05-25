@@ -706,7 +706,12 @@
       "drawer_title": "Подробности события аудита",
       "section_action": "Действие",
       "section_metadata": "метаданные · JSON",
-      "actor_unknown": "(система)"
+      "actor_unknown": "(система)",
+      "verify_chain": "Проверить цепочку",
+      "chain_valid": "Цепочка корректна",
+      "chain_invalid": "Цепочка нарушена",
+      "chain_rows_checked": "Проверено строк: {{count}}",
+      "chain_invalid_detail": "Первая сбойная строка {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "Конфигурации ИИ",

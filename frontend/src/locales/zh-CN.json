@@ -706,7 +706,12 @@
       "drawer_title": "审计事件详情",
       "section_action": "操作",
       "section_metadata": "元数据 · JSON",
-      "actor_unknown": "（系统）"
+      "actor_unknown": "（系统）",
+      "verify_chain": "验证链",
+      "chain_valid": "链有效",
+      "chain_invalid": "链无效",
+      "chain_rows_checked": "已检查 {{count}} 行",
+      "chain_invalid_detail": "首个异常行 {{rowId}} — {{reason}}"
     },
     "ai_configs": {
       "title": "AI 配置",

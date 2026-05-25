@@ -1,25 +1,27 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Button,
   DatePicker,
   Drawer,
   Input,
   Select,
   Skeleton,
+  Space,
   Table,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ReloadOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
-import { auditKeys, listAuditEvents } from '@/api/admin';
+import { auditKeys, listAuditEvents, verifyAuditChain } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
-import type { AuditEvent, AuditLogFilters } from '@/types/api';
+import type { AuditChainResult, AuditEvent, AuditLogFilters } from '@/types/api';
 
 const PAGE_SIZE = 20;
 
@@ -80,6 +82,22 @@ export function AuditLogPage() {
   const [resourceId, setResourceId] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [detail, setDetail] = useState<AuditEvent | null>(null);
+  const [chainResult, setChainResult] = useState<AuditChainResult | null>(null);
+  const [chainError, setChainError] = useState<string | null>(null);
+
+  const verifyChain = useMutation({
+    mutationFn: () => verifyAuditChain(),
+    onMutate: () => {
+      setChainResult(null);
+      setChainError(null);
+    },
+    onSuccess: (result) => {
+      setChainResult(result);
+    },
+    onError: (err) => {
+      setChainError(adminErrorMessage(err));
+    },
+  });
 
   const filters: AuditLogFilters = useMemo(
     () => ({
@@ -109,9 +127,19 @@ export function AuditLogPage() {
         title={t('admin.audit.title')}
         subtitle={t('admin.audit.subtitle')}
         actions={
-          <Button icon={<ReloadOutlined />} onClick={() => auditQuery.refetch()}>
-            {t('common.refresh')}
-          </Button>
+          <Space>
+            <Button
+              icon={<SafetyCertificateOutlined />}
+              loading={verifyChain.isPending}
+              onClick={() => verifyChain.mutate()}
+              data-testid="verify-chain-button"
+            >
+              {t('admin.audit.verify_chain')}
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={() => auditQuery.refetch()}>
+              {t('common.refresh')}
+            </Button>
+          </Space>
         }
       />
       <div
@@ -183,6 +211,46 @@ export function AuditLogPage() {
           })}
         </span>
       </div>
+      {(chainResult || chainError) && (
+        <div style={{ padding: '12px 28px 0' }}>
+          {chainError ? (
+            <Alert
+              type="error"
+              showIcon
+              closable
+              onClose={() => setChainError(null)}
+              message={t('admin.audit.chain_invalid')}
+              description={chainError}
+              data-testid="verify-chain-result"
+            />
+          ) : chainResult?.ok ? (
+            <Alert
+              type="success"
+              showIcon
+              closable
+              onClose={() => setChainResult(null)}
+              message={t('admin.audit.chain_valid')}
+              description={t('admin.audit.chain_rows_checked', {
+                count: chainResult.rows_checked,
+              })}
+              data-testid="verify-chain-result"
+            />
+          ) : chainResult ? (
+            <Alert
+              type="error"
+              showIcon
+              closable
+              onClose={() => setChainResult(null)}
+              message={t('admin.audit.chain_invalid')}
+              description={t('admin.audit.chain_invalid_detail', {
+                rowId: chainResult.first_bad_row_id ?? '—',
+                reason: chainResult.first_bad_reason ?? '—',
+              })}
+              data-testid="verify-chain-result"
+            />
+          ) : null}
+        </div>
+      )}
       <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
         {auditQuery.isLoading ? (
           <Skeleton active paragraph={{ rows: 8 }} style={{ padding: 24 }} />

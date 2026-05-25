@@ -631,6 +631,19 @@ export interface AuditLogFilters {
   sort?: string;
 }
 
+export interface AuditChainResult {
+  ok: boolean;
+  rows_checked: number;
+  first_bad_row_id: string | null;
+  first_bad_created_at: string | null;
+  first_bad_reason: string | null;
+}
+
+export interface AuditChainFilters {
+  from?: string;
+  to?: string;
+}
+
 export interface UserListFilters {
   page?: number;
   size?: number;

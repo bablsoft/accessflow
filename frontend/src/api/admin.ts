@@ -1,6 +1,8 @@
 import { apiClient } from './client';
 import type {
   AiConfig,
+  AuditChainFilters,
+  AuditChainResult,
   AuditLogFilters,
   AuditLogPage,
   CreateAiConfigInput,
@@ -52,6 +54,7 @@ export const auditKeys = {
   all: ['audit'] as const,
   lists: () => ['audit', 'list'] as const,
   list: (filters: AuditLogFilters) => ['audit', 'list', filters] as const,
+  verify: () => ['audit', 'verify'] as const,
 };
 
 export const notificationChannelKeys = {
@@ -137,6 +140,18 @@ export async function listAuditEvents(
   if (typeof filters.size === 'number') params.size = filters.size;
   if (filters.sort) params.sort = filters.sort;
   const { data } = await apiClient.get<AuditLogPage>(AUDIT_BASE, { params });
+  return data;
+}
+
+export async function verifyAuditChain(
+  filters: AuditChainFilters = {},
+): Promise<AuditChainResult> {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  const { data } = await apiClient.get<AuditChainResult>(`${AUDIT_BASE}/verify`, {
+    params,
+  });
   return data;
 }
 
