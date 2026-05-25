@@ -94,6 +94,21 @@ test.describe('SAML SSO login', () => {
     expect(me.status).toBe(200);
     expect(me.data.email).toBe(IDP_EXPECTED_EMAIL);
     expect(me.data.auth_provider).toBe('SAML');
+
+    // SAML-provisioned users cannot enrol locally in TOTP (AF-287) — the
+    // /profile page renders an info alert in place of the Enable 2FA button.
+    // ProfilePage.tsx flips on profile.auth_provider === 'SAML'; the visible
+    // string is `profile.totp.saml_disabled` in src/locales/en.json.
+    await page.goto('/profile');
+    await expect(page.getByRole('heading', { name: 'Profile settings' })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByText(
+        'Two-factor authentication is managed by your SAML identity provider.',
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable 2FA', exact: true })).toHaveCount(0);
   });
 
   test('failure — wrong IdP password keeps the user on the IdP login form', async ({ page }) => {
