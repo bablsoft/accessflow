@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.BootstrapService;
+import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.SetupCommand;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
@@ -20,6 +21,7 @@ import com.bablsoft.accessflow.security.internal.web.model.InvitationPreviewResp
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
 import com.bablsoft.accessflow.security.internal.web.model.LoginResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PasswordResetPreviewResponse;
+import com.bablsoft.accessflow.security.internal.web.model.PublicLocalizationConfigResponse;
 import com.bablsoft.accessflow.security.internal.web.model.ResetPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupStatusResponse;
@@ -66,6 +68,7 @@ class AuthController {
     private final RefreshCookieWriter refreshCookieWriter;
     private final UserInvitationService userInvitationService;
     private final PasswordResetService passwordResetService;
+    private final LocalizationConfigService localizationConfigService;
 
     @GetMapping("/setup-status")
     @Operation(summary = "Report whether the deployment still needs first-time admin setup")
@@ -73,6 +76,17 @@ class AuthController {
     @SecurityRequirements
     SetupStatusResponse setupStatus() {
         return new SetupStatusResponse(bootstrapService.isSetupRequired());
+    }
+
+    @GetMapping("/localization-config")
+    @Operation(summary = "Public localization config used by the login page language selector",
+            description = "Returns the union of all organizations' allow-listed languages plus a "
+                    + "default language. Unauthenticated; safe to call before login. Per-org details "
+                    + "are not exposed.")
+    @ApiResponse(responseCode = "200", description = "Public localization config returned")
+    @SecurityRequirements
+    PublicLocalizationConfigResponse publicLocalizationConfig() {
+        return PublicLocalizationConfigResponse.from(localizationConfigService.getPublicConfig());
     }
 
     @PostMapping("/setup")

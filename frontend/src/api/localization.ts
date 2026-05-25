@@ -2,16 +2,19 @@ import { apiClient } from './client';
 import type {
   LocalizationConfig,
   MeLocalization,
+  PublicLocalizationConfig,
   UpdateLocalizationConfigInput,
 } from '@/types/api';
 
 const ADMIN_BASE = '/api/v1/admin/localization-config';
 const ME_BASE = '/api/v1/me/localization';
+const PUBLIC_BASE = '/api/v1/auth/localization-config';
 
 export const localizationKeys = {
   all: ['localization'] as const,
   admin: () => ['localization', 'admin'] as const,
   me: () => ['localization', 'me'] as const,
+  public: () => ['localization', 'public'] as const,
 };
 
 export async function getAdminLocalizationConfig(): Promise<LocalizationConfig> {
@@ -33,5 +36,10 @@ export async function getMeLocalization(): Promise<MeLocalization> {
 
 export async function updateMeLocalization(language: string): Promise<MeLocalization> {
   const { data } = await apiClient.put<MeLocalization>(ME_BASE, { language });
+  return data;
+}
+
+export async function getPublicLocalizationConfig(): Promise<PublicLocalizationConfig> {
+  const { data } = await apiClient.get<PublicLocalizationConfig>(PUBLIC_BASE);
   return data;
 }

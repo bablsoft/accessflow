@@ -87,6 +87,11 @@ export interface MeLocalization {
   current_language: string;
 }
 
+export interface PublicLocalizationConfig {
+  available_languages: string[];
+  default_language: string;
+}
+
 export interface PageEnvelope<T> {
   content: T[];
   page: number;

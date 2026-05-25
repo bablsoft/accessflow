@@ -17,4 +17,11 @@ public interface LocalizationConfigService {
     LocalizationConfigView getOrDefault(UUID organizationId);
 
     LocalizationConfigView update(UUID organizationId, UpdateLocalizationConfigCommand command);
+
+    /**
+     * Public view exposed to unauthenticated callers (the login page). The {@code availableLanguages}
+     * list is the union across every persisted org, so a multi-tenant deployment never reveals which
+     * organizations exist. Returns {@code ["en"]} / {@code "en"} when no org has saved a config yet.
+     */
+    PublicLocalizationConfigView getPublicConfig();
 }

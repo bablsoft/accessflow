@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigView;
+import com.bablsoft.accessflow.core.api.PublicLocalizationConfigView;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
 import com.bablsoft.accessflow.core.api.UnsupportedLanguageException;
 import com.bablsoft.accessflow.core.api.UpdateLocalizationConfigCommand;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -36,6 +39,33 @@ class DefaultLocalizationConfigService implements LocalizationConfigService {
         return repository.findByOrganizationId(organizationId)
                 .map(DefaultLocalizationConfigService::toView)
                 .orElseGet(() -> defaultView(organizationId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicLocalizationConfigView getPublicConfig() {
+        var rows = repository.findAll();
+        if (rows.isEmpty()) {
+            return new PublicLocalizationConfigView(List.of(DEFAULT_LANGUAGE), DEFAULT_LANGUAGE);
+        }
+        var union = new LinkedHashSet<String>();
+        for (var entity : rows) {
+            if (entity.getAvailableLanguages() != null) {
+                union.addAll(entity.getAvailableLanguages());
+            }
+        }
+        if (union.isEmpty()) {
+            union.add(DEFAULT_LANGUAGE);
+        }
+        var mostRecent = rows.stream()
+                .max(Comparator.comparing(LocalizationConfigEntity::getUpdatedAt,
+                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                .orElseThrow();
+        var defaultLanguage = mostRecent.getDefaultLanguage();
+        if (defaultLanguage == null || defaultLanguage.isBlank()) {
+            defaultLanguage = DEFAULT_LANGUAGE;
+        }
+        return new PublicLocalizationConfigView(List.copyOf(union), defaultLanguage);
     }
 
     @Override

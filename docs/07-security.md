@@ -11,6 +11,18 @@
 - Revocation: invalidated refresh tokens stored in Redis with TTL matching remaining lifetime
 - On access token expiry, frontend automatically calls `POST /auth/refresh` via Axios interceptor
 
+### Public (unauthenticated) endpoints
+
+The `SecurityConfiguration` `permitAll()` list is short and intentional. Every other endpoint requires a valid JWT (or an API key, see below). The current public surface:
+
+- `/auth/login`, `/auth/refresh`, `/auth/logout` — JWT lifecycle.
+- `/auth/setup`, `/auth/setup-status` — first-run wizard.
+- `/auth/localization-config` — read-only `{ available_languages, default_language }` consumed by the login-page language selector. Returns the **union** of allow-lists across all `localization_config` rows, never per-org identity, so a multi-tenant deployment is not forced to disclose which orgs exist. Falls back to `["en"]` / `"en"` on a fresh deployment.
+- `/auth/oauth2/providers`, `/auth/oauth2/exchange`, `/auth/saml/enabled`, `/auth/saml/exchange` — SSO discovery + one-time exchange-code redemption.
+- `/auth/invitations/*`, `/auth/invitations/*/accept`, `/auth/password/forgot`, `/auth/password/reset/*` — invitation + password-reset flows tied to single-use tokens.
+- `/api-docs/**`, `/swagger-ui/**`, `/actuator/health`, `/actuator/info` — docs + probes.
+- `/ws` — WebSocket upgrade (auth happens in `JwtHandshakeInterceptor`, not here).
+
 ### Two-factor authentication (TOTP)
 
 Every LOCAL user can opt in to TOTP-based 2FA from `/profile`. SAML-provisioned users authenticate through their IdP and cannot enrol locally — they rely on the IdP's MFA controls instead.

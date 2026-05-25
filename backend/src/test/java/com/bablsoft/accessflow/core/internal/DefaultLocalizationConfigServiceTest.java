@@ -13,6 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.support.StaticMessageSource;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -159,5 +160,70 @@ class DefaultLocalizationConfigServiceTest {
         assertThatThrownBy(() -> service.update(orgId, new UpdateLocalizationConfigCommand(
                 List.of("en"), "es", "en")))
                 .isInstanceOf(IllegalLocalizationConfigException.class);
+    }
+
+    @Test
+    void getPublicConfigReturnsEnglishDefaultWhenNoRows() {
+        when(repository.findAll()).thenReturn(List.of());
+
+        var view = service.getPublicConfig();
+
+        assertThat(view.availableLanguages()).containsExactly("en");
+        assertThat(view.defaultLanguage()).isEqualTo("en");
+    }
+
+    @Test
+    void getPublicConfigReturnsRowForSingleOrg() {
+        var entity = entity(List.of("en", "es"), "en", Instant.parse("2026-01-01T00:00:00Z"));
+        when(repository.findAll()).thenReturn(List.of(entity));
+
+        var view = service.getPublicConfig();
+
+        assertThat(view.availableLanguages()).containsExactly("en", "es");
+        assertThat(view.defaultLanguage()).isEqualTo("en");
+    }
+
+    @Test
+    void getPublicConfigUnionsAcrossOrgsAndPicksMostRecentDefault() {
+        var older = entity(List.of("en", "es"), "en", Instant.parse("2026-01-01T00:00:00Z"));
+        var newer = entity(List.of("fr", "de", "es"), "fr", Instant.parse("2026-02-01T00:00:00Z"));
+        when(repository.findAll()).thenReturn(List.of(older, newer));
+
+        var view = service.getPublicConfig();
+
+        assertThat(view.availableLanguages()).containsExactlyInAnyOrder("en", "es", "fr", "de");
+        assertThat(view.defaultLanguage()).isEqualTo("fr");
+    }
+
+    @Test
+    void getPublicConfigFallsBackToEnglishWhenRowsHaveBlankDefault() {
+        var entity = entity(List.of("en"), "", Instant.parse("2026-01-01T00:00:00Z"));
+        when(repository.findAll()).thenReturn(List.of(entity));
+
+        var view = service.getPublicConfig();
+
+        assertThat(view.defaultLanguage()).isEqualTo("en");
+    }
+
+    @Test
+    void getPublicConfigFallsBackToEnglishWhenUnionIsEmpty() {
+        var entity = entity(List.of(), "en", Instant.parse("2026-01-01T00:00:00Z"));
+        when(repository.findAll()).thenReturn(List.of(entity));
+
+        var view = service.getPublicConfig();
+
+        assertThat(view.availableLanguages()).containsExactly("en");
+    }
+
+    private static LocalizationConfigEntity entity(List<String> available, String defaultLang,
+                                                   Instant updatedAt) {
+        var entity = new LocalizationConfigEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(UUID.randomUUID());
+        entity.setAvailableLanguages(available);
+        entity.setDefaultLanguage(defaultLang);
+        entity.setAiReviewLanguage(defaultLang);
+        entity.setUpdatedAt(updatedAt);
+        return entity;
     }
 }

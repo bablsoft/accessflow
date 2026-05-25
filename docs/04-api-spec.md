@@ -29,6 +29,7 @@
 | `POST` | `/auth/refresh` | Exchange refresh token for new access token |
 | `POST` | `/auth/logout` | Revoke current refresh token |
 | `GET` | `/auth/setup-status` | Public — `{ "setup_required": boolean }` for the first-run wizard |
+| `GET` | `/auth/localization-config` | Public — `{ "available_languages": string[], "default_language": string }` so the login-page language selector can offer only the languages an admin has allowed (union across all orgs; per-tenant identity is not disclosed) |
 | `POST` | `/auth/setup` | Public — first-run create org + admin; returns a `LoginResponse` and sets the refresh cookie so the SPA can chain into the SMTP setup step |
 | `GET` | `/auth/invitations/{token}` | Public — preview a pending invitation (email, role, organization, expiry) |
 | `POST` | `/auth/invitations/{token}/accept` | Public — set a password and activate the invited account |
@@ -98,6 +99,20 @@ Exchanges the `refresh_token` cookie for a new access token. Reads the refresh t
 Revokes the current refresh token and clears the cookie. Reads the refresh token from the `refresh_token` cookie; no request body.
 
 **Response 204:** No content. The response sets `refresh_token=` with `Max-Age=0` to clear the cookie. Returns 204 even when no cookie is present, so logout is idempotent.
+
+### GET /auth/localization-config
+
+Public endpoint consumed by the login-page language selector so a logged-out user can pick a UI language before signing in. The body is the **union** of every persisted org's `available_languages`, plus the `default_language` from the most-recently-updated row — never per-org details, so a multi-tenant deployment is not forced to disclose which tenants exist. Returns `{ "available_languages": ["en"], "default_language": "en" }` when no admin has saved a `localization_config` row yet (fresh deployment).
+
+**Response 200:**
+```json
+{
+  "available_languages": ["en", "es"],
+  "default_language": "en"
+}
+```
+
+The list is rendered by the `LanguageSwitcher` component in `mode="public"`; selection only changes `i18n.changeLanguage` and the `preferencesStore` (localStorage) — the per-user `users.preferred_language` row is only written after sign-in via `PUT /api/v1/me/localization`.
 
 ---
 

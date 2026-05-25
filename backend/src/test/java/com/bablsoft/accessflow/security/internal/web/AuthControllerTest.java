@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.BootstrapService;
+import com.bablsoft.accessflow.core.api.LocalizationConfigService;
+import com.bablsoft.accessflow.core.api.PublicLocalizationConfigView;
 import com.bablsoft.accessflow.core.api.SetupResult;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -30,6 +32,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,6 +55,7 @@ class AuthControllerTest {
     private PasswordEncoder passwordEncoder;
     private UserInvitationService userInvitationService;
     private PasswordResetService passwordResetService;
+    private LocalizationConfigService localizationConfigService;
     private AuthController controller;
 
     private final RequestAuditContext auditContext =
@@ -66,15 +70,27 @@ class AuthControllerTest {
         passwordEncoder = mock(PasswordEncoder.class);
         userInvitationService = mock(UserInvitationService.class);
         passwordResetService = mock(PasswordResetService.class);
+        localizationConfigService = mock(LocalizationConfigService.class);
         controller = new AuthController(authenticationService, auditLogService, userQueryService,
                 bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService,
-                passwordResetService);
+                passwordResetService, localizationConfigService);
     }
 
     @Test
     void setupStatusDelegatesToBootstrapService() {
         when(bootstrapService.isSetupRequired()).thenReturn(true);
         assertThat(controller.setupStatus().setupRequired()).isTrue();
+    }
+
+    @Test
+    void publicLocalizationConfigMapsServiceView() {
+        when(localizationConfigService.getPublicConfig())
+                .thenReturn(new PublicLocalizationConfigView(List.of("en", "es"), "en"));
+
+        var response = controller.publicLocalizationConfig();
+
+        assertThat(response.availableLanguages()).containsExactly("en", "es");
+        assertThat(response.defaultLanguage()).isEqualTo("en");
     }
 
     @Test

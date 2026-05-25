@@ -214,6 +214,26 @@ class LocalizationControllersIntegrationTest {
         assertThat(put).hasStatus(400);
     }
 
+    @Test
+    void publicLocalizationConfigUnauthenticatedReturnsEnglishWhenNoConfigSaved() {
+        var result = mvc.get().uri("/api/v1/auth/localization-config").exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.default_language").asString().isEqualTo("en");
+        assertThat(result).bodyJson().extractingPath("$.available_languages[0]").asString().isEqualTo("en");
+    }
+
+    @Test
+    void publicLocalizationConfigUnauthenticatedReflectsSavedAllowList() {
+        configureOrg("en", "es");
+
+        var result = mvc.get().uri("/api/v1/auth/localization-config").exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.default_language").asString().isEqualTo("en");
+        assertThat(result).bodyJson().extractingPath("$.available_languages").asArray().contains("en", "es");
+    }
+
     private void configureOrg(String... languages) {
         var available = String.join("\",\"", languages);
         var body = "{\"available_languages\":[\"" + available
