@@ -159,6 +159,8 @@ export function AuditLogPage() {
             setPage(0);
           }}
           style={{ width: 220 }}
+          showSearch
+          optionFilterProp="label"
           options={[
             { value: 'all', label: t('admin.audit.filter_all_actions') },
             ...ACTIONS.map((a) => ({ value: a, label: a })),
@@ -171,6 +173,8 @@ export function AuditLogPage() {
             setPage(0);
           }}
           style={{ width: 200 }}
+          showSearch
+          optionFilterProp="label"
           options={[
             { value: 'all', label: t('admin.audit.filter_all_resources') },
             ...RESOURCE_TYPES.map((r) => ({ value: r, label: r })),

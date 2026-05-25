@@ -51,11 +51,15 @@ async function waitForAuditListReady(page: Page): Promise<void> {
 }
 
 // Drive the first AntD Select in the filters bar (the Action filter). The
-// listbox renders in a portal at the document root, not inside the page
-// component, so the option click goes against `page`.
+// Select carries `showSearch + optionFilterProp="label"` because the action
+// list has 20+ options that AntD virtualizes — without typing into the
+// search input the desired option is never DOM-resident, so `.first()` on
+// `.ant-select-item-option` times out. Typing the label narrows the virtual
+// list to a single, immediately-rendered row.
 async function selectActionFilter(page: Page, optionLabel: string): Promise<void> {
   const filtersBar = page.locator('.ant-select').first();
   await filtersBar.click();
+  await filtersBar.locator('input').fill(optionLabel);
   await page
     .locator('.ant-select-item-option')
     .filter({ hasText: new RegExp(`^${optionLabel}$`) })
