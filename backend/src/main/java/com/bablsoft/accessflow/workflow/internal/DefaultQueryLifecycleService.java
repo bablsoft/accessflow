@@ -72,7 +72,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             throw new AccessDeniedException(msg("error.query_not_owned_by_caller"));
         }
         var current = query.status();
-        if (current != QueryStatus.PENDING_AI && current != QueryStatus.PENDING_REVIEW) {
+        boolean isScheduledApproved = current == QueryStatus.APPROVED && query.scheduledFor() != null;
+        if (current != QueryStatus.PENDING_AI
+                && current != QueryStatus.PENDING_REVIEW
+                && !isScheduledApproved) {
             throw new QueryNotCancellableException(query.id(), current);
         }
         queryRequestStateService.transitionTo(query.id(), current, QueryStatus.CANCELLED);
@@ -102,6 +105,24 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         if (query.status() != QueryStatus.APPROVED) {
             throw new QueryNotExecutableException(query.id(), query.status());
         }
+        return doExecute(query, command.callerUserId(), null);
+    }
+
+    @Override
+    public void executeScheduled(UUID queryRequestId) {
+        var query = queryRequestLookupService.findById(queryRequestId)
+                .orElseThrow(() -> new QueryRequestNotFoundException(queryRequestId));
+        if (query.status() != QueryStatus.APPROVED || query.scheduledFor() == null
+                || query.scheduledFor().isAfter(Instant.now())) {
+            log.debug("Skipping scheduled execution for {} — status={}, scheduledFor={}",
+                    query.id(), query.status(), query.scheduledFor());
+            return;
+        }
+        doExecute(query, query.submittedByUserId(), "scheduled");
+    }
+
+    private ExecutionOutcome doExecute(QueryRequestSnapshot query, UUID actorUserId,
+                                       String trigger) {
         var startedAt = Instant.now();
         try {
             var restrictedColumns = permissionLookupService
@@ -125,10 +146,14 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             queryRequestStateService.recordExecutionOutcome(new RecordExecutionCommand(
                     query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs, null,
                     startedAt, completedAt));
-            recordAudit(AuditAction.QUERY_EXECUTED, query.id(), command.callerUserId(),
-                    command.callerOrganizationId(), Map.of(
-                            "rows_affected", rowsAffected,
-                            "duration_ms", durationMs));
+            var successMetadata = new HashMap<String, Object>();
+            successMetadata.put("rows_affected", rowsAffected);
+            successMetadata.put("duration_ms", durationMs);
+            if (trigger != null) {
+                successMetadata.put("trigger", trigger);
+            }
+            recordAudit(AuditAction.QUERY_EXECUTED, query.id(), actorUserId,
+                    query.organizationId(), successMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
                     query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED));
             return new ExecutionOutcome(query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs);
@@ -146,8 +171,11 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                 failureMetadata.put("sql_state", qef.sqlState());
                 failureMetadata.put("vendor_code", qef.vendorCode());
             }
-            recordAudit(AuditAction.QUERY_FAILED, query.id(), command.callerUserId(),
-                    command.callerOrganizationId(), failureMetadata);
+            if (trigger != null) {
+                failureMetadata.put("trigger", trigger);
+            }
+            recordAudit(AuditAction.QUERY_FAILED, query.id(), actorUserId,
+                    query.organizationId(), failureMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
                     query.id(), null, durationMs, QueryStatus.FAILED));
             return new ExecutionOutcome(query.id(), QueryStatus.FAILED, null, durationMs);

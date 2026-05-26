@@ -58,4 +58,13 @@ public interface QueryRequestRepository
               AND q.created_at + (rp.approval_timeout_hours || ' hours')::interval < :now
             """, nativeQuery = true)
     List<UUID> findTimedOutPendingReviewIds(@Param("now") Instant now);
+
+    @Query(value = """
+            SELECT q.id
+            FROM query_requests q
+            WHERE q.status = 'APPROVED'::query_status
+              AND q.scheduled_for IS NOT NULL
+              AND q.scheduled_for <= :now
+            """, nativeQuery = true)
+    List<UUID> findScheduledDueIds(@Param("now") Instant now);
 }

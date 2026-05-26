@@ -226,6 +226,7 @@ com.bablsoft.accessflow/
 | `AUDIT_HMAC_KEY` | Optional. Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
+| `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service (default: `PT1M`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
 | `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` | HikariCP `connectionTimeout` for customer-DB pools (default `30s`). |
 | `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | HikariCP `idleTimeout` (default `10m`). |
@@ -299,7 +300,11 @@ com.bablsoft.accessflow/
                                             datasource.ai_analysis_enabled=false;
                                             APPROVED only when plan.requires_human_approval=false)
   PENDING_REVIEW → CANCELLED (submitter only)
-  APPROVED → FAILED (execution error)
+  APPROVED       → CANCELLED (submitter only, when scheduled_for is set and the
+                              deferred run has not yet fired — AF-345)
+  APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now() —
+                              system-initiated, audit metadata trigger=scheduled)
+  APPROVED       → FAILED    (execution error)
   ```
 
   Illegal transitions must throw a domain exception, not silently succeed.

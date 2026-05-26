@@ -351,7 +351,7 @@ class DefaultQuerySubmissionServiceTest {
         stubPersist();
 
         service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
-                userId, organizationId, false));
+                userId, organizationId, false, null));
 
         ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(captor.capture());
@@ -361,10 +361,27 @@ class DefaultQuerySubmissionServiceTest {
         assertThat(cmd.sqlText()).isEqualTo("SELECT 1");
         assertThat(cmd.queryType()).isEqualTo(QueryType.SELECT);
         assertThat(cmd.justification()).isEqualTo("ticket-42");
+        assertThat(cmd.scheduledFor()).isNull();
+    }
+
+    @Test
+    void persistsScheduledForWhenSubmissionInputProvidesIt() {
+        stubParse("SELECT 1", QueryType.SELECT);
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null);
+        stubPersist();
+
+        var futureInstant = java.time.Instant.now().plusSeconds(600);
+        service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
+                userId, organizationId, false, futureInstant));
+
+        ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
+        verify(queryRequestPersistenceService).submit(captor.capture());
+        assertThat(captor.getValue().scheduledFor()).isEqualTo(futureInstant);
     }
 
     private SubmissionInput input(String sql, boolean isAdmin) {
-        return new SubmissionInput(datasourceId, sql, null, userId, organizationId, isAdmin);
+        return new SubmissionInput(datasourceId, sql, null, userId, organizationId, isAdmin, null);
     }
 
     private void stubParse(String sql, QueryType type) {

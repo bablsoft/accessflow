@@ -143,7 +143,7 @@ public class McpToolService {
         var claims = currentUser.requireClaims();
         var input = new QuerySubmissionService.SubmissionInput(
                 datasourceId, sql, justification,
-                claims.userId(), claims.organizationId(), currentUser.isAdmin());
+                claims.userId(), claims.organizationId(), currentUser.isAdmin(), null);
         var result = querySubmissionService.submit(input);
         return new McpQuerySubmission(result.id(), result.status().name());
     }

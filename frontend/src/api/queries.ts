@@ -17,6 +17,7 @@ export interface SubmitQueryInput {
   datasource_id: string;
   sql: string;
   justification: string;
+  scheduled_for?: string | null;
 }
 
 export interface AnalyzeQueryInput {
