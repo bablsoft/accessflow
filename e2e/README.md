@@ -272,6 +272,34 @@ override is invisible to them. If you add a new spec that executes a
 long-running SQL statement against the seeded datasource, bear this
 cap in mind.
 
+`tests/auth-guard-roles.spec.ts` (AF-288) locks down the React
+[`AuthGuard`](../frontend/src/components/common/AuthGuard.tsx) — the only thing
+keeping non-admins out of admin pages on the client. `beforeAll` invites a
+per-run unique ANALYST user (the realistic non-admin / non-reviewer role) via
+the admin invitation API + Mailcrab + the public accept endpoint, so each test
+starts from a known role state in a fresh Playwright context. Four scenarios:
+
+1. **Anonymous → /login** — no session; visiting `/editor` waits for the URL
+   to flip to `/login` and asserts the form rendered (catches the case where
+   the SPA navigates but the LoginPage fails to mount).
+2. **ANALYST → /admin/users redirects to /editor** — UI-login as the invited
+   analyst, navigate to `/admin/users` (guarded by `requireRole='ADMIN'`),
+   wait for the URL to flip to `/editor`, and assert the `<h1>SQL editor</h1>`
+   rendered. Asserting the heading — not just the URL — distinguishes a real
+   render from a momentary pre-redirect URL flash.
+3. **ANALYST → /reviews redirects to /editor** — same flow against `/reviews`
+   (guarded by `requireRole=['REVIEWER','ADMIN']`).
+4. **ADMIN reaches all three** — UI-login as the bootstrap admin, navigate to
+   `/editor`, `/reviews`, and `/admin/users` in sequence; assert each URL
+   stays and the route-specific `<h1>` ("SQL editor", "Review queue",
+   "Users") renders. Both assertions together prove the page actually loaded
+   instead of bouncing through a redirect.
+
+Backend RBAC (403 on the admin endpoints when called with a non-admin token)
+is covered indirectly by `admin-users-invitations.spec.ts`,
+`admin-users-crud.spec.ts`, and `reviews-self-approval-blocked.spec.ts` — this
+spec stays single-purpose on the React guard.
+
 `tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
 (`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a
 pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
