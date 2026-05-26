@@ -154,6 +154,7 @@ class QueryReadControllerIntegrationTest {
         var item = new QueryListItemView(qid, dsId, "Prod PG", analyst.getId(),
                 analyst.getEmail(), analyst.getDisplayName(),
                 QueryType.SELECT, QueryStatus.PENDING_AI, RiskLevel.LOW, 12, false,
+                null,
                 Instant.parse("2026-05-01T10:00:00Z"));
         var page = new com.bablsoft.accessflow.core.api.PageResponse<>(
                 List.of(item), 0, 20, 1L, 1);

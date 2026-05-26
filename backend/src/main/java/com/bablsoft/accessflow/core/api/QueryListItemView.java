@@ -20,5 +20,6 @@ public record QueryListItemView(
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
         boolean aiFailed,
+        Instant scheduledFor,
         Instant createdAt) {
 }

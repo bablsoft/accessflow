@@ -52,6 +52,7 @@ export default defineConfig({
         'src/api/setup.ts',
         'src/hooks/useSchemaIntrospect.ts',
         'src/hooks/useWebSocket.ts',
+        'src/pages/queries/buildTimelineStages.ts',
         'src/realtime/websocketManager.ts',
         'src/store/authStore.ts',
         'src/store/setupStore.ts',

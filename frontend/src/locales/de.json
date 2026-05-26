@@ -346,7 +346,9 @@
       "col_created": "Erstellt",
       "count_label": "{{filtered}} von {{total}}",
       "export_failed": "Export fehlgeschlagen. Bitte erneut versuchen.",
-      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verfeinern Sie die Filter, um alle Ergebnisse zu erfassen."
+      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verfeinern Sie die Filter, um alle Ergebnisse zu erfassen.",
+      "scheduled_for_tooltip": "Geplante Ausführung um {{when}}",
+      "scheduled_for_aria": "Geplante Ausführung"
     },
     "detail": {
       "breadcrumb_queries": "Abfragen",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "geplant",
       "scheduled_banner_title": "Geplante Ausführung",
       "scheduled_banner_body": "AccessFlow führt diese genehmigte Abfrage automatisch um {{when}} aus. Sie können sie weiterhin abbrechen oder jetzt ausführen.",
+      "scheduled_banner_title_pending": "Geplante Ausführung",
+      "scheduled_banner_body_pending": "Bei Genehmigung wird diese Abfrage automatisch um {{when}} ausgeführt.",
+      "timeline_scheduled_label": "Geplante Ausführung",
       "on_approve_success": "Genehmigt · zur Ausführung weitergeleitet",
       "on_reject_success": "Abgelehnt · Einreicher benachrichtigt",
       "on_cancel_success": "Abfrage abgebrochen",

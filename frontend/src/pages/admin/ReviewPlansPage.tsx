@@ -230,6 +230,7 @@ export function ReviewPlansPage() {
             rowKey="id"
             size="middle"
             dataSource={plans}
+            scroll={{ x: 'max-content' }}
             pagination={{ pageSize: 12 }}
             columns={[
               {

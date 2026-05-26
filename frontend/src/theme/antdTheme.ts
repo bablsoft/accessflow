@@ -50,6 +50,16 @@ export const lightTheme: ThemeConfig = {
       itemSelectedColor: '#18181b',
       itemColor: '#52525b',
     },
+    Table: {
+      headerBg: '#f4f4f5',
+      headerColor: '#52525b',
+      headerSplitColor: '#ececef',
+      rowHoverBg: '#f9f9fb',
+      borderColor: '#ececef',
+      headerBorderRadius: 8,
+      cellPaddingBlock: 12,
+      cellPaddingInline: 14,
+    },
   },
 };
 
@@ -87,6 +97,16 @@ export const darkTheme: ThemeConfig = {
       itemHoverBg: '#1c1c20',
       itemSelectedColor: '#fafafa',
       itemColor: '#d4d4d8',
+    },
+    Table: {
+      headerBg: '#1c1c20',
+      headerColor: '#d4d4d8',
+      headerSplitColor: '#232328',
+      rowHoverBg: '#1a1a1f',
+      borderColor: '#232328',
+      headerBorderRadius: 8,
+      cellPaddingBlock: 12,
+      cellPaddingInline: 14,
     },
   },
 };

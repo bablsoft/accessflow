@@ -536,6 +536,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
         loading={permissionsQuery.isLoading}
         dataSource={permissions}
         pagination={false}
+        scroll={{ x: 'max-content' }}
         columns={[
           {
             title: t('datasources.settings.perm_col_user'),

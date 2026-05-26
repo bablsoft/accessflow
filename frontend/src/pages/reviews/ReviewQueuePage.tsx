@@ -319,6 +319,7 @@ export function ReviewQueuePage() {
             columns={columns}
             pagination={false}
             size="middle"
+            scroll={{ x: 'max-content' }}
             onRow={onRowClick}
             rowSelection={{
               selectedRowKeys,

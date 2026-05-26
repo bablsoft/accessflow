@@ -346,7 +346,9 @@
       "col_created": "Créée",
       "count_label": "{{filtered}} sur {{total}}",
       "export_failed": "Échec de l’export. Veuillez réessayer.",
-      "export_truncated": "Export limité à 50 000 lignes. Affinez les filtres pour récupérer l’ensemble des résultats."
+      "export_truncated": "Export limité à 50 000 lignes. Affinez les filtres pour récupérer l’ensemble des résultats.",
+      "scheduled_for_tooltip": "Exécution planifiée à {{when}}",
+      "scheduled_for_aria": "Exécution planifiée"
     },
     "detail": {
       "breadcrumb_queries": "Requêtes",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "planifiée",
       "scheduled_banner_title": "Planifiée pour une exécution ultérieure",
       "scheduled_banner_body": "AccessFlow exécutera automatiquement cette requête approuvée à {{when}}. Vous pouvez toujours l'annuler ou l'exécuter maintenant.",
+      "scheduled_banner_title_pending": "Exécution planifiée",
+      "scheduled_banner_body_pending": "Si elle est approuvée, cette requête sera exécutée automatiquement à {{when}}.",
+      "timeline_scheduled_label": "Exécution planifiée",
       "on_approve_success": "Approuvée · transmise à l'exécution",
       "on_reject_success": "Rejetée · auteur notifié",
       "on_cancel_success": "Requête annulée",

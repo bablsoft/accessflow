@@ -566,6 +566,8 @@ Inside the envelope, every statement must classify as `INSERT`, `UPDATE`, or `DE
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 
+Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), and `created_at`. The full SQL text and AI analysis are only on `GET /queries/{id}`.
+
 ### GET /queries/export.csv — CSV export
 
 Streams a CSV of query requests matching the same filter set as `GET /queries`, minus pagination

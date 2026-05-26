@@ -112,14 +112,26 @@ async function waitForQueryStatus(
 // Wait until the GET /api/v1/queries response that backs the list page has
 // landed and the page-level Skeleton has been replaced by the real table
 // body. Anchors every subsequent assertion to a settled DOM.
-async function waitForListReady(page: Page): Promise<void> {
-  await page.waitForResponse(
+//
+// Pass `trigger` when the GET is fired by a user action (filter change, etc.)
+// so the response listener is registered *before* the action runs — otherwise
+// the response can land in the gap between `click()` returning and
+// `waitForResponse()` registering, and CI times out (race seen under load).
+async function waitForListReady(
+  page: Page,
+  trigger?: () => Promise<void>,
+): Promise<void> {
+  const respPromise = page.waitForResponse(
     (r) =>
       r.request().method() === 'GET' &&
       /\/api\/v1\/queries(\?|$)/.test(r.url()) &&
       r.ok(),
     { timeout: 15_000 },
   );
+  if (trigger) {
+    await trigger();
+  }
+  await respPromise;
   // The Skeleton lives inside the same scroll container; once it's gone the
   // Table has mounted with the real rows (or the empty-state).
   await expect(page.locator('.ant-skeleton-active')).toHaveCount(0, {
@@ -217,11 +229,12 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
     // PENDING_REVIEW in beforeAll (AF-307: skip path advances out of PENDING_AI).
     const statusSelect = page.getByRole('combobox').nth(0);
     await statusSelect.click();
-    await page
-      .locator('.ant-select-item-option')
-      .filter({ hasText: /^Pending review$/ })
-      .click();
-    await waitForListReady(page);
+    await waitForListReady(page, () =>
+      page
+        .locator('.ant-select-item-option')
+        .filter({ hasText: /^Pending review$/ })
+        .click(),
+    );
 
     await expect(
       page.getByText(queryAId.slice(0, 8), { exact: true }),
@@ -237,11 +250,12 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
     // Fourth combobox in the strip (status, type, risk, datasource).
     const datasourceSelect = page.getByRole('combobox').nth(3);
     await datasourceSelect.click();
-    await page
-      .locator('.ant-select-item-option')
-      .filter({ hasText: datasourceA.name })
-      .click();
-    await waitForListReady(page);
+    await waitForListReady(page, () =>
+      page
+        .locator('.ant-select-item-option')
+        .filter({ hasText: datasourceA.name })
+        .click(),
+    );
 
     await expect(
       page.getByText(queryAId.slice(0, 8), { exact: true }),

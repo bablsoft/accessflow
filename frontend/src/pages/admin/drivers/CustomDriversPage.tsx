@@ -168,6 +168,7 @@ export default function CustomDriversPage() {
           columns={columns}
           pagination={false}
           size="middle"
+          scroll={{ x: 'max-content' }}
         />
       )}
       <CustomDriverUploadModal open={uploadOpen} onClose={() => setUploadOpen(false)} />

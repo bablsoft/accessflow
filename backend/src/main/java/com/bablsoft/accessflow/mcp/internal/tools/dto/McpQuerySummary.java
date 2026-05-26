@@ -13,6 +13,7 @@ public record McpQuerySummary(
         String status,
         String aiRiskLevel,
         Integer aiRiskScore,
+        Instant scheduledFor,
         Instant createdAt
 ) {
     public static McpQuerySummary from(QueryListItemView v) {
@@ -24,6 +25,7 @@ public record McpQuerySummary(
                 v.status().name(),
                 v.aiRiskLevel() == null ? null : v.aiRiskLevel().name(),
                 v.aiRiskScore(),
+                v.scheduledFor(),
                 v.createdAt()
         );
     }

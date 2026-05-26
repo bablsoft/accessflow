@@ -195,6 +195,7 @@ export function AiConfigListPage() {
             columns={columns}
             dataSource={configs}
             pagination={false}
+            scroll={{ x: 'max-content' }}
             aria-label={t('admin.ai_configs.title')}
           />
         )}

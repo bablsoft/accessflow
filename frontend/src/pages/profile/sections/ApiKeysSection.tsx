@@ -162,6 +162,7 @@ export function ApiKeysSection() {
           columns={columns}
           pagination={false}
           size="small"
+          scroll={{ x: 'max-content' }}
           aria-label={t('profile.api_keys.title')}
         />
       ) : (
