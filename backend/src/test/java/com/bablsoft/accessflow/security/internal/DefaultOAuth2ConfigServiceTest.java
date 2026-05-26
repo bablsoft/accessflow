@@ -366,6 +366,170 @@ class DefaultOAuth2ConfigServiceTest {
         verify(publisher).publishEvent(any(OAuth2ConfigDeletedEvent.class));
     }
 
+    @Test
+    void updateGithubEnterpriseHappyPathPersistsBaseUrl() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("https://gh.acme.corp")
+                .active(true).build());
+
+        assertThat(view.baseUrl()).isEqualTo("https://gh.acme.corp");
+        assertThat(view.active()).isTrue();
+    }
+
+    @Test
+    void updateGitlabEnterpriseHappyPathPersistsBaseUrl() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITLAB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.GITLAB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("https://gl.acme.corp:8443")
+                .active(true).build());
+
+        assertThat(view.baseUrl()).isEqualTo("https://gl.acme.corp:8443");
+        assertThat(view.active()).isTrue();
+    }
+
+    @Test
+    void updateGithubEnterpriseRejectsActivationWithoutBaseUrl() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("base_url required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE,
+                command().clientId("c").clientSecret("s").active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("base_url");
+    }
+
+    @Test
+    void updateGitlabEnterpriseRejectsActivationWithoutBaseUrl() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITLAB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("base_url required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITLAB_ENTERPRISE,
+                command().clientId("c").clientSecret("s").active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("base_url");
+    }
+
+    @Test
+    void updateGithubEnterpriseRejectsHttpBaseUrl() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("https required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("http://gh.acme.corp")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class);
+    }
+
+    @Test
+    void updateGithubEnterpriseRejectsBaseUrlWithPath() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("origin only");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("https://gh.acme.corp/path")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class);
+    }
+
+    @Test
+    void updateGithubEnterpriseRejectsBaseUrlWithQuery() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("origin only");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("https://gh.acme.corp/?x=1")
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class);
+    }
+
+    @Test
+    void updateGithubEnterpriseAcceptsBaseUrlWithRootSlash() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(OAuth2ConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(encryptionService.encrypt("s")).thenReturn("E");
+
+        var view = service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .baseUrl("https://gh.acme.corp/")
+                .active(true).build());
+
+        assertThat(view.baseUrl()).isEqualTo("https://gh.acme.corp/");
+        assertThat(view.active()).isTrue();
+    }
+
+    @Test
+    void updateGithubEnterpriseRejectsActivationWithReadOrgScopeMissingWhenAllowlistSet() {
+        when(repository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.empty());
+        when(encryptionService.encrypt("s")).thenReturn("E");
+        when(messageSource.getMessage(anyString(), any(), any())).thenReturn("read:org required");
+
+        assertThatThrownBy(() -> service.update(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, command()
+                .clientId("c").clientSecret("s")
+                .scopesOverride("read:user user:email")
+                .baseUrl("https://gh.acme.corp")
+                .allowedOrganizations(List.of("platform-team"))
+                .active(true).build()))
+                .isInstanceOf(OAuth2ConfigInvalidException.class)
+                .hasMessageContaining("read:org");
+    }
+
+    @Test
+    void listActiveGithubEnterpriseFallsBackToBuiltInDisplayName() {
+        var enabled = seeded(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        enabled.setActive(true);
+        when(repository.findAllByOrganizationIdAndActiveTrue(orgId))
+                .thenReturn(List.of(enabled));
+
+        var active = service.listActive(orgId);
+
+        assertThat(active).singleElement().satisfies(s -> {
+            assertThat(s.provider()).isEqualTo(OAuth2ProviderType.GITHUB_ENTERPRISE);
+            assertThat(s.displayName()).isEqualTo("GitHub Enterprise");
+        });
+    }
+
+    @Test
+    void listActiveGitlabEnterpriseUsesDisplayNameOverride() {
+        var enabled = seeded(OAuth2ProviderType.GITLAB_ENTERPRISE);
+        enabled.setActive(true);
+        enabled.setDisplayName("Acme GitLab");
+        when(repository.findAllByOrganizationIdAndActiveTrue(orgId))
+                .thenReturn(List.of(enabled));
+
+        var active = service.listActive(orgId);
+
+        assertThat(active).singleElement().satisfies(s -> {
+            assertThat(s.provider()).isEqualTo(OAuth2ProviderType.GITLAB_ENTERPRISE);
+            assertThat(s.displayName()).isEqualTo("Acme GitLab");
+        });
+    }
+
     private OAuth2ConfigEntity seeded(OAuth2ProviderType provider) {
         var entity = new OAuth2ConfigEntity();
         entity.setId(UUID.randomUUID());
@@ -396,6 +560,7 @@ class DefaultOAuth2ConfigServiceTest {
         private String emailVerifiedAttribute;
         private String displayNameAttribute;
         private String groupsAttribute;
+        private String baseUrl;
         private List<String> allowedOrganizations;
         private List<String> allowedEmailDomains;
         private UserRoleType defaultRole = UserRoleType.ANALYST;
@@ -416,6 +581,7 @@ class DefaultOAuth2ConfigServiceTest {
         CommandBuilder emailVerifiedAttribute(String v) { this.emailVerifiedAttribute = v; return this; }
         CommandBuilder displayNameAttribute(String v) { this.displayNameAttribute = v; return this; }
         CommandBuilder groupsAttribute(String v) { this.groupsAttribute = v; return this; }
+        CommandBuilder baseUrl(String v) { this.baseUrl = v; return this; }
         CommandBuilder allowedOrganizations(List<String> v) { this.allowedOrganizations = v; return this; }
         CommandBuilder allowedEmailDomains(List<String> v) { this.allowedEmailDomains = v; return this; }
         CommandBuilder defaultRole(UserRoleType v) { this.defaultRole = v; return this; }
@@ -426,7 +592,7 @@ class DefaultOAuth2ConfigServiceTest {
                     clientId, clientSecret, scopesOverride, tenantId,
                     displayName, authorizationUri, tokenUri, userInfoUri, jwkSetUri, issuerUri,
                     userNameAttribute, emailAttribute, emailVerifiedAttribute,
-                    displayNameAttribute, groupsAttribute,
+                    displayNameAttribute, groupsAttribute, baseUrl,
                     allowedOrganizations, allowedEmailDomains, defaultRole, active);
         }
     }

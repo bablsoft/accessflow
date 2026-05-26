@@ -102,6 +102,7 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.GITHUB, "gh-id", "gh-sec",
                 "read:user user:email read:org", null,
                 null, null, null, null, null, null, null, null, null, null, null,
+                null,
                 List.of("bablsoft"), List.of("example.com"),
                 UserRoleType.ANALYST, true)));
 
@@ -116,7 +117,7 @@ class OAuth2ReconcilerTest {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
                 new OAuth2Spec(null, "x", "y", null, null,
                         null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, true))))
+                        null, null, null, null, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider");
     }
@@ -139,6 +140,7 @@ class OAuth2ReconcilerTest {
         reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
                 OAuth2ProviderType.GOOGLE, "id", "sec", null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
+                null,
                 null, null, null, null)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
@@ -173,9 +175,52 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.OIDC, "c", "s", null, null,
                 null, "http://idp/authorize", "http://idp/token",
                 "http://idp/userinfo", "http://idp/jwks", "http://idp",
-                null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("displayName");
+    }
+
+    @Test
+    void rejectsGithubEnterpriseSpecMissingBaseUrl() {
+        assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.GITHUB_ENTERPRISE, "c", "s", null, null,
+                null, null, null, null, null, null,
+                null, null, null, null, null,
+                null,
+                null, null, UserRoleType.ANALYST, true))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("baseUrl");
+    }
+
+    @Test
+    void rejectsGitlabEnterpriseSpecMissingBaseUrl() {
+        assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.GITLAB_ENTERPRISE, "c", "s", null, null,
+                null, null, null, null, null, null,
+                null, null, null, null, null,
+                null,
+                null, null, UserRoleType.ANALYST, true))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("baseUrl");
+    }
+
+    @Test
+    void reconcilesGithubEnterpriseSpecAndPlumbsBaseUrl() {
+        when(oauth2ConfigService.getOrDefault(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB_ENTERPRISE)))
+                .thenReturn(defaultView(OAuth2ProviderType.GITHUB_ENTERPRISE));
+        when(oauth2ConfigService.update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB_ENTERPRISE),
+                any(UpdateOAuth2ConfigCommand.class))).thenAnswer(inv -> null);
+
+        reconciler.reconcile(ORG_ID, List.of(new OAuth2Spec(
+                OAuth2ProviderType.GITHUB_ENTERPRISE, "gh-id", "gh-sec", null, null,
+                null, null, null, null, null, null,
+                null, null, null, null, null,
+                "https://gh.acme.corp",
+                null, null, UserRoleType.ANALYST, true)));
+
+        var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
+        verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB_ENTERPRISE), captor.capture());
+        assertThat(captor.getValue().baseUrl()).isEqualTo("https://gh.acme.corp");
     }
 
     @Test
@@ -184,14 +229,14 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.OIDC, "c", "s", null, null,
                 "Mock", "http://idp/authorize", null,
                 "http://idp/userinfo", "http://idp/jwks", "http://idp",
-                null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("tokenUri");
     }
 
     private static OAuth2ConfigView defaultView(OAuth2ProviderType provider) {
         return new OAuth2ConfigView(UUID.randomUUID(), ORG_ID, provider, null, false, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 List.of(), List.of(), UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
     }
 
@@ -199,7 +244,7 @@ class OAuth2ReconcilerTest {
         return new OAuth2Spec(
                 provider, clientId, clientSecret, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, UserRoleType.REVIEWER, true);
+                null, null, null, UserRoleType.REVIEWER, true);
     }
 
     private static OAuth2Spec oidcSpec() {
@@ -212,6 +257,7 @@ class OAuth2ReconcilerTest {
                 "http://idp/jwks",
                 "http://idp",
                 "sub", "email", "email_verified", "name", "groups",
+                null,
                 null, null, UserRoleType.ANALYST, true);
     }
 }

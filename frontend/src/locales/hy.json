@@ -197,7 +197,10 @@
       "issuer_uri_required": "Թողարկողի URL-ը պարտադիր է։",
       "uri_invalid": "Պետք է լինի վավեր http(s) URL։",
       "uri_max": "URL-ը չպետք է գերազանցի 2048 նիշը։",
-      "attribute_max": "Claim-ի անունը չպետք է գերազանցի 255 նիշը։"
+      "attribute_max": "Claim-ի անունը չպետք է գերազանցի 255 նիշը։",
+      "base_url_required": "Սերվերի հիմնական URL-ը պարտադիր է։",
+      "base_url_invalid": "Սերվերի հիմնական URL-ը պետք է լինի վավեր https URL։",
+      "base_url_must_be_origin": "Սերվերի հիմնական URL-ը պետք է լինի ծագում (սխեմա + հոստ + ոչ պարտադիր պորտ) — առանց ուղու, հարցումի կամ բեկորի։"
     },
     "system_smtp": {
       "host_required": "SMTP հոստը պարտադիր է։",
@@ -838,7 +841,9 @@
         "github": "Բացեք <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, սեղմեք «New OAuth App» և տեղադրեք ստորև բերված վերահղման URI-ն «Authorization callback URL» դաշտում։",
         "microsoft": "Բացեք <console>Microsoft Entra admin center &rarr; App registrations</console>, գրանցեք նոր հավելված և Authentication &rarr; Redirect URIs բաժնում ավելացրեք Web հարթակի գրառում ստորև բերված URI-ով։ Tenant ID-ն վերցրեք հավելվածի ակնարկի էջից։",
         "gitlab": "Բացեք <console>GitLab &rarr; User Settings &rarr; Applications</console> (կամ Admin Area &rarr; Applications՝ կազմակերպության մակարդակի հավելվածի համար) և տեղադրեք ստորև բերված վերահղման URI-ն «Redirect URI» դաշտում։",
-        "oidc": "Գրանցեք նոր OAuth 2.0 / OIDC հաճախորդ ձեր ինքնության մատակարարի մոտ (Keycloak, Auth0, Okta, Authentik, Zitadel և այլն)։ Օգտագործեք ստորև բերված redirect URI-ն որպես թույլատրված callback։ Այնուհետև տեղադրեք ձեր մատակարարի endpoint URL-երը ստորև բերված դաշտերում — IdP-ների մեծ մասը դրանք հրապարակում է /.well-known/openid-configuration-ում։"
+        "oidc": "Գրանցեք նոր OAuth 2.0 / OIDC հաճախորդ ձեր ինքնության մատակարարի մոտ (Keycloak, Auth0, Okta, Authentik, Zitadel և այլն)։ Օգտագործեք ստորև բերված redirect URI-ն որպես թույլատրված callback։ Այնուհետև տեղադրեք ձեր մատակարարի endpoint URL-երը ստորև բերված դաշտերում — IdP-ների մեծ մասը դրանք հրապարակում է /.well-known/openid-configuration-ում։",
+        "github_enterprise": "Ձեր ինքնահյուրընկալված GitHub Enterprise Server-ում բացեք ձեր պրոֆիլը → Settings → Developer settings → OAuth Apps, գրանցեք նոր հավելված և տեղադրեք ստորև բերված Redirect URI-ն «Authorization callback URL»-ի մեջ։ Այնուհետև մուտքագրեք ձեր օրինակի հիմնական URL-ը ստորև։",
+        "gitlab_enterprise": "Ձեր ինքնակառավարվող GitLab օրինակում բացեք User Settings → Applications (կամ Admin Area → Applications՝ ողջ օրինակի համար), գրանցեք նոր հավելված ստորև բերված Redirect URI-ով և պահանջեք openid, email, profile scope-երը։ Այնուհետև մուտքագրեք ձեր օրինակի հիմնական URL-ը ստորև։"
       },
       "callback_url_label": "Վերահղման URI, որը պետք է գրանցել մատակարարի մոտ",
       "callback_url_help": "Պատճենեք ուղիղ այս URL-ը մատակարարի մշակողի կոնսոլում։ AccessFlow-ը ընդունում է հետադարձ կանչը միայն այս ուղով։",
@@ -858,14 +863,18 @@
         "github": "GitHub-ի կազմակերպությունների login-ները (նիշերի ճշգրտությամբ)։ Պահանջում է read:org scope-ը։ Դատարկ = ցանկացած GitHub օգտատեր կարող է մուտք գործել։",
         "microsoft": "Microsoft Entra AAD խմբերի object ID-ները։ Հավելվածը պետք է կարգավորված լինի թողարկելու «groups» claim-ը։ Դատարկ = ցանկացած tenant-ից օգտատեր կարող է մուտք գործել։",
         "gitlab": "GitLab-ի լրիվ խմբային ուղիները «groups» OIDC claim-ից։ Դատարկ = ցանկացած GitLab օգտատեր կարող է մուտք գործել։",
-        "oidc": "Խմբերի նույնականացուցիչներ ստորև \"Խմբերի claim\" որպես կարգավորված claim-ից։ Դատարկ = IdP-ի կողմից նույնականացված ցանկացած օգտատեր կարող է մուտք գործել (կամ սահմանափակել email domain-ով)։"
+        "oidc": "Խմբերի նույնականացուցիչներ ստորև \"Խմբերի claim\" որպես կարգավորված claim-ից։ Դատարկ = IdP-ի կողմից նույնականացված ցանկացած օգտատեր կարող է մուտք գործել (կամ սահմանափակել email domain-ով)։",
+        "github_enterprise": "GitHub Enterprise կազմակերպության login-ներ (մեծատառ զգայուն)։ Պահանջում է read:org scope։ Դատարկ = ցանկացած GitHub Enterprise օգտատեր կարող է մուտք գործել։",
+        "gitlab_enterprise": "Ձեր ինքնակառավարվող GitLab-ի OIDC groups claim-ից խմբերի լրիվ ուղիներ (օր.՝ acme/team)։ Դատարկ = ցանկացած GitLab օգտատեր կարող է մուտք գործել։"
       },
       "allowed_orgs_placeholder": {
         "google": "Օգտագործեք ստորև գտնվող էլ. փոստի դոմենների դաշտը",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
         "gitlab": "acme/team",
-        "oidc": "accessflow-admins"
+        "oidc": "accessflow-admins",
+        "github_enterprise": "platform-team, security",
+        "gitlab_enterprise": "acme/team"
       },
       "allowed_domains_help": "Բաժանված ստորակետով կամ բացատով։ Համեմատվում է էլ. փոստի դոմենի հետ առանց ռեգիստրի։ Դատարկ = ցանկացած դոմեն ընդունվում է։",
       "github_read_org_scope_warning_title": "GitHub-ը չի վերադարձնի մասնավոր կազմակերպության անդամակցությունը",
@@ -877,14 +886,18 @@
         "github": "GitHub OAuth հավելվածի Client ID-ն (տեսանելի է հավելվածի կարգավորումների էջում ստեղծվելուց հետո)։",
         "microsoft": "Application (client) ID-ն, որը երևում է հավելվածի ակնարկի էջում Entra admin center-ում։",
         "gitlab": "Application ID-ն, որը երևում է GitLab-ում հավելվածի ստեղծումից հետո հավելվածի էջում։",
-        "oidc": "OIDC հաճախորդի նույնականացուցիչ, որը գրանցված է ձեր ինքնության մատակարարի մոտ։"
+        "oidc": "OIDC հաճախորդի նույնականացուցիչ, որը գրանցված է ձեր ինքնության մատակարարի մոտ։",
+        "github_enterprise": "Ձեր GitHub Enterprise Server-ում գրանցված OAuth App-ի Client ID-ն։",
+        "gitlab_enterprise": "Ձեր ինքնակառավարվող GitLab-ում գրանցված OAuth հավելվածի Application ID-ն։"
       },
       "client_secret_tooltip": {
         "google": "Google Cloud-ում սեղմեք «Create credentials» և ներբեռնեք գաղտնիքը, որը ցույց է տրվում միայն մեկ անգամ։",
         "github": "Գեներացրեք նոր client secret GitHub OAuth հավելվածի էջում։ Անմիջապես պատճենեք այն, GitHub-ը այն կրկին չի ցույց տա։",
         "microsoft": "Certificates &amp; secrets բաժնում ստեղծեք նոր Client Secret։ Պատճենեք «Value»-ն (ոչ Secret ID-ն)։",
         "gitlab": "Ցուցադրվում է մեկ անգամ հավելվածի ստեղծումից անմիջապես հետո՝ «Secret» դաշտում։",
-        "oidc": "OIDC հաճախորդի secret, որը տրամադրվել է ձեր ինքնության մատակարարի կողմից հաճախորդը գրանցելիս։"
+        "oidc": "OIDC հաճախորդի secret, որը տրամադրվել է ձեր ինքնության մատակարարի կողմից հաճախորդը գրանցելիս։",
+        "github_enterprise": "Ձեր GitHub Enterprise OAuth App-ի համար ստեղծված Client Secret-ը։ Անմիջապես պատճենեք — ցուցադրվում է միայն մեկ անգամ։",
+        "gitlab_enterprise": "Ցուցադրվում է մեկ անգամ ձեր ինքնակառավարվող GitLab-ի հավելվածի էջում ստեղծելուց հետո։"
       },
       "scopes_tooltip": "Բացատներով կամ ստորակետներով։ Թողեք դատարկ՝ մատակարարի լռելյայն արժեքները ({{defaults}}) օգտագործելու համար։",
       "tenant_id_tooltip": "Microsoft Entra-ի Tenant ID, GUID կամ հայտնի alias՝ «common» (ցանկացած Microsoft հաշիվ), «organizations» (ցանկացած աշխատանքային կամ ուսումնական հաշիվ) կամ «consumers» (միայն անձնական հաշիվներ)։",
@@ -907,7 +920,13 @@
       "label_display_name_attribute": "Ցուցադրման անվան claim",
       "label_groups_attribute": "Խմբերի claim",
       "label_groups_attribute_help": "Պարտադիր է, եթե \"Թույլատրված կազմակերպություններ\"-ը սահմանված է։ Claim-ի անունը, որը թվարկում է օգտատիրոջ խմբերը։",
-      "help_oidc_attribute_defaults": "Claim-ների անունները ոչ պարտադիր են — դատարկ թողեք՝ ստանդարտ OIDC-ի լռելյայն արժեքները օգտագործելու համար (sub, email, email_verified, name)։"
+      "help_oidc_attribute_defaults": "Claim-ների անունները ոչ պարտադիր են — դատարկ թողեք՝ ստանդարտ OIDC-ի լռելյայն արժեքները օգտագործելու համար (sub, email, email_verified, name)։",
+      "label_base_url": "Սերվերի հիմնական URL",
+      "label_base_url_help": "Ձեր ինքնահյուրընկալված օրինակի ծագումը, օր.՝ https://github.acme.corp — առանց վերջնագծի ուղու և հարցումի տողի։",
+      "base_url_tooltip": {
+        "github_enterprise": "Ձեր GitHub Enterprise Server-ի հիմնական URL-ը։ AccessFlow ինքնաբերաբար ավելացնում է /login/oauth/authorize, /login/oauth/access_token և /api/v3/*։",
+        "gitlab_enterprise": "Ձեր ինքնակառավարվող GitLab օրինակի հիմնական URL-ը։ AccessFlow ինքնաբերաբար ավելացնում է /oauth/authorize, /oauth/token, /oauth/userinfo և /oauth/discovery/keys։"
+      }
     },
     "saml": {
       "title": "SAML / SSO",
@@ -1230,7 +1249,9 @@
       "GITHUB": "GitHub",
       "MICROSOFT": "Microsoft",
       "GITLAB": "GitLab",
-      "OIDC": "OIDC"
+      "OIDC": "OIDC",
+      "GITHUB_ENTERPRISE": "GitHub Enterprise",
+      "GITLAB_ENTERPRISE": "GitLab (ինքնակառավարվող)"
     },
     "invitation_status": {
       "PENDING": "Սպասում է",

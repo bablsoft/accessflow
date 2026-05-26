@@ -20,7 +20,7 @@ import java.util.List;
  * </ul>
  *
  * <p>The {@code displayName}, URL, and attribute-name fields are persisted only for the
- * generic {@link OAuth2ProviderType#OIDC} provider; the four built-in providers ignore
+ * generic {@link OAuth2ProviderType#OIDC} provider; the four built-in cloud providers ignore
  * them and pick up their templates from {@code OAuth2ProviderTemplate}. When the row's
  * provider is {@code OIDC} and {@code active=true}, the five URL fields and
  * {@code displayName} must be present (validated by {@code DefaultOAuth2ConfigService}).
@@ -28,6 +28,12 @@ import java.util.List;
  * ({@code sub}, {@code email}, {@code email_verified}, {@code name}). {@code groupsAttribute}
  * is the claim used by {@code OAuth2MembershipResolver} when an OIDC allowlist is
  * configured.
+ *
+ * <p>{@code baseUrl} is persisted only for {@link OAuth2ProviderType#GITHUB_ENTERPRISE} and
+ * {@link OAuth2ProviderType#GITLAB_ENTERPRISE}. It carries the origin of the self-hosted
+ * instance (e.g. {@code https://github.acme.corp}). When the row's provider is one of those
+ * and {@code active=true}, {@code baseUrl} must be present, {@code https://}, and an origin
+ * with no path / query / fragment.
  */
 public record UpdateOAuth2ConfigCommand(
         String clientId,
@@ -45,6 +51,7 @@ public record UpdateOAuth2ConfigCommand(
         String emailVerifiedAttribute,
         String displayNameAttribute,
         String groupsAttribute,
+        String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
         UserRoleType defaultRole,

@@ -114,6 +114,9 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
         if (command.groupsAttribute() != null) {
             entity.setGroupsAttribute(blankToNull(command.groupsAttribute()));
         }
+        if (command.baseUrl() != null) {
+            entity.setBaseUrl(blankToNull(command.baseUrl()));
+        }
         if (command.allowedOrganizations() != null) {
             entity.setAllowedOrganizations(normalizeOrganizations(command.allowedOrganizations()));
         }
@@ -145,12 +148,17 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                         "error.oauth2.tenant_id_required_for_microsoft", null,
                         LocaleContextHolder.getLocale()));
             }
-            if (provider == OAuth2ProviderType.GITHUB
+            if ((provider == OAuth2ProviderType.GITHUB
+                            || provider == OAuth2ProviderType.GITHUB_ENTERPRISE)
                     && hasEntries(entity.getAllowedOrganizations())
                     && !scopesContain(entity.getScopesOverride(), GITHUB_READ_ORG_SCOPE)) {
                 throw new OAuth2ConfigInvalidException(messageSource.getMessage(
                         "error.oauth2.github_read_org_scope_required", null,
                         LocaleContextHolder.getLocale()));
+            }
+            if (provider == OAuth2ProviderType.GITHUB_ENTERPRISE
+                    || provider == OAuth2ProviderType.GITLAB_ENTERPRISE) {
+                validateEnterpriseBaseUrl(entity);
             }
             if (provider == OAuth2ProviderType.OIDC) {
                 validateOidcEntity(entity);
@@ -220,6 +228,7 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 null,
                 null,
                 null,
+                null,
                 List.of(),
                 List.of(),
                 UserRoleType.ANALYST,
@@ -249,6 +258,7 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 entity.getEmailVerifiedAttribute(),
                 entity.getDisplayNameAttribute(),
                 entity.getGroupsAttribute(),
+                entity.getBaseUrl(),
                 toList(entity.getAllowedOrganizations()),
                 toList(entity.getAllowedEmailDomains()),
                 entity.getDefaultRole(),
@@ -258,9 +268,14 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
     }
 
     private static String displayNameFor(OAuth2ConfigEntity entity) {
-        if (entity.getProvider() == OAuth2ProviderType.OIDC) {
-            var name = entity.getDisplayName();
-            return name == null || name.isBlank() ? "OpenID Connect" : name.trim();
+        var override = entity.getDisplayName();
+        var trimmed = override == null ? null : override.trim();
+        if (trimmed != null && !trimmed.isEmpty()) {
+            if (entity.getProvider() == OAuth2ProviderType.OIDC
+                    || entity.getProvider() == OAuth2ProviderType.GITHUB_ENTERPRISE
+                    || entity.getProvider() == OAuth2ProviderType.GITLAB_ENTERPRISE) {
+                return trimmed;
+            }
         }
         return switch (entity.getProvider()) {
             case GOOGLE -> "Google";
@@ -268,7 +283,43 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
             case MICROSOFT -> "Microsoft";
             case GITLAB -> "GitLab";
             case OIDC -> "OpenID Connect";
+            case GITHUB_ENTERPRISE -> "GitHub Enterprise";
+            case GITLAB_ENTERPRISE -> "GitLab (self-managed)";
         };
+    }
+
+    private void validateEnterpriseBaseUrl(OAuth2ConfigEntity entity) {
+        var baseUrl = entity.getBaseUrl();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.base_url_required_for_enterprise", null,
+                    LocaleContextHolder.getLocale()));
+        }
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(baseUrl.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.base_url_invalid", new Object[] {baseUrl},
+                    LocaleContextHolder.getLocale()));
+        }
+        var scheme = uri.getScheme();
+        if (scheme == null || !scheme.equalsIgnoreCase("https") || uri.getHost() == null) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.base_url_invalid", new Object[] {baseUrl},
+                    LocaleContextHolder.getLocale()));
+        }
+        var path = uri.getPath();
+        if (path != null && !path.isEmpty() && !path.equals("/")) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.base_url_must_be_origin", new Object[] {baseUrl},
+                    LocaleContextHolder.getLocale()));
+        }
+        if (uri.getRawQuery() != null || uri.getRawFragment() != null) {
+            throw new OAuth2ConfigInvalidException(messageSource.getMessage(
+                    "error.oauth2.base_url_must_be_origin", new Object[] {baseUrl},
+                    LocaleContextHolder.getLocale()));
+        }
     }
 
     private void validateOidcEntity(OAuth2ConfigEntity entity) {

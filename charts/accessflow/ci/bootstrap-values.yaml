@@ -64,6 +64,19 @@ bootstrap:
       clientSecretRef: { name: accessflow-bootstrap-secrets, key: google-client-secret }
       defaultRole: REVIEWER
       active: true
+    - provider: GITHUB_ENTERPRISE
+      clientId: ghes-client-id
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: ghes-client-secret }
+      baseUrl: https://github.acme.corp
+      scopesOverride: "read:user user:email read:org"
+      defaultRole: ANALYST
+      active: true
+    - provider: GITLAB_ENTERPRISE
+      clientId: gle-client-id
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: gle-client-secret }
+      baseUrl: https://gitlab.acme.corp
+      defaultRole: ANALYST
+      active: true
   systemSmtp:
     enabled: true
     host: smtp.acme.com

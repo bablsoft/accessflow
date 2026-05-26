@@ -848,10 +848,14 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             Sign-in with Google, GitHub, Microsoft, and GitLab is built-in — operators only need
             to register an OAuth app with the provider and store the client id / secret in
-            AccessFlow. A fifth generic <em>OpenID Connect</em> tab integrates self-hosted and
-            other OIDC providers (Keycloak, Auth0, Okta, Authentik, Zitadel) by entering the
-            IdP's endpoint URLs directly. All configuration lives in the database, not in static
-            configuration files, so adding a new provider does not require a restart.
+            AccessFlow. Two additional tabs — <em>GitHub Enterprise</em> and
+            <em>GitLab (self-managed)</em> — cover self-hosted variants where you provide your
+            instance's base URL (e.g. <code>https://github.acme.corp</code>) and AccessFlow
+            appends the well-known sub-paths automatically. A seventh generic
+            <em>OpenID Connect</em> tab integrates any other OIDC provider (Keycloak, Auth0,
+            Okta, Authentik, Zitadel) by entering the IdP's endpoint URLs directly. All
+            configuration lives in the database, not in static configuration files, so adding a
+            new provider does not require a restart.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -860,17 +864,19 @@ APPROVED → FAILED (execution error)</pre>
                    alt="OAuth providers admin page with the Google tab selected. An info callout shows the redirect URI to register at the provider with a copy button, followed by Client ID and Client secret fields."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/oauth2</code> — one tab per built-in provider (Google / GitHub / Microsoft / GitLab) plus a generic OpenID Connect tab. Each tab carries its own redirect URI and provider-specific guidance.</figcaption>
+            <figcaption><code>/admin/oauth2</code> — one tab per built-in provider (Google / GitHub / Microsoft / GitLab), two self-hosted tabs (GitHub Enterprise / GitLab self-managed), plus a generic OpenID Connect tab. Each tab carries its own redirect URI and provider-specific guidance.</figcaption>
           </figure>
           <ol>
             <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The format is <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth2/callback/{provider}</code>.</li>
-            <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims. For the <strong>OpenID Connect</strong> tab, also enter the IdP's <em>Display name</em> (rendered on the login button as "Continue with …"), <em>Authorization endpoint URL</em>, <em>Token endpoint URL</em>, <em>UserInfo endpoint URL</em>, <em>JWK set URL</em>, and <em>Issuer URL</em> — most IdPs publish all five at <code>/.well-known/openid-configuration</code>. Optional attribute-claim fields (<em>User-name claim</em>, <em>Email claim</em>, <em>Email-verified claim</em>, <em>Display-name claim</em>) default to the standard OIDC names (<code>sub</code>, <code>email</code>, <code>email_verified</code>, <code>name</code>) and only need to be set if your IdP uses non-standard claims.</li>
+            <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims. For <strong>GitHub Enterprise</strong> and <strong>GitLab (self-managed)</strong>, also enter the <em>Server base URL</em> of your self-hosted instance (origin only — no path, no query; <code>https://</code> only). AccessFlow appends <code>/login/oauth/authorize</code>, <code>/login/oauth/access_token</code>, and <code>/api/v3/*</code> for GitHub Enterprise, and <code>/oauth/authorize</code>, <code>/oauth/token</code>, <code>/oauth/userinfo</code>, <code>/oauth/discovery/keys</code> for self-managed GitLab. For the <strong>OpenID Connect</strong> tab, also enter the IdP's <em>Display name</em> (rendered on the login button as "Continue with …"), <em>Authorization endpoint URL</em>, <em>Token endpoint URL</em>, <em>UserInfo endpoint URL</em>, <em>JWK set URL</em>, and <em>Issuer URL</em> — most IdPs publish all five at <code>/.well-known/openid-configuration</code>. Optional attribute-claim fields (<em>User-name claim</em>, <em>Email claim</em>, <em>Email-verified claim</em>, <em>Display-name claim</em>) default to the standard OIDC names (<code>sub</code>, <code>email</code>, <code>email_verified</code>, <code>name</code>) and only need to be set if your IdP uses non-standard claims.</li>
             <li><strong>(Optional) Restrict who may sign in.</strong> Use <em>Allowed organizations</em> and <em>Allowed email domains</em> on the same tab:
               <ul>
                 <li><strong>Google</strong> — populate <em>Allowed email domains</em> with your Workspace domain(s); the organization list is ignored.</li>
                 <li><strong>GitHub</strong> — list the org logins users must belong to (e.g. <code>bablsoft</code>) in <em>Allowed organizations</em>. AccessFlow calls <code>GET /user/orgs</code>, so the <em>Scopes override</em> must include <code>read:org</code> — saving an active config without it returns a 422 with a clear message.</li>
                 <li><strong>Microsoft</strong> — list AAD group object IDs in <em>Allowed organizations</em>. The Entra app registration must be configured (Token configuration → groups) to emit the <code>groups</code> claim.</li>
                 <li><strong>GitLab</strong> — list full group paths from the OIDC <code>groups</code> claim (e.g. <code>acme/team</code>).</li>
+                <li><strong>GitHub Enterprise</strong> — same as GitHub but the orgs call hits <code>{base_url}/api/v3/user/orgs</code>; <code>read:org</code> scope is still required.</li>
+                <li><strong>GitLab (self-managed)</strong> — same as GitLab (OIDC <code>groups</code> claim) but resolved against your self-hosted instance.</li>
                 <li><strong>OpenID Connect</strong> — set the <em>Groups claim</em> field to the claim name your IdP uses (often <code>groups</code> or <code>roles</code>), then list the group identifiers users must belong to in <em>Allowed organizations</em>. Leave the claim field blank to disable group enforcement and rely on <em>Allowed email domains</em> instead.</li>
               </ul>
               Empty lists mean no restriction. Users who fail the check are redirected to the login page with <code>OAUTH2_ORG_NOT_ALLOWED</code> or <code>OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED</code>.

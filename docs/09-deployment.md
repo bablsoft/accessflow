@@ -648,6 +648,29 @@ bootstrap:
         - bablsoft
       defaultRole: ANALYST
       active: true
+    - provider: GITHUB_ENTERPRISE
+      # Self-hosted GitHub Enterprise Server. URLs are not OIDC; only the origin
+      # is operator-editable — AccessFlow appends /login/oauth/authorize,
+      # /login/oauth/access_token, and /api/v3/* automatically. Must be https.
+      baseUrl: https://github.acme.corp
+      clientId: "Iv1.ghes123"
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: ghes-client-secret }
+      scopesOverride: "read:user user:email read:org"
+      allowedOrganizations:
+        - platform-team
+      defaultRole: ANALYST
+      active: true
+    - provider: GITLAB_ENTERPRISE
+      # Self-managed GitLab. OIDC-compliant — AccessFlow appends /oauth/authorize,
+      # /oauth/token, /oauth/userinfo, and /oauth/discovery/keys automatically.
+      # Must be https.
+      baseUrl: https://gitlab.acme.corp
+      clientId: "gl-app-id"
+      clientSecretRef: { name: accessflow-bootstrap-secrets, key: gle-client-secret }
+      allowedOrganizations:
+        - acme/team
+      defaultRole: ANALYST
+      active: true
     - provider: OIDC
       # Generic OAuth 2.0 / OIDC — works with Keycloak, Auth0, Okta, Authentik,
       # Zitadel, etc. The displayName is rendered as "Continue with {displayName}"
@@ -683,6 +706,14 @@ bootstrap:
 ```
 
 A complete fixture that exercises every render path lives at [charts/accessflow/ci/bootstrap-values.yaml](../charts/accessflow/ci/bootstrap-values.yaml) and is wired into the `helm` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+> **Self-hosted CAs (GitHub Enterprise / GitLab self-managed).** AccessFlow's `WebClient` /
+> `RestClient` calls the IdP's userinfo, JWK, emails, and orgs endpoints. If your
+> Enterprise instance terminates TLS with a certificate issued by an internal CA, mount the
+> CA into the backend pod's JVM truststore (set `JAVA_TOOL_OPTIONS=-Djavax.net.ssl.trustStore=…
+> -Djavax.net.ssl.trustStorePassword=…` and project the trust store via a Kubernetes
+> Secret/ConfigMap). Without this, Spring AI's HTTP client rejects the TLS handshake and the
+> OAuth login fails with `OAUTH2_LOGIN_FAILED`.
 
 #### 3. `helm upgrade`
 

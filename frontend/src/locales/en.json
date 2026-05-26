@@ -197,7 +197,10 @@
       "issuer_uri_required": "Issuer URL is required.",
       "uri_invalid": "Must be a valid http(s) URL.",
       "uri_max": "URL must be at most 2048 characters.",
-      "attribute_max": "Claim name must be at most 255 characters."
+      "attribute_max": "Claim name must be at most 255 characters.",
+      "base_url_required": "Server base URL is required.",
+      "base_url_invalid": "Server base URL must be a valid https URL.",
+      "base_url_must_be_origin": "Server base URL must be an origin (scheme + host + optional port) — no path, query, or fragment."
     },
     "system_smtp": {
       "host_required": "SMTP host is required.",
@@ -838,7 +841,9 @@
         "github": "Open <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, click \"New OAuth App\", and paste the redirect URI below into \"Authorization callback URL\".",
         "microsoft": "Open the <console>Microsoft Entra admin center &rarr; App registrations</console>, register a new application, and under Authentication &rarr; Redirect URIs add a Web platform entry with the URI below. Capture the tenant ID from the app's overview page.",
         "gitlab": "Open <console>GitLab &rarr; User Settings &rarr; Applications</console> (or Admin Area &rarr; Applications for an org-wide app), and paste the redirect URI below into \"Redirect URI\".",
-        "oidc": "Register a new OAuth 2.0 / OIDC client in your identity provider (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Use the redirect URI below as the allowed callback. Then paste your provider's endpoint URLs into the fields below — most IdPs publish them at /.well-known/openid-configuration."
+        "oidc": "Register a new OAuth 2.0 / OIDC client in your identity provider (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Use the redirect URI below as the allowed callback. Then paste your provider's endpoint URLs into the fields below — most IdPs publish them at /.well-known/openid-configuration.",
+        "github_enterprise": "On your self-hosted GitHub Enterprise Server, open your profile &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps, register a new app, and paste the redirect URI below into \"Authorization callback URL\". Then enter your instance's base URL below.",
+        "gitlab_enterprise": "On your self-managed GitLab instance, open User Settings &rarr; Applications (or Admin Area &rarr; Applications for an instance-wide app), register a new application with the redirect URI below, and request the scopes openid, email, profile. Then enter your instance's base URL below."
       },
       "callback_url_label": "Redirect URI to register with the provider",
       "callback_url_help": "Copy this exact URL into the provider's developer console. AccessFlow accepts the callback only at this path.",
@@ -858,14 +863,18 @@
         "github": "GitHub organization logins (case-sensitive). Requires the read:org scope. Empty = any GitHub user may sign in.",
         "microsoft": "Microsoft Entra AAD group object IDs. The app must be configured to emit the \"groups\" claim. Empty = any user from the tenant may sign in.",
         "gitlab": "GitLab full group paths from the \"groups\" OIDC claim. Empty = any GitLab user may sign in.",
-        "oidc": "Group identifiers from the claim configured below as \"Groups attribute\". Empty = any user authenticated by the IdP may sign in (or restrict by email domain)."
+        "oidc": "Group identifiers from the claim configured below as \"Groups attribute\". Empty = any user authenticated by the IdP may sign in (or restrict by email domain).",
+        "github_enterprise": "GitHub Enterprise organization logins (case-sensitive). Requires the read:org scope. Empty = any GitHub Enterprise user may sign in.",
+        "gitlab_enterprise": "Full group paths from the OIDC groups claim on your self-managed GitLab (e.g. acme/team). Empty = any GitLab user may sign in."
       },
       "allowed_orgs_placeholder": {
         "google": "Use the email domains field below",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
         "gitlab": "acme/team",
-        "oidc": "accessflow-admins"
+        "oidc": "accessflow-admins",
+        "github_enterprise": "platform-team, security",
+        "gitlab_enterprise": "acme/team"
       },
       "allowed_domains_help": "Comma- or space-separated. Matched case-insensitively against the email domain. Empty = any email domain accepted.",
       "github_read_org_scope_warning_title": "GitHub will not return private org membership",
@@ -877,14 +886,24 @@
         "github": "The GitHub OAuth App's Client ID (visible on the app's settings page once created).",
         "microsoft": "The Application (client) ID shown on the app's Overview page in the Entra admin center.",
         "gitlab": "The Application ID shown on the application's page after creation in GitLab.",
-        "oidc": "The OIDC client identifier registered with your identity provider."
+        "oidc": "The OIDC client identifier registered with your identity provider.",
+        "github_enterprise": "The Client ID from the OAuth App you registered on your GitHub Enterprise Server.",
+        "gitlab_enterprise": "The Application ID from the OAuth application you registered on your self-managed GitLab."
       },
       "client_secret_tooltip": {
         "google": "Click \"Create credentials\" in Google Cloud and download the secret — it is only shown once.",
         "github": "Generate a new client secret on the GitHub OAuth App page. Copy it immediately; GitHub does not show it again.",
         "microsoft": "Under Certificates &amp; secrets, create a new Client Secret. Copy the \"Value\" (not the Secret ID).",
         "gitlab": "Shown once on the application page right after creation under \"Secret\".",
-        "oidc": "The OIDC client secret issued by your identity provider when the client was registered."
+        "oidc": "The OIDC client secret issued by your identity provider when the client was registered.",
+        "github_enterprise": "The Client Secret generated for your GitHub Enterprise Server OAuth App. Copy it immediately — it is shown only once.",
+        "gitlab_enterprise": "Shown once on your self-managed GitLab application page after creation."
+      },
+      "label_base_url": "Server base URL",
+      "label_base_url_help": "Origin of your self-hosted instance, e.g. https://github.acme.corp — no trailing path, no query string.",
+      "base_url_tooltip": {
+        "github_enterprise": "Base URL of your GitHub Enterprise Server. AccessFlow appends /login/oauth/authorize, /login/oauth/access_token, and /api/v3/* automatically.",
+        "gitlab_enterprise": "Base URL of your self-managed GitLab instance. AccessFlow appends /oauth/authorize, /oauth/token, /oauth/userinfo, and /oauth/discovery/keys automatically."
       },
       "label_display_name": "Display name",
       "label_display_name_help": "Shown on the login page on the OAuth button (\"Continue with …\").",
@@ -1230,7 +1249,9 @@
       "GITHUB": "GitHub",
       "MICROSOFT": "Microsoft",
       "GITLAB": "GitLab",
-      "OIDC": "OIDC"
+      "OIDC": "OIDC",
+      "GITHUB_ENTERPRISE": "GitHub Enterprise",
+      "GITLAB_ENTERPRISE": "GitLab (self-managed)"
     },
     "invitation_status": {
       "PENDING": "Pending",

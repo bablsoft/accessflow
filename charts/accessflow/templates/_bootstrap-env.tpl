@@ -205,6 +205,9 @@ ACCESSFLOW_BOOTSTRAP_OAUTH2_{{ $i }}_SCOPES_OVERRIDE: {{ . | quote }}
 {{- with $oa.tenantId }}
 ACCESSFLOW_BOOTSTRAP_OAUTH2_{{ $i }}_TENANT_ID: {{ . | quote }}
 {{- end }}
+{{- with $oa.baseUrl }}
+ACCESSFLOW_BOOTSTRAP_OAUTH2_{{ $i }}_BASE_URL: {{ . | quote }}
+{{- end }}
 {{- with $oa.defaultRole }}
 ACCESSFLOW_BOOTSTRAP_OAUTH2_{{ $i }}_DEFAULT_ROLE: {{ . | quote }}
 {{- end }}

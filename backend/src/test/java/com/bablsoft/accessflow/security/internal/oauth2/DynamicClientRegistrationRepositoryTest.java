@@ -138,6 +138,82 @@ class DynamicClientRegistrationRepositoryTest {
     }
 
     @Test
+    void buildsGithubEnterpriseRegistrationFromBaseUrl() {
+        var entity = seeded(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        entity.setClientId("c");
+        entity.setClientSecretEncrypted("E");
+        entity.setActive(true);
+        entity.setBaseUrl("https://gh.acme.corp");
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(configRepository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.of(entity));
+        when(encryptionService.decrypt("E")).thenReturn("s");
+
+        var registration = repository.findByRegistrationId("github_enterprise");
+
+        assertThat(registration).isNotNull();
+        assertThat(registration.getProviderDetails().getAuthorizationUri())
+                .isEqualTo("https://gh.acme.corp/login/oauth/authorize");
+        assertThat(registration.getProviderDetails().getTokenUri())
+                .isEqualTo("https://gh.acme.corp/login/oauth/access_token");
+        assertThat(registration.getProviderDetails().getUserInfoEndpoint().getUri())
+                .isEqualTo("https://gh.acme.corp/api/v3/user");
+        assertThat(registration.getProviderDetails().getJwkSetUri()).isNull();
+        assertThat(registration.getScopes()).contains("read:user", "user:email");
+    }
+
+    @Test
+    void buildsGitlabEnterpriseRegistrationFromBaseUrl() {
+        var entity = seeded(OAuth2ProviderType.GITLAB_ENTERPRISE);
+        entity.setClientId("c");
+        entity.setClientSecretEncrypted("E");
+        entity.setActive(true);
+        entity.setBaseUrl("https://gl.acme.corp:8443");
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(configRepository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITLAB_ENTERPRISE))
+                .thenReturn(Optional.of(entity));
+        when(encryptionService.decrypt("E")).thenReturn("s");
+
+        var registration = repository.findByRegistrationId("gitlab_enterprise");
+
+        assertThat(registration).isNotNull();
+        assertThat(registration.getProviderDetails().getAuthorizationUri())
+                .isEqualTo("https://gl.acme.corp:8443/oauth/authorize");
+        assertThat(registration.getProviderDetails().getTokenUri())
+                .isEqualTo("https://gl.acme.corp:8443/oauth/token");
+        assertThat(registration.getProviderDetails().getUserInfoEndpoint().getUri())
+                .isEqualTo("https://gl.acme.corp:8443/oauth/userinfo");
+        assertThat(registration.getProviderDetails().getJwkSetUri())
+                .isEqualTo("https://gl.acme.corp:8443/oauth/discovery/keys");
+        assertThat(registration.getScopes()).contains("openid", "email", "profile");
+    }
+
+    @Test
+    void evictsOnUpdateAfterBaseUrlChange() {
+        var entity = seeded(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        entity.setClientId("c");
+        entity.setClientSecretEncrypted("E");
+        entity.setActive(true);
+        entity.setBaseUrl("https://gh.acme.corp");
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(configRepository.findByOrganizationIdAndProvider(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE))
+                .thenReturn(Optional.of(entity));
+        when(encryptionService.decrypt("E")).thenReturn("s");
+
+        var first = repository.findByRegistrationId("github_enterprise");
+
+        // Simulate update changing only baseUrl
+        entity.setBaseUrl("https://gh2.acme.corp");
+        repository.onConfigUpdated(
+                new OAuth2ConfigUpdatedEvent(orgId, OAuth2ProviderType.GITHUB_ENTERPRISE, true));
+
+        var second = repository.findByRegistrationId("github_enterprise");
+        assertThat(second).isNotSameAs(first);
+        assertThat(second.getProviderDetails().getAuthorizationUri())
+                .startsWith("https://gh2.acme.corp/");
+    }
+
+    @Test
     void evictsOnDeletedEvent() {
         var entity = seeded(OAuth2ProviderType.GITLAB);
         entity.setClientId("c");

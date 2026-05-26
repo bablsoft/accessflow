@@ -1958,7 +1958,7 @@ Trade the one-time `code` emitted by the SAML success handler for an access toke
 
 ### GET /admin/oauth2-config
 
-Returns one entry per supported OAuth2 provider (always five rows: `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`). Rows the admin has not yet configured are returned with `id: null`, `client_id: null`, and `active: false` so the UI can render an empty form. The `client_secret` field is `"********"` when a secret is stored, `null` otherwise. The `display_name`, URL, and attribute-name fields are populated only for `OIDC` rows (they are persisted only for the generic OIDC provider; the four built-in providers ignore them and supply their templates from `OAuth2ProviderTemplate`).
+Returns one entry per supported OAuth2 provider (always seven rows: `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`, `GITHUB_ENTERPRISE`, `GITLAB_ENTERPRISE`). Rows the admin has not yet configured are returned with `id: null`, `client_id: null`, and `active: false` so the UI can render an empty form. The `client_secret` field is `"********"` when a secret is stored, `null` otherwise. The `display_name`, URL, and attribute-name fields are populated only for `OIDC` rows (they are persisted only for the generic OIDC provider; the four built-in cloud providers ignore them and supply their templates from `OAuth2ProviderTemplate`). The `base_url` field is populated only for `GITHUB_ENTERPRISE` and `GITLAB_ENTERPRISE` rows.
 
 **Response 200:**
 ```json
@@ -1982,6 +1982,7 @@ Returns one entry per supported OAuth2 provider (always five rows: `GOOGLE`, `GI
     "email_verified_attribute": null,
     "display_name_attribute": null,
     "groups_attribute": null,
+    "base_url": null,
     "allowed_organizations": [],
     "allowed_email_domains": ["example.com"],
     "default_role": "ANALYST",
@@ -1994,7 +1995,7 @@ Returns one entry per supported OAuth2 provider (always five rows: `GOOGLE`, `GI
 
 ### GET /admin/oauth2-config/{provider}
 
-Single-provider variant of the list. `{provider}` is one of `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`.
+Single-provider variant of the list. `{provider}` is one of `GOOGLE`, `GITHUB`, `MICROSOFT`, `GITLAB`, `OIDC`, `GITHUB_ENTERPRISE`, `GITLAB_ENTERPRISE`.
 
 ### PUT /admin/oauth2-config/{provider}
 
@@ -2018,6 +2019,7 @@ Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext;
   "email_verified_attribute": null,
   "display_name_attribute": null,
   "groups_attribute": null,
+  "base_url": null,
   "allowed_organizations": ["bablsoft"],
   "allowed_email_domains": ["example.com"],
   "default_role": "ANALYST",
@@ -2027,11 +2029,13 @@ Upsert. Sending `"client_secret": "********"` preserves the existing ciphertext;
 
 For an `OIDC` row, `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` are required to activate; attribute-name fields are optional and fall back to the standard OIDC claim names (`sub`, `email`, `email_verified`, `name`). `groups_attribute` is the claim used by `OAuth2MembershipResolver` when an OIDC `allowed_organizations` list is configured.
 
-Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`), `display_name` ≤ 255, URL fields ≤ 2048, attribute fields ≤ 255, `allowed_organizations` / `allowed_email_domains` each ≤ 100 non-blank entries of ≤ 255 chars. Both allowlists are tri-state on update: omit / send `null` to leave them unchanged, send `[]` to clear, send a non-empty array to replace. URL fields must parse as valid http(s) URLs when persisted (server-side check).
+For a `GITHUB_ENTERPRISE` or `GITLAB_ENTERPRISE` row, `base_url` is required to activate and must be a `https://` origin with no path / query / fragment (e.g. `https://github.acme.corp`). AccessFlow appends the well-known sub-paths (`/login/oauth/authorize`, `/api/v3/*` for GitHub Enterprise; `/oauth/authorize`, `/oauth/userinfo`, `/oauth/discovery/keys` for self-managed GitLab) compiled into `OAuth2ProviderTemplate` — only the origin is operator-editable. `display_name` is an optional override for the login-page button label; when unset it falls back to "GitHub Enterprise" / "GitLab (self-managed)".
+
+Validation: `client_id` ≤ 512 chars (required), `client_secret` ≤ 2048 chars, `scopes_override` ≤ 1024, `tenant_id` ≤ 255 (required when `provider=MICROSOFT` **and** `active=true`), `display_name` ≤ 255, URL fields ≤ 2048, attribute fields ≤ 255, `base_url` ≤ 2048, `allowed_organizations` / `allowed_email_domains` each ≤ 100 non-blank entries of ≤ 255 chars. Both allowlists are tri-state on update: omit / send `null` to leave them unchanged, send `[]` to clear, send a non-empty array to replace. URL fields must parse as valid http(s) URLs when persisted (server-side check); `base_url` must be `https://`.
 
 **Response 200:** Updated configuration (same shape as GET, `client_secret` replaced with `"********"` if set).
 **Response 400:** Validation error.
-**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, without a `tenant_id` for Microsoft, for `provider=GITHUB` with a non-empty `allowed_organizations` while `scopes_override` does not contain `read:org`, or for `provider=OIDC` without `display_name` / any of the five required URLs (or with a URL that is not a valid http(s) URL).
+**Response 422:** `OAUTH2_CONFIG_INVALID` — activation attempted without a `client_id`, without a `client_secret`, without a `tenant_id` for Microsoft, for `provider=GITHUB` or `provider=GITHUB_ENTERPRISE` with a non-empty `allowed_organizations` while `scopes_override` does not contain `read:org`, for `provider=OIDC` without `display_name` / any of the five required URLs (or with a URL that is not a valid http(s) URL), or for `provider=GITHUB_ENTERPRISE` / `provider=GITLAB_ENTERPRISE` without `base_url`, with an `http://` base URL, or with a base URL that has a path / query / fragment.
 
 ### DELETE /admin/oauth2-config/{provider}
 

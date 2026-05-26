@@ -197,7 +197,10 @@
       "issuer_uri_required": "L'URL de l'émetteur est requise.",
       "uri_invalid": "Doit être une URL http(s) valide.",
       "uri_max": "L'URL doit comporter au maximum 2048 caractères.",
-      "attribute_max": "Le nom de la revendication doit comporter au maximum 255 caractères."
+      "attribute_max": "Le nom de la revendication doit comporter au maximum 255 caractères.",
+      "base_url_required": "L'URL de base du serveur est requise.",
+      "base_url_invalid": "L'URL de base du serveur doit être une URL https valide.",
+      "base_url_must_be_origin": "L'URL de base du serveur doit être une origine (schéma + hôte + port optionnel) — sans chemin, requête ni fragment."
     },
     "system_smtp": {
       "host_required": "L'hôte SMTP est obligatoire.",
@@ -838,7 +841,9 @@
         "github": "Ouvrez <console>GitHub &rarr; Settings &rarr; Developer settings &rarr; OAuth Apps</console>, cliquez sur \"New OAuth App\" et collez l'URI de redirection ci-dessous dans \"Authorization callback URL\".",
         "microsoft": "Ouvrez le <console>centre d'administration Microsoft Entra &rarr; Inscriptions d'applications</console>, inscrivez une nouvelle application, puis dans Authentification &rarr; URI de redirection ajoutez une entrée de plateforme Web avec l'URI ci-dessous. Récupérez le Tenant ID sur la page Vue d'ensemble de l'app.",
         "gitlab": "Ouvrez <console>GitLab &rarr; User Settings &rarr; Applications</console> (ou Admin Area &rarr; Applications pour une application au niveau de l'organisation) et collez l'URI de redirection ci-dessous dans \"Redirect URI\".",
-        "oidc": "Enregistrez un nouveau client OAuth 2.0 / OIDC dans votre fournisseur d'identité (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Utilisez l'URI de redirection ci-dessous comme rappel autorisé. Collez ensuite les URL des points de terminaison de votre fournisseur dans les champs ci-dessous — la plupart des IdP les publient à /.well-known/openid-configuration."
+        "oidc": "Enregistrez un nouveau client OAuth 2.0 / OIDC dans votre fournisseur d'identité (Keycloak, Auth0, Okta, Authentik, Zitadel, etc.). Utilisez l'URI de redirection ci-dessous comme rappel autorisé. Collez ensuite les URL des points de terminaison de votre fournisseur dans les champs ci-dessous — la plupart des IdP les publient à /.well-known/openid-configuration.",
+        "github_enterprise": "Sur votre GitHub Enterprise Server auto-hébergé, ouvrez votre profil → Settings → Developer settings → OAuth Apps, enregistrez une nouvelle app et collez l'URI de redirection ci-dessous dans \"Authorization callback URL\". Saisissez ensuite l'URL de base de votre instance ci-dessous.",
+        "gitlab_enterprise": "Sur votre instance GitLab autogérée, ouvrez User Settings → Applications (ou Admin Area → Applications pour une application à l'échelle de l'instance), enregistrez une nouvelle application avec l'URI de redirection ci-dessous et demandez les scopes openid, email, profile. Saisissez ensuite l'URL de base de votre instance ci-dessous."
       },
       "callback_url_label": "URI de redirection à enregistrer chez le fournisseur",
       "callback_url_help": "Copiez exactement cette URL dans la console développeur du fournisseur. AccessFlow n'accepte le callback qu'à ce chemin.",
@@ -858,14 +863,18 @@
         "github": "Logins d'organisations GitHub (sensible à la casse). Nécessite le scope read:org. Vide = tout utilisateur GitHub peut se connecter.",
         "microsoft": "IDs d'objet des groupes AAD de Microsoft Entra. L'application doit être configurée pour émettre la revendication \"groups\". Vide = tout utilisateur du tenant peut se connecter.",
         "gitlab": "Chemins complets de groupes GitLab issus de la revendication OIDC \"groups\". Vide = tout utilisateur GitLab peut se connecter.",
-        "oidc": "Identifiants de groupes provenant de la revendication configurée ci-dessous comme « Revendication des groupes ». Vide = tout utilisateur authentifié par l'IdP peut se connecter (ou restreindre par domaine d'e-mail)."
+        "oidc": "Identifiants de groupes provenant de la revendication configurée ci-dessous comme « Revendication des groupes ». Vide = tout utilisateur authentifié par l'IdP peut se connecter (ou restreindre par domaine d'e-mail).",
+        "github_enterprise": "Logins d'organisations GitHub Enterprise (sensibles à la casse). Nécessite le scope read:org. Vide = tout utilisateur GitHub Enterprise peut se connecter.",
+        "gitlab_enterprise": "Chemins complets de groupes issus du claim OIDC groups de votre GitLab autogéré (p. ex. acme/team). Vide = tout utilisateur GitLab peut se connecter."
       },
       "allowed_orgs_placeholder": {
         "google": "Utilisez le champ des domaines de courriel ci-dessous",
         "github": "bablsoft, acme-corp",
         "microsoft": "11111111-2222-3333-4444-555555555555",
         "gitlab": "acme/team",
-        "oidc": "accessflow-admins"
+        "oidc": "accessflow-admins",
+        "github_enterprise": "platform-team, security",
+        "gitlab_enterprise": "acme/team"
       },
       "allowed_domains_help": "Séparés par virgule ou espace. Comparaison insensible à la casse avec le domaine du courriel. Vide = tout domaine accepté.",
       "github_read_org_scope_warning_title": "GitHub ne renverra pas l'appartenance aux organisations privées",
@@ -877,14 +886,18 @@
         "github": "Le Client ID de l'application OAuth GitHub (visible sur la page des paramètres de l'app après sa création).",
         "microsoft": "L'Application (client) ID affiché sur la page Vue d'ensemble de l'app dans le centre d'administration Entra.",
         "gitlab": "L'Application ID affiché sur la page de l'application après sa création dans GitLab.",
-        "oidc": "L'identifiant de client OIDC enregistré auprès de votre fournisseur d'identité."
+        "oidc": "L'identifiant de client OIDC enregistré auprès de votre fournisseur d'identité.",
+        "github_enterprise": "Le Client ID de l'OAuth App que vous avez enregistrée sur votre GitHub Enterprise Server.",
+        "gitlab_enterprise": "L'Application ID de l'application OAuth que vous avez enregistrée sur votre GitLab autogéré."
       },
       "client_secret_tooltip": {
         "google": "Cliquez sur \"Créer des identifiants\" dans Google Cloud et téléchargez le secret — il n'est affiché qu'une fois.",
         "github": "Générez un nouveau client secret sur la page de l'application OAuth GitHub. Copiez-le immédiatement ; GitHub ne le réaffiche pas.",
         "microsoft": "Sous Certificats et secrets, créez un nouveau Client Secret. Copiez la \"Valeur\" (et non l'ID du secret).",
         "gitlab": "Affiché une seule fois sur la page de l'application juste après sa création, sous \"Secret\".",
-        "oidc": "Le secret client OIDC émis par votre fournisseur d'identité lors de l'enregistrement du client."
+        "oidc": "Le secret client OIDC émis par votre fournisseur d'identité lors de l'enregistrement du client.",
+        "github_enterprise": "Le Client Secret généré pour votre OAuth App GitHub Enterprise. Copiez-le immédiatement — il n'est affiché qu'une seule fois.",
+        "gitlab_enterprise": "Affiché une seule fois sur la page de l'application de votre GitLab autogéré après création."
       },
       "scopes_tooltip": "Séparés par des espaces ou des virgules. Laissez vide pour utiliser les valeurs par défaut du fournisseur ({{defaults}}).",
       "tenant_id_tooltip": "Tenant ID Microsoft Entra, GUID ou alias connu : \"common\" (tout compte Microsoft), \"organizations\" (tout compte professionnel ou scolaire) ou \"consumers\" (comptes personnels uniquement).",
@@ -907,7 +920,13 @@
       "label_display_name_attribute": "Revendication du nom d'affichage",
       "label_groups_attribute": "Revendication des groupes",
       "label_groups_attribute_help": "Requis si « Organisations autorisées » est défini. Nom de la revendication qui liste les groupes de l'utilisateur.",
-      "help_oidc_attribute_defaults": "Les noms des revendications sont optionnels — laissez vide pour utiliser les valeurs par défaut OIDC (sub, email, email_verified, name)."
+      "help_oidc_attribute_defaults": "Les noms des revendications sont optionnels — laissez vide pour utiliser les valeurs par défaut OIDC (sub, email, email_verified, name).",
+      "label_base_url": "URL de base du serveur",
+      "label_base_url_help": "Origine de votre instance auto-hébergée, p. ex. https://github.acme.corp — sans chemin final ni chaîne de requête.",
+      "base_url_tooltip": {
+        "github_enterprise": "URL de base de votre GitHub Enterprise Server. AccessFlow ajoute automatiquement /login/oauth/authorize, /login/oauth/access_token et /api/v3/*.",
+        "gitlab_enterprise": "URL de base de votre instance GitLab autogérée. AccessFlow ajoute automatiquement /oauth/authorize, /oauth/token, /oauth/userinfo et /oauth/discovery/keys."
+      }
     },
     "saml": {
       "title": "SAML / SSO",
@@ -1230,7 +1249,9 @@
       "GITHUB": "GitHub",
       "MICROSOFT": "Microsoft",
       "GITLAB": "GitLab",
-      "OIDC": "OIDC"
+      "OIDC": "OIDC",
+      "GITHUB_ENTERPRISE": "GitHub Enterprise",
+      "GITLAB_ENTERPRISE": "GitLab (autogéré)"
     },
     "invitation_status": {
       "PENDING": "En attente",

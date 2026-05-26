@@ -404,6 +404,19 @@ bootstrap:
   #   tenantId: ""
   #   defaultRole: REVIEWER
   #   active: true
+  # - provider: GITHUB_ENTERPRISE
+  #   clientId: "..."
+  #   clientSecretRef: { name: accessflow-bootstrap-secrets, key: ghes-client-secret }
+  #   baseUrl: "https://github.acme.corp"   # required for *_ENTERPRISE — must be https origin
+  #   scopesOverride: "read:user user:email read:org"
+  #   defaultRole: ANALYST
+  #   active: true
+  # - provider: GITLAB_ENTERPRISE
+  #   clientId: "..."
+  #   clientSecretRef: { name: accessflow-bootstrap-secrets, key: gle-client-secret }
+  #   baseUrl: "https://gitlab.acme.corp"
+  #   defaultRole: ANALYST
+  #   active: true
 
   # System SMTP relay (singleton per org). Used for outbound email — review
   # notifications, password resets, invitations.

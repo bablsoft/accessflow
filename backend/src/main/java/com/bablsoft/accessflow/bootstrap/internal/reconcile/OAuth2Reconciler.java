@@ -51,6 +51,10 @@ public class OAuth2Reconciler {
             requireOidcSpecField(spec.jwkSetUri(), "jwkSetUri");
             requireOidcSpecField(spec.issuerUri(), "issuerUri");
         }
+        if (spec.provider() == OAuth2ProviderType.GITHUB_ENTERPRISE
+                || spec.provider() == OAuth2ProviderType.GITLAB_ENTERPRISE) {
+            requireEnterpriseSpecField(spec.baseUrl(), "baseUrl", spec.provider());
+        }
 
         var providerResourceId = providerResourceId(spec.provider().name());
         var specMap = specFields(spec);
@@ -83,6 +87,7 @@ public class OAuth2Reconciler {
                 spec.emailVerifiedAttribute(),
                 spec.displayNameAttribute(),
                 spec.groupsAttribute(),
+                spec.baseUrl(),
                 spec.allowedOrganizations(),
                 spec.allowedEmailDomains(),
                 spec.defaultRole(),
@@ -112,6 +117,14 @@ public class OAuth2Reconciler {
         }
     }
 
+    private static void requireEnterpriseSpecField(String value, String fieldName,
+                                                   OAuth2ProviderType provider) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                    "OAuth2 %s provider is missing '%s'".formatted(provider, fieldName));
+        }
+    }
+
     private static Map<String, Object> specFields(OAuth2Spec spec) {
         var map = new LinkedHashMap<String, Object>();
         map.put("provider", spec.provider().name());
@@ -130,6 +143,7 @@ public class OAuth2Reconciler {
         map.put("email_verified_attribute", spec.emailVerifiedAttribute());
         map.put("display_name_attribute", spec.displayNameAttribute());
         map.put("groups_attribute", spec.groupsAttribute());
+        map.put("base_url", spec.baseUrl());
         map.put("allowed_organizations", spec.allowedOrganizations());
         map.put("allowed_email_domains", spec.allowedEmailDomains());
         map.put("default_role", spec.defaultRole() == null ? null : spec.defaultRole().name());
@@ -154,6 +168,7 @@ public class OAuth2Reconciler {
         map.put("email_verified_attribute", view.emailVerifiedAttribute());
         map.put("display_name_attribute", view.displayNameAttribute());
         map.put("groups_attribute", view.groupsAttribute());
+        map.put("base_url", view.baseUrl());
         map.put("allowed_organizations", view.allowedOrganizations());
         map.put("allowed_email_domains", view.allowedEmailDomains());
         map.put("default_role", view.defaultRole() == null ? null : view.defaultRole().name());
