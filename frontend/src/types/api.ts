@@ -547,6 +547,7 @@ export interface QueryListItem {
   risk_level: RiskLevel | null;
   risk_score: number | null;
   ai_failed: boolean;
+  scheduled_for: string | null;
   created_at: string;
 }
 

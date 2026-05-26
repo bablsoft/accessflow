@@ -279,6 +279,7 @@ export function UsersPage() {
             rowKey="id"
             size="middle"
             dataSource={filtered}
+            scroll={{ x: 'max-content' }}
             pagination={{
               pageSize: PAGE_SIZE,
               current: page + 1,
@@ -673,6 +674,7 @@ function PendingInvitationsSection({
         rowKey="id"
         size="small"
         dataSource={invitations}
+        scroll={{ x: 'max-content' }}
         pagination={false}
         columns={[
           {

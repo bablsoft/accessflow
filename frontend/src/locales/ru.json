@@ -346,7 +346,9 @@
       "col_created": "Создан",
       "count_label": "{{filtered}} из {{total}}",
       "export_failed": "Ошибка экспорта. Попробуйте ещё раз.",
-      "export_truncated": "Экспорт обрезан до 50 000 строк. Уточните фильтры, чтобы получить полный набор."
+      "export_truncated": "Экспорт обрезан до 50 000 строк. Уточните фильтры, чтобы получить полный набор.",
+      "scheduled_for_tooltip": "Запланировано на {{when}}",
+      "scheduled_for_aria": "Запланированный запуск"
     },
     "detail": {
       "breadcrumb_queries": "Запросы",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "запланировано",
       "scheduled_banner_title": "Запланировано на более позднее время",
       "scheduled_banner_body": "AccessFlow автоматически выполнит этот утверждённый запрос в {{when}}. Вы можете отменить или выполнить его сейчас.",
+      "scheduled_banner_title_pending": "Запланированный запуск",
+      "scheduled_banner_body_pending": "В случае одобрения запрос будет автоматически выполнен в {{when}}.",
+      "timeline_scheduled_label": "Запланированный запуск",
       "on_approve_success": "Одобрено · отправлено на выполнение",
       "on_reject_success": "Отклонено · автор уведомлён",
       "on_cancel_success": "Запрос отменён",

@@ -38,6 +38,8 @@ import { queryCancelErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
+import { buildTimelineStages } from './buildTimelineStages';
+import './query-detail.css';
 
 export function QueryDetailPage() {
   const { t } = useTranslation();
@@ -138,7 +140,7 @@ export function QueryDetailPage() {
 
   const stages: TimelineStage[] = useMemo(() => {
     if (!query) return [];
-    return buildStages(query, aiSkipped, t);
+    return buildTimelineStages(query, aiSkipped, t);
   }, [query, aiSkipped, t]);
 
   if (isLoading) {
@@ -164,6 +166,11 @@ export function QueryDetailPage() {
   const canDecide = isReviewer && query.status === 'PENDING_REVIEW' && submitterId !== user.id;
   const hasScheduledRun =
     query.status === 'APPROVED' && !!query.scheduled_for;
+  const showScheduledBanner =
+    !!query.scheduled_for &&
+    (query.status === 'PENDING_AI' ||
+      query.status === 'PENDING_REVIEW' ||
+      query.status === 'APPROVED');
   const canCancel =
     submitterId === user.id &&
     (query.status === 'PENDING_AI' ||
@@ -239,26 +246,27 @@ export function QueryDetailPage() {
           </>
         }
       />
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: 28,
-          display: 'grid',
-          gridTemplateColumns: '1fr 360px',
-          gap: 24,
-          alignContent: 'start',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {hasScheduledRun && (
+      <div className="qd-grid">
+        <div className="qd-main">
+          {showScheduledBanner && (
             <Alert
               type="info"
               showIcon
-              message={t('queries.detail.scheduled_banner_title')}
-              description={t('queries.detail.scheduled_banner_body', {
-                when: fmtDate(query.scheduled_for!),
-              })}
+              icon={<ClockCircleOutlined />}
+              message={
+                hasScheduledRun
+                  ? t('queries.detail.scheduled_banner_title')
+                  : t('queries.detail.scheduled_banner_title_pending')
+              }
+              description={
+                hasScheduledRun
+                  ? t('queries.detail.scheduled_banner_body', {
+                      when: fmtDate(query.scheduled_for!),
+                    })
+                  : t('queries.detail.scheduled_banner_body_pending', {
+                      when: fmtDate(query.scheduled_for!),
+                    })
+              }
             />
           )}
           {changesRequested && latestDecision && (
@@ -535,115 +543,13 @@ export function QueryDetailPage() {
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="qd-side">
           <ApprovalTimeline stages={stages} />
           <Metadata query={query} />
         </div>
       </div>
     </div>
   );
-}
-
-function buildStages(
-  query: QueryDetail,
-  aiSkipped: boolean,
-  t: (key: string) => string,
-): TimelineStage[] {
-  const out: TimelineStage[] = [
-    {
-      label: 'Submitted',
-      who: userDisplay(query.submitted_by.display_name, query.submitted_by.email),
-      time: query.created_at,
-      done: true,
-    },
-  ];
-  const aiFailed = query.ai_analysis?.failed === true;
-  if (aiSkipped) {
-    out.push({
-      label: t('queries.detail.timeline_ai_skipped_label'),
-      who: t('queries.detail.timeline_ai_skipped_who'),
-      time: query.created_at,
-      done: false,
-      active: false,
-      skipped: true,
-      detail: null,
-      riskLevel: null,
-    });
-  } else {
-    out.push({
-      label: aiFailed ? 'AI analysis failed' : 'AI analysis',
-      who: query.ai_analysis
-        ? `${query.ai_analysis.ai_provider.toLowerCase()} / ${query.ai_analysis.ai_model}`
-        : 'pending',
-      time: query.ai_analysis ? query.created_at : null,
-      done:
-        !aiFailed &&
-        ['PENDING_REVIEW', 'APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT', 'FAILED'].includes(
-          query.status,
-        ),
-      active: query.status === 'PENDING_AI',
-      failed: aiFailed,
-      detail: aiFailed
-        ? query.ai_analysis?.error_message ?? 'failed'
-        : query.ai_analysis
-        ? `${query.ai_analysis.risk_level} · score ${query.ai_analysis.risk_score}`
-        : 'analyzing…',
-      riskLevel: aiFailed ? null : query.ai_analysis?.risk_level ?? null,
-    });
-  }
-  if (query.status !== 'APPROVED' || query.duration_ms == null) {
-    const reviewDone = ['APPROVED', 'EXECUTED', 'REJECTED', 'TIMED_OUT'].includes(query.status);
-    const reviewLabel =
-      query.status === 'REJECTED'
-        ? 'Rejected'
-        : query.status === 'TIMED_OUT'
-        ? 'Timed out'
-        : 'Human review';
-    let reviewerWho: string;
-    let rejectionDetail: string | null = null;
-    if (query.status === 'REJECTED') {
-      const decisions = query.review_decisions ?? [];
-      const lastReject = [...decisions]
-        .reverse()
-        .find((d) => d.decision === 'REJECTED');
-      reviewerWho = lastReject
-        ? userDisplay(lastReject.reviewer.display_name, lastReject.reviewer.email)
-        : '—';
-      // Leading quote opts into the italic comment style in ApprovalTimeline.tsx.
-      rejectionDetail = lastReject?.comment ? `"${lastReject.comment}"` : null;
-    } else {
-      reviewerWho = reviewDone ? '—' : 'awaiting reviewer';
-    }
-    out.push({
-      label: reviewLabel,
-      who: reviewerWho,
-      time: reviewDone ? query.updated_at : null,
-      done: reviewDone,
-      active: query.status === 'PENDING_REVIEW',
-      rejected: query.status === 'REJECTED' || query.status === 'TIMED_OUT',
-      detail: rejectionDetail,
-    });
-  }
-  if (query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {
-    out.push({
-      label:
-        query.status === 'FAILED'
-          ? 'Execution failed'
-          : query.status === 'CANCELLED'
-          ? 'Cancelled'
-          : 'Execute',
-      who: query.status === 'EXECUTED' ? `proxy → ${query.datasource.name}` : '—',
-      time: query.status === 'EXECUTED' ? query.updated_at : null,
-      done: query.status === 'EXECUTED',
-      failed: query.status === 'FAILED',
-      cancelled: query.status === 'CANCELLED',
-      detail:
-        query.status === 'EXECUTED' && query.duration_ms != null
-          ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
-          : null,
-    });
-  }
-  return out;
 }
 
 function Card({

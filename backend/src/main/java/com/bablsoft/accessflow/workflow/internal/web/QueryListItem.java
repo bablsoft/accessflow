@@ -18,6 +18,7 @@ public record QueryListItem(
         RiskLevel riskLevel,
         Integer riskScore,
         boolean aiFailed,
+        Instant scheduledFor,
         Instant createdAt) {
 
     public static QueryListItem from(QueryListItemView view) {
@@ -31,6 +32,7 @@ public record QueryListItem(
                 view.aiRiskLevel(),
                 view.aiRiskScore(),
                 view.aiFailed(),
+                view.scheduledFor(),
                 view.createdAt());
     }
 

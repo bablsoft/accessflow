@@ -346,7 +346,9 @@
       "col_created": "Ստեղծվել է",
       "count_label": "{{filtered}} / {{total}}",
       "export_failed": "Արտահանումը ձախողվեց։ Կրկին փորձեք։",
-      "export_truncated": "Արտահանումը կրճատվել է 50,000 տողի։ Կիրառեք ավելի խիստ զտիչներ՝ ամբողջական արդյունքը ստանալու համար։"
+      "export_truncated": "Արտահանումը կրճատվել է 50,000 տողի։ Կիրառեք ավելի խիստ զտիչներ՝ ամբողջական արդյունքը ստանալու համար։",
+      "scheduled_for_tooltip": "Պլանավորված է կատարման {{when}}-ին",
+      "scheduled_for_aria": "Պլանավորված կատարում"
     },
     "detail": {
       "breadcrumb_queries": "Հարցումներ",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "պլանավորված",
       "scheduled_banner_title": "Պլանավորված է ավելի ուշ կատարման համար",
       "scheduled_banner_body": "AccessFlow-ը ինքնաբերաբար կկատարի այս հաստատված հարցումը {{when}}-ին։ Կարող եք չեղարկել կամ կատարել հիմա։",
+      "scheduled_banner_title_pending": "Պլանավորված կատարում",
+      "scheduled_banner_body_pending": "Հաստատվելու դեպքում այս հարցումը ինքնաբերաբար կկատարվի {{when}}-ին։",
+      "timeline_scheduled_label": "Պլանավորված կատարում",
       "on_approve_success": "Հաստատված · ուղարկված կատարման",
       "on_reject_success": "Մերժված · ներկայացնողը ծանուցված է",
       "on_cancel_success": "Հարցումը չեղարկված է",

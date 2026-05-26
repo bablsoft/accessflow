@@ -346,7 +346,9 @@
       "col_created": "创建时间",
       "count_label": "{{filtered}} / {{total}}",
       "export_failed": "导出失败,请重试。",
-      "export_truncated": "导出已截断至 50,000 行。请应用更严格的过滤条件以获取完整结果。"
+      "export_truncated": "导出已截断至 50,000 行。请应用更严格的过滤条件以获取完整结果。",
+      "scheduled_for_tooltip": "计划于 {{when}} 执行",
+      "scheduled_for_aria": "计划执行"
     },
     "detail": {
       "breadcrumb_queries": "查询",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "已计划",
       "scheduled_banner_title": "已计划稍后执行",
       "scheduled_banner_body": "AccessFlow 将在 {{when}} 自动执行这个已批准的查询。您仍然可以取消或立即执行。",
+      "scheduled_banner_title_pending": "计划执行",
+      "scheduled_banner_body_pending": "如果获得批准，此查询将在 {{when}} 自动执行。",
+      "timeline_scheduled_label": "计划执行",
       "on_approve_success": "已批准 · 已转发到执行",
       "on_reject_success": "已拒绝 · 已通知提交者",
       "on_cancel_success": "查询已取消",

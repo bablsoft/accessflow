@@ -346,7 +346,9 @@
       "col_created": "Created",
       "count_label": "{{filtered}} of {{total}}",
       "export_failed": "Export failed. Please try again.",
-      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set."
+      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set.",
+      "scheduled_for_tooltip": "Scheduled to run at {{when}}",
+      "scheduled_for_aria": "Scheduled run"
     },
     "detail": {
       "breadcrumb_queries": "Queries",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "scheduled",
       "scheduled_banner_title": "Scheduled to run later",
       "scheduled_banner_body": "AccessFlow will execute this approved query automatically at {{when}}. You can still cancel or run it now.",
+      "scheduled_banner_title_pending": "Scheduled run",
+      "scheduled_banner_body_pending": "If approved, this query will run automatically at {{when}}.",
+      "timeline_scheduled_label": "Scheduled run",
       "on_approve_success": "Approved · forwarded to execution",
       "on_reject_success": "Rejected · submitter notified",
       "on_cancel_success": "Query cancelled",

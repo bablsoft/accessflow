@@ -270,6 +270,7 @@ export function AuditLogPage() {
             rowKey="id"
             size="middle"
             dataSource={events}
+            scroll={{ x: 'max-content' }}
             pagination={{
               pageSize: PAGE_SIZE,
               current: page + 1,

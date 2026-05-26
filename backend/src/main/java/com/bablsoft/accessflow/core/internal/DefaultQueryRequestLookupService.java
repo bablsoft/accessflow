@@ -164,6 +164,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 aiAnalysis != null ? aiAnalysis.getRiskLevel() : null,
                 aiAnalysis != null ? aiAnalysis.getRiskScore() : null,
                 aiAnalysis != null && aiAnalysis.isFailed(),
+                entity.getScheduledFor(),
                 entity.getCreatedAt());
     }
 

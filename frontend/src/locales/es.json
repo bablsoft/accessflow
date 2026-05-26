@@ -346,7 +346,9 @@
       "col_created": "Creado",
       "count_label": "{{filtered}} de {{total}}",
       "export_failed": "La exportación falló. Inténtelo de nuevo.",
-      "export_truncated": "Exportación limitada a 50.000 filas. Aplique filtros más estrictos para obtener el conjunto completo."
+      "export_truncated": "Exportación limitada a 50.000 filas. Aplique filtros más estrictos para obtener el conjunto completo.",
+      "scheduled_for_tooltip": "Programada para ejecutarse a las {{when}}",
+      "scheduled_for_aria": "Ejecución programada"
     },
     "detail": {
       "breadcrumb_queries": "Consultas",
@@ -394,6 +396,9 @@
       "scheduled_for_label": "programado",
       "scheduled_banner_title": "Programada para ejecutarse más tarde",
       "scheduled_banner_body": "AccessFlow ejecutará esta consulta aprobada automáticamente a las {{when}}. Aún puedes cancelarla o ejecutarla ahora.",
+      "scheduled_banner_title_pending": "Ejecución programada",
+      "scheduled_banner_body_pending": "Si se aprueba, esta consulta se ejecutará automáticamente a las {{when}}.",
+      "timeline_scheduled_label": "Ejecución programada",
       "on_approve_success": "Aprobada · reenviada a ejecución",
       "on_reject_success": "Rechazada · autor notificado",
       "on_cancel_success": "Consulta cancelada",

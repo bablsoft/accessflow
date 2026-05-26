@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { App, Button, DatePicker, Input, Select, Skeleton, Table } from 'antd';
+import { App, Button, DatePicker, Input, Select, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { Avatar } from '@/components/common/Avatar';
 import { exportQueriesCsv, listQueries, queryKeys } from '@/api/queries';
-import { timeAgo } from '@/utils/dateFormat';
+import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import {
   enumOptions,
   queryStatusLabel,
@@ -121,8 +121,22 @@ export function QueryListPage() {
     {
       title: t('queries.list.col_id'),
       dataIndex: 'id',
-      width: 110,
-      render: (v: string) => <span className="mono muted" style={{ fontSize: 12 }}>{v.slice(0, 8)}</span>,
+      width: 130,
+      render: (v: string, r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span className="mono muted" style={{ fontSize: 12 }}>{v.slice(0, 8)}</span>
+          {r.scheduled_for && (
+            <Tooltip
+              title={t('queries.list.scheduled_for_tooltip', { when: fmtDate(r.scheduled_for) })}
+            >
+              <ClockCircleOutlined
+                aria-label={t('queries.list.scheduled_for_aria')}
+                style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+              />
+            </Tooltip>
+          )}
+        </span>
+      ),
     },
     {
       title: t('queries.list.col_type'),
@@ -272,6 +286,7 @@ export function QueryListPage() {
             dataSource={filtered}
             columns={cols}
             size="middle"
+            scroll={{ x: 'max-content' }}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,

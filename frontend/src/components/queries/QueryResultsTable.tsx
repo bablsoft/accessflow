@@ -75,6 +75,7 @@ export function QueryResultsTable({ queryId }: Props) {
       columns={columns}
       dataSource={dataSource}
       size="small"
+      scroll={{ x: 'max-content' }}
       pagination={{
         current: page + 1,
         pageSize: size,
