@@ -37,6 +37,7 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
         entity.setQueryType(command.queryType());
         entity.setTransactional(command.transactional());
         entity.setJustification(command.justification());
+        entity.setScheduledFor(command.scheduledFor());
         var saved = queryRequestRepository.save(entity);
         return saved.getId();
     }

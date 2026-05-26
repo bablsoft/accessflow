@@ -297,7 +297,7 @@ class RealtimeEventDispatcherTest {
 
     private QueryRequestSnapshot snapshot() {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null);
     }
 
     private ReviewPlanSnapshot planWithUserApprovers(UUID... approverUserIds) {

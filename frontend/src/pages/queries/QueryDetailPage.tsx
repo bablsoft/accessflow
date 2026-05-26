@@ -162,9 +162,13 @@ export function QueryDetailPage() {
   const isReviewer = user.role === 'REVIEWER' || user.role === 'ADMIN';
   const submitterId = query.submitted_by.id;
   const canDecide = isReviewer && query.status === 'PENDING_REVIEW' && submitterId !== user.id;
+  const hasScheduledRun =
+    query.status === 'APPROVED' && !!query.scheduled_for;
   const canCancel =
     submitterId === user.id &&
-    (query.status === 'PENDING_AI' || query.status === 'PENDING_REVIEW');
+    (query.status === 'PENDING_AI' ||
+      query.status === 'PENDING_REVIEW' ||
+      hasScheduledRun);
   const canExecute =
     query.status === 'APPROVED' && (submitterId === user.id || user.role === 'ADMIN');
   const aiFailed = query.ai_analysis?.failed === true;
@@ -196,8 +200,16 @@ export function QueryDetailPage() {
             <Button icon={<CopyOutlined />}>{t('common.duplicate')}</Button>
             {canCancel && (
               <Popconfirm
-                title={t('queries.detail.cancel_confirm_title')}
-                description={t('queries.detail.cancel_confirm_body')}
+                title={
+                  hasScheduledRun
+                    ? t('queries.detail.cancel_schedule_confirm_title')
+                    : t('queries.detail.cancel_confirm_title')
+                }
+                description={
+                  hasScheduledRun
+                    ? t('queries.detail.cancel_schedule_confirm_body')
+                    : t('queries.detail.cancel_confirm_body')
+                }
                 okText={t('common.ok')}
                 okButtonProps={{ danger: true }}
                 cancelText={t('common.cancel')}
@@ -208,7 +220,9 @@ export function QueryDetailPage() {
                   icon={<CloseOutlined />}
                   loading={cancelMutation.isPending}
                 >
-                  {t('queries.detail.cancel_query')}
+                  {hasScheduledRun
+                    ? t('queries.detail.cancel_schedule')
+                    : t('queries.detail.cancel_query')}
                 </Button>
               </Popconfirm>
             )}
@@ -237,6 +251,16 @@ export function QueryDetailPage() {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {hasScheduledRun && (
+            <Alert
+              type="info"
+              showIcon
+              message={t('queries.detail.scheduled_banner_title')}
+              description={t('queries.detail.scheduled_banner_body', {
+                when: fmtDate(query.scheduled_for!),
+              })}
+            />
+          )}
           {changesRequested && latestDecision && (
             <Alert
               type="info"
@@ -702,6 +726,9 @@ function Metadata({ query }: { query: QueryDetail }) {
         )}
         <Row k="created" v={fmtDate(query.created_at)} />
         <Row k="updated" v={fmtDate(query.updated_at)} />
+        {query.scheduled_for && (
+          <Row k={t('queries.detail.scheduled_for_label')} v={fmtDate(query.scheduled_for)} />
+        )}
         {query.rows_affected != null && <Row k="rows" v={fmtNum(query.rows_affected)} />}
         {query.duration_ms != null && <Row k="exec.ms" v={String(query.duration_ms)} />}
       </div>

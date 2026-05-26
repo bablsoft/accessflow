@@ -232,6 +232,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `rows_affected` | BIGINT nullable |
 | `error_message` | TEXT nullable |
 | `execution_duration_ms` | INTEGER nullable |
+| `scheduled_for` | TIMESTAMPTZ nullable — when set on submission, defers execution: once the query reaches `APPROVED`, the `ScheduledQueryRunJob` picks it up at `scheduled_for ≤ now()` and triggers execution via `QueryLifecycleService.executeScheduled`. A partial index `idx_query_requests_scheduled_for ON query_requests(scheduled_for) WHERE scheduled_for IS NOT NULL` keeps the scan cheap. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 
@@ -243,7 +244,9 @@ PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
                            ↘ TIMED_OUT  (approval-timeout auto-reject, see review_plans → Approval timeout)
            ↘ PENDING_REVIEW (if no AI)
 PENDING_REVIEW → CANCELLED (by submitter)
-APPROVED → FAILED (on execution error)
+APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet)
+APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now())
+APPROVED       → FAILED    (on execution error)
 ```
 
 **Auto-approve fast path (`PENDING_AI → APPROVED` directly).** When the datasource's review plan has `auto_approve_reads=true`, a SELECT whose AI analysis returns LOW or MEDIUM risk skips `PENDING_REVIEW` entirely. HIGH/CRITICAL risk SELECTs and all non-SELECT queries still go through human review. Plans with `requires_human_approval=false` always auto-approve on AI completion. AI failure (`AiAnalysisFailedEvent`) never auto-approves — the query always lands in `PENDING_REVIEW` so a human can inspect.

@@ -134,6 +134,9 @@ services:
       # past Playwright's per-test timeout. Other specs run sub-millisecond
       # SQL so this override is invisible to them.
       ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT: PT3S
+      # Lower the scheduled-run poll interval so the AF-345 query-scheduling spec
+      # fires its scheduled execution within the Playwright per-test budget.
+      ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL: PT1S
     healthcheck:
       # /actuator/health is permitAll. busybox wget is present in the
       # eclipse-temurin:25-jre-alpine runtime stage of the backend image.

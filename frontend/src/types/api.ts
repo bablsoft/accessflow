@@ -573,6 +573,7 @@ export interface QueryDetail {
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
   review_decisions: ReviewDecisionDetail[];
+  scheduled_for: string | null;
   created_at: string;
   updated_at: string;
 }

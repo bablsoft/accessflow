@@ -51,7 +51,8 @@ class QuerySubmissionController {
                 body.justification(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN));
+                caller.role() == UserRoleType.ADMIN,
+                body.scheduledFor()));
         recordAudit(caller, result.id(), body, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.id(), result.status(), null, null, null));

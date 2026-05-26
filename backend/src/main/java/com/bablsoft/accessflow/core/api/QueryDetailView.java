@@ -27,6 +27,7 @@ public record QueryDetailView(
         String reviewPlanName,
         Integer approvalTimeoutHours,
         List<ReviewDecisionView> reviewDecisions,
+        Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
 

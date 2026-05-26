@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Tooltip } from 'antd';
+import { App, Button, DatePicker, Input, Tooltip } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   ThunderboltOutlined,
   PlayCircleOutlined,
@@ -38,6 +39,7 @@ export function QueryEditorPage() {
   const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState('');
   const [justification, setJustification] = useState('');
+  const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
   const schemaQuery = useSchemaIntrospect(ds?.id);
   const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const { message } = App.useApp();
@@ -64,6 +66,7 @@ export function QueryEditorPage() {
         datasource_id: ds!.id,
         sql,
         justification,
+        scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
@@ -104,7 +107,9 @@ export function QueryEditorPage() {
   const hasFreshAnalysis = !!analyzeMutation.data;
   const canAnalyze = aiSupported && sqlNonEmpty && !analyzeMutation.isPending;
   const submitGatedByAnalysis = aiSupported && !hasFreshAnalysis;
-  const canSubmit = sqlNonEmpty && !submitMutation.isPending && !submitGatedByAnalysis;
+  const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
+  const canSubmit =
+    sqlNonEmpty && !submitMutation.isPending && !submitGatedByAnalysis && !scheduleInPast;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -206,6 +211,30 @@ export function QueryEditorPage() {
                 placeholder={t('editor.justification_placeholder')}
                 rows={3}
               />
+            </div>
+            <div>
+              <label
+                className="muted"
+                style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+              >
+                {t('editor.schedule_label')}{' '}
+                <span className="muted" style={{ fontWeight: 400 }}>
+                  {t('editor.schedule_optional_note')}
+                </span>
+              </label>
+              <DatePicker
+                showTime
+                value={scheduledFor}
+                onChange={(value) => setScheduledFor(value)}
+                placeholder={t('editor.schedule_placeholder')}
+                disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
+                style={{ width: 280 }}
+              />
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                {scheduleInPast
+                  ? t('editor.schedule_in_past_error')
+                  : t('editor.schedule_help')}
+              </div>
             </div>
             <ReviewPlanPreview ds={ds} />
           </div>

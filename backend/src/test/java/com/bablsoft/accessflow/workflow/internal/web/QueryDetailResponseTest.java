@@ -37,12 +37,14 @@ class QueryDetailResponseTest {
                 "lgtm",
                 1,
                 Instant.parse("2026-05-01T10:00:20Z"));
+        var scheduledFor = Instant.parse("2026-05-02T08:00:00Z");
         var view = new QueryDetailView(queryId, dsId, "Prod PG", orgId,
                 submitterId, "alice@example.com", "Alice",
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", ai, 5L, 99, null,
                 "Prod plan", 24,
                 List.of(decision),
+                scheduledFor,
                 Instant.parse("2026-05-01T10:00:00Z"),
                 Instant.parse("2026-05-01T10:00:30Z"));
 
@@ -72,6 +74,7 @@ class QueryDetailResponseTest {
         assertThat(response.approvalTimeoutHours()).isEqualTo(24);
         assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-05-01T10:00:00Z"));
         assertThat(response.updatedAt()).isEqualTo(Instant.parse("2026-05-01T10:00:30Z"));
+        assertThat(response.scheduledFor()).isEqualTo(scheduledFor);
 
         var aiOut = response.aiAnalysis();
         assertThat(aiOut).isNotNull();
@@ -104,6 +107,7 @@ class QueryDetailResponseTest {
                 "x", ai, null, null, null,
                 null, null,
                 List.of(),
+                null,
                 Instant.now(), Instant.now());
 
         var response = QueryDetailResponse.from(view);
@@ -120,6 +124,7 @@ class QueryDetailResponseTest {
                 "x", null, null, null, null,
                 null, null,
                 List.of(),
+                null,
                 Instant.now(), Instant.now());
 
         var response = QueryDetailResponse.from(view);
@@ -128,6 +133,7 @@ class QueryDetailResponseTest {
         assertThat(response.reviewPlanName()).isNull();
         assertThat(response.approvalTimeoutHours()).isNull();
         assertThat(response.reviewDecisions()).isEmpty();
+        assertThat(response.scheduledFor()).isNull();
     }
 
     @Test
@@ -143,6 +149,7 @@ class QueryDetailResponseTest {
                 "x", ai, null, null, null,
                 null, null,
                 List.of(),
+                null,
                 Instant.now(), Instant.now());
 
         var response = QueryDetailResponse.from(view);

@@ -20,6 +20,13 @@ public interface QueryRequestLookupService {
     List<UUID> findTimedOutPendingReviewIds(Instant now);
 
     /**
+     * Returns the ids of {@code APPROVED} queries that carry a non-null {@code scheduled_for}
+     * value at or before {@code now}. The caller (workflow's {@code ScheduledQueryRunJob})
+     * iterates these and triggers execution via {@code QueryLifecycleService.executeScheduled}.
+     */
+    List<UUID> findScheduledDueIds(Instant now);
+
+    /**
      * Returns queries in {@code PENDING_REVIEW} where the reviewer is listed (by user id or
      * role) on the datasource's review plan, scoped to their organization, excluding queries
      * the reviewer themselves submitted. The current-stage filter is applied by the caller

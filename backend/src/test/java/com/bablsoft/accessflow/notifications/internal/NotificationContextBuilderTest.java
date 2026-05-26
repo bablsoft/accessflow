@@ -278,7 +278,7 @@ class NotificationContextBuilderTest {
         var longSql = "X".repeat(500);
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(
                 new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
-                        longSql, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW)));
+                        longSql, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null)));
 
         var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
@@ -290,7 +290,7 @@ class NotificationContextBuilderTest {
     void truncateHandlesNullSqlAsEmptyString() {
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(
                 new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
-                        null, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW)));
+                        null, QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null)));
 
         var ctx = builder.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
@@ -402,7 +402,7 @@ class NotificationContextBuilderTest {
 
     private QueryRequestSnapshot snapshot() {
         return new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null);
     }
 
     private UserView user(UUID id, String email, UserRoleType role) {
