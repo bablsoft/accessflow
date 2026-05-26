@@ -145,4 +145,60 @@ class OAuth2MembershipResolverTest {
 
         assertThat(orgs).isEmpty();
     }
+
+    @Test
+    void githubEnterpriseCallsEnterpriseOrgsUri() {
+        var builder = RestClient.builder();
+        var mockServer = MockRestServiceServer.bindTo(builder).build();
+        mockServer.expect(requestTo("https://gh.acme.corp/api/v3/user/orgs"))
+                .andExpect(header("Authorization", "Bearer ghe_xyz"))
+                .andRespond(withSuccess(
+                        "[{\"login\":\"platform-team\"}]",
+                        MediaType.APPLICATION_JSON));
+
+        var resolver = new OAuth2MembershipResolver(builder.build());
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.GITHUB_ENTERPRISE, Map.of(), "ghe_xyz", null, "https://gh.acme.corp");
+
+        assertThat(orgs).containsExactly("platform-team");
+        mockServer.verify();
+    }
+
+    @Test
+    void githubEnterpriseTrimsTrailingSlashFromBaseUrl() {
+        var builder = RestClient.builder();
+        var mockServer = MockRestServiceServer.bindTo(builder).build();
+        mockServer.expect(requestTo("https://gh.acme.corp/api/v3/user/orgs"))
+                .andRespond(withSuccess("[{\"login\":\"x\"}]", MediaType.APPLICATION_JSON));
+
+        var resolver = new OAuth2MembershipResolver(builder.build());
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.GITHUB_ENTERPRISE, Map.of(), "tok", null, "https://gh.acme.corp/");
+
+        assertThat(orgs).containsExactly("x");
+        mockServer.verify();
+    }
+
+    @Test
+    void githubEnterpriseEmptyWhenBaseUrlBlank() {
+        var resolver = new OAuth2MembershipResolver();
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.GITHUB_ENTERPRISE, Map.of(), "tok", null, " ");
+
+        assertThat(orgs).isEmpty();
+    }
+
+    @Test
+    void gitlabEnterpriseReadsGroupsClaim() {
+        var resolver = new OAuth2MembershipResolver();
+        Map<String, Object> attrs = Map.of("groups", List.of("acme/eng", "acme/sec"));
+
+        var orgs = resolver.resolveOrganizations(
+                OAuth2ProviderType.GITLAB_ENTERPRISE, attrs, "tok", null, "https://gl.acme.corp");
+
+        assertThat(orgs).containsExactlyInAnyOrder("acme/eng", "acme/sec");
+    }
 }

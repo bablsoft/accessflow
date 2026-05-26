@@ -5,5 +5,7 @@ public enum OAuth2ProviderType {
     GITHUB,
     MICROSOFT,
     GITLAB,
-    OIDC
+    OIDC,
+    GITHUB_ENTERPRISE,
+    GITLAB_ENTERPRISE
 }

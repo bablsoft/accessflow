@@ -78,7 +78,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         var config = oauth2ConfigService.getOrDefault(organizationId, provider);
         var resolved = emailResolver.resolve(
                 provider, attributes, accessToken,
-                config.emailAttribute(), config.displayNameAttribute(), config.emailVerifiedAttribute());
+                config.emailAttribute(), config.displayNameAttribute(), config.emailVerifiedAttribute(),
+                config.baseUrl());
 
         if (resolved.email() == null || resolved.email().isBlank()) {
             redirectWithError(response, "OAUTH2_EMAIL_MISSING");
@@ -149,7 +150,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             return true;
         }
         var memberships = membershipResolver.resolveOrganizations(
-                provider, attributes, accessToken, config.groupsAttribute());
+                provider, attributes, accessToken, config.groupsAttribute(), config.baseUrl());
         for (var entry : allowed) {
             if (entry != null && memberships.contains(entry)) {
                 return true;

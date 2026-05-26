@@ -93,7 +93,7 @@ class OAuth2LoginSuccessHandlerTest {
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
                 .thenReturn(view(OAuth2ProviderType.GOOGLE, UserRoleType.ANALYST, List.of(), List.of()));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved(null, null, true));
 
         handler.onAuthenticationSuccess(request, response, token);
@@ -108,7 +108,7 @@ class OAuth2LoginSuccessHandlerTest {
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
                 .thenReturn(view(OAuth2ProviderType.GOOGLE, UserRoleType.ANALYST, List.of(), List.of()));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("u@x.com", "U", false));
 
         handler.onAuthenticationSuccess(request, response, token);
@@ -120,7 +120,7 @@ class OAuth2LoginSuccessHandlerTest {
     void successPathProvisionsAndRedirectsWithCode() throws Exception {
         stubAuthorizedClient("google");
         var token = oauth2Token("google", Map.of("sub", "1", "email", "u@x.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("u@x.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
@@ -141,7 +141,7 @@ class OAuth2LoginSuccessHandlerTest {
     void localConflictRedirectsWithSpecificError() throws Exception {
         stubAuthorizedClient("github");
         var token = oauth2Token("github", Map.of("id", 1, "email", "a@b.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
@@ -159,7 +159,7 @@ class OAuth2LoginSuccessHandlerTest {
     void rejectsLoginWhenEmailDomainNotAllowed() throws Exception {
         stubAuthorizedClient("google");
         var token = oauth2Token("google", Map.of("sub", "1", "email", "u@evil.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("u@evil.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
@@ -176,7 +176,7 @@ class OAuth2LoginSuccessHandlerTest {
     void allowsLoginWhenEmailDomainMatchesCaseInsensitively() throws Exception {
         stubAuthorizedClient("google");
         var token = oauth2Token("google", Map.of("sub", "1", "email", "u@Example.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GOOGLE), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("u@Example.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GOOGLE))
@@ -195,13 +195,13 @@ class OAuth2LoginSuccessHandlerTest {
     void rejectsLoginWhenOrganizationMembershipMissing() throws Exception {
         stubAuthorizedClient("github");
         var token = oauth2Token("github", Map.of("id", 1, "email", "a@b.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
                 .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST,
                         List.of("bablsoft"), List.of()));
-        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any()))
+        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any()))
                 .thenReturn(Set.of("some-other-org"));
 
         handler.onAuthenticationSuccess(request, response, token);
@@ -214,13 +214,13 @@ class OAuth2LoginSuccessHandlerTest {
     void allowsLoginWhenOrganizationIntersects() throws Exception {
         stubAuthorizedClient("github");
         var token = oauth2Token("github", Map.of("id", 1, "email", "a@b.com"));
-        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any()))
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any(), any()))
                 .thenReturn(new OAuth2EmailResolver.Resolved("a@b.com", "User", true));
         when(organizationLookupService.singleOrganization()).thenReturn(orgId);
         when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
                 .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST,
                         List.of("bablsoft", "acme"), List.of()));
-        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any()))
+        when(membershipResolver.resolveOrganizations(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any()))
                 .thenReturn(Set.of("acme", "another"));
         when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
                 .thenReturn(provisionedUser());
@@ -260,7 +260,7 @@ class OAuth2LoginSuccessHandlerTest {
         return new OAuth2ConfigView(UUID.randomUUID(), orgId, provider,
                 "client-id", true, null, null,
                 null, null, null, null, null, null,
-                null, null, null, null, null,
+                null, null, null, null, null, null,
                 allowedOrgs, allowedDomains,
                 defaultRole, true,
                 Instant.now(), Instant.now());

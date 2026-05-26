@@ -1,6 +1,13 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
 export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2';
-export type OAuth2Provider = 'GOOGLE' | 'GITHUB' | 'MICROSOFT' | 'GITLAB' | 'OIDC';
+export type OAuth2Provider =
+  | 'GOOGLE'
+  | 'GITHUB'
+  | 'MICROSOFT'
+  | 'GITLAB'
+  | 'OIDC'
+  | 'GITHUB_ENTERPRISE'
+  | 'GITLAB_ENTERPRISE';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type QueryStatus =
@@ -223,6 +230,7 @@ export interface OAuth2Config {
   email_verified_attribute: string | null;
   display_name_attribute: string | null;
   groups_attribute: string | null;
+  base_url: string | null;
   allowed_organizations: string[] | null;
   allowed_email_domains: string[] | null;
   default_role: Role;
@@ -247,6 +255,7 @@ export interface UpdateOAuth2ConfigInput {
   email_verified_attribute?: string | null;
   display_name_attribute?: string | null;
   groups_attribute?: string | null;
+  base_url?: string | null;
   allowed_organizations?: string[] | null;
   allowed_email_domains?: string[] | null;
   default_role: Role;

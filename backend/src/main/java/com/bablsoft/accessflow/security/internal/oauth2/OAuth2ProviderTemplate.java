@@ -10,13 +10,18 @@ import java.util.Set;
  * Per-provider OAuth2 metadata: authorization/token/userinfo URLs, default scopes,
  * the OIDC flag, and the userinfo claim names this app extracts ({@code email}, display name).
  *
- * <p>For the four built-in providers (GOOGLE, GITHUB, MICROSOFT, GITLAB) the metadata is
+ * <p>For the four built-in cloud providers (GOOGLE, GITHUB, MICROSOFT, GITLAB) the metadata is
  * static and lives in {@link #TEMPLATES}; the DB-backed config supplies only the
  * client-id/secret/tenant/scopes-override and active flag, so admin-entered URLs cannot
  * be used to redirect users elsewhere.
  *
+ * <p>For the two enterprise variants (GITHUB_ENTERPRISE, GITLAB_ENTERPRISE) the URLs share
+ * the same compiled sub-paths but include a {@code {base}} placeholder for the operator's
+ * self-hosted origin (e.g. {@code https://github.acme.corp}). Only the origin is editable;
+ * the sub-paths remain static.
+ *
  * <p>For the generic {@link OAuth2ProviderType#OIDC} provider, the metadata is supplied by
- * the {@code oauth2_config} row itself; {@link #fromEntity(OAuth2ConfigEntity)} builds a
+ * the {@code oauth2_config} row itself; {@link #forEntity(OAuth2ConfigEntity)} builds a
  * template instance from those columns. URLs are operator-editable (admin role, audit-logged)
  * and never read from an unauthenticated request.
  */
@@ -78,6 +83,34 @@ public final class OAuth2ProviderTemplate {
                     "sub",
                     "email",
                     "email_verified",
+                    "name"),
+            OAuth2ProviderType.GITHUB_ENTERPRISE, new OAuth2ProviderTemplate(
+                    OAuth2ProviderType.GITHUB_ENTERPRISE,
+                    "GitHub Enterprise",
+                    "{base}/login/oauth/authorize",
+                    "{base}/login/oauth/access_token",
+                    "{base}/api/v3/user",
+                    null,
+                    null,
+                    Set.of("read:user", "user:email"),
+                    false,
+                    "id",
+                    "email",
+                    null,
+                    "name"),
+            OAuth2ProviderType.GITLAB_ENTERPRISE, new OAuth2ProviderTemplate(
+                    OAuth2ProviderType.GITLAB_ENTERPRISE,
+                    "GitLab (self-managed)",
+                    "{base}/oauth/authorize",
+                    "{base}/oauth/token",
+                    "{base}/oauth/userinfo",
+                    "{base}/oauth/discovery/keys",
+                    "{base}",
+                    Set.of("openid", "email", "profile"),
+                    true,
+                    "sub",
+                    "email",
+                    "email_verified",
                     "name"));
 
     public static OAuth2ProviderTemplate forProvider(OAuth2ProviderType provider) {
@@ -90,9 +123,10 @@ public final class OAuth2ProviderTemplate {
 
     /**
      * Returns a template for the given {@code oauth2_config} row. For the four built-in
-     * providers this is equivalent to {@link #forProvider(OAuth2ProviderType)}; for
-     * {@link OAuth2ProviderType#OIDC} it builds the template from the entity's URL and
-     * attribute-name columns, applying defaults for any attribute name left null.
+     * cloud providers and the two enterprise variants this is equivalent to
+     * {@link #forProvider(OAuth2ProviderType)}; for {@link OAuth2ProviderType#OIDC} it
+     * builds the template from the entity's URL and attribute-name columns, applying
+     * defaults for any attribute name left null.
      */
     public static OAuth2ProviderTemplate forEntity(OAuth2ConfigEntity entity) {
         if (entity.getProvider() != OAuth2ProviderType.OIDC) {
@@ -199,23 +233,43 @@ public final class OAuth2ProviderTemplate {
     }
 
     public String authorizationUri(String tenantId) {
-        return substituteTenant(authorizationUri, tenantId);
+        return authorizationUri(tenantId, null);
+    }
+
+    public String authorizationUri(String tenantId, String baseUrl) {
+        return substitute(authorizationUri, tenantId, baseUrl);
     }
 
     public String tokenUri(String tenantId) {
-        return substituteTenant(tokenUri, tenantId);
+        return tokenUri(tenantId, null);
+    }
+
+    public String tokenUri(String tenantId, String baseUrl) {
+        return substitute(tokenUri, tenantId, baseUrl);
     }
 
     public String userInfoUri() {
-        return userInfoUri;
+        return userInfoUri(null);
+    }
+
+    public String userInfoUri(String baseUrl) {
+        return substitute(userInfoUri, null, baseUrl);
     }
 
     public String jwkSetUri(String tenantId) {
-        return jwkSetUri == null ? null : substituteTenant(jwkSetUri, tenantId);
+        return jwkSetUri(tenantId, null);
+    }
+
+    public String jwkSetUri(String tenantId, String baseUrl) {
+        return jwkSetUri == null ? null : substitute(jwkSetUri, tenantId, baseUrl);
     }
 
     public String issuerUri(String tenantId) {
-        return issuerUri == null ? null : substituteTenant(issuerUri, tenantId);
+        return issuerUri(tenantId, null);
+    }
+
+    public String issuerUri(String tenantId, String baseUrl) {
+        return issuerUri == null ? null : substitute(issuerUri, tenantId, baseUrl);
     }
 
     public Set<String> defaultScopes() {
@@ -246,11 +300,25 @@ public final class OAuth2ProviderTemplate {
         return groupsAttributeName;
     }
 
-    private static String substituteTenant(String uri, String tenantId) {
-        if (!uri.contains("{tenant}")) {
-            return uri;
+    private static String substitute(String uri, String tenantId, String baseUrl) {
+        if (uri == null) return null;
+        var out = uri;
+        if (out.contains("{tenant}")) {
+            var tenant = (tenantId == null || tenantId.isBlank()) ? "common" : tenantId.trim();
+            out = out.replace("{tenant}", tenant);
         }
-        var tenant = (tenantId == null || tenantId.isBlank()) ? "common" : tenantId.trim();
-        return uri.replace("{tenant}", tenant);
+        if (out.contains("{base}")) {
+            var base = (baseUrl == null) ? "" : trimTrailingSlash(baseUrl.trim());
+            out = out.replace("{base}", base);
+        }
+        return out;
+    }
+
+    private static String trimTrailingSlash(String value) {
+        var end = value.length();
+        while (end > 0 && value.charAt(end - 1) == '/') {
+            end--;
+        }
+        return value.substring(0, end);
     }
 }

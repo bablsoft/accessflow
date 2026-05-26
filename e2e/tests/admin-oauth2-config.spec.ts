@@ -122,10 +122,12 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
 
     await expect(page.getByRole('heading', { name: 'OAuth providers' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Google' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'GitHub' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'GitHub', exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Microsoft' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'GitLab' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'GitLab', exact: true })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'OpenID Connect' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'GitHub Enterprise' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'GitLab (self-managed)' })).toBeVisible();
 
     // Google tab is the initial active tab — the Active switch should reflect
     // the unseeded "disabled" default, and both credentials fields should be
@@ -279,6 +281,60 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
 
     const probe = await probeLoginGoogleButton(browser);
     expect(probe.visible).toBe(false);
+  });
+
+  test('5b) GitHub Enterprise tab renders base URL field + activation without base_url → 422', async ({
+    page,
+    request,
+  }) => {
+    // Drop any pre-existing row so we start from the unseeded default.
+    const delRes = await request.delete(
+      `${apiBase()}/api/v1/admin/oauth2-config/GITHUB_ENTERPRISE`,
+      { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+    );
+    expect([200, 204, 404]).toContain(delRes.status());
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/oauth2');
+    await waitForOAuth2ConfigLoaded(page);
+
+    await page.getByRole('tab', { name: 'GitHub Enterprise' }).click();
+
+    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    await expect(activeTab.getByLabel('Server base URL')).toBeVisible();
+    await activeTab.getByLabel('Client ID').fill('ghe-id');
+    await activeTab.getByLabel('Client secret').fill('ghe-secret');
+    await activeTab.getByRole('switch').click();
+    await expect(activeTab.getByRole('switch')).toBeChecked();
+
+    // Submit with base_url left blank — Form.Item required rule should block
+    // the request before the network round-trip.
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      activeTab.getByText('Server base URL is required.', { exact: false }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Now fill an http:// URL — the frontend type:'url' rule passes
+    // (http is a valid URL), but the backend rejects with 422 because
+    // enterprise instances must be https.
+    await activeTab.getByLabel('Server base URL').fill('http://gh.acme.corp');
+    const saveResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        /\/api\/v1\/admin\/oauth2-config\/GITHUB_ENTERPRISE$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const saveResponse = await saveResponsePromise;
+    expect(saveResponse.status()).toBe(422);
+    const body = (await saveResponse.json()) as { error?: string };
+    expect(body.error).toBe('OAUTH2_CONFIG_INVALID');
+
+    // Best-effort cleanup so this test doesn't leak state.
+    await request.delete(
+      `${apiBase()}/api/v1/admin/oauth2-config/GITHUB_ENTERPRISE`,
+      { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+    );
   });
 
   test('6) save active with empty credentials → backend 422, error toast, form stays open', async ({

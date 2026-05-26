@@ -64,6 +64,62 @@ class OAuth2ProviderTemplateTest {
     }
 
     @Test
+    void githubEnterpriseSubstitutesBaseUrl() {
+        var t = OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        assertThat(t.isOidc()).isFalse();
+        assertThat(t.defaultScopes()).contains("read:user", "user:email");
+        assertThat(t.authorizationUri(null, "https://gh.acme.corp"))
+                .isEqualTo("https://gh.acme.corp/login/oauth/authorize");
+        assertThat(t.tokenUri(null, "https://gh.acme.corp"))
+                .isEqualTo("https://gh.acme.corp/login/oauth/access_token");
+        assertThat(t.userInfoUri("https://gh.acme.corp"))
+                .isEqualTo("https://gh.acme.corp/api/v3/user");
+        assertThat(t.jwkSetUri(null, "https://gh.acme.corp")).isNull();
+        assertThat(t.issuerUri(null, "https://gh.acme.corp")).isNull();
+    }
+
+    @Test
+    void githubEnterpriseTrimsTrailingSlash() {
+        var t = OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        assertThat(t.authorizationUri(null, "https://gh.acme.corp/"))
+                .isEqualTo("https://gh.acme.corp/login/oauth/authorize");
+        assertThat(t.authorizationUri(null, "https://gh.acme.corp///"))
+                .isEqualTo("https://gh.acme.corp/login/oauth/authorize");
+    }
+
+    @Test
+    void githubEnterprisePreservesCustomPort() {
+        var t = OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        assertThat(t.authorizationUri(null, "https://gh.acme.corp:8443"))
+                .isEqualTo("https://gh.acme.corp:8443/login/oauth/authorize");
+    }
+
+    @Test
+    void gitlabEnterpriseSubstitutesBaseUrlForAllUris() {
+        var t = OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.GITLAB_ENTERPRISE);
+        assertThat(t.isOidc()).isTrue();
+        assertThat(t.defaultScopes()).contains("openid", "email", "profile");
+        assertThat(t.authorizationUri(null, "https://gl.acme.corp"))
+                .isEqualTo("https://gl.acme.corp/oauth/authorize");
+        assertThat(t.tokenUri(null, "https://gl.acme.corp"))
+                .isEqualTo("https://gl.acme.corp/oauth/token");
+        assertThat(t.userInfoUri("https://gl.acme.corp"))
+                .isEqualTo("https://gl.acme.corp/oauth/userinfo");
+        assertThat(t.jwkSetUri(null, "https://gl.acme.corp"))
+                .isEqualTo("https://gl.acme.corp/oauth/discovery/keys");
+        assertThat(t.issuerUri(null, "https://gl.acme.corp"))
+                .isEqualTo("https://gl.acme.corp");
+    }
+
+    @Test
+    void enterpriseTemplateSingleArgAccessorsLeaveBasePlaceholder() {
+        // Defensive: the single-arg overloads pass null baseUrl, so {base} stays unresolved.
+        // Production code calls the two-arg overloads via DynamicClientRegistrationRepository.
+        var t = OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.GITHUB_ENTERPRISE);
+        assertThat(t.authorizationUri(null)).isEqualTo("/login/oauth/authorize");
+    }
+
+    @Test
     void forProviderRejectsOidcSinceItHasNoStaticDefaults() {
         assertThatThrownBy(() -> OAuth2ProviderTemplate.forProvider(OAuth2ProviderType.OIDC))
                 .isInstanceOf(IllegalArgumentException.class);

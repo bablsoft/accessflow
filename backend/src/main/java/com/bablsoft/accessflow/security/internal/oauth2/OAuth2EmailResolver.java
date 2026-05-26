@@ -36,7 +36,7 @@ public class OAuth2EmailResolver {
     public Resolved resolve(OAuth2ProviderType provider,
                             Map<String, Object> attributes,
                             String accessToken) {
-        return resolve(provider, attributes, accessToken, null, null, null);
+        return resolve(provider, attributes, accessToken, null, null, null, null);
     }
 
     public Resolved resolve(OAuth2ProviderType provider,
@@ -45,6 +45,18 @@ public class OAuth2EmailResolver {
                             String emailAttributeOverride,
                             String displayNameAttributeOverride,
                             String emailVerifiedAttributeOverride) {
+        return resolve(provider, attributes, accessToken,
+                emailAttributeOverride, displayNameAttributeOverride, emailVerifiedAttributeOverride,
+                null);
+    }
+
+    public Resolved resolve(OAuth2ProviderType provider,
+                            Map<String, Object> attributes,
+                            String accessToken,
+                            String emailAttributeOverride,
+                            String displayNameAttributeOverride,
+                            String emailVerifiedAttributeOverride,
+                            String baseUrl) {
         final String emailAttribute;
         final String displayNameAttribute;
         final String emailVerifiedAttribute;
@@ -72,7 +84,7 @@ public class OAuth2EmailResolver {
         }
 
         if (provider == OAuth2ProviderType.GITHUB) {
-            var fallback = githubPrimaryEmail(accessToken);
+            var fallback = githubPrimaryEmail(accessToken, GITHUB_EMAILS_URI);
             if (fallback != null) {
                 if (email == null || email.isBlank()) {
                     email = fallback.email();
@@ -83,6 +95,17 @@ public class OAuth2EmailResolver {
                 // we can't independently verify, so be conservative.
                 verified = false;
             }
+        } else if (provider == OAuth2ProviderType.GITHUB_ENTERPRISE) {
+            var enterpriseEmailsUri = githubEnterpriseEmailsUri(baseUrl);
+            var fallback = enterpriseEmailsUri == null ? null : githubPrimaryEmail(accessToken, enterpriseEmailsUri);
+            if (fallback != null) {
+                if (email == null || email.isBlank()) {
+                    email = fallback.email();
+                }
+                verified = fallback.verified();
+            } else if (verified == null && email != null) {
+                verified = false;
+            }
         } else if (verified == null) {
             verified = false;
         }
@@ -90,14 +113,14 @@ public class OAuth2EmailResolver {
         return new Resolved(email, displayName, verified);
     }
 
-    private GithubEmail githubPrimaryEmail(String accessToken) {
+    private GithubEmail githubPrimaryEmail(String accessToken, String emailsUri) {
         if (accessToken == null || accessToken.isBlank()) {
             return null;
         }
         try {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> emails = (List<Map<String, Object>>) restClient.get()
-                    .uri(GITHUB_EMAILS_URI)
+                    .uri(emailsUri)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
                     .retrieve()
@@ -113,9 +136,20 @@ public class OAuth2EmailResolver {
                 }
             }
         } catch (RuntimeException ex) {
-            log.warn("GitHub /user/emails lookup failed: {}", ex.getMessage());
+            log.warn("GitHub /user/emails lookup failed at {}: {}", emailsUri, ex.getMessage());
         }
         return null;
+    }
+
+    private static String githubEnterpriseEmailsUri(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return null;
+        }
+        var trimmed = baseUrl.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed + "/api/v3/user/emails";
     }
 
     private static String stringAttr(Map<String, Object> attrs, String name) {

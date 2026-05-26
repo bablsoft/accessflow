@@ -147,4 +147,63 @@ class OAuth2EmailResolverTest {
         assertThat(resolved.displayName()).isEqualTo("Bob");
         assertThat(resolved.emailVerified()).isTrue();
     }
+
+    @Test
+    void githubEnterpriseFallsBackToEnterpriseEmailsEndpoint() {
+        var builder = RestClient.builder();
+        var mockServer = MockRestServiceServer.bindTo(builder).build();
+        mockServer.expect(requestTo("https://gh.acme.corp/api/v3/user/emails"))
+                .andExpect(header("Authorization", "Bearer ghe_abc"))
+                .andRespond(withSuccess(
+                        "[{\"email\":\"primary@acme.corp\",\"primary\":true,\"verified\":true}]",
+                        MediaType.APPLICATION_JSON));
+
+        var resolver = new OAuth2EmailResolver(builder.build());
+        var attrs = Map.<String, Object>of(
+                "id", 1,
+                "name", "Frank",
+                "login", "frank");
+
+        var resolved = resolver.resolve(OAuth2ProviderType.GITHUB_ENTERPRISE, attrs, "ghe_abc",
+                null, null, null, "https://gh.acme.corp");
+
+        assertThat(resolved.email()).isEqualTo("primary@acme.corp");
+        assertThat(resolved.emailVerified()).isTrue();
+        mockServer.verify();
+    }
+
+    @Test
+    void githubEnterpriseTrimsTrailingSlashFromBaseUrlWhenBuildingEmailsUri() {
+        var builder = RestClient.builder();
+        var mockServer = MockRestServiceServer.bindTo(builder).build();
+        mockServer.expect(requestTo("https://gh.acme.corp/api/v3/user/emails"))
+                .andRespond(withSuccess(
+                        "[{\"email\":\"primary@acme.corp\",\"primary\":true,\"verified\":true}]",
+                        MediaType.APPLICATION_JSON));
+
+        var resolver = new OAuth2EmailResolver(builder.build());
+        var attrs = Map.<String, Object>of("id", 2, "name", "Grace");
+
+        var resolved = resolver.resolve(OAuth2ProviderType.GITHUB_ENTERPRISE, attrs, "tok",
+                null, null, null, "https://gh.acme.corp/");
+
+        assertThat(resolved.email()).isEqualTo("primary@acme.corp");
+        mockServer.verify();
+    }
+
+    @Test
+    void githubEnterpriseBlankBaseUrlSkipsEnterpriseEmailsLookup() {
+        var resolver = new OAuth2EmailResolver();
+        var attrs = Map.<String, Object>of(
+                "id", 1,
+                "name", "Heidi",
+                "email", "heidi@acme.corp");
+
+        var resolved = resolver.resolve(OAuth2ProviderType.GITHUB_ENTERPRISE, attrs, "tok",
+                null, null, null, " ");
+
+        // No call is made; we fall through to whatever the userinfo claim says.
+        assertThat(resolved.email()).isEqualTo("heidi@acme.corp");
+        assertThat(resolved.emailVerified()).isFalse();
+    }
 }

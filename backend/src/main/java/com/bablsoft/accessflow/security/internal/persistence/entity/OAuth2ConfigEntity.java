@@ -72,6 +72,9 @@ public class OAuth2ConfigEntity {
     @Column(name = "issuer_uri", length = 2048)
     private String issuerUri;
 
+    @Column(name = "base_url", length = 2048)
+    private String baseUrl;
+
     @Column(name = "user_name_attribute", length = 255)
     private String userNameAttribute;
 

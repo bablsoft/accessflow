@@ -26,6 +26,8 @@ const PROVIDERS: { provider: OAuth2Provider; label: string }[] = [
   { provider: 'GITHUB', label: 'GitHub' },
   { provider: 'MICROSOFT', label: 'Microsoft' },
   { provider: 'GITLAB', label: 'GitLab' },
+  { provider: 'GITHUB_ENTERPRISE', label: 'GitHub Enterprise' },
+  { provider: 'GITLAB_ENTERPRISE', label: 'GitLab (self-managed)' },
   { provider: 'OIDC', label: 'OpenID Connect' },
 ];
 
@@ -124,10 +126,15 @@ interface OAuth2FormValues {
   email_verified_attribute?: string;
   display_name_attribute?: string;
   groups_attribute?: string;
+  base_url?: string;
   allowed_organizations?: string[];
   allowed_email_domains?: string[];
   default_role: Role;
   active: boolean;
+}
+
+function isEnterpriseProvider(provider: OAuth2Provider): boolean {
+  return provider === 'GITHUB_ENTERPRISE' || provider === 'GITLAB_ENTERPRISE';
 }
 
 const GITHUB_READ_ORG_SCOPE = 'read:org';
@@ -167,6 +174,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       email_verified_attribute: config.email_verified_attribute ?? '',
       display_name_attribute: config.display_name_attribute ?? '',
       groups_attribute: config.groups_attribute ?? '',
+      base_url: config.base_url ?? '',
       allowed_organizations: config.allowed_organizations ?? [],
       allowed_email_domains: config.allowed_email_domains ?? [],
       default_role: config.default_role,
@@ -215,6 +223,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       email_verified_attribute: blankToNull(values.email_verified_attribute),
       display_name_attribute: blankToNull(values.display_name_attribute),
       groups_attribute: blankToNull(values.groups_attribute),
+      base_url: blankToNull(values.base_url),
       allowed_organizations: normalizeOrganizations(values.allowed_organizations),
       allowed_email_domains: normalizeDomains(values.allowed_email_domains),
       default_role: values.default_role,
@@ -225,6 +234,12 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   return (
     <Form<OAuth2FormValues>
       form={form}
+      // Distinct form name per provider tab so input element IDs (Form.Item
+      // generates `<form-name>_<item-name>`) don't collide once Ant Design
+      // Tabs keeps previously-activated panes mounted in the DOM. Without
+      // this, label-for associations resolve to the wrong tab's input after
+      // the user (or an e2e test) switches tabs.
+      name={`oauth2-${provider.toLowerCase()}`}
       layout="vertical"
       onFinish={onFinish}
       initialValues={initialValues}
@@ -324,6 +339,35 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
       >
         <Input className="mono" maxLength={1024} placeholder={defaultScopesFor(provider)} />
       </Form.Item>
+      {isEnterpriseProvider(provider) && (
+        <Form.Item
+          name="base_url"
+          label={
+            <span>
+              {t('admin.oauth2.label_base_url')}{' '}
+              <Tooltip title={t(`admin.oauth2.base_url_tooltip.${provider.toLowerCase()}`)}>
+                <QuestionCircleOutlined style={{ color: 'var(--fg-muted)' }} />
+              </Tooltip>
+            </span>
+          }
+          extra={t('admin.oauth2.label_base_url_help')}
+          rules={[
+            { required: true, message: t('validation.oauth2.base_url_required') },
+            { type: 'url', message: t('validation.oauth2.base_url_invalid') },
+            { max: 2048, message: t('validation.oauth2.uri_max') },
+          ]}
+        >
+          <Input
+            className="mono"
+            maxLength={2048}
+            placeholder={
+              provider === 'GITHUB_ENTERPRISE'
+                ? 'https://github.acme.corp'
+                : 'https://gitlab.acme.corp'
+            }
+          />
+        </Form.Item>
+      )}
       {provider === 'MICROSOFT' && (
         <Form.Item
           name="tenant_id"
@@ -511,7 +555,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
           aria-label={t('admin.oauth2.label_allowed_email_domains')}
         />
       </Form.Item>
-      {provider === 'GITHUB' && (
+      {(provider === 'GITHUB' || provider === 'GITHUB_ENTERPRISE') && (
         <Form.Item shouldUpdate noStyle>
           {({ getFieldValue }) => {
             const orgs = (getFieldValue('allowed_organizations') ?? []) as string[];
@@ -595,6 +639,7 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
     email_verified_attribute: null,
     display_name_attribute: null,
     groups_attribute: null,
+    base_url: null,
     allowed_organizations: null,
     allowed_email_domains: null,
     default_role: 'ANALYST',
@@ -646,10 +691,13 @@ function validateAllowlist(
 function defaultScopesFor(provider: OAuth2Provider): string {
   switch (provider) {
     case 'GITHUB':
+    case 'GITHUB_ENTERPRISE':
       return 'read:user user:email';
     case 'GOOGLE':
     case 'MICROSOFT':
     case 'GITLAB':
+    case 'GITLAB_ENTERPRISE':
+    case 'OIDC':
     default:
       return 'openid email profile';
   }

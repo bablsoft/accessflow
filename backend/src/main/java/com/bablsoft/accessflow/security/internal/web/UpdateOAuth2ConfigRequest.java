@@ -24,6 +24,7 @@ record UpdateOAuth2ConfigRequest(
         @Size(max = 255, message = "{validation.oauth2_config.email_verified_attribute.max}") String emailVerifiedAttribute,
         @Size(max = 255, message = "{validation.oauth2_config.display_name_attribute.max}") String displayNameAttribute,
         @Size(max = 255, message = "{validation.oauth2_config.groups_attribute.max}") String groupsAttribute,
+        @Size(max = 2048, message = "{validation.oauth2_config.base_url.max}") String baseUrl,
         @Size(max = 100, message = "{validation.oauth2_config.allowed_organizations.max}")
         List<@NotBlank(message = "{validation.oauth2_config.allowed_entry.blank}")
              @Size(max = 255, message = "{validation.oauth2_config.allowed_entry.max}") String> allowedOrganizations,
@@ -50,6 +51,7 @@ record UpdateOAuth2ConfigRequest(
                 emailVerifiedAttribute,
                 displayNameAttribute,
                 groupsAttribute,
+                baseUrl,
                 allowedOrganizations,
                 allowedEmailDomains,
                 defaultRole,

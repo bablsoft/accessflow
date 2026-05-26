@@ -607,12 +607,12 @@ Stores OAuth 2.0 / OIDC provider configuration for an organization. One row per 
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
-| `provider` | ENUM `oauth2_provider_type`: `GOOGLE` \| `GITHUB` \| `MICROSOFT` \| `GITLAB` \| `OIDC` |
+| `provider` | ENUM `oauth2_provider_type`: `GOOGLE` \| `GITHUB` \| `MICROSOFT` \| `GITLAB` \| `OIDC` \| `GITHUB_ENTERPRISE` \| `GITLAB_ENTERPRISE` |
 | `client_id` | VARCHAR(512) NOT NULL |
 | `client_secret_encrypted` | TEXT NOT NULL — AES-256-GCM ciphertext via `CredentialEncryptionService`. `@JsonIgnore`d on the entity; admin API exposes only `client_secret_configured: boolean`. |
 | `scopes_override` | VARCHAR(1024) — space-separated. NULL means use the provider template default. |
 | `tenant_id` | VARCHAR(255) — required for `MICROSOFT` (e.g. `common`, `organizations`, or a tenant GUID); NULL for the others. |
-| `display_name` | VARCHAR(255) — required for `OIDC` (rendered as "Continue with {display_name}" on the login page); NULL/ignored for the four built-in providers (their display name is hard-coded). |
+| `display_name` | VARCHAR(255) — required for `OIDC` (rendered as "Continue with {display_name}" on the login page); optional override for `GITHUB_ENTERPRISE` / `GITLAB_ENTERPRISE` (falls back to the built-in label); NULL/ignored for the four built-in cloud providers (their display name is hard-coded). |
 | `authorization_uri` | VARCHAR(2048) — required for `OIDC` (IdP's authorization endpoint); NULL/ignored otherwise. |
 | `token_uri` | VARCHAR(2048) — required for `OIDC` (IdP's token endpoint); NULL/ignored otherwise. |
 | `user_info_uri` | VARCHAR(2048) — required for `OIDC` (IdP's UserInfo endpoint); NULL/ignored otherwise. |
@@ -623,10 +623,11 @@ Stores OAuth 2.0 / OIDC provider configuration for an organization. One row per 
 | `email_verified_attribute` | VARCHAR(255) — claim name read as the email-verified flag. NULL falls back to `email_verified`. Ignored for the four built-in providers. |
 | `display_name_attribute` | VARCHAR(255) — claim name read as the user's display name. NULL falls back to `name`. Ignored for the four built-in providers. |
 | `groups_attribute` | VARCHAR(255) — claim name read for group/organization membership (used by `allowed_organizations` enforcement). NULL = no groups extracted (the OIDC allowlist is then effectively empty; restrict via `allowed_email_domains` instead). Ignored for the four built-in providers (they each have hard-coded membership logic). |
-| `allowed_organizations` | TEXT[] — optional allowlist of provider-native organization identifiers. Login is rejected with `OAUTH2_ORG_NOT_ALLOWED` unless the user's membership intersects this list. NULL/empty = no restriction. Provider semantics: GitHub org logins (case-sensitive, requires the `read:org` scope), GitLab full group paths from the OIDC `groups` claim, Microsoft AAD group object IDs from the `groups` claim, OIDC group identifiers from the claim named in `groups_attribute`. Ignored for `GOOGLE` (use `allowed_email_domains`). |
+| `base_url` | VARCHAR(2048) — required for `GITHUB_ENTERPRISE` and `GITLAB_ENTERPRISE` (origin of the self-hosted instance, e.g. `https://github.acme.corp`). Must be `https://` with no path, query, or fragment. AccessFlow appends the well-known sub-paths (`/login/oauth/authorize`, `/api/v3/*` for GitHub Enterprise; `/oauth/authorize`, `/oauth/userinfo`, `/oauth/discovery/keys` for GitLab) compiled into `OAuth2ProviderTemplate` — only the origin is operator-editable. NULL/ignored for all other providers. |
+| `allowed_organizations` | TEXT[] — optional allowlist of provider-native organization identifiers. Login is rejected with `OAUTH2_ORG_NOT_ALLOWED` unless the user's membership intersects this list. NULL/empty = no restriction. Provider semantics: GitHub / GitHub Enterprise org logins (case-sensitive, requires the `read:org` scope), GitLab / GitLab self-managed full group paths from the OIDC `groups` claim, Microsoft AAD group object IDs from the `groups` claim, OIDC group identifiers from the claim named in `groups_attribute`. Ignored for `GOOGLE` (use `allowed_email_domains`). |
 | `allowed_email_domains` | TEXT[] — optional allowlist of email domains; login is rejected with `OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` unless the user's email domain (case-insensitive) matches one entry. NULL/empty = no restriction. Doubles as the Google Workspace-domain check. |
 | `default_role` | ENUM `user_role_type` — role assigned to users JIT-provisioned by this provider. Defaults to `ANALYST`. |
-| `active` | BOOLEAN NOT NULL DEFAULT FALSE — only active providers appear on the login page. Activating a `GITHUB` row with a non-empty `allowed_organizations` is rejected unless `scopes_override` contains `read:org`. Activating an `OIDC` row requires `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` to be set. |
+| `active` | BOOLEAN NOT NULL DEFAULT FALSE — only active providers appear on the login page. Activating a `GITHUB` or `GITHUB_ENTERPRISE` row with a non-empty `allowed_organizations` is rejected unless `scopes_override` contains `read:org`. Activating an `OIDC` row requires `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` to be set. Activating a `GITHUB_ENTERPRISE` or `GITLAB_ENTERPRISE` row requires `base_url` to be a valid `https://` origin. |
 | `version` | BIGINT — `@Version` optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 

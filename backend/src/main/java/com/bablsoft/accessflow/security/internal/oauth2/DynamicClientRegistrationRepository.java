@@ -94,6 +94,7 @@ public class DynamicClientRegistrationRepository implements ClientRegistrationRe
         var registrationId = entity.getProvider().name().toLowerCase(Locale.ROOT);
         var scopes = parseScopes(entity.getScopesOverride(), template.defaultScopes());
         var tenant = entity.getTenantId();
+        var baseUrl = entity.getBaseUrl();
 
         var builder = ClientRegistration.withRegistrationId(registrationId)
                 .clientId(entity.getClientId())
@@ -102,18 +103,18 @@ public class DynamicClientRegistrationRepository implements ClientRegistrationRe
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .redirectUri(REDIRECT_URI_TEMPLATE)
                 .scope(scopes)
-                .authorizationUri(template.authorizationUri(tenant))
-                .tokenUri(template.tokenUri(tenant))
-                .userInfoUri(template.userInfoUri())
+                .authorizationUri(template.authorizationUri(tenant, baseUrl))
+                .tokenUri(template.tokenUri(tenant, baseUrl))
+                .userInfoUri(template.userInfoUri(baseUrl))
                 .userNameAttributeName(template.userNameAttributeName())
                 .clientName(template.displayName());
 
         if (template.isOidc()) {
-            var jwk = template.jwkSetUri(tenant);
+            var jwk = template.jwkSetUri(tenant, baseUrl);
             if (jwk != null) {
                 builder.jwkSetUri(jwk);
             }
-            var issuer = template.issuerUri(tenant);
+            var issuer = template.issuerUri(tenant, baseUrl);
             if (issuer != null) {
                 builder.issuerUri(issuer);
                 builder.providerConfigurationMetadata(java.util.Map.of(

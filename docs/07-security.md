@@ -68,13 +68,24 @@ All JWT mechanisms remain in place. Additionally:
 
 All JWT mechanisms remain in place. Configuration is **fully DB-driven** (`oauth2_config`
 table, one row per `(organization_id, provider)`); there are no `spring.security.oauth2.client.*`
-properties. Four providers ship with built-in templates: `GOOGLE`, `GITHUB`, `MICROSOFT`,
+properties. Four cloud providers ship with built-in templates: `GOOGLE`, `GITHUB`, `MICROSOFT`,
 `GITLAB`. The admin enters only `client_id`, `client_secret`, optional `scopes_override`, and
 (for Microsoft) `tenant_id`. Authorization / token / userinfo URLs come from
 `OAuth2ProviderTemplate.TEMPLATES` and are never user-editable for these four, so a
 misconfigured row cannot redirect the browser to a hostile authorization server.
 
-A fifth provider, `OIDC`, is generic: the admin supplies `display_name` and the IdP's
+Two enterprise variants — `GITHUB_ENTERPRISE` (GitHub Enterprise Server) and `GITLAB_ENTERPRISE`
+(self-managed GitLab) — share the same URL conventions as their cloud counterparts but accept
+a configurable `base_url` (e.g. `https://github.acme.corp`). The well-known sub-paths
+(`/login/oauth/authorize`, `/api/v3/*` for GHES; `/oauth/authorize`, `/oauth/userinfo`,
+`/oauth/discovery/keys` for self-managed GitLab) remain compiled into `OAuth2ProviderTemplate`
+— only the origin is operator-editable. `base_url` is admin-only-editable, must be `https://`,
+and is rejected on activation unless it parses as an origin with no path / query / fragment.
+That preserves the "no admin-entered authorization URL routing" invariant — the worst an
+operator can misconfigure is pointing the OAuth flow at the wrong corporate host (an outage,
+not a credential exfiltration vector).
+
+A seventh provider, `OIDC`, is generic: the admin supplies `display_name` and the IdP's
 `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` (plus
 optional attribute-name overrides) directly on the row. This is the integration surface for
 Keycloak, Auth0, Okta, Authentik, Zitadel, and any other generic OIDC provider. Threat-model
@@ -126,8 +137,13 @@ JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL itself.
     config with a non-empty `allowed_organizations` while `scopes_override` does not include
     `read:org` is rejected with `OAUTH2_CONFIG_INVALID` (HTTP 422) — operators must add
     `read:org` to the scopes-override field explicitly.
+  - **GITHUB_ENTERPRISE** — same as `GITHUB` but the orgs call hits
+    `{base_url}/api/v3/user/orgs` on the operator's self-hosted instance. The same `read:org`
+    activation rule applies.
   - **GITLAB** — reads the OIDC `groups` claim from userinfo (full group paths, e.g.
     `acme/team`). Empty when the `groups` scope is not included.
+  - **GITLAB_ENTERPRISE** — same as `GITLAB` (OIDC `groups` claim from self-managed GitLab's
+    userinfo endpoint at `{base_url}/oauth/userinfo`).
   - **MICROSOFT** — reads the `groups` claim, which contains AAD group object IDs. Azure AD
     must be configured to emit it (App registration → Token configuration → groups claim).
   - **GOOGLE** — `allowed_organizations` is ignored; the equivalent surface is

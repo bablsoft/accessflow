@@ -25,6 +25,7 @@ public record OAuth2ConfigView(
         String emailVerifiedAttribute,
         String displayNameAttribute,
         String groupsAttribute,
+        String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
         UserRoleType defaultRole,
