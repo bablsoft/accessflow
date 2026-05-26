@@ -1,5 +1,10 @@
 import { apiClient } from './client';
-import type { PendingReviewsPage, ReviewDecisionResult } from '@/types/api';
+import type {
+  BulkReviewDecisionResponse,
+  PendingReviewsPage,
+  ReviewDecisionResult,
+  ReviewDecisionType,
+} from '@/types/api';
 
 const BASE = '/api/v1/reviews';
 
@@ -55,5 +60,22 @@ export async function requestChanges(
     `${BASE}/${queryId}/request-changes`,
     { comment },
   );
+  return data;
+}
+
+export interface BulkDecisionInput {
+  queryIds: string[];
+  decision: ReviewDecisionType;
+  comment?: string;
+}
+
+export async function bulkDecideReviews(
+  input: BulkDecisionInput,
+): Promise<BulkReviewDecisionResponse> {
+  const { data } = await apiClient.post<BulkReviewDecisionResponse>(`${BASE}/bulk`, {
+    query_ids: input.queryIds,
+    decision: input.decision,
+    comment: input.comment ?? null,
+  });
   return data;
 }

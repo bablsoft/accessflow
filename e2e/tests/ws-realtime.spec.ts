@@ -178,15 +178,11 @@ test.describe.serial('ws realtime cache invalidation (AF-289)', () => {
       await expect(
         approverPage.getByText(queryId, { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
-      // ReviewCard renders the full UUID inside a div.muted.mono whose parent
-      // IS the card root (see ReviewQueuePage.tsx:147-219). Walk up exactly
-      // one level so we land on a single card; ancestor-filter chains match
-      // the outer queue wrapper too when other pending queries from earlier
-      // specs are still in the queue.
-      const reviewCard = approverPage
-        .getByText(queryId, { exact: true })
-        .locator('xpath=..');
-      await reviewCard.getByRole('button', { name: 'Approve' }).click();
+      // /reviews renders an Ant Design <Table> — anchor on the row that
+      // contains this query's full UUID so other pending rows left over by
+      // earlier specs don't confuse the locator.
+      const reviewRow = approverPage.getByRole('row').filter({ hasText: queryId });
+      await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       // ── The load-bearing assertion. No reload(). ──
       // Issue spec calls for a 5s window; intervals stay tight so we catch

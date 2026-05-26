@@ -1,20 +1,18 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.audit.api.AuditAction;
-import com.bablsoft.accessflow.audit.api.AuditEntry;
-import com.bablsoft.accessflow.audit.api.AuditLogService;
-import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.workflow.api.BulkReviewCommentRequiredException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
-import com.bablsoft.accessflow.workflow.api.ReviewService.DecisionOutcome;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
+import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -25,18 +23,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/reviews")
 @Tag(name = "Reviews", description = "Reviewer workflow endpoints")
 @RequiredArgsConstructor
-@Slf4j
 class ReviewController {
 
     private final ReviewService reviewService;
-    private final AuditLogService auditLogService;
+    private final ReviewDecisionAuditWriter auditWriter;
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
@@ -67,7 +63,7 @@ class ReviewController {
                                    RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.approve(queryId, toContext(caller), body.comment());
-        recordDecisionAudit(AuditAction.QUERY_APPROVED, queryId, caller, outcome, body.comment(),
+        auditWriter.record(AuditAction.QUERY_APPROVED, queryId, caller, outcome, body.comment(),
                 auditContext);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
@@ -87,7 +83,7 @@ class ReviewController {
                                   RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var outcome = reviewService.reject(queryId, toContext(caller), body.comment());
-        recordDecisionAudit(AuditAction.QUERY_REJECTED, queryId, caller, outcome, body.comment(),
+        auditWriter.record(AuditAction.QUERY_REJECTED, queryId, caller, outcome, body.comment(),
                 auditContext);
         return ReviewDecisionResponse.from(queryId, outcome);
     }
@@ -109,30 +105,38 @@ class ReviewController {
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 
-    private void recordDecisionAudit(AuditAction action, UUID queryId, JwtClaims caller,
-                                     DecisionOutcome outcome, String comment,
-                                     RequestAuditContext auditContext) {
-        if (outcome.wasIdempotentReplay()) {
-            return;
+    @PostMapping("/bulk")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @Operation(summary = "Apply the same decision to a batch of queries; per-row outcomes")
+    @ApiResponse(responseCode = "200",
+            description = "Per-row results; partial failures do not roll back successful rows")
+    @ApiResponse(responseCode = "400", description = "Validation error (empty list, oversized list, or missing required comment)")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "403", description = "Caller is not a reviewer")
+    BulkReviewDecisionResponse bulkDecide(@Valid @RequestBody BulkReviewDecisionRequest body,
+                                          Authentication authentication,
+                                          RequestAuditContext auditContext) {
+        if (body.requiresComment() && (body.comment() == null || body.comment().isBlank())) {
+            throw new BulkReviewCommentRequiredException(body.decision());
         }
-        try {
-            var metadata = new HashMap<String, Object>();
-            if (comment != null && !comment.isBlank()) {
-                metadata.put("comment", comment);
+        var caller = currentClaims(authentication);
+        var outcome = reviewService.bulkDecide(body.queryIds(), body.decision(),
+                toContext(caller), body.comment());
+        var auditAction = body.decision() == DecisionType.REJECTED
+                ? AuditAction.QUERY_REJECTED
+                : AuditAction.QUERY_APPROVED;
+        // REQUESTED_CHANGES is not transitional and has no audit action of its own today;
+        // skip auditing those rows (parity with the single-row /request-changes endpoint).
+        boolean shouldAudit = body.decision() != DecisionType.REQUESTED_CHANGES;
+        if (shouldAudit) {
+            for (var row : outcome.rows()) {
+                if (row.status() == RowStatus.SUCCESS) {
+                    auditWriter.record(auditAction, row.queryRequestId(), caller, row.outcome(),
+                            body.comment(), auditContext);
+                }
             }
-            metadata.put("resulting_status", outcome.resultingStatus().name());
-            auditLogService.record(new AuditEntry(
-                    action,
-                    AuditResourceType.QUERY_REQUEST,
-                    queryId,
-                    caller.organizationId(),
-                    caller.userId(),
-                    metadata,
-                    auditContext.ipAddress(),
-                    auditContext.userAgent()));
-        } catch (RuntimeException ex) {
-            log.error("Audit write failed for {} on query {}", action, queryId, ex);
         }
+        return BulkReviewDecisionResponse.from(outcome);
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

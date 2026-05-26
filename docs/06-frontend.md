@@ -65,10 +65,10 @@ accessflow-ui/
 │   │   │   └── EditorToolbar.tsx   # Format, run, datasource selector
 │   │   │
 │   │   ├── review/
-│   │   │   ├── ReviewCard.tsx      # Query card in review queue
 │   │   │   ├── ApprovalTimeline.tsx # Visual timeline of review stages
 │   │   │   ├── ReviewDecisionForm.tsx # Approve/reject form with comment
 │   │   │   ├── RejectModal.tsx     # Modal w/ required-comment textarea for /reviews reject
+│   │   │   ├── BulkDecisionModal.tsx # Shared-comment modal for /reviews bulk approve/reject/request-changes
 │   │   │   └── AiAnalysisAccordion.tsx # Expandable AI analysis details
 │   │   │
 │   │   ├── datasources/
@@ -174,10 +174,11 @@ The primary user-facing page. Features:
 
 Available to users with `REVIEWER` or `ADMIN` role:
 
-- Paginated list of queries in `PENDING_REVIEW` status assigned to this reviewer
-- Each card shows: datasource name, submitter, query type, AI risk badge, time elapsed, SQL preview
-- Quick approve inline on the card. Reject opens `RejectModal` ([components/review/RejectModal.tsx](../frontend/src/components/review/RejectModal.tsx)) — a comment is required (the confirm button stays disabled until the textarea is non-whitespace), mirroring the backend `@NotBlank` constraint on `POST /reviews/{id}/reject`.
-- Full detail opens in a right-side drawer
+- Paginated list of queries in `PENDING_REVIEW` status assigned to this reviewer, rendered as an Ant Design `<Table>` with `rowSelection` so the reviewer can drive both single-row and batch flows from the same page.
+- Columns: ID (short hash + full UUID + tooltip), query type, AI risk badge, datasource, submitter (avatar + email), time elapsed, optional per-row status badge for failed bulk rows, and a row-actions column with per-row approve/reject buttons.
+- Quick approve inline on the row. Reject opens `RejectModal` ([components/review/RejectModal.tsx](../frontend/src/components/review/RejectModal.tsx)) — a comment is required (the confirm button stays disabled until the textarea is non-whitespace), mirroring the backend `@NotBlank` constraint on `POST /reviews/{id}/reject`.
+- Selecting one or more rows reveals a **sticky action bar** above the table with "Approve selected", "Reject selected", "Request changes", and "Clear selection". Each button opens the shared `BulkDecisionModal` ([components/review/BulkDecisionModal.tsx](../frontend/src/components/review/BulkDecisionModal.tsx)), which collects one comment to apply to every selected query and submits to `POST /api/v1/reviews/bulk`. After submit, successful rows leave the queue; failed rows stay selected with a per-row status tag (Forbidden / Not pending review / Not found) so the reviewer can retry.
+- Row click opens the full detail page (`/queries/:id`); the row-actions column buttons stop propagation so they don't trigger navigation.
 - `ApprovalTimeline` shows which reviewers in the plan have already decided
 
 ### QueryDetailPage

@@ -640,6 +640,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
 
+Authorization: per the [docs/07-security.md role matrix](07-security.md#authorization--role-matrix), `ADMIN` and `REVIEWER` may read any query in the organization, while `ANALYST` and `READONLY` may only read queries they submitted themselves. Non-matching callers receive `404 QUERY_REQUEST_NOT_FOUND` (the response is identical to the "row does not exist" case, so callers cannot probe other users' query ids).
+
 ### POST /queries/{id}/cancel — Response 204
 
 Cancels a query that is still pending AI analysis or human review. The request body is empty.
@@ -734,6 +736,7 @@ Re-analysis is only valid when:
 | `POST` | `/reviews/{queryId}/approve` | Approve a query request |
 | `POST` | `/reviews/{queryId}/reject` | Reject a query request |
 | `POST` | `/reviews/{queryId}/request-changes` | Request changes from submitter before re-submission |
+| `POST` | `/reviews/bulk` | Apply the same decision to a batch of queries; returns per-row outcomes |
 | `GET` | `/review-plans` | List all review plans |
 | `POST` | `/review-plans` | Create a new review plan *(ADMIN only)* |
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
@@ -805,6 +808,70 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
 ```
 
 `comment` is **required** (≥ 1 non-whitespace character, ≤ 4,000 characters; HTTP 400 `VALIDATION_ERROR` if blank or missing). The decision is recorded with type `REQUESTED_CHANGES`; the query remains in `PENDING_REVIEW` so the submitter (or another reviewer) can act on the comment. The frontend renders a "Changes requested" alert at the top of `/queries/:id` whenever the latest `review_decisions[]` entry has `decision: REQUESTED_CHANGES` and the query is still `PENDING_REVIEW`.
+
+### POST /reviews/bulk — Request Body
+
+```json
+{
+  "query_ids": ["uuid", "uuid", "uuid"],
+  "decision": "APPROVED",
+  "comment": "Looks good — single-row, indexed WHERE."
+}
+```
+
+- `query_ids` is **required** (1–100 entries; HTTP 400 `VALIDATION_ERROR` if empty or > 100).
+- `decision` is **required**; one of `APPROVED`, `REJECTED`, `REQUESTED_CHANGES`.
+- `comment` is optional for `APPROVED`, **required** for `REJECTED` and `REQUESTED_CHANGES` (≤ 4,000 characters). A blank comment on a non-approve decision returns HTTP 400 `VALIDATION_ERROR`.
+
+The same shared `comment` is recorded against every successful row.
+
+**Response 200:**
+
+```json
+{
+  "results": [
+    {
+      "query_request_id": "uuid",
+      "status": "SUCCESS",
+      "decision": "APPROVED",
+      "resulting_status": "APPROVED",
+      "decision_id": "uuid",
+      "idempotent_replay": false
+    },
+    {
+      "query_request_id": "uuid",
+      "status": "FORBIDDEN",
+      "error_code": "REVIEWER_NOT_ELIGIBLE",
+      "error": "You are not eligible to review this query at the current stage"
+    },
+    {
+      "query_request_id": "uuid",
+      "status": "INVALID_STATE",
+      "error_code": "QUERY_NOT_PENDING_REVIEW",
+      "error": "Query is not pending review"
+    },
+    {
+      "query_request_id": "uuid",
+      "status": "NOT_FOUND",
+      "error_code": "QUERY_REQUEST_NOT_FOUND",
+      "error": "Query request not found"
+    }
+  ]
+}
+```
+
+Per-row `status` semantics:
+
+| `status` | When |
+|---|---|
+| `SUCCESS` | The decision was recorded; `decision`, `resulting_status`, and `decision_id` are populated. `idempotent_replay = true` when the same reviewer previously submitted the same decision at the same stage. |
+| `FORBIDDEN` | Self-approval blocked, caller is not an eligible approver at the row's current stage, or caller's role lacks `REVIEWER`/`ADMIN` access. `error_code` is `FORBIDDEN` or `REVIEWER_NOT_ELIGIBLE`. |
+| `INVALID_STATE` | The query is no longer `PENDING_REVIEW`. `error_code` is `QUERY_NOT_PENDING_REVIEW`. |
+| `NOT_FOUND` | The query does not exist or belongs to another organization. `error_code` is `QUERY_REQUEST_NOT_FOUND`. |
+
+**Partial failures do not roll back successful rows** — each row is evaluated independently against the same per-row guards as the single-row endpoints. Each `SUCCESS` row publishes the same domain events (`ReviewDecisionMadeEvent` plus `QueryApprovedEvent` / `QueryRejectedEvent` as applicable), so audit-log writes and notifications fire exactly as they would for a sequence of single-row calls.
+
+Whole-batch validation errors (empty list, oversized list, missing required comment for `REJECTED` / `REQUESTED_CHANGES`) return HTTP 400 `VALIDATION_ERROR` without partial application.
 
 ### Common Response Body (approve / reject / request-changes)
 

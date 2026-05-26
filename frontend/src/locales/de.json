@@ -422,7 +422,36 @@
     "on_reject": "Abgelehnt · Einreicher benachrichtigt",
     "reject_modal_title": "Abfrage ablehnen",
     "reject_modal_placeholder": "Begründe, warum diese Abfrage abgelehnt wird…",
-    "reject_modal_confirm": "Ablehnen"
+    "reject_modal_confirm": "Ablehnen",
+    "col_id": "ID",
+    "col_type": "Typ",
+    "col_risk": "Risiko",
+    "col_datasource": "Datenquelle",
+    "col_submitter": "Einreicher",
+    "col_created": "Erstellt",
+    "col_status": "Status",
+    "col_actions": "Aktionen",
+    "bulk": {
+      "action_bar_count_one": "{{count}} ausgewählt",
+      "action_bar_count_other": "{{count}} ausgewählt",
+      "approve_selected": "Auswahl genehmigen",
+      "reject_selected": "Auswahl ablehnen",
+      "request_changes_selected": "Änderungen anfordern",
+      "clear_selection": "Auswahl aufheben",
+      "modal_title_approve": "Ausgewählte Abfragen genehmigen",
+      "modal_title_reject": "Ausgewählte Abfragen ablehnen",
+      "modal_title_request_changes": "Änderungen an ausgewählten Abfragen anfordern",
+      "modal_subtitle_one": "Ein gemeinsamer Kommentar wird für {{count}} Abfrage gespeichert.",
+      "modal_subtitle_other": "Ein gemeinsamer Kommentar wird für {{count}} Abfragen gespeichert.",
+      "comment_placeholder": "Kommentar für alle ausgewählten Abfragen…",
+      "comment_required": "Ein Kommentar ist für Ablehnung oder Änderungsanforderung erforderlich.",
+      "toast_summary_one": "{{success}} entschieden · {{failure}} fehlgeschlagen",
+      "toast_summary_other": "{{success}} entschieden · {{failure}} fehlgeschlagen",
+      "toast_partial": "{{success}} entschieden · {{failure}} fehlgeschlagen — überprüfe die markierten Zeilen.",
+      "row_status_forbidden": "Verboten",
+      "row_status_invalid_state": "Nicht zur Prüfung anstehend",
+      "row_status_not_found": "Nicht gefunden"
+    }
   },
   "timeline": {
     "title": "Genehmigungs-Zeitleiste"

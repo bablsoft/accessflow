@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,6 +28,16 @@ public interface ReviewService {
     DecisionOutcome reject(UUID queryRequestId, ReviewerContext context, String comment);
 
     DecisionOutcome requestChanges(UUID queryRequestId, ReviewerContext context, String comment);
+
+    /**
+     * Apply the same decision to a list of queries, evaluating each row independently. A
+     * per-row failure (forbidden, wrong state, not found) never rolls back successful peers.
+     * Each successful row publishes the same events as the single-row methods so audit and
+     * notifications continue to work unchanged. Whole-batch validation (empty list, missing
+     * required comment, oversized list) must be enforced by the caller before invoking.
+     */
+    BulkDecisionOutcome bulkDecide(List<UUID> queryRequestIds, DecisionType decision,
+                                   ReviewerContext context, String comment);
 
     record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
     }
@@ -50,5 +61,32 @@ public interface ReviewService {
 
     record DecisionOutcome(UUID decisionId, DecisionType decision, QueryStatus resultingStatus,
                            boolean wasIdempotentReplay) {
+    }
+
+    record BulkDecisionOutcome(List<RowOutcome> rows) {
+    }
+
+    /**
+     * Per-row result of a {@link #bulkDecide} call. Exactly one of {@code outcome} (on
+     * SUCCESS) or {@code errorCode}/{@code errorMessage} (on failure) is populated.
+     */
+    record RowOutcome(UUID queryRequestId, RowStatus status, DecisionOutcome outcome,
+                      String errorCode, String errorMessage) {
+
+        public static RowOutcome success(UUID queryRequestId, DecisionOutcome outcome) {
+            return new RowOutcome(queryRequestId, RowStatus.SUCCESS, outcome, null, null);
+        }
+
+        public static RowOutcome failure(UUID queryRequestId, RowStatus status,
+                                         String errorCode, String errorMessage) {
+            return new RowOutcome(queryRequestId, status, null, errorCode, errorMessage);
+        }
+    }
+
+    enum RowStatus {
+        SUCCESS,
+        FORBIDDEN,
+        INVALID_STATE,
+        NOT_FOUND
     }
 }

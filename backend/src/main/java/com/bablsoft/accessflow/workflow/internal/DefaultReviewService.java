@@ -23,17 +23,22 @@ import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 class DefaultReviewService implements ReviewService {
 
     private static final Set<UserRoleType> REVIEWER_ROLES = Set.of(UserRoleType.REVIEWER,
@@ -43,6 +48,7 @@ class DefaultReviewService implements ReviewService {
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final QueryRequestStateService queryRequestStateService;
     private final ApplicationEventPublisher eventPublisher;
+    private final MessageSource messageSource;
 
     @Override
     @Transactional(readOnly = true)
@@ -116,6 +122,57 @@ class DefaultReviewService implements ReviewService {
         }
         return new DecisionOutcome(result.decisionId(), DecisionType.REQUESTED_CHANGES,
                 result.resultingStatus(), result.wasIdempotentReplay());
+    }
+
+    @Override
+    public BulkDecisionOutcome bulkDecide(List<UUID> queryRequestIds, DecisionType decision,
+                                          ReviewerContext context, String comment) {
+        // Intentionally NOT @Transactional. Each row delegates to the single-row entry
+        // point; the actual database write inside (QueryRequestStateService) is its own
+        // bean and starts its own transaction, so a per-row failure cannot poison a
+        // successful peer.
+        var rows = new ArrayList<RowOutcome>(queryRequestIds.size());
+        for (UUID queryRequestId : queryRequestIds) {
+            rows.add(decideOne(queryRequestId, decision, context, comment));
+        }
+        return new BulkDecisionOutcome(List.copyOf(rows));
+    }
+
+    // Per-row dispatch. Each branch delegates to the single-row entry point so semantics,
+    // events, and persistence stay identical. Per-row failures are mapped to a RowStatus so
+    // they do not roll back successful peers.
+    private RowOutcome decideOne(UUID queryRequestId, DecisionType decision,
+                                 ReviewerContext context, String comment) {
+        try {
+            var outcome = switch (decision) {
+                case APPROVED -> approve(queryRequestId, context, comment);
+                case REJECTED -> reject(queryRequestId, context, comment);
+                case REQUESTED_CHANGES -> requestChanges(queryRequestId, context, comment);
+            };
+            return RowOutcome.success(queryRequestId, outcome);
+        } catch (QueryRequestNotFoundException ex) {
+            return RowOutcome.failure(queryRequestId, RowStatus.NOT_FOUND,
+                    "QUERY_REQUEST_NOT_FOUND", msg("error.query_request_not_found"));
+        } catch (AccessDeniedException ex) {
+            return RowOutcome.failure(queryRequestId, RowStatus.FORBIDDEN,
+                    "FORBIDDEN",
+                    ex.getMessage() != null ? ex.getMessage() : msg("error.forbidden"));
+        } catch (ReviewerNotEligibleException ex) {
+            return RowOutcome.failure(queryRequestId, RowStatus.FORBIDDEN,
+                    "REVIEWER_NOT_ELIGIBLE", msg("error.reviewer_not_eligible"));
+        } catch (QueryNotPendingReviewException ex) {
+            return RowOutcome.failure(queryRequestId, RowStatus.INVALID_STATE,
+                    "QUERY_NOT_PENDING_REVIEW", msg("error.query_not_pending_review"));
+        } catch (RuntimeException ex) {
+            // Server-side bug, not a per-row business outcome — log and bubble up so the
+            // batch fails fast rather than silently swallowing the error.
+            log.error("Unexpected error during bulk decision for query {}", queryRequestId, ex);
+            throw ex;
+        }
+    }
+
+    private String msg(String key) {
+        return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
     }
 
     private DecisionPreparation prepareDecision(UUID queryRequestId, ReviewerContext context) {

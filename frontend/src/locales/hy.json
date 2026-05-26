@@ -422,7 +422,36 @@
     "on_reject": "Մերժված · ներկայացնողը ծանուցված է",
     "reject_modal_title": "Մերժել հարցումը",
     "reject_modal_placeholder": "Բացատրեք, թե ինչու է այս հարցումը մերժվում…",
-    "reject_modal_confirm": "Մերժել"
+    "reject_modal_confirm": "Մերժել",
+    "col_id": "ID",
+    "col_type": "Տեսակ",
+    "col_risk": "Ռիսկ",
+    "col_datasource": "Տվյալների աղբյուր",
+    "col_submitter": "Ներկայացնող",
+    "col_created": "Ստեղծվել է",
+    "col_status": "Կարգավիճակ",
+    "col_actions": "Գործողություններ",
+    "bulk": {
+      "action_bar_count_one": "Ընտրված է {{count}}",
+      "action_bar_count_other": "Ընտրված են {{count}}",
+      "approve_selected": "Հաստատել ընտրվածները",
+      "reject_selected": "Մերժել ընտրվածները",
+      "request_changes_selected": "Պահանջել փոփոխություններ",
+      "clear_selection": "Մաքրել ընտրությունը",
+      "modal_title_approve": "Հաստատել ընտրված հարցումները",
+      "modal_title_reject": "Մերժել ընտրված հարցումները",
+      "modal_title_request_changes": "Պահանջել փոփոխություններ ընտրված հարցումների համար",
+      "modal_subtitle_one": "Մեկ ընդհանուր մեկնաբանություն կգրանցվի {{count}} հարցման համար։",
+      "modal_subtitle_other": "Մեկ ընդհանուր մեկնաբանություն կգրանցվի {{count}} հարցումների համար։",
+      "comment_placeholder": "Մեկնաբանություն, որը կկիրառվի յուրաքանչյուր ընտրված հարցման համար…",
+      "comment_required": "Մերժման և փոփոխությունների պահանջի համար անհրաժեշտ է մեկնաբանություն։",
+      "toast_summary_one": "{{success}} որոշվեց · {{failure}} ձախողվեց",
+      "toast_summary_other": "{{success}} որոշվեցին · {{failure}} ձախողվեցին",
+      "toast_partial": "{{success}} որոշվեցին · {{failure}} ձախողվեցին — ստուգեք նշված տողերը։",
+      "row_status_forbidden": "Արգելված",
+      "row_status_invalid_state": "Վերանայման սպասման մեջ չէ",
+      "row_status_not_found": "Չի գտնվել"
+    }
   },
   "timeline": {
     "title": "Հաստատման ժամանակացույց"

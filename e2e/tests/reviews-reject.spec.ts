@@ -140,12 +140,8 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
       await expect(
         approverPage.getByText(submitted.id, { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
-      const reviewCard = approverPage
-        .locator('div')
-        .filter({ hasText: submitted.id })
-        .filter({ has: approverPage.getByRole('button', { name: 'Reject' }) })
-        .first();
-      await reviewCard.getByRole('button', { name: 'Reject' }).click();
+      const reviewRow = approverPage.getByRole('row').filter({ hasText: submitted.id });
+      await reviewRow.getByRole('button', { name: 'Reject' }).click();
 
       // Modal opens with the textarea + a disabled Reject confirm.
       await expect(

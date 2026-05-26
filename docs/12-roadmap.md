@@ -80,7 +80,7 @@
 - **Dynamic JDBC driver loading** — drivers resolved from Maven Central on demand instead of bundled in the fat JAR (AF-10)
 - **Datasource creation wizard** — visual type-selection step (Postgres, MySQL, MariaDB, Oracle, MSSQL) with logos and prefilled defaults (AF-11)
 - ~~**Query scheduling** — submit an approved query to execute at a future datetime~~ ✅ shipped (AF-345)
-- **Bulk approval UI** — reviewers can approve/reject multiple queries in one action
+- ~~**Bulk approval UI** — reviewers can approve/reject multiple queries in one action~~ ✅ shipped (AF-346)
 - **AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users
 - **Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema
 - **Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved")

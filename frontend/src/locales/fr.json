@@ -422,7 +422,36 @@
     "on_reject": "Rejetée · auteur notifié",
     "reject_modal_title": "Rejeter la requête",
     "reject_modal_placeholder": "Explique pourquoi cette requête est rejetée…",
-    "reject_modal_confirm": "Rejeter"
+    "reject_modal_confirm": "Rejeter",
+    "col_id": "ID",
+    "col_type": "Type",
+    "col_risk": "Risque",
+    "col_datasource": "Source de données",
+    "col_submitter": "Soumetteur",
+    "col_created": "Créée",
+    "col_status": "Statut",
+    "col_actions": "Actions",
+    "bulk": {
+      "action_bar_count_one": "{{count}} sélectionnée",
+      "action_bar_count_other": "{{count}} sélectionnées",
+      "approve_selected": "Approuver la sélection",
+      "reject_selected": "Rejeter la sélection",
+      "request_changes_selected": "Demander des modifications",
+      "clear_selection": "Effacer la sélection",
+      "modal_title_approve": "Approuver les requêtes sélectionnées",
+      "modal_title_reject": "Rejeter les requêtes sélectionnées",
+      "modal_title_request_changes": "Demander des modifications sur les requêtes sélectionnées",
+      "modal_subtitle_one": "Un commentaire commun sera enregistré pour {{count}} requête.",
+      "modal_subtitle_other": "Un commentaire commun sera enregistré pour {{count}} requêtes.",
+      "comment_placeholder": "Commentaire appliqué à chaque requête sélectionnée…",
+      "comment_required": "Un commentaire est requis pour rejeter ou demander des modifications.",
+      "toast_summary_one": "{{success}} décidée · {{failure}} échouée",
+      "toast_summary_other": "{{success}} décidées · {{failure}} échouées",
+      "toast_partial": "{{success}} décidées · {{failure}} échouées — vérifie les lignes en surbrillance.",
+      "row_status_forbidden": "Interdit",
+      "row_status_invalid_state": "Pas en attente",
+      "row_status_not_found": "Introuvable"
+    }
   },
   "timeline": {
     "title": "Chronologie d'approbation"

@@ -422,7 +422,36 @@
     "on_reject": "Rejected · submitter notified",
     "reject_modal_title": "Reject query",
     "reject_modal_placeholder": "Explain why this query is being rejected…",
-    "reject_modal_confirm": "Reject"
+    "reject_modal_confirm": "Reject",
+    "col_id": "ID",
+    "col_type": "Type",
+    "col_risk": "Risk",
+    "col_datasource": "Datasource",
+    "col_submitter": "Submitter",
+    "col_created": "Created",
+    "col_status": "Status",
+    "col_actions": "Actions",
+    "bulk": {
+      "action_bar_count_one": "{{count}} selected",
+      "action_bar_count_other": "{{count}} selected",
+      "approve_selected": "Approve selected",
+      "reject_selected": "Reject selected",
+      "request_changes_selected": "Request changes",
+      "clear_selection": "Clear selection",
+      "modal_title_approve": "Approve selected queries",
+      "modal_title_reject": "Reject selected queries",
+      "modal_title_request_changes": "Request changes on selected queries",
+      "modal_subtitle_one": "One shared comment will be recorded against {{count}} query.",
+      "modal_subtitle_other": "One shared comment will be recorded against {{count}} queries.",
+      "comment_placeholder": "Comment that will apply to every selected query…",
+      "comment_required": "A comment is required for rejection and change requests.",
+      "toast_summary_one": "{{success}} decided · {{failure}} failed",
+      "toast_summary_other": "{{success}} decided · {{failure}} failed",
+      "toast_partial": "{{success}} decided · {{failure}} failed — review the highlighted rows.",
+      "row_status_forbidden": "Forbidden",
+      "row_status_invalid_state": "Not pending review",
+      "row_status_not_found": "Not found"
+    }
   },
   "timeline": {
     "title": "Approval timeline"

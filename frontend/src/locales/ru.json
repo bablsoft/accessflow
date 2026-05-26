@@ -422,7 +422,36 @@
     "on_reject": "Отклонено · автор уведомлён",
     "reject_modal_title": "Отклонить запрос",
     "reject_modal_placeholder": "Объясните, почему этот запрос отклоняется…",
-    "reject_modal_confirm": "Отклонить"
+    "reject_modal_confirm": "Отклонить",
+    "col_id": "ID",
+    "col_type": "Тип",
+    "col_risk": "Риск",
+    "col_datasource": "Источник данных",
+    "col_submitter": "Отправитель",
+    "col_created": "Создано",
+    "col_status": "Статус",
+    "col_actions": "Действия",
+    "bulk": {
+      "action_bar_count_one": "Выбран {{count}}",
+      "action_bar_count_other": "Выбрано {{count}}",
+      "approve_selected": "Одобрить выбранные",
+      "reject_selected": "Отклонить выбранные",
+      "request_changes_selected": "Запросить изменения",
+      "clear_selection": "Очистить выбор",
+      "modal_title_approve": "Одобрить выбранные запросы",
+      "modal_title_reject": "Отклонить выбранные запросы",
+      "modal_title_request_changes": "Запросить изменения по выбранным запросам",
+      "modal_subtitle_one": "Один общий комментарий будет сохранён для {{count}} запроса.",
+      "modal_subtitle_other": "Один общий комментарий будет сохранён для {{count}} запросов.",
+      "comment_placeholder": "Комментарий, который применится ко всем выбранным запросам…",
+      "comment_required": "Для отклонения или запроса изменений требуется комментарий.",
+      "toast_summary_one": "{{success}} решено · {{failure}} с ошибками",
+      "toast_summary_other": "{{success}} решено · {{failure}} с ошибками",
+      "toast_partial": "{{success}} решено · {{failure}} с ошибками — проверьте выделенные строки.",
+      "row_status_forbidden": "Запрещено",
+      "row_status_invalid_state": "Не на рассмотрении",
+      "row_status_not_found": "Не найдено"
+    }
   },
   "timeline": {
     "title": "Хронология утверждения"
