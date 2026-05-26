@@ -37,6 +37,20 @@ public interface QueryLifecycleService {
     ExecutionOutcome execute(ExecuteQueryCommand command);
 
     /**
+     * System-triggered execution of a query whose {@code scheduled_for} timestamp is at or before
+     * the current instant. Bypasses the per-user ownership check because the actor is the
+     * scheduler, not a request principal — the submitter is recorded as the audit actor and the
+     * audit metadata carries {@code trigger=scheduled}.
+     *
+     * <p>Idempotent: silently returns if the query is no longer {@code APPROVED} (a manual
+     * execution or cancellation may have raced the job) or if {@code scheduled_for} is null /
+     * still in the future (the row should not yet be due).
+     *
+     * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if the query is gone.
+     */
+    void executeScheduled(UUID queryRequestId);
+
+    /**
      * Re-runs AI analysis on a query whose previous analysis failed. Restricted to reviewers and
      * admins by the security layer. The pre-existing failed {@code ai_analyses} row is removed
      * and {@link com.bablsoft.accessflow.ai.api.AiAnalyzerService#analyzeSubmittedQuery(UUID)} is

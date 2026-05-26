@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.api;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public record SubmitQueryCommand(
@@ -8,5 +9,6 @@ public record SubmitQueryCommand(
         String sqlText,
         QueryType queryType,
         boolean transactional,
-        String justification) {
+        String justification,
+        Instant scheduledFor) {
 }

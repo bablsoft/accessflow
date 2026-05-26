@@ -28,6 +28,7 @@ public record QueryDetailResponse(
         String reviewPlanName,
         Integer approvalTimeoutHours,
         List<ReviewDecisionDetail> reviewDecisions,
+        Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -48,6 +49,7 @@ public record QueryDetailResponse(
                 view.reviewPlanName(),
                 view.approvalTimeoutHours(),
                 view.reviewDecisions().stream().map(ReviewDecisionDetail::from).toList(),
+                view.scheduledFor(),
                 view.createdAt(),
                 view.updatedAt());
     }

@@ -111,7 +111,13 @@ class DefaultQueryLifecycleServiceTest {
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", type, false, status);
+                "SELECT 1", type, false, status, null);
+    }
+
+    private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type,
+                                          java.time.Instant scheduledFor) {
+        return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
+                "SELECT 1", type, false, status, scheduledFor);
     }
 
     // ── cancel ────────────────────────────────────────────────────────────────
@@ -521,5 +527,104 @@ class DefaultQueryLifecycleServiceTest {
                 .isInstanceOf(QueryRequestNotFoundException.class);
 
         verify(eventPublisher, never()).publishEvent(any(AiReanalysisRequestedEvent.class));
+    }
+
+    // ── cancel of APPROVED + scheduled_for ───────────────────────────────────
+
+    @Test
+    void cancelTransitionsApprovedScheduledQueryToCancelled() {
+        var dueAt = java.time.Instant.now().plusSeconds(60);
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, dueAt)));
+
+        service.cancel(new CancelQueryCommand(queryId, submitterId, organizationId));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.APPROVED,
+                QueryStatus.CANCELLED);
+        verify(eventPublisher).publishEvent(any(QueryCancelledEvent.class));
+    }
+
+    @Test
+    void cancelThrowsNotCancellableWhenApprovedButNotScheduled() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, null)));
+
+        assertThatThrownBy(() -> service.cancel(
+                new CancelQueryCommand(queryId, submitterId, organizationId)))
+                .isInstanceOf(QueryNotCancellableException.class);
+
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(QueryCancelledEvent.class));
+    }
+
+    // ── executeScheduled ─────────────────────────────────────────────────────
+
+    @Test
+    void executeScheduledFiresExecutionWhenDue() {
+        var dueAt = java.time.Instant.now().minusSeconds(2);
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, dueAt)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.empty());
+        when(sqlParserService.parse(anyString()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT 1"));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("c", 4, "int4")),
+                List.of(List.of(1)),
+                1L, false, Duration.ofMillis(11)));
+
+        service.executeScheduled(queryId);
+
+        verify(queryRequestStateService).recordExecutionOutcome(any(RecordExecutionCommand.class));
+        var event = ArgumentCaptor.forClass(QueryExecutedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().finalStatus()).isEqualTo(QueryStatus.EXECUTED);
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_EXECUTED);
+        assertThat(auditCaptor.getValue().actorId()).isEqualTo(submitterId);
+        assertThat(auditCaptor.getValue().metadata()).containsEntry("trigger", "scheduled");
+    }
+
+    @Test
+    void executeScheduledSkipsWhenStatusIsNotApproved() {
+        var dueAt = java.time.Instant.now().minusSeconds(2);
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.EXECUTED, QueryType.SELECT, dueAt)));
+
+        service.executeScheduled(queryId);
+
+        verify(queryExecutor, never()).execute(any());
+        verify(eventPublisher, never()).publishEvent(any(QueryExecutedEvent.class));
+    }
+
+    @Test
+    void executeScheduledSkipsWhenScheduleNotYetDue() {
+        var future = java.time.Instant.now().plusSeconds(600);
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, future)));
+
+        service.executeScheduled(queryId);
+
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeScheduledSkipsWhenScheduledForIsNull() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, null)));
+
+        service.executeScheduled(queryId);
+
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeScheduledThrowsNotFoundWhenQueryGone() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.executeScheduled(queryId))
+                .isInstanceOf(QueryRequestNotFoundException.class);
     }
 }

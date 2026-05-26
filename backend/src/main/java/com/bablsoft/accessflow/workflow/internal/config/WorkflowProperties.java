@@ -8,11 +8,15 @@ import java.time.Duration;
 
 @ConfigurationProperties("accessflow.workflow")
 @Validated
-public record WorkflowProperties(@NotNull Duration timeoutPollInterval) {
+public record WorkflowProperties(@NotNull Duration timeoutPollInterval,
+                                 @NotNull Duration scheduledRunPollInterval) {
 
     public WorkflowProperties {
         if (timeoutPollInterval == null) {
             timeoutPollInterval = Duration.ofMinutes(5);
+        }
+        if (scheduledRunPollInterval == null) {
+            scheduledRunPollInterval = Duration.ofMinutes(1);
         }
     }
 }

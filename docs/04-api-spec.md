@@ -499,7 +499,7 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 | `POST` | `/queries` | Submit a query for review/execution |
 | `GET` | `/queries` | List query requests (filterable by status, datasource, user, date range) |
 | `GET` | `/queries/{id}` | Get full query request details including AI analysis |
-| `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI` or `PENDING_REVIEW`) |
+| `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set) |
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
@@ -510,9 +510,12 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 {
   "datasource_id": "uuid",
   "sql": "UPDATE orders SET status = 'shipped' WHERE id = 123",
-  "justification": "Customer support ticket #8821 — order stuck in processing"
+  "justification": "Customer support ticket #8821 — order stuck in processing",
+  "scheduled_for": "2026-06-01T03:00:00Z"
 }
 ```
+
+`scheduled_for` is optional. When supplied it must be a valid ISO-8601 timestamp strictly in the future (enforced by `@Future` Bean Validation — invalid values produce HTTP 400). When set, the query still goes through the normal AI / review flow; the difference comes after approval: instead of waiting for a manual `POST /queries/{id}/execute`, the backend's `ScheduledQueryRunJob` (cluster-locked via ShedLock) picks the row up at `scheduled_for ≤ now()` and triggers execution as a system-initiated action — the submitter is recorded as the audit actor and the audit metadata carries `"trigger": "scheduled"`. While the query is `APPROVED` with a future `scheduled_for`, the submitter may cancel it via `POST /queries/{id}/cancel` (transitions to `CANCELLED`).
 
 ### POST /queries — Response 202 Accepted
 
@@ -627,10 +630,13 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
   ],
   "review_plan_name": "Production reviews",
   "approval_timeout_hours": 24,
+  "scheduled_for": "2026-06-01T03:00:00Z",
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
 }
 ```
+
+`scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
 
@@ -638,7 +644,7 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 
 Cancels a query that is still pending AI analysis or human review. The request body is empty.
 
-Authorization: only the original submitter may cancel the query (admins cannot cancel on behalf of someone else). Cancellation is permitted only while `status` is `PENDING_AI` or `PENDING_REVIEW`; once the query reaches any other state it is no longer cancellable.
+Authorization: only the original submitter may cancel the query (admins cannot cancel on behalf of someone else). Cancellation is permitted while `status` is `PENDING_AI` or `PENDING_REVIEW`, and additionally while `status` is `APPROVED` with a non-null `scheduled_for` (the deferred execution is cancelled before the scheduler fires). Once the query reaches any other state it is no longer cancellable.
 
 On success the query transitions to `CANCELLED`, a `QUERY_CANCELLED` audit row is written synchronously from the controller (capturing the caller's IP and User-Agent), and a `query.status_changed` WebSocket event is broadcast to subscribers.
 

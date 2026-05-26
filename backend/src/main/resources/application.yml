@@ -139,6 +139,9 @@ accessflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.
     timeout-poll-interval: ${ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL:PT5M}
+    # Cadence at which ScheduledQueryRunJob scans for APPROVED queries whose scheduled_for
+    # timestamp has been reached. ShedLock makes this safe under horizontal scaling.
+    scheduled-run-poll-interval: ${ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL:PT1M}
   audit:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.

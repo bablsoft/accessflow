@@ -78,6 +78,9 @@ public class QueryRequestEntity {
     @Column(name = "transactional", nullable = false)
     private boolean transactional = false;
 
+    @Column(name = "scheduled_for")
+    private Instant scheduledFor;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

@@ -480,6 +480,9 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | Job | Module | Lock name | Cadence property | Default |
 |-----|--------|-----------|------------------|---------|
 | `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
+| `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
+
+`ScheduledQueryRunJob` implements query scheduling (AF-345): a submitter may include `scheduled_for` on `POST /queries` to defer execution. The query still goes through the normal AI / review flow; once it reaches `APPROVED`, the job picks it up at the next tick where `scheduled_for ≤ now()` and calls `QueryLifecycleService.executeScheduled(id)`. That method bypasses the per-user ownership guard (the actor is the scheduler, not a request principal), records the submitter as the audit actor, and tags the audit metadata with `"trigger": "scheduled"`. The job is idempotent — if the query is no longer `APPROVED` (manual execute / cancel raced the tick), the lifecycle service logs and returns without firing.
 
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
 

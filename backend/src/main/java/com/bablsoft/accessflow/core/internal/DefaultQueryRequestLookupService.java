@@ -56,6 +56,12 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> findScheduledDueIds(Instant now) {
+        return queryRequestRepository.findScheduledDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
                                                                   UUID reviewerUserId,
                                                                   UserRoleType role,
@@ -190,6 +196,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
                 decisions,
+                entity.getScheduledFor(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
@@ -237,6 +244,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getSqlText(),
                 entity.getQueryType(),
                 entity.isTransactional(),
-                entity.getStatus());
+                entity.getStatus(),
+                entity.getScheduledFor());
     }
 }

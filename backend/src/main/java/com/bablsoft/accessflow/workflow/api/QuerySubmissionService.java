@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.workflow.api;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -19,7 +20,8 @@ public interface QuerySubmissionService {
             String justification,
             UUID submitterUserId,
             UUID organizationId,
-            boolean isAdmin) {
+            boolean isAdmin,
+            Instant scheduledFor) {
     }
 
     record QuerySubmissionResult(UUID id, QueryStatus status) {

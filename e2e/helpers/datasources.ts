@@ -9,7 +9,7 @@ const INVITE_URL_REGEX = /\/invite\/([A-Za-z0-9_-]+)/;
 // Resolve the backend URL the helpers should hit. Mirrors the convention used
 // by tests/auth-totp-login.spec.ts so the same E2E_API_BASE override drives
 // both call sites.
-function apiBase(): string {
+export function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
 }
 
@@ -288,10 +288,17 @@ export async function submitQueryViaApi(
   datasourceId: string,
   sql: string,
   justification = 'e2e: helper-submitted query',
+  scheduledFor?: string,
 ): Promise<SubmittedQuery> {
+  const body: Record<string, unknown> = {
+    datasource_id: datasourceId,
+    sql,
+    justification,
+  };
+  if (scheduledFor) body.scheduled_for = scheduledFor;
   const res = await request.post(`${apiBase()}/api/v1/queries`, {
     headers: { Authorization: `Bearer ${accessToken}` },
-    data: { datasource_id: datasourceId, sql, justification },
+    data: body,
   });
   if (!res.ok()) {
     throw new Error(`Submit query failed: ${res.status()} ${await res.text()}`);

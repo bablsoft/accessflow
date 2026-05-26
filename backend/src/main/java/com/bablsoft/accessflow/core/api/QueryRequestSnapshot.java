@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.api;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -15,5 +16,6 @@ public record QueryRequestSnapshot(
         String sqlText,
         QueryType queryType,
         boolean transactional,
-        QueryStatus status) {
+        QueryStatus status,
+        Instant scheduledFor) {
 }
