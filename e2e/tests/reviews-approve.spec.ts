@@ -180,25 +180,21 @@ test.describe.serial('reviews approve (AF-268)', () => {
       await loginViaUi(approverPage, approverAEmail, approverAPassword);
       await approverPage.goto('/reviews');
 
-      // ReviewCard renders the full UUID in a mono div; anchor on it so prior
+      // The /reviews table renders the full UUID inside the row so prior
       // specs that leave queries in PENDING_REVIEW (e.g. cancel spec) don't
       // confuse the locator.
       await expect(
         approverPage.getByText(queryId, { exact: true }),
       ).toBeVisible({ timeout: 15_000 });
-      const reviewCard = approverPage
-        .locator('div')
-        .filter({ hasText: queryId })
-        .filter({ has: approverPage.getByRole('button', { name: 'Approve' }) })
-        .first();
-      await reviewCard.getByRole('button', { name: 'Approve' }).click();
+      const reviewRow = approverPage.getByRole('row').filter({ hasText: queryId });
+      await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       // Toast from reviews.on_approve in en.json.
       await expect(
         approverPage.getByText('Approved · forwarded to execution'),
       ).toBeVisible({ timeout: 10_000 });
 
-      // Card disappears once the pending-list invalidation refetches without
+      // Row disappears once the pending-list invalidation refetches without
       // this row. The full-UUID match keeps this assertion specific.
       await expect(
         approverPage.getByText(queryId, { exact: true }),
@@ -257,12 +253,8 @@ test.describe.serial('reviews approve (AF-268)', () => {
       // approver A's cached card is unaware.
       await approveQueryViaApi(request, approverBAccessToken, submitted.id);
 
-      const reviewCard = approverPage
-        .locator('div')
-        .filter({ hasText: submitted.id })
-        .filter({ has: approverPage.getByRole('button', { name: 'Approve' }) })
-        .first();
-      await reviewCard.getByRole('button', { name: 'Approve' }).click();
+      const reviewRow = approverPage.getByRole('row').filter({ hasText: submitted.id });
+      await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       await expect(
         approverPage.getByText('This query is no longer pending review.'),

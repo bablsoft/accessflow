@@ -471,6 +471,23 @@ export interface ReviewDecisionResult {
   idempotent_replay: boolean;
 }
 
+export type BulkReviewRowStatus = 'SUCCESS' | 'FORBIDDEN' | 'INVALID_STATE' | 'NOT_FOUND';
+
+export interface BulkReviewRowResult {
+  query_request_id: string;
+  status: BulkReviewRowStatus;
+  decision?: ReviewDecisionType;
+  resulting_status?: QueryStatus;
+  decision_id?: string;
+  idempotent_replay?: boolean;
+  error?: string;
+  error_code?: string;
+}
+
+export interface BulkReviewDecisionResponse {
+  results: BulkReviewRowResult[];
+}
+
 export interface AiIssue {
   severity: IssueSeverity;
   category: string;

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.workflow.api.BulkReviewCommentRequiredException;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
@@ -74,6 +75,15 @@ class ReviewExceptionHandler {
         pd.setProperty("error", "QUERY_NOT_REANALYZABLE");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("currentStatus", ex.currentStatus().name());
+        return pd;
+    }
+
+    @ExceptionHandler(BulkReviewCommentRequiredException.class)
+    ProblemDetail handleBulkReviewCommentRequired(BulkReviewCommentRequiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.bulk_review.comment_required", ex.decision().name()));
+        pd.setProperty("error", "VALIDATION_ERROR");
+        pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
 

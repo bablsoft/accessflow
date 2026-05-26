@@ -411,7 +411,36 @@
     "on_reject": "Rechazada · autor notificado",
     "reject_modal_title": "Rechazar consulta",
     "reject_modal_placeholder": "Explica por qué se rechaza esta consulta…",
-    "reject_modal_confirm": "Rechazar"
+    "reject_modal_confirm": "Rechazar",
+    "col_id": "ID",
+    "col_type": "Tipo",
+    "col_risk": "Riesgo",
+    "col_datasource": "Fuente de datos",
+    "col_submitter": "Remitente",
+    "col_created": "Creada",
+    "col_status": "Estado",
+    "col_actions": "Acciones",
+    "bulk": {
+      "action_bar_count_one": "{{count}} seleccionada",
+      "action_bar_count_other": "{{count}} seleccionadas",
+      "approve_selected": "Aprobar seleccionadas",
+      "reject_selected": "Rechazar seleccionadas",
+      "request_changes_selected": "Solicitar cambios",
+      "clear_selection": "Borrar selección",
+      "modal_title_approve": "Aprobar las consultas seleccionadas",
+      "modal_title_reject": "Rechazar las consultas seleccionadas",
+      "modal_title_request_changes": "Solicitar cambios en las consultas seleccionadas",
+      "modal_subtitle_one": "Se registrará un comentario compartido para {{count}} consulta.",
+      "modal_subtitle_other": "Se registrará un comentario compartido para {{count}} consultas.",
+      "comment_placeholder": "Comentario que se aplicará a cada consulta seleccionada…",
+      "comment_required": "Se requiere un comentario para rechazar o solicitar cambios.",
+      "toast_summary_one": "{{success}} decidida · {{failure}} fallida",
+      "toast_summary_other": "{{success}} decididas · {{failure}} fallidas",
+      "toast_partial": "{{success}} decididas · {{failure}} fallidas — revisa las filas marcadas.",
+      "row_status_forbidden": "Prohibido",
+      "row_status_invalid_state": "No está pendiente",
+      "row_status_not_found": "No encontrada"
+    }
   },
   "timeline": {
     "title": "Cronología de aprobación"

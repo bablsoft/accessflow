@@ -8,18 +8,23 @@ import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
 import type { PendingReviewsPage } from '@/types/api';
 
-const { listPendingReviewsMock, approveQueryMock, rejectQueryMock } = vi.hoisted(
-  () => ({
-    listPendingReviewsMock: vi.fn(),
-    approveQueryMock: vi.fn(),
-    rejectQueryMock: vi.fn(),
-  }),
-);
+const {
+  listPendingReviewsMock,
+  approveQueryMock,
+  rejectQueryMock,
+  bulkDecideReviewsMock,
+} = vi.hoisted(() => ({
+  listPendingReviewsMock: vi.fn(),
+  approveQueryMock: vi.fn(),
+  rejectQueryMock: vi.fn(),
+  bulkDecideReviewsMock: vi.fn(),
+}));
 
 vi.mock('@/api/reviews', () => ({
   listPendingReviews: listPendingReviewsMock,
   approveQuery: approveQueryMock,
   rejectQuery: rejectQueryMock,
+  bulkDecideReviews: bulkDecideReviewsMock,
   reviewKeys: {
     all: ['reviews'] as const,
     pending: () => ['reviews', 'pending'] as const,
@@ -72,6 +77,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     listPendingReviewsMock.mockReset();
     approveQueryMock.mockReset();
     rejectQueryMock.mockReset();
+    bulkDecideReviewsMock.mockReset();
     useAuthStore.setState({
       user: {
         id: 'u-reviewer',
@@ -142,6 +148,101 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
         'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
         'too risky',
       );
+    });
+  });
+
+  it('does not show the bulk action bar until a row is selected', async () => {
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+
+    render(wrap(<ReviewQueuePage />));
+
+    await screen.findByText('submitter@example.com');
+    expect(screen.queryByText(/selected/)).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /Approve selected/ }),
+    ).toBeNull();
+  });
+
+  it('shows the bulk action bar and fires bulkDecideReviews on Approve selected', async () => {
+    const ids = ['aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'];
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+    bulkDecideReviewsMock.mockResolvedValue({
+      results: ids.map((id) => ({
+        query_request_id: id,
+        status: 'SUCCESS' as const,
+        decision: 'APPROVED' as const,
+        resulting_status: 'APPROVED' as const,
+        decision_id: 'd-1',
+        idempotent_replay: false,
+      })),
+    });
+
+    render(wrap(<ReviewQueuePage />));
+
+    // Wait for the table to render. Then click the row's checkbox.
+    await screen.findByText('submitter@example.com');
+    const checkboxes = screen.getAllByRole('checkbox');
+    // First checkbox is the header select-all; the row checkboxes follow.
+    await act(async () => {
+      fireEvent.click(checkboxes[1]!);
+    });
+
+    // Sticky action bar appears with the count.
+    expect(await screen.findByText('1 selected')).toBeInTheDocument();
+    const approveSelected = screen.getByRole('button', { name: /Approve selected/ });
+    await act(async () => {
+      fireEvent.click(approveSelected);
+    });
+
+    // Bulk decision modal opens — click its confirm.
+    expect(await screen.findByText('Approve selected queries')).toBeInTheDocument();
+    const confirmButtons = screen.getAllByRole('button', { name: /Approve selected/ });
+    // The first instance is the sticky bar button; the modal's primary button is the last.
+    const confirm = confirmButtons[confirmButtons.length - 1]!;
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+
+    await waitFor(() => {
+      expect(bulkDecideReviewsMock).toHaveBeenCalledWith({
+        queryIds: ids,
+        decision: 'APPROVED',
+        comment: undefined,
+      });
+    });
+  });
+
+  it('blocks bulk reject confirm until a comment is typed', async () => {
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+
+    render(wrap(<ReviewQueuePage />));
+
+    await screen.findByText('submitter@example.com');
+    const checkboxes = screen.getAllByRole('checkbox');
+    await act(async () => {
+      fireEvent.click(checkboxes[1]!);
+    });
+
+    const rejectSelected = await screen.findByRole('button', {
+      name: /Reject selected/,
+    });
+    await act(async () => {
+      fireEvent.click(rejectSelected);
+    });
+
+    // Modal opens. The primary confirm (last "Reject selected" button) is disabled
+    // until a comment is entered.
+    const buttons = screen.getAllByRole('button', { name: /Reject selected/ });
+    const modalConfirm = buttons[buttons.length - 1]!;
+    expect(modalConfirm).toBeDisabled();
+
+    const textarea = screen.getByPlaceholderText(/Comment that will apply/);
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'too risky' } });
+    });
+
+    await waitFor(() => {
+      expect(modalConfirm).not.toBeDisabled();
     });
   });
 

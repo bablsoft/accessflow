@@ -18,7 +18,9 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
+import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
+import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import org.springframework.security.access.AccessDeniedException;
@@ -41,6 +44,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,6 +57,7 @@ class DefaultReviewServiceTest {
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock MessageSource messageSource;
     @InjectMocks DefaultReviewService service;
 
     private final UUID queryId = UUID.randomUUID();
@@ -311,6 +316,129 @@ class DefaultReviewServiceTest {
                 PageRequest.of(0, 20));
 
         assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void bulkDecideMapsExceptionsToPerRowStatuses() {
+        // Stub MessageSource so the failure-row error messages resolve.
+        when(messageSource.getMessage(any(String.class), eq(null), any())).thenReturn("err");
+
+        var notFoundId = UUID.randomUUID();
+        var selfApproveId = UUID.randomUUID();
+        var wrongStateId = UUID.randomUUID();
+        var successId = UUID.randomUUID();
+
+        // NOT_FOUND
+        when(queryRequestLookupService.findPendingReview(notFoundId)).thenReturn(Optional.empty());
+        // FORBIDDEN — self approval
+        when(queryRequestLookupService.findPendingReview(selfApproveId))
+                .thenReturn(Optional.of(viewFor(selfApproveId, QueryStatus.PENDING_REVIEW, reviewerId)));
+        // INVALID_STATE — query already approved
+        when(queryRequestLookupService.findPendingReview(wrongStateId))
+                .thenReturn(Optional.of(viewFor(wrongStateId, QueryStatus.APPROVED, submitterId)));
+        // SUCCESS — happy path
+        when(queryRequestLookupService.findPendingReview(successId))
+                .thenReturn(Optional.of(viewFor(successId, QueryStatus.PENDING_REVIEW, submitterId)));
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(successId)).thenReturn(List.of());
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, false));
+
+        var outcome = service.bulkDecide(
+                List.of(notFoundId, selfApproveId, wrongStateId, successId),
+                DecisionType.APPROVED,
+                reviewerContext(UserRoleType.REVIEWER),
+                "ok");
+
+        assertThat(outcome.rows()).hasSize(4);
+        assertThat(outcome.rows().get(0).queryRequestId()).isEqualTo(notFoundId);
+        assertThat(outcome.rows().get(0).status()).isEqualTo(RowStatus.NOT_FOUND);
+        assertThat(outcome.rows().get(0).errorCode()).isEqualTo("QUERY_REQUEST_NOT_FOUND");
+        assertThat(outcome.rows().get(1).status()).isEqualTo(RowStatus.FORBIDDEN);
+        assertThat(outcome.rows().get(1).errorCode()).isEqualTo("FORBIDDEN");
+        assertThat(outcome.rows().get(2).status()).isEqualTo(RowStatus.INVALID_STATE);
+        assertThat(outcome.rows().get(2).errorCode()).isEqualTo("QUERY_NOT_PENDING_REVIEW");
+        assertThat(outcome.rows().get(3).status()).isEqualTo(RowStatus.SUCCESS);
+        assertThat(outcome.rows().get(3).outcome().decision()).isEqualTo(DecisionType.APPROVED);
+        // Exactly one ReviewDecisionMadeEvent per SUCCESS — the failed rows must not publish.
+        verify(eventPublisher).publishEvent(any(ReviewDecisionMadeEvent.class));
+    }
+
+    @Test
+    void bulkDecideForbiddenWhenReviewerNotEligibleAtStage() {
+        when(messageSource.getMessage(any(String.class), eq(null), any())).thenReturn("err");
+        var id = UUID.randomUUID();
+        when(queryRequestLookupService.findPendingReview(id))
+                .thenReturn(Optional.of(viewFor(id, QueryStatus.PENDING_REVIEW, submitterId)));
+        // Plan has a single approver who is not this reviewer.
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(
+                        new ApproverRule(UUID.randomUUID(), null, 1)))));
+        when(queryRequestStateService.listDecisions(id)).thenReturn(List.of());
+
+        var outcome = service.bulkDecide(List.of(id), DecisionType.REJECTED,
+                reviewerContext(UserRoleType.REVIEWER), "no");
+
+        assertThat(outcome.rows()).hasSize(1);
+        assertThat(outcome.rows().get(0).status()).isEqualTo(RowStatus.FORBIDDEN);
+        assertThat(outcome.rows().get(0).errorCode()).isEqualTo("REVIEWER_NOT_ELIGIBLE");
+        verify(queryRequestStateService, never()).recordRejection(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void bulkDecideRequestChangesRoutesThroughRequestChangesMethod() {
+        givenPendingReview();
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        when(queryRequestStateService.recordChangesRequested(eq(queryId), eq(reviewerId), eq(1),
+                any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
+                        QueryStatus.PENDING_REVIEW, false));
+
+        var outcome = service.bulkDecide(List.of(queryId), DecisionType.REQUESTED_CHANGES,
+                reviewerContext(UserRoleType.REVIEWER), "please narrow");
+
+        assertThat(outcome.rows()).hasSize(1);
+        assertThat(outcome.rows().get(0).status()).isEqualTo(RowStatus.SUCCESS);
+        assertThat(outcome.rows().get(0).outcome().decision())
+                .isEqualTo(DecisionType.REQUESTED_CHANGES);
+        verify(queryRequestStateService).recordChangesRequested(eq(queryId), eq(reviewerId),
+                eq(1), eq("please narrow"));
+    }
+
+    @Test
+    void bulkDecideEmptyListReturnsEmptyOutcome() {
+        var outcome = service.bulkDecide(List.of(), DecisionType.APPROVED,
+                reviewerContext(UserRoleType.REVIEWER), null);
+
+        assertThat(outcome.rows()).isEmpty();
+        verify(queryRequestLookupService, never()).findPendingReview(any());
+    }
+
+    @Test
+    void bulkDecideIdempotentReplayDoesNotPublishEvent() {
+        givenPendingReview();
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, true));
+
+        var outcome = service.bulkDecide(List.of(queryId), DecisionType.APPROVED,
+                reviewerContext(UserRoleType.REVIEWER), "ok");
+
+        assertThat(outcome.rows()).hasSize(1);
+        assertThat(outcome.rows().get(0).status()).isEqualTo(RowStatus.SUCCESS);
+        assertThat(outcome.rows().get(0).outcome().wasIdempotentReplay()).isTrue();
+        verify(eventPublisher, never()).publishEvent(any(QueryApprovedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(ReviewDecisionMadeEvent.class));
+    }
+
+    private PendingReviewView viewFor(UUID id, QueryStatus status, UUID submittedBy) {
+        return new PendingReviewView(
+                id, datasourceId, "ds", organizationId, submittedBy, "submitter@example.com",
+                "SELECT 1", QueryType.SELECT, status, "justification",
+                UUID.randomUUID(), RiskLevel.LOW, 10, "summary",
+                Instant.parse("2025-01-15T10:00:00Z"));
     }
 
     private void givenPendingReview() {

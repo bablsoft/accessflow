@@ -17,7 +17,10 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
+import com.bablsoft.accessflow.workflow.api.ReviewService.BulkDecisionOutcome;
 import com.bablsoft.accessflow.workflow.api.ReviewService.DecisionOutcome;
+import com.bablsoft.accessflow.workflow.api.ReviewService.RowOutcome;
+import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -371,6 +374,140 @@ class ReviewControllerIntegrationTest {
         assertThat(response).hasStatus(400);
         assertThat(response).bodyJson().extractingPath("$.error").asString()
                 .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    void bulkDecideReturns200WithMixedPerRowOutcomes() {
+        var okId = UUID.randomUUID();
+        var forbiddenId = UUID.randomUUID();
+        var notFoundId = UUID.randomUUID();
+        var decisionId = UUID.randomUUID();
+        when(reviewService.bulkDecide(any(), eq(DecisionType.APPROVED), any(), any()))
+                .thenReturn(new BulkDecisionOutcome(List.of(
+                        RowOutcome.success(okId, new DecisionOutcome(decisionId,
+                                DecisionType.APPROVED, QueryStatus.APPROVED, false)),
+                        RowOutcome.failure(forbiddenId, RowStatus.FORBIDDEN,
+                                "REVIEWER_NOT_ELIGIBLE", "Not eligible"),
+                        RowOutcome.failure(notFoundId, RowStatus.NOT_FOUND,
+                                "QUERY_REQUEST_NOT_FOUND", "Not found"))));
+
+        var body = "{\"query_ids\":[\"" + okId + "\",\"" + forbiddenId + "\",\""
+                + notFoundId + "\"],\"decision\":\"APPROVED\",\"comment\":\"ok\"}";
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .header("X-Forwarded-For", "203.0.113.20")
+                .header(HttpHeaders.USER_AGENT, "junit-bulk/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.results[0].status").asString()
+                .isEqualTo("SUCCESS");
+        assertThat(response).bodyJson().extractingPath("$.results[0].decision").asString()
+                .isEqualTo("APPROVED");
+        assertThat(response).bodyJson().extractingPath("$.results[1].status").asString()
+                .isEqualTo("FORBIDDEN");
+        assertThat(response).bodyJson().extractingPath("$.results[1].error_code").asString()
+                .isEqualTo("REVIEWER_NOT_ELIGIBLE");
+        assertThat(response).bodyJson().extractingPath("$.results[2].status").asString()
+                .isEqualTo("NOT_FOUND");
+
+        // Audit log: only the SUCCESS row writes a row.
+        var auditRows = auditLogService.query(organization.getId(),
+                AuditLogQuery.empty(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 10))
+                .content();
+        assertThat(auditRows).hasSize(1);
+        assertThat(auditRows.get(0).action()).isEqualTo(AuditAction.QUERY_APPROVED);
+        assertThat(auditRows.get(0).resourceId()).isEqualTo(okId);
+        assertThat(auditRows.get(0).metadata())
+                .containsEntry("comment", "ok")
+                .containsEntry("resulting_status", "APPROVED");
+    }
+
+    @Test
+    void bulkDecideReturns400OnEmptyQueryIds() {
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[],\"decision\":\"APPROVED\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    void bulkDecideReturns400WhenRejectMissingComment() {
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[\"" + UUID.randomUUID()
+                        + "\"],\"decision\":\"REJECTED\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    void bulkDecideReturns400WhenRequestChangesMissingComment() {
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[\"" + UUID.randomUUID()
+                        + "\"],\"decision\":\"REQUESTED_CHANGES\",\"comment\":\"   \"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("VALIDATION_ERROR");
+    }
+
+    @Test
+    void bulkDecideReturns403ForAnalyst() {
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[\"" + UUID.randomUUID()
+                        + "\"],\"decision\":\"APPROVED\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(403);
+    }
+
+    @Test
+    void bulkDecideReturns401WithoutToken() {
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[\"" + UUID.randomUUID()
+                        + "\"],\"decision\":\"APPROVED\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(401);
+    }
+
+    @Test
+    void bulkDecideRequestChangesDoesNotAudit() {
+        var id = UUID.randomUUID();
+        when(reviewService.bulkDecide(any(), eq(DecisionType.REQUESTED_CHANGES), any(), any()))
+                .thenReturn(new BulkDecisionOutcome(List.of(
+                        RowOutcome.success(id, new DecisionOutcome(UUID.randomUUID(),
+                                DecisionType.REQUESTED_CHANGES, QueryStatus.PENDING_REVIEW,
+                                false)))));
+
+        var response = mvc.post().uri("/api/v1/reviews/bulk")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"query_ids\":[\"" + id + "\"],\"decision\":\"REQUESTED_CHANGES\","
+                        + "\"comment\":\"narrower WHERE please\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(auditLogService.query(organization.getId(), AuditLogQuery.empty(),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 10)).totalElements()).isZero();
     }
 
     private UserEntity saveUser(OrganizationEntity org, String email, UserRoleType role) {

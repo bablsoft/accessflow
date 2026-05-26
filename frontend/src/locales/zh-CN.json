@@ -411,7 +411,36 @@
     "on_reject": "已拒绝 · 已通知提交者",
     "reject_modal_title": "拒绝查询",
     "reject_modal_placeholder": "说明拒绝此查询的原因…",
-    "reject_modal_confirm": "拒绝"
+    "reject_modal_confirm": "拒绝",
+    "col_id": "ID",
+    "col_type": "类型",
+    "col_risk": "风险",
+    "col_datasource": "数据源",
+    "col_submitter": "提交人",
+    "col_created": "创建时间",
+    "col_status": "状态",
+    "col_actions": "操作",
+    "bulk": {
+      "action_bar_count_one": "已选 {{count}} 项",
+      "action_bar_count_other": "已选 {{count}} 项",
+      "approve_selected": "批准所选",
+      "reject_selected": "拒绝所选",
+      "request_changes_selected": "请求修改",
+      "clear_selection": "清除选择",
+      "modal_title_approve": "批准所选查询",
+      "modal_title_reject": "拒绝所选查询",
+      "modal_title_request_changes": "对所选查询请求修改",
+      "modal_subtitle_one": "将为 {{count}} 个查询记录一条共享评论。",
+      "modal_subtitle_other": "将为 {{count}} 个查询记录一条共享评论。",
+      "comment_placeholder": "适用于每个所选查询的评论…",
+      "comment_required": "拒绝或请求修改需要填写评论。",
+      "toast_summary_one": "已处理 {{success}} 项 · 失败 {{failure}} 项",
+      "toast_summary_other": "已处理 {{success}} 项 · 失败 {{failure}} 项",
+      "toast_partial": "已处理 {{success}} 项 · 失败 {{failure}} 项 — 请查看高亮行。",
+      "row_status_forbidden": "无权限",
+      "row_status_invalid_state": "不在待审核",
+      "row_status_not_found": "未找到"
+    }
   },
   "timeline": {
     "title": "审批时间线"
