@@ -237,6 +237,11 @@ describe('websocketManager', () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  it('exposes the singleton on window.__websocketManager for e2e', () => {
+    const exposed = (window as unknown as { __websocketManager?: unknown }).__websocketManager;
+    expect(exposed).toBe(websocketManager);
+  });
+
   it('continues delivering after a subscriber throws', () => {
     websocketManager.connect('t');
     const bad = vi.fn(() => {

@@ -174,3 +174,10 @@ class WebSocketManager {
 
 export const websocketManager = new WebSocketManager();
 export type { Handler };
+
+// Exposed for Playwright E2E (e2e/) — lets tests call .disconnect() to suppress
+// realtime invalidation without flipping auth state.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __websocketManager?: typeof websocketManager }).__websocketManager =
+    websocketManager;
+}
