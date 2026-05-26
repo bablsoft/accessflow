@@ -135,13 +135,16 @@ class QueryReadController {
     @GetMapping("/{id}")
     @Operation(summary = "Fetch one query request, including its AI analysis")
     @ApiResponse(responseCode = "200", description = "Query detail")
-    @ApiResponse(responseCode = "403", description = "Caller is not the submitter and not an admin")
+    @ApiResponse(responseCode = "403", description = "Caller is not the submitter, a reviewer, or an admin")
     @ApiResponse(responseCode = "404", description = "Query not found in caller's organization")
     QueryDetailResponse get(@PathVariable UUID id, Authentication authentication) {
         var caller = (JwtClaims) authentication.getPrincipal();
         var detail = queryRequestLookupService.findDetailById(id, caller.organizationId())
                 .orElseThrow(() -> new QueryRequestNotFoundException(id));
+        // Per docs/07-security.md role matrix, REVIEWER and ADMIN both have
+        // "View all query history". Non-reviewers can only read their own rows.
         if (caller.role() != UserRoleType.ADMIN
+                && caller.role() != UserRoleType.REVIEWER
                 && !detail.submittedByUserId().equals(caller.userId())) {
             throw new QueryRequestNotFoundException(id);
         }

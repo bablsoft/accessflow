@@ -640,6 +640,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
 
+Authorization: per the [docs/07-security.md role matrix](07-security.md#authorization--role-matrix), `ADMIN` and `REVIEWER` may read any query in the organization, while `ANALYST` and `READONLY` may only read queries they submitted themselves. Non-matching callers receive `404 QUERY_REQUEST_NOT_FOUND` (the response is identical to the "row does not exist" case, so callers cannot probe other users' query ids).
+
 ### POST /queries/{id}/cancel — Response 204
 
 Cancels a query that is still pending AI analysis or human review. The request body is empty.

@@ -339,6 +339,28 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).hasStatus(200);
     }
 
+    @Test
+    void getReturnsDetailForReviewerEvenIfNotSubmitter() {
+        // Reviewers click rows in /reviews and land on /queries/:id; per the
+        // role matrix in docs/07-security.md they have "View all query
+        // history" and must not be denied with QUERY_REQUEST_NOT_FOUND.
+        var qid = UUID.randomUUID();
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW, "x", null,
+                null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detail));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.id").asString()
+                .isEqualTo(qid.toString());
+    }
+
     // ── POST /api/v1/queries/{id}/reanalyze ─────────────────────────────────────
 
     @Test
