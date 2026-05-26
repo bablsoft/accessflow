@@ -234,6 +234,12 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
   return (
     <Form<OAuth2FormValues>
       form={form}
+      // Distinct form name per provider tab so input element IDs (Form.Item
+      // generates `<form-name>_<item-name>`) don't collide once Ant Design
+      // Tabs keeps previously-activated panes mounted in the DOM. Without
+      // this, label-for associations resolve to the wrong tab's input after
+      // the user (or an e2e test) switches tabs.
+      name={`oauth2-${provider.toLowerCase()}`}
       layout="vertical"
       onFinish={onFinish}
       initialValues={initialValues}
