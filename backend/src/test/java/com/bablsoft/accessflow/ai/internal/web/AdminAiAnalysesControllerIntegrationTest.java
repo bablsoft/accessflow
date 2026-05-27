@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationReposi
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,11 +81,7 @@ class AdminAiAnalysesControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
-        aiAnalysisRepository.deleteAll();
-        queryRequestRepository.deleteAll();
-        datasourceRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        cleanup();
 
         orgPrimary = saveOrg("Primary");
         orgOther = saveOrg("Other");
@@ -115,6 +112,22 @@ class AdminAiAnalysesControllerIntegrationTest {
                 "[{\"severity\":\"LOW\",\"category\":\"performance\",\"message\":\"other\",\"suggestion\":\"o\"}]");
 
         adminToken = generateToken(adminPrimary);
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Leave the schema clean so sibling integration tests that don't know
+        // about query_requests / ai_analyses can wipe datasources without
+        // tripping the FK from query_requests.
+        cleanup();
+    }
+
+    private void cleanup() {
+        aiAnalysisRepository.deleteAll();
+        queryRequestRepository.deleteAll();
+        datasourceRepository.deleteAll();
+        userRepository.deleteAll();
+        organizationRepository.deleteAll();
     }
 
     @Test
