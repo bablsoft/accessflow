@@ -611,18 +611,21 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     page,
   }) => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await page.goto('/admin/review-plans');
-    await waitForReviewPlansListReady(page);
 
-    // GET /api/v1/review-plans/templates fires on page mount; wait for it so
-    // the dropdown menu has items before we click.
-    await page.waitForResponse(
+    // GET /api/v1/review-plans/templates fires on page mount; register the
+    // listener BEFORE navigating so a fast in-flight response can't slip past
+    // us. (Registering after page.goto + waitForReviewPlansListReady was racy
+    // — the templates response often arrived before we started listening.)
+    const templatesResponsePromise = page.waitForResponse(
       (r) =>
         r.request().method() === 'GET' &&
         /\/api\/v1\/review-plans\/templates$/.test(r.url()) &&
         r.ok(),
       { timeout: 15_000 },
     );
+    await page.goto('/admin/review-plans');
+    await waitForReviewPlansListReady(page);
+    await templatesResponsePromise;
 
     // The Dropdown trigger is the second primary button in the Space.Compact
     // (right of "Add review plan"), labelled via aria-label.
