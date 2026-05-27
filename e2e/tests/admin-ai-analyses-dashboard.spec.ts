@@ -125,6 +125,17 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
     await page.goto('/admin/ai-analyses');
     await waitForStatsResponse(page);
 
+    // Register the refetch listener BEFORE driving the picker so a fast
+    // response can't slip past us. AntD RangePicker's onChange fires once
+    // BOTH inputs commit, so the picker close + the refetch are the same tick.
+    const refetchPromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/admin\/ai-analyses\/stats(\?|$)/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+
     // Set both range inputs to a historical year (e.g. 2020) that contains no analyses.
     const rangePicker = page.locator('[data-testid="ai-analyses-range"]');
     const inputs = rangePicker.locator('input');
@@ -134,9 +145,11 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
     await inputs.nth(1).click();
     await inputs.nth(1).fill('2020-02-01 00:00:00');
     await inputs.nth(1).press('Enter');
+    // Some AntD builds debounce the commit until focus leaves the picker —
+    // click outside to force-close, which fires onChange and the refetch.
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
 
-    // Wait for a refetch with the new range — any GET to /stats.
-    await waitForStatsResponse(page);
+    await refetchPromise;
 
     await expect(page.getByText('No AI analyses in this window')).toBeVisible({
       timeout: 5_000,
