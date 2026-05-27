@@ -65,7 +65,7 @@
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Database access governance",
         "operatingSystem": "Linux, macOS, Windows (Docker)",
-        "softwareVersion": "1.0",
+        "softwareVersion": "1.1",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "offers": {
@@ -174,8 +174,8 @@
       <div class="wrap hero-inner">
         <div class="hero-left">
           <span class="badge">
-            <span class="badge-tag">v1.0</span>
-            general availability — Apache 2.0 licensed
+            <span class="badge-tag">v1.1</span>
+            generally available — Apache 2.0 licensed
           </span>
           <h1>
             Governed database access,<br />
@@ -804,7 +804,7 @@
           <p>Public, versioned milestones — driven by community input and adapter contributions. Full milestone scope lives in <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" style="color: var(--accent); border-bottom: 1px dotted var(--accent-dim);">docs/12-roadmap.md</a>.</p>
         </div>
         <div class="roadmap-track">
-          <div class="milestone current">
+          <div class="milestone" data-status="published">
             <span class="ver">v1.0</span>
             <h4>Core platform</h4>
             <ul>
@@ -816,21 +816,22 @@
               <li>Docker Compose + Helm 3</li>
             </ul>
           </div>
-          <div class="milestone">
+          <div class="milestone" data-status="published">
             <span class="ver">v1.1</span>
             <h4>Productivity</h4>
             <ul>
               <li>Dynamic JDBC driver loading</li>
               <li>Datasource creation wizard</li>
-              <li><s>Query scheduling</s> <small>✓ shipped</small></li>
-              <li><s>Bulk approval UI</s> <small>✓ shipped</small></li>
-              <li><s>AI analytics dashboard</s> <small>✓ shipped</small></li>
-              <li><s>Schema explorer ER view</s> <small>✓ shipped</small></li>
-              <li><s>Review plan templates</s> <small>✓ shipped</small></li>
+              <li>Query scheduling</li>
+              <li>Bulk approval UI</li>
+              <li>AI analytics dashboard</li>
+              <li>Schema explorer ER view</li>
+              <li>Review plan templates</li>
+              <li>Audit log CSV export</li>
               <li>User invitation flow</li>
             </ul>
           </div>
-          <div class="milestone">
+          <div class="milestone" data-status="in-progress">
             <span class="ver">v1.2</span>
             <h4>Reviewer experience</h4>
             <ul>
@@ -842,7 +843,7 @@
               <li>Datasource health dashboard</li>
             </ul>
           </div>
-          <div class="milestone">
+          <div class="milestone" data-status="planned">
             <span class="ver">v2.0</span>
             <h4>Beyond SQL</h4>
             <ul>
@@ -853,7 +854,7 @@
               <li>Column-level permissions</li>
             </ul>
           </div>
-          <div class="milestone">
+          <div class="milestone" data-status="planned">
             <span class="ver">v2.1</span>
             <h4>Compliance</h4>
             <ul>
@@ -1022,7 +1023,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v1.0 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v1.1 generally available</span>
       </div>
     </div>
   </footer>

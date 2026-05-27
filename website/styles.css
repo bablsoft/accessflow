@@ -1032,22 +1032,24 @@ section + section { border-top: 1px solid var(--line); }
   letter-spacing: 0.04em;
 }
 
-.milestone.current {
-  background:
-    linear-gradient(180deg, oklch(0.82 0.17 145 / 0.06), transparent 60%),
-    var(--bg-1);
-}
-.milestone.current .ver { color: var(--accent); }
-.milestone.current::before {
-  content: 'SHIPPING';
+.milestone[data-status]::before {
   position: absolute;
   top: 24px;
   right: 24px;
   font-family: var(--mono);
   font-size: 9px;
   letter-spacing: 0.1em;
-  color: var(--accent);
 }
+.milestone[data-status="published"]::before { content: 'PUBLISHED'; color: var(--fg-mute); }
+.milestone[data-status="in-progress"]::before { content: 'IN PROGRESS'; color: var(--accent); }
+.milestone[data-status="planned"]::before { content: 'PLANNED'; color: var(--fg-faint); }
+
+.milestone[data-status="in-progress"] {
+  background:
+    linear-gradient(180deg, oklch(0.82 0.17 145 / 0.06), transparent 60%),
+    var(--bg-1);
+}
+.milestone[data-status="in-progress"] .ver { color: var(--accent); }
 
 .milestone h4 {
   font-size: 16px;
