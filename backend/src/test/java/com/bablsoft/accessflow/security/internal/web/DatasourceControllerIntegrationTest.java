@@ -500,6 +500,95 @@ class DatasourceControllerIntegrationTest {
                 .isEqualTo("DATASOURCE_CONNECTION_TEST_FAILED");
     }
 
+    @Test
+    void getSchemaReturnsForeignKeysForReferencingTables() throws Exception {
+        try (var conn = java.sql.DriverManager.getConnection(
+                TestcontainersConfig.postgres.getJdbcUrl(),
+                TestcontainersConfig.postgres.getUsername(),
+                TestcontainersConfig.postgres.getPassword());
+             var stmt = conn.createStatement()) {
+            stmt.execute("DROP SCHEMA IF EXISTS er_diagram_test CASCADE");
+            stmt.execute("CREATE SCHEMA er_diagram_test");
+            stmt.execute("""
+                    CREATE TABLE er_diagram_test.parent (
+                        id uuid PRIMARY KEY,
+                        name varchar(100)
+                    )""");
+            stmt.execute("""
+                    CREATE TABLE er_diagram_test.child (
+                        id uuid PRIMARY KEY,
+                        parent_id uuid NOT NULL REFERENCES er_diagram_test.parent(id),
+                        notes text
+                    )""");
+        }
+
+        try {
+            var ds = saveContainerDatasource(primaryOrg, "ER-Test-DS");
+
+            var result = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/schema")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .exchange();
+
+            assertThat(result).hasStatus(200);
+            var json = result.getResponse().getContentAsString();
+
+            var mapper = new tools.jackson.databind.ObjectMapper();
+            var root = mapper.readTree(json);
+            var erSchema = java.util.stream.StreamSupport.stream(root.get("schemas").spliterator(), false)
+                    .filter(s -> "er_diagram_test".equals(s.get("name").asText()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("er_diagram_test schema missing"));
+
+            var childTable = java.util.stream.StreamSupport.stream(erSchema.get("tables").spliterator(), false)
+                    .filter(t -> "child".equals(t.get("name").asText()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("child table missing"));
+            assertThat(childTable.get("foreign_keys")).isNotNull();
+            assertThat(childTable.get("foreign_keys")).hasSize(1);
+            var fk = childTable.get("foreign_keys").get(0);
+            assertThat(fk.get("from_column").asText()).isEqualTo("parent_id");
+            assertThat(fk.get("to_table").asText()).isEqualTo("parent");
+            assertThat(fk.get("to_column").asText()).isEqualTo("id");
+
+            var parentTable = java.util.stream.StreamSupport.stream(erSchema.get("tables").spliterator(), false)
+                    .filter(t -> "parent".equals(t.get("name").asText()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("parent table missing"));
+            assertThat(parentTable.get("foreign_keys")).isNotNull();
+            assertThat(parentTable.get("foreign_keys")).isEmpty();
+        } finally {
+            try (var conn = java.sql.DriverManager.getConnection(
+                    TestcontainersConfig.postgres.getJdbcUrl(),
+                    TestcontainersConfig.postgres.getUsername(),
+                    TestcontainersConfig.postgres.getPassword());
+                 var stmt = conn.createStatement()) {
+                stmt.execute("DROP SCHEMA IF EXISTS er_diagram_test CASCADE");
+            }
+        }
+    }
+
+    private DatasourceEntity saveContainerDatasource(OrganizationEntity org, String name) {
+        var pg = TestcontainersConfig.postgres;
+        var ds = new DatasourceEntity();
+        ds.setId(UUID.randomUUID());
+        ds.setOrganization(org);
+        ds.setName(name);
+        ds.setDbType(DbType.POSTGRESQL);
+        ds.setHost(pg.getHost());
+        ds.setPort(pg.getMappedPort(5432));
+        ds.setDatabaseName(pg.getDatabaseName());
+        ds.setUsername(pg.getUsername());
+        ds.setPasswordEncrypted(encryptionService.encrypt(pg.getPassword()));
+        ds.setSslMode(SslMode.DISABLE);
+        ds.setConnectionPoolSize(2);
+        ds.setMaxRowsPerQuery(1000);
+        ds.setRequireReviewReads(false);
+        ds.setRequireReviewWrites(true);
+        ds.setAiAnalysisEnabled(false);
+        ds.setActive(true);
+        return datasourceRepository.save(ds);
+    }
+
     private OrganizationEntity saveOrg(String name, String slug) {
         var org = new OrganizationEntity();
         org.setId(UUID.randomUUID());

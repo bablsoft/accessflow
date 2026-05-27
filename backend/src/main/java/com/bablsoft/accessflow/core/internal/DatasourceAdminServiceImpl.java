@@ -557,7 +557,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             case POSTGRESQL -> POSTGRES_SYSTEM_SCHEMAS;
             default -> POSTGRES_SYSTEM_SCHEMAS;
         };
-        Map<String, Map<String, List<DatabaseSchemaView.Column>>> grouped = new LinkedHashMap<>();
+        Map<String, Map<String, TableData>> grouped = new LinkedHashMap<>();
         try (ResultSet tables = md.getTables(connection.getCatalog(), null, "%",
                 new String[]{"TABLE"})) {
             while (tables.next()) {
@@ -573,19 +573,25 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                         tableName);
                 List<DatabaseSchemaView.Column> columns = readColumns(md, connection.getCatalog(),
                         schemaName, tableName, primaryKeys);
+                List<DatabaseSchemaView.ForeignKey> foreignKeys = readForeignKeys(md,
+                        connection.getCatalog(), schemaName, tableName, systemSchemas);
                 grouped.computeIfAbsent(schemaName, k -> new LinkedHashMap<>())
-                        .put(tableName, columns);
+                        .put(tableName, new TableData(columns, foreignKeys));
             }
         }
         List<DatabaseSchemaView.Schema> schemaList = new ArrayList<>();
         grouped.forEach((schemaName, tableMap) -> {
             List<DatabaseSchemaView.Table> tableViews = new ArrayList<>();
-            tableMap.forEach((tableName, cols) ->
-                    tableViews.add(new DatabaseSchemaView.Table(tableName, cols)));
+            tableMap.forEach((tableName, data) ->
+                    tableViews.add(new DatabaseSchemaView.Table(tableName, data.columns(),
+                            data.foreignKeys())));
             schemaList.add(new DatabaseSchemaView.Schema(schemaName, tableViews));
         });
         return new DatabaseSchemaView(schemaList);
     }
+
+    private record TableData(List<DatabaseSchemaView.Column> columns,
+                             List<DatabaseSchemaView.ForeignKey> foreignKeys) {}
 
     private Set<String> readPrimaryKeys(DatabaseMetaData md, String catalog, String schema,
                                         String table) throws SQLException {
@@ -613,6 +619,31 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             }
         }
         return columns;
+    }
+
+    private List<DatabaseSchemaView.ForeignKey> readForeignKeys(DatabaseMetaData md, String catalog,
+                                                                String schema, String table,
+                                                                Set<String> systemSchemas) {
+        var foreignKeys = new ArrayList<DatabaseSchemaView.ForeignKey>();
+        try (ResultSet fks = md.getImportedKeys(catalog, schema, table)) {
+            while (fks.next()) {
+                String referencedSchema = fks.getString("PKTABLE_SCHEM");
+                if (referencedSchema != null && systemSchemas.contains(referencedSchema)) {
+                    continue;
+                }
+                String fromColumn = fks.getString("FKCOLUMN_NAME");
+                String toTable = fks.getString("PKTABLE_NAME");
+                String toColumn = fks.getString("PKCOLUMN_NAME");
+                if (fromColumn == null || toTable == null || toColumn == null) {
+                    continue;
+                }
+                foreignKeys.add(new DatabaseSchemaView.ForeignKey(fromColumn, toTable, toColumn));
+            }
+        } catch (SQLException ex) {
+            log.warn("Failed to introspect foreign keys for {}.{}: {}", schema, table,
+                    ex.getMessage());
+        }
+        return foreignKeys;
     }
 
     private static String[] toArray(List<String> values) {

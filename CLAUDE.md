@@ -441,6 +441,8 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | TypeScript | 6.x | Language (`strict: true`) |
 | Ant Design | 6.x | Component library |
 | @ant-design/charts | 2.x | Admin dashboard charts (AI analyses history) |
+| @xyflow/react | 12.x | ER diagram on `DatasourceSettingsPage` |
+| dagre | 0.8.x | Auto-layout for the ER diagram graph |
 | CodeMirror + @codemirror/lang-sql | 6.x | SQL editor |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |

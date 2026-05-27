@@ -763,9 +763,15 @@ export interface SchemaColumn {
   nullable: boolean;
   primary_key: boolean;
 }
+export interface ForeignKey {
+  from_column: string;
+  to_table: string;
+  to_column: string;
+}
 export interface SchemaTable {
   name: string;
   columns: SchemaColumn[];
+  foreign_keys: ForeignKey[];
 }
 export interface SchemaNamespace {
   name: string;

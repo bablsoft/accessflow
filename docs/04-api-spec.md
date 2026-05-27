@@ -357,6 +357,17 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
           "columns": [
             { "name": "id", "type": "uuid", "nullable": false, "primary_key": true },
             { "name": "email", "type": "varchar", "nullable": false, "primary_key": false }
+          ],
+          "foreign_keys": []
+        },
+        {
+          "name": "orders",
+          "columns": [
+            { "name": "id", "type": "uuid", "nullable": false, "primary_key": true },
+            { "name": "user_id", "type": "uuid", "nullable": false, "primary_key": false }
+          ],
+          "foreign_keys": [
+            { "from_column": "user_id", "to_table": "users", "to_column": "id" }
           ]
         }
       ]
@@ -364,6 +375,8 @@ Introspects tables and columns from the customer database via JDBC `DatabaseMeta
   ]
 }
 ```
+
+The `foreign_keys` array is always present on each table (possibly empty). Each entry describes one referencing column pair — multi-column FKs are represented as one entry per column. References to tables in system schemas (`pg_catalog`, `information_schema`, `mysql`, …) are filtered out. Custom JDBC drivers that don't implement `DatabaseMetaData.getImportedKeys` return `[]` (logged at WARN).
 
 **Response 404:** Datasource does not exist in the caller's organization, or — for non-ADMIN callers — caller has no permission row. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** Schema introspection failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.

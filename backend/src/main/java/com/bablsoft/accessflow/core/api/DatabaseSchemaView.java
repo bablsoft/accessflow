@@ -6,7 +6,9 @@ public record DatabaseSchemaView(List<Schema> schemas) {
 
     public record Schema(String name, List<Table> tables) {}
 
-    public record Table(String name, List<Column> columns) {}
+    public record Table(String name, List<Column> columns, List<ForeignKey> foreignKeys) {}
 
     public record Column(String name, String type, boolean nullable, boolean primaryKey) {}
+
+    public record ForeignKey(String fromColumn, String toTable, String toColumn) {}
 }

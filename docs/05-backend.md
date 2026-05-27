@@ -391,6 +391,17 @@ When a `(user_id, datasource_id)` permission row carries `restricted_columns` (a
 - Each `ResultColumn` returned from `materialize(...)` carries a `restricted` boolean so the API response (and the persisted `columns` JSON in `query_request_results`) tells the frontend which headers should render a "masked" marker.
 - Write statements (INSERT / UPDATE / DELETE) have no result set to mask. Restrictions still surface in the AI prompt (see below) — informational only.
 
+### Schema introspection
+
+`DatasourceAdminService.introspectSchema(...)` opens a one-shot JDBC connection (no Hikari pool reuse) to the customer database and walks `DatabaseMetaData`:
+
+- `getTables(catalog, null, "%", ["TABLE"])` — enumerates user tables; system schemas (`pg_catalog`, `information_schema`, `pg_toast`, `mysql`, `performance_schema`, `sys`) are filtered out per dialect.
+- `getPrimaryKeys(catalog, schema, table)` — populates the `primary_key` flag on each column.
+- `getColumns(catalog, schema, table, "%")` — name, type, nullability.
+- `getImportedKeys(catalog, schema, table)` — populates the per-table `foreignKeys` list (`fromColumn`, `toTable`, `toColumn`). Rows whose `PKTABLE_SCHEM` is in the system-schema set are skipped. Multi-column FKs are emitted as one record per column pair. Custom JDBC drivers that don't implement `getImportedKeys` log a `WARN` and return an empty list — the frontend's "ER diagram" tab renders the empty state in that case.
+
+The result is returned via `DatabaseSchemaView` (immutable nested records: `Schema → Table → Column` + `ForeignKey`). The web layer maps to `DatabaseSchemaResponse` for the `GET /api/v1/datasources/{id}/schema` endpoint; the AI module consumes the same view via `SystemPromptRenderer.describeSchema(...)`.
+
 ---
 
 ## Review Workflow State Machine

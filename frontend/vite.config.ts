@@ -50,6 +50,8 @@ export default defineConfig({
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',
         'src/api/setup.ts',
+        'src/components/datasources/ErDiagramTab.tsx',
+        'src/components/datasources/erDiagramLayout.ts',
         'src/hooks/useSchemaIntrospect.ts',
         'src/hooks/useWebSocket.ts',
         'src/pages/queries/buildTimelineStages.ts',
