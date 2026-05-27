@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import { test, expect, type Page } from '@playwright/test';
 import {
   createPostgresDatasource,
@@ -201,6 +202,44 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
     await expect(alert).toBeVisible({ timeout: 10_000 });
     await expect(alert).toContainText('Chain valid');
     await expect(alert).toContainText('rows checked');
+  });
+
+  test('Export CSV button downloads a CSV with the AC header row', async ({ page }) => {
+    await loginViaUi(page);
+    await page.goto('/admin/audit-log');
+    await waitForAuditListReady(page);
+
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 15_000 }),
+      page.getByTestId('export-csv-button').click(),
+    ]);
+
+    // Filename matches the audit-log-YYYYMMDD-HHmmss.csv contract from the backend.
+    expect(download.suggestedFilename()).toMatch(/^audit-log-\d{8}-\d{6}\.csv$/);
+
+    const downloadPath = await download.path();
+    expect(downloadPath).toBeTruthy();
+    const body = await fs.readFile(downloadPath!, 'utf8');
+    const lines = body.split('\r\n');
+    expect(lines[0]).toBe(
+      'timestamp,organization_id,actor_email,action,resource_type,resource_id,'
+        + 'ip_address,user_agent,current_hash,previous_hash,metadata_json',
+    );
+    // beforeAll seeded a USER_LOGIN row via loginViaApi; the export must include it.
+    expect(body).toContain('USER_LOGIN');
+    // The export action itself is audited as AUDIT_LOG_EXPORTED on the next request.
+    // Re-trigger a tiny fetch so the new row is visible and verify the chain still validates.
+    const verifyResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/admin\/audit-log\/verify(\?|$)/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+    await page.getByTestId('verify-chain-button').click();
+    const response = await verifyResponse;
+    const json = (await response.json()) as { ok: boolean };
+    expect(json.ok).toBe(true);
   });
 
   test('filter that matches no events renders the empty-state', async ({ page }) => {

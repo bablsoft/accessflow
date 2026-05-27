@@ -768,7 +768,10 @@
       "chain_valid": "Kette gültig",
       "chain_invalid": "Kette ungültig",
       "chain_rows_checked": "{{count}} Zeilen geprüft",
-      "chain_invalid_detail": "Erste fehlerhafte Zeile {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "Erste fehlerhafte Zeile {{rowId}} — {{reason}}",
+      "export_csv": "CSV exportieren",
+      "export_failed": "Audit-Log konnte nicht exportiert werden. Bitte erneut versuchen.",
+      "export_truncated": "Export auf 50.000 Zeilen begrenzt. Verwende engere Filter, um das gesamte Ergebnis zu erfassen."
     },
     "ai_analyses": {
       "title": "KI-Analysen",

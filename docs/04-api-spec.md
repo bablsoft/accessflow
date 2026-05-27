@@ -1579,6 +1579,35 @@ ADMIN role required (otherwise 403).
 
 **Response 400:** `from` is after `to`. `error: BAD_AUDIT_QUERY`.
 
+### GET /admin/audit-log/export.csv — CSV export
+
+Streams a CSV of audit-log rows matching the same filter set as `GET /admin/audit-log`, minus pagination (`page`, `size`, `sort` are not bound on this endpoint). Rows are emitted in `createdAt DESC` order. ADMIN role required (otherwise 403).
+
+**Query parameters** (all optional): `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to` — same semantics as `GET /admin/audit-log`.
+
+**Response**:
+- `200 OK`
+- `Content-Type: text/csv; charset=utf-8`
+- `Content-Disposition: attachment; filename="audit-log-YYYYMMDD-HHmmss.csv"` (UTC timestamp).
+- `X-AccessFlow-Export-Truncated: true` is set when the filter matches more than 50,000 rows; the body stops at 50,000 and the client should advise the user to apply tighter filters.
+
+**Body** — RFC 4180 CSV with the header row:
+
+```
+timestamp,organization_id,actor_email,action,resource_type,resource_id,ip_address,user_agent,current_hash,previous_hash,metadata_json
+```
+
+- `timestamp` — `created_at` as ISO-8601 UTC.
+- `actor_email` — denormalised email from a per-page lookup in the caller's organization. Empty for system rows (`actor_id` is null) and for actors that have been hard-deleted.
+- `current_hash` / `previous_hash` — lowercase hex of the HMAC-SHA256 chain bytes. Empty for pre-V26 rows that have NULL hashes.
+- `metadata_json` — the row's JSONB metadata as a single string, RFC 4180 quoted when it contains a comma, quote, CR, or LF.
+
+**Audit of the export action** — every successful call writes a new `AUDIT_LOG_EXPORTED` row whose `metadata` captures the filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). The export is therefore part of the same tamper-evident chain it is exporting.
+
+**Response 400:** unknown `resourceType`. `error: BAD_AUDIT_QUERY`.
+
+The body is streamed via `StreamingResponseBody` — the backend reads the result in 500-row pages and flushes each page to the wire so very large exports do not buffer in memory.
+
 ### AI Configurations (`/admin/ai-configs`) *(ADMIN only)*
 
 Per-organization AI provider configurations. An org can have many; each datasource binds to one via `datasources.ai_config_id`. The `api_key` field is replaced with the literal `"********"` whenever a non-empty key is stored, and is omitted otherwise.

@@ -18,7 +18,8 @@ public enum AuditResourceType {
     USER_INVITATION("user_invitation"),
     ORGANIZATION("organization"),
     OAUTH2_CONFIG("oauth2_config"),
-    SAML_CONFIG("saml_config");
+    SAML_CONFIG("saml_config"),
+    AUDIT_LOG("audit_log");
 
     private final String dbValue;
 

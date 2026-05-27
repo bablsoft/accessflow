@@ -768,7 +768,10 @@
       "chain_valid": "Цепочка корректна",
       "chain_invalid": "Цепочка нарушена",
       "chain_rows_checked": "Проверено строк: {{count}}",
-      "chain_invalid_detail": "Первая сбойная строка {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "Первая сбойная строка {{rowId}} — {{reason}}",
+      "export_csv": "Экспортировать в CSV",
+      "export_failed": "Не удалось экспортировать журнал аудита. Попробуйте ещё раз.",
+      "export_truncated": "Экспорт ограничен 50 000 строками. Сузьте фильтры, чтобы охватить весь результат."
     },
     "ai_analyses": {
       "title": "Анализы ИИ",

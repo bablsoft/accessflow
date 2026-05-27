@@ -768,7 +768,10 @@
       "chain_valid": "链有效",
       "chain_invalid": "链无效",
       "chain_rows_checked": "已检查 {{count}} 行",
-      "chain_invalid_detail": "首个异常行 {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "首个异常行 {{rowId}} — {{reason}}",
+      "export_csv": "导出 CSV",
+      "export_failed": "导出审计日志失败，请重试。",
+      "export_truncated": "导出已截断到 50,000 行。请使用更精确的筛选条件以获取完整结果。"
     },
     "ai_analyses": {
       "title": "AI 分析",

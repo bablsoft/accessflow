@@ -768,7 +768,10 @@
       "chain_valid": "Chaîne valide",
       "chain_invalid": "Chaîne invalide",
       "chain_rows_checked": "{{count}} lignes vérifiées",
-      "chain_invalid_detail": "Première ligne invalide {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "Première ligne invalide {{rowId}} — {{reason}}",
+      "export_csv": "Exporter en CSV",
+      "export_failed": "Échec de l'export du journal d'audit. Veuillez réessayer.",
+      "export_truncated": "Export tronqué à 50 000 lignes. Appliquez des filtres plus précis pour couvrir l'ensemble du résultat."
     },
     "ai_analyses": {
       "title": "Analyses IA",

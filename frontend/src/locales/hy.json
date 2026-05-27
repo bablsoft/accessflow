@@ -768,7 +768,10 @@
       "chain_valid": "Շղթան վավեր է",
       "chain_invalid": "Շղթան անվավեր է",
       "chain_rows_checked": "Ստուգված է {{count}} տող",
-      "chain_invalid_detail": "Առաջին սխալ տողը {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "Առաջին սխալ տողը {{rowId}} — {{reason}}",
+      "export_csv": "Արտահանել CSV",
+      "export_failed": "Չհաջողվեց արտահանել աուդիտի մատյանը։ Փորձեք նորից։",
+      "export_truncated": "Արտահանումը կտրված է 50 000 տողի սահմանում։ Կիրառեք ավելի նեղ զտիչներ՝ ամբողջ արդյունքը ստանալու համար։"
     },
     "ai_analyses": {
       "title": "AI վերլուծություններ",

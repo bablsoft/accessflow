@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.audit.internal.web;
 
 import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogQuery;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditLogVerificationResult;
 import com.bablsoft.accessflow.audit.api.AuditLogView;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.audit.internal.AuditLogCsvService;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -14,9 +17,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +32,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -39,6 +47,7 @@ import java.util.UUID;
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin Audit Log", description = "Read access to the audit log (ADMIN only)")
 @RequiredArgsConstructor
+@Slf4j
 class AdminAuditLogController {
 
     private static final int MAX_PAGE_SIZE = 500;
@@ -47,6 +56,7 @@ class AdminAuditLogController {
 
     private final AuditLogService auditLogService;
     private final UserAdminService userAdminService;
+    private final AuditLogCsvService auditLogCsvService;
 
     @GetMapping
     @Operation(summary = "Query audit-log rows for the caller's organization with optional filters")
@@ -87,6 +97,50 @@ class AdminAuditLogController {
         }));
     }
 
+    @GetMapping(value = "/export.csv", produces = "text/csv")
+    @Operation(summary = "Stream audit-log rows as CSV (same filter set as GET /admin/audit-log)")
+    @ApiResponse(responseCode = "200", description = "CSV stream of audit rows ordered by createdAt DESC")
+    @ApiResponse(responseCode = "400", description = "Invalid filter (e.g. unknown resource_type)")
+    @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
+    void exportCsv(
+            @Parameter(description = "Filter by user who performed the action")
+            @RequestParam(required = false) UUID actorId,
+            @Parameter(description = "Filter by action type (e.g. QUERY_SUBMITTED)")
+            @RequestParam(required = false) AuditAction action,
+            @Parameter(description = "Filter by resource type (snake_case form, e.g. query_request)")
+            @RequestParam(required = false) String resourceType,
+            @Parameter(description = "Filter by specific resource id")
+            @RequestParam(required = false) UUID resourceId,
+            @Parameter(description = "Inclusive lower bound on createdAt")
+            @RequestParam(required = false) Instant from,
+            @Parameter(description = "Exclusive upper bound on createdAt")
+            @RequestParam(required = false) Instant to,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
+            @AuthenticationPrincipal(expression = "userId") UUID callerUserId,
+            RequestAuditContext auditContext,
+            HttpServletResponse response) throws IOException {
+        var resourceTypeEnum = parseResourceType(resourceType);
+        var filter = new AuditLogQuery(actorId, action, resourceTypeEnum, resourceId, from, to);
+        long matched = auditLogCsvService.count(organizationId, filter);
+        boolean truncated = matched > AuditLogCsvService.MAX_EXPORT_ROWS;
+
+        recordExportAudit(organizationId, callerUserId, filter, matched, truncated, auditContext);
+
+        response.setStatus(HttpServletResponse.SC_OK);
+        response.setContentType("text/csv; charset=utf-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                "attachment; filename=\"" + auditLogCsvService.filename(Instant.now()) + "\"");
+        if (truncated) {
+            response.setHeader("X-AccessFlow-Export-Truncated", "true");
+        }
+        // Stream directly to the response OutputStream. Each page in AuditLogCsvService.streamCsv
+        // calls writer.flush() so bytes hit the wire incrementally. Using HttpServletResponse
+        // instead of StreamingResponseBody keeps the call on the request thread, which keeps the
+        // SecurityContext alive — async dispatch would otherwise re-enter the security filter
+        // chain after the SecurityContext was cleared, producing a spurious 403.
+        auditLogCsvService.streamCsv(organizationId, filter, response.getOutputStream());
+    }
+
     @GetMapping("/verify")
     @Operation(summary = "Verify the audit-log hash chain for the caller's organization")
     @ApiResponse(responseCode = "200", description = "Verification outcome (ok or first bad row)")
@@ -115,6 +169,46 @@ class AdminAuditLogController {
             return Map.of();
         }
         return userAdminService.findByIds(organizationId, actorIds);
+    }
+
+    private void recordExportAudit(UUID organizationId, UUID callerUserId, AuditLogQuery filter,
+                                   long matched, boolean truncated,
+                                   RequestAuditContext auditContext) {
+        try {
+            var metadata = new LinkedHashMap<String, Object>();
+            if (filter.action() != null) {
+                metadata.put("action", filter.action().name());
+            }
+            if (filter.resourceType() != null) {
+                metadata.put("resource_type", filter.resourceType().dbValue());
+            }
+            if (filter.actorId() != null) {
+                metadata.put("actor_id", filter.actorId().toString());
+            }
+            if (filter.resourceId() != null) {
+                metadata.put("resource_id", filter.resourceId().toString());
+            }
+            if (filter.from() != null) {
+                metadata.put("from", filter.from().toString());
+            }
+            if (filter.to() != null) {
+                metadata.put("to", filter.to().toString());
+            }
+            metadata.put("matched_rows", matched);
+            metadata.put("truncated", truncated);
+
+            auditLogService.record(new AuditEntry(
+                    AuditAction.AUDIT_LOG_EXPORTED,
+                    AuditResourceType.AUDIT_LOG,
+                    null,
+                    organizationId,
+                    callerUserId,
+                    metadata,
+                    auditContext == null ? null : auditContext.ipAddress(),
+                    auditContext == null ? null : auditContext.userAgent()));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for AUDIT_LOG_EXPORTED by user {}", callerUserId, ex);
+        }
     }
 
     @ExceptionHandler(BadAuditQueryException.class)
