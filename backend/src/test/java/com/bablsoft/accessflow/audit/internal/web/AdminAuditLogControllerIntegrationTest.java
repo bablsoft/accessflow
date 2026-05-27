@@ -372,6 +372,110 @@ class AdminAuditLogControllerIntegrationTest {
     }
 
     @Test
+    void exportCsvStreamsCsvWithHeaderAndRows() throws Exception {
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_LOGIN,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                analyst.getId(),
+                Map.of("email", "analyst@example.com"),
+                "127.0.0.1",
+                "ua/1"));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log/export.csv")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result.getResponse().getContentType()).startsWith("text/csv");
+        assertThat(result.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION))
+                .matches("attachment; filename=\"audit-log-\\d{8}-\\d{6}\\.csv\"");
+        assertThat(result.getResponse().getHeader("X-AccessFlow-Export-Truncated")).isNull();
+
+        var body = result.getResponse().getContentAsString();
+        var lines = body.split("\r\n");
+        assertThat(lines[0]).isEqualTo("timestamp,organization_id,actor_email,action,"
+                + "resource_type,resource_id,ip_address,user_agent,current_hash,"
+                + "previous_hash,metadata_json");
+        // First data row is the export audit itself (newest first), then the seeded USER_LOGIN row.
+        assertThat(body).contains("AUDIT_LOG_EXPORTED");
+        assertThat(body).contains("USER_LOGIN");
+        assertThat(body).contains("analyst@example.com");
+        assertThat(body).contains("127.0.0.1");
+    }
+
+    @Test
+    void exportCsvIs403ForNonAdmin() {
+        var result = mvc.get().uri("/api/v1/admin/audit-log/export.csv")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
+    void exportCsvRejectsUnknownResourceType() {
+        var result = mvc.get().uri("/api/v1/admin/audit-log/export.csv?resourceType=imaginary")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("BAD_AUDIT_QUERY");
+    }
+
+    @Test
+    void exportCsvFiltersByActionAndRecordsAuditedExport() throws Exception {
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_LOGIN,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                analyst.getId(),
+                Map.of(),
+                null,
+                null));
+        auditLogService.record(new AuditEntry(
+                AuditAction.USER_CREATED,
+                AuditResourceType.USER,
+                analyst.getId(),
+                org.getId(),
+                admin.getId(),
+                Map.of(),
+                null,
+                null));
+
+        var result = mvc.get().uri("/api/v1/admin/audit-log/export.csv?action=USER_CREATED")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        var body = result.getResponse().getContentAsString();
+        // split("\r\n") (no limit) drops the trailing empty after the final \r\n —
+        // so a header + one filtered data row produces 2 elements.
+        var lines = body.split("\r\n");
+        assertThat(lines).hasSize(2);
+        assertThat(lines[1]).contains("USER_CREATED");
+        assertThat(body).doesNotContain("USER_LOGIN");
+
+        // The export itself was audited as AUDIT_LOG_EXPORTED, with the filter captured in metadata.
+        var listResult = mvc.get().uri("/api/v1/admin/audit-log?action=AUDIT_LOG_EXPORTED")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(listResult).hasStatus(200);
+        assertThat(listResult).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(listResult).bodyJson().extractingPath("$.content[0].actor_id").asString()
+                .isEqualTo(admin.getId().toString());
+        assertThat(listResult).bodyJson().extractingPath("$.content[0].resource_type").asString()
+                .isEqualTo("audit_log");
+        assertThat(listResult).bodyJson().extractingPath("$.content[0].metadata.action").asString()
+                .isEqualTo("USER_CREATED");
+        assertThat(listResult).bodyJson().extractingPath("$.content[0].metadata.matched_rows")
+                .asNumber().isEqualTo(1);
+        assertThat(listResult).bodyJson().extractingPath("$.content[0].metadata.truncated")
+                .asBoolean().isFalse();
+    }
+
+    @Test
     void filterByActionWorks() {
         auditLogService.record(new AuditEntry(
                 AuditAction.USER_LOGIN,

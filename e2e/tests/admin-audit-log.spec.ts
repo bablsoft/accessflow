@@ -203,6 +203,65 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
     await expect(alert).toContainText('rows checked');
   });
 
+  test('Export CSV button hits the export endpoint with the attachment filename', async ({
+    page,
+    context,
+  }) => {
+    // playwright.config.ts sets extraHTTPHeaders={ Accept: 'application/json' } so the
+    // API helpers get JSON-parsed responses. The browser inherits that header — and
+    // /export.csv is declared @GetMapping(produces="text/csv"), so Spring's content
+    // negotiation would 406 the request. Override Accept on the page context so
+    // axios advertises text/csv. Same workaround as the /queries CSV export spec.
+    await context.setExtraHTTPHeaders({ Accept: 'text/csv, */*' });
+
+    await loginViaUi(page);
+    await page.goto('/admin/audit-log');
+    await waitForAuditListReady(page);
+
+    // Wait on the export network response rather than page.waitForEvent('download') —
+    // Playwright does not fire that event for synthetic anchor.click() against a
+    // Blob URL (the pattern AuditLogPage uses to trigger the file save). Asserting
+    // the Content-Disposition header is equivalent to asserting the suggested
+    // filename, but doesn't depend on the browser surfacing the download to
+    // Playwright. Same workaround as the /queries CSV export spec.
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === 'GET' &&
+          /\/api\/v1\/admin\/audit-log\/export\.csv(\?|$)/.test(r.url()),
+        { timeout: 15_000 },
+      ),
+      page.getByTestId('export-csv-button').click(),
+    ]);
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type'] ?? '').toMatch(/^text\/csv/);
+    expect(response.headers()['content-disposition'] ?? '').toMatch(
+      /attachment;\s*filename="audit-log-\d{8}-\d{6}\.csv"/,
+    );
+    const body = await response.text();
+    const lines = body.split('\r\n');
+    expect(lines[0]).toBe(
+      'timestamp,organization_id,actor_email,action,resource_type,resource_id,'
+        + 'ip_address,user_agent,current_hash,previous_hash,metadata_json',
+    );
+    // beforeAll seeded a USER_LOGIN row via loginViaApi; the export must include it.
+    expect(body).toContain('USER_LOGIN');
+
+    // The export action is itself audited as AUDIT_LOG_EXPORTED — re-verify the chain
+    // to confirm the new row chained cleanly.
+    const verifyResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/admin\/audit-log\/verify(\?|$)/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+    await page.getByTestId('verify-chain-button').click();
+    const verifyOk = (await (await verifyResponse).json()) as { ok: boolean };
+    expect(verifyOk.ok).toBe(true);
+  });
+
   test('filter that matches no events renders the empty-state', async ({ page }) => {
     await loginViaUi(page);
     await page.goto('/admin/audit-log');

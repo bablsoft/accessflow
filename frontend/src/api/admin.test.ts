@@ -161,6 +161,64 @@ describe('api/admin', () => {
     expect(result.first_bad_reason).toBe('current_hash_mismatch');
   });
 
+  it('exportAuditLogCsv requests blob from /export.csv and parses headers', async () => {
+    const blob = new Blob(['timestamp,organization_id\r\n'], { type: 'text/csv' });
+    get.mockResolvedValueOnce({
+      data: blob,
+      headers: {
+        'content-disposition': 'attachment; filename="audit-log-20260527-120000.csv"',
+        'x-accessflow-export-truncated': 'false',
+      },
+    });
+
+    const result = await adminApi.exportAuditLogCsv({
+      actor_id: 'u-1',
+      action: 'USER_LOGIN',
+      resource_type: 'user',
+      resource_id: 'r-1',
+      from: '2026-05-01T00:00:00Z',
+      to: '2026-05-08T00:00:00Z',
+      // Pagination keys are dropped by the export caller.
+      page: 3,
+      size: 50,
+      sort: 'createdAt,DESC',
+    });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log/export.csv', {
+      params: {
+        actorId: 'u-1',
+        action: 'USER_LOGIN',
+        resourceType: 'user',
+        resourceId: 'r-1',
+        from: '2026-05-01T00:00:00Z',
+        to: '2026-05-08T00:00:00Z',
+      },
+      responseType: 'blob',
+    });
+    expect(result.blob).toBe(blob);
+    expect(result.filename).toBe('audit-log-20260527-120000.csv');
+    expect(result.truncated).toBe(false);
+  });
+
+  it('exportAuditLogCsv flags truncated responses and falls back to a default filename', async () => {
+    const blob = new Blob(['timestamp\r\n'], { type: 'text/csv' });
+    get.mockResolvedValueOnce({
+      data: blob,
+      headers: {
+        'x-accessflow-export-truncated': 'TRUE',
+      },
+    });
+
+    const result = await adminApi.exportAuditLogCsv();
+
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/audit-log/export.csv', {
+      params: {},
+      responseType: 'blob',
+    });
+    expect(result.truncated).toBe(true);
+    expect(result.filename).toMatch(/^audit-log-\d{8}-\d{6}\.csv$/);
+  });
+
   // ── Notification channels ────────────────────────────────────────────────
   it('listChannels GETs /admin/notification-channels', async () => {
     get.mockResolvedValueOnce({ data: [channelFixture] });

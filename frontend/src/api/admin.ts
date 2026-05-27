@@ -163,6 +163,53 @@ export async function verifyAuditChain(
   return data;
 }
 
+export interface AuditLogExportResult {
+  blob: Blob;
+  filename: string;
+  truncated: boolean;
+}
+
+export async function exportAuditLogCsv(
+  filters: AuditLogFilters = {},
+): Promise<AuditLogExportResult> {
+  const params: Record<string, string> = {};
+  if (filters.actor_id) params.actorId = filters.actor_id;
+  if (filters.action) params.action = filters.action;
+  if (filters.resource_type) params.resourceType = filters.resource_type;
+  if (filters.resource_id) params.resourceId = filters.resource_id;
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  const response = await apiClient.get<Blob>(`${AUDIT_BASE}/export.csv`, {
+    params,
+    responseType: 'blob',
+  });
+  const disposition = response.headers['content-disposition'];
+  const filename =
+    parseAuditFilename(typeof disposition === 'string' ? disposition : undefined) ??
+    defaultAuditFilename();
+  const truncatedHeader = response.headers['x-accessflow-export-truncated'];
+  return {
+    blob: response.data,
+    filename,
+    truncated: typeof truncatedHeader === 'string' && truncatedHeader.toLowerCase() === 'true',
+  };
+}
+
+function parseAuditFilename(header: string | undefined): string | null {
+  if (!header) return null;
+  const match = /filename="([^"]+)"/i.exec(header);
+  return match?.[1] ?? null;
+}
+
+function defaultAuditFilename(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const stamp =
+    `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}` +
+    `-${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`;
+  return `audit-log-${stamp}.csv`;
+}
+
 // ── Notification channels ─────────────────────────────────────────────────────
 
 export async function listChannels(): Promise<NotificationChannel[]> {

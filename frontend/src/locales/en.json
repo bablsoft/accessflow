@@ -768,7 +768,10 @@
       "chain_valid": "Chain valid",
       "chain_invalid": "Chain invalid",
       "chain_rows_checked": "{{count}} rows checked",
-      "chain_invalid_detail": "First bad row {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "First bad row {{rowId}} — {{reason}}",
+      "export_csv": "Export CSV",
+      "export_failed": "Failed to export audit log. Please try again.",
+      "export_truncated": "Export truncated at 50,000 rows. Apply tighter filters to capture the full result set."
     },
     "ai_analyses": {
       "title": "AI analyses",

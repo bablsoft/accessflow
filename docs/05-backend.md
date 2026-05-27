@@ -720,6 +720,8 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 
 `GET /api/v1/admin/audit-log` — `@PreAuthorize("hasRole('ADMIN')")`. Filters: `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`. Pagination via Spring `Pageable`; max page size 500. Always scoped to the caller's organization — admins in org A cannot read org B's rows.
 
+`GET /api/v1/admin/audit-log/export.csv` — same filter set, same ADMIN-only authorization. The body is built by `audit/internal/AuditLogCsvService` and returned as a `StreamingResponseBody`: the service walks the result in 500-row pages and flushes each page to the response `OutputStream`, capping the export at 50,000 rows and emitting `X-AccessFlow-Export-Truncated: true` when the filter matches more. The export itself is recorded as an `AUDIT_LOG_EXPORTED` row (resource `audit_log`, no resource id) whose `metadata` captures the filter and the row counts, so the export is part of the same tamper-evident chain it is exporting.
+
 ### Module isolation
 
 - The `audit_log` entity lives under `audit/internal/persistence/entity/`, with plain `UUID` columns for `organizationId` / `actorId` (no JPA `@ManyToOne` joins — same pattern as `NotificationChannelEntity`). Postgres-level FKs to `organizations` and `users` were dropped in V14 so audit history survives org/user deletion.

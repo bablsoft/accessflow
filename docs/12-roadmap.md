@@ -84,7 +84,7 @@
 - ~~**AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users~~ ✅ shipped (AF-347)
 - ~~**Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema~~ ✅ shipped (AF-348)
 - ~~**Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved")~~ ✅ shipped (AF-349)
-- **Audit log CSV export**
+- ~~**Audit log CSV export**~~ ✅ shipped (AF-350)
 - **User invitation flow** — invite users by email instead of admin-created accounts
 
 ---

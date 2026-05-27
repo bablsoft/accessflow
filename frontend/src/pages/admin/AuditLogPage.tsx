@@ -9,15 +9,26 @@ import {
   Skeleton,
   Space,
   Table,
+  message,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import {
+  DownloadOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Avatar } from '@/components/common/Avatar';
-import { auditKeys, listAuditEvents, verifyAuditChain } from '@/api/admin';
+import {
+  auditKeys,
+  exportAuditLogCsv,
+  listAuditEvents,
+  verifyAuditChain,
+  type AuditLogExportResult,
+} from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
@@ -114,6 +125,19 @@ export function AuditLogPage() {
     [page, action, resourceType, actorId, resourceId, range],
   );
 
+  const exportCsv = useMutation({
+    mutationFn: () => exportAuditLogCsv(filters),
+    onSuccess: (result: AuditLogExportResult) => {
+      triggerDownload(result);
+      if (result.truncated) {
+        message.warning(t('admin.audit.export_truncated'));
+      }
+    },
+    onError: () => {
+      message.error(t('admin.audit.export_failed'));
+    },
+  });
+
   const auditQuery = useQuery({
     queryKey: auditKeys.list(filters),
     queryFn: () => listAuditEvents(filters),
@@ -128,6 +152,14 @@ export function AuditLogPage() {
         subtitle={t('admin.audit.subtitle')}
         actions={
           <Space>
+            <Button
+              icon={<DownloadOutlined />}
+              loading={exportCsv.isPending}
+              onClick={() => exportCsv.mutate()}
+              data-testid="export-csv-button"
+            >
+              {t('admin.audit.export_csv')}
+            </Button>
             <Button
               icon={<SafetyCertificateOutlined />}
               loading={verifyChain.isPending}
@@ -448,6 +480,17 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
       {!title ? <div style={{ padding: 14 }}>{children}</div> : children}
     </div>
   );
+}
+
+function triggerDownload({ blob, filename }: AuditLogExportResult): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function Row({ k, v }: { k: string; v: string }) {

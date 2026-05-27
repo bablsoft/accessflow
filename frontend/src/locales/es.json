@@ -768,7 +768,10 @@
       "chain_valid": "Cadena válida",
       "chain_invalid": "Cadena inválida",
       "chain_rows_checked": "{{count}} filas comprobadas",
-      "chain_invalid_detail": "Primera fila inválida {{rowId}} — {{reason}}"
+      "chain_invalid_detail": "Primera fila inválida {{rowId}} — {{reason}}",
+      "export_csv": "Exportar CSV",
+      "export_failed": "No se pudo exportar el registro de auditoría. Inténtalo de nuevo.",
+      "export_truncated": "Exportación truncada en 50 000 filas. Aplica filtros más estrictos para capturar todo el resultado."
     },
     "ai_analyses": {
       "title": "Análisis de IA",
