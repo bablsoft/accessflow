@@ -193,12 +193,20 @@
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles &amp; RBAC</a>
             <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-drivers">Custom JDBC drivers</a>
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-ai">AI configurations</a>
+            <a href="#cfg-ai-analyses">AI analyses dashboard</a>
             <a href="#cfg-notification-channels">Notification channels</a>
             <a href="#cfg-smtp">System SMTP</a>
             <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
             <a href="#cfg-saml">SAML 2.0 SSO</a>
+            <a href="#cfg-audit-log">Audit log</a>
+
+            <h5>End-user workflows</h5>
+            <a href="#flow-submit">Submitting a query</a>
+            <a href="#flow-schedule">Scheduling a query</a>
+            <a href="#flow-review">Reviewing &amp; bulk approval</a>
 
             <h5>Further reading</h5>
             <a href="#further-reading">Engineering chapters</a>
@@ -680,8 +688,44 @@
             <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can_read / can_write / can_ddl</em>, allowed schemas, allowed tables, and restricted columns (which are masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user cannot see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced at SQL submit time by walking the parsed JSqlParser AST: every referenced table (across joins, subqueries, CTE bodies, and <code>BEGIN; …; COMMIT;</code> envelopes) must either appear verbatim in <em>allowed tables</em> or live in a schema listed in <em>allowed schemas</em>. Matching is case-insensitive, and unqualified table references (<code>FROM users</code> with no schema prefix) only match unqualified entries in <em>allowed tables</em> — a schemas-only list does not cover them. Leave both fields empty to keep the historical "all tables permitted" behaviour.
           </p>
           <p>
-            <strong>Custom JDBC drivers.</strong> Under <em>Admin → Custom JDBC drivers</em>, click <em>Upload driver</em>, attach the driver file, and supply the vendor name, target database type, the driver class identifier shown in the vendor's documentation, and the expected SHA-256. The checksum is re-verified every time the pool initializes, and each driver is loaded in an isolated runtime to keep providers from interfering with each other. The on-disk cache path is <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>) — mount it as a persistent volume in Kubernetes.
+            <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
+            <em>Schema</em> and <em>ER diagram</em> tabs alongside <em>Configuration</em> /
+            <em>Permissions</em>. The schema view introspects the live database (cached and
+            refreshable from the UI). The ER tab lays those tables out as a node-and-edge graph
+            with PK/FK badges and column types so reviewers and operators can sanity-check what a
+            query is touching without leaving AccessFlow.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/datasources-er-diagram-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/datasources-er-diagram-dark.png"
+                   alt="Datasource settings page with the ER diagram tab active, showing entity boxes for users, datasources, query_requests, audit_log and related tables connected by relationship edges."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>ER diagram</em>. Auto-laid-out via dagre; node positions persist after manual edits.</figcaption>
+          </figure>
+
+          <h3 id="cfg-drivers">Custom JDBC drivers</h3>
+          <p>
+            AccessFlow ships with bundled drivers for PostgreSQL, MySQL, MariaDB, Oracle, and
+            Microsoft SQL Server. To target any other JDBC engine, upload its driver JAR under
+            <em>Admin → Custom JDBC drivers</em> — datasources can then bind to it by setting
+            <em>Database type</em> to <em>Custom</em> in the create wizard.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/drivers-list-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/drivers-list-dark.png"
+                   alt="Custom JDBC drivers admin page with an Upload driver call-to-action and an empty-state explaining that uploaded drivers extend support beyond the bundled five."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/drivers</code> — manages the per-org JDBC driver registry.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Upload driver.</strong> Click <em>Upload driver</em>, attach the JAR, and supply the vendor name, target database type, the driver class identifier shown in the vendor's documentation, and the expected SHA-256 checksum.</li>
+            <li><strong>Verification.</strong> The checksum is re-verified every time a pool initializes; uploaded drivers are loaded in isolated runtimes to keep providers from interfering with each other.</li>
+            <li><strong>On-disk cache.</strong> JARs cache to <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>). Mount it as a persistent volume in Kubernetes so pods don't re-download on restart, and set <code>ACCESSFLOW_DRIVERS_OFFLINE=true</code> for air-gapped installs.</li>
+          </ol>
 
           <!-- Review plans -->
           <h3 id="cfg-review-plans">Review plans</h3>
@@ -690,6 +734,15 @@
             execution. Each plan describes a sequence of stages; each stage names approvers (by
             role or explicit user) and a minimum number of approvals before the query advances.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/review-plans-templates-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/review-plans-templates-dark.png"
+                   alt="Review plans admin page with the create-from-template dropdown open, listing four templates — Strict (writes need 2 approvals), Lenient (reads auto-approved), AI-only (no human approval), and Standard (AI plus one reviewer)."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> → caret next to <em>Add review plan</em> exposes four built-in templates that prefill the create modal.</figcaption>
+          </figure>
           <figure class="docs-figure">
             <picture>
               <source srcset="../images/docs/review-plans-create-light.png" media="(prefers-color-scheme: light)" />
@@ -771,6 +824,25 @@ APPROVED → FAILED (execution error)</pre>
             access, etc. The score is informational — only human reviewers can finalize approval
             unless the plan opts in to <code>auto_approve_reads</code>.
           </div>
+
+          <!-- AI analyses dashboard -->
+          <h3 id="cfg-ai-analyses">AI analyses dashboard</h3>
+          <p>
+            Once AI analyses are flowing, <code>/admin/ai-analyses</code> aggregates them into a
+            single org-wide trend view: average risk score over a configurable window, the most
+            frequent issue categories, and the most active submitters. Use it to spot
+            risk-pattern drift, identify which queries the AI consistently flags, and decide
+            whether a stricter review plan or schema-level guardrails are warranted.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/ai-analyses-dashboard-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/ai-analyses-dashboard-dark.png"
+                   alt="AI analyses dashboard with a configurable date range and datasource filter, a Risk score over time line chart, and a Top issue categories panel."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-analyses</code> — risk trends, hottest issue categories, and top submitters across every analyzed query.</figcaption>
+          </figure>
 
           <!-- Notification channels -->
           <h3 id="cfg-notification-channels">Notification channels</h3>
@@ -917,6 +989,138 @@ APPROVED → FAILED (execution error)</pre>
             SAML users rely on the IdP's MFA rather than AccessFlow's TOTP. Full SP metadata,
             signing-cert rotation, and assertion validation rules live in
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>.
+          </p>
+
+          <!-- Audit log -->
+          <h3 id="cfg-audit-log">Audit log</h3>
+          <p>
+            Every write the system performs — logins, query submissions and decisions, datasource
+            changes, channel edits — appends a row to <code>audit_log</code>. The table is
+            INSERT-only at the database level (the general application role has SELECT only;
+            inserts go through a dedicated audit-writer role), and every row carries an
+            HMAC-SHA256 link to the previous row so tampering is detectable after the fact.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/audit-log-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/audit-log-dark.png"
+                   alt="Audit log admin page with action and resource filters, an actor / resource ID search, an Export CSV button, a Verify chain button, and a chronological list of recent USER_LOGIN events with actor avatars and IP addresses."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/audit-log</code> — filter, paginate, verify the HMAC chain, and export to CSV.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Filter and search.</strong> Narrow by action, resource type, actor user id, or resource id; an optional start/end date pair scopes the window.</li>
+            <li><strong>Verify chain.</strong> The <em>Verify chain</em> button re-walks every row's HMAC link in order and surfaces the first mismatch — useful as a recurring auditor check.</li>
+            <li><strong>Export CSV.</strong> Streams the current filter as RFC 4180 CSV with the same columns shown in the UI. Long-running exports respect the same query budget as the table view (use date filters to keep them bounded).</li>
+          </ol>
+          <p>
+            The HMAC key defaults to a per-deployment value derived from <code>ENCRYPTION_KEY</code>
+            (via HKDF-SHA256), or set <code>AUDIT_HMAC_KEY</code> explicitly when rotating.
+          </p>
+        </section>
+
+        <!-- 4b. End-user workflows -->
+        <section id="end-user" class="docs-section">
+          <h2>End-user workflows</h2>
+          <p>
+            The pages above configure the system. This section is the operator's view of how
+            analysts and reviewers actually use it day-to-day — the editor, scheduled queries,
+            and the bulk-approval review queue that landed in v1.1.
+          </p>
+
+          <h3 id="flow-submit">Submitting a query</h3>
+          <p>
+            <code>/editor</code> hosts the SQL editor: dialect-aware syntax highlighting, schema
+            autocomplete fed by <code>/datasources/&lt;id&gt;/schema</code>, a debounced AI
+            analyze pass, and an in-pane review-plan summary. The submitter picks a datasource,
+            writes SQL, fills in a justification, and submits — at which point the workflow
+            takes over.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/editor-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/editor-light.png"
+                   alt="SQL editor at /editor with a schema browser on the left, CodeMirror SQL pane with a SELECT example, a Justification textarea, a Scheduled execution row, and an AI analysis side panel."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> — schema browser, SQL pane, justification, scheduled-execution row, and AI analysis side panel.</figcaption>
+          </figure>
+
+          <h3 id="flow-history">Tracking submitted queries</h3>
+          <p>
+            <code>/queries</code> (labelled <em>Query history</em> in the sidebar) lists every
+            query the current user has submitted or has read access to. Filter by status, risk,
+            datasource, or date range, and export the visible rows as CSV. Click a row to open
+            <code>/queries/&lt;id&gt;</code> for the full timeline, AI analysis, decisions, and
+            (when executed) the result preview.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/queries-list-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/queries-list-light.png"
+                   alt="Query history list at /queries with status, type, risk, datasource, and date filters, an Export CSV button, and rows showing a mix of PENDING REVIEW and APPROVED queries."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/queries</code> — submitter view of every query, with Export CSV.</figcaption>
+          </figure>
+
+          <h3 id="flow-schedule">Scheduling a query</h3>
+          <p>
+            Submitters can pick a <em>Scheduled execution</em> datetime instead of running
+            immediately. The query still goes through review; once approved, it stays in
+            <code>APPROVED</code> until <code>scheduled_for</code> arrives, at which point
+            <code>ScheduledQueryRunJob</code> (cadence
+            <code>ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL</code>, default
+            <code>PT1M</code>) triggers execution. The submitter can cancel an
+            <code>APPROVED</code> scheduled run any time before it fires.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/editor-schedule-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/editor-schedule-light.png"
+                   alt="SQL editor with the scheduled execution date picker open showing a month-view calendar; the help text reads 'If approved, the query runs automatically at that time.'"
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Scheduled execution</em> row → date picker. Leave blank for immediate execution.</figcaption>
+          </figure>
+
+          <h3 id="flow-review">Reviewing &amp; bulk approval</h3>
+          <p>
+            Reviewers land on <code>/reviews</code> for the queue assigned to them. Each row
+            shows the query id, classification, AI risk, datasource, submitter, and elapsed
+            time. Three tabs scope the view: <em>Assigned to you</em>, <em>All pending</em>
+            (visible to anyone the plan grants approver eligibility), and <em>Recently decided</em>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/reviews-queue-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/reviews-queue-light.png"
+                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and tabs for Assigned to you, All pending, and Recently decided."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/reviews</code> — reviewer queue, no rows selected.</figcaption>
+          </figure>
+          <p>
+            Selecting one or more rows surfaces a bulk-action bar with <em>Approve selected</em>,
+            <em>Reject selected</em>, and <em>Request changes</em> — the same decisions available
+            per row, but applied to every selected query in one round-trip. <em>Reject</em> and
+            <em>Request changes</em> still require a comment for every query in the batch (the
+            server enforces this; the UI prompts for each one inline before submitting).
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/reviews-queue-bulk-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/reviews-queue-bulk-light.png"
+                   alt="Review queue at /reviews with four rows selected and a bulk-action bar showing Request changes, Reject selected, Approve selected, and Clear selection buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/reviews</code> — bulk-action bar appears the moment a row is checked.</figcaption>
+          </figure>
+          <p>
+            Reviewers can never approve their own queries; the backend enforces this regardless
+            of plan configuration, and self-submissions are filtered out of the queue before the
+            page renders.
           </p>
         </section>
 
