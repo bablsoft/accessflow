@@ -1076,7 +1076,26 @@
       "validation_min_approvers": "需要人工批准时至少添加一名审批人。",
       "validation_user_or_role": "每个审批行需要一个用户或一个角色。",
       "select_user_placeholder": "（角色中的任何人）",
-      "select_role_placeholder": "任意"
+      "select_role_placeholder": "任意",
+      "create_from_template_button": "从模板创建",
+      "templates": {
+        "STRICT_WRITES_2_APPROVALS": {
+          "name": "严格 — 写操作需要 2 次审批",
+          "description": "需要 AI 审核，每次写操作必须由两位审核者批准。"
+        },
+        "LENIENT_READS_AUTO_APPROVED": {
+          "name": "宽松 — 读操作自动批准",
+          "description": "低/中风险读操作自动批准；写操作需要一位审核者。"
+        },
+        "AI_ONLY_NO_HUMAN": {
+          "name": "仅 AI — 无需人工审批",
+          "description": "AI 分析每次查询；不需要人工审核者。"
+        },
+        "STANDARD_AI_PLUS_ONE_REVIEWER": {
+          "name": "标准 — AI + 1 位审核者",
+          "description": "AI 加一位审核者；低/中风险读操作自动批准。"
+        }
+      }
     }
   },
   "notifications": {

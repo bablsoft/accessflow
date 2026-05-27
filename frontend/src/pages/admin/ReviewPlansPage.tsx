@@ -2,17 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   App,
   Button,
+  Dropdown,
   Form,
   Input,
   InputNumber,
   Modal,
   Select,
   Skeleton,
+  Space,
   Switch,
   Table,
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   DeleteOutlined,
+  DownOutlined,
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -26,6 +30,7 @@ import { Pill } from '@/components/common/Pill';
 import {
   createReviewPlan,
   deleteReviewPlan,
+  listReviewPlanTemplates,
   listReviewPlans,
   reviewPlanKeys,
   updateReviewPlan,
@@ -34,37 +39,20 @@ import { setupProgressKeys } from '@/api/admin';
 import { reviewPlanErrorMessage } from '@/utils/apiErrors';
 import { enumOptions, roleLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
-import type { ReviewPlan, ReviewPlanWriteRequest, Role } from '@/types/api';
+import {
+  REVIEW_PLAN_DEFAULT_VALUES as DEFAULT_VALUES,
+  reviewPlanFormFromTemplate,
+  type ReviewPlanFormApproverRow as ApproverFormRow,
+  type ReviewPlanFormValues as PlanFormValues,
+} from './reviewPlanTemplateForm';
+import type {
+  ReviewPlan,
+  ReviewPlanTemplate,
+  ReviewPlanWriteRequest,
+  Role,
+} from '@/types/api';
 
 const APPROVER_ROLES: readonly Role[] = ['REVIEWER', 'ADMIN'] as const;
-
-interface ApproverFormRow {
-  user_id: string | null;
-  role: 'ADMIN' | 'REVIEWER' | null;
-  stage: number;
-}
-
-interface PlanFormValues {
-  name: string;
-  description?: string;
-  requires_ai_review: boolean;
-  requires_human_approval: boolean;
-  min_approvals_required: number;
-  approval_timeout_hours: number;
-  auto_approve_reads: boolean;
-  approvers: ApproverFormRow[];
-}
-
-const DEFAULT_VALUES: PlanFormValues = {
-  name: '',
-  description: '',
-  requires_ai_review: true,
-  requires_human_approval: true,
-  min_approvals_required: 1,
-  approval_timeout_hours: 24,
-  auto_approve_reads: false,
-  approvers: [{ user_id: null, role: 'REVIEWER', stage: 1 }],
-};
 
 export function ReviewPlansPage() {
   const { t } = useTranslation();
@@ -72,12 +60,19 @@ export function ReviewPlansPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<ReviewPlan | null>(null);
   const [creating, setCreating] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<ReviewPlanTemplate | null>(null);
   const [form] = Form.useForm<PlanFormValues>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const plansQuery = useQuery({
     queryKey: reviewPlanKeys.lists(),
     queryFn: listReviewPlans,
+  });
+
+  const templatesQuery = useQuery({
+    queryKey: reviewPlanKeys.templates(),
+    queryFn: listReviewPlanTemplates,
+    staleTime: Infinity,
   });
 
   const isOpen = creating || editing !== null;
@@ -96,7 +91,9 @@ export function ReviewPlansPage() {
   useEffect(() => {
     if (creating) {
       form.resetFields();
-      form.setFieldsValue(DEFAULT_VALUES);
+      form.setFieldsValue(
+        pendingTemplate ? reviewPlanFormFromTemplate(pendingTemplate) : DEFAULT_VALUES,
+      );
     } else if (editing) {
       form.resetFields();
       form.setFieldsValue({
@@ -112,11 +109,12 @@ export function ReviewPlansPage() {
           : [{ user_id: null, role: 'REVIEWER', stage: 1 }],
       });
     }
-  }, [creating, editing, form]);
+  }, [creating, editing, form, pendingTemplate]);
 
   const closeModal = () => {
     setCreating(false);
     setEditing(null);
+    setPendingTemplate(null);
     if (searchParams.has('planId')) {
       const next = new URLSearchParams(searchParams);
       next.delete('planId');
@@ -189,6 +187,23 @@ export function ReviewPlansPage() {
 
   const plans = useMemo(() => plansQuery.data ?? [], [plansQuery.data]);
 
+  const openCreateFromTemplate = (template: ReviewPlanTemplate) => {
+    setEditing(null);
+    setPendingTemplate(template);
+    setCreating(true);
+  };
+
+  const templateMenuItems: MenuProps['items'] = (templatesQuery.data ?? []).map(
+    (template) => ({
+      key: template.key,
+      label: t(
+        `admin.review_plans.templates.${template.key}.name` as const,
+        template.name,
+      ),
+      onClick: () => openCreateFromTemplate(template),
+    }),
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
@@ -199,16 +214,26 @@ export function ReviewPlansPage() {
             <Button icon={<ReloadOutlined />} onClick={() => plansQuery.refetch()}>
               {t('common.refresh')}
             </Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditing(null);
-                setCreating(true);
-              }}
-            >
-              {t('admin.review_plans.add_button')}
-            </Button>
+            <Space.Compact>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setEditing(null);
+                  setPendingTemplate(null);
+                  setCreating(true);
+                }}
+              >
+                {t('admin.review_plans.add_button')}
+              </Button>
+              <Dropdown menu={{ items: templateMenuItems }} placement="bottomRight">
+                <Button
+                  type="primary"
+                  icon={<DownOutlined />}
+                  aria-label={t('admin.review_plans.create_from_template_button')}
+                />
+              </Dropdown>
+            </Space.Compact>
           </>
         }
       />

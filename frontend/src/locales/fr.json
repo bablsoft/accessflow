@@ -1076,7 +1076,26 @@
       "validation_min_approvers": "Ajoute au moins un approbateur lorsque l'approbation humaine est requise.",
       "validation_user_or_role": "Chaque ligne d'approbateur a besoin d'un utilisateur ou d'un rôle.",
       "select_user_placeholder": "(n'importe qui dans le rôle)",
-      "select_role_placeholder": "TOUT"
+      "select_role_placeholder": "TOUT",
+      "create_from_template_button": "Créer à partir d'un modèle",
+      "templates": {
+        "STRICT_WRITES_2_APPROVALS": {
+          "name": "Strict — les écritures nécessitent 2 approbations",
+          "description": "IA requise, deux relecteurs doivent approuver chaque écriture."
+        },
+        "LENIENT_READS_AUTO_APPROVED": {
+          "name": "Souple — lectures approuvées automatiquement",
+          "description": "Les lectures à risque faible/moyen sont approuvées automatiquement ; les écritures nécessitent un relecteur."
+        },
+        "AI_ONLY_NO_HUMAN": {
+          "name": "IA seule — pas d'approbation humaine",
+          "description": "L'IA analyse chaque requête ; aucun relecteur humain n'est requis."
+        },
+        "STANDARD_AI_PLUS_ONE_REVIEWER": {
+          "name": "Standard — IA + 1 relecteur",
+          "description": "IA plus un relecteur unique ; les lectures à risque faible/moyen sont approuvées automatiquement."
+        }
+      }
     }
   },
   "notifications": {

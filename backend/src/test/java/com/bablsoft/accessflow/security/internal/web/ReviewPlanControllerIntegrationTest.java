@@ -383,6 +383,35 @@ class ReviewPlanControllerIntegrationTest {
         assertThat(result).hasStatus(403);
     }
 
+    @Test
+    void listTemplatesReturnsBuiltInConstantsForAnyAuthenticatedUser() {
+        var result = mvc.get().uri("/api/v1/review-plans/templates")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content").asArray().hasSize(4);
+        assertThat(result).bodyJson().extractingPath("$.content[*].key").asArray()
+                .containsExactly(
+                        "STRICT_WRITES_2_APPROVALS",
+                        "LENIENT_READS_AUTO_APPROVED",
+                        "AI_ONLY_NO_HUMAN",
+                        "STANDARD_AI_PLUS_ONE_REVIEWER");
+        assertThat(result).bodyJson().extractingPath("$.content[0].defaults.requires_ai_review")
+                .asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.content[0].defaults.min_approvals_required")
+                .asNumber().isEqualTo(2);
+        assertThat(result).bodyJson().extractingPath("$.content[0].defaults.approvers[0].role")
+                .asString().isEqualTo("REVIEWER");
+    }
+
+    @Test
+    void listTemplatesWithoutTokenReturns401() {
+        var result = mvc.get().uri("/api/v1/review-plans/templates").exchange();
+
+        assertThat(result).hasStatus(401);
+    }
+
     private OrganizationEntity saveOrg(String name, String slug) {
         var org = new OrganizationEntity();
         org.setId(UUID.randomUUID());

@@ -700,7 +700,7 @@
             <figcaption><code>/admin/review-plans</code> → <em>Add review plan</em>. Stack approver rows to build multi-stage chains.</figcaption>
           </figure>
           <ol>
-            <li><strong>Open <code>/admin/review-plans</code></strong> and click <em>Add review plan</em>.</li>
+            <li><strong>Open <code>/admin/review-plans</code></strong> and click <em>Add review plan</em>, or pick a built-in template from the dropdown caret next to it (<em>Strict — writes need 2 approvals</em>, <em>Lenient — reads auto-approved</em>, <em>AI-only — no human approval</em>, <em>Standard — AI + 1 reviewer</em>) to prefill the modal with sensible defaults.</li>
             <li><strong>Name and describe</strong> the policy — e.g. "Production writes — two reviewers".</li>
             <li><strong>Pick the gates.</strong> Toggle <em>Require AI review</em> to score every query before it queues for humans; toggle <em>Require human approval</em> to demand at least one reviewer sign-off. <em>Auto-approve LOW-risk reads</em> lets <code>SELECT</code>s skip humans entirely when AI risk is below the threshold.</li>
             <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when <code>QueryTimeoutJob</code> auto-rejects an idle <code>PENDING_REVIEW</code> query (cadence configurable via <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>

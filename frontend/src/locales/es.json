@@ -1076,7 +1076,26 @@
       "validation_min_approvers": "Añade al menos un aprobador cuando se requiera aprobación humana.",
       "validation_user_or_role": "Cada fila de aprobador necesita un usuario o un rol.",
       "select_user_placeholder": "(cualquiera del rol)",
-      "select_role_placeholder": "CUALQUIERA"
+      "select_role_placeholder": "CUALQUIERA",
+      "create_from_template_button": "Crear desde plantilla",
+      "templates": {
+        "STRICT_WRITES_2_APPROVALS": {
+          "name": "Estricto — las escrituras requieren 2 aprobaciones",
+          "description": "Se requiere IA, dos revisores deben aprobar cada escritura."
+        },
+        "LENIENT_READS_AUTO_APPROVED": {
+          "name": "Permisivo — lecturas aprobadas automáticamente",
+          "description": "Las lecturas de riesgo bajo/medio se aprueban automáticamente; las escrituras requieren un revisor."
+        },
+        "AI_ONLY_NO_HUMAN": {
+          "name": "Solo IA — sin aprobación humana",
+          "description": "La IA analiza cada consulta; no se requiere revisor humano."
+        },
+        "STANDARD_AI_PLUS_ONE_REVIEWER": {
+          "name": "Estándar — IA + 1 revisor",
+          "description": "IA más un único revisor; las lecturas de riesgo bajo/medio se aprueban automáticamente."
+        }
+      }
     }
   },
   "notifications": {

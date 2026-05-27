@@ -436,6 +436,27 @@ export interface ReviewPlanWriteRequest {
   approvers?: ReviewPlanApprover[];
 }
 
+export interface ReviewPlanTemplateApprover {
+  role: 'ADMIN' | 'REVIEWER';
+  stage: number;
+}
+
+export interface ReviewPlanTemplateDefaults {
+  requires_ai_review: boolean;
+  requires_human_approval: boolean;
+  min_approvals_required: number;
+  approval_timeout_hours: number;
+  auto_approve_reads: boolean;
+  approvers: ReviewPlanTemplateApprover[];
+}
+
+export interface ReviewPlanTemplate {
+  key: string;
+  name: string;
+  description: string;
+  defaults: ReviewPlanTemplateDefaults;
+}
+
 export interface PendingReviewItem {
   id: string;
   datasource: { id: string; name: string };

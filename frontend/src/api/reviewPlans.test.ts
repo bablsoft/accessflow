@@ -78,5 +78,31 @@ describe('api/reviewPlans', () => {
     expect(reviewPlansApi.reviewPlanKeys.lists()).toEqual(['reviewPlans', 'list']);
     expect(reviewPlansApi.reviewPlanKeys.detail('rp-1'))
       .toEqual(['reviewPlans', 'detail', 'rp-1']);
+    expect(reviewPlansApi.reviewPlanKeys.templates()).toEqual(['reviewPlans', 'templates']);
+  });
+
+  it('listReviewPlanTemplates unwraps the { content } envelope', async () => {
+    const templateFixture = {
+      key: 'STRICT_WRITES_2_APPROVALS',
+      name: 'Strict — writes need 2 approvals',
+      description: 'AI required, two reviewers must approve every write.',
+      defaults: {
+        requires_ai_review: true,
+        requires_human_approval: true,
+        min_approvals_required: 2,
+        approval_timeout_hours: 24,
+        auto_approve_reads: false,
+        approvers: [
+          { role: 'REVIEWER' as const, stage: 1 },
+          { role: 'REVIEWER' as const, stage: 2 },
+        ],
+      },
+    };
+    get.mockResolvedValueOnce({ data: { content: [templateFixture] } });
+
+    const result = await reviewPlansApi.listReviewPlanTemplates();
+
+    expect(get).toHaveBeenCalledWith('/api/v1/review-plans/templates');
+    expect(result).toEqual([templateFixture]);
   });
 });
