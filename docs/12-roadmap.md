@@ -82,7 +82,7 @@
 - ~~**Query scheduling** — submit an approved query to execute at a future datetime~~ ✅ shipped (AF-345)
 - ~~**Bulk approval UI** — reviewers can approve/reject multiple queries in one action~~ ✅ shipped (AF-346)
 - ~~**AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users~~ ✅ shipped (AF-347)
-- **Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema
+- ~~**Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema~~ ✅ shipped (AF-348)
 - **Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved")
 - **Audit log CSV export**
 - **User invitation flow** — invite users by email instead of admin-created accounts

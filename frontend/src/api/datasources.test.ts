@@ -137,6 +137,7 @@ describe('api/datasources', () => {
             {
               name: 'users',
               columns: [{ name: 'id', type: 'uuid', nullable: false, primary_key: true }],
+              foreign_keys: [],
             },
           ],
         },

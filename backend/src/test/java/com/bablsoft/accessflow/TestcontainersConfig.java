@@ -18,11 +18,11 @@ public final class TestcontainersConfig {
 
     @ServiceConnection
     @SuppressWarnings("resource")
-    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine")
+    public static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:18-alpine")
             .withCommand("postgres", "-c", "max_connections=500")
             .withInitScript("db/test-init-audit-roles.sql");
 
     @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")
-    static GenericContainer<?> redis = new GenericContainer<>("redis:8-alpine").withExposedPorts(6379);
+    public static GenericContainer<?> redis = new GenericContainer<>("redis:8-alpine").withExposedPorts(6379);
 }

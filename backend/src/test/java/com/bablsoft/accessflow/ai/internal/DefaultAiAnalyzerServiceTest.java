@@ -108,7 +108,8 @@ class DefaultAiAnalyzerServiceTest {
         return new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("users", List.of(
-                                new DatabaseSchemaView.Column("id", "uuid", false, true)))))));
+                                new DatabaseSchemaView.Column("id", "uuid", false, true)),
+                                List.of())))));
     }
 
     private AiAnalysisResult sampleResult() {
@@ -169,7 +170,8 @@ class DefaultAiAnalyzerServiceTest {
                         new com.bablsoft.accessflow.core.api.DatabaseSchemaView.Schema("public", List.of(
                                 new com.bablsoft.accessflow.core.api.DatabaseSchemaView.Table("users", List.of(
                                         new com.bablsoft.accessflow.core.api.DatabaseSchemaView.Column(
-                                                "ssn", "text", true, false))))))));
+                                                "ssn", "text", true, false)),
+                                        List.of()))))));
         var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
                 UUID.randomUUID(), userId, datasourceId, true, false, false,
                 List.of(), List.of(), List.of("public.users.ssn"), null);

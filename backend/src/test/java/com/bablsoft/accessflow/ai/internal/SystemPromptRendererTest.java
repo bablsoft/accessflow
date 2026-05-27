@@ -66,7 +66,8 @@ class SystemPromptRendererTest {
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("users", List.of(
                                 new DatabaseSchemaView.Column("id", "uuid", false, true),
-                                new DatabaseSchemaView.Column("email", "varchar", true, false)))))));
+                                new DatabaseSchemaView.Column("email", "varchar", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema);
 
@@ -84,9 +85,11 @@ class SystemPromptRendererTest {
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("a", List.of(
-                                new DatabaseSchemaView.Column("x", "int", true, false))),
+                                new DatabaseSchemaView.Column("x", "int", true, false)),
+                                List.of()),
                         new DatabaseSchemaView.Table("b", List.of(
-                                new DatabaseSchemaView.Column("y", "int", true, false)))))));
+                                new DatabaseSchemaView.Column("y", "int", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema);
 
@@ -99,7 +102,8 @@ class SystemPromptRendererTest {
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("users", List.of(
                                 new DatabaseSchemaView.Column("id", "uuid", false, true),
-                                new DatabaseSchemaView.Column("ssn", "text", true, false)))))));
+                                new DatabaseSchemaView.Column("ssn", "text", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema, List.of("public.users.ssn"));
 
@@ -112,7 +116,8 @@ class SystemPromptRendererTest {
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("sales", List.of(
                         new DatabaseSchemaView.Table("orders", List.of(
-                                new DatabaseSchemaView.Column("amount", "numeric", true, false)))))));
+                                new DatabaseSchemaView.Column("amount", "numeric", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema, List.of("orders.amount"));
 
@@ -124,7 +129,8 @@ class SystemPromptRendererTest {
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("users", List.of(
-                                new DatabaseSchemaView.Column("password", "text", true, false)))))));
+                                new DatabaseSchemaView.Column("password", "text", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema, List.of("password"));
 
@@ -136,7 +142,8 @@ class SystemPromptRendererTest {
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", List.of(
                         new DatabaseSchemaView.Table("users", List.of(
-                                new DatabaseSchemaView.Column("email", "text", true, false)))))));
+                                new DatabaseSchemaView.Column("email", "text", true, false)),
+                                List.of())))));
 
         var text = renderer.describeSchema(schema, java.util.Arrays.asList("", "  ", null));
 

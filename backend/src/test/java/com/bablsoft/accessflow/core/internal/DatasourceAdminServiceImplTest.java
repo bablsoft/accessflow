@@ -680,6 +680,86 @@ class DatasourceAdminServiceImplTest {
                 .isInstanceOf(com.bablsoft.accessflow.core.api.CustomDriverNotFoundException.class);
     }
 
+    @Test
+    void readForeignKeysParsesImportedKeysIntoForeignKeyRecords() throws Exception {
+        var md = org.mockito.Mockito.mock(java.sql.DatabaseMetaData.class);
+        var rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        when(md.getImportedKeys(null, "public", "child")).thenReturn(rs);
+        when(rs.next()).thenReturn(true, true, false);
+        when(rs.getString("PKTABLE_SCHEM")).thenReturn("public", "public");
+        when(rs.getString("FKCOLUMN_NAME")).thenReturn("parent_id", "owner_id");
+        when(rs.getString("PKTABLE_NAME")).thenReturn("parent", "users");
+        when(rs.getString("PKCOLUMN_NAME")).thenReturn("id", "id");
+
+        var result = invokeReadForeignKeys(md, "public", "child",
+                java.util.Set.of("pg_catalog", "information_schema"));
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).fromColumn()).isEqualTo("parent_id");
+        assertThat(result.get(0).toTable()).isEqualTo("parent");
+        assertThat(result.get(0).toColumn()).isEqualTo("id");
+        assertThat(result.get(1).fromColumn()).isEqualTo("owner_id");
+        assertThat(result.get(1).toTable()).isEqualTo("users");
+    }
+
+    @Test
+    void readForeignKeysSkipsRowsReferencingSystemSchemas() throws Exception {
+        var md = org.mockito.Mockito.mock(java.sql.DatabaseMetaData.class);
+        var rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        when(md.getImportedKeys(null, "public", "child")).thenReturn(rs);
+        when(rs.next()).thenReturn(true, true, false);
+        when(rs.getString("PKTABLE_SCHEM")).thenReturn("pg_catalog", "public");
+        when(rs.getString("FKCOLUMN_NAME")).thenReturn("parent_id");
+        when(rs.getString("PKTABLE_NAME")).thenReturn("parent");
+        when(rs.getString("PKCOLUMN_NAME")).thenReturn("id");
+
+        var result = invokeReadForeignKeys(md, "public", "child",
+                java.util.Set.of("pg_catalog", "information_schema"));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).fromColumn()).isEqualTo("parent_id");
+    }
+
+    @Test
+    void readForeignKeysReturnsEmptyWhenDriverThrows() throws Exception {
+        var md = org.mockito.Mockito.mock(java.sql.DatabaseMetaData.class);
+        when(md.getImportedKeys(null, "public", "child"))
+                .thenThrow(new java.sql.SQLFeatureNotSupportedException("not supported"));
+
+        var result = invokeReadForeignKeys(md, "public", "child", java.util.Set.of());
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void readForeignKeysSkipsRowsWithMissingColumnInformation() throws Exception {
+        var md = org.mockito.Mockito.mock(java.sql.DatabaseMetaData.class);
+        var rs = org.mockito.Mockito.mock(java.sql.ResultSet.class);
+        when(md.getImportedKeys(null, "public", "child")).thenReturn(rs);
+        when(rs.next()).thenReturn(true, true, false);
+        when(rs.getString("PKTABLE_SCHEM")).thenReturn("public", "public");
+        when(rs.getString("FKCOLUMN_NAME")).thenReturn(null, "parent_id");
+        when(rs.getString("PKTABLE_NAME")).thenReturn("parent", "parent");
+        when(rs.getString("PKCOLUMN_NAME")).thenReturn("id", "id");
+
+        var result = invokeReadForeignKeys(md, "public", "child", java.util.Set.of());
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).fromColumn()).isEqualTo("parent_id");
+    }
+
+    @SuppressWarnings("unchecked")
+    private java.util.List<com.bablsoft.accessflow.core.api.DatabaseSchemaView.ForeignKey>
+            invokeReadForeignKeys(java.sql.DatabaseMetaData md, String schema, String table,
+                                  java.util.Set<String> systemSchemas) throws Exception {
+        var method = DatasourceAdminServiceImpl.class.getDeclaredMethod(
+                "readForeignKeys", java.sql.DatabaseMetaData.class, String.class, String.class,
+                String.class, java.util.Set.class);
+        method.setAccessible(true);
+        return (java.util.List<com.bablsoft.accessflow.core.api.DatabaseSchemaView.ForeignKey>)
+                method.invoke(service, md, null, schema, table, systemSchemas);
+    }
+
     private com.bablsoft.accessflow.core.internal.persistence.entity.CustomJdbcDriverEntity
             sampleCustomDriverEntity(UUID id, OrganizationEntity org, DbType targetDbType) {
         var entity = new com.bablsoft.accessflow.core.internal.persistence.entity

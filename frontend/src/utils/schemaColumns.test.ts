@@ -18,6 +18,7 @@ describe('flattenSchemaToColumns', () => {
               { name: 'id', type: 'uuid', nullable: false, primary_key: true },
               { name: 'email', type: 'text', nullable: true, primary_key: false },
             ],
+            foreign_keys: [],
           },
         ],
       },
@@ -41,6 +42,7 @@ describe('flattenSchemaToColumns', () => {
             columns: [
               { name: 'amount', type: 'numeric', nullable: false, primary_key: false },
             ],
+            foreign_keys: [],
           },
         ],
       },
@@ -52,6 +54,7 @@ describe('flattenSchemaToColumns', () => {
             columns: [
               { name: 'ts', type: 'timestamptz', nullable: false, primary_key: false },
             ],
+            foreign_keys: [],
           },
         ],
       },
@@ -67,7 +70,7 @@ describe('flattenSchemaToColumns', () => {
 
   it('handles tables with no columns', () => {
     const schemas: SchemaNamespace[] = [
-      { name: 'public', tables: [{ name: 'empty', columns: [] }] },
+      { name: 'public', tables: [{ name: 'empty', columns: [], foreign_keys: [] }] },
     ];
 
     expect(flattenSchemaToColumns(schemas)).toEqual([]);
