@@ -54,6 +54,7 @@ export default defineConfig({
         'src/components/datasources/erDiagramLayout.ts',
         'src/hooks/useSchemaIntrospect.ts',
         'src/hooks/useWebSocket.ts',
+        'src/pages/admin/reviewPlanTemplateForm.ts',
         'src/pages/queries/buildTimelineStages.ts',
         'src/realtime/websocketManager.ts',
         'src/store/authStore.ts',

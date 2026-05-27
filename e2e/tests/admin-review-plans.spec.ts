@@ -25,6 +25,8 @@ const UNIQUE_SUFFIX = `af283-${Date.now()}`;
 const TWO_STAGE_PLAN_NAME = `Two-stage plan ${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `Bound DS ${UNIQUE_SUFFIX}`;
 const MULTI_STAGE_DS_NAME = `Multi-stage DS ${UNIQUE_SUFFIX}`;
+// AF-349 — template-driven plan name (separate from the manual two-stage one).
+const STRICT_TEMPLATE_PLAN_NAME = `Strict template ${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -115,6 +117,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   let adminAccessToken = '';
   let planId: string | null = null;
   let throwawayPlanId: string | null = null;
+  let templatePlanId: string | null = null;
   let boundDatasourceId: string | null = null;
   let multiStageDatasourceId: string | null = null;
 
@@ -143,6 +146,10 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     if (throwawayPlanId) {
       await deleteReviewPlanViaApi(request, adminAccessToken, throwawayPlanId);
       throwawayPlanId = null;
+    }
+    if (templatePlanId) {
+      await deleteReviewPlanViaApi(request, adminAccessToken, templatePlanId);
+      templatePlanId = null;
     }
   });
 
@@ -595,5 +602,86 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
 
     // Plan is gone; null the id so afterAll doesn't double-delete.
     planId = null;
+  });
+
+  // AF-349 — picking a built-in template via the dropdown next to "Add review
+  // plan" prefills the create modal and the resulting POST carries the
+  // template's defaults (min_approvals=2 + two REVIEWER approver rows).
+  test('9) create a plan from the "Strict" template → form prefills and POST persists defaults', async ({
+    page,
+  }) => {
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/review-plans');
+    await waitForReviewPlansListReady(page);
+
+    // GET /api/v1/review-plans/templates fires on page mount; wait for it so
+    // the dropdown menu has items before we click.
+    await page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/review-plans\/templates$/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+
+    // The Dropdown trigger is the second primary button in the Space.Compact
+    // (right of "Add review plan"), labelled via aria-label.
+    await page.getByRole('button', { name: 'Create from template' }).click();
+
+    // The dropdown menu portals to document.body; pick the strict template item.
+    await page
+      .getByRole('menuitem')
+      .filter({ hasText: 'Strict — writes need 2 approvals' })
+      .click();
+
+    const modal = page
+      .getByRole('dialog')
+      .filter({ hasText: 'Add review plan' })
+      .first();
+    await expect(modal).toBeVisible({ timeout: 10_000 });
+
+    // Prefill assertions: min_approvals = 2, two approver rows (each row has
+    // its own "Remove" icon button).
+    const minApprovalsInput = modal.getByLabel('Minimum approvals');
+    await expect(minApprovalsInput).toHaveValue('2');
+    const removeButtons = modal.getByRole('button', { name: 'Remove' });
+    await expect(removeButtons).toHaveCount(2);
+
+    // Name is left blank — admin must fill it in.
+    await modal.getByLabel('Name').fill(STRICT_TEMPLATE_PLAN_NAME);
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/review-plans$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await modal.getByRole('button', { name: 'Create plan' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as {
+      id: string;
+      name: string;
+      min_approvals_required: number;
+      requires_human_approval: boolean;
+      auto_approve_reads: boolean;
+      approvers: Array<{ role: string | null; stage: number }>;
+    };
+    templatePlanId = body.id;
+    expect(body.name).toBe(STRICT_TEMPLATE_PLAN_NAME);
+    expect(body.min_approvals_required).toBe(2);
+    expect(body.requires_human_approval).toBe(true);
+    expect(body.auto_approve_reads).toBe(false);
+    expect(body.approvers).toHaveLength(2);
+    expect(body.approvers.map((a) => a.stage).sort()).toEqual([1, 2]);
+    expect(body.approvers.every((a) => a.role === 'REVIEWER')).toBe(true);
+
+    await expect(page.getByText('Review plan created', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    const planRow = page.getByRole('row', {
+      name: new RegExp(escapeRegex(STRICT_TEMPLATE_PLAN_NAME)),
+    });
+    await expect(planRow).toBeVisible();
   });
 });

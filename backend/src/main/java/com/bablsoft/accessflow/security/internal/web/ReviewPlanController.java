@@ -9,10 +9,13 @@ import com.bablsoft.accessflow.core.api.CreateReviewPlanCommand;
 import com.bablsoft.accessflow.core.api.ReviewPlanAdminService;
 import com.bablsoft.accessflow.core.api.UpdateReviewPlanCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.internal.templates.ReviewPlanTemplates;
 import com.bablsoft.accessflow.security.internal.web.model.CreateReviewPlanRequest;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanApproverDto;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanResponse;
+import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanTemplateListResponse;
+import com.bablsoft.accessflow.security.internal.web.model.ReviewPlanTemplateResponse;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateReviewPlanRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -59,6 +62,17 @@ class ReviewPlanController {
                 .map(ReviewPlanResponse::from)
                 .toList();
         return new ReviewPlanListResponse(plans);
+    }
+
+    @GetMapping("/templates")
+    @Operation(summary = "List built-in review plan templates")
+    @ApiResponse(responseCode = "200", description = "Available review plan templates")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    ReviewPlanTemplateListResponse listTemplates() {
+        var items = ReviewPlanTemplates.all().stream()
+                .map(ReviewPlanTemplateResponse::from)
+                .toList();
+        return new ReviewPlanTemplateListResponse(items);
     }
 
     @GetMapping("/{id}")

@@ -1076,7 +1076,26 @@
       "validation_min_approvers": "Add at least one approver when human approval is required.",
       "validation_user_or_role": "Each approver row needs a user or a role.",
       "select_user_placeholder": "(any of the role)",
-      "select_role_placeholder": "ANY"
+      "select_role_placeholder": "ANY",
+      "create_from_template_button": "Create from template",
+      "templates": {
+        "STRICT_WRITES_2_APPROVALS": {
+          "name": "Strict — writes need 2 approvals",
+          "description": "AI required, two reviewers must approve every write."
+        },
+        "LENIENT_READS_AUTO_APPROVED": {
+          "name": "Lenient — reads auto-approved",
+          "description": "Low/medium-risk reads are auto-approved; writes need one reviewer."
+        },
+        "AI_ONLY_NO_HUMAN": {
+          "name": "AI-only — no human approval",
+          "description": "AI analyzes every query; no human reviewer is required."
+        },
+        "STANDARD_AI_PLUS_ONE_REVIEWER": {
+          "name": "Standard — AI + 1 reviewer",
+          "description": "AI plus a single reviewer; low/medium-risk reads auto-approved."
+        }
+      }
     }
   },
   "notifications": {

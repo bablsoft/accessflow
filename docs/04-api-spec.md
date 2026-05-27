@@ -753,6 +753,7 @@ Re-analysis is only valid when:
 | `POST` | `/reviews/{queryId}/request-changes` | Request changes from submitter before re-submission |
 | `POST` | `/reviews/bulk` | Apply the same decision to a batch of queries; returns per-row outcomes |
 | `GET` | `/review-plans` | List all review plans |
+| `GET` | `/review-plans/templates` | List built-in review plan templates |
 | `POST` | `/review-plans` | Create a new review plan *(ADMIN only)* |
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
 | `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
@@ -978,6 +979,76 @@ Same shape as `POST` but every field is optional. When `approvers` is provided, 
 ### DELETE /review-plans/{id} *(ADMIN only)*
 
 Returns 204 on success. Returns **409 `REVIEW_PLAN_IN_USE`** if any datasource still references the plan; reassign datasources to a different plan before deletion. Approver rows attached to the plan are removed inside the same transaction.
+
+### GET /review-plans/templates
+
+Returns the built-in review plan templates. Available to any authenticated user (no `ADMIN` role required). Templates are static constants compiled into the backend; they are not persisted as DB rows and are global (no org scoping). Names and descriptions are English defaults — frontends typically render `admin.review_plans.templates.<key>.{name,description}` i18n keys instead.
+
+The `defaults` object mirrors the `POST /review-plans` request body minus `name`, `description`, and `notify_channels`, so the frontend can spread it directly into the create-plan form. The `approvers` list never includes a `user_id` (templates pre-fill only `role` + `stage`, since users are organization-scoped).
+
+**Response 200:**
+
+```json
+{
+  "content": [
+    {
+      "key": "STRICT_WRITES_2_APPROVALS",
+      "name": "Strict — writes need 2 approvals",
+      "description": "AI required, two reviewers must approve every write.",
+      "defaults": {
+        "requires_ai_review": true,
+        "requires_human_approval": true,
+        "min_approvals_required": 2,
+        "approval_timeout_hours": 24,
+        "auto_approve_reads": false,
+        "approvers": [
+          { "role": "REVIEWER", "stage": 1 },
+          { "role": "REVIEWER", "stage": 2 }
+        ]
+      }
+    },
+    {
+      "key": "LENIENT_READS_AUTO_APPROVED",
+      "name": "Lenient — reads auto-approved",
+      "description": "Low/medium-risk reads are auto-approved; writes need one reviewer.",
+      "defaults": {
+        "requires_ai_review": true,
+        "requires_human_approval": true,
+        "min_approvals_required": 1,
+        "approval_timeout_hours": 24,
+        "auto_approve_reads": true,
+        "approvers": [{ "role": "REVIEWER", "stage": 1 }]
+      }
+    },
+    {
+      "key": "AI_ONLY_NO_HUMAN",
+      "name": "AI-only — no human approval",
+      "description": "AI analyzes every query; no human reviewer is required.",
+      "defaults": {
+        "requires_ai_review": true,
+        "requires_human_approval": false,
+        "min_approvals_required": 1,
+        "approval_timeout_hours": 24,
+        "auto_approve_reads": false,
+        "approvers": []
+      }
+    },
+    {
+      "key": "STANDARD_AI_PLUS_ONE_REVIEWER",
+      "name": "Standard — AI + 1 reviewer",
+      "description": "AI plus a single reviewer; low/medium-risk reads auto-approved.",
+      "defaults": {
+        "requires_ai_review": true,
+        "requires_human_approval": true,
+        "min_approvals_required": 1,
+        "approval_timeout_hours": 24,
+        "auto_approve_reads": true,
+        "approvers": [{ "role": "REVIEWER", "stage": 1 }]
+      }
+    }
+  ]
+}
+```
 
 ### Review-plans Error Codes
 

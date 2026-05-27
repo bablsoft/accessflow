@@ -1076,7 +1076,26 @@
       "validation_min_approvers": "Füge mindestens einen Genehmiger hinzu, wenn menschliche Genehmigung erforderlich ist.",
       "validation_user_or_role": "Jede Genehmigerzeile benötigt einen Benutzer oder eine Rolle.",
       "select_user_placeholder": "(beliebiger der Rolle)",
-      "select_role_placeholder": "BELIEBIG"
+      "select_role_placeholder": "BELIEBIG",
+      "create_from_template_button": "Aus Vorlage erstellen",
+      "templates": {
+        "STRICT_WRITES_2_APPROVALS": {
+          "name": "Streng — Schreibvorgänge erfordern 2 Genehmigungen",
+          "description": "KI erforderlich, zwei Prüfer müssen jeden Schreibvorgang genehmigen."
+        },
+        "LENIENT_READS_AUTO_APPROVED": {
+          "name": "Locker — Lesevorgänge automatisch genehmigt",
+          "description": "Lesevorgänge mit niedrigem/mittlerem Risiko werden automatisch genehmigt; Schreibvorgänge benötigen einen Prüfer."
+        },
+        "AI_ONLY_NO_HUMAN": {
+          "name": "Nur KI — keine menschliche Genehmigung",
+          "description": "KI analysiert jede Abfrage; kein menschlicher Prüfer erforderlich."
+        },
+        "STANDARD_AI_PLUS_ONE_REVIEWER": {
+          "name": "Standard — KI + 1 Prüfer",
+          "description": "KI plus ein einzelner Prüfer; Lesevorgänge mit niedrigem/mittlerem Risiko werden automatisch genehmigt."
+        }
+      }
     }
   },
   "notifications": {
