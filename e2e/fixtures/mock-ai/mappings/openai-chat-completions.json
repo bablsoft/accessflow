@@ -1,0 +1,37 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "urlPattern": "/v1/chat/completions.*"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "id": "chatcmpl-mock-af347",
+          "object": "chat.completion",
+          "created": 1700000000,
+          "model": "gpt-4o-mock",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"risk_score\":45,\"risk_level\":\"MEDIUM\",\"summary\":\"Mock analysis for AF-347 e2e dashboard\",\"missing_indexes_detected\":false,\"affects_row_estimate\":null,\"issues\":[{\"severity\":\"MEDIUM\",\"category\":\"performance\",\"message\":\"mock performance issue\",\"suggestion\":\"mock perf suggestion\"},{\"severity\":\"LOW\",\"category\":\"data_volume\",\"message\":\"mock data-volume issue\",\"suggestion\":\"mock dv suggestion\"}]}"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 30,
+            "completion_tokens": 60,
+            "total_tokens": 90
+          }
+        }
+      }
+    }
+  ]
+}

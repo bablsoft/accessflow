@@ -42,6 +42,7 @@
     "review_plans": "Планы проверки",
     "audit": "Журнал аудита",
     "ai_configs": "Конфигурации ИИ",
+    "ai_analyses": "Анализы ИИ",
     "notifications": "Уведомления",
     "saml": "SAML / SSO",
     "oauth2": "Провайдеры OAuth",
@@ -760,6 +761,25 @@
       "chain_invalid": "Цепочка нарушена",
       "chain_rows_checked": "Проверено строк: {{count}}",
       "chain_invalid_detail": "Первая сбойная строка {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "Анализы ИИ",
+      "subtitle": "Тренды по каждому запросу, проверенному ИИ: риск во времени, самые частые категории проблем и самые активные авторы.",
+      "filter_range_label": "Диапазон",
+      "filter_datasource_label": "Источник данных",
+      "filter_datasource_all": "Все источники данных",
+      "chart_risk_score_title": "Оценка риска во времени",
+      "chart_categories_title": "Топ-категории проблем",
+      "chart_submitters_title": "Самые активные авторы",
+      "series_success_avg_risk": "Средний риск (успешные)",
+      "series_total_count": "Анализы (всего)",
+      "axis_date": "Дата",
+      "axis_value": "Значение",
+      "axis_count": "Анализы",
+      "axis_category": "Категория",
+      "axis_submitter": "Автор",
+      "empty_title": "В этом окне нет анализов ИИ",
+      "empty_description": "Выберите более широкий диапазон или отправьте запросы к источнику данных с включённым анализом ИИ."
     },
     "ai_configs": {
       "title": "Конфигурации ИИ",

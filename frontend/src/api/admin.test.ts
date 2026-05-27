@@ -496,4 +496,40 @@ describe('api/admin', () => {
       { page: 0, size: 20 },
     ]);
   });
+
+  it('fetchAiAnalysisStats GETs /admin/ai-analyses/stats with all params when provided', async () => {
+    get.mockResolvedValue({
+      data: { risk_score_over_time: [], top_issue_categories: [], top_submitters: [] },
+    });
+
+    await adminApi.fetchAiAnalysisStats({
+      from: '2026-05-01T00:00:00Z',
+      to: '2026-05-31T00:00:00Z',
+      datasource_id: 'ds-1',
+    });
+
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-analyses/stats', {
+      params: {
+        from: '2026-05-01T00:00:00Z',
+        to: '2026-05-31T00:00:00Z',
+        datasourceId: 'ds-1',
+      },
+    });
+  });
+
+  it('fetchAiAnalysisStats omits unset params and works with no filter at all', async () => {
+    get.mockResolvedValue({
+      data: { risk_score_over_time: [], top_issue_categories: [], top_submitters: [] },
+    });
+
+    await adminApi.fetchAiAnalysisStats();
+
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-analyses/stats', { params: {} });
+  });
+
+  it('aiAnalysesKeys produce stable factory output', () => {
+    expect(adminApi.aiAnalysesKeys.all).toEqual(['ai-analyses']);
+    expect(adminApi.aiAnalysesKeys.stats({ from: 'a', to: 'b', datasource_id: 'ds-1' }))
+      .toEqual(['ai-analyses', 'stats', { from: 'a', to: 'b', datasource_id: 'ds-1' }]);
+  });
 });

@@ -42,6 +42,7 @@
     "review_plans": "Prüfpläne",
     "audit": "Audit-Log",
     "ai_configs": "KI-Konfigurationen",
+    "ai_analyses": "KI-Analysen",
     "notifications": "Benachrichtigungen",
     "saml": "SAML / SSO",
     "oauth2": "OAuth-Anbieter",
@@ -760,6 +761,25 @@
       "chain_invalid": "Kette ungültig",
       "chain_rows_checked": "{{count}} Zeilen geprüft",
       "chain_invalid_detail": "Erste fehlerhafte Zeile {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "KI-Analysen",
+      "subtitle": "Trends über alle von der KI geprüften Abfragen: Risiko im Zeitverlauf, häufige Problemkategorien und aktivste Einreichende.",
+      "filter_range_label": "Zeitraum",
+      "filter_datasource_label": "Datenquelle",
+      "filter_datasource_all": "Alle Datenquellen",
+      "chart_risk_score_title": "Risikobewertung im Zeitverlauf",
+      "chart_categories_title": "Häufigste Problemkategorien",
+      "chart_submitters_title": "Aktivste Einreichende",
+      "series_success_avg_risk": "Durchschnittliche Risikobewertung (erfolgreich)",
+      "series_total_count": "Analysen (gesamt)",
+      "axis_date": "Datum",
+      "axis_value": "Wert",
+      "axis_count": "Analysen",
+      "axis_category": "Kategorie",
+      "axis_submitter": "Einreicher",
+      "empty_title": "Keine KI-Analysen in diesem Zeitraum",
+      "empty_description": "Wähle einen größeren Zeitraum oder reiche Abfragen gegen eine Datenquelle mit aktivierter KI-Analyse ein."
     },
     "ai_configs": {
       "title": "KI-Konfigurationen",

@@ -475,6 +475,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard)
 /admin/ai-configs/:id               → AiConfigEditPage
+/admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)

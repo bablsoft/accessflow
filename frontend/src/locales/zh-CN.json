@@ -42,6 +42,7 @@
     "review_plans": "审核计划",
     "audit": "审计日志",
     "ai_configs": "AI 配置",
+    "ai_analyses": "AI 分析",
     "notifications": "通知",
     "saml": "SAML / SSO",
     "oauth2": "OAuth 服务商",
@@ -760,6 +761,25 @@
       "chain_invalid": "链无效",
       "chain_rows_checked": "已检查 {{count}} 行",
       "chain_invalid_detail": "首个异常行 {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "AI 分析",
+      "subtitle": "AI 审查过的所有查询的趋势:风险随时间变化、最常标记的问题类别和最活跃的提交者。",
+      "filter_range_label": "时间范围",
+      "filter_datasource_label": "数据源",
+      "filter_datasource_all": "全部数据源",
+      "chart_risk_score_title": "风险评分随时间变化",
+      "chart_categories_title": "热门问题类别",
+      "chart_submitters_title": "活跃提交者",
+      "series_success_avg_risk": "平均风险评分(成功)",
+      "series_total_count": "分析总数",
+      "axis_date": "日期",
+      "axis_value": "数值",
+      "axis_count": "分析数",
+      "axis_category": "类别",
+      "axis_submitter": "提交者",
+      "empty_title": "此时间范围内没有 AI 分析",
+      "empty_description": "选择更宽的时间范围,或向启用了 AI 分析的数据源提交查询。"
     },
     "ai_configs": {
       "title": "AI 配置",

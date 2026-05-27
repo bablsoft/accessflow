@@ -909,3 +909,35 @@ export interface PasswordResetPreview {
 export interface ResetPasswordInput {
   password: string;
 }
+
+// Admin AI analysis statistics — GET /api/v1/admin/ai-analyses/stats
+export interface AiAnalysisRiskScorePoint {
+  date: string;
+  success_avg_risk_score: number | null;
+  total_count: number;
+  success_count: number;
+}
+
+export interface AiAnalysisIssueCategory {
+  category: string;
+  count: number;
+}
+
+export interface AiAnalysisTopSubmitter {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  count: number;
+}
+
+export interface AiAnalysisStats {
+  risk_score_over_time: AiAnalysisRiskScorePoint[];
+  top_issue_categories: AiAnalysisIssueCategory[];
+  top_submitters: AiAnalysisTopSubmitter[];
+}
+
+export interface AiAnalysisStatsFilters {
+  from?: string;
+  to?: string;
+  datasource_id?: string;
+}

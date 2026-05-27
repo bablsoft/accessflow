@@ -32,6 +32,7 @@ const AiConfigCreateWizardPage = lazy(
   () => import('@/pages/admin/ai-configs/AiConfigCreateWizardPage'),
 );
 const AiConfigEditPage = lazy(() => import('@/pages/admin/ai-configs/AiConfigEditPage'));
+const AiAnalysesPage = lazy(() => import('@/pages/admin/AiAnalysesPage'));
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
@@ -195,6 +196,16 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <AiConfigEditPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/ai-analyses"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <AiAnalysesPage />
                 </Suspense>
               </AuthGuard>
             }

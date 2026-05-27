@@ -42,6 +42,7 @@
     "review_plans": "Review plans",
     "audit": "Audit log",
     "ai_configs": "AI configurations",
+    "ai_analyses": "AI analyses",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
     "oauth2": "OAuth providers",
@@ -760,6 +761,25 @@
       "chain_invalid": "Chain invalid",
       "chain_rows_checked": "{{count}} rows checked",
       "chain_invalid_detail": "First bad row {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "AI analyses",
+      "subtitle": "Trends across every query the AI has reviewed: risk over time, hot issue categories, and most active submitters.",
+      "filter_range_label": "Range",
+      "filter_datasource_label": "Datasource",
+      "filter_datasource_all": "All datasources",
+      "chart_risk_score_title": "Risk score over time",
+      "chart_categories_title": "Top issue categories",
+      "chart_submitters_title": "Top submitters",
+      "series_success_avg_risk": "Avg risk score (successful)",
+      "series_total_count": "Analyses (all)",
+      "axis_date": "Date",
+      "axis_value": "Value",
+      "axis_count": "Analyses",
+      "axis_category": "Category",
+      "axis_submitter": "Submitter",
+      "empty_title": "No AI analyses in this window",
+      "empty_description": "Pick a wider date range, or submit queries against a datasource with AI analysis enabled."
     },
     "ai_configs": {
       "title": "AI configurations",

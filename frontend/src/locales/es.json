@@ -42,6 +42,7 @@
     "review_plans": "Planes de revisión",
     "audit": "Registro de auditoría",
     "ai_configs": "Configuraciones de IA",
+    "ai_analyses": "Análisis de IA",
     "notifications": "Notificaciones",
     "saml": "SAML / SSO",
     "oauth2": "Proveedores de OAuth",
@@ -760,6 +761,25 @@
       "chain_invalid": "Cadena inválida",
       "chain_rows_checked": "{{count}} filas comprobadas",
       "chain_invalid_detail": "Primera fila inválida {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "Análisis de IA",
+      "subtitle": "Tendencias de cada consulta revisada por la IA: riesgo en el tiempo, categorías de problemas más frecuentes y autores más activos.",
+      "filter_range_label": "Rango",
+      "filter_datasource_label": "Fuente de datos",
+      "filter_datasource_all": "Todas las fuentes de datos",
+      "chart_risk_score_title": "Puntuación de riesgo en el tiempo",
+      "chart_categories_title": "Principales categorías de problemas",
+      "chart_submitters_title": "Principales autores",
+      "series_success_avg_risk": "Riesgo medio (exitosos)",
+      "series_total_count": "Análisis (total)",
+      "axis_date": "Fecha",
+      "axis_value": "Valor",
+      "axis_count": "Análisis",
+      "axis_category": "Categoría",
+      "axis_submitter": "Autor",
+      "empty_title": "Sin análisis de IA en este intervalo",
+      "empty_description": "Elige un rango más amplio o envía consultas a una fuente de datos con análisis de IA habilitado."
     },
     "ai_configs": {
       "title": "Configuraciones de IA",
