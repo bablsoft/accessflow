@@ -63,6 +63,24 @@ services:
     networks:
       - e2e-network
 
+  mock-ai:
+    # WireMock stands in for an OpenAI Chat Completions endpoint so the AI
+    # analysis listener can produce real ai_analyses rows during e2e.
+    # See AF-347. Mappings live in ../fixtures/mock-ai/mappings/.
+    image: wiremock/wiremock:3.10.0
+    volumes:
+      - ./fixtures/mock-ai/mappings:/home/wiremock/mappings:ro
+    healthcheck:
+      # WireMock's /__admin/health endpoint only answers GET (not HEAD), so
+      # `wget --spider` returns 404. Use `wget -qO /dev/null` instead — it
+      # issues a GET and exits 0 only on 2xx.
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:8080/__admin/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - e2e-network
+
   backend:
     build:
       context: ../backend
@@ -73,6 +91,8 @@ services:
       redis:
         condition: service_healthy
       mailcrab:
+        condition: service_healthy
+      mock-ai:
         condition: service_healthy
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/accessflow
@@ -137,6 +157,17 @@ services:
       # Lower the scheduled-run poll interval so the AF-345 query-scheduling spec
       # fires its scheduled execution within the Playwright per-test budget.
       ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL: PT1S
+      # AF-347: bootstrap a mock OpenAI-compatible ai_config wired to the
+      # mock-ai (WireMock) container so the AI analysis listener can produce
+      # real ai_analyses rows the admin dashboard spec then reads.
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_NAME: e2e-mock-openai
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_PROVIDER: OPENAI
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_MODEL: gpt-4o-mock
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_ENDPOINT: http://mock-ai:8080
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_API_KEY: dummy-key-for-mock
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_TIMEOUT_MS: "10000"
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_MAX_PROMPT_TOKENS: "4000"
+      ACCESSFLOW_BOOTSTRAP_AICONFIGS_0_MAX_COMPLETION_TOKENS: "1000"
     healthcheck:
       # /actuator/health is permitAll. busybox wget is present in the
       # eclipse-temurin:25-jre-alpine runtime stage of the backend image.

@@ -1598,6 +1598,45 @@ Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the named co
 { "status": "ERROR", "detail": "<provider error message>" }
 ```
 
+### AI Analysis Statistics (`/admin/ai-analyses`) *(ADMIN only)*
+
+Aggregate stats over the AI analysis history, used by the **/admin/ai-analyses** dashboard.
+
+#### GET /admin/ai-analyses/stats
+
+Returns three series, all scoped to the caller's organization (joined through `query_requests` → `datasources.organization_id`):
+
+- `risk_score_over_time` — daily buckets (UTC days). `success_avg_risk_score` is the average over rows with `failed=false` only; `total_count` and `success_count` include failures. Sorted by `date` ASC.
+- `top_issue_categories` — `LOWER(TRIM(category))` grouped from the `issues` JSONB array, top 10 by count.
+- `top_submitters` — top 10 users by analyzed-query count, with email and display name.
+
+**Query parameters:**
+| Name | Type | Required | Default |
+|---|---|---|---|
+| `from` | ISO-8601 timestamp | no | `now() - 30d` |
+| `to` | ISO-8601 timestamp | no | `now()` |
+| `datasourceId` | UUID | no | unfiltered |
+
+**Response 200:**
+```json
+{
+  "risk_score_over_time": [
+    { "date": "2026-05-10", "success_avg_risk_score": 47.5, "total_count": 4, "success_count": 3 }
+  ],
+  "top_issue_categories": [
+    { "category": "performance", "count": 12 }
+  ],
+  "top_submitters": [
+    { "user_id": "uuid", "email": "alice@x", "display_name": "Alice", "count": 9 }
+  ]
+}
+```
+
+**Errors:**
+| Code | Status | Cause |
+|---|---|---|
+| `BAD_AI_ANALYSIS_STATS_QUERY` | 400 | `from` is after `to` |
+
 ### Localization Config (`/admin/localization-config`) *(ADMIN only)*
 
 Per-organization language settings: the user-facing allow-list, the default language for new accounts, and the language the AI analyzer responds in. Every code is BCP-47 (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`).

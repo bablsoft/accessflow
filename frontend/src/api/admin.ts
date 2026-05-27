@@ -1,5 +1,7 @@
 import { apiClient } from './client';
 import type {
+  AiAnalysisStats,
+  AiAnalysisStatsFilters,
   AiConfig,
   AuditChainFilters,
   AuditChainResult,
@@ -36,6 +38,7 @@ const USERS_BASE = '/api/v1/admin/users';
 const AUDIT_BASE = '/api/v1/admin/audit-log';
 const CHANNELS_BASE = '/api/v1/admin/notification-channels';
 const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
+const AI_ANALYSES_BASE = '/api/v1/admin/ai-analyses';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
 const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
@@ -55,6 +58,11 @@ export const auditKeys = {
   lists: () => ['audit', 'list'] as const,
   list: (filters: AuditLogFilters) => ['audit', 'list', filters] as const,
   verify: () => ['audit', 'verify'] as const,
+};
+
+export const aiAnalysesKeys = {
+  all: ['ai-analyses'] as const,
+  stats: (filters: AiAnalysisStatsFilters) => ['ai-analyses', 'stats', filters] as const,
 };
 
 export const notificationChannelKeys = {
@@ -328,4 +336,19 @@ export async function resendInvitation(id: string): Promise<UserInvitation> {
 
 export async function revokeInvitation(id: string): Promise<void> {
   await apiClient.delete(`${INVITATIONS_BASE}/${id}`);
+}
+
+// ── AI analysis history dashboard ─────────────────────────────────────────────
+
+export async function fetchAiAnalysisStats(
+  filters: AiAnalysisStatsFilters = {},
+): Promise<AiAnalysisStats> {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.datasource_id) params.datasourceId = filters.datasource_id;
+  const { data } = await apiClient.get<AiAnalysisStats>(`${AI_ANALYSES_BASE}/stats`, {
+    params,
+  });
+  return data;
 }

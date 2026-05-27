@@ -55,6 +55,17 @@ export interface CreatePostgresDatasourceOptions {
    * for actionability). Specs that drive approval MUST set this.
    */
   reviewPlanId?: string;
+  /**
+   * Enable AI analysis on the datasource. Defaults to false because the
+   * stack does not normally have an AI provider wired in. AF-347 enables
+   * this in concert with `aiConfigId` to run the AI listener against the
+   * mock-ai WireMock container.
+   */
+  aiAnalysisEnabled?: boolean;
+  /**
+   * Optional ai_config UUID to bind. Required when `aiAnalysisEnabled` is true.
+   */
+  aiConfigId?: string;
 }
 
 // POST /api/v1/auth/login → returns the access token. Mirrors the inline
@@ -222,8 +233,9 @@ export async function createCustomDatasource(
 //
 // Defaults match the wizard spec's connection details, including the
 // ssl_mode = DISABLE override required by the bare postgres:18 container.
-// ai_analysis_enabled is hard-set to false — the e2e stack has no AI
-// provider wired in.
+// ai_analysis_enabled defaults to false; AF-347 toggles it on (together with
+// aiConfigId) so the AI listener writes real ai_analyses rows against the
+// in-stack mock-ai WireMock container.
 export async function createPostgresDatasource(
   request: APIRequestContext,
   accessToken: string,
@@ -238,8 +250,8 @@ export async function createPostgresDatasource(
     username: opts.username ?? 'accessflow',
     password: opts.password ?? 'accessflow',
     ssl_mode: 'DISABLE',
-    ai_analysis_enabled: false,
-    ai_config_id: null,
+    ai_analysis_enabled: opts.aiAnalysisEnabled ?? false,
+    ai_config_id: opts.aiConfigId ?? null,
     custom_driver_id: null,
     review_plan_id: opts.reviewPlanId ?? null,
   };
@@ -253,6 +265,28 @@ export async function createPostgresDatasource(
     );
   }
   return (await res.json()) as CreatedDatasource;
+}
+
+// GET /api/v1/admin/ai-configs — returns the bootstrap-seeded list (plus
+// anything earlier specs created). Used by AF-347 to look up the
+// `e2e-mock-openai` config id at runtime without hardcoding UUIDs.
+export interface AiConfigSummary {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+export async function listAiConfigsViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+): Promise<AiConfigSummary[]> {
+  const res = await request.get(`${apiBase()}/api/v1/admin/ai-configs`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List AI configs failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as AiConfigSummary[];
 }
 
 // DELETE /api/v1/datasources/{id} — best-effort `afterAll` cleanup. Logs but

@@ -42,6 +42,7 @@
     "review_plans": "Վերանայման պլաններ",
     "audit": "Աուդիտի մատյան",
     "ai_configs": "AI կարգավորումներ",
+    "ai_analyses": "AI վերլուծություններ",
     "notifications": "Ծանուցումներ",
     "saml": "SAML / SSO",
     "oauth2": "OAuth մատակարարներ",
@@ -760,6 +761,25 @@
       "chain_invalid": "Շղթան անվավեր է",
       "chain_rows_checked": "Ստուգված է {{count}} տող",
       "chain_invalid_detail": "Առաջին սխալ տողը {{rowId}} — {{reason}}"
+    },
+    "ai_analyses": {
+      "title": "AI վերլուծություններ",
+      "subtitle": "AI-ի կողմից վերանայված բոլոր հարցումների միտումները՝ ռիսկ ժամանակի ընթացքում, ամենահաճախ ազդարարված կատեգորիաներ և ամենաակտիվ ներկայացնողներ։",
+      "filter_range_label": "Միջակայք",
+      "filter_datasource_label": "Տվյալների աղբյուր",
+      "filter_datasource_all": "Բոլոր տվյալների աղբյուրները",
+      "chart_risk_score_title": "Ռիսկի միավորը ժամանակի ընթացքում",
+      "chart_categories_title": "Հիմնական խնդիրների կատեգորիաներ",
+      "chart_submitters_title": "Ամենաակտիվ ներկայացնողներ",
+      "series_success_avg_risk": "Միջին ռիսկ (հաջող)",
+      "series_total_count": "Վերլուծություններ (բոլորը)",
+      "axis_date": "Ամսաթիվ",
+      "axis_value": "Արժեք",
+      "axis_count": "Վերլուծություններ",
+      "axis_category": "Կատեգորիա",
+      "axis_submitter": "Ներկայացնող",
+      "empty_title": "Այս միջակայքում AI վերլուծություններ չկան",
+      "empty_description": "Ընտրեք ավելի լայն ամսաթվի միջակայք կամ ուղարկեք հարցումներ AI վերլուծությունն ակտիվացրած տվյալների աղբյուրի դեմ։"
     },
     "ai_configs": {
       "title": "AI կարգավորումներ",

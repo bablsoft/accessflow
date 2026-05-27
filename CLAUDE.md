@@ -440,6 +440,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | Vite + @vitejs/plugin-react | 8.x | Build tool |
 | TypeScript | 6.x | Language (`strict: true`) |
 | Ant Design | 6.x | Component library |
+| @ant-design/charts | 2.x | Admin dashboard charts (AI analyses history) |
 | CodeMirror + @codemirror/lang-sql | 6.x | SQL editor |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |

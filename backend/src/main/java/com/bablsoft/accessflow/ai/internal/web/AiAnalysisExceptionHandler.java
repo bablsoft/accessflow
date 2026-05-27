@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.internal.BadAiAnalysisStatsQueryException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -24,6 +25,14 @@ class AiAnalysisExceptionHandler {
 
     private String msg(String key) {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
+    }
+
+    @ExceptionHandler(BadAiAnalysisStatsQueryException.class)
+    ProblemDetail handleBadAiAnalysisStatsQuery(BadAiAnalysisStatsQueryException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.getMessage()));
+        pd.setProperty("error", "BAD_AI_ANALYSIS_STATS_QUERY");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
     }
 
     @ExceptionHandler(AiAnalysisException.class)
