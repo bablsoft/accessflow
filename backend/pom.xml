@@ -21,7 +21,7 @@
     <properties>
         <java.version>25</java.version>
         <spring-modulith.version>2.0.6</spring-modulith.version>
-        <spring-ai.version>2.0.0-M6</spring-ai.version>
+        <spring-ai.version>2.0.0-M7</spring-ai.version>
         <shedlock.version>7.7.0</shedlock.version>
         <slack.sdk.version>1.49.0</slack.sdk.version>
         <springdoc.version>3.0.3</springdoc.version>
@@ -148,6 +148,18 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <!--
+            Spring AI 2.0.0-M7 split the MCP server autoconfig into per-transport (webmvc/webflux)
+            artifacts plus a shared "common" artifact that owns McpServerStdioDisabledCondition and
+            the stateless/streamable autoconfigs. The starter POM doesn't depend on the common
+            artifact transitively (https://github.com/spring-projects/spring-ai/issues — manifests as
+            ClassNotFoundException for McpServerStdioDisabledCondition at context startup), so we
+            pull it in explicitly. Revisit on the next Spring AI bump.
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-mcp-server-common</artifactId>
         </dependency>
 
         <dependency>
