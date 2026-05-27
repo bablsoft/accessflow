@@ -84,15 +84,35 @@ test.describe('datasource ER diagram tab', () => {
     expect(schemaResponse.status()).toBe(200);
 
     // AccessFlow's internal schema has FKs across `permissions`,
-    // `datasources`, `users`, etc. — the diagram should render (not the
-    // empty state). xyflow paints each table node with a header that
-    // includes the qualified name, so `public.users` shows the literal
-    // table name "users" in the DOM. We assert that one such table
-    // appears, scoped to nodes inside the React Flow viewport so the
-    // assertion does not accidentally match unrelated UI chrome.
-    const viewport = page.locator('.react-flow__viewport');
-    await expect(viewport).toBeVisible({ timeout: 15_000 });
-    await expect(viewport.getByText('users', { exact: true }).first()).toBeVisible({
+    // `datasources`, `users`, etc. Assert that the response actually
+    // carries the new `foreign_keys` field on every table and that at
+    // least one FK exists — this is the contract the frontend depends
+    // on, independent of how React Flow paints the canvas.
+    const schemaBody = (await schemaResponse.json()) as {
+      schemas: {
+        tables: {
+          name: string;
+          foreign_keys: { from_column: string; to_table: string; to_column: string }[];
+        }[];
+      }[];
+    };
+    const allTables = schemaBody.schemas.flatMap((s) => s.tables);
+    expect(allTables.length).toBeGreaterThan(0);
+    for (const t of allTables) {
+      expect(Array.isArray(t.foreign_keys)).toBe(true);
+    }
+    const totalForeignKeys = allTables.reduce((sum, t) => sum + t.foreign_keys.length, 0);
+    expect(totalForeignKeys).toBeGreaterThan(0);
+
+    // The diagram should render (not the empty state). React Flow paints
+    // one `.react-flow__node` div per table; asserting at least one
+    // exists is a stable signal that ErDiagram mounted and dagre laid
+    // the nodes out. The exact text inside each node (schema-qualified
+    // table name + columns) is unit-tested in
+    // frontend/src/components/datasources/erDiagramLayout.test.ts — no
+    // need to re-assert here, where canvas-zoom and font rendering can
+    // make text-based assertions flaky.
+    await expect(page.locator('.react-flow__node').first()).toBeVisible({
       timeout: 15_000,
     });
 
