@@ -4,7 +4,7 @@
 
 ---
 
-## v1.0 — General Availability (Target: Launch)
+## v1.0 — General Availability ✅ released
 
 **Theme:** Core platform — everything needed for a team to govern database access end-to-end.
 
@@ -73,32 +73,32 @@
 
 ---
 
-## v1.1
+## v1.1 ✅ released
 
 **Theme:** Productivity and operations polish.
 
 - **Dynamic JDBC driver loading** — drivers resolved from Maven Central on demand instead of bundled in the fat JAR (AF-10)
 - **Datasource creation wizard** — visual type-selection step (Postgres, MySQL, MariaDB, Oracle, MSSQL) with logos and prefilled defaults (AF-11)
-- ~~**Query scheduling** — submit an approved query to execute at a future datetime~~ ✅ shipped (AF-345)
-- ~~**Bulk approval UI** — reviewers can approve/reject multiple queries in one action~~ ✅ shipped (AF-346)
-- ~~**AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users~~ ✅ shipped (AF-347)
-- ~~**Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema~~ ✅ shipped (AF-348)
-- ~~**Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved")~~ ✅ shipped (AF-349)
-- ~~**Audit log CSV export**~~ ✅ shipped (AF-350)
-- **User invitation flow** — invite users by email instead of admin-created accounts
+- **Query scheduling** — submit an approved query to execute at a future datetime (AF-345)
+- **Bulk approval UI** — reviewers can approve/reject multiple queries in one action (AF-346)
+- **AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users (AF-347)
+- **Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema (AF-348)
+- **Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved") (AF-349)
+- **Audit log CSV export** (AF-350)
+- **User invitation flow** — invite users by email instead of admin-created accounts (AF-276)
 
 ---
 
-## v1.2
+## v1.2 🚧 in progress
 
 **Theme:** Integrations and reviewer experience.
 
-- **Read replica routing** — admin can configure a read replica endpoint; SELECT queries are automatically routed there, leaving the primary for writes
-- **Query result diffing** — for repeated runs of the same query, show a diff of `rows_affected` and execution time vs previous run
-- **Slack bot approve/reject** — reviewers can approve or reject directly from the Slack message using Slack Interactive Components (OAuth app, not just webhooks)
-- **PagerDuty integration** — built-in PagerDuty channel type for `CRITICAL` risk or `REVIEW_TIMEOUT` events
-- **Query templates library** — save frequently used queries as templates, share across team
-- **Datasource health dashboard** — connection pool stats, query volume, average execution time per datasource
+- **Read replica routing** — admin can configure a read replica endpoint; SELECT queries are automatically routed there, leaving the primary for writes (AF-360)
+- **Query result diffing** — for repeated runs of the same query, show a diff of `rows_affected` and execution time vs previous run (AF-361)
+- **Slack bot approve/reject** — reviewers can approve or reject directly from the Slack message using Slack Interactive Components (OAuth app, not just webhooks) (AF-362)
+- **PagerDuty integration** — built-in PagerDuty channel type for `CRITICAL` risk or `REVIEW_TIMEOUT` events (AF-363)
+- **Query templates library** — save frequently used queries as templates, share across team (AF-364)
+- **Datasource health dashboard** — connection pool stats, query volume, average execution time per datasource (AF-365)
 
 ---
 
