@@ -560,7 +560,7 @@ identifies the specific `ai_config` row to use — resolved upstream from the da
 Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
 them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
 autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring AI 2.0
-(`spring-ai-bom:2.0.0-M6` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
+(`spring-ai-bom:2.0.0-M7` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
   provider / model / API key / timeout. The base URL comes from Spring AI's built-in default;
