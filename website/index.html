@@ -321,8 +321,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
             </div>
             <h3>Full SQL proxy</h3>
-            <p>Every statement is parsed with JSqlParser, classified as SELECT / DML / DDL, validated against schema and table allow-lists at the AST level, then routed through your review policy before it touches the database.</p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC</span>
+            <p>Every statement is parsed with JSqlParser, classified as SELECT / DML / DDL, validated against schema and table allow-lists at the AST level, then routed through your review policy before it touches the database. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure.</p>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC · read-replica routing</span>
           </div>
 
           <div class="feat">

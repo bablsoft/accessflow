@@ -210,7 +210,8 @@ class McpToolServiceTest {
     private DatasourceView newDatasourceView() {
         return new DatasourceView(UUID.randomUUID(), orgId, "prod", DbType.POSTGRESQL,
                 "localhost", 5432, "appdb", "app", SslMode.DISABLE,
-                10, 10000, true, true, null, false, null, null, null, true, Instant.now());
+                10, 10000, true, true, null, false, null, null, null,
+                null, null, true, Instant.now());
     }
 
     private QueryDetailView newQueryDetail(UUID submitter, QueryStatus status, QueryType type) {

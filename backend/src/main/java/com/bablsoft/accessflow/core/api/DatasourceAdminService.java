@@ -21,6 +21,15 @@ public interface DatasourceAdminService {
 
     ConnectionTestResult test(UUID id, UUID organizationId);
 
+    /**
+     * Tests connectivity to a candidate read-replica using the supplied {@code command} values. The
+     * datasource id is used to resolve the same JDBC driver as the primary (replicas share the
+     * driver class). When {@code command.password()} is {@code null}, the persisted replica
+     * password is used; if neither is available, a {@link DatasourceConnectionTestException} is
+     * thrown.
+     */
+    ConnectionTestResult testReplica(UUID id, UUID organizationId, TestReplicaCommand command);
+
     DatabaseSchemaView introspectSchema(UUID id, UUID organizationId, UUID userId, boolean isAdmin);
 
     DatabaseSchemaView introspectSchemaForSystem(UUID id, UUID organizationId);

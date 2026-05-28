@@ -47,8 +47,11 @@ import {
   listPermissions,
   revokePermission,
   testConnection,
+  testReplicaConnection,
   updateDatasource,
 } from '@/api/datasources';
+import { ConnectionTester } from '@/components/datasources/ConnectionTester';
+import type { ConnectionTestResult } from '@/types/api';
 import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
 import { listQueries, queryKeys, type QueryListFilters } from '@/api/queries';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
@@ -240,8 +243,53 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     review_plan_id: ds.review_plan_id ?? null,
     ai_analysis_enabled: ds.ai_analysis_enabled,
     ai_config_id: ds.ai_config_id ?? null,
+    read_replica_jdbc_url: ds.read_replica_jdbc_url ?? '',
+    read_replica_username: ds.read_replica_username ?? '',
     active: ds.active,
   };
+
+  const [replicaResult, setReplicaResult] = useState<ConnectionTestResult | null>(null);
+  const [replicaError, setReplicaError] = useState<string | null>(null);
+  const testReplicaMutation = useMutation({
+    mutationFn: () => {
+      const values = form.getFieldsValue([
+        'read_replica_jdbc_url',
+        'read_replica_username',
+        'read_replica_password',
+      ]) as {
+        read_replica_jdbc_url?: string;
+        read_replica_username?: string;
+        read_replica_password?: string;
+      };
+      const password = values.read_replica_password?.trim()
+        ? values.read_replica_password
+        : undefined;
+      return testReplicaConnection(ds.id, {
+        jdbc_url: values.read_replica_jdbc_url ?? '',
+        username: values.read_replica_username ?? '',
+        password,
+      });
+    },
+    onMutate: () => {
+      setReplicaResult(null);
+      setReplicaError(null);
+    },
+    onSuccess: (result) => {
+      setReplicaResult(result);
+      if (result.ok) {
+        message.success(t('datasources.settings.replica_connection_ok', { ms: result.latency_ms }));
+      } else {
+        setReplicaError(result.message ?? t('datasources.settings.replica_connection_failed'));
+      }
+    },
+    onError: (err: unknown) => {
+      const detail =
+        isAxiosError(err) && typeof err.response?.data === 'object' && err.response?.data
+          ? (err.response.data as { detail?: string }).detail
+          : null;
+      setReplicaError(detail ?? t('datasources.settings.replica_connection_failed'));
+    },
+  });
 
   const aiConfigsQuery = useQuery({
     queryKey: aiConfigKeys.lists(),
@@ -269,6 +317,10 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
       body.clear_ai_config = true;
       body.ai_config_id = null;
     }
+    if (!body.read_replica_password || body.read_replica_password.trim().length === 0) {
+      delete body.read_replica_password;
+    }
+    // Pass blank read_replica_jdbc_url straight through so the backend clear-on-blank rule fires.
     updateMutation.mutate(body);
   };
 
@@ -329,6 +381,47 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
             </Form.Item>
           </Grid>
+        </Section>
+        <Section title={t('datasources.settings.section_read_replica')}>
+          <Grid>
+            <Form.Item
+              label={t('datasources.settings.label_replica_jdbc_url')}
+              name="read_replica_jdbc_url"
+              extra={t('datasources.settings.replica_jdbc_url_help')}
+              rules={[{ max: 2048 }]}
+            >
+              <Input className="mono" placeholder="jdbc:postgresql://replica-host:5432/db" />
+            </Form.Item>
+            <div />
+            <Form.Item
+              label={t('datasources.settings.label_replica_username')}
+              name="read_replica_username"
+              rules={[{ max: 255 }]}
+            >
+              <Input className="mono" />
+            </Form.Item>
+            <Form.Item
+              label={t('datasources.settings.label_replica_password')}
+              name="read_replica_password"
+            >
+              <Input.Password
+                placeholder={t('datasources.settings.replica_password_placeholder')}
+              />
+            </Form.Item>
+          </Grid>
+          <div style={{ marginTop: 8 }}>
+            <ConnectionTester
+              driverStatus="READY"
+              pending={testReplicaMutation.isPending}
+              result={replicaResult}
+              errorMessage={replicaError}
+              onRunTest={() => testReplicaMutation.mutate()}
+              buttonLabel={t('datasources.settings.test_replica_connection')}
+              successLabel={(ms) =>
+                t('datasources.settings.replica_connection_ok', { ms })
+              }
+            />
+          </div>
         </Section>
         <Section title={t('datasources.settings.section_limits')}>
           <Grid>

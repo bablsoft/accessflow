@@ -102,6 +102,9 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `ai_config_id` | FK → `ai_config(id)` NULL, ON DELETE SET NULL — which AI configuration runs analysis for this datasource. Required (and enforced by the service layer) when `ai_analysis_enabled = true`. |
 | `custom_driver_id` | FK → `custom_jdbc_driver(id)` NULL, ON DELETE RESTRICT — when set, the proxy uses the uploaded driver's per-driver classloader instead of the bundled registry entry. Required when `db_type=CUSTOM`. |
 | `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; required when `db_type=CUSTOM` (and rejected for any bundled `db_type`). |
+| `read_replica_jdbc_url` | TEXT NULL — when set, SELECT queries are routed to a sibling HikariCP pool built from this URL. INSERT/UPDATE/DELETE/DDL always hit the primary. Reuses the primary's driver class. |
+| `read_replica_username` | VARCHAR(255) NULL — username for the replica pool. When `NULL` the primary `username` is reused. |
+| `read_replica_password_encrypted` | TEXT NULL — AES-256-GCM encrypted; same key (`ENCRYPTION_KEY`) as `password_encrypted`. When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 

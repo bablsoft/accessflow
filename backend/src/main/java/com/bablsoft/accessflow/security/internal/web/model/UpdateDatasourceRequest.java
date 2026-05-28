@@ -30,5 +30,12 @@ public record UpdateDatasourceRequest(
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
                 message = "{validation.jdbc_url.format}") String jdbcUrlOverride,
+        // Replica URL accepts either a valid JDBC URL or an empty string (clear-on-blank). The
+        // pattern allows ^$ to permit the clear; the service maps blank → null on all 3 fields.
+        @Size(max = 2048, message = "{validation.jdbc_url.length}")
+        @Pattern(regexp = "^$|^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
+                message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
+        @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
+        @Size(max = 4096) String readReplicaPassword,
         Boolean active
 ) {}

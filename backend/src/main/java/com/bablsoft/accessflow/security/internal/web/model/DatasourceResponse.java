@@ -26,6 +26,8 @@ public record DatasourceResponse(
         UUID aiConfigId,
         UUID customDriverId,
         String jdbcUrlOverride,
+        String readReplicaJdbcUrl,
+        String readReplicaUsername,
         boolean active,
         Instant createdAt
 ) {
@@ -49,6 +51,8 @@ public record DatasourceResponse(
                 view.aiConfigId(),
                 view.customDriverId(),
                 view.jdbcUrlOverride(),
+                view.readReplicaJdbcUrl(),
+                view.readReplicaUsername(),
                 view.active(),
                 view.createdAt());
     }

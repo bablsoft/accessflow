@@ -12,6 +12,8 @@ interface ConnectionTesterProps {
   result: ConnectionTestResult | null;
   errorMessage: string | null;
   onRunTest: () => void;
+  buttonLabel?: string;
+  successLabel?: (latencyMs: number) => string;
 }
 
 export function ConnectionTester({
@@ -20,6 +22,8 @@ export function ConnectionTester({
   result,
   errorMessage,
   onRunTest,
+  buttonLabel,
+  successLabel,
 }: ConnectionTesterProps) {
   const { t } = useTranslation();
   const [showResolving, setShowResolving] = useState(false);
@@ -54,7 +58,7 @@ export function ConnectionTester({
       >
         {showResolving
           ? t('datasources.create.test_resolving_driver')
-          : t('datasources.create.test_button')}
+          : (buttonLabel ?? t('datasources.create.test_button'))}
       </Button>
       {pending && showResolving && (
         <div className="muted" style={{ fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -67,7 +71,11 @@ export function ConnectionTester({
           type="success"
           showIcon
           icon={<CheckCircleOutlined />}
-          title={t('datasources.create.test_success', { ms: result.latency_ms })}
+          title={
+            successLabel
+              ? successLabel(result.latency_ms)
+              : t('datasources.create.test_success', { ms: result.latency_ms })
+          }
         />
       )}
       {!pending && (errorMessage != null || (result != null && !result.ok)) && (

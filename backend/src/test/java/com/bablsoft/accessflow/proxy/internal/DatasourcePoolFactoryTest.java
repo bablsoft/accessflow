@@ -49,7 +49,8 @@ class DatasourcePoolFactoryTest {
     private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor descriptor = new DatasourceConnectionDescriptor(
             datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null, true);
+            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+            null, null, null, true);
 
     @BeforeEach
     void setUp() {
@@ -161,7 +162,8 @@ class DatasourcePoolFactoryTest {
         var customDriverId = UUID.randomUUID();
         var customDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null, true);
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null,
+                null, null, null, true);
         // HikariConfig.setDriverClassName() eagerly verifies the class is loadable, so we use
         // a real class name on the test classpath. The classloader-swap assertion still
         // demonstrates that the custom path is taken.
@@ -198,7 +200,8 @@ class DatasourcePoolFactoryTest {
         var customDriverId = UUID.randomUUID();
         var customDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null, true);
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null,
+                null, null, null, true);
         when(customJdbcDriverService.findById(customDriverId, organizationId))
                 .thenReturn(java.util.Optional.empty());
 
@@ -215,7 +218,8 @@ class DatasourcePoolFactoryTest {
         var dynamicDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL,
                 null, null, null, "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, overrideUrl, true);
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, overrideUrl,
+                null, null, null, true);
 
         var captured = new AtomicReference<HikariConfig>();
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
@@ -228,6 +232,52 @@ class DatasourcePoolFactoryTest {
             // CoordinatesFactory must not be consulted when an override is present.
             verify(coordinatesFactory, times(0)).from(any(), anyString(), anyInt(),
                     anyString(), anyString(), any());
+        }
+    }
+
+    @Test
+    void createReplicaPoolUsesReplicaUrlAndCredentials() {
+        var replicaDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(primary)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+                "jdbc:postgresql://replica:5432/appdb", "replica-user", "ENC(replica-pw)", true);
+        when(encryptionService.decrypt("ENC(replica-pw)")).thenReturn("replica-pw-plain");
+
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> mocked = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+            factory.createReplicaPool(replicaDescriptor);
+
+            assertThat(mocked.constructed()).hasSize(1);
+            var config = captured.get();
+            assertThat(config.getJdbcUrl()).isEqualTo("jdbc:postgresql://replica:5432/appdb");
+            assertThat(config.getUsername()).isEqualTo("replica-user");
+            assertThat(config.getPassword()).isEqualTo("replica-pw-plain");
+            assertThat(config.getPoolName()).isEqualTo("accessflow-ds-" + datasourceId + "-replica");
+            // Primary password must not have been decrypted on the replica path.
+            verify(encryptionService, times(0)).decrypt("ENC(primary)");
+        }
+    }
+
+    @Test
+    void createReplicaPoolFallsBackToPrimaryUsernameAndPasswordWhenReplicaCredsAbsent() {
+        var replicaDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+                "jdbc:postgresql://replica:5432/appdb", null, null, true);
+
+        var captured = new AtomicReference<HikariConfig>();
+        try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                HikariDataSource.class,
+                (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+            factory.createReplicaPool(replicaDescriptor);
+
+            var config = captured.get();
+            assertThat(config.getUsername()).isEqualTo("svc");
+            assertThat(config.getPassword()).isEqualTo("plaintext");
         }
     }
 }

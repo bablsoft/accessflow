@@ -36,5 +36,10 @@ public record CreateDatasourceRequest(
         UUID customDriverId,
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
-                message = "{validation.jdbc_url.format}") String jdbcUrlOverride
+                message = "{validation.jdbc_url.format}") String jdbcUrlOverride,
+        @Size(max = 2048, message = "{validation.jdbc_url.length}")
+        @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
+                message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
+        @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
+        @Size(max = 4096) String readReplicaPassword
 ) {}

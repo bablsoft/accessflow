@@ -819,6 +819,8 @@ Two layers exist:
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Optional | `30s` | Statement-level timeout applied to customer-DB JDBC statements |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Optional | `1000` | Default JDBC fetch size |
 
+> **Read-replica routing** (added in v1.2 — see [docs/05-backend.md → "Read-replica routing"](05-backend.md#read-replica-routing)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above; there are no replica-specific env vars. Configure replicas per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with `read_replica_jdbc_url`/`read_replica_username`/`read_replica_password`.
+
 #### Custom JDBC Driver Cache
 
 | Variable | Required | Default | Description |

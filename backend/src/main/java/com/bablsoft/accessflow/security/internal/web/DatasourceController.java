@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
+import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -22,6 +23,7 @@ import com.bablsoft.accessflow.security.internal.web.model.DatasourceResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceTypesResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionResponse;
+import com.bablsoft.accessflow.security.internal.web.model.TestReplicaRequest;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateDatasourceRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -124,7 +126,10 @@ class DatasourceController {
                 request.aiAnalysisEnabled(),
                 request.aiConfigId(),
                 request.customDriverId(),
-                request.jdbcUrlOverride());
+                request.jdbcUrlOverride(),
+                request.readReplicaJdbcUrl(),
+                request.readReplicaUsername(),
+                request.readReplicaPassword());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -176,6 +181,9 @@ class DatasourceController {
                 request.aiConfigId(),
                 request.clearAiConfig(),
                 request.jdbcUrlOverride(),
+                request.readReplicaJdbcUrl(),
+                request.readReplicaUsername(),
+                request.readReplicaPassword(),
                 request.active());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
@@ -205,6 +213,23 @@ class DatasourceController {
         var caller = currentClaims(authentication);
         return ConnectionTestResponse.from(
                 datasourceAdminService.test(id, caller.organizationId()));
+    }
+
+    @PostMapping("/{id}/test-replica")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Test connectivity to a candidate read-replica using live values")
+    @ApiResponse(responseCode = "200", description = "Replica connection succeeded")
+    @ApiResponse(responseCode = "400", description = "Invalid replica URL or no persisted password to fall back on")
+    @ApiResponse(responseCode = "404", description = "Datasource not found")
+    @ApiResponse(responseCode = "422", description = "Replica connection failed")
+    ConnectionTestResponse testReplicaConnection(@PathVariable UUID id,
+                                                 @Valid @RequestBody TestReplicaRequest request,
+                                                 Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var command = new TestReplicaCommand(request.jdbcUrl(), request.username(),
+                request.password());
+        return ConnectionTestResponse.from(
+                datasourceAdminService.testReplica(id, caller.organizationId(), command));
     }
 
     @GetMapping("/{id}/schema")

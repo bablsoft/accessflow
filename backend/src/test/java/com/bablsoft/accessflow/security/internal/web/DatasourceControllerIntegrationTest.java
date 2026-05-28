@@ -501,6 +501,56 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void testReplicaWithLiveValuesConnectsToContainer() {
+        var ds = saveContainerDatasource(primaryOrg, "DS-Replica");
+        var body = String.format(
+                "{\"jdbc_url\":\"%s\",\"username\":\"%s\",\"password\":\"%s\"}",
+                TestcontainersConfig.postgres.getJdbcUrl(),
+                TestcontainersConfig.postgres.getUsername(),
+                TestcontainersConfig.postgres.getPassword());
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test-replica")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.ok").asBoolean().isTrue();
+    }
+
+    @Test
+    void testReplicaWithMissingFieldsFailsValidation() {
+        var ds = saveContainerDatasource(primaryOrg, "DS-Replica-Validation");
+        var body = "{\"jdbc_url\":\"\",\"username\":\"\"}";
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test-replica")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
+    void testReplicaFallsBackToPersistedPasswordWhenOmitted() {
+        var ds = saveContainerDatasourceWithReplica(primaryOrg, "DS-Replica-Pw");
+        var body = String.format(
+                "{\"jdbc_url\":\"%s\",\"username\":\"%s\"}",
+                TestcontainersConfig.postgres.getJdbcUrl(),
+                TestcontainersConfig.postgres.getUsername());
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test-replica")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+    }
+
+    @Test
     void getSchemaReturnsForeignKeysForReferencingTables() throws Exception {
         try (var conn = java.sql.DriverManager.getConnection(
                 TestcontainersConfig.postgres.getJdbcUrl(),
@@ -586,6 +636,15 @@ class DatasourceControllerIntegrationTest {
         ds.setRequireReviewWrites(true);
         ds.setAiAnalysisEnabled(false);
         ds.setActive(true);
+        return datasourceRepository.save(ds);
+    }
+
+    private DatasourceEntity saveContainerDatasourceWithReplica(OrganizationEntity org, String name) {
+        var ds = saveContainerDatasource(org, name);
+        var pg = TestcontainersConfig.postgres;
+        ds.setReadReplicaJdbcUrl(pg.getJdbcUrl());
+        ds.setReadReplicaUsername(pg.getUsername());
+        ds.setReadReplicaPasswordEncrypted(encryptionService.encrypt(pg.getPassword()));
         return datasourceRepository.save(ds);
     }
 

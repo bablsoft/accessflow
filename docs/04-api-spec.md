@@ -127,6 +127,7 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `PUT` | `/datasources/{id}` | ADMIN | Update datasource configuration |
 | `DELETE` | `/datasources/{id}` | ADMIN | Soft-delete datasource |
 | `POST` | `/datasources/{id}/test` | ADMIN | Test connection to customer database |
+| `POST` | `/datasources/{id}/test-replica` | ADMIN | Test a read-replica connection using live form values |
 | `GET` | `/datasources/{id}/schema` | Any (with access) | Introspect tables and columns from customer DB |
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
@@ -264,9 +265,14 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "review_plan_id": "uuid",
   "ai_analysis_enabled": true,
   "custom_driver_id": null,
-  "jdbc_url_override": null
+  "jdbc_url_override": null,
+  "read_replica_jdbc_url": null,
+  "read_replica_username": null,
+  "read_replica_password": null
 }
 ```
+
+When `read_replica_jdbc_url` is set, SELECT queries are routed to the replica pool while INSERT/UPDATE/DELETE/DDL always hit the primary. The replica reuses the primary's JDBC driver class — it must be the same engine. `read_replica_username` and `read_replica_password` are optional; when omitted, the primary's username/password is reused. `read_replica_password` is AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password.
 
 For datasources backed by an uploaded driver, set `custom_driver_id` to the
 `custom_jdbc_driver.id`. For fully dynamic datasources, set `db_type=CUSTOM`,
@@ -313,9 +319,14 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   "port": 5432,
   "password": "new-service-account-password",
   "connection_pool_size": 25,
+  "read_replica_jdbc_url": "jdbc:postgresql://replica.company.com:5432/app_prod",
+  "read_replica_username": "ro_svc",
+  "read_replica_password": "replica-secret",
   "active": true
 }
 ```
+
+Setting `read_replica_jdbc_url` to an empty string clears all three replica fields. Providing `read_replica_password` triggers re-encryption with a fresh IV.
 
 **Response 200:** Updated datasource object.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
@@ -341,6 +352,31 @@ Opens a transient JDBC connection to the customer database (no Hikari pool), exe
 
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** Connection failed. The body contains the vendor error message in `detail`. `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+
+### POST /datasources/{id}/test-replica
+
+Opens a transient JDBC connection to a candidate read-replica using the values supplied in the request body — useful for iterating on replica configuration before saving. The datasource id resolves the driver class (same engine as the primary). The connection is one-shot and never persisted. Login timeout matches `/test` (5 seconds).
+
+**Request Body:**
+
+```json
+{
+  "jdbc_url": "jdbc:postgresql://replica.company.com:5432/app_prod",
+  "username": "ro_svc",
+  "password": "replica-secret"
+}
+```
+
+`password` is optional — when omitted, the test reuses the currently-persisted replica password (lets an admin retest after changing only the URL or username without re-typing the secret). If neither the body nor the stored datasource has a password, the call returns 400 `DATASOURCE_CONNECTION_TEST_FAILED` with a "no read replica configured" detail.
+
+**Response 200:**
+```json
+{ "ok": true, "latency_ms": 38, "message": "ok" }
+```
+
+**Response 400:** Request body validation failed (blank `jdbc_url`, malformed URL, missing username/password fallback). `error: VALIDATION_ERROR` or `DATASOURCE_CONNECTION_TEST_FAILED`.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Replica connection failed. The body contains the vendor error message in `detail`. `error: DATASOURCE_CONNECTION_TEST_FAILED`.
 
 ### GET /datasources/{id}/schema — Response
 

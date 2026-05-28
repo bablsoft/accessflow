@@ -85,7 +85,10 @@ public class DatasourceReconciler {
                     spec.aiAnalysisEnabled(),
                     aiConfigId,
                     null,
-                    spec.jdbcUrlOverride()));
+                    spec.jdbcUrlOverride(),
+                    null,
+                    null,
+                    null));
             log.info("Bootstrap: created datasource '{}' (id={})", spec.name(), created.id());
             stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.DATASOURCE,
                     created.id(), specFingerprint,
@@ -127,6 +130,9 @@ public class DatasourceReconciler {
                         aiConfigId,
                         null,
                         spec.jdbcUrlOverride(),
+                        null,
+                        null,
+                        null,
                         Boolean.TRUE));
         log.info("Bootstrap: updated datasource '{}' (id={})", spec.name(), updated.id());
         stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.DATASOURCE,

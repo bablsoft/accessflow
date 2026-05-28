@@ -60,6 +60,7 @@ class DatasourceAdminServiceImplTest {
     @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
     @Mock com.bablsoft.accessflow.core.api.DriverCatalogService driverCatalog;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock org.springframework.context.MessageSource messageSource;
     @InjectMocks DatasourceAdminServiceImpl service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -81,7 +82,8 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db.example.com", 5432, "appdb", "svc", "plaintext-pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null,
+                null, null, null);
         var result = service.create(command);
 
         assertThat(result.name()).isEqualTo("Prod");
@@ -103,7 +105,7 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.create(new CreateDatasourceCommand(orgId, "Prod",
                 DbType.POSTGRESQL, "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, null)))
+                null, null, null, null, null, false, null, null, null, null, null, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
         verify(datasourceRepository, never()).save(any());
         verify(driverCatalog, never()).resolve(any());
@@ -122,7 +124,8 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null,
+                null, null, null);
         service.create(command);
 
         var inOrder = inOrder(driverCatalog, datasourceRepository, encryptionService);
@@ -140,7 +143,8 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null);
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null,
+                null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(DriverResolutionException.class);
@@ -156,7 +160,8 @@ class DatasourceAdminServiceImplTest {
         when(encryptionService.encrypt("new-pw")).thenReturn("ENC(new-pw)");
 
         var command = new UpdateDatasourceCommand(null, "new-host", null, null, null,
-                "new-pw", null, 25, null, null, null, null, null, null, null, null, null);
+                "new-pw", null, 25, null, null, null, null, null, null, null, null,
+                null, null, null, null);
         var result = service.update(datasourceId, orgId, command);
 
         assertThat(result.host()).isEqualTo("new-host");
@@ -172,7 +177,8 @@ class DatasourceAdminServiceImplTest {
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
 
         var command = new UpdateDatasourceCommand("Renamed", null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null);
         when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCaseAndIdNot(
                 eq(orgId), eq("Renamed"), eq(datasourceId))).thenReturn(false);
 
@@ -191,7 +197,8 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.update(datasourceId, orgId,
                 new UpdateDatasourceCommand("Conflict", null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null)))
+                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
     }
 
@@ -202,7 +209,8 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.update(datasourceId, orgId,
                 new UpdateDatasourceCommand(null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, null, null, null)))
+                        null, null, null, null, null, null, null, null, null,
+                        null, null, null, null)))
                 .isInstanceOf(DatasourceNotFoundException.class);
     }
 
@@ -244,7 +252,7 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, "new-host", null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null));
+                null, null, null, null, null, null, null, null));
 
         verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
     }
@@ -256,9 +264,72 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, null, null, null, null, null, null, null, 5000, null, null, null, null,
-                null, null, null, null));
+                null, null, null, null, null, null, null));
 
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateSetsReplicaFieldsAndEncryptsPassword() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("replica-pw")).thenReturn("ENC(replica-pw)");
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null,
+                "jdbc:postgresql://replica:5432/appdb", "replica-user", "replica-pw", null));
+
+        assertThat(entity.getReadReplicaJdbcUrl())
+                .isEqualTo("jdbc:postgresql://replica:5432/appdb");
+        assertThat(entity.getReadReplicaUsername()).isEqualTo("replica-user");
+        assertThat(entity.getReadReplicaPasswordEncrypted()).isEqualTo("ENC(replica-pw)");
+        verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void updateClearsReplicaWhenJdbcUrlBlank() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setReadReplicaJdbcUrl("jdbc:postgresql://replica/appdb");
+        entity.setReadReplicaUsername("ru");
+        entity.setReadReplicaPasswordEncrypted("ENC(rpw)");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null,
+                "", null, null, null));
+
+        assertThat(entity.getReadReplicaJdbcUrl()).isNull();
+        assertThat(entity.getReadReplicaUsername()).isNull();
+        assertThat(entity.getReadReplicaPasswordEncrypted()).isNull();
+        verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void testReplicaWithBlankUrlThrowsDatasourceConnectionTestException() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(messageSource.getMessage(eq("error.replica_not_configured"), any(), any()))
+                .thenReturn("not configured");
+
+        assertThatThrownBy(() -> service.testReplica(datasourceId, orgId,
+                new com.bablsoft.accessflow.core.api.TestReplicaCommand("", "u", "pw")))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
+    }
+
+    @Test
+    void testReplicaWithoutPasswordAndNoPersistedThrowsDatasourceConnectionTestException() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        // No persisted replica password.
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(messageSource.getMessage(eq("error.replica_not_configured"), any(), any()))
+                .thenReturn("not configured");
+
+        assertThatThrownBy(() -> service.testReplica(datasourceId, orgId,
+                new com.bablsoft.accessflow.core.api.TestReplicaCommand(
+                        "jdbc:postgresql://r/db", "u", null)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
     }
 
     @Test
@@ -268,7 +339,7 @@ class DatasourceAdminServiceImplTest {
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
                 null, "new-host", null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, false));
+                null, null, null, null, null, null, null, false));
 
         verify(eventPublisher).publishEvent(new DatasourceDeactivatedEvent(datasourceId));
         verify(eventPublisher, never()).publishEvent(any(DatasourceConfigChangedEvent.class));
@@ -485,7 +556,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, true, null, null, null);
+                null, null, null, null, null, true, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(MissingAiConfigForDatasourceException.class);
@@ -506,7 +577,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, true, aiConfigId, null, null);
+                null, null, null, null, null, true, aiConfigId, null, null, null, null, null);
         var view = service.create(command);
 
         assertThat(view.aiConfigId()).isEqualTo(aiConfigId);
@@ -522,7 +593,8 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.update(datasourceId, orgId,
                 new UpdateDatasourceCommand(null, null, null, null, null, null, null,
-                        null, null, null, null, null, null, null, true, null, null)))
+                        null, null, null, null, null, null, null, true, null,
+                        null, null, null, null)))
                 .isInstanceOf(MissingAiConfigForDatasourceException.class);
     }
 
@@ -558,7 +630,8 @@ class DatasourceAdminServiceImplTest {
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
                 null, null, null, null, null, false, null, customDriverId,
-                "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD");
+                "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD",
+                null, null, null);
 
         var view = service.create(command);
 
@@ -580,7 +653,7 @@ class DatasourceAdminServiceImplTest {
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
                 null, null, null, null, null, false, null, null,
-                "jdbc:snowflake://acme.snowflakecomputing.com/");
+                "jdbc:snowflake://acme.snowflakecomputing.com/", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
@@ -600,7 +673,8 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, customDriverId, null);
+                null, null, null, null, null, false, null, customDriverId, null,
+                null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
@@ -621,7 +695,7 @@ class DatasourceAdminServiceImplTest {
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 "host.example.com", 1234, null, "svc", "pw", SslMode.DISABLE,
                 null, null, null, null, null, false, null, customDriverId,
-                "jdbc:snowflake://x/");
+                "jdbc:snowflake://x/", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
@@ -636,7 +710,7 @@ class DatasourceAdminServiceImplTest {
         var command = new CreateDatasourceCommand(orgId, "Bundled", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
                 null, null, null, null, null, false, null, null,
-                "jdbc:postgresql://h:5432/db");
+                "jdbc:postgresql://h:5432/db", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
@@ -657,7 +731,8 @@ class DatasourceAdminServiceImplTest {
         // PostgreSQL datasource binding to an Oracle-target uploaded driver — refused.
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, customDriverId, null);
+                null, null, null, null, null, false, null, customDriverId, null,
+                null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class)
@@ -674,7 +749,8 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, customDriverId, null);
+                null, null, null, null, null, false, null, customDriverId, null,
+                null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.CustomDriverNotFoundException.class);

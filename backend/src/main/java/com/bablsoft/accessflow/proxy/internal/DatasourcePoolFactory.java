@@ -38,15 +38,45 @@ class DatasourcePoolFactory {
      */
     HikariDataSource createPool(DatasourceConnectionDescriptor descriptor) {
         ResolvedDriver resolved = resolveDriver(descriptor);
-        String jdbcUrl = resolveJdbcUrl(descriptor);
-        String username = descriptor.username();
+        return buildPool(
+                resolved,
+                descriptor.id().toString(),
+                resolveJdbcUrl(descriptor),
+                descriptor.username(),
+                descriptor.passwordEncrypted(),
+                descriptor.connectionPoolSize());
+    }
 
+    /**
+     * Build a Hikari pool against the read replica URL/credentials on the descriptor. Reuses
+     * the same driver class as the primary (so the replica must be the same engine). Caller is
+     * responsible for ensuring {@link DatasourceConnectionDescriptor#hasReadReplica()} is true.
+     */
+    HikariDataSource createReplicaPool(DatasourceConnectionDescriptor descriptor) {
+        ResolvedDriver resolved = resolveDriver(descriptor);
+        String username = descriptor.readReplicaUsername() != null
+                ? descriptor.readReplicaUsername()
+                : descriptor.username();
+        String encrypted = descriptor.readReplicaPasswordEncrypted() != null
+                ? descriptor.readReplicaPasswordEncrypted()
+                : descriptor.passwordEncrypted();
+        return buildPool(
+                resolved,
+                descriptor.id() + "-replica",
+                descriptor.readReplicaJdbcUrl(),
+                username,
+                encrypted,
+                descriptor.connectionPoolSize());
+    }
+
+    private HikariDataSource buildPool(ResolvedDriver resolved, String idSuffix, String jdbcUrl,
+                                       String username, String passwordEncrypted, int poolSize) {
         var config = new HikariConfig();
-        config.setPoolName(properties.poolNamePrefix() + descriptor.id());
+        config.setPoolName(properties.poolNamePrefix() + idSuffix);
         config.setJdbcUrl(jdbcUrl);
         config.setDriverClassName(resolved.driverClassName());
         config.setUsername(username);
-        config.setMaximumPoolSize(descriptor.connectionPoolSize());
+        config.setMaximumPoolSize(poolSize);
         config.setConnectionTimeout(properties.connectionTimeout().toMillis());
         config.setIdleTimeout(properties.idleTimeout().toMillis());
         config.setMaxLifetime(properties.maxLifetime().toMillis());
@@ -55,12 +85,9 @@ class DatasourcePoolFactory {
             config.setLeakDetectionThreshold(leak);
         }
 
-        String plaintext = encryptionService.decrypt(descriptor.passwordEncrypted());
+        String plaintext = encryptionService.decrypt(passwordEncrypted);
         var previousLoader = Thread.currentThread().getContextClassLoader();
         try {
-            // HikariCP loads the driver via the thread's context classloader. Swap it
-            // to the per-DbType (or per-custom-driver) URLClassLoader so customer-DB drivers
-            // resolve correctly without polluting the application classloader.
             Thread.currentThread().setContextClassLoader(resolved.classLoader());
             config.setPassword(plaintext);
             return new HikariDataSource(config);

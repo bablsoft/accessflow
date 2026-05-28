@@ -66,6 +66,23 @@ export async function testConnection(id: string): Promise<ConnectionTestResult> 
   return data;
 }
 
+export interface TestReplicaInput {
+  jdbc_url: string;
+  username: string;
+  password?: string;
+}
+
+export async function testReplicaConnection(
+  id: string,
+  input: TestReplicaInput,
+): Promise<ConnectionTestResult> {
+  const { data } = await apiClient.post<ConnectionTestResult>(
+    `${BASE}/${id}/test-replica`,
+    input,
+  );
+  return data;
+}
+
 export async function getDatasourceSchema(id: string): Promise<DatasourceSchema> {
   const { data } = await apiClient.get<DatasourceSchema>(`${BASE}/${id}/schema`);
   return data;
