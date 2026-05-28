@@ -27,7 +27,9 @@
     "retry": "Կրկնել",
     "language": "Լեզու",
     "close": "Փակել",
-    "ok": "Լավ"
+    "ok": "Լավ",
+    "create": "Create",
+    "remove": "Remove"
   },
   "nav": {
     "editor": "SQL խմբագիր",

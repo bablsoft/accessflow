@@ -27,7 +27,9 @@
     "retry": "Réessayer",
     "language": "Langue",
     "close": "Fermer",
-    "ok": "OK"
+    "ok": "OK",
+    "create": "Create",
+    "remove": "Remove"
   },
   "nav": {
     "editor": "Éditeur SQL",

@@ -208,6 +208,7 @@ export function GroupsListPage() {
       <Modal
         title={t('admin.groups.create_modal_title')}
         open={createOpen}
+        destroyOnHidden
         onCancel={() => {
           setCreateOpen(false);
           createForm.resetFields();
@@ -251,6 +252,7 @@ export function GroupsListPage() {
       <Modal
         title={t('admin.groups.edit_modal_title')}
         open={!!editingGroup}
+        destroyOnHidden
         onCancel={() => {
           setEditingGroup(null);
           editForm.resetFields();

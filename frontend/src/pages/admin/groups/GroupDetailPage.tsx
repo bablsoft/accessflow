@@ -197,6 +197,7 @@ export function GroupDetailPage() {
       <Modal
         title={t('admin.groups.add_member_modal_title')}
         open={addOpen}
+        destroyOnHidden
         onCancel={() => {
           setAddOpen(false);
           addForm.resetFields();

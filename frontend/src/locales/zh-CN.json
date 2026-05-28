@@ -27,7 +27,9 @@
     "retry": "重试",
     "language": "语言",
     "close": "关闭",
-    "ok": "确定"
+    "ok": "确定",
+    "create": "Create",
+    "remove": "Remove"
   },
   "nav": {
     "editor": "SQL 编辑器",

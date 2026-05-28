@@ -16,6 +16,8 @@
     "reject": "Reject",
     "duplicate": "Duplicate",
     "add": "Add",
+    "create": "Create",
+    "remove": "Remove",
     "invite": "Invite user",
     "sign_out": "Sign out",
     "notifications": "Notifications",
