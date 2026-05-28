@@ -63,7 +63,9 @@ export async function listGroupMembers(id: string): Promise<UserGroupMember[]> {
 }
 
 export async function addGroupMember(id: string, userId: string): Promise<UserGroupMember> {
-  const { data } = await apiClient.post<UserGroupMember>(`${BASE}/${id}/members`, { userId });
+  const { data } = await apiClient.post<UserGroupMember>(`${BASE}/${id}/members`, {
+    user_id: userId,
+  });
   return data;
 }
 

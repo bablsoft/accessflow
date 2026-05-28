@@ -7,7 +7,7 @@ CREATE TYPE user_group_membership_source AS ENUM ('MANUAL', 'IDP');
 
 CREATE TABLE user_groups (
     id              UUID        PRIMARY KEY,
-    organization_id UUID        NOT NULL REFERENCES organizations(id),
+    organization_id UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name            VARCHAR(128) NOT NULL,
     description     VARCHAR(512),
     version         BIGINT      NOT NULL DEFAULT 0,

@@ -12,6 +12,12 @@ import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
+import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
+import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.UserGroupNotFoundException;
+import com.bablsoft.accessflow.core.api.DatasourceReviewerNotFoundException;
+import com.bablsoft.accessflow.core.api.DatasourceReviewerAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
@@ -310,6 +316,60 @@ class GlobalExceptionHandlerTest {
                             .isEqualTo(RuntimeException.class.getName());
                     assertThat(event.getThrowableProxy().getMessage()).isEqualTo("boom");
                 });
+    }
+
+    @Test
+    void userGroupNotFoundReturns404() {
+        var pd = handler.handleUserGroupNotFound(new UserGroupNotFoundException(UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "USER_GROUP_NOT_FOUND");
+    }
+
+    @Test
+    void userGroupNameAlreadyExistsReturns409() {
+        var pd = handler.handleUserGroupNameAlreadyExists(
+                new UserGroupNameAlreadyExistsException("Eng"));
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties()).containsEntry("error", "USER_GROUP_NAME_ALREADY_EXISTS");
+    }
+
+    @Test
+    void userGroupMembershipNotFoundReturns404() {
+        var pd = handler.handleUserGroupMembershipNotFound(
+                new UserGroupMembershipNotFoundException(UUID.randomUUID(), UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "USER_GROUP_MEMBERSHIP_NOT_FOUND");
+    }
+
+    @Test
+    void datasourceReviewerNotFoundReturns404() {
+        var pd = handler.handleDatasourceReviewerNotFound(
+                new DatasourceReviewerNotFoundException(UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "DATASOURCE_REVIEWER_NOT_FOUND");
+    }
+
+    @Test
+    void datasourceReviewerAlreadyExistsReturns409() {
+        var pd = handler.handleDatasourceReviewerAlreadyExists(
+                new DatasourceReviewerAlreadyExistsException("dup"));
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties()).containsEntry("error",
+                "DATASOURCE_REVIEWER_ALREADY_EXISTS");
+    }
+
+    @Test
+    void illegalDatasourceReviewerReturns422() {
+        var pd = handler.handleIllegalDatasourceReviewer(
+                new IllegalDatasourceReviewerException("xor"));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "ILLEGAL_DATASOURCE_REVIEWER");
     }
 
     private static org.springframework.core.MethodParameter stubMethodParameter() throws Exception {

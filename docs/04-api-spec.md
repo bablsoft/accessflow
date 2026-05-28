@@ -510,20 +510,20 @@ Admin-only. Returns per-datasource reviewer assignments. An empty list means the
 
 ### POST /datasources/{id}/reviewers — Request Body
 
-Admin-only. Provide exactly one of `userId` or `groupId`.
+Admin-only. Provide exactly one of `user_id` or `group_id`.
 
 ```json
-{ "userId": "11aa…" }
+{ "user_id": "11aa…" }
 ```
 or
 ```json
-{ "groupId": "55ee…" }
+{ "group_id": "55ee…" }
 ```
 
 **Response 201:** `DatasourceReviewer` envelope (same shape as the list item above).
 **Response 404:** Datasource, user, or group not found in caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
 **Response 409:** Reviewer already exists for this datasource. `error: DATASOURCE_REVIEWER_ALREADY_EXISTS`.
-**Response 422:** Both or neither of `userId` / `groupId` provided. `error: ILLEGAL_DATASOURCE_REVIEWER`.
+**Response 422:** Both or neither of `user_id` / `group_id` provided. `error: ILLEGAL_DATASOURCE_REVIEWER`.
 
 ### DELETE /datasources/{id}/reviewers/{reviewerId}
 
@@ -1379,7 +1379,7 @@ Deletes the group and cascades to memberships and `datasource_reviewers` rows th
 #### POST /admin/groups/{id}/members — Request Body
 
 ```json
-{ "userId": "11aa…" }
+{ "user_id": "11aa…" }
 ```
 
 **Response 201:** `UserGroupMember` envelope. Adds a `MANUAL`-sourced membership. If the user is already a member (including via `IDP`), the existing row is returned unchanged.

@@ -17,7 +17,10 @@ export async function addReviewer(
   datasourceId: string,
   input: CreateDatasourceReviewerInput,
 ): Promise<DatasourceReviewer> {
-  const { data } = await apiClient.post<DatasourceReviewer>(base(datasourceId), input);
+  const body: Record<string, string> = {};
+  if (input.userId) body.user_id = input.userId;
+  if (input.groupId) body.group_id = input.groupId;
+  const { data } = await apiClient.post<DatasourceReviewer>(base(datasourceId), body);
   return data;
 }
 
