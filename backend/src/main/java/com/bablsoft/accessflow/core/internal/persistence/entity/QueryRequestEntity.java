@@ -81,6 +81,12 @@ public class QueryRequestEntity {
     @Column(name = "scheduled_for")
     private Instant scheduledFor;
 
+    @Column(name = "previous_run_id")
+    private UUID previousRunId;
+
+    @Column(name = "canonical_sql", columnDefinition = "text")
+    private String canonicalSql;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

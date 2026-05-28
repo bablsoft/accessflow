@@ -64,4 +64,14 @@ public interface QueryRequestLookupService {
      * The query must belong to {@code organizationId} (org-scoped) — otherwise empty.
      */
     Optional<QueryDetailView> findDetailById(UUID queryRequestId, UUID organizationId);
+
+    /**
+     * Returns the id of the most recent {@link QueryStatus#EXECUTED} query request matching
+     * {@code (submitterId, datasourceId, canonicalSql)}, excluding {@code excludeQueryId}.
+     * Used by the workflow lifecycle to link successive runs of the same query (AF-361 —
+     * query result diffing). Returns empty when {@code canonicalSql} is {@code null} or no
+     * prior run matches.
+     */
+    Optional<UUID> findPreviousRunId(UUID submitterId, UUID datasourceId,
+                                     String canonicalSql, UUID excludeQueryId);
 }

@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.SqlCanonicalizer;
 import com.bablsoft.accessflow.core.events.AiReanalysisRequestedEvent;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
@@ -73,6 +74,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QueryExecutor queryExecutor;
     @Mock SqlParserService sqlParserService;
+    @Mock SqlCanonicalizer sqlCanonicalizer;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
@@ -96,6 +98,7 @@ class DefaultQueryLifecycleServiceTest {
                 queryResultPersistenceService,
                 queryExecutor,
                 sqlParserService,
+                sqlCanonicalizer,
                 permissionLookupService,
                 aiAnalysisLookupService,
                 aiAnalysisPersistenceService,
@@ -107,6 +110,8 @@ class DefaultQueryLifecycleServiceTest {
             String sql = inv.getArgument(0);
             return new SqlParseResult(QueryType.SELECT, sql);
         });
+        when(sqlCanonicalizer.canonicalize(anyString())).thenAnswer(inv ->
+                ((String) inv.getArgument(0)).toUpperCase(Locale.ROOT));
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {
@@ -233,10 +238,32 @@ class DefaultQueryLifecycleServiceTest {
         assertThat(execCaptor.getValue().outcome()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(execCaptor.getValue().rowsAffected()).isEqualTo(2L);
         assertThat(execCaptor.getValue().errorMessage()).isNull();
+        assertThat(execCaptor.getValue().canonicalSql()).isEqualTo("SELECT 1");
+        assertThat(execCaptor.getValue().previousRunId()).isNull();
 
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
         assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_EXECUTED);
+    }
+
+    @Test
+    void executeLinksPreviousRunWhenLookupServiceFindsMatch() {
+        var prior = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, false, Duration.ofMillis(7)));
+        when(queryRequestLookupService.findPreviousRunId(submitterId, datasourceId,
+                "SELECT 1", queryId)).thenReturn(Optional.of(prior));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var execCaptor = ArgumentCaptor.forClass(RecordExecutionCommand.class);
+        verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
+        assertThat(execCaptor.getValue().canonicalSql()).isEqualTo("SELECT 1");
+        assertThat(execCaptor.getValue().previousRunId()).isEqualTo(prior);
     }
 
     @Test
@@ -371,6 +398,8 @@ class DefaultQueryLifecycleServiceTest {
         verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
         assertThat(execCaptor.getValue().outcome()).isEqualTo(QueryStatus.FAILED);
         assertThat(execCaptor.getValue().errorMessage()).isEqualTo("connection refused");
+        assertThat(execCaptor.getValue().canonicalSql()).isNull();
+        assertThat(execCaptor.getValue().previousRunId()).isNull();
         verify(queryResultPersistenceService, never()).save(any());
 
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);

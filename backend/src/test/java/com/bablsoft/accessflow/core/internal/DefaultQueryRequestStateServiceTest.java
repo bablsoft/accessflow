@@ -218,9 +218,10 @@ class DefaultQueryRequestStateServiceTest {
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
         var startedAt = java.time.Instant.parse("2026-05-07T10:00:00Z");
         var completedAt = java.time.Instant.parse("2026-05-07T10:00:01Z");
+        var priorRun = java.util.UUID.randomUUID();
 
         service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.EXECUTED,
-                42L, 100, null, startedAt, completedAt));
+                42L, 100, null, startedAt, completedAt, "SELECT 1", priorRun));
 
         assertThat(query.getStatus()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(query.getRowsAffected()).isEqualTo(42L);
@@ -228,6 +229,8 @@ class DefaultQueryRequestStateServiceTest {
         assertThat(query.getErrorMessage()).isNull();
         assertThat(query.getExecutionStartedAt()).isEqualTo(startedAt);
         assertThat(query.getExecutionCompletedAt()).isEqualTo(completedAt);
+        assertThat(query.getCanonicalSql()).isEqualTo("SELECT 1");
+        assertThat(query.getPreviousRunId()).isEqualTo(priorRun);
         verify(queryRequestRepository).save(query);
     }
 
@@ -238,11 +241,13 @@ class DefaultQueryRequestStateServiceTest {
 
         service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.FAILED,
                 null, 50, "connection refused",
-                java.time.Instant.now(), java.time.Instant.now()));
+                java.time.Instant.now(), java.time.Instant.now(), null, null));
 
         assertThat(query.getStatus()).isEqualTo(QueryStatus.FAILED);
         assertThat(query.getRowsAffected()).isNull();
         assertThat(query.getErrorMessage()).isEqualTo("connection refused");
+        assertThat(query.getCanonicalSql()).isNull();
+        assertThat(query.getPreviousRunId()).isNull();
     }
 
     @Test
@@ -252,7 +257,7 @@ class DefaultQueryRequestStateServiceTest {
 
         assertThatThrownBy(() -> service.recordExecutionOutcome(new RecordExecutionCommand(
                 queryId, QueryStatus.EXECUTED, 1L, 10, null,
-                java.time.Instant.now(), java.time.Instant.now())))
+                java.time.Instant.now(), java.time.Instant.now(), null, null)))
                 .isInstanceOf(IllegalQueryStatusTransitionException.class);
         verify(queryRequestRepository, never()).save(any());
     }
@@ -279,7 +284,7 @@ class DefaultQueryRequestStateServiceTest {
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
 
         service.recordExecutionOutcome(new RecordExecutionCommand(queryId, QueryStatus.EXECUTED,
-                7L, 100, null, java.time.Instant.now(), java.time.Instant.now()));
+                7L, 100, null, java.time.Instant.now(), java.time.Instant.now(), null, null));
 
         var captor = ArgumentCaptor.forClass(QueryStatusChangedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());

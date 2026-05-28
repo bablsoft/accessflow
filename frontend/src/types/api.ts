@@ -617,12 +617,21 @@ export interface QueryDetail {
   rows_affected: number | null;
   duration_ms: number | null;
   error_message: string | null;
+  previous_run_id: string | null;
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
   review_decisions: ReviewDecisionDetail[];
   scheduled_for: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface QueryDiffResponse {
+  current_run_id: string;
+  previous_run_id: string;
+  rows_affected_delta: number | null;
+  execution_ms_delta: number | null;
+  row_count_delta: number | null;
 }
 
 export interface PaginatedResponse<T> {

@@ -38,6 +38,7 @@ import { queryCancelErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
+import { QueryDiffCard } from './QueryDiffCard';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
 
@@ -459,6 +460,8 @@ export function QueryDetailPage() {
               </div>
             </Card>
           )}
+
+          {query.status === 'EXECUTED' && <QueryDiffCard query={query} />}
 
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (
             <Card title={t('queries.detail.card_results')} icon={<FileTextOutlined />}>

@@ -490,6 +490,35 @@ The job is idempotent: a row already in `TIMED_OUT` (or any non-`PENDING_REVIEW`
 
 The `GET /queries/{id}` response surfaces the active plan via `review_plan_name` and `approval_timeout_hours` so clients can render the timeout reason on the detail page (and, for queries still in `PENDING_REVIEW`, an "auto-rejects in N hours" hint).
 
+### Query result diffing (AF-361)
+
+When a submitter re-runs the same SQL against the same datasource, AccessFlow links the new `query_requests` row to the previous successful run and surfaces a small delta panel on `QueryDetailPage`. The implementation is intentionally narrow — three scalar deltas (rows affected, execution duration, result row count) and a "previous run" link, no row-level diff.
+
+**Canonicalisation rule.** `core.api.SqlCanonicalizer` (implemented in `core.internal.DefaultSqlCanonicalizer`) is a pure-logic helper that produces a normalised key from a SQL string:
+
+1. Strip `/* … */` block comments (`(?s)/\*.*?\*/`).
+2. Strip `--…<EOL>` line comments.
+3. Collapse runs of whitespace (incl. tabs / newlines) to a single space.
+4. `trim()`.
+5. Upper-case the result with `Locale.ROOT`.
+
+Returns `null` for null / blank / comment-only input — those rows skip the lookup. Quoted string literals are folded along with the rest of the SQL (the canonical key is opaque, never executed). A more elaborate AST-based deparser was rejected as out of scope; this lightweight textual rule is what the issue specifies and is straightforward to unit-test (`DefaultSqlCanonicalizerTest`).
+
+**Linking on execution.** `DefaultQueryLifecycleService.doExecute` performs the lookup inside the success branch, before calling `recordExecutionOutcome`:
+
+1. `canonicalSql = sqlCanonicalizer.canonicalize(query.sqlText())`.
+2. `previousRunId = queryRequestLookupService.findPreviousRunId(submitterId, datasourceId, canonicalSql, currentQueryId).orElse(null)` — backed by a JPA query against the partial index `idx_query_requests_diff_lookup` (see [docs/03-data-model.md](03-data-model.md#query_requests)).
+3. Both values are passed through `RecordExecutionCommand` so `recordExecutionOutcome` writes them in the **same transaction** that flips the status to `EXECUTED`. The status change and the link are therefore atomic — readers never see one without the other.
+
+Failure-path executions (`recordExecutionOutcome` with `outcome = FAILED`) carry `canonicalSql = null` and `previousRunId = null`. Failed runs never become future "previous run" candidates because the partial index requires `status = 'EXECUTED'`.
+
+**Diff endpoint.** `GET /api/v1/queries/{id}/diff` (handled in `QueryReadController`) resolves the current row, applies the same submitter/reviewer/admin authorization as `GET /queries/{id}`, then:
+
+- Returns `404 QUERY_DIFF_NOT_AVAILABLE` (RFC 9457 `ProblemDetail`) when `previous_run_id` is null or when the referenced row has been deleted. The detail message comes from the `error.query_diff_no_previous_run` i18n key.
+- Otherwise fetches the previous row, computes `rows_affected_delta` and `execution_ms_delta` from the entity columns, and — only when both runs are `SELECT` and both have a persisted `query_request_results` snapshot — computes `row_count_delta` from those snapshots. Non-SELECT diffs return `null` for `row_count_delta`.
+
+Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec.md#get-queriesiddiff--response-200). The response record is annotated `@JsonInclude(ALWAYS)` so the three delta fields are always present (with `null` when not applicable), overriding the global `non_null` default — clients don't need defensive property checks.
+
 ### Scheduled jobs and clustering
 
 `@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries both annotations and `RedisLockProviderConfiguration` defines the `LockProvider` bean. Both classes are package-private under `scheduling/internal/`. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.

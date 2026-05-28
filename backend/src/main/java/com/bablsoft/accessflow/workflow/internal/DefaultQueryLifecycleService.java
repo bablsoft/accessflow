@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
+import com.bablsoft.accessflow.core.api.SqlCanonicalizer;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
@@ -53,6 +54,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryExecutor queryExecutor;
     private final SqlParserService sqlParserService;
+    private final SqlCanonicalizer sqlCanonicalizer;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
@@ -143,9 +145,13 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                 }
                 case UpdateExecutionResult update -> rowsAffected = update.rowsAffected();
             }
+            var canonicalSql = sqlCanonicalizer.canonicalize(query.sqlText());
+            var previousRunId = queryRequestLookupService.findPreviousRunId(
+                    query.submittedByUserId(), query.datasourceId(),
+                    canonicalSql, query.id()).orElse(null);
             queryRequestStateService.recordExecutionOutcome(new RecordExecutionCommand(
                     query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs, null,
-                    startedAt, completedAt));
+                    startedAt, completedAt, canonicalSql, previousRunId));
             var successMetadata = new HashMap<String, Object>();
             successMetadata.put("rows_affected", rowsAffected);
             successMetadata.put("duration_ms", durationMs);
@@ -163,7 +169,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             log.warn("Query execution failed for {}: {}", query.id(), ex.getMessage(), ex);
             queryRequestStateService.recordExecutionOutcome(new RecordExecutionCommand(
                     query.id(), QueryStatus.FAILED, null, durationMs, ex.getMessage(),
-                    startedAt, completedAt));
+                    startedAt, completedAt, null, null));
             var failureMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
             var failureMetadata = new HashMap<String, Object>();
             failureMetadata.put("error", failureMessage);
