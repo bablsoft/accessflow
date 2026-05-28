@@ -6,20 +6,26 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
+import com.bablsoft.accessflow.core.api.CreateDatasourceReviewerCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
+import com.bablsoft.accessflow.core.api.DatasourceReviewerService;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
+import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.web.model.ConnectionTestResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceRequest;
+import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceReviewerRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreatePermissionRequest;
 import com.bablsoft.accessflow.security.internal.web.model.DatabaseSchemaResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourcePageResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceResponse;
+import com.bablsoft.accessflow.security.internal.web.model.DatasourceReviewerListResponse;
+import com.bablsoft.accessflow.security.internal.web.model.DatasourceReviewerResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceTypesResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionResponse;
@@ -61,6 +67,7 @@ class DatasourceController {
     private final AuditLogService auditLogService;
     private final DriverCatalogService driverCatalogService;
     private final CustomJdbcDriverService customJdbcDriverService;
+    private final DatasourceReviewerService datasourceReviewerService;
 
     @GetMapping("/types")
     @Operation(summary = "List supported database types with driver resolution status")
@@ -310,6 +317,73 @@ class DatasourceController {
         datasourceAdminService.revokePermission(id, caller.organizationId(), permId);
         recordAudit(AuditAction.PERMISSION_REVOKED, AuditResourceType.PERMISSION, permId, caller,
                 auditContext, Map.of("datasource_id", id.toString()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/reviewers")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List per-datasource reviewer assignments (users and groups)")
+    @ApiResponse(responseCode = "200", description = "List of reviewers; empty means fall back to plan approvers")
+    @ApiResponse(responseCode = "404", description = "Datasource not found")
+    DatasourceReviewerListResponse listReviewers(@PathVariable UUID id,
+                                                 Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var reviewers = datasourceReviewerService
+                .listForDatasource(id, caller.organizationId()).stream()
+                .map(DatasourceReviewerResponse::from)
+                .toList();
+        return new DatasourceReviewerListResponse(reviewers);
+    }
+
+    @PostMapping("/{id}/reviewers")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Add a user or group as a reviewer of this datasource")
+    @ApiResponse(responseCode = "201", description = "Reviewer added")
+    @ApiResponse(responseCode = "404", description = "Datasource, user, or group not found")
+    @ApiResponse(responseCode = "409", description = "Reviewer already exists")
+    @ApiResponse(responseCode = "422", description = "Must specify exactly one of userId or groupId")
+    ResponseEntity<DatasourceReviewerResponse> addReviewer(
+            @PathVariable UUID id,
+            @RequestBody CreateDatasourceReviewerRequest request,
+            Authentication authentication,
+            RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        if (request == null || (request.userId() == null) == (request.groupId() == null)) {
+            throw new IllegalDatasourceReviewerException(
+                    "Exactly one of userId or groupId must be provided");
+        }
+        var command = new CreateDatasourceReviewerCommand(id, caller.organizationId(),
+                caller.userId(), request.userId(), request.groupId());
+        var view = datasourceReviewerService.add(command);
+        var metadata = new HashMap<String, Object>();
+        metadata.put("datasource_id", id.toString());
+        if (view.userId() != null) {
+            metadata.put("user_id", view.userId().toString());
+        }
+        if (view.groupId() != null) {
+            metadata.put("group_id", view.groupId().toString());
+        }
+        recordAudit(AuditAction.DATASOURCE_REVIEWER_ADDED, AuditResourceType.DATASOURCE_REVIEWER,
+                view.id(), caller, auditContext, metadata);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{reviewerId}")
+                .buildAndExpand(view.id())
+                .toUri();
+        return ResponseEntity.created(location).body(DatasourceReviewerResponse.from(view));
+    }
+
+    @DeleteMapping("/{id}/reviewers/{reviewerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Remove a datasource reviewer assignment")
+    @ApiResponse(responseCode = "204", description = "Reviewer removed")
+    @ApiResponse(responseCode = "404", description = "Datasource or reviewer not found")
+    ResponseEntity<Void> removeReviewer(@PathVariable UUID id, @PathVariable UUID reviewerId,
+                                        Authentication authentication,
+                                        RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        datasourceReviewerService.remove(reviewerId, id, caller.organizationId());
+        recordAudit(AuditAction.DATASOURCE_REVIEWER_REMOVED, AuditResourceType.DATASOURCE_REVIEWER,
+                reviewerId, caller, auditContext, Map.of("datasource_id", id.toString()));
         return ResponseEntity.noContent().build();
     }
 

@@ -593,7 +593,7 @@ class DefaultOAuth2ConfigServiceTest {
                     displayName, authorizationUri, tokenUri, userInfoUri, jwkSetUri, issuerUri,
                     userNameAttribute, emailAttribute, emailVerifiedAttribute,
                     displayNameAttribute, groupsAttribute, baseUrl,
-                    allowedOrganizations, allowedEmailDomains, defaultRole, active);
+                    allowedOrganizations, allowedEmailDomains, null, defaultRole, active);
         }
     }
 }

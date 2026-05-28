@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public record OAuth2ConfigView(
@@ -28,6 +29,7 @@ public record OAuth2ConfigView(
         String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         boolean active,
         Instant createdAt,

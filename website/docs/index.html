@@ -192,6 +192,7 @@
             <h5>Configuration</h5>
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles &amp; RBAC</a>
+            <a href="#cfg-groups">User groups</a>
             <a href="#cfg-datasources">Datasources</a>
             <a href="#cfg-drivers">Custom JDBC drivers</a>
             <a href="#cfg-review-plans">Review plans</a>
@@ -635,6 +636,7 @@
                 <tr><td>Approve / reject queries</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
                 <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
                 <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Manage user groups</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
                 <tr><td>Manage review plans</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
                 <tr><td>View audit log</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
                 <tr><td>Manage notification channels</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
@@ -660,6 +662,39 @@
             <code>SELECT</code> results). See
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
             for the full authorization matrix.
+          </p>
+
+          <!-- User groups -->
+          <h3 id="cfg-groups">User groups</h3>
+          <p>
+            User groups are named, organisation-scoped collections of users. They serve two
+            purposes: (1) bundling reviewers so admins can attach a single group — instead of
+            ten individual users — to a datasource as an eligible reviewer; and (2) acting as the
+            target of IdP group mappings so SAML / OAuth2 logins automatically maintain
+            membership.
+          </p>
+          <ol>
+            <li><strong>Create a group.</strong> Go to <code>/admin/groups</code> → <em>Create
+              group</em>. Pick a name (e.g. <em>Billing Reviewers</em>) and an optional description.</li>
+            <li><strong>Add members.</strong> Open the group, click <em>Add member</em>, and pick
+              users from the dropdown. Manually-added members are tagged
+              <em>Manual</em> and stay put regardless of the IdP sync.</li>
+            <li><strong>Use the group.</strong> On a datasource's <em>Reviewers</em> tab
+              (<code>/datasources/&lt;id&gt;/settings</code>), add the group as a reviewer. From
+              that point on, members of the group can see and decide queries against that
+              datasource (in addition to plan-approver rules).</li>
+            <li><strong>Optional: IdP-managed memberships.</strong> Configure
+              <code>group_mappings</code> on the SAML or OAuth2 admin pages so an IdP group claim
+              auto-maps to the AccessFlow group. On every login, AccessFlow replaces the user's
+              <em>IdP</em>-sourced memberships with the mapped set; <em>Manual</em> memberships
+              are never touched.</li>
+          </ol>
+          <p>
+            <strong>Per-datasource reviewer scoping.</strong> When a datasource has at least one
+            row in <code>datasource_reviewers</code> (a direct user assignment or a group
+            assignment), only those reviewers see the datasource's queries. Datasources with no
+            rows fall back to the existing review-plan approvers — so adopting groups is purely
+            additive, no migration required.
           </p>
 
           <!-- Datasources -->

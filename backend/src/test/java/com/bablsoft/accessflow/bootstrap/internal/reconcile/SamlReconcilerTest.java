@@ -47,7 +47,7 @@ class SamlReconcilerTest {
     @Test
     void skipsWhenDisabled() {
         reconciler.reconcile(ORG_ID, new SamlSpec(false, null, null, null, null, null, null,
-                null, null, null, null, null));
+                null, null, null, null, null, null, null));
         verify(samlConfigService, never()).update(any(), any());
     }
 
@@ -58,7 +58,7 @@ class SamlReconcilerTest {
                 .thenAnswer(inv -> null);
 
         var spec = new SamlSpec(true, "https://idp/meta", "idp", "sp", "https://sp/acs",
-                null, "cert", "email", "name", "role", UserRoleType.REVIEWER, true);
+                null, "cert", "email", "name", "role", null, null, UserRoleType.REVIEWER, true);
 
         reconciler.reconcile(ORG_ID, spec);
 
@@ -84,7 +84,7 @@ class SamlReconcilerTest {
                 .thenReturn(Optional.of("matching-fp"));
 
         var spec = new SamlSpec(true, "https://idp", "idp", "sp", "https://sp/acs",
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
         reconciler.reconcile(ORG_ID, spec);
 
@@ -94,13 +94,14 @@ class SamlReconcilerTest {
 
     private static SamlConfigView defaultView() {
         return new SamlConfigView(UUID.randomUUID(), ORG_ID, null, null, null, null, null, false,
-                "email", "displayName", "role", UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
+                "email", "displayName", "role", null, java.util.Map.of(),
+                UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
     }
 
     @Test
     void defaultsActiveToTrueWhenSpecActiveNull() {
         var spec = new SamlSpec(true, "https://idp", "idp", "sp", "https://sp/acs",
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
         when(samlConfigService.getOrDefault(ORG_ID)).thenReturn(defaultView());
         when(samlConfigService.update(eq(ORG_ID), any(UpdateSamlConfigCommand.class)))
                 .thenAnswer(inv -> null);

@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.RecordDecisionResult;
 import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
+import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
@@ -47,6 +48,7 @@ class DefaultReviewService implements ReviewService {
     private final QueryRequestLookupService queryRequestLookupService;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final QueryRequestStateService queryRequestStateService;
+    private final ReviewerEligibilityService reviewerEligibilityService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -201,7 +203,15 @@ class DefaultReviewService implements ReviewService {
         if (!isApproverAtStage(plan, currentStage, context)) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
+        if (!isInDatasourceScope(view.datasourceId(), context.userId())) {
+            throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
+        }
         return new DecisionPreparation(plan, currentStage, view.submittedByUserId());
+    }
+
+    private boolean isInDatasourceScope(UUID datasourceId, UUID userId) {
+        var eligible = reviewerEligibilityService.findEligibleReviewerIds(datasourceId);
+        return eligible.map(set -> set.contains(userId)).orElse(true);
     }
 
     private static int currentStage(ReviewPlanSnapshot plan,
@@ -245,6 +255,9 @@ class DefaultReviewService implements ReviewService {
         }
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElse(null);
         if (plan == null) {
+            return false;
+        }
+        if (!isInDatasourceScope(view.datasourceId(), context.userId())) {
             return false;
         }
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());

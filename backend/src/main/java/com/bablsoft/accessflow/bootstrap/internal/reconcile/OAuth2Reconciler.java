@@ -90,6 +90,7 @@ public class OAuth2Reconciler {
                 spec.baseUrl(),
                 spec.allowedOrganizations(),
                 spec.allowedEmailDomains(),
+                spec.groupMappings(),
                 spec.defaultRole(),
                 spec.active() == null ? Boolean.TRUE : spec.active()));
         log.info("Bootstrap: applied OAuth2 provider {} for organization {}", spec.provider(), organizationId);
@@ -146,6 +147,7 @@ public class OAuth2Reconciler {
         map.put("base_url", spec.baseUrl());
         map.put("allowed_organizations", spec.allowedOrganizations());
         map.put("allowed_email_domains", spec.allowedEmailDomains());
+        map.put("group_mappings", spec.groupMappings());
         map.put("default_role", spec.defaultRole() == null ? null : spec.defaultRole().name());
         map.put("active", spec.active() == null ? Boolean.TRUE : spec.active());
         return map;
@@ -171,6 +173,7 @@ public class OAuth2Reconciler {
         map.put("base_url", view.baseUrl());
         map.put("allowed_organizations", view.allowedOrganizations());
         map.put("allowed_email_domains", view.allowedEmailDomains());
+        map.put("group_mappings", view.groupMappings());
         map.put("default_role", view.defaultRole() == null ? null : view.defaultRole().name());
         map.put("active", view.active());
         return map;

@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.security.api.SamlConfigView;
 import com.bablsoft.accessflow.security.api.UpdateSamlConfigCommand;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 record SamlConfigResponse(
@@ -19,6 +20,8 @@ record SamlConfigResponse(
         String attrEmail,
         String attrDisplayName,
         String attrRole,
+        String attrGroups,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         boolean active,
         Instant createdAt,
@@ -37,6 +40,8 @@ record SamlConfigResponse(
                 view.attrEmail(),
                 view.attrDisplayName(),
                 view.attrRole(),
+                view.attrGroups(),
+                view.groupMappings() == null ? Map.of() : view.groupMappings(),
                 view.defaultRole(),
                 view.active(),
                 view.createdAt(),

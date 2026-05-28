@@ -342,8 +342,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
             <h3>Configurable review workflows</h3>
-            <p>Per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Bulk approve, reject, or request changes on whole batches from <span class="mono">/reviews</span> so high-volume queues clear in one action. Reviewers are paged via Email, Slack, Discord, Telegram, Microsoft Teams, or HMAC-signed webhooks.</p>
-            <span class="tag">State machine · Bulk decisions · Email · Slack · Discord · Telegram · Teams · Webhooks</span>
+            <p>Per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Bulk approve, reject, or request changes on whole batches from <span class="mono">/reviews</span> so high-volume queues clear in one action. Scope reviewers to specific datasources by user or by <strong>group</strong> so each team only sees its own queue. Reviewers are paged via Email, Slack, Discord, Telegram, Microsoft Teams, or HMAC-signed webhooks.</p>
+            <span class="tag">State machine · Per-datasource reviewers · Groups · Bulk decisions · Email · Slack · Discord · Telegram · Teams · Webhooks</span>
           </div>
 
           <div class="feat">
@@ -351,8 +351,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>Workforce-ready auth</h3>
-            <p>JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab, plus a generic OIDC provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel) — plus optional TOTP 2FA.</p>
-            <span class="tag">JWT · SAML · OAuth · TOTP</span>
+            <p>JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping and per-IdP group mapping that auto-syncs AccessFlow group memberships on every login. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab, plus a generic OIDC provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel) — plus optional TOTP 2FA.</p>
+            <span class="tag">JWT · SAML · OAuth · IdP group sync · TOTP</span>
           </div>
 
           <div class="feat">

@@ -44,6 +44,7 @@ class SamlLoginSuccessHandlerTest {
     @Mock OrganizationLookupService organizationLookupService;
     @Mock SamlExchangeCodeStore exchangeCodeStore;
     @Mock AuditLogService auditLogService;
+    @Mock com.bablsoft.accessflow.core.api.UserGroupService userGroupService;
 
     private SamlLoginSuccessHandler handler;
     private final UUID orgId = UUID.randomUUID();
@@ -53,7 +54,8 @@ class SamlLoginSuccessHandlerTest {
     void setUp() {
         var props = new SamlRedirectProperties("http://frontend/auth/saml/callback", Duration.ofMinutes(1));
         handler = new SamlLoginSuccessHandler(userProvisioningService, samlConfigService,
-                organizationLookupService, exchangeCodeStore, props, auditLogService);
+                organizationLookupService, exchangeCodeStore, props, auditLogService,
+                userGroupService);
     }
 
     @Test
@@ -165,6 +167,7 @@ class SamlLoginSuccessHandlerTest {
                 "https://idp.example.com/metadata", "idp-entity", "sp-entity",
                 "https://app.example.com/api/v1/auth/saml/acs", null, true,
                 "email", "displayName", null,
+                null, java.util.Map.of(),
                 UserRoleType.ANALYST, true, Instant.now(), Instant.now());
     }
 

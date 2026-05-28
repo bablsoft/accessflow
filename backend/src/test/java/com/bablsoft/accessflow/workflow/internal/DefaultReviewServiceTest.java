@@ -56,6 +56,7 @@ class DefaultReviewServiceTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
+    @Mock com.bablsoft.accessflow.core.api.ReviewerEligibilityService reviewerEligibilityService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultReviewService service;

@@ -64,7 +64,8 @@ A glance at the day-to-day flows engineers and approvers actually use.
 ## Features
 
 - **Proxy-first execution** — no user ever holds production credentials; the proxy holds them encrypted and opens connections only after approval. Single SQL statements run with autocommit; multi-statement INSERT/UPDATE/DELETE batches wrapped in `BEGIN; … COMMIT;` execute atomically inside one JDBC transaction (mixed SELECT/DML batches are rejected at parse time). Optional **read-replica routing**: attach a replica JDBC URL to a datasource and SELECT traffic is served from there, with automatic primary fall-back and an audit row on replica failure.
-- **Configurable review workflows** — per-datasource review plans, multi-stage sequential approval chains, optional auto-approve for reads, approval timeouts with auto-reject.
+- **Configurable review workflows** — per-datasource review plans, multi-stage sequential approval chains, optional auto-approve for reads, approval timeouts with auto-reject. Reviewers can be scoped **per-datasource** (directly or via groups) so different teams see only the queues that belong to them.
+- **User groups** — bundle reviewers (and other users) into groups; groups can be assigned as datasource reviewers and auto-synced from SAML / OAuth2 IdP claims via per-IdP `group_mappings` (admin-managed memberships are preserved across logins).
 - **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, and self-hosted Ollama; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI; admin **AI analyses dashboard** charts average risk over time, top issue categories, and most active submitters.
 - **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.
 - **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
@@ -286,12 +287,6 @@ See [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/
 - **PRs** require green CI (backend + frontend), at least one approval, and a description that links the issue.
 - **Before writing code**, read [`CLAUDE.md`](https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md) end-to-end — it is the authoritative rulebook for module boundaries, validation parity, i18n, scheduled-job locking, and the coverage gates. The human-facing companion is [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md).
 - **Update documentation in the same change** — `docs/*.md`, this README, and the env-var table in `CLAUDE.md` must stay in sync with what the code actually does.
-
----
-
-## Status
-
-AccessFlow is pre-v1.0; expect APIs and migrations to evolve. The current scope and target dates are tracked in [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md).
 
 ---
 

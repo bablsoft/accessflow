@@ -129,6 +129,8 @@ class SamlAttributeMapperTest {
                 attrEmail,
                 attrDisplayName,
                 attrRole,
+                null,
+                java.util.Map.of(),
                 defaultRole,
                 true,
                 Instant.now(),

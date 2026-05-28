@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.security.api.UpdateOAuth2ConfigCommand;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 record OAuth2ConfigResponse(
@@ -31,6 +32,7 @@ record OAuth2ConfigResponse(
         String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         boolean active,
         Instant createdAt,
@@ -59,6 +61,7 @@ record OAuth2ConfigResponse(
                 view.baseUrl(),
                 view.allowedOrganizations(),
                 view.allowedEmailDomains(),
+                view.groupMappings() == null ? Map.of() : view.groupMappings(),
                 view.defaultRole(),
                 view.active(),
                 view.createdAt(),

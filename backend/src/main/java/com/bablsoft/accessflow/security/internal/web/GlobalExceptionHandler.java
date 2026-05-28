@@ -34,6 +34,12 @@ import com.bablsoft.accessflow.core.api.SystemSmtpDeliveryException;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.UnsupportedLanguageException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
+import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
+import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.UserGroupNotFoundException;
+import com.bablsoft.accessflow.core.api.DatasourceReviewerNotFoundException;
+import com.bablsoft.accessflow.core.api.DatasourceReviewerAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.security.api.DuplicatePendingInvitationException;
 import com.bablsoft.accessflow.security.api.InvitationAlreadyAcceptedException;
@@ -592,6 +598,54 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
                 msg("error.password_reset.revoked"));
         pd.setProperty("error", "PASSWORD_RESET_REVOKED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserGroupNotFoundException.class)
+    ProblemDetail handleUserGroupNotFound(UserGroupNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_group_not_found"));
+        pd.setProperty("error", "USER_GROUP_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserGroupNameAlreadyExistsException.class)
+    ProblemDetail handleUserGroupNameAlreadyExists(UserGroupNameAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.user_group_name_already_exists"));
+        pd.setProperty("error", "USER_GROUP_NAME_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UserGroupMembershipNotFoundException.class)
+    ProblemDetail handleUserGroupMembershipNotFound(UserGroupMembershipNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_group_membership_not_found"));
+        pd.setProperty("error", "USER_GROUP_MEMBERSHIP_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DatasourceReviewerNotFoundException.class)
+    ProblemDetail handleDatasourceReviewerNotFound(DatasourceReviewerNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.datasource_reviewer_not_found"));
+        pd.setProperty("error", "DATASOURCE_REVIEWER_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DatasourceReviewerAlreadyExistsException.class)
+    ProblemDetail handleDatasourceReviewerAlreadyExists(DatasourceReviewerAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.datasource_reviewer_already_exists"));
+        pd.setProperty("error", "DATASOURCE_REVIEWER_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalDatasourceReviewerException.class)
+    ProblemDetail handleIllegalDatasourceReviewer(IllegalDatasourceReviewerException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_reviewer"));
+        pd.setProperty("error", "ILLEGAL_DATASOURCE_REVIEWER");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

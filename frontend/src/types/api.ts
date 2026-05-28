@@ -191,6 +191,8 @@ export interface SamlConfig {
   attr_email: string;
   attr_display_name: string;
   attr_role: string | null;
+  attr_groups: string | null;
+  group_mappings: Record<string, string>;
   default_role: Role;
   active: boolean;
   created_at: string;
@@ -207,6 +209,8 @@ export interface UpdateSamlConfigInput {
   attr_email?: string;
   attr_display_name?: string;
   attr_role?: string | null;
+  attr_groups?: string | null;
+  group_mappings?: Record<string, string> | null;
   default_role?: Role;
   active?: boolean;
 }
@@ -233,6 +237,7 @@ export interface OAuth2Config {
   base_url: string | null;
   allowed_organizations: string[] | null;
   allowed_email_domains: string[] | null;
+  group_mappings: Record<string, string>;
   default_role: Role;
   active: boolean;
   created_at: string;
@@ -258,6 +263,7 @@ export interface UpdateOAuth2ConfigInput {
   base_url?: string | null;
   allowed_organizations?: string[] | null;
   allowed_email_domains?: string[] | null;
+  group_mappings?: Record<string, string> | null;
   default_role: Role;
   active: boolean;
 }
@@ -984,4 +990,56 @@ export interface AiAnalysisStatsFilters {
   from?: string;
   to?: string;
   datasource_id?: string;
+}
+
+// ── User groups (AF-353) ─────────────────────────────────────────────────────
+export type GroupMembershipSource = 'MANUAL' | 'IDP';
+
+export interface UserGroup {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type UserGroupPage = PageEnvelope<UserGroup>;
+
+export interface CreateUserGroupInput {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateUserGroupInput {
+  name?: string;
+  description?: string | null;
+}
+
+export interface UserGroupMember {
+  user_id: string;
+  group_id: string;
+  email: string;
+  display_name: string | null;
+  source: GroupMembershipSource;
+  joined_at: string;
+}
+
+// ── Datasource reviewers (AF-353) ────────────────────────────────────────────
+export interface DatasourceReviewer {
+  id: string;
+  datasource_id: string;
+  user_id: string | null;
+  user_email: string | null;
+  user_display_name: string | null;
+  group_id: string | null;
+  group_name: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CreateDatasourceReviewerInput {
+  userId?: string;
+  groupId?: string;
 }
