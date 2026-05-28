@@ -81,6 +81,7 @@ export function Sidebar({
       label: t('nav.group_security'),
       items: [
         { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
+        { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, roles: ['ADMIN'] },
         { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
         { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
         { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },

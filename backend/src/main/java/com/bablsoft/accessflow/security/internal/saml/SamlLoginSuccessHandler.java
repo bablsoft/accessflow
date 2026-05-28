@@ -8,8 +8,10 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.security.api.SamlConfigService;
+import com.bablsoft.accessflow.security.api.SamlConfigView;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,8 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -47,6 +51,7 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final SamlExchangeCodeStore exchangeCodeStore;
     private final SamlRedirectProperties redirectProperties;
     private final AuditLogService auditLogService;
+    private final UserGroupService userGroupService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -71,6 +76,7 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
                     mapped.displayName(),
                     AuthProviderType.SAML,
                     mapped.role());
+            syncGroups(user.id(), organizationId, config, mapped.groupClaims());
             var code = exchangeCodeStore.issue(user.id());
             recordAudit(user.id(), organizationId, principal, request);
             SecurityContextHolder.clearContext();
@@ -99,6 +105,33 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
                 .build(true)
                 .toUriString();
         response.sendRedirect(uri);
+    }
+
+    private void syncGroups(UUID userId, UUID organizationId, SamlConfigView config,
+                            Set<String> claimValues) {
+        try {
+            var mappings = config.groupMappings();
+            if (mappings == null || mappings.isEmpty()) {
+                userGroupService.syncIdpMemberships(userId, organizationId, Set.of());
+                return;
+            }
+            var resolved = new LinkedHashSet<UUID>();
+            for (String claim : claimValues) {
+                var mapped = mappings.get(claim);
+                if (mapped == null) {
+                    continue;
+                }
+                try {
+                    resolved.add(UUID.fromString(mapped));
+                } catch (IllegalArgumentException ex) {
+                    log.warn("SAML group mapping for claim '{}' is not a valid UUID: {}", claim,
+                            mapped);
+                }
+            }
+            userGroupService.syncIdpMemberships(userId, organizationId, resolved);
+        } catch (RuntimeException ex) {
+            log.error("Failed to sync SAML group memberships for user {}", userId, ex);
+        }
     }
 
     private void recordAudit(UUID userId, UUID organizationId,

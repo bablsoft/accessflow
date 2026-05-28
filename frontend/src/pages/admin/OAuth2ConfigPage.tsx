@@ -642,6 +642,7 @@ function defaultEmptyConfig(provider: OAuth2Provider): OAuth2Config {
     base_url: null,
     allowed_organizations: null,
     allowed_email_domains: null,
+    group_mappings: {},
     default_role: 'ANALYST',
     active: false,
     created_at: '',

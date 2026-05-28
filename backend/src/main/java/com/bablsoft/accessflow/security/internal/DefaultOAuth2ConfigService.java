@@ -123,6 +123,9 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
         if (command.allowedEmailDomains() != null) {
             entity.setAllowedEmailDomains(normalizeEmailDomains(command.allowedEmailDomains()));
         }
+        if (command.groupMappings() != null) {
+            entity.setGroupMappings(new java.util.HashMap<>(command.groupMappings()));
+        }
         if (command.defaultRole() != null) {
             entity.setDefaultRole(command.defaultRole());
         }
@@ -231,6 +234,7 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 null,
                 List.of(),
                 List.of(),
+                java.util.Map.of(),
                 UserRoleType.ANALYST,
                 false,
                 now,
@@ -261,6 +265,8 @@ class DefaultOAuth2ConfigService implements OAuth2ConfigService {
                 entity.getBaseUrl(),
                 toList(entity.getAllowedOrganizations()),
                 toList(entity.getAllowedEmailDomains()),
+                entity.getGroupMappings() == null ? java.util.Map.of()
+                        : java.util.Map.copyOf(entity.getGroupMappings()),
                 entity.getDefaultRole(),
                 entity.isActive(),
                 entity.getCreatedAt(),

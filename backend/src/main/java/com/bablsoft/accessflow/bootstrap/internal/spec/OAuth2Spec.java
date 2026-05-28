@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.OAuth2ProviderType;
 
 import java.util.List;
+import java.util.Map;
 
 public record OAuth2Spec(
         OAuth2ProviderType provider,
@@ -25,6 +26,7 @@ public record OAuth2Spec(
         String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         Boolean active
 ) {

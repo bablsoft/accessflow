@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.security.api;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Mutable OAuth2-config fields. {@code clientSecret} semantics mirror SAML signing-cert:
@@ -54,6 +55,7 @@ public record UpdateOAuth2ConfigCommand(
         String baseUrl,
         List<String> allowedOrganizations,
         List<String> allowedEmailDomains,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         Boolean active) {
 

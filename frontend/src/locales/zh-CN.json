@@ -49,7 +49,8 @@
     "languages": "语言",
     "custom_drivers": "自定义 JDBC 驱动",
     "profile": "个人资料设置",
-    "version": "AccessFlow 版本 {{version}}"
+    "version": "AccessFlow 版本 {{version}}",
+    "groups": "Groups"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -1116,6 +1117,63 @@
           "name": "标准 — AI + 1 位审核者",
           "description": "AI 加一位审核者；低/中风险读操作自动批准。"
         }
+      }
+    },
+    "groups": {
+      "title": "User groups",
+      "description": "Organise reviewers and other users into groups. Groups can be assigned as datasource reviewers and auto-synced from SAML/OAuth IdP claims.",
+      "create": "Create group",
+      "create_modal_title": "Create user group",
+      "edit": "Edit",
+      "edit_modal_title": "Edit user group",
+      "delete": "Delete",
+      "delete_confirm": "Delete group \"{{name}}\"? Memberships and reviewer assignments will be removed.",
+      "created": "Group created",
+      "updated": "Group updated",
+      "deleted": "Group deleted",
+      "add_member": "Add member",
+      "add_member_modal_title": "Add member",
+      "remove_member": "Remove",
+      "remove_member_confirm": "Remove {{email}} from this group?",
+      "member_added": "Member added",
+      "member_removed": "Member removed",
+      "fields": {
+        "name": "Name",
+        "description": "Description",
+        "user": "User",
+        "user_placeholder": "Pick a user to add"
+      },
+      "validation": {
+        "name_required": "Group name is required",
+        "name_size": "Group name must be 1 to 128 characters",
+        "description_size": "Description must be at most 512 characters",
+        "user_required": "Select a user"
+      },
+      "columns": {
+        "name": "Name",
+        "description": "Description",
+        "member_count": "Members",
+        "created_at": "Created",
+        "actions": "Actions"
+      },
+      "members_columns": {
+        "email": "Email",
+        "display_name": "Display name",
+        "source": "Source",
+        "joined_at": "Joined",
+        "actions": "Actions"
+      },
+      "source": {
+        "MANUAL": "Manual",
+        "IDP": "IdP"
+      },
+      "empty": {
+        "title": "No groups yet",
+        "description": "Create groups to bundle reviewers and assign them to datasources."
+      },
+      "members_empty": {
+        "title": "No members yet",
+        "description": "Add users to this group to delegate reviewer access."
       }
     }
   },

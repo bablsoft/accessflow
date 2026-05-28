@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigService;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigView;
@@ -29,7 +30,10 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Runs after a provider callback completes. Extracts identity from the userinfo claims, enforces
@@ -53,6 +57,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final OAuth2MembershipResolver membershipResolver;
     private final OAuth2RedirectProperties properties;
     private final AuditLogService auditLogService;
+    private final UserGroupService userGroupService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -96,7 +101,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
             redirectWithError(response, "OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED");
             return;
         }
-        if (!organizationAllowed(config, provider, attributes, accessToken)) {
+        var memberships = resolveMemberships(config, provider, attributes, accessToken);
+        if (!organizationAllowed(config, memberships)) {
             log.info("OAuth2 login refused — user {} not a member of any allowed organization for provider {}",
                     resolved.email(), provider);
             redirectWithError(response, "OAUTH2_ORG_NOT_ALLOWED");
@@ -110,6 +116,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                     resolved.displayName(),
                     AuthProviderType.OAUTH2,
                     config.defaultRole());
+            syncGroups(user.id(), organizationId, config, memberships);
             var code = exchangeCodeStore.issue(user.id());
             recordAudit(user.id(), organizationId, provider, request);
             SecurityContextHolder.clearContext();
@@ -141,22 +148,60 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         return false;
     }
 
+    private java.util.Set<String> resolveMemberships(OAuth2ConfigView config,
+                                                     OAuth2ProviderType provider,
+                                                     java.util.Map<String, Object> attributes,
+                                                     String accessToken) {
+        boolean needAllowlistCheck = config.allowedOrganizations() != null
+                && !config.allowedOrganizations().isEmpty();
+        boolean needGroupMapping = config.groupMappings() != null
+                && !config.groupMappings().isEmpty();
+        if (!needAllowlistCheck && !needGroupMapping) {
+            return java.util.Set.of();
+        }
+        return membershipResolver.resolveOrganizations(
+                provider, attributes, accessToken, config.groupsAttribute(), config.baseUrl());
+    }
+
     private boolean organizationAllowed(OAuth2ConfigView config,
-                                        OAuth2ProviderType provider,
-                                        java.util.Map<String, Object> attributes,
-                                        String accessToken) {
+                                        java.util.Set<String> memberships) {
         var allowed = config.allowedOrganizations();
         if (allowed == null || allowed.isEmpty()) {
             return true;
         }
-        var memberships = membershipResolver.resolveOrganizations(
-                provider, attributes, accessToken, config.groupsAttribute(), config.baseUrl());
         for (var entry : allowed) {
             if (entry != null && memberships.contains(entry)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private void syncGroups(UUID userId, UUID organizationId, OAuth2ConfigView config,
+                            Set<String> claimValues) {
+        try {
+            var mappings = config.groupMappings();
+            if (mappings == null || mappings.isEmpty()) {
+                userGroupService.syncIdpMemberships(userId, organizationId, Set.of());
+                return;
+            }
+            var resolved = new LinkedHashSet<UUID>();
+            for (String claim : claimValues) {
+                var mapped = mappings.get(claim);
+                if (mapped == null) {
+                    continue;
+                }
+                try {
+                    resolved.add(UUID.fromString(mapped));
+                } catch (IllegalArgumentException ex) {
+                    log.warn("OAuth2 group mapping for claim '{}' is not a valid UUID: {}", claim,
+                            mapped);
+                }
+            }
+            userGroupService.syncIdpMemberships(userId, organizationId, resolved);
+        } catch (RuntimeException ex) {
+            log.error("Failed to sync OAuth2 group memberships for user {}", userId, ex);
+        }
     }
 
     private String resolveAccessToken(OAuth2AuthenticationToken token) {

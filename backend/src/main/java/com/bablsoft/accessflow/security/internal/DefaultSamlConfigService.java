@@ -61,6 +61,12 @@ class DefaultSamlConfigService implements SamlConfigService {
         if (command.attrRole() != null) {
             entity.setAttrRole(blankToNull(command.attrRole()));
         }
+        if (command.attrGroups() != null) {
+            entity.setAttrGroups(blankToNull(command.attrGroups()));
+        }
+        if (command.groupMappings() != null) {
+            entity.setGroupMappings(new java.util.HashMap<>(command.groupMappings()));
+        }
         if (command.defaultRole() != null) {
             entity.setDefaultRole(command.defaultRole());
         }
@@ -106,6 +112,8 @@ class DefaultSamlConfigService implements SamlConfigService {
                 defaults.getAttrEmail(),
                 defaults.getAttrDisplayName(),
                 null,
+                null,
+                java.util.Map.of(),
                 defaults.getDefaultRole(),
                 false,
                 now,
@@ -125,6 +133,9 @@ class DefaultSamlConfigService implements SamlConfigService {
                 entity.getAttrEmail(),
                 entity.getAttrDisplayName(),
                 entity.getAttrRole(),
+                entity.getAttrGroups(),
+                entity.getGroupMappings() == null ? java.util.Map.of()
+                        : java.util.Map.copyOf(entity.getGroupMappings()),
                 entity.getDefaultRole(),
                 entity.isActive(),
                 entity.getCreatedAt(),

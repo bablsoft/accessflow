@@ -104,6 +104,7 @@ class OAuth2ReconcilerTest {
                 null, null, null, null, null, null, null, null, null, null, null,
                 null,
                 List.of("bablsoft"), List.of("example.com"),
+                null,
                 UserRoleType.ANALYST, true)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
@@ -117,7 +118,7 @@ class OAuth2ReconcilerTest {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
                 new OAuth2Spec(null, "x", "y", null, null,
                         null, null, null, null, null, null, null, null, null, null, null,
-                        null, null, null, null, true))))
+                        null, null, null, null, null, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider");
     }
@@ -141,7 +142,7 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.GOOGLE, "id", "sec", null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
                 null,
-                null, null, null, null)));
+                null, null, null, null, null)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GOOGLE), captor.capture());
@@ -175,7 +176,7 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.OIDC, "c", "s", null, null,
                 null, "http://idp/authorize", "http://idp/token",
                 "http://idp/userinfo", "http://idp/jwks", "http://idp",
-                null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                null, null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("displayName");
     }
@@ -187,7 +188,7 @@ class OAuth2ReconcilerTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null,
                 null,
-                null, null, UserRoleType.ANALYST, true))))
+                null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("baseUrl");
     }
@@ -199,7 +200,7 @@ class OAuth2ReconcilerTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null,
                 null,
-                null, null, UserRoleType.ANALYST, true))))
+                null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("baseUrl");
     }
@@ -216,7 +217,7 @@ class OAuth2ReconcilerTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null,
                 "https://gh.acme.corp",
-                null, null, UserRoleType.ANALYST, true)));
+                null, null, null, UserRoleType.ANALYST, true)));
 
         var captor = ArgumentCaptor.forClass(UpdateOAuth2ConfigCommand.class);
         verify(oauth2ConfigService).update(eq(ORG_ID), eq(OAuth2ProviderType.GITHUB_ENTERPRISE), captor.capture());
@@ -229,7 +230,7 @@ class OAuth2ReconcilerTest {
                 OAuth2ProviderType.OIDC, "c", "s", null, null,
                 "Mock", "http://idp/authorize", null,
                 "http://idp/userinfo", "http://idp/jwks", "http://idp",
-                null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
+                null, null, null, null, null, null, null, null, null, UserRoleType.ANALYST, true))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("tokenUri");
     }
@@ -237,14 +238,15 @@ class OAuth2ReconcilerTest {
     private static OAuth2ConfigView defaultView(OAuth2ProviderType provider) {
         return new OAuth2ConfigView(UUID.randomUUID(), ORG_ID, provider, null, false, null, null,
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                List.of(), List.of(), UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
+                List.of(), List.of(), java.util.Map.of(),
+                UserRoleType.REVIEWER, false, Instant.now(), Instant.now());
     }
 
     private static OAuth2Spec fixedSpec(OAuth2ProviderType provider, String clientId, String clientSecret) {
         return new OAuth2Spec(
                 provider, clientId, clientSecret, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, UserRoleType.REVIEWER, true);
+                null, null, null, null, UserRoleType.REVIEWER, true);
     }
 
     private static OAuth2Spec oidcSpec() {
@@ -258,6 +260,6 @@ class OAuth2ReconcilerTest {
                 "http://idp",
                 "sub", "email", "email_verified", "name", "groups",
                 null,
-                null, null, UserRoleType.ANALYST, true);
+                null, null, null, UserRoleType.ANALYST, true);
     }
 }

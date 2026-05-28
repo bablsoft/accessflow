@@ -37,6 +37,12 @@ import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 const OAuth2ConfigPage = lazy(() => import('@/pages/admin/OAuth2ConfigPage'));
+const GroupsListPage = lazy(() =>
+  import('@/pages/admin/groups/GroupsListPage').then((m) => ({ default: m.GroupsListPage })),
+);
+const GroupDetailPage = lazy(() =>
+  import('@/pages/admin/groups/GroupDetailPage').then((m) => ({ default: m.GroupDetailPage })),
+);
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
@@ -153,6 +159,26 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <UsersPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/groups"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <GroupsListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/groups/:id"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <GroupDetailPage />
+                </Suspense>
               </AuthGuard>
             }
           />

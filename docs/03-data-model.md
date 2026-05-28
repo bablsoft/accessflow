@@ -215,6 +215,51 @@ Maps users or roles to a review plan, with support for multi-stage sequential ap
 
 ---
 
+## user_groups
+
+Named, organisation-scoped collections of users. Groups are used as the indirection layer for reviewer assignment (see `datasource_reviewers`) and may be auto-synced from OAuth2 / SAML IdP claims.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `name` | VARCHAR(128) NOT NULL — unique per `(organization_id, lower(name))` |
+| `description` | VARCHAR(512) NULL |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic locking |
+| `created_at`, `updated_at` | TIMESTAMPTZ |
+
+## user_group_memberships
+
+Composite-key join table that bundles users into groups.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `user_id` | FK → `users` ON DELETE CASCADE — part of PK |
+| `group_id` | FK → `user_groups` ON DELETE CASCADE — part of PK |
+| `source` | ENUM: `MANUAL` \| `IDP` — `IDP` rows are owned by the OAuth2 / SAML login sync flow; `MANUAL` rows are owned by admins via the API |
+| `joined_at` | TIMESTAMPTZ |
+
+The SSO group-sync flow replaces only `source = 'IDP'` rows per user on each login, leaving `source = 'MANUAL'` rows untouched.
+
+---
+
+## datasource_reviewers
+
+Per-datasource reviewer assignment. Each row attaches **either** a user or a group to a datasource as an eligible reviewer. When a datasource has at least one row in this table, **only** listed reviewers (and members of listed groups) can see and decide its queries. Datasources with zero rows fall back to the existing plan-approver logic.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `datasource_id` | FK → `datasources` ON DELETE CASCADE |
+| `user_id` | FK → `users` ON DELETE CASCADE — exactly one of `user_id` / `group_id` must be set (CHECK constraint) |
+| `group_id` | FK → `user_groups` ON DELETE CASCADE |
+| `created_by` | FK → `users` — admin who created the assignment |
+| `created_at` | TIMESTAMPTZ |
+
+Unique constraints: `(datasource_id, user_id)` where `user_id IS NOT NULL` and `(datasource_id, group_id)` where `group_id IS NOT NULL`.
+
+---
+
 ## query_requests
 
 The central entity. Represents a single SQL submission through the platform.
@@ -602,6 +647,8 @@ Stores SAML 2.0 Identity Provider configuration for an organization. Optional �
 | `idp_certificate` | TEXT — X.509 certificate PEM |
 | `sp_entity_id` | VARCHAR(500) — Service Provider entity ID |
 | `attribute_mapping` | JSONB — maps SAML assertion attributes to user fields |
+| `attr_groups` | VARCHAR(255) NULL — IdP attribute name carrying the user's group claim values (multi-valued). When unset, no group sync happens. |
+| `group_mappings` | JSONB NOT NULL DEFAULT '{}' — maps IdP claim value to AccessFlow group UUID (`{"idp-group": "<uuid>"}`). Drives the per-login membership sync (only `source = 'IDP'` rows are touched). |
 | `auto_provision_users` | BOOLEAN DEFAULT true — create users on first SSO login |
 | `default_role` | ENUM: `ANALYST` \| `READONLY` — role assigned to auto-provisioned users |
 | `created_at` | TIMESTAMPTZ |
@@ -635,6 +682,7 @@ Stores OAuth 2.0 / OIDC provider configuration for an organization. One row per 
 | `base_url` | VARCHAR(2048) — required for `GITHUB_ENTERPRISE` and `GITLAB_ENTERPRISE` (origin of the self-hosted instance, e.g. `https://github.acme.corp`). Must be `https://` with no path, query, or fragment. AccessFlow appends the well-known sub-paths (`/login/oauth/authorize`, `/api/v3/*` for GitHub Enterprise; `/oauth/authorize`, `/oauth/userinfo`, `/oauth/discovery/keys` for GitLab) compiled into `OAuth2ProviderTemplate` — only the origin is operator-editable. NULL/ignored for all other providers. |
 | `allowed_organizations` | TEXT[] — optional allowlist of provider-native organization identifiers. Login is rejected with `OAUTH2_ORG_NOT_ALLOWED` unless the user's membership intersects this list. NULL/empty = no restriction. Provider semantics: GitHub / GitHub Enterprise org logins (case-sensitive, requires the `read:org` scope), GitLab / GitLab self-managed full group paths from the OIDC `groups` claim, Microsoft AAD group object IDs from the `groups` claim, OIDC group identifiers from the claim named in `groups_attribute`. Ignored for `GOOGLE` (use `allowed_email_domains`). |
 | `allowed_email_domains` | TEXT[] — optional allowlist of email domains; login is rejected with `OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` unless the user's email domain (case-insensitive) matches one entry. NULL/empty = no restriction. Doubles as the Google Workspace-domain check. |
+| `group_mappings` | JSONB NOT NULL DEFAULT '{}' — maps IdP group/organization claim value to AccessFlow group UUID (`{"idp-group": "<uuid>"}`). The claim name is `groups_attribute` (OIDC) or the provider-native organization claim (built-in providers). Drives the per-login membership sync (only `source = 'IDP'` rows on `user_group_memberships` are touched). |
 | `default_role` | ENUM `user_role_type` — role assigned to users JIT-provisioned by this provider. Defaults to `ANALYST`. |
 | `active` | BOOLEAN NOT NULL DEFAULT FALSE — only active providers appear on the login page. Activating a `GITHUB` or `GITHUB_ENTERPRISE` row with a non-empty `allowed_organizations` is rejected unless `scopes_override` contains `read:org`. Activating an `OIDC` row requires `display_name`, `authorization_uri`, `token_uri`, `user_info_uri`, `jwk_set_uri`, and `issuer_uri` to be set. Activating a `GITHUB_ENTERPRISE` or `GITLAB_ENTERPRISE` row requires `base_url` to be a valid `https://` origin. |
 | `version` | BIGINT — `@Version` optimistic lock |

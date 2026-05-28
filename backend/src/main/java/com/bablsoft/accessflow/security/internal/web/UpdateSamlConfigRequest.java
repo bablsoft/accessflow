@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.security.api.UpdateSamlConfigCommand;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.Map;
+
 record UpdateSamlConfigRequest(
         @Size(max = 1024, message = "{validation.saml_config.text.max}") String idpMetadataUrl,
         @Size(max = 1024, message = "{validation.saml_config.text.max}") String idpEntityId,
@@ -22,6 +24,8 @@ record UpdateSamlConfigRequest(
         @Size(max = 255, message = "{validation.saml_config.text.max}") String attrEmail,
         @Size(max = 255, message = "{validation.saml_config.text.max}") String attrDisplayName,
         @Size(max = 255, message = "{validation.saml_config.text.max}") String attrRole,
+        @Size(max = 255, message = "{validation.saml_config.text.max}") String attrGroups,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         Boolean active) {
 
@@ -36,6 +40,8 @@ record UpdateSamlConfigRequest(
                 attrEmail,
                 attrDisplayName,
                 attrRole,
+                attrGroups,
+                groupMappings,
                 defaultRole,
                 active);
     }

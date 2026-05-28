@@ -42,6 +42,18 @@ public interface QueryRequestRepository
               and d.organization.id = :orgId
               and q.submittedBy.id <> :userId
               and (rpa.user.id = :userId or rpa.role = :role)
+              and (
+                not exists (select 1 from DatasourceReviewerEntity dr where dr.datasource = d)
+                or exists (
+                  select 1 from DatasourceReviewerEntity dr
+                   where dr.datasource = d and dr.user.id = :userId
+                )
+                or exists (
+                  select 1 from DatasourceReviewerEntity dr
+                    join UserGroupMembershipEntity m on m.group = dr.group
+                   where dr.datasource = d and m.user.id = :userId
+                )
+              )
             """)
     Page<QueryRequestEntity> findPendingForReviewer(@Param("orgId") UUID orgId,
                                                     @Param("userId") UUID userId,

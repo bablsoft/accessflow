@@ -57,6 +57,7 @@ class OAuth2LoginSuccessHandlerTest {
     @Mock HttpServletRequest request;
     @Mock HttpServletResponse response;
     @Mock OAuth2AccessToken accessToken;
+    @Mock com.bablsoft.accessflow.core.api.UserGroupService userGroupService;
 
     private OAuth2LoginSuccessHandler handler;
     private OAuth2RedirectProperties properties;
@@ -70,7 +71,7 @@ class OAuth2LoginSuccessHandlerTest {
         handler = new OAuth2LoginSuccessHandler(
                 userProvisioningService, oauth2ConfigService, organizationLookupService,
                 exchangeCodeStore, authorizedClientService, emailResolver, membershipResolver,
-                properties, auditLogService);
+                properties, auditLogService, userGroupService);
     }
 
     @AfterEach
@@ -262,6 +263,7 @@ class OAuth2LoginSuccessHandlerTest {
                 null, null, null, null, null, null,
                 null, null, null, null, null, null,
                 allowedOrgs, allowedDomains,
+                java.util.Map.of(),
                 defaultRole, true,
                 Instant.now(), Instant.now());
     }

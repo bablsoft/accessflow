@@ -69,6 +69,8 @@ class DefaultSamlConfigServiceTest {
                 "email",
                 "displayName",
                 "role",
+                null,
+                null,
                 UserRoleType.REVIEWER,
                 true);
 
@@ -116,7 +118,7 @@ class DefaultSamlConfigServiceTest {
         when(repository.save(any(SamlConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var command = new UpdateSamlConfigCommand(null, null, null, null, null, null,
-                "  ", "  ", null, null, null);
+                "  ", "  ", null, null, null, null, null);
         var view = service.update(orgId, command);
 
         assertThat(view.attrEmail()).isEqualTo("email");
@@ -136,7 +138,7 @@ class DefaultSamlConfigServiceTest {
 
     private UpdateSamlConfigCommand partialCert(String cert) {
         return new UpdateSamlConfigCommand(null, null, null, null, null, cert,
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     private SamlConfigEntity seeded() {

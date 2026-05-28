@@ -475,6 +475,65 @@ The `foreign_keys` array is always present on each table (possibly empty). Each 
 
 ---
 
+### GET /datasources/{id}/reviewers — Response 200
+
+Admin-only. Returns per-datasource reviewer assignments. An empty list means the datasource falls back to plan approvers; a non-empty list **scopes** reviewer eligibility to the listed users plus the members of the listed groups (intersected with plan-approver rules).
+
+```json
+{
+  "reviewers": [
+    {
+      "id": "84f1…",
+      "datasource_id": "9f7c…",
+      "user_id": "11aa…",
+      "user_email": "alice@example.com",
+      "user_display_name": "Alice Engineer",
+      "group_id": null,
+      "group_name": null,
+      "created_by": "00ad…",
+      "created_at": "2026-05-28T12:00:00Z"
+    },
+    {
+      "id": "32d4…",
+      "datasource_id": "9f7c…",
+      "user_id": null,
+      "user_email": null,
+      "user_display_name": null,
+      "group_id": "55ee…",
+      "group_name": "Billing Reviewers",
+      "created_by": "00ad…",
+      "created_at": "2026-05-28T12:00:00Z"
+    }
+  ]
+}
+```
+
+### POST /datasources/{id}/reviewers — Request Body
+
+Admin-only. Provide exactly one of `userId` or `groupId`.
+
+```json
+{ "userId": "11aa…" }
+```
+or
+```json
+{ "groupId": "55ee…" }
+```
+
+**Response 201:** `DatasourceReviewer` envelope (same shape as the list item above).
+**Response 404:** Datasource, user, or group not found in caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
+**Response 409:** Reviewer already exists for this datasource. `error: DATASOURCE_REVIEWER_ALREADY_EXISTS`.
+**Response 422:** Both or neither of `userId` / `groupId` provided. `error: ILLEGAL_DATASOURCE_REVIEWER`.
+
+### DELETE /datasources/{id}/reviewers/{reviewerId}
+
+Admin-only.
+
+**Response 204:** No content.
+**Response 404:** Reviewer not found or belongs to a different datasource. `error: DATASOURCE_REVIEWER_NOT_FOUND`.
+
+---
+
 ## Custom JDBC Driver Endpoints
 
 Admin-only. Storage budget: max **50 MB** per JAR (`spring.servlet.multipart.max-file-size`).
@@ -1233,6 +1292,103 @@ Soft-deactivates the user (`active=false`) and revokes all of their refresh toke
 **Response 204:** No content.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 **Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
+
+### User Groups (`/admin/groups`) *(ADMIN only)*
+
+User groups bundle reviewers so admins can assign reviewer access by group instead of per-user (see `/datasources/{id}/reviewers`). Groups can also be auto-synced from OAuth2 / SAML IdP claims via `group_mappings` on the IdP config.
+
+#### GET /admin/groups — Query Parameters
+
+| Param | Type | Notes |
+|-------|------|-------|
+| `page` | integer | 0-indexed, default 0 |
+| `size` | integer | default 20, max 100 |
+| `sort` | string | e.g. `name,asc` |
+
+**Response 200:** Paginated `UserGroup` envelope.
+
+```json
+{
+  "content": [
+    {
+      "id": "55ee…",
+      "organization_id": "00aa…",
+      "name": "Billing Reviewers",
+      "description": "Reviews queries against prod-billing",
+      "member_count": 3,
+      "created_at": "2026-05-28T12:00:00Z",
+      "updated_at": "2026-05-28T12:00:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+#### POST /admin/groups — Request Body
+
+```json
+{ "name": "Billing Reviewers", "description": "Reviews prod-billing" }
+```
+
+**Response 201:** `UserGroup` envelope.
+**Response 409:** A group with this name already exists in the organization. `error: USER_GROUP_NAME_ALREADY_EXISTS`.
+
+#### GET /admin/groups/{id}
+
+**Response 200:** `UserGroup` envelope (member_count included).
+**Response 404:** `error: USER_GROUP_NOT_FOUND`.
+
+#### PUT /admin/groups/{id} — Request Body
+
+```json
+{ "name": "Billing Reviewers v2", "description": "Updated" }
+```
+
+Both fields are optional. Renaming to a name already in use returns 409.
+
+#### DELETE /admin/groups/{id}
+
+Deletes the group and cascades to memberships and `datasource_reviewers` rows that reference it.
+
+**Response 204:** No content.
+
+#### GET /admin/groups/{id}/members
+
+**Response 200:**
+
+```json
+{
+  "members": [
+    {
+      "user_id": "11aa…",
+      "group_id": "55ee…",
+      "email": "alice@example.com",
+      "display_name": "Alice Engineer",
+      "source": "MANUAL",
+      "joined_at": "2026-05-28T12:00:00Z"
+    }
+  ]
+}
+```
+
+`source` is `MANUAL` for admin-added members and `IDP` for memberships synced from a SAML/OAuth2 login.
+
+#### POST /admin/groups/{id}/members — Request Body
+
+```json
+{ "userId": "11aa…" }
+```
+
+**Response 201:** `UserGroupMember` envelope. Adds a `MANUAL`-sourced membership. If the user is already a member (including via `IDP`), the existing row is returned unchanged.
+**Response 404:** Group or user not found in caller's organization.
+
+#### DELETE /admin/groups/{id}/members/{userId}
+
+**Response 204:** No content.
+**Response 404:** `error: USER_GROUP_MEMBERSHIP_NOT_FOUND` when the user is not a member.
 
 ### Notification Channels (`/admin/notification-channels`)
 

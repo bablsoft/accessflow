@@ -13,9 +13,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -66,6 +70,14 @@ public class SamlConfigEntity {
 
     @Column(name = "attr_role", length = 255)
     private String attrRole;
+
+    @Column(name = "attr_groups", length = 255)
+    private String attrGroups;
+
+    /** IdP group claim value → AccessFlow group id (UUID stored as text in JSON). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "group_mappings", nullable = false, columnDefinition = "jsonb")
+    private Map<String, String> groupMappings = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
+import java.util.Map;
 
 record UpdateOAuth2ConfigRequest(
         @Size(max = 512, message = "{validation.oauth2_config.client_id.max}") String clientId,
@@ -31,6 +32,7 @@ record UpdateOAuth2ConfigRequest(
         @Size(max = 100, message = "{validation.oauth2_config.allowed_email_domains.max}")
         List<@NotBlank(message = "{validation.oauth2_config.allowed_entry.blank}")
              @Size(max = 255, message = "{validation.oauth2_config.allowed_entry.max}") String> allowedEmailDomains,
+        Map<String, String> groupMappings,
         @NotNull(message = "{validation.oauth2_config.default_role.required}") UserRoleType defaultRole,
         @NotNull(message = "{validation.oauth2_config.active.required}") Boolean active) {
 
@@ -54,6 +56,7 @@ record UpdateOAuth2ConfigRequest(
                 baseUrl,
                 allowedOrganizations,
                 allowedEmailDomains,
+                groupMappings,
                 defaultRole,
                 active);
     }

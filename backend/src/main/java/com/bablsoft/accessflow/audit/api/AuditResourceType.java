@@ -19,7 +19,9 @@ public enum AuditResourceType {
     ORGANIZATION("organization"),
     OAUTH2_CONFIG("oauth2_config"),
     SAML_CONFIG("saml_config"),
-    AUDIT_LOG("audit_log");
+    AUDIT_LOG("audit_log"),
+    USER_GROUP("user_group"),
+    DATASOURCE_REVIEWER("datasource_reviewer");
 
     private final String dbValue;
 

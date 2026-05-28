@@ -20,6 +20,8 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -97,6 +99,11 @@ public class OAuth2ConfigEntity {
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "allowed_email_domains", columnDefinition = "text[]")
     private String[] allowedEmailDomains;
+
+    /** IdP group claim value → AccessFlow group id (UUID stored as text in JSON). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "group_mappings", nullable = false, columnDefinition = "jsonb")
+    private Map<String, String> groupMappings = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.security.api;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 public record SamlConfigView(
@@ -17,6 +18,8 @@ public record SamlConfigView(
         String attrEmail,
         String attrDisplayName,
         String attrRole,
+        String attrGroups,
+        Map<String, String> groupMappings,
         UserRoleType defaultRole,
         boolean active,
         Instant createdAt,

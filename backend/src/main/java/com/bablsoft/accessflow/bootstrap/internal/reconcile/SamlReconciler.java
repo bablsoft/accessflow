@@ -55,6 +55,8 @@ public class SamlReconciler {
                 spec.attrEmail(),
                 spec.attrDisplayName(),
                 spec.attrRole(),
+                spec.attrGroups(),
+                spec.groupMappings(),
                 spec.defaultRole(),
                 spec.active() == null ? Boolean.TRUE : spec.active()));
         log.info("Bootstrap: applied SAML configuration for organization {}", organizationId);
@@ -81,6 +83,8 @@ public class SamlReconciler {
         map.put("attr_email", spec.attrEmail());
         map.put("attr_display_name", spec.attrDisplayName());
         map.put("attr_role", spec.attrRole());
+        map.put("attr_groups", spec.attrGroups());
+        map.put("group_mappings", spec.groupMappings());
         map.put("default_role", spec.defaultRole() == null ? null : spec.defaultRole().name());
         map.put("active", spec.active() == null ? Boolean.TRUE : spec.active());
         return map;
@@ -96,6 +100,8 @@ public class SamlReconciler {
         map.put("attr_email", view.attrEmail());
         map.put("attr_display_name", view.attrDisplayName());
         map.put("attr_role", view.attrRole());
+        map.put("attr_groups", view.attrGroups());
+        map.put("group_mappings", view.groupMappings());
         map.put("default_role", view.defaultRole() == null ? null : view.defaultRole().name());
         map.put("active", view.active());
         return map;

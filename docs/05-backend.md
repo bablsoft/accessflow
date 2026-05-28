@@ -160,6 +160,26 @@ Account-linking model — the success handler rejects with `OAUTH2_LOCAL_EMAIL_C
 existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin
 must manually convert the account. See [docs/07-security.md](07-security.md).
 
+### SSO group sync (AF-353)
+
+After both SAML and OAuth2 logins, the success handler resolves the user's IdP group claim
+values and translates them through the per-provider `group_mappings` JSONB
+(`{"idp-claim-value": "<accessflow-group-uuid>"}`) into a set of AccessFlow group IDs. The
+result is fed to `UserGroupService.syncIdpMemberships(userId, organizationId, groupIds)`,
+which:
+
+1. Reads existing memberships for the user.
+2. Deletes `source = 'IDP'` rows that aren't in the new set.
+3. Inserts new `source = 'IDP'` rows for groups not already present (skipping any that
+   already exist as `source = 'MANUAL'` — manual memberships always win).
+
+This means renaming an AccessFlow group, removing a member manually, or removing a user
+from an IdP group all converge on the next login. SAML reads the multi-valued claim named in
+`saml_config.attr_groups`; OAuth2 reuses the existing `OAuth2MembershipResolver` (which
+already handles GitHub `/user/orgs`, GitLab / Microsoft / OIDC `groups` claim, etc.) so
+allowlist checks and group sync share one resolution path. Failures during sync are logged
+at ERROR but do not block the login itself.
+
 ---
 
 ## Query Proxy Engine
@@ -469,6 +489,7 @@ Decision rules:
 2. **Tenant scope**: query, plan, and reviewer must all be in the same `organization_id`.
 3. **Role gate**: caller must be `REVIEWER` or `ADMIN`.
 4. **Approver match at current stage**: caller's `userId` matches a `review_plan_approvers.user_id` at the current stage, OR caller's role matches a `review_plan_approvers.role` at that stage.
+4a. **Datasource reviewer scope (AF-353)**: if `datasource_reviewers` has any rows for the query's datasource, the caller's user id must additionally appear in the eligible set (direct assignment, or membership in an assigned group). When the table is empty for that datasource, this check is a no-op — the system falls back to plan-approver logic for backward compatibility. The resolution lives in `core.api.ReviewerEligibilityService` (`DefaultReviewerEligibilityService` returns `Optional.empty()` to signal "no scope"). The same predicate is folded into `QueryRequestRepository.findPendingForReviewer` so the SQL-side query queue stays consistent with the service-side decision gate.
 5. **State guard**: the underlying `QueryRequestStateService` takes a `PESSIMISTIC_WRITE` lock on the `query_requests` row (`@Lock(LockModeType.PESSIMISTIC_WRITE)` in `QueryRequestRepository.findByIdForUpdate`), re-reads decisions inside that transaction, inserts the new `review_decisions` row, and conditionally transitions the status — all atomically. The row lock makes it impossible for two concurrent approvers to both observe the threshold-met condition and double-advance.
 6. **Idempotency**: a unique index on `(query_request_id, reviewer_id, stage)` (Flyway V11) plus a service-level pre-check guarantees that a duplicate decision (e.g. a double-clicked button) returns the existing decision rather than inserting twice.
 
