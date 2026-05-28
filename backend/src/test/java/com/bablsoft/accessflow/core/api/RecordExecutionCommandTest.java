@@ -17,19 +17,30 @@ class RecordExecutionCommandTest {
     @Test
     void acceptsExecutedOutcome() {
         var cmd = new RecordExecutionCommand(id, QueryStatus.EXECUTED, 5L, 100, null,
-                started, completed);
+                started, completed, null, null);
         assertThat(cmd.outcome()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(cmd.rowsAffected()).isEqualTo(5L);
         assertThat(cmd.durationMs()).isEqualTo(100);
+        assertThat(cmd.canonicalSql()).isNull();
+        assertThat(cmd.previousRunId()).isNull();
     }
 
     @Test
     void acceptsFailedOutcomeWithErrorMessage() {
         var cmd = new RecordExecutionCommand(id, QueryStatus.FAILED, null, 50,
-                "boom", started, completed);
+                "boom", started, completed, null, null);
         assertThat(cmd.outcome()).isEqualTo(QueryStatus.FAILED);
         assertThat(cmd.errorMessage()).isEqualTo("boom");
         assertThat(cmd.rowsAffected()).isNull();
+    }
+
+    @Test
+    void carriesCanonicalSqlAndPreviousRunIdWhenSupplied() {
+        var prior = UUID.randomUUID();
+        var cmd = new RecordExecutionCommand(id, QueryStatus.EXECUTED, 1L, 5, null,
+                started, completed, "SELECT 1", prior);
+        assertThat(cmd.canonicalSql()).isEqualTo("SELECT 1");
+        assertThat(cmd.previousRunId()).isEqualTo(prior);
     }
 
     @Test
@@ -39,7 +50,7 @@ class RecordExecutionCommandTest {
                 continue;
             }
             assertThatThrownBy(() -> new RecordExecutionCommand(id, status, null, 0, null,
-                    started, completed))
+                    started, completed, null, null))
                     .as("expected rejection for outcome=%s", status)
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("outcome must be EXECUTED or FAILED");

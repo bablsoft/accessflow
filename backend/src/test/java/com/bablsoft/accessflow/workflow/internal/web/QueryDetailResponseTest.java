@@ -38,10 +38,12 @@ class QueryDetailResponseTest {
                 1,
                 Instant.parse("2026-05-01T10:00:20Z"));
         var scheduledFor = Instant.parse("2026-05-02T08:00:00Z");
+        var priorRunId = UUID.randomUUID();
         var view = new QueryDetailView(queryId, dsId, "Prod PG", orgId,
                 submitterId, "alice@example.com", "Alice",
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", ai, 5L, 99, null,
+                priorRunId,
                 "Prod plan", 24,
                 List.of(decision),
                 scheduledFor,
@@ -70,6 +72,7 @@ class QueryDetailResponseTest {
         assertThat(response.rowsAffected()).isEqualTo(5L);
         assertThat(response.durationMs()).isEqualTo(99);
         assertThat(response.errorMessage()).isNull();
+        assertThat(response.previousRunId()).isEqualTo(priorRunId);
         assertThat(response.reviewPlanName()).isEqualTo("Prod plan");
         assertThat(response.approvalTimeoutHours()).isEqualTo(24);
         assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-05-01T10:00:00Z"));
@@ -104,7 +107,7 @@ class QueryDetailResponseTest {
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
-                "x", ai, null, null, null,
+                "x", ai, null, null, null, null,
                 null, null,
                 List.of(),
                 null,
@@ -121,7 +124,7 @@ class QueryDetailResponseTest {
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI,
-                "x", null, null, null, null,
+                "x", null, null, null, null, null,
                 null, null,
                 List.of(),
                 null,
@@ -146,7 +149,7 @@ class QueryDetailResponseTest {
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
-                "x", ai, null, null, null,
+                "x", ai, null, null, null, null,
                 null, null,
                 List.of(),
                 null,

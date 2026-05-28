@@ -20,11 +20,12 @@ function buildAxiosError(status: number, data: unknown): AxiosError {
   return new AxiosError('Request failed', undefined, undefined, undefined, response);
 }
 
-const { getQueryMock, cancelQueryMock, executeQueryMock, reanalyzeQueryMock } = vi.hoisted(() => ({
+const { getQueryMock, cancelQueryMock, executeQueryMock, reanalyzeQueryMock, getQueryDiffMock } = vi.hoisted(() => ({
   getQueryMock: vi.fn(),
   cancelQueryMock: vi.fn(),
   executeQueryMock: vi.fn(),
   reanalyzeQueryMock: vi.fn(),
+  getQueryDiffMock: vi.fn(),
 }));
 
 vi.mock('@/api/queries', () => ({
@@ -32,6 +33,7 @@ vi.mock('@/api/queries', () => ({
   cancelQuery: cancelQueryMock,
   executeQuery: executeQueryMock,
   reanalyzeQuery: reanalyzeQueryMock,
+  getQueryDiff: getQueryDiffMock,
   queryKeys: {
     all: ['queries'] as const,
     lists: () => ['queries', 'list'] as const,
@@ -40,6 +42,7 @@ vi.mock('@/api/queries', () => ({
     detail: (id: string) => ['queries', 'detail', id] as const,
     results: (id: string, page: number, size: number) =>
       ['queries', 'detail', id, 'results', page, size] as const,
+    diff: (id: string) => ['queries', 'detail', id, 'diff'] as const,
   },
 }));
 
@@ -91,6 +94,7 @@ function failedQuery(): QueryDetail {
     rows_affected: null,
     duration_ms: null,
     error_message: null,
+    previous_run_id: null,
     review_plan_name: 'Prod plan',
     approval_timeout_hours: 24,
     review_decisions: [],
@@ -497,5 +501,84 @@ describe('QueryDetailPage — AI analysis skipped surface (AF-307)', () => {
     expect(await screen.findByText('Awaiting analysis…')).toBeInTheDocument();
     expect(screen.queryByText('AI analysis (skipped)')).toBeNull();
     expect(screen.queryByText('AI analysis skipped')).toBeNull();
+  });
+});
+
+function executedQuery(): QueryDetail {
+  const q = failedQuery();
+  q.status = 'EXECUTED';
+  q.ai_analysis = {
+    ...q.ai_analysis!,
+    risk_level: 'LOW',
+    risk_score: 10,
+    summary: 'fine',
+    failed: false,
+    error_message: null,
+  };
+  q.rows_affected = 12;
+  q.duration_ms = 30;
+  q.previous_run_id = 'q-prev';
+  return q;
+}
+
+describe('QueryDetailPage — query diff card (AF-361)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    getQueryDiffMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders deltas when the diff endpoint returns a populated response', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(executedQuery());
+    getQueryDiffMock.mockResolvedValue({
+      current_run_id: 'q-1',
+      previous_run_id: 'q-prev',
+      rows_affected_delta: 2,
+      execution_ms_delta: -20,
+      row_count_delta: 2,
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(
+      await screen.findByText('Compare to previous run'),
+    ).toBeInTheDocument();
+    // Two badges with +2 (rows_affected_delta and row_count_delta share the same magnitude).
+    expect((await screen.findAllByText(/\+2$/)).length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByText('-20 ms')).toBeInTheDocument();
+    expect(screen.getByText(/View previous run/)).toBeInTheDocument();
+  });
+
+  it('renders the empty state when the diff endpoint returns 404', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = executedQuery();
+    q.previous_run_id = null;
+    getQueryMock.mockResolvedValue(q);
+    getQueryDiffMock.mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404, data: { error: 'QUERY_DIFF_NOT_AVAILABLE' } },
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(
+      await screen.findByText('No previous run found to compare against'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not mount the diff card when the query has not yet executed', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    // Wait for the page to render — the sql card should be visible.
+    await screen.findByText('SQL');
+    expect(screen.queryByText('Compare to previous run')).toBeNull();
+    expect(getQueryDiffMock).not.toHaveBeenCalled();
   });
 });

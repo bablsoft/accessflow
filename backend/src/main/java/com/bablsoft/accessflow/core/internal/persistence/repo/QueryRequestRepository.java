@@ -67,4 +67,20 @@ public interface QueryRequestRepository
               AND q.scheduled_for <= :now
             """, nativeQuery = true)
     List<UUID> findScheduledDueIds(@Param("now") Instant now);
+
+    @Query("""
+            select q.id from QueryRequestEntity q
+             where q.status = :status
+               and q.submittedBy.id = :submitterId
+               and q.datasource.id = :datasourceId
+               and q.canonicalSql = :canonicalSql
+               and q.id <> :excludeId
+             order by q.executionCompletedAt desc
+            """)
+    List<UUID> findPreviousExecutedRunIds(@Param("status") QueryStatus status,
+                                          @Param("submitterId") UUID submitterId,
+                                          @Param("datasourceId") UUID datasourceId,
+                                          @Param("canonicalSql") String canonicalSql,
+                                          @Param("excludeId") UUID excludeId,
+                                          Pageable pageable);
 }

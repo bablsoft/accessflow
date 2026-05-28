@@ -368,6 +368,30 @@ export async function waitForQueryStatus(
   );
 }
 
+// POST /api/v1/queries/{id}/execute — manually triggers execution of an
+// APPROVED query. Returns the post-execution body (status: 'EXECUTED' on
+// success, 'FAILED' on a customer-DB error).
+export async function executeQueryViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  queryId: string,
+): Promise<{ status: string; rows_affected: number | null; duration_ms: number | null }> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/queries/${queryId}/execute`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Execute query failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as {
+    status: string;
+    rows_affected: number | null;
+    duration_ms: number | null;
+  };
+}
+
 // POST /api/v1/reviews/{queryId}/approve — the comment field is optional on
 // the backend (ReviewDecisionRequest), so callers can pass it through or omit.
 // The backend enforces that the approver is NOT the submitter (403) so callers

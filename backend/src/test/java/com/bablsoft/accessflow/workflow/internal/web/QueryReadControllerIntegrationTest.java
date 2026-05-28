@@ -282,6 +282,7 @@ class QueryReadControllerIntegrationTest {
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", null, 0L, 12, null,
+                null,
                 "Prod plan", 24,
                 List.of(),
                 null,
@@ -310,7 +311,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 admin.getId(), admin.getEmail(), admin.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
-                null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
+                null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -329,7 +330,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
-                null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
+                null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -349,7 +350,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW, "x", null,
-                null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
+                null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
 
@@ -609,7 +610,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT id,name FROM users", QueryType.SELECT, QueryStatus.EXECUTED,
-                "x", null, 3L, 12, null, null, null,
+                "x", null, 3L, 12, null, null, null, null,
                 List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
@@ -640,7 +641,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
-                "x", null, null, null, null, null, null,
+                "x", null, null, null, null, null, null, null,
                 List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
@@ -659,7 +660,7 @@ class QueryReadControllerIntegrationTest {
         var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
-                "x", null, 1L, 5, null, null, null,
+                "x", null, 1L, 5, null, null, null, null,
                 List.of(), null, Instant.now(), Instant.now());
         when(queryRequestLookupService.findDetailById(qid, org.getId()))
                 .thenReturn(Optional.of(detail));
@@ -671,6 +672,118 @@ class QueryReadControllerIntegrationTest {
         assertThat(response).hasStatus(422);
         assertThat(response).bodyJson().extractingPath("$.error").asString()
                 .isEqualTo("RESULTS_NOT_AVAILABLE");
+    }
+
+    // ── GET /api/v1/queries/{id}/diff ──────────────────────────────────────────
+
+    @Test
+    void diffReturnsDeltasAgainstLinkedPreviousRun() {
+        var previousId = UUID.randomUUID();
+        var currentId = UUID.randomUUID();
+        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
+                "rerun", null, 10L, 30, null, previousId,
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
+                "first run", null, 8L, 50, null, null,
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(currentId, org.getId()))
+                .thenReturn(Optional.of(current));
+        when(queryRequestLookupService.findDetailById(previousId, org.getId()))
+                .thenReturn(Optional.of(previous));
+        when(queryResultPersistenceService.find(currentId)).thenReturn(Optional.of(
+                new QueryResultPersistenceService.QueryResultSnapshot(
+                        currentId, "[]", "[]", 10L, false, 30)));
+        when(queryResultPersistenceService.find(previousId)).thenReturn(Optional.of(
+                new QueryResultPersistenceService.QueryResultSnapshot(
+                        previousId, "[]", "[]", 8L, false, 50)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + currentId + "/diff")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.current_run_id").asString()
+                .isEqualTo(currentId.toString());
+        assertThat(response).bodyJson().extractingPath("$.previous_run_id").asString()
+                .isEqualTo(previousId.toString());
+        assertThat(response).bodyJson().extractingPath("$.rows_affected_delta").isEqualTo(2);
+        assertThat(response).bodyJson().extractingPath("$.execution_ms_delta").isEqualTo(-20);
+        assertThat(response).bodyJson().extractingPath("$.row_count_delta").isEqualTo(2);
+    }
+
+    @Test
+    void diffReturns404WhenNoPreviousRunIsLinked() {
+        var qid = UUID.randomUUID();
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
+                "first run", null, 1L, 5, null, null,
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detail));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid + "/diff")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_DIFF_NOT_AVAILABLE");
+        assertThat(response).bodyJson().extractingPath("$.queryRequestId").asString()
+                .isEqualTo(qid.toString());
+    }
+
+    @Test
+    void diffReturnsNullRowCountDeltaWhenEitherRunIsNotSelect() {
+        var previousId = UUID.randomUUID();
+        var currentId = UUID.randomUUID();
+        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
+                "rerun", null, 3L, 12, null, previousId,
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", org.getId(),
+                analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
+                "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
+                "first run", null, 1L, 20, null, null,
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(currentId, org.getId()))
+                .thenReturn(Optional.of(current));
+        when(queryRequestLookupService.findDetailById(previousId, org.getId()))
+                .thenReturn(Optional.of(previous));
+
+        var response = mvc.get().uri("/api/v1/queries/" + currentId + "/diff")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.rows_affected_delta").isEqualTo(2);
+        assertThat(response).bodyJson().extractingPath("$.execution_ms_delta").isEqualTo(-8);
+        assertThat(response).bodyJson().extractingPath("$.row_count_delta").isNull();
+    }
+
+    @Test
+    void diffReturns404WhenNonAdminCallerIsNotSubmitter() {
+        var qid = UUID.randomUUID();
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+                admin.getId(), admin.getEmail(), admin.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
+                "x", null, 1L, 5, null, UUID.randomUUID(),
+                null, null, List.of(), null, Instant.now(), Instant.now());
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detail));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid + "/diff")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("QUERY_REQUEST_NOT_FOUND");
     }
 
 }

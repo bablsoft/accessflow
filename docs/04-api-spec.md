@@ -551,6 +551,7 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 | `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set) |
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
+| `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
 
 ### POST /queries — Request Body
@@ -681,6 +682,7 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
   ],
   "review_plan_name": "Production reviews",
   "approval_timeout_hours": 24,
+  "previous_run_id": "uuid",
   "scheduled_for": "2026-06-01T03:00:00Z",
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
@@ -688,6 +690,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 ```
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
+
+`previous_run_id` is set on a successful execution when an earlier `EXECUTED` row exists for the same `(submitted_by, datasource_id, canonical_sql)` — the same submitter re-running the same query against the same datasource (whitespace, comments, and case are ignored). When non-null, clients should expose a "Compare to previous run" affordance and fetch [`GET /queries/{id}/diff`](#get-queriesiddiff--response-200) for the deltas. `null` for queries that have not yet executed, or whose canonical SQL has no prior match.
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
 
@@ -742,6 +746,33 @@ Re-analysis is only valid when:
 ```
 
 `columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
+
+### GET /queries/{id}/diff — Response 200
+
+Returns the deltas between the current query's outcome and the most recent prior `EXECUTED` run linked via `previous_run_id`. Useful for rendering a "Compare to previous run" panel on the query detail page (AF-361). The endpoint is only meaningful once the query itself has executed — call it from the detail page when `status == EXECUTED && previous_run_id != null`.
+
+Authorization mirrors `GET /queries/{id}`: `ADMIN` and `REVIEWER` may read any query's diff in the organization, while `ANALYST` and `READONLY` may only read diffs for queries they submitted themselves. Non-matching callers receive `404 QUERY_REQUEST_NOT_FOUND`.
+
+```json
+{
+  "current_run_id": "uuid",
+  "previous_run_id": "uuid",
+  "rows_affected_delta": 2,
+  "execution_ms_delta": -20,
+  "row_count_delta": 2
+}
+```
+
+Each delta is `current - previous`. A positive value means the new run returned more rows / took longer; a negative value means fewer / faster.
+
+- `rows_affected_delta` — difference of `query_requests.rows_affected`. `null` when either run did not record a row count (rare — should only happen for queries that failed before reporting one).
+- `execution_ms_delta` — difference of `query_requests.execution_duration_ms`. `null` under the same conditions as above.
+- `row_count_delta` — difference of `query_request_results.row_count`. Only populated when **both** runs are `SELECT` queries **and** both have a persisted result snapshot. `null` for non-SELECT diffs (UPDATE/INSERT/DELETE/DDL) and when either result row has been pruned.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization, or the caller is not allowed to read it.
+- `404 QUERY_DIFF_NOT_AVAILABLE` — query exists but has no linked previous run (i.e. `previous_run_id IS NULL`, or the row it pointed to has been deleted). The response carries `queryRequestId` as an extension property.
 
 ### POST /queries/analyze — Request Body
 

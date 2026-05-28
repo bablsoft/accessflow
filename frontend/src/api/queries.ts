@@ -4,6 +4,7 @@ import type {
   ExecuteQueryResponse,
   PaginatedResponse,
   QueryDetail,
+  QueryDiffResponse,
   QueryListItem,
   QueryResultsPage,
   QueryStatus,
@@ -44,6 +45,7 @@ export const queryKeys = {
   detail: (id: string) => ['queries', 'detail', id] as const,
   results: (id: string, page: number, size: number) =>
     ['queries', 'detail', id, 'results', page, size] as const,
+  diff: (id: string) => ['queries', 'detail', id, 'diff'] as const,
 };
 
 export async function submitQuery(input: SubmitQueryInput): Promise<SubmitQueryResponse> {
@@ -86,6 +88,11 @@ export async function getQueryResults(
   const { data } = await apiClient.get<QueryResultsPage>(`${BASE}/${id}/results`, {
     params: { page, size },
   });
+  return data;
+}
+
+export async function getQueryDiff(id: string): Promise<QueryDiffResponse> {
+  const { data } = await apiClient.get<QueryDiffResponse>(`${BASE}/${id}/diff`);
   return data;
 }
 

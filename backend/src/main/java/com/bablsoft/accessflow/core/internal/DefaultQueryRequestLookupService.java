@@ -126,6 +126,19 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 .map(this::toDetailView);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<UUID> findPreviousRunId(UUID submitterId, UUID datasourceId,
+                                            String canonicalSql, UUID excludeQueryId) {
+        if (canonicalSql == null) {
+            return Optional.empty();
+        }
+        var matches = queryRequestRepository.findPreviousExecutedRunIds(
+                QueryStatus.EXECUTED, submitterId, datasourceId, canonicalSql, excludeQueryId,
+                org.springframework.data.domain.PageRequest.of(0, 1));
+        return matches.isEmpty() ? Optional.empty() : Optional.of(matches.get(0));
+    }
+
     private PendingReviewView toPendingReviewView(QueryRequestEntity entity) {
         var aiAnalysis = entity.getAiAnalysisId() != null
                 ? aiAnalysisRepository.findById(entity.getAiAnalysisId()).orElse(null)
@@ -194,6 +207,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getRowsAffected(),
                 entity.getExecutionDurationMs(),
                 entity.getErrorMessage(),
+                entity.getPreviousRunId(),
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
                 decisions,

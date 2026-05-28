@@ -39,6 +39,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
@@ -62,6 +64,7 @@ class QueryReadController {
     private final QueryCsvExportService queryCsvExportService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final MessageSource messageSource;
 
     @GetMapping
     @Operation(summary = "List query requests in the caller's organization")
@@ -264,6 +267,56 @@ class QueryReadController {
         return slice(snapshot, page, size);
     }
 
+    @GetMapping("/{id}/diff")
+    @Operation(summary = "Compare this query's execution outcome to its previous successful run "
+            + "(rows affected, execution duration, result row count)")
+    @ApiResponse(responseCode = "200", description = "Delta against the linked previous run")
+    @ApiResponse(responseCode = "403", description = "Caller is not the submitter, a reviewer, or an admin")
+    @ApiResponse(responseCode = "404", description = "Query not found, or no previous run is linked")
+    QueryDiffResponse diff(@PathVariable UUID id, Authentication authentication) {
+        var caller = (JwtClaims) authentication.getPrincipal();
+        var current = queryRequestLookupService.findDetailById(id, caller.organizationId())
+                .orElseThrow(() -> new QueryRequestNotFoundException(id));
+        if (caller.role() != UserRoleType.ADMIN
+                && caller.role() != UserRoleType.REVIEWER
+                && !current.submittedByUserId().equals(caller.userId())) {
+            throw new QueryRequestNotFoundException(id);
+        }
+        if (current.previousRunId() == null) {
+            throw new QueryDiffNotAvailableException(id);
+        }
+        var previous = queryRequestLookupService
+                .findDetailById(current.previousRunId(), caller.organizationId())
+                .orElseThrow(() -> new QueryDiffNotAvailableException(id));
+
+        Long rowsAffectedDelta = subtract(current.rowsAffected(), previous.rowsAffected());
+        Integer executionMsDelta = subtract(current.durationMs(), previous.durationMs());
+        Long rowCountDelta = null;
+        if (current.queryType() == QueryType.SELECT && previous.queryType() == QueryType.SELECT) {
+            var currentSnapshot = queryResultPersistenceService.find(current.id());
+            var previousSnapshot = queryResultPersistenceService.find(previous.id());
+            if (currentSnapshot.isPresent() && previousSnapshot.isPresent()) {
+                rowCountDelta = currentSnapshot.get().rowCount() - previousSnapshot.get().rowCount();
+            }
+        }
+        return new QueryDiffResponse(current.id(), previous.id(), rowsAffectedDelta,
+                executionMsDelta, rowCountDelta);
+    }
+
+    private static Long subtract(Long a, Long b) {
+        if (a == null || b == null) {
+            return null;
+        }
+        return a - b;
+    }
+
+    private static Integer subtract(Integer a, Integer b) {
+        if (a == null || b == null) {
+            return null;
+        }
+        return a - b;
+    }
+
     private QueryResultsPageResponse slice(
             QueryResultPersistenceService.QueryResultSnapshot snapshot, int page, int size) {
         try {
@@ -307,6 +360,19 @@ class QueryReadController {
         }
     }
 
+    static final class QueryDiffNotAvailableException extends RuntimeException {
+        private final UUID queryRequestId;
+
+        QueryDiffNotAvailableException(UUID queryRequestId) {
+            super("No previous run is linked to query " + queryRequestId);
+            this.queryRequestId = queryRequestId;
+        }
+
+        UUID queryRequestId() {
+            return queryRequestId;
+        }
+    }
+
     @ExceptionHandler(BadQueryListException.class)
     ResponseEntity<ProblemDetail> handleBadList(BadQueryListException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
@@ -319,5 +385,15 @@ class QueryReadController {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "RESULTS_NOT_AVAILABLE");
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+    }
+
+    @ExceptionHandler(QueryDiffNotAvailableException.class)
+    ResponseEntity<ProblemDetail> handleDiffUnavailable(QueryDiffNotAvailableException ex) {
+        var detail = messageSource.getMessage("error.query_diff_no_previous_run", null,
+                LocaleContextHolder.getLocale());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, detail);
+        pd.setProperty("error", "QUERY_DIFF_NOT_AVAILABLE");
+        pd.setProperty("queryRequestId", ex.queryRequestId().toString());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
 }

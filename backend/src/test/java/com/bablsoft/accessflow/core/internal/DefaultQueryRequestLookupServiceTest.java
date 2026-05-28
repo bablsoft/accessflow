@@ -495,6 +495,39 @@ class DefaultQueryRequestLookupServiceTest {
     }
 
     @Test
+    void findPreviousRunIdReturnsEmptyWhenCanonicalSqlIsNull() {
+        var result = service.findPreviousRunId(UUID.randomUUID(), UUID.randomUUID(),
+                null, UUID.randomUUID());
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(queryRequestRepository);
+    }
+
+    @Test
+    void findPreviousRunIdReturnsMostRecentMatch() {
+        var submitterId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var excludeId = UUID.randomUUID();
+        var match = UUID.randomUUID();
+        when(queryRequestRepository.findPreviousExecutedRunIds(eq(QueryStatus.EXECUTED),
+                eq(submitterId), eq(datasourceId), eq("SELECT 1"), eq(excludeId), any()))
+                .thenReturn(List.of(match));
+
+        var result = service.findPreviousRunId(submitterId, datasourceId, "SELECT 1", excludeId);
+
+        assertThat(result).contains(match);
+    }
+
+    @Test
+    void findPreviousRunIdReturnsEmptyWhenRepositoryFindsNothing() {
+        when(queryRequestRepository.findPreviousExecutedRunIds(any(), any(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+
+        assertThat(service.findPreviousRunId(UUID.randomUUID(), UUID.randomUUID(), "SELECT 1",
+                UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
     void findPendingForReviewerMapsRepositoryPageToViews() {
         var orgId = UUID.randomUUID();
         var reviewerId = UUID.randomUUID();

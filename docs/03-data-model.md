@@ -236,6 +236,8 @@ The central entity. Represents a single SQL submission through the platform.
 | `error_message` | TEXT nullable |
 | `execution_duration_ms` | INTEGER nullable |
 | `scheduled_for` | TIMESTAMPTZ nullable — when set on submission, defers execution: once the query reaches `APPROVED`, the `ScheduledQueryRunJob` picks it up at `scheduled_for ≤ now()` and triggers execution via `QueryLifecycleService.executeScheduled`. A partial index `idx_query_requests_scheduled_for ON query_requests(scheduled_for) WHERE scheduled_for IS NOT NULL` keeps the scan cheap. |
+| `previous_run_id` | UUID nullable, FK → `query_requests(id)`. Set on a successful execution (AF-361) when an earlier `EXECUTED` row exists for the same `(submitted_by, datasource_id, canonical_sql)`. Used by `GET /queries/{id}/diff` to compute the rows-affected / execution-ms / row-count deltas surfaced on `QueryDetailPage`. Rows that executed before the feature shipped have `canonical_sql = NULL` and never match — diff is unavailable for those queries. |
+| `canonical_sql` | TEXT nullable — populated on each successful execution with the output of `SqlCanonicalizer.canonicalize(sql_text)` (strip comments, collapse whitespace, upper-case). Lookup key for `previous_run_id`. A partial index `idx_query_requests_diff_lookup ON query_requests(submitted_by, datasource_id, canonical_sql, execution_completed_at DESC) WHERE status = 'EXECUTED' AND canonical_sql IS NOT NULL` keeps the per-execution lookup a single indexed scan. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 

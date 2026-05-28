@@ -127,6 +127,8 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         entity.setErrorMessage(command.errorMessage());
         entity.setExecutionStartedAt(command.startedAt());
         entity.setExecutionCompletedAt(command.completedAt());
+        entity.setCanonicalSql(command.canonicalSql());
+        entity.setPreviousRunId(command.previousRunId());
         queryRequestRepository.save(entity);
         publishStatusChanged(entity, previous, command.outcome());
     }
