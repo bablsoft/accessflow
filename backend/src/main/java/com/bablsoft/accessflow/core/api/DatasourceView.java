@@ -22,6 +22,8 @@ public record DatasourceView(
         UUID aiConfigId,
         UUID customDriverId,
         String jdbcUrlOverride,
+        String readReplicaJdbcUrl,
+        String readReplicaUsername,
         boolean active,
         Instant createdAt
 ) {}

@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.proxy.internal;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionResult;
@@ -30,7 +29,7 @@ class DefaultQueryExecutor implements QueryExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultQueryExecutor.class);
 
-    private final DatasourceConnectionPoolManager poolManager;
+    private final RoutingDataSourceResolver routingResolver;
     private final DatasourceLookupService datasourceLookupService;
     private final ProxyPoolProperties properties;
     private final JdbcResultRowMapper rowMapper;
@@ -54,12 +53,12 @@ class DefaultQueryExecutor implements QueryExecutor {
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
 
-        var dataSource = poolManager.resolve(request.datasourceId());
         Instant start = clock.instant();
         if (request.transactional()) {
-            return executeTransactional(request, dataSource, effectiveTimeout, start);
+            return executeTransactional(request, effectiveTimeout, start);
         }
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = routingResolver.acquire(request.datasourceId(),
+                request.queryType())) {
             connection.setReadOnly(request.queryType() == QueryType.SELECT);
             try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
                 statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
@@ -78,9 +77,9 @@ class DefaultQueryExecutor implements QueryExecutor {
     }
 
     private QueryExecutionResult executeTransactional(QueryExecutionRequest request,
-                                                      javax.sql.DataSource dataSource,
                                                       Duration effectiveTimeout, Instant start) {
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = routingResolver.acquire(request.datasourceId(),
+                QueryType.OTHER)) {
             connection.setReadOnly(false);
             connection.setAutoCommit(false);
             long totalAffected = 0;

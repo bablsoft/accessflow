@@ -19,5 +19,8 @@ public record UpdateDatasourceCommand(
         UUID aiConfigId,
         Boolean clearAiConfig,
         String jdbcUrlOverride,
+        String readReplicaJdbcUrl,
+        String readReplicaUsername,
+        String readReplicaPassword,
         Boolean active
 ) {}

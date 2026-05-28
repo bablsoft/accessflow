@@ -20,5 +20,8 @@ public record CreateDatasourceCommand(
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
         UUID customDriverId,
-        String jdbcUrlOverride
+        String jdbcUrlOverride,
+        String readReplicaJdbcUrl,
+        String readReplicaUsername,
+        String readReplicaPassword
 ) {}

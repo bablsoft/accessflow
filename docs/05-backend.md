@@ -196,7 +196,7 @@ The proxy engine (`accessflow-proxy` module) is the heart of AccessFlow. It is t
 
 Implemented in `proxy/internal/`:
 
-- `DatasourceConnectionPoolManager` (public API) — `DataSource resolve(UUID)` and `void evict(UUID)`. Returns a Hikari pool typed as `javax.sql.DataSource` so callers stay framework-agnostic and use the standard JDBC `try-with-resources` idiom.
+- `DatasourceConnectionPoolManager` (public API) — `DataSource resolve(UUID)`, `Optional<DataSource> resolveReplica(UUID)`, and `void evict(UUID)`. Returns Hikari pools typed as `javax.sql.DataSource` so callers stay framework-agnostic and use the standard JDBC `try-with-resources` idiom. `resolveReplica` returns empty when the datasource has no replica configured; `evict` closes both the primary and replica pools.
 - `DefaultDatasourceConnectionPoolManager` — `ConcurrentHashMap` cache, atomic lazy creation via `compute`, `@PreDestroy` shutdown closes all pools.
 - `DatasourcePoolFactory` — owns the Hikari wiring; decrypts the password only here and drops the local reference before returning.
 - `DatasourcePoolEvictionListener` — `@ApplicationModuleListener` for `DatasourceConfigChangedEvent` and `DatasourceDeactivatedEvent` (both in `core/events/`); fires in a new transaction after the publisher's transaction commits. Annotation comes from `spring-modulith-events-api`.
@@ -213,10 +213,20 @@ Behavior:
 
 Eviction events (in `core/events/`, published by `DatasourceAdminServiceImpl`):
 
-- `DatasourceConfigChangedEvent(UUID datasourceId)` — fired from `update(...)` when any of `host`, `port`, `databaseName`, `username`, `passwordEncrypted`, `sslMode`, or `connectionPoolSize` changed.
+- `DatasourceConfigChangedEvent(UUID datasourceId)` — fired from `update(...)` when any of `host`, `port`, `databaseName`, `username`, `passwordEncrypted`, `sslMode`, `connectionPoolSize`, `readReplicaJdbcUrl`, `readReplicaUsername`, or `readReplicaPasswordEncrypted` changed. Eviction closes both pools.
 - `DatasourceDeactivatedEvent(UUID datasourceId)` — fired from `update(...)` when `active` flips `true → false`, and from `deactivate(...)` (idempotent — only when the entity was active before the call).
 
-The proxy module reads the datasource state via `DatasourceLookupService` (`core/api/`) which returns a `DatasourceConnectionDescriptor` record — a Modulith-clean alternative to letting `proxy/internal/` reach into `core/internal/` JPA entities. The descriptor exposes `maxRowsPerQuery` so the executor can enforce per-datasource row caps without a second round trip.
+The proxy module reads the datasource state via `DatasourceLookupService` (`core/api/`) which returns a `DatasourceConnectionDescriptor` record — a Modulith-clean alternative to letting `proxy/internal/` reach into `core/internal/` JPA entities. The descriptor exposes `maxRowsPerQuery` so the executor can enforce per-datasource row caps without a second round trip. It also carries the optional `readReplicaJdbcUrl`/`readReplicaUsername`/`readReplicaPasswordEncrypted` fields plus a convenience `hasReadReplica()` method.
+
+### Read-replica routing
+
+When a datasource has a `read_replica_jdbc_url` set, `RoutingDataSourceResolver` (`proxy/internal/`) routes any query classified by `SqlParserService` as `QueryType.SELECT` to the sibling replica pool. INSERT/UPDATE/DELETE/DDL and transactional `BEGIN…COMMIT` batches always hit the primary, regardless of the replica configuration.
+
+- Replica credentials are encrypted with the same `ENCRYPTION_KEY` as the primary, decrypted only inside `DatasourcePoolFactory.createReplicaPool(...)`, and surface a pool name suffixed `-replica`. When `read_replica_username` or `read_replica_password_encrypted` is `NULL`, the primary's credentials are reused — useful when the replica accepts the same service account.
+- The driver class is shared with the primary: replicas must use the same engine (you cannot point a PostgreSQL primary at a MySQL replica).
+- On a connection failure against the replica (or on first-time pool init failure), the resolver records a `DATASOURCE_REPLICA_FALLBACK` audit row (action in `audit/api/AuditAction`; metadata includes the `error` message and `query_type=SELECT`), logs a `WARN`, and falls back to the primary so the query still runs. The fallback audit is recorded with `actorId=null` (system-initiated). Audit failures are swallowed.
+- One audit row is written per failed SELECT. There is no rate-limiting — sustained replica downtime under load will produce one row per SELECT and the action filter on `/admin/audit-log` is the diagnostic.
+- The Hikari pool tuning under `accessflow.proxy.*` (`connection-timeout`, `idle-timeout`, `max-lifetime`, `leak-detection-threshold`) applies to the replica pool too — no separate env vars.
 
 ### Query Execution
 

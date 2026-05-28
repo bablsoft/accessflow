@@ -685,6 +685,23 @@
             <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis + pick an <em>AI configuration</em>. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
           </ol>
           <p>
+            <strong>Read-replica routing (optional).</strong> On the datasource settings page,
+            the <em>Read replica</em> card accepts an optional JDBC URL plus username and password.
+            When set, AccessFlow opens a sibling HikariCP pool and routes every query the SQL
+            parser classifies as <code>SELECT</code> to the replica; INSERT / UPDATE / DELETE / DDL
+            and transactional <code>BEGIN … COMMIT</code> batches always hit the primary. The
+            replica must use the same database engine as the primary (it reuses the primary's
+            JDBC driver). Replica credentials are AES-256-GCM encrypted with the same
+            <code>ENCRYPTION_KEY</code> as the primary. Click <em>Test replica</em> to validate
+            the URL + credentials live without persisting; leaving the password field blank reuses
+            the saved replica password. If the replica is unreachable at query time, AccessFlow
+            falls back to the primary so the query still runs and writes a
+            <code>DATASOURCE_REPLICA_FALLBACK</code> audit row so the failure is visible at
+            <code>/admin/audit-log</code>. Clear the JDBC URL field to disable replica routing.
+            Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> HikariCP tuning as the
+            primary — no separate environment variables.
+          </p>
+          <p>
             <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can_read / can_write / can_ddl</em>, allowed schemas, allowed tables, and restricted columns (which are masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user cannot see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced at SQL submit time by walking the parsed JSqlParser AST: every referenced table (across joins, subqueries, CTE bodies, and <code>BEGIN; …; COMMIT;</code> envelopes) must either appear verbatim in <em>allowed tables</em> or live in a schema listed in <em>allowed schemas</em>. Matching is case-insensitive, and unqualified table references (<code>FROM users</code> with no schema prefix) only match unqualified entries in <em>allowed tables</em> — a schemas-only list does not cover them. Leave both fields empty to keep the historical "all tables permitted" behaviour.
           </p>
           <p>

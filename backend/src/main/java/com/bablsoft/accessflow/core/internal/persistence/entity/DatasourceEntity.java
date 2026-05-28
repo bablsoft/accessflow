@@ -93,6 +93,16 @@ public class DatasourceEntity {
     @Column(name = "jdbc_url_override", columnDefinition = "TEXT")
     private String jdbcUrlOverride;
 
+    @Column(name = "read_replica_jdbc_url", columnDefinition = "TEXT")
+    private String readReplicaJdbcUrl;
+
+    @Column(name = "read_replica_username", length = 255)
+    private String readReplicaUsername;
+
+    @JsonIgnore
+    @Column(name = "read_replica_password_encrypted", columnDefinition = "TEXT")
+    private String readReplicaPasswordEncrypted;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

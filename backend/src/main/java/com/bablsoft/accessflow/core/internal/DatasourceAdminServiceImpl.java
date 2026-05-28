@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
 import com.bablsoft.accessflow.core.api.SslMode;
+import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
 import com.bablsoft.accessflow.core.internal.persistence.repo.CustomJdbcDriverRepository;
 import com.bablsoft.accessflow.core.internal.persistence.entity.CustomJdbcDriverEntity;
@@ -40,6 +41,8 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,6 +81,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final DriverCatalogService driverCatalog;
     private final ApplicationEventPublisher eventPublisher;
+    private final MessageSource messageSource;
 
     @Override
     @Transactional(readOnly = true)
@@ -164,6 +168,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.reviewPlanId() != null) {
             entity.setReviewPlan(reviewPlanRepository.getReferenceById(command.reviewPlanId()));
         }
+        applyReplicaOnCreate(entity, command.readReplicaJdbcUrl(),
+                command.readReplicaUsername(), command.readReplicaPassword());
         entity.setActive(true);
         return toView(datasourceRepository.save(entity));
     }
@@ -237,6 +243,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.reviewPlanId() != null) {
             entity.setReviewPlan(reviewPlanRepository.getReferenceById(command.reviewPlanId()));
         }
+        applyReplicaOnUpdate(entity, command.readReplicaJdbcUrl(),
+                command.readReplicaUsername(), command.readReplicaPassword());
         if (command.active() != null) {
             entity.setActive(command.active());
         }
@@ -269,13 +277,56 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getSslMode(),
                 entity.getConnectionPoolSize(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
-                entity.getJdbcUrlOverride());
+                entity.getJdbcUrlOverride(),
+                entity.getReadReplicaJdbcUrl(),
+                entity.getReadReplicaUsername(),
+                entity.getReadReplicaPasswordEncrypted());
     }
 
     private record PoolFingerprint(String host, Integer port, String databaseName, String username,
                                    String passwordEncrypted, SslMode sslMode,
                                    int connectionPoolSize, UUID customDriverId,
-                                   String jdbcUrlOverride) {
+                                   String jdbcUrlOverride,
+                                   String readReplicaJdbcUrl, String readReplicaUsername,
+                                   String readReplicaPasswordEncrypted) {
+    }
+
+    /**
+     * Replica clear-on-blank: when {@code jdbcUrl} is non-null but blank, all three replica fields
+     * are cleared. When {@code jdbcUrl} is non-null and non-blank, it is stored along with any
+     * provided username/password (re-encrypting the password). When {@code jdbcUrl} is null, the
+     * existing replica state is left intact and only username/password are updated if provided.
+     */
+    private void applyReplicaOnUpdate(DatasourceEntity entity, String jdbcUrl,
+                                      String username, String password) {
+        if (jdbcUrl != null) {
+            if (jdbcUrl.isBlank()) {
+                entity.setReadReplicaJdbcUrl(null);
+                entity.setReadReplicaUsername(null);
+                entity.setReadReplicaPasswordEncrypted(null);
+                return;
+            }
+            entity.setReadReplicaJdbcUrl(jdbcUrl);
+        }
+        if (username != null) {
+            entity.setReadReplicaUsername(username);
+        }
+        if (password != null) {
+            entity.setReadReplicaPasswordEncrypted(
+                    password.isEmpty() ? null : encryptionService.encrypt(password));
+        }
+    }
+
+    private void applyReplicaOnCreate(DatasourceEntity entity, String jdbcUrl,
+                                      String username, String password) {
+        if (jdbcUrl == null || jdbcUrl.isBlank()) {
+            return;
+        }
+        entity.setReadReplicaJdbcUrl(jdbcUrl);
+        entity.setReadReplicaUsername(username);
+        if (password != null && !password.isEmpty()) {
+            entity.setReadReplicaPasswordEncrypted(encryptionService.encrypt(password));
+        }
     }
 
     @Override
@@ -294,6 +345,50 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             return new ConnectionTestResult(true, latency, "ok");
         } catch (SQLException e) {
             log.warn("Connection test failed for datasource {}: {}", id, e.getMessage());
+            throw new DatasourceConnectionTestException(e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ConnectionTestResult testReplica(UUID id, UUID organizationId, TestReplicaCommand command) {
+        var entity = loadInOrganization(id, organizationId);
+        var url = command.jdbcUrl();
+        if (url == null || url.isBlank()) {
+            throw new DatasourceConnectionTestException(
+                    messageSource.getMessage("error.replica_not_configured", null,
+                            LocaleContextHolder.getLocale()));
+        }
+        String plaintextPassword;
+        if (command.password() != null && !command.password().isEmpty()) {
+            plaintextPassword = command.password();
+        } else if (entity.getReadReplicaPasswordEncrypted() != null) {
+            plaintextPassword = encryptionService.decrypt(entity.getReadReplicaPasswordEncrypted());
+        } else {
+            throw new DatasourceConnectionTestException(
+                    messageSource.getMessage("error.replica_not_configured", null,
+                            LocaleContextHolder.getLocale()));
+        }
+        var resolved = resolveDriver(entity);
+        var props = new Properties();
+        props.setProperty("user", command.username() != null ? command.username() : entity.getUsername());
+        props.setProperty("password", plaintextPassword);
+        if (entity.getDbType() == DbType.POSTGRESQL) {
+            props.setProperty("connectTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS));
+            props.setProperty("socketTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS));
+        } else if (entity.getDbType() == DbType.MYSQL) {
+            props.setProperty("connectTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS * 1000));
+            props.setProperty("socketTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS * 1000));
+        }
+        var start = System.currentTimeMillis();
+        try (var connection = resolved.driver().connect(url, props);
+             var stmt = connection.createStatement();
+             var rs = stmt.executeQuery(probeSql(entity.getDbType()))) {
+            rs.next();
+            var latency = System.currentTimeMillis() - start;
+            return new ConnectionTestResult(true, latency, "ok");
+        } catch (SQLException e) {
+            log.warn("Replica connection test failed for datasource {}: {}", id, e.getMessage());
             throw new DatasourceConnectionTestException(e.getMessage());
         }
     }
@@ -428,6 +523,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getAiConfigId(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
                 entity.getJdbcUrlOverride(),
+                entity.getReadReplicaJdbcUrl(),
+                entity.getReadReplicaUsername(),
                 entity.isActive(),
                 entity.getCreatedAt());
     }

@@ -286,6 +286,8 @@ export interface Datasource {
   ai_config_id: string | null;
   custom_driver_id: string | null;
   jdbc_url_override: string | null;
+  read_replica_jdbc_url: string | null;
+  read_replica_username: string | null;
   active: boolean;
   created_at: string;
 }
@@ -314,6 +316,9 @@ export interface CreateDatasourceInput {
   ai_config_id?: string | null;
   custom_driver_id?: string | null;
   jdbc_url_override?: string | null;
+  read_replica_jdbc_url?: string | null;
+  read_replica_username?: string | null;
+  read_replica_password?: string | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -333,6 +338,9 @@ export interface UpdateDatasourceInput {
   ai_config_id?: string | null;
   clear_ai_config?: boolean;
   jdbc_url_override?: string | null;
+  read_replica_jdbc_url?: string | null;
+  read_replica_username?: string | null;
+  read_replica_password?: string | null;
   active?: boolean;
 }
 

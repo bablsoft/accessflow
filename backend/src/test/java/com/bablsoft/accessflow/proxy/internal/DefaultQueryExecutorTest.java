@@ -54,6 +54,8 @@ class DefaultQueryExecutorTest {
     private final UUID datasourceId = UUID.randomUUID();
     private final DatasourceConnectionPoolManager poolManager = mock(DatasourceConnectionPoolManager.class);
     private final DatasourceLookupService lookupService = mock(DatasourceLookupService.class);
+    private final com.bablsoft.accessflow.audit.api.AuditLogService auditLogService =
+            mock(com.bablsoft.accessflow.audit.api.AuditLogService.class);
     private final MessageSource messageSource = mock(MessageSource.class);
     private final JdbcResultRowMapper rowMapper = new JdbcResultRowMapper();
     private final SqlExceptionTranslator translator = new SqlExceptionTranslator(messageSource);
@@ -76,8 +78,11 @@ class DefaultQueryExecutorTest {
         when(dataSource.getConnection()).thenReturn(connection);
         when(connection.prepareStatement(anyString())).thenReturn(statement);
         when(poolManager.resolve(datasourceId)).thenReturn(dataSource);
+        when(poolManager.resolveReplica(datasourceId)).thenReturn(Optional.empty());
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(2_000)));
-        executor = new DefaultQueryExecutor(poolManager, lookupService, properties,
+        var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
+                messageSource);
+        executor = new DefaultQueryExecutor(router, lookupService, properties,
                 rowMapper, translator, clock, messageSource);
     }
 
@@ -276,7 +281,7 @@ class DefaultQueryExecutorTest {
     private DatasourceConnectionDescriptor descriptor(int maxRows) {
         return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows,
-                false, null, null, null, true);
+                false, null, null, null, null, null, null, true);
     }
 
     private static ResultSet emptyResultSet() throws SQLException {
