@@ -24,6 +24,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     css: true,
+    // jsdom 29 rewrote CSSOM and is slower on initial getComputedStyle() calls
+    // before the cache warms. AntD modal portals (e.g. ReviewQueuePage reject
+    // modal) push past Vitest's 5s default on GitHub Actions runners. 15s
+    // gives ~3x cushion without masking truly hung tests.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
     reporters: [
       'default',
       ['junit', { suiteName: 'AccessFlow Frontend' }],
