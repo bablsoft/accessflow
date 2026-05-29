@@ -52,7 +52,8 @@
     "custom_drivers": "Pilotes JDBC personnalisés",
     "profile": "Paramètres du profil",
     "version": "AccessFlow version {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "Santé des sources"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "Santé des sources de données",
+      "subtitle": "Utilisation du pool de connexions, volume de requêtes, latence et erreurs par source (24 dernières h).",
+      "empty_title": "Aucune source de données",
+      "empty_description": "Ajoutez une source de données pour voir ici les signaux de pool de connexions et de volume de requêtes.",
+      "error_title": "Impossible de charger la santé des sources",
+      "error_description": "L'instantané de santé n'a pas pu être chargé. Réessayez.",
+      "inactive": "Inactive",
+      "pool_active": "Actives",
+      "pool_idle": "Inactives",
+      "pool_free": "Libres",
+      "pool_not_initialized": "Pool non initialisé — aucune requête depuis le démarrage.",
+      "pool_caption": "{{active}} actives · {{idle}} inactives · {{waiting}} en attente / {{max}} max",
+      "queries_last_24h": "Requêtes (24 h)",
+      "errors_last_24h": "Erreurs (24 h)",
+      "execution_p50": "Exéc p50",
+      "execution_p95": "Exéc p95",
+      "unit_ms": "ms"
     }
   },
   "notifications": {

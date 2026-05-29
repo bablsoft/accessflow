@@ -124,6 +124,13 @@
             <version>${totp.version}</version>
         </dependency>
 
+        <!-- Datasource health dashboard (AF-365): per-(org, datasource) snapshot cache.
+             Version managed by the Spring Boot 4 parent BOM. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-core</artifactId>

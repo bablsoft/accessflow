@@ -992,6 +992,27 @@ export interface AiAnalysisStatsFilters {
   datasource_id?: string;
 }
 
+// ── Datasource health dashboard (AF-365) ─────────────────────────────────────
+export interface DatasourceHealth {
+  datasource_id: string;
+  datasource_name: string;
+  db_type: DbType;
+  active: boolean;
+  // Live HikariCP pool gauges; null when no pool is currently cached for the datasource.
+  pool_active: number | null;
+  pool_idle: number | null;
+  pool_waiting: number | null;
+  pool_total: number | null;
+  pool_max: number | null;
+  queries_last_24h: number;
+  // Execution-time percentiles (ms); null when no executed query carried a duration in the window.
+  execution_ms_p50: number | null;
+  execution_ms_p95: number | null;
+  errors_last_24h: number;
+}
+
+export type DatasourceHealthPage = PageEnvelope<DatasourceHealth>;
+
 // ── User groups (AF-353) ─────────────────────────────────────────────────────
 export type GroupMembershipSource = 'MANUAL' | 'IDP';
 

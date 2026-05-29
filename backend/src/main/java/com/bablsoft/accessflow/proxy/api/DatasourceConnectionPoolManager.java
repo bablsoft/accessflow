@@ -45,4 +45,12 @@ public interface DatasourceConnectionPoolManager {
      * either side when no pool is cached.
      */
     void evict(UUID datasourceId);
+
+    /**
+     * Return live gauges for the cached primary pool of {@code datasourceId}, or empty when no
+     * pool is currently cached. Unlike {@link #resolve(UUID)} this never creates a pool — reading
+     * health metrics must not trigger a connection attempt against a (possibly unreachable)
+     * customer database.
+     */
+    Optional<DatasourcePoolStats> poolStats(UUID datasourceId);
 }

@@ -19,7 +19,8 @@ import java.util.UUID;
 
 public interface QueryRequestRepository
         extends JpaRepository<QueryRequestEntity, UUID>,
-                JpaSpecificationExecutor<QueryRequestEntity> {
+                JpaSpecificationExecutor<QueryRequestEntity>,
+                QueryRequestStatsRepository {
 
     Page<QueryRequestEntity> findAllByDatasource_Id(UUID datasourceId, Pageable pageable);
 

@@ -52,7 +52,8 @@
     "custom_drivers": "Հատուկ JDBC դրայվերներ",
     "profile": "Պրոֆիլի կարգավորումներ",
     "version": "AccessFlow տարբերակ {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "Տվյալների աղբյուրների վիճակ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "Տվյալների աղբյուրների վիճակ",
+      "subtitle": "Միացումների լողավազանի օգտագործում, հարցումների ծավալ, ուշացում և սխալներ ըստ աղբյուրի (վերջին 24 ժ)։",
+      "empty_title": "Տվյալների աղբյուրներ դեռ չկան",
+      "empty_description": "Ավելացրեք տվյալների աղբյուր՝ այստեղ միացումների լողավազանի և հարցումների ծավալի ցուցանիշները տեսնելու համար։",
+      "error_title": "Չհաջողվեց բեռնել աղբյուրների վիճակը",
+      "error_description": "Վիճակի պատկերը չբեռնվեց։ Կրկին փորձեք։",
+      "inactive": "Անգործուն",
+      "pool_active": "Ակտիվ",
+      "pool_idle": "Պարապ",
+      "pool_free": "Ազատ",
+      "pool_not_initialized": "Լողավազանը նախաստորագրված չէ — մեկնարկից հետո հարցումներ չեն եղել։",
+      "pool_caption": "{{active}} ակտիվ · {{idle}} պարապ · {{waiting}} սպասող / {{max}} առավելագույն",
+      "queries_last_24h": "Հարցումներ (24ժ)",
+      "errors_last_24h": "Սխալներ (24ժ)",
+      "execution_p50": "Կատ. p50",
+      "execution_p95": "Կատ. p95",
+      "unit_ms": "մվ"
     }
   },
   "notifications": {

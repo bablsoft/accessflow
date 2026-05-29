@@ -8,7 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Clock;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({ProxyPoolProperties.class, DriverProperties.class})
+@EnableConfigurationProperties({ProxyPoolProperties.class, DriverProperties.class,
+        ProxyHealthProperties.class})
 class ProxyConfiguration {
 
     @Bean

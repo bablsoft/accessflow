@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -225,6 +226,48 @@ class DefaultDatasourceConnectionPoolManagerTest {
 
         verify(primaryPool).close();
         verify(replicaPool).close();
+    }
+
+    @Test
+    void poolStatsReturnsEmptyWhenNoPoolCached() {
+        assertThat(manager.poolStats(id)).isEmpty();
+        verify(poolFactory, never()).createPool(any());
+    }
+
+    @Test
+    void poolStatsReadsLivePoolGaugesWhenPoolCached() {
+        var pool = mock(HikariDataSource.class);
+        var mxBean = mock(HikariPoolMXBean.class);
+        when(pool.getHikariPoolMXBean()).thenReturn(mxBean);
+        when(mxBean.getActiveConnections()).thenReturn(3);
+        when(mxBean.getIdleConnections()).thenReturn(7);
+        when(mxBean.getThreadsAwaitingConnection()).thenReturn(2);
+        when(mxBean.getTotalConnections()).thenReturn(10);
+        when(pool.getMaximumPoolSize()).thenReturn(20);
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(activeDescriptor));
+        when(poolFactory.createPool(activeDescriptor)).thenReturn(pool);
+        manager.resolve(id);
+
+        var stats = manager.poolStats(id);
+
+        assertThat(stats).hasValueSatisfying(s -> {
+            assertThat(s.active()).isEqualTo(3);
+            assertThat(s.idle()).isEqualTo(7);
+            assertThat(s.waiting()).isEqualTo(2);
+            assertThat(s.total()).isEqualTo(10);
+            assertThat(s.max()).isEqualTo(20);
+        });
+    }
+
+    @Test
+    void poolStatsReturnsEmptyWhenCachedPoolIsClosed() {
+        var pool = mock(HikariDataSource.class);
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(activeDescriptor));
+        when(poolFactory.createPool(activeDescriptor)).thenReturn(pool);
+        manager.resolve(id);
+        when(pool.isClosed()).thenReturn(true);
+
+        assertThat(manager.poolStats(id)).isEmpty();
     }
 
     @Test

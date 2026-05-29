@@ -198,6 +198,7 @@
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-ai">AI configurations</a>
             <a href="#cfg-ai-analyses">AI analyses dashboard</a>
+            <a href="#cfg-datasource-health">Datasource health</a>
             <a href="#cfg-notification-channels">Notification channels</a>
             <a href="#cfg-smtp">System SMTP</a>
             <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
@@ -895,6 +896,20 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption><code>/admin/ai-analyses</code> — risk trends, hottest issue categories, and top submitters across every analyzed query.</figcaption>
           </figure>
+
+          <!-- Datasource health -->
+          <h3 id="cfg-datasource-health">Datasource health</h3>
+          <p>
+            <code>/admin/datasource-health</code> gives operators a per-datasource operational
+            view that auto-refreshes every 30 seconds. Each card shows live HikariCP connection-pool
+            utilisation as a ring (active / idle / free against the configured maximum) plus a
+            trailing 24-hour summary: query volume, p50 / p95 execution latency, and error count.
+            Use it to spot pool exhaustion, a datasource that has turned slow, or a sudden volume
+            spike. The view is read-only and admin-only. Pool gauges read "pool not initialised"
+            until the first query runs (pools are created lazily); snapshots are cached briefly to
+            keep the auto-refresh cheap (TTL via <code>ACCESSFLOW_PROXY_HEALTH_CACHE_TTL</code>,
+            default 30 s).
+          </p>
 
           <!-- Notification channels -->
           <h3 id="cfg-notification-channels">Notification channels</h3>
