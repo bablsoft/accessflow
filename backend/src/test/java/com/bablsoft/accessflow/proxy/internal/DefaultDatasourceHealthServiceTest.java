@@ -15,9 +15,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -49,7 +49,7 @@ class DefaultDatasourceHealthServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultDatasourceHealthService(datasourceAdminService, poolManager,
-                queryStatsLookupService, clock, new ProxyHealthProperties(Duration.ofSeconds(30)));
+                queryStatsLookupService, clock, new ConcurrentMapCacheManager());
     }
 
     private static DatasourceView view(UUID id, UUID org, String name, DbType type, boolean active) {

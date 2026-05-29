@@ -10,18 +10,16 @@ import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceHealthService;
 import com.bablsoft.accessflow.proxy.api.DatasourceHealthSnapshot;
 import com.bablsoft.accessflow.proxy.api.DatasourcePoolStats;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 class DefaultDatasourceHealthService implements DatasourceHealthService {
@@ -32,51 +30,58 @@ class DefaultDatasourceHealthService implements DatasourceHealthService {
     private final DatasourceConnectionPoolManager poolManager;
     private final DatasourceQueryStatsLookupService queryStatsLookupService;
     private final Clock clock;
-    private final Cache<HealthKey, DatasourceHealthSnapshot> cache;
+    private final CacheManager cacheManager;
 
     DefaultDatasourceHealthService(DatasourceAdminService datasourceAdminService,
                                    DatasourceConnectionPoolManager poolManager,
                                    DatasourceQueryStatsLookupService queryStatsLookupService,
                                    Clock proxyClock,
-                                   ProxyHealthProperties properties) {
+                                   CacheManager cacheManager) {
         this.datasourceAdminService = datasourceAdminService;
         this.poolManager = poolManager;
         this.queryStatsLookupService = queryStatsLookupService;
         this.clock = proxyClock;
-        this.cache = Caffeine.newBuilder()
-                .expireAfterWrite(properties.cacheTtl())
-                .build();
+        this.cacheManager = cacheManager;
     }
 
     @Override
     public PageResponse<DatasourceHealthSnapshot> snapshot(UUID organizationId,
                                                            PageRequest pageRequest) {
         var page = datasourceAdminService.listForAdmin(organizationId, pageRequest);
-        var viewsById = page.content().stream()
-                .collect(Collectors.toMap(DatasourceView::id, Function.identity()));
-        var keys = page.content().stream()
-                .map(view -> new HealthKey(organizationId, view.id()))
-                .toList();
-        var resolved = cache.getAll(keys, missing -> computeBatch(missing, viewsById));
+        var cache = cacheManager.getCache(ProxyConfiguration.DATASOURCE_HEALTH_CACHE);
+
+        // Serve cache hits per (org, datasource); collect the misses so a single batched stats
+        // query fills them all (no N+1). The org is part of the key, so snapshots are never
+        // cross-served between tenants.
+        Map<UUID, DatasourceHealthSnapshot> resolved = new HashMap<>();
+        List<DatasourceView> misses = new ArrayList<>();
+        for (var view : page.content()) {
+            var cached = cache.get(new HealthKey(organizationId, view.id()),
+                    DatasourceHealthSnapshot.class);
+            if (cached != null) {
+                resolved.put(view.id(), cached);
+            } else {
+                misses.add(view);
+            }
+        }
+
+        if (!misses.isEmpty()) {
+            var missIds = misses.stream().map(DatasourceView::id).toList();
+            var stats = queryStatsLookupService.statsFor(missIds, clock.instant().minus(WINDOW));
+            for (var view : misses) {
+                var pool = poolManager.poolStats(view.id()).orElse(null);
+                var queryStats = stats.getOrDefault(view.id(), DatasourceQueryStats.empty());
+                var snapshot = toSnapshot(view, pool, queryStats);
+                cache.put(new HealthKey(organizationId, view.id()), snapshot);
+                resolved.put(view.id(), snapshot);
+            }
+        }
+
         var content = page.content().stream()
-                .map(view -> resolved.get(new HealthKey(organizationId, view.id())))
+                .map(view -> resolved.get(view.id()))
                 .toList();
         return new PageResponse<>(content, page.page(), page.size(),
                 page.totalElements(), page.totalPages());
-    }
-
-    private Map<HealthKey, DatasourceHealthSnapshot> computeBatch(
-            Set<? extends HealthKey> missing, Map<UUID, DatasourceView> viewsById) {
-        var missingIds = missing.stream().map(HealthKey::datasourceId).collect(Collectors.toSet());
-        var stats = queryStatsLookupService.statsFor(missingIds, clock.instant().minus(WINDOW));
-        Map<HealthKey, DatasourceHealthSnapshot> computed = new HashMap<>();
-        for (var key : missing) {
-            var view = viewsById.get(key.datasourceId());
-            var pool = poolManager.poolStats(key.datasourceId()).orElse(null);
-            var queryStats = stats.getOrDefault(key.datasourceId(), DatasourceQueryStats.empty());
-            computed.put(key, toSnapshot(view, pool, queryStats));
-        }
-        return computed;
     }
 
     private static DatasourceHealthSnapshot toSnapshot(DatasourceView view, DatasourcePoolStats pool,
