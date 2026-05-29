@@ -13,6 +13,7 @@ import {
   GlobalOutlined,
   ApiOutlined,
   LoginOutlined,
+  SlackOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
@@ -87,6 +88,7 @@ export function Sidebar({
         { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
         { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
         { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, roles: ['ADMIN'] },
+        { id: 'slack', to: '/admin/slack', label: t('nav.slack'), icon: <SlackOutlined />, roles: ['ADMIN'] },
       ],
     },
     {

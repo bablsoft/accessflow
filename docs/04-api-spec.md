@@ -1216,6 +1216,10 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
 | `GET` | `/admin/saml-config` | Get SAML configuration *(ADMIN only)* |
 | `PUT` | `/admin/saml-config` | Update SAML configuration *(ADMIN only)* |
+| `GET` | `/admin/slack-app-config` | Get the Slack app configuration; `404` when unconfigured *(ADMIN only)* |
+| `PUT` | `/admin/slack-app-config` | Create or update the Slack app configuration *(ADMIN only)* |
+| `DELETE` | `/admin/slack-app-config` | Delete the Slack app configuration *(ADMIN only)* |
+| `POST` | `/admin/slack-app-config/test` | Post a test message to the default channel via the bot token *(ADMIN only)* |
 | `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
 | `GET` | `/admin/datasource-health` | Per-datasource pool gauges + 24h query volume / latency / errors *(ADMIN only)* |
 | `GET` | `/system/info` | Returns version and feature flags |
@@ -2556,6 +2560,53 @@ The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cach
 
 **Response 401:** Not authenticated.
 **Response 403:** Caller is not an `ADMIN`.
+
+---
+
+## Slack Integration Endpoints (AF-362)
+
+Upgrades the one-way `SLACK` notification channel to a Slack **app** with interactive Approve / Reject buttons. See [docs/08-notifications.md → Slack app](08-notifications.md#slack-app-interactive-approve--reject--af-362) and [docs/07-security.md → Slack request verification](07-security.md#slack-request-verification-af-362).
+
+### PUT /admin/slack-app-config — Request Body *(ADMIN only)*
+
+```json
+{
+  "app_id": "A0123456789",
+  "default_channel_id": "C0123456789",
+  "bot_token": "xoxb-…",
+  "signing_secret": "…",
+  "active": true
+}
+```
+
+`bot_token` / `signing_secret` are write-only. Omit them (or send the `********` placeholder) to keep the stored value; both are **required on first create**. **Response 200** returns the saved config with secrets masked to booleans:
+
+```json
+{
+  "id": "uuid", "organization_id": "uuid",
+  "app_id": "A0123456789", "default_channel_id": "C0123456789",
+  "active": true, "has_bot_token": true, "has_signing_secret": true,
+  "created_at": "…", "updated_at": "…"
+}
+```
+
+**Response 422** `SLACK_APP_CONFIG_INVALID` — missing required field (e.g. bot token on create). **GET** returns the same shape, or **404** `SLACK_APP_CONFIG_NOT_FOUND` when unconfigured. **DELETE** → `204`. **POST `/test`** posts a message to `default_channel_id` via the bot token and returns `{ "status": "OK" | "ERROR", "detail": "…" }`.
+
+### POST /api/v1/integrations/slack/link-codes *(authenticated)*
+
+Issues a one-time code the caller pastes into Slack via `/accessflow link <code>`. **Response 201:** `{ "code": "…", "expires_at": "…" }`.
+
+### GET /api/v1/integrations/slack/link *(authenticated)*
+
+`{ "linked": boolean, "slack_user_id": string | null }`. **DELETE** unlinks the caller's Slack account → `204`.
+
+### POST /api/v1/integrations/slack/actions *(JWT-exempt — HMAC-signed)*
+
+Receives Slack `block_actions` callbacks (`application/x-www-form-urlencoded`, body `payload=<json>`). Verifies `X-Slack-Signature` / `X-Slack-Request-Timestamp`; resolves the Slack user → AccessFlow user; routes `action_id=approve|reject` (button `value` = query request id) through `ReviewService` with the same self-approval / RBAC guards as REST. Returns `200` (result delivered to the Slack `response_url`) or `401` on a missing/stale/invalid/replayed signature.
+
+### POST /api/v1/integrations/slack/commands *(JWT-exempt — HMAC-signed)*
+
+Receives the `/accessflow link <code>` slash command (same signature verification). On success persists the `user_slack_mapping` row and returns a `200` with an ephemeral `{ "response_type": "ephemeral", "text": "…" }` reply; `401` on signature failure.
 
 ---
 

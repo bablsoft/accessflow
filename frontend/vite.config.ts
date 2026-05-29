@@ -57,6 +57,7 @@ export default defineConfig({
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',
         'src/api/setup.ts',
+        'src/api/slack.ts',
         'src/components/datasources/ErDiagramTab.tsx',
         'src/components/datasources/erDiagramLayout.ts',
         'src/hooks/useSchemaIntrospect.ts',

@@ -215,6 +215,41 @@ export interface UpdateSamlConfigInput {
   active?: boolean;
 }
 
+export interface SlackAppConfig {
+  id: string;
+  organization_id: string;
+  app_id: string;
+  default_channel_id: string;
+  active: boolean;
+  has_bot_token: boolean;
+  has_signing_secret: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertSlackAppConfigInput {
+  app_id: string;
+  default_channel_id: string;
+  bot_token?: string;
+  signing_secret?: string;
+  active?: boolean;
+}
+
+export interface TestSlackResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
+}
+
+export interface SlackLinkCode {
+  code: string;
+  expires_at: string;
+}
+
+export interface SlackLinkStatus {
+  linked: boolean;
+  slack_user_id: string | null;
+}
+
 export interface OAuth2Config {
   id: string | null;
   organization_id: string;

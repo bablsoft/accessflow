@@ -22,7 +22,8 @@ public enum AuditResourceType {
     AUDIT_LOG("audit_log"),
     USER_GROUP("user_group"),
     DATASOURCE_REVIEWER("datasource_reviewer"),
-    QUERY_TEMPLATE("query_template");
+    QUERY_TEMPLATE("query_template"),
+    SLACK_APP_CONFIG("slack_app_config");
 
     private final String dbValue;
 

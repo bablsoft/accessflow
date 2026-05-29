@@ -27,30 +27,51 @@ import java.util.List;
 class SlackBlockKitFactory {
 
     Payload buildEventPayload(NotificationContext ctx, String optionalChannelOverride) {
+        return Payload.builder()
+                .channel(blankToNull(optionalChannelOverride))
+                .text(headerLabel(ctx))
+                .blocks(buildBlocks(ctx, false))
+                .build();
+    }
+
+    /**
+     * Block list for the bot-token ({@code chat.postMessage}) delivery path. When
+     * {@code withActionButtons} is set (review-request messages with a configured Slack app), an
+     * Approve / Reject action block is appended carrying the query request id as the button value.
+     */
+    List<LayoutBlock> buildBlocks(NotificationContext ctx, boolean withActionButtons) {
         var blocks = new ArrayList<LayoutBlock>();
         blocks.add(headerBlock(headerLabel(ctx)));
         blocks.add(summarySection(ctx));
         if (ctx.fullSqlText() != null && !ctx.fullSqlText().isBlank()) {
             blocks.add(sqlPreviewSection(ctx.sqlPreview300()));
         }
-        if (ctx.reviewUrl() != null) {
+        if (withActionButtons && ctx.queryRequestId() != null) {
+            blocks.add(reviewActionsBlock(ctx));
+        } else if (ctx.reviewUrl() != null) {
             blocks.add(actionsBlock(ctx.reviewUrl().toString()));
         }
+        return blocks;
+    }
+
+    String fallbackText(NotificationContext ctx) {
+        return headerLabel(ctx);
+    }
+
+    Payload buildTestPayload(String optionalChannelOverride) {
+        var blocks = List.<LayoutBlock>of(textSection(TEST_TEXT));
         return Payload.builder()
                 .channel(blankToNull(optionalChannelOverride))
-                .text(headerLabel(ctx))
+                .text(TEST_TEXT)
                 .blocks(blocks)
                 .build();
     }
 
-    Payload buildTestPayload(String optionalChannelOverride) {
-        var blocks = List.<LayoutBlock>of(textSection("AccessFlow notification channel test successful"));
-        return Payload.builder()
-                .channel(blankToNull(optionalChannelOverride))
-                .text("AccessFlow notification channel test successful")
-                .blocks(blocks)
-                .build();
+    String testText() {
+        return TEST_TEXT;
     }
+
+    private static final String TEST_TEXT = "AccessFlow notification channel test successful";
 
     private static HeaderBlock headerBlock(String label) {
         return HeaderBlock.builder()
@@ -91,6 +112,30 @@ class SlackBlockKitFactory {
                 .style("primary")
                 .build();
         return ActionsBlock.builder().elements(List.of(button)).build();
+    }
+
+    private static ActionsBlock reviewActionsBlock(NotificationContext ctx) {
+        var queryRequestId = ctx.queryRequestId().toString();
+        var elements = new ArrayList<com.slack.api.model.block.element.BlockElement>();
+        elements.add(ButtonElement.builder()
+                .text(PlainTextObject.builder().text("Approve").build())
+                .style("primary")
+                .actionId("approve")
+                .value(queryRequestId)
+                .build());
+        elements.add(ButtonElement.builder()
+                .text(PlainTextObject.builder().text("Reject").build())
+                .style("danger")
+                .actionId("reject")
+                .value(queryRequestId)
+                .build());
+        if (ctx.reviewUrl() != null) {
+            elements.add(ButtonElement.builder()
+                    .text(PlainTextObject.builder().text("View in AccessFlow").build())
+                    .url(ctx.reviewUrl().toString())
+                    .build());
+        }
+        return ActionsBlock.builder().elements(elements).build();
     }
 
     private static SectionBlock textSection(String text) {

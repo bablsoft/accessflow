@@ -135,6 +135,12 @@ accessflow:
       first: ${ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST:PT30S}
       second: ${ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND:PT2M}
       third: ${ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD:PT10M}
+    slack:
+      # TTL of the one-time Slack account-link code generated for `/accessflow link <code>`.
+      link-code-ttl: ${ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL:PT10M}
+      # Acceptance window for the X-Slack-Request-Timestamp HMAC signature; also the replay-dedup
+      # window. Stale or replayed inbound Slack callbacks outside this window are rejected.
+      signature-tolerance: ${ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE:PT5M}
   workflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.

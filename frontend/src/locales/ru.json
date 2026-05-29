@@ -53,7 +53,8 @@
     "profile": "Настройки профиля",
     "version": "AccessFlow версия {{version}}",
     "groups": "Groups",
-    "datasource_health": "Состояние источников"
+    "datasource_health": "Состояние источников",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "Электронная почта обязательна.",
       "role_required": "Роль обязательна."
+    },
+    "slack": {
+      "app_id_required": "ID приложения обязателен",
+      "app_id_max": "ID приложения должен содержать не более 64 символов",
+      "default_channel_required": "ID канала по умолчанию обязателен",
+      "default_channel_max": "ID канала по умолчанию должен содержать не более 64 символов",
+      "bot_token_required": "Токен бота обязателен",
+      "bot_token_max": "Токен бота должен содержать не более 512 символов",
+      "signing_secret_required": "Подписывающий секрет обязателен",
+      "signing_secret_max": "Подписывающий секрет должен содержать не более 255 символов"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "Вып. p50",
       "execution_p95": "Вып. p95",
       "unit_ms": "мс"
+    },
+    "slack": {
+      "title": "Приложение Slack",
+      "subtitle": "Подключите приложение Slack, чтобы рецензенты могли одобрять или отклонять запросы прямо из Slack.",
+      "status_configured": "Для этой организации настроено приложение Slack.",
+      "status_unconfigured": "Приложение Slack ещё не настроено.",
+      "label_app_id": "ID приложения",
+      "label_default_channel": "ID канала по умолчанию",
+      "label_bot_token": "Токен бота",
+      "label_signing_secret": "Подписывающий секрет",
+      "label_active": "Активно",
+      "save_button": "Сохранить",
+      "save_success": "Конфигурация приложения Slack сохранена",
+      "test_button": "Отправить тестовое сообщение",
+      "test_success": "Тестовое сообщение отправлено в Slack",
+      "test_failed": "Тест не пройден: {{detail}}",
+      "delete_button": "Удалить",
+      "delete_confirm": "Удалить конфигурацию приложения Slack?",
+      "delete_success": "Конфигурация приложения Slack удалена",
+      "load_error": "Не удалось загрузить конфигурацию приложения Slack"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "Активен",
         "revoked": "Отозван"
       }
+    },
+    "slack": {
+      "title": "Аккаунт Slack",
+      "description": "Привяжите свой аккаунт Slack, чтобы одобрять или отклонять запросы из Slack.",
+      "linked_as": "Привязан к пользователю Slack",
+      "unlink": "Отвязать",
+      "unlink_confirm": "Отвязать ваш аккаунт Slack?",
+      "unlink_success": "Аккаунт Slack отвязан",
+      "generate_code": "Создать код привязки",
+      "code_ready": "Выполните эту команду в Slack, чтобы завершить привязку:",
+      "code_instructions": "Код скоро истечёт. Создайте новый, если он перестанет работать."
     }
   },
   "totp_login": {

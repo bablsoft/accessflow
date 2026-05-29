@@ -136,6 +136,11 @@ class SecurityConfiguration {
                                 "/api/v1/auth/saml/enabled", "/api/v1/auth/saml/exchange",
                                 "/api/v1/auth/invitations/*", "/api/v1/auth/invitations/*/accept",
                                 "/api/v1/auth/password/forgot", "/api/v1/auth/password/reset/*").permitAll()
+                        // Inbound Slack callbacks are authenticated by the X-Slack-Signature HMAC
+                        // inside the controller (see docs/07-security.md), not by JWT — Slack
+                        // cannot send an Authorization header on these server-to-server posts.
+                        .requestMatchers("/api/v1/integrations/slack/actions",
+                                "/api/v1/integrations/slack/commands").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Actuator health + info are consumed unauthenticated by k8s probes and
                         // by the frontend version footer (see docs/09-deployment.md). The exposure

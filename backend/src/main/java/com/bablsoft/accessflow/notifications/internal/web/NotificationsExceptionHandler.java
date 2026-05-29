@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.notifications.internal.web;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelConfigException;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelNotFoundException;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
+import com.bablsoft.accessflow.notifications.api.SlackAppConfigNotFoundException;
+import com.bablsoft.accessflow.notifications.api.SlackAppConfigValidationException;
 import com.bablsoft.accessflow.notifications.api.UserNotificationNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -52,6 +54,22 @@ class NotificationsExceptionHandler {
     ProblemDetail handleUserNotificationNotFound(UserNotificationNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.user_notification_not_found"));
         pd.setProperty("error", "USER_NOTIFICATION_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SlackAppConfigNotFoundException.class)
+    ProblemDetail handleSlackAppConfigNotFound(SlackAppConfigNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.slack_app_config_not_found"));
+        pd.setProperty("error", "SLACK_APP_CONFIG_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SlackAppConfigValidationException.class)
+    ProblemDetail handleSlackAppConfigValidation(SlackAppConfigValidationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.slack_app_config_invalid"));
+        pd.setProperty("error", "SLACK_APP_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

@@ -53,7 +53,8 @@
     "profile": "Պրոֆիլի կարգավորումներ",
     "version": "AccessFlow տարբերակ {{version}}",
     "groups": "Groups",
-    "datasource_health": "Տվյալների աղբյուրների վիճակ"
+    "datasource_health": "Տվյալների աղբյուրների վիճակ",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "Էլ. փոստը պարտադիր է։",
       "role_required": "Դերը պարտադիր է։"
+    },
+    "slack": {
+      "app_id_required": "Հավելվածի ID-ն պարտադիր է",
+      "app_id_max": "Հավելվածի ID-ն պետք է լինի առավելագույնը 64 նիշ",
+      "default_channel_required": "Կանխադրված ալիքի ID-ն պարտադիր է",
+      "default_channel_max": "Կանխադրված ալիքի ID-ն պետք է լինի առավելագույնը 64 նիշ",
+      "bot_token_required": "Բոտի թոքենը պարտադիր է",
+      "bot_token_max": "Բոտի թոքենը պետք է լինի առավելագույնը 512 նիշ",
+      "signing_secret_required": "Ստորագրման գաղտնիքը պարտադիր է",
+      "signing_secret_max": "Ստորագրման գաղտնիքը պետք է լինի առավելագույնը 255 նիշ"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "Կատ. p50",
       "execution_p95": "Կատ. p95",
       "unit_ms": "մվ"
+    },
+    "slack": {
+      "title": "Slack հավելված",
+      "subtitle": "Միացրեք Slack հավելվածը, որպեսզի վերանայողները կարողանան հաստատել կամ մերժել հարցումներն ուղիղ Slack-ից։",
+      "status_configured": "Այս կազմակերպության համար կարգավորված է Slack հավելված։",
+      "status_unconfigured": "Slack հավելված դեռ կարգավորված չէ։",
+      "label_app_id": "Հավելվածի ID",
+      "label_default_channel": "Կանխադրված ալիքի ID",
+      "label_bot_token": "Բոտի թոքեն",
+      "label_signing_secret": "Ստորագրման գաղտնիք",
+      "label_active": "Ակտիվ",
+      "save_button": "Պահպանել",
+      "save_success": "Slack հավելվածի կարգավորումը պահպանվեց",
+      "test_button": "Ուղարկել փորձնական հաղորդագրություն",
+      "test_success": "Փորձնական հաղորդագրությունն ուղարկվեց Slack",
+      "test_failed": "Թեստը ձախողվեց՝ {{detail}}",
+      "delete_button": "Ջնջել",
+      "delete_confirm": "Ջնջե՞լ Slack հավելվածի կարգավորումը։",
+      "delete_success": "Slack հավելվածի կարգավորումը ջնջվեց",
+      "load_error": "Չհաջողվեց բեռնել Slack հավելվածի կարգավորումը"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "Ակտիվ",
         "revoked": "Հետ կանչված"
       }
+    },
+    "slack": {
+      "title": "Slack հաշիվ",
+      "description": "Կապեք ձեր Slack հաշիվը՝ Slack-ից հարցումները հաստատելու կամ մերժելու համար։",
+      "linked_as": "Կապված է Slack օգտատիրոջ հետ",
+      "unlink": "Անջատել",
+      "unlink_confirm": "Անջատե՞լ ձեր Slack հաշիվը։",
+      "unlink_success": "Slack հաշիվն անջատվեց",
+      "generate_code": "Ստեղծել կապակցման կոդ",
+      "code_ready": "Կապը ավարտելու համար Slack-ում գործարկեք այս հրահանգը՝",
+      "code_instructions": "Կոդը շուտով կժամկետանց։ Անհրաժեշտության դեպքում ստեղծեք նորը։"
     }
   },
   "totp_login": {

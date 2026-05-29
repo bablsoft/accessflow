@@ -933,7 +933,7 @@ APPROVED → FAILED (execution error)</pre>
             <li><strong>Pick a type:</strong>
               <ul>
                 <li><strong>Email</strong> — supply SMTP host, port, optional user / password, TLS, and the <em>From</em> address / display name. Leave the SMTP fields blank to fall back on the <a href="#cfg-smtp">system SMTP</a>.</li>
-                <li><strong>Slack</strong> — paste an incoming-webhook URL; messages use Block Kit so the SQL preview and action buttons render natively.</li>
+                <li><strong>Slack</strong> — paste an incoming-webhook URL for one-way Block Kit messages (header, SQL preview, and a <em>View in AccessFlow</em> link). For interactive <strong>Approve / Reject</strong> buttons, configure a Slack <strong>app</strong> instead (see below).</li>
                 <li><strong>Webhook</strong> — supply a target URL and a signing secret. Every POST carries <code>X-AccessFlow-Signature: sha256=...</code> computed from the body and the secret.</li>
                 <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
                 <li><strong>Telegram</strong> — create a bot via <a href="https://core.telegram.org/bots/tutorial">@BotFather</a>, add it to the target group/channel, and configure the <em>bot token</em> plus numeric <em>chat ID</em>. Messages use MarkdownV2 formatting.</li>
@@ -955,6 +955,32 @@ APPROVED → FAILED (execution error)</pre>
             <code>_SECOND</code> / <code>_THIRD</code>. Failed deliveries log <code>ERROR</code>
             but never affect query workflow state.
           </div>
+
+          <h4>Slack app — Approve / Reject from Slack</h4>
+          <p>
+            Beyond the one-way Slack webhook channel, an admin can connect a Slack <strong>app</strong>
+            at <code>/admin/slack</code> so reviewers act on requests without leaving Slack. Create the app
+            in Slack's console, then paste its <em>App ID</em>, <em>Bot token</em>, <em>Signing secret</em>,
+            and a <em>default channel ID</em>. When an app is active, review-request messages are posted via
+            the bot token and carry <strong>Approve</strong> and <strong>Reject</strong> buttons.
+          </p>
+          <ol>
+            <li><strong>Each reviewer links their Slack identity once.</strong> On <code>/profile</code> →
+              <em>Slack account</em>, click <em>Generate link code</em>, then run
+              <code>/accessflow link &lt;code&gt;</code> in Slack. The code is single-use and short-lived
+              (<code>ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL</code>, default 10 min).</li>
+            <li><strong>Clicking Approve / Reject</strong> runs through the same review service as the UI —
+              a reviewer can never approve their own query, and role / stage checks apply identically.
+              The original Slack message updates in place with the decision.</li>
+          </ol>
+          <p>
+            Inbound clicks are verified by the Slack <em>signing secret</em> (HMAC over the raw body, with a
+            timestamp/replay window set by <code>ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE</code>,
+            default 5 min). The bot token and signing secret are AES-256-GCM encrypted at rest and never
+            returned by the API. Point your Slack app's <em>Interactivity</em> request URL at
+            <code>/api/v1/integrations/slack/actions</code> and its <em>slash command</em> at
+            <code>/api/v1/integrations/slack/commands</code>.
+          </p>
 
           <!-- SMTP -->
           <h3 id="cfg-smtp">System SMTP</h3>

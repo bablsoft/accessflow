@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
+import com.bablsoft.accessflow.notifications.internal.DecryptedSlackApp;
+import com.bablsoft.accessflow.notifications.internal.DefaultSlackAppConfigService;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
 import com.bablsoft.accessflow.notifications.internal.codec.SlackChannelConfig;
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,13 +30,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SlackNotificationStrategyTest {
 
     private ChannelConfigCodec codec;
     private SlackBlockKitFactory factory;
+    private SlackBotMessenger botMessenger;
+    private DefaultSlackAppConfigService appConfigService;
     private Slack slack;
     private SlackNotificationStrategy strategy;
 
@@ -41,8 +49,10 @@ class SlackNotificationStrategyTest {
     void setUp() {
         codec = mock(ChannelConfigCodec.class);
         factory = mock(SlackBlockKitFactory.class);
+        botMessenger = mock(SlackBotMessenger.class);
+        appConfigService = mock(DefaultSlackAppConfigService.class);
         slack = mock(Slack.class);
-        strategy = new SlackNotificationStrategy(codec, factory, slack);
+        strategy = new SlackNotificationStrategy(codec, factory, botMessenger, appConfigService, slack);
 
         when(codec.decodeSlack(anyString())).thenReturn(new SlackChannelConfig(
                 URI.create("https://hooks.slack.com/services/abc"),
@@ -50,6 +60,7 @@ class SlackNotificationStrategyTest {
                 List.of("@alice")));
         when(factory.buildEventPayload(any(), anyString())).thenReturn(Payload.builder().build());
         when(factory.buildTestPayload(anyString())).thenReturn(Payload.builder().build());
+        when(appConfigService.findActiveByOrg(any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -64,9 +75,10 @@ class SlackNotificationStrategyTest {
         strategy.deliver(ctx(NotificationEventType.QUERY_SUBMITTED), channel());
 
         var urlCaptor = ArgumentCaptor.forClass(String.class);
-        org.mockito.Mockito.verify(slack).send(urlCaptor.capture(), any(Payload.class));
+        verify(slack).send(urlCaptor.capture(), any(Payload.class));
         assertThat(urlCaptor.getValue()).isEqualTo("https://hooks.slack.com/services/abc");
-        org.mockito.Mockito.verify(factory).buildEventPayload(any(), eq("#review"));
+        verify(factory).buildEventPayload(any(), eq("#review"));
+        verify(botMessenger, never()).postMessage(anyString(), anyString(), anyString(), any());
     }
 
     @Test
@@ -108,14 +120,69 @@ class SlackNotificationStrategyTest {
     }
 
     @Test
+    void deliverUsesBotTokenWithActionButtonsWhenAppConfigured() throws Exception {
+        var orgId = UUID.randomUUID();
+        when(appConfigService.findActiveByOrg(orgId))
+                .thenReturn(Optional.of(new DecryptedSlackApp(orgId, "A1", "xoxb-token", "sign", "C-default")));
+        when(factory.fallbackText(any())).thenReturn("🔍 New Query Awaiting Review");
+        when(factory.buildBlocks(any(), eq(true))).thenReturn(List.of());
+
+        strategy.deliver(ctx(NotificationEventType.QUERY_SUBMITTED, orgId), channel(orgId));
+
+        verify(botMessenger).postMessage(eq("xoxb-token"), eq("#review"),
+                eq("🔍 New Query Awaiting Review"), any());
+        verify(factory).buildBlocks(any(), eq(true));
+        verify(slack, never()).send(anyString(), any(Payload.class));
+    }
+
+    @Test
+    void deliverViaBotOmitsActionButtonsForNonSubmittedEvents() throws Exception {
+        var orgId = UUID.randomUUID();
+        when(appConfigService.findActiveByOrg(orgId))
+                .thenReturn(Optional.of(new DecryptedSlackApp(orgId, "A1", "xoxb-token", "sign", "C-default")));
+        when(factory.buildBlocks(any(), eq(false))).thenReturn(List.of());
+
+        strategy.deliver(ctx(NotificationEventType.QUERY_APPROVED, orgId), channel(orgId));
+
+        verify(factory).buildBlocks(any(), eq(false));
+        verify(botMessenger).postMessage(eq("xoxb-token"), eq("#review"), any(), any());
+    }
+
+    @Test
+    void deliverViaBotFallsBackToDefaultChannelWhenChannelOverrideBlank() throws Exception {
+        var orgId = UUID.randomUUID();
+        when(codec.decodeSlack(anyString())).thenReturn(new SlackChannelConfig(
+                URI.create("https://hooks.slack.com/services/abc"), null, List.of()));
+        when(appConfigService.findActiveByOrg(orgId))
+                .thenReturn(Optional.of(new DecryptedSlackApp(orgId, "A1", "xoxb-token", "sign", "C-default")));
+        when(factory.buildBlocks(any(), eq(true))).thenReturn(List.of());
+
+        strategy.deliver(ctx(NotificationEventType.QUERY_SUBMITTED, orgId), channel(orgId));
+
+        verify(botMessenger).postMessage(eq("xoxb-token"), eq("C-default"), any(), any());
+    }
+
+    @Test
     void sendTestPostsTestPayload() throws Exception {
         when(slack.send(anyString(), any(Payload.class))).thenReturn(success(200));
 
         strategy.sendTest(channel(), null);
 
-        org.mockito.Mockito.verify(factory).buildTestPayload(eq("#review"));
-        org.mockito.Mockito.verify(slack).send(eq("https://hooks.slack.com/services/abc"),
-                any(Payload.class));
+        verify(factory).buildTestPayload(eq("#review"));
+        verify(slack).send(eq("https://hooks.slack.com/services/abc"), any(Payload.class));
+    }
+
+    @Test
+    void sendTestUsesBotTokenWhenAppConfigured() throws Exception {
+        var orgId = UUID.randomUUID();
+        when(appConfigService.findActiveByOrg(orgId))
+                .thenReturn(Optional.of(new DecryptedSlackApp(orgId, "A1", "xoxb-token", "sign", "C-default")));
+        when(factory.testText()).thenReturn("test ok");
+
+        strategy.sendTest(channel(orgId), null);
+
+        verify(botMessenger).postMessage(eq("xoxb-token"), eq("#review"), eq("test ok"), isNull());
+        verify(slack, never()).send(anyString(), any(Payload.class));
     }
 
     @Test
@@ -131,9 +198,13 @@ class SlackNotificationStrategyTest {
     }
 
     private static NotificationChannelEntity channel() {
+        return channel(UUID.randomUUID());
+    }
+
+    private static NotificationChannelEntity channel(UUID organizationId) {
         var c = new NotificationChannelEntity();
         c.setId(UUID.randomUUID());
-        c.setOrganizationId(UUID.randomUUID());
+        c.setOrganizationId(organizationId);
         c.setChannelType(NotificationChannelType.SLACK);
         c.setName("Slack");
         c.setActive(true);
@@ -143,9 +214,13 @@ class SlackNotificationStrategyTest {
     }
 
     private static NotificationContext ctx(NotificationEventType eventType) {
+        return ctx(eventType, UUID.randomUUID());
+    }
+
+    private static NotificationContext ctx(NotificationEventType eventType, UUID organizationId) {
         return new NotificationContext(
                 eventType,
-                UUID.randomUUID(),
+                organizationId,
                 UUID.randomUUID(),
                 QueryType.SELECT,
                 "SELECT 1",

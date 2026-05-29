@@ -53,7 +53,8 @@
     "custom_drivers": "Custom JDBC drivers",
     "profile": "Profile settings",
     "version": "AccessFlow version {{version}}",
-    "datasource_health": "Datasource health"
+    "datasource_health": "Datasource health",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "Email is required.",
       "role_required": "Role is required."
+    },
+    "slack": {
+      "app_id_required": "App ID is required",
+      "app_id_max": "App ID must be at most 64 characters",
+      "default_channel_required": "Default channel ID is required",
+      "default_channel_max": "Default channel ID must be at most 64 characters",
+      "bot_token_required": "Bot token is required",
+      "bot_token_max": "Bot token must be at most 512 characters",
+      "signing_secret_required": "Signing secret is required",
+      "signing_secret_max": "Signing secret must be at most 255 characters"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "Exec p50",
       "execution_p95": "Exec p95",
       "unit_ms": "ms"
+    },
+    "slack": {
+      "title": "Slack app",
+      "subtitle": "Connect a Slack app so reviewers can approve or reject queries from Slack.",
+      "status_configured": "A Slack app is configured for this organization.",
+      "status_unconfigured": "No Slack app is configured yet.",
+      "label_app_id": "App ID",
+      "label_default_channel": "Default channel ID",
+      "label_bot_token": "Bot token",
+      "label_signing_secret": "Signing secret",
+      "label_active": "Active",
+      "save_button": "Save",
+      "save_success": "Slack app configuration saved",
+      "test_button": "Send test message",
+      "test_success": "Test message posted to Slack",
+      "test_failed": "Test failed: {{detail}}",
+      "delete_button": "Delete",
+      "delete_confirm": "Delete the Slack app configuration?",
+      "delete_success": "Slack app configuration deleted",
+      "load_error": "Failed to load the Slack app configuration"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "Active",
         "revoked": "Revoked"
       }
+    },
+    "slack": {
+      "title": "Slack account",
+      "description": "Link your Slack account to approve or reject queries from Slack.",
+      "linked_as": "Linked to Slack user",
+      "unlink": "Unlink",
+      "unlink_confirm": "Unlink your Slack account?",
+      "unlink_success": "Slack account unlinked",
+      "generate_code": "Generate link code",
+      "code_ready": "Run this command in Slack to finish linking:",
+      "code_instructions": "The code expires shortly. Generate a new one if it stops working."
     }
   },
   "totp_login": {

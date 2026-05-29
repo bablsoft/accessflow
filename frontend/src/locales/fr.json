@@ -53,7 +53,8 @@
     "profile": "Paramètres du profil",
     "version": "AccessFlow version {{version}}",
     "groups": "Groups",
-    "datasource_health": "Santé des sources"
+    "datasource_health": "Santé des sources",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "L'e-mail est obligatoire.",
       "role_required": "Le rôle est obligatoire."
+    },
+    "slack": {
+      "app_id_required": "L'ID de l'application est obligatoire",
+      "app_id_max": "L'ID de l'application doit comporter au maximum 64 caractères",
+      "default_channel_required": "L'ID du canal par défaut est obligatoire",
+      "default_channel_max": "L'ID du canal par défaut doit comporter au maximum 64 caractères",
+      "bot_token_required": "Le jeton du bot est obligatoire",
+      "bot_token_max": "Le jeton du bot doit comporter au maximum 512 caractères",
+      "signing_secret_required": "Le secret de signature est obligatoire",
+      "signing_secret_max": "Le secret de signature doit comporter au maximum 255 caractères"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "Exéc p50",
       "execution_p95": "Exéc p95",
       "unit_ms": "ms"
+    },
+    "slack": {
+      "title": "Application Slack",
+      "subtitle": "Connectez une application Slack pour que les relecteurs approuvent ou rejettent les requêtes depuis Slack.",
+      "status_configured": "Une application Slack est configurée pour cette organisation.",
+      "status_unconfigured": "Aucune application Slack n'est encore configurée.",
+      "label_app_id": "ID de l'application",
+      "label_default_channel": "ID du canal par défaut",
+      "label_bot_token": "Jeton du bot",
+      "label_signing_secret": "Secret de signature",
+      "label_active": "Active",
+      "save_button": "Enregistrer",
+      "save_success": "Configuration de l'application Slack enregistrée",
+      "test_button": "Envoyer un message de test",
+      "test_success": "Message de test envoyé à Slack",
+      "test_failed": "Échec du test : {{detail}}",
+      "delete_button": "Supprimer",
+      "delete_confirm": "Supprimer la configuration de l'application Slack ?",
+      "delete_success": "Configuration de l'application Slack supprimée",
+      "load_error": "Échec du chargement de la configuration de l'application Slack"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "Active",
         "revoked": "Révoquée"
       }
+    },
+    "slack": {
+      "title": "Compte Slack",
+      "description": "Liez votre compte Slack pour approuver ou rejeter des requêtes depuis Slack.",
+      "linked_as": "Lié à l'utilisateur Slack",
+      "unlink": "Dissocier",
+      "unlink_confirm": "Dissocier votre compte Slack ?",
+      "unlink_success": "Compte Slack dissocié",
+      "generate_code": "Générer un code de liaison",
+      "code_ready": "Exécutez cette commande dans Slack pour terminer la liaison :",
+      "code_instructions": "Le code expire bientôt. Générez-en un nouveau si nécessaire."
     }
   },
   "totp_login": {

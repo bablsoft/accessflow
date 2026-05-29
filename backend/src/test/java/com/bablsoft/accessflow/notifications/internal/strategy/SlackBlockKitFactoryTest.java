@@ -55,6 +55,53 @@ class SlackBlockKitFactoryTest {
     }
 
     @Test
+    void buildBlocksWithActionButtonsAddsApproveAndReject() {
+        var ctx = ctxWith(NotificationEventType.QUERY_SUBMITTED);
+
+        var blocks = factory.buildBlocks(ctx, true);
+
+        var actions = (ActionsBlock) blocks.stream()
+                .filter(b -> b instanceof ActionsBlock)
+                .findFirst()
+                .orElseThrow();
+        var elements = actions.getElements();
+        assertThat(elements).hasSize(3);
+        var approve = (ButtonElement) elements.get(0);
+        var reject = (ButtonElement) elements.get(1);
+        var view = (ButtonElement) elements.get(2);
+        assertThat(approve.getActionId()).isEqualTo("approve");
+        assertThat(approve.getStyle()).isEqualTo("primary");
+        assertThat(approve.getValue()).isEqualTo(ctx.queryRequestId().toString());
+        assertThat(reject.getActionId()).isEqualTo("reject");
+        assertThat(reject.getStyle()).isEqualTo("danger");
+        assertThat(reject.getValue()).isEqualTo(ctx.queryRequestId().toString());
+        assertThat(view.getUrl()).isEqualTo("https://app.example.com/queries/abc");
+    }
+
+    @Test
+    void buildBlocksWithoutActionButtonsUsesLinkOnly() {
+        var ctx = ctxWith(NotificationEventType.QUERY_SUBMITTED);
+
+        var blocks = factory.buildBlocks(ctx, false);
+
+        var actions = (ActionsBlock) blocks.stream()
+                .filter(b -> b instanceof ActionsBlock)
+                .findFirst()
+                .orElseThrow();
+        assertThat(actions.getElements()).hasSize(1);
+        var btn = (ButtonElement) actions.getElements().get(0);
+        assertThat(btn.getActionId()).isNull();
+        assertThat(btn.getUrl()).isEqualTo("https://app.example.com/queries/abc");
+    }
+
+    @Test
+    void fallbackTextMatchesHeaderLabel() {
+        assertThat(factory.fallbackText(ctxWith(NotificationEventType.QUERY_SUBMITTED)))
+                .contains("New Query Awaiting Review");
+        assertThat(factory.testText()).contains("AccessFlow notification channel test successful");
+    }
+
+    @Test
     void buildTestPayloadContainsConfirmationText() {
         var payload = factory.buildTestPayload(null);
 
