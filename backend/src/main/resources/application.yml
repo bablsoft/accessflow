@@ -141,6 +141,9 @@ accessflow:
       # Acceptance window for the X-Slack-Request-Timestamp HMAC signature; also the replay-dedup
       # window. Stale or replayed inbound Slack callbacks outside this window are rejected.
       signature-tolerance: ${ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE:PT5M}
+    # PagerDuty Events API v2 base URL used by PAGERDUTY notification channels. Override for
+    # air-gapped installs that route through an internal proxy.
+    pagerduty-api-base-url: ${ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL:https://events.pagerduty.com/}
   workflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.

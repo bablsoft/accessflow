@@ -6,5 +6,6 @@ public enum NotificationChannelType {
     WEBHOOK,
     DISCORD,
     TELEGRAM,
-    MS_TEAMS
+    MS_TEAMS,
+    PAGERDUTY
 }

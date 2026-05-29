@@ -241,6 +241,7 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | ISO-8601 duration before the third (final) webhook retry (default `PT10M`). |
 | `ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL` | Telegram Bot API base URL used by `TELEGRAM` notification channels (default `https://api.telegram.org/`). Override for air-gapped installs that route through an internal proxy. |
+| `ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL` | PagerDuty Events API v2 base URL used by `PAGERDUTY` notification channels (default `https://events.pagerduty.com/`). Override for air-gapped installs that route through an internal proxy. |
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL` | ISO-8601 duration. TTL of the one-time Slack account-link code issued for the `/accessflow link <code>` slash-command flow, stored single-use in Redis (default `PT10M`). |
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE` | ISO-8601 duration. Acceptance window for the inbound Slack `X-Slack-Signature` HMAC (`X-Slack-Request-Timestamp` skew) on `/api/v1/integrations/slack/{actions,commands}`; also the Redis replay-dedup window (default `PT5M`). |
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |

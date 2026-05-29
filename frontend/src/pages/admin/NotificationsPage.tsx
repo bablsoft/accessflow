@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   App,
   Button,
+  Checkbox,
   Form,
   Input,
   InputNumber,
@@ -12,6 +13,7 @@ import {
   Switch,
 } from 'antd';
 import {
+  AlertOutlined,
   ApiOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -57,6 +59,7 @@ const CHANNEL_TYPES: readonly ChannelType[] = [
   'DISCORD',
   'TELEGRAM',
   'MS_TEAMS',
+  'PAGERDUTY',
 ] as const;
 
 interface ChannelFormValues {
@@ -79,6 +82,9 @@ interface ChannelFormValues {
   discord_avatar_url?: string;
   bot_token?: string;
   chat_id?: string;
+  routing_key?: string;
+  default_severity?: string;
+  triggers?: string[];
 }
 
 export function NotificationsPage() {
@@ -274,6 +280,8 @@ function ChannelCard({
         return <ApiOutlined style={{ fontSize: 18 }} />;
       case 'MS_TEAMS':
         return <TeamOutlined style={{ fontSize: 18 }} />;
+      case 'PAGERDUTY':
+        return <AlertOutlined style={{ fontSize: 18 }} />;
       default:
         return <SendOutlined style={{ fontSize: 18 }} />;
     }
@@ -292,6 +300,8 @@ function ChannelCard({
         return '#229ed9';
       case 'MS_TEAMS':
         return '#4b53bc';
+      case 'PAGERDUTY':
+        return '#06ac38';
       default:
         return '#64748b';
     }
@@ -440,6 +450,16 @@ function ConfigPreview({ channel }: { channel: NotificationChannel }) {
     const url = String(cfg.webhook_url ?? '');
     return <>webhook: {url ? url.slice(0, 38) + (url.length > 38 ? '…' : '') : '—'}</>;
   }
+  if (channel.channel_type === 'PAGERDUTY') {
+    const triggers = Array.isArray(cfg.triggers) ? (cfg.triggers as string[]) : [];
+    return (
+      <>
+        severity: {String(cfg.default_severity ?? '—')}
+        <br />
+        triggers: {triggers.length ? triggers.join(', ') : '—'}
+      </>
+    );
+  }
   const url = String(cfg.url ?? '');
   return (
     <>
@@ -491,6 +511,9 @@ function ChannelFormModal({
         discord_avatar_url: c.avatar_url as string | undefined,
         bot_token: c.bot_token as string | undefined,
         chat_id: c.chat_id as string | undefined,
+        routing_key: c.routing_key as string | undefined,
+        default_severity: c.default_severity as string | undefined,
+        triggers: c.triggers as string[] | undefined,
       });
     } else {
       form.resetFields();
@@ -524,6 +547,10 @@ function ChannelFormModal({
       setIf('chat_id', values.chat_id);
     } else if (values.channel_type === 'MS_TEAMS') {
       setIf('webhook_url', values.webhook_url);
+    } else if (values.channel_type === 'PAGERDUTY') {
+      setIf('routing_key', values.routing_key);
+      setIf('default_severity', values.default_severity);
+      if (values.triggers && values.triggers.length) config['triggers'] = values.triggers;
     } else {
       setIf('url', values.url);
       setIf('secret', values.secret);
@@ -727,6 +754,50 @@ function ChannelFormModal({
           >
             <Input placeholder="https://example.webhook.office.com/webhookb2/…" />
           </Form.Item>
+        )}
+
+        {channelType === 'PAGERDUTY' && (
+          <>
+            <Form.Item
+              name="routing_key"
+              label={t('admin.notifications.label_pagerduty_routing_key')}
+              rules={[{ required: !editing }]}
+            >
+              <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
+            </Form.Item>
+            <Form.Item
+              name="default_severity"
+              label={t('admin.notifications.label_pagerduty_severity')}
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: 'critical', label: t('admin.notifications.label_pagerduty_severity_critical') },
+                  { value: 'error', label: t('admin.notifications.label_pagerduty_severity_error') },
+                  { value: 'warning', label: t('admin.notifications.label_pagerduty_severity_warning') },
+                  { value: 'info', label: t('admin.notifications.label_pagerduty_severity_info') },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="triggers"
+              label={t('admin.notifications.label_pagerduty_triggers')}
+              rules={[{ required: true, type: 'array', min: 1 }]}
+            >
+              <Checkbox.Group
+                options={[
+                  {
+                    value: 'CRITICAL_RISK',
+                    label: t('admin.notifications.label_pagerduty_trigger_critical_risk'),
+                  },
+                  {
+                    value: 'REVIEW_TIMEOUT',
+                    label: t('admin.notifications.label_pagerduty_trigger_review_timeout'),
+                  },
+                ]}
+              />
+            </Form.Item>
+          </>
         )}
       </Form>
     </Modal>

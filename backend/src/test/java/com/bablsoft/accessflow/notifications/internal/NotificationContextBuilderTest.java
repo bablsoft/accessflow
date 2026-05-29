@@ -63,6 +63,7 @@ class NotificationContextBuilderTest {
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
+                null,
                 null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
@@ -303,6 +304,7 @@ class NotificationContextBuilderTest {
         var props = new NotificationsProperties(
                 URI.create("https://no-trailing.example"),
                 NotificationsProperties.Retry.defaults(),
+                null,
                 null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, props);

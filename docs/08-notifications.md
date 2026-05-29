@@ -266,6 +266,34 @@ The card includes a header (with risk-coloured accent), a `FactSet` summary, a m
 
 ---
 
+### PagerDuty
+
+Pages an on-call responder via the [PagerDuty Events API v2](https://developer.pagerduty.com/docs/events-api-v2/overview/). AccessFlow `POST`s a `trigger` event to `https://events.pagerduty.com/v2/enqueue` scoped by the integration **routing key** (an "Events API v2" integration on a PagerDuty service).
+
+**Configuration:**
+```json
+{
+  "routing_key": "R0ABCD1234567890ABCDEF",
+  "default_severity": "critical",
+  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT"]
+}
+```
+
+- `routing_key` (required, AES-256-GCM encrypted at rest, masked on read) — the Events API v2 integration routing key.
+- `default_severity` (required) — PagerDuty `payload.severity` for every event from this channel; one of `critical`, `error`, `warning`, `info`.
+- `triggers` (required, at least one) — which events page this channel. A **trigger filter** runs before any HTTP call, so unlike the chat channels a PagerDuty channel only fires for the events it opts into:
+  - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
+  - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
+  Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
+
+The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.
+
+PagerDuty delivery uses the **same async retry scheduler as the generic `WEBHOOK` channel** — one initial attempt plus up to three retries at `accessflow.notifications.retry.{first,second,third}` (default +30s / +2m / +10m). On exhaustion the dispatcher logs `ERROR` and publishes a `NotificationDeliveryExhaustedEvent` to the audit log. The Events API base URL is configurable via `accessflow.notifications.pagerduty-api-base-url` (default `https://events.pagerduty.com/`) for air-gapped installs that route through an internal proxy.
+
+> The PagerDuty `resolve` action is intentionally out of scope: AccessFlow's `TIMED_OUT` state is terminal, so no event currently un-resolves an incident. The `dedup_key` is query-stable so a future `resolve` can target the same incident without a config change.
+
+---
+
 ## Admin: Testing Channels
 
 `POST /admin/notification-channels/{id}/test` sends a test payload for the configured channel type:
@@ -275,6 +303,7 @@ The card includes a header (with risk-coloured accent), a `FactSet` summary, a m
 - **Webhook:** Posts a `{"event": "TEST", "timestamp": "..."}` payload to the webhook URL
 - **Discord / MS Teams:** Posts a one-line confirmation embed/card to the configured webhook URL
 - **Telegram:** Posts a one-line MarkdownV2 confirmation to the configured chat ID
+- **PagerDuty:** Posts a `trigger` event with a fixed `accessflow-test` dedup key and `info` severity (the trigger filter is bypassed for tests)
 
 ---
 
@@ -292,7 +321,7 @@ POST /api/v1/admin/notification-channels
 }
 ```
 
-The `config.smtp_password_encrypted` and `config.secret` fields are AES-256 encrypted before being stored in the database. They are never returned in GET responses — only a masked placeholder is shown.
+Sensitive `config` fields — `smtp_password`, `secret`, `bot_token`, and `routing_key` — are AES-256-GCM encrypted before being stored in the database. They are never returned in GET responses — only a masked placeholder is shown.
 
 ---
 

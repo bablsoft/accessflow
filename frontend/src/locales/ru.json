@@ -948,6 +948,15 @@
       "label_telegram_bot_token": "Токен бота",
       "label_telegram_chat_id": "ID чата",
       "label_ms_teams_webhook_url": "URL webhook Teams",
+      "label_pagerduty_routing_key": "Ключ маршрутизации интеграции",
+      "label_pagerduty_severity": "Серьёзность по умолчанию",
+      "label_pagerduty_severity_critical": "Критическая",
+      "label_pagerduty_severity_error": "Ошибка",
+      "label_pagerduty_severity_warning": "Предупреждение",
+      "label_pagerduty_severity_info": "Информация",
+      "label_pagerduty_triggers": "Срабатывать при",
+      "label_pagerduty_trigger_critical_risk": "ИИ-запрос критического риска",
+      "label_pagerduty_trigger_review_timeout": "Тайм-аут проверки",
       "save_create": "Создать канал",
       "save_update": "Сохранить изменения",
       "create_success": "Канал создан",
@@ -1512,7 +1521,8 @@
       "WEBHOOK": "Webhook",
       "DISCORD": "Discord",
       "TELEGRAM": "Telegram",
-      "MS_TEAMS": "Microsoft Teams"
+      "MS_TEAMS": "Microsoft Teams",
+      "PAGERDUTY": "PagerDuty"
     },
     "ai_provider": {
       "OPENAI": "OpenAI",

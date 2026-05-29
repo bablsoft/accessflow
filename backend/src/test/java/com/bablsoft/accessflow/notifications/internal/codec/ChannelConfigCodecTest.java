@@ -346,6 +346,84 @@ class ChannelConfigCodecTest {
                 .hasMessageContaining("webhook_url");
     }
 
+    @Test
+    void encodesPagerDutyChannelAndMasksRoutingKey() {
+        var json = codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "routing_key", "R0UT1NGKEY",
+                "default_severity", "critical",
+                "triggers", java.util.List.of("CRITICAL_RISK", "REVIEW_TIMEOUT")));
+
+        assertThat(json).contains("routing_key_encrypted")
+                .contains("enc:R0UT1NGKEY")
+                .doesNotContain("\"routing_key\":\"R0UT1NGKEY\"");
+
+        var typed = codec.decodePagerDuty(json);
+        assertThat(typed.routingKeyPlain()).isEqualTo("R0UT1NGKEY");
+        assertThat(typed.defaultSeverity()).isEqualTo(PagerDutySeverity.CRITICAL);
+        assertThat(typed.triggers())
+                .containsExactlyInAnyOrder(PagerDutyTrigger.CRITICAL_RISK, PagerDutyTrigger.REVIEW_TIMEOUT);
+
+        var view = codec.decodeForApi(json);
+        assertThat(view).containsEntry("routing_key", "********")
+                .doesNotContainKey("routing_key_encrypted")
+                .containsEntry("default_severity", "critical");
+    }
+
+    @Test
+    void rejectsPagerDutyWithoutRoutingKey() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "default_severity", "critical",
+                "triggers", java.util.List.of("CRITICAL_RISK"))))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("routing_key");
+    }
+
+    @Test
+    void rejectsPagerDutyWithInvalidSeverity() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "routing_key", "k",
+                "default_severity", "fatal",
+                "triggers", java.util.List.of("CRITICAL_RISK"))))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("default_severity");
+    }
+
+    @Test
+    void rejectsPagerDutyWithoutTriggers() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "routing_key", "k",
+                "default_severity", "warning",
+                "triggers", java.util.List.of())))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("triggers");
+    }
+
+    @Test
+    void rejectsPagerDutyWithInvalidTrigger() {
+        assertThatThrownBy(() -> codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "routing_key", "k",
+                "default_severity", "info",
+                "triggers", java.util.List.of("BOGUS"))))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("triggers");
+    }
+
+    @Test
+    void mergeRotatesPagerDutyRoutingKeyAndPreservesOnMask() {
+        var original = codec.encodeForPersistence(NotificationChannelType.PAGERDUTY, Map.of(
+                "routing_key", "old",
+                "default_severity", "error",
+                "triggers", java.util.List.of("REVIEW_TIMEOUT")));
+
+        var rotated = codec.mergeForPersistence(NotificationChannelType.PAGERDUTY, original, Map.of(
+                "routing_key", "new"));
+        assertThat(codec.decodePagerDuty(rotated).routingKeyPlain()).isEqualTo("new");
+
+        var kept = codec.mergeForPersistence(NotificationChannelType.PAGERDUTY, original, Map.of(
+                "routing_key", "********"));
+        assertThat(codec.decodePagerDuty(kept).routingKeyPlain()).isEqualTo("old");
+    }
+
     /**
      * Trivial reversible "encryption" used to exercise the round-trip without depending on
      * core's package-private AES helper. Prepends a marker so encrypted values are visibly

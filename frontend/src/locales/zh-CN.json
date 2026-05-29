@@ -948,6 +948,15 @@
       "label_telegram_bot_token": "Bot 令牌",
       "label_telegram_chat_id": "聊天 ID",
       "label_ms_teams_webhook_url": "Teams Webhook URL",
+      "label_pagerduty_routing_key": "集成路由密钥",
+      "label_pagerduty_severity": "默认严重级别",
+      "label_pagerduty_severity_critical": "严重",
+      "label_pagerduty_severity_error": "错误",
+      "label_pagerduty_severity_warning": "警告",
+      "label_pagerduty_severity_info": "信息",
+      "label_pagerduty_triggers": "触发条件",
+      "label_pagerduty_trigger_critical_risk": "AI 严重风险查询",
+      "label_pagerduty_trigger_review_timeout": "审核超时",
       "save_create": "创建通道",
       "save_update": "保存更改",
       "create_success": "已创建通道",
@@ -1512,7 +1521,8 @@
       "WEBHOOK": "Webhook",
       "DISCORD": "Discord",
       "TELEGRAM": "Telegram",
-      "MS_TEAMS": "Microsoft Teams"
+      "MS_TEAMS": "Microsoft Teams",
+      "PAGERDUTY": "PagerDuty"
     },
     "ai_provider": {
       "OPENAI": "OpenAI",
