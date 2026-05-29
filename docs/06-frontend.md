@@ -497,6 +497,8 @@ for deployment recipes (Docker Compose, Helm).
 /datasources/:id/settings           → DatasourceSettingsPage
 
 /admin/users                        → UsersPage
+/admin/groups                       → GroupsListPage (lazy; user groups — AF-353)
+/admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard)
@@ -508,6 +510,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
 /admin/saml                         → SamlConfigPage
 /admin/oauth2                       → OAuth2ConfigPage (lazy)
+/admin/slack                        → SlackConfigPage (lazy; Slack app config — AF-362)
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
@@ -520,6 +523,23 @@ All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/re
 ### User invitations on `/admin/users`
 
 The primary action button is now a `Dropdown.Button` — the default click sends an email invitation (`POST /admin/users/invitations`), while the dropdown menu still exposes the legacy "Create with password" path (`POST /admin/users`). A **Pending invitations** table below the user list shows invitations and exposes per-row resend / revoke actions (`POST /admin/users/invitations/{id}/resend`, `DELETE /admin/users/invitations/{id}`).
+
+### User groups and reviewer scope (AF-353)
+
+`GroupsListPage` (`/admin/groups`, lazy, admin-only) is a paginated `<Table>` of the org's user
+groups (name → link to detail, description, `member_count`, `created_at`) with create / edit
+(`Modal` + `Form`, `name` `1–128`, `description` `max 512`) and `Popconfirm` delete. Clicking a
+group name opens `GroupDetailPage` (`/admin/groups/:id`): a members `<Table>` (email, display
+name, a `source` tag — `MANUAL` blue / `IDP` gold — and `joined_at`) with **Add member** (a
+searchable user `Select` filtered to active non-members) and per-row remove. API access lives in
+[frontend/src/api/groups.ts](../frontend/src/api/groups.ts) (`groupKeys` factory); mutations
+invalidate `groupKeys.all`. `IDP`-sourced memberships come from SSO group→group mapping and are
+managed by the IdP, not removable by hand.
+
+Groups (and individual users) can be assigned as **per-datasource reviewers** so each team only
+sees the review queues it owns; the client for that endpoint is
+[frontend/src/api/datasourceReviewers.ts](../frontend/src/api/datasourceReviewers.ts)
+(`listReviewers` / `addReviewer` / `removeReviewer` against `/datasources/{id}/reviewers`).
 
 ### OAuth 2.0 sign-in
 
@@ -540,12 +560,26 @@ provider (Google, GitHub, Microsoft, GitLab). Each tab is a `Form` with `client_
 Saving invalidates `oauth2ConfigKeys.all`. Deleting clears the row and the cache so the
 button disappears from `/login` after the page is refreshed.
 
+### Slack app configuration (AF-362)
+
+`SlackConfigPage` (`/admin/slack`, lazy, admin-only) is the single-org form for the interactive
+Slack app that powers Approve / Reject from a Slack message. The `Form` collects `app_id`,
+`default_channel_id`, a masked `bot_token` and `signing_secret` (`********` passthrough — leave
+the mask to keep the stored secret; required only on first save), and an `active` toggle. Three
+actions sit below a divider: **Save** (`upsertSlackAppConfig`), **Test** (`testSlackAppConfig`,
+disabled until configured — surfaces the `status`/`detail` of a probe), and **Delete** (gated by
+`Popconfirm`). All mutations invalidate `slackAppConfigKeys.all`. API access lives in
+[frontend/src/api/slack.ts](../frontend/src/api/slack.ts). Validation parity: `app_id` `max 64`,
+`default_channel_id` `max 64`, `bot_token` `max 512`, `signing_secret` `max 255` — each mirroring
+the backend `UpsertSlackAppConfigRequest` constraints.
+
 ### Profile page and 2FA
 
-`/profile` is composed of three Ant Design cards in `src/pages/profile/`:
+`/profile` is composed of four Ant Design cards in `src/pages/profile/`:
 
 - `DisplayNameForm` — Ant `Form` with a single input bound to `useMutation(updateProfile)`. On success it invalidates `meKeys.current` and patches `authStore.user.display_name` so the top-bar reflects the new name immediately.
 - `ChangePasswordForm` — current / new / confirm fields (`min: 8, max: 128`). Hidden when `profile.auth_provider === 'SAML'`. On success the backend revokes all refresh tokens; the frontend explicitly calls `authStore.clear()` and navigates to `/login` so the user can re-authenticate cleanly.
+- `SlackLinkSection` (AF-362) — links the AccessFlow account to a Slack user so approve/reject buttons attribute to the right person. When unlinked, **Generate code** (`createSlackLinkCode`) issues a one-time `/accessflow link <code>` snippet (copyable) to run in Slack; when linked it shows the mapped `slack_user_id` and an **Unlink** action (`unlinkSlack`, `Popconfirm`). Backed by `slackLinkKeys` in [frontend/src/api/slack.ts](../frontend/src/api/slack.ts).
 - `TwoFactorSection` — branches on `profile.totp_enabled`. Enabled state shows a "Disable 2FA" button that opens `TotpDisableDialog` (password challenge). Disabled state opens `TotpEnrollmentDialog`, a 3-step `Steps` modal: (1) render the backend-supplied `qr_data_uri` in an `<img>` plus the raw secret for manual entry, (2) collect a 6-digit code and `POST /me/totp/confirm`, (3) display the 10 backup recovery codes with copy-to-clipboard and an explicit "I've saved these" acknowledgement before closing. SAML accounts see an info alert instead.
 
 ### Two-stage TOTP login

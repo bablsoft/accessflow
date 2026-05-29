@@ -69,6 +69,8 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, and self-hosted Ollama; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI; admin **AI analyses dashboard** charts average risk over time, top issue categories, and most active submitters.
 - **Datasource health dashboard** — admin-only `/admin/datasource-health` surfaces per-datasource HikariCP pool utilisation plus a trailing 24h summary of query volume, p50/p95 execution latency, and error count, so operators can spot pool exhaustion, slow datasources, or volume spikes. Auto-refreshes every 30s.
 - **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.
+- **Query templates library** — save frequently used queries (private or team-visible) with tags and `:placeholder` substitution, then load them straight into the editor and share them across the team.
+- **Query result diffing** — re-running the same query links the run to its previous execution and surfaces the delta in `rows_affected`, row count, and execution time, so reviewers can spot drift between repeated runs.
 - **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
 - **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
 - **Notifications** — Email (SMTP), Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and HMAC-signed outbound webhooks with retry policy.

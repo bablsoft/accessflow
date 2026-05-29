@@ -89,10 +89,11 @@
 
 ---
 
-## v1.2 🚧 in progress
+## v1.2 ✅ released
 
 **Theme:** Integrations and reviewer experience.
 
+- **Reviewer Access** — user groups, per-datasource reviewer scoping (users or groups), and SSO group → role/group mapping so teams only see the queues they own (AF-353)
 - **Read replica routing** — admin can configure a read replica endpoint; SELECT queries are automatically routed there, leaving the primary for writes (AF-360)
 - **Query result diffing** — for repeated runs of the same query, show a diff of `rows_affected` and execution time vs previous run (AF-361)
 - **Slack bot approve/reject** — reviewers can approve or reject directly from the Slack message using Slack Interactive Components (OAuth app, not just webhooks) (AF-362)

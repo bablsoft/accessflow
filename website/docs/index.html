@@ -209,6 +209,7 @@
             <a href="#flow-submit">Submitting a query</a>
             <a href="#flow-schedule">Scheduling a query</a>
             <a href="#flow-review">Reviewing &amp; bulk approval</a>
+            <a href="#flow-diff">Comparing repeated runs</a>
 
             <h5>Further reading</h5>
             <a href="#further-reading">Engineering chapters</a>
@@ -697,6 +698,15 @@
             rows fall back to the existing review-plan approvers — so adopting groups is purely
             additive, no migration required.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/groups-list-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/groups-list-dark.png"
+                   alt="User groups list at /admin/groups showing a table of groups with name, description, member count, created date, and edit/delete actions, plus a Create group button."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/groups</code> — organisation-scoped user groups; open one to manage members.</figcaption>
+          </figure>
 
           <!-- Datasources -->
           <h3 id="cfg-datasources">Datasources</h3>
@@ -910,6 +920,15 @@ APPROVED → FAILED (execution error)</pre>
             keep the auto-refresh cheap (TTL via <code>ACCESSFLOW_PROXY_HEALTH_CACHE_TTL</code>,
             default 30 s).
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/datasource-health-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/datasource-health-dark.png"
+                   alt="Datasource health dashboard at /admin/datasource-health showing per-datasource cards with connection-pool status and a 24-hour summary of query volume, p50/p95 execution latency, and error count, plus a Refresh button."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/datasource-health</code> — one card per datasource, auto-refreshing every 30 s.</figcaption>
+          </figure>
 
           <!-- Notification channels -->
           <h3 id="cfg-notification-channels">Notification channels</h3>
@@ -982,6 +1001,15 @@ APPROVED → FAILED (execution error)</pre>
             <code>/api/v1/integrations/slack/actions</code> and its <em>slash command</em> at
             <code>/api/v1/integrations/slack/commands</code>.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/slack-config-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/slack-config-dark.png"
+                   alt="Slack app configuration at /admin/slack with fields for App ID, default channel ID, masked bot token and signing secret, an Active toggle, and Save / Send test message buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/slack</code> — connect the interactive Slack app (bot token + signing secret).</figcaption>
+          </figure>
 
           <!-- SMTP -->
           <h3 id="cfg-smtp">System SMTP</h3>
@@ -1154,6 +1182,15 @@ APPROVED → FAILED (execution error)</pre>
             them client-side. Submission still flows through the standard AI analysis and
             review pipeline; templates are a pure save / load surface, never a bypass.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/editor-query-templates-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/editor-query-templates-light.png"
+                   alt="SQL editor with the Query templates drawer open, listing saved templates with Private and Team visibility badges, tags, owner, a search box, All/Mine/Team filter tabs, and Open / Delete actions per row."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Templates</em> — load a saved query (Private or Team), with <code>:placeholder</code> prompts on open.</figcaption>
+          </figure>
 
           <h3 id="flow-history">Tracking submitted queries</h3>
           <p>
@@ -1229,6 +1266,18 @@ APPROVED → FAILED (execution error)</pre>
             Reviewers can never approve their own queries; the backend enforces this regardless
             of plan configuration, and self-submissions are filtered out of the queue before the
             page renders.
+          </p>
+
+          <h3 id="flow-diff">Comparing repeated runs</h3>
+          <p>
+            When the same submitter re-runs the same query against the same datasource,
+            AccessFlow links the new execution to its previous one. On the query detail page a
+            <em>diff</em> panel shows the change in <code>rows_affected</code>, returned row
+            count, and execution time versus the prior run — so reviewers and submitters can spot
+            when a query that used to touch a handful of rows suddenly affects thousands, or when
+            latency drifts. Matching uses a canonical form of the SQL (comments stripped,
+            whitespace collapsed, keywords upper-cased), so cosmetic reformatting still pairs the
+            runs. The first execution of a query simply shows no prior run to compare against.
           </p>
         </section>
 
