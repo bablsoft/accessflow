@@ -948,6 +948,15 @@
       "label_telegram_bot_token": "Bot նշույթ",
       "label_telegram_chat_id": "Չատի ID",
       "label_ms_teams_webhook_url": "Teams webhook URL",
+      "label_pagerduty_routing_key": "Ինտեգրման երթուղավորման բանալի",
+      "label_pagerduty_severity": "Կանխադրված սրությունը",
+      "label_pagerduty_severity_critical": "Կրիտիկական",
+      "label_pagerduty_severity_error": "Սխալ",
+      "label_pagerduty_severity_warning": "Զգուշացում",
+      "label_pagerduty_severity_info": "Տեղեկություն",
+      "label_pagerduty_triggers": "Գործարկել՝",
+      "label_pagerduty_trigger_critical_risk": "ԱԲ կրիտիկական ռիսկի հարցում",
+      "label_pagerduty_trigger_review_timeout": "Վերանայման ժամկետի սպառում",
       "save_create": "Ստեղծել ալիք",
       "save_update": "Պահպանել փոփոխությունները",
       "create_success": "Ալիքը ստեղծված է",
@@ -1512,7 +1521,8 @@
       "WEBHOOK": "Webhook",
       "DISCORD": "Discord",
       "TELEGRAM": "Telegram",
-      "MS_TEAMS": "Microsoft Teams"
+      "MS_TEAMS": "Microsoft Teams",
+      "PAGERDUTY": "PagerDuty"
     },
     "ai_provider": {
       "OPENAI": "OpenAI",

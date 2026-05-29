@@ -18,6 +18,7 @@ const UNIQUE_SUFFIX = `af278-${Date.now()}`;
 const SLACK_NAME = `e2e-slack-${UNIQUE_SUFFIX}`;
 const WEBHOOK_NAME = `e2e-webhook-${UNIQUE_SUFFIX}`;
 const DISCORD_NAME = `e2e-discord-${UNIQUE_SUFFIX}`;
+const PAGERDUTY_NAME = `e2e-pagerduty-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -125,12 +126,14 @@ async function deleteChannelViaApi(
 //   1. Create SLACK channel via modal → card appears.
 //   2. Create WEBHOOK channel via modal → card appears.
 //   3. Create DISCORD channel via modal → card appears.
+//   3b. Create PAGERDUTY channel via modal (routing key + severity + trigger).
 //   4. Edit SLACK name → card reflects new name.
 //   5. Row Test action on SLACK (stubbed OK) → success toast.
+//   5b. Row Test action on PAGERDUTY (stubbed OK) → success toast.
 //   6. Row Test action on WEBHOOK (stubbed 502 ProblemDetail) → error toast.
 //   7. Add channel with invalid URL → inline validation, no POST fired.
 //   8. Delete SLACK via Popconfirm → card removed.
-//   9. Delete WEBHOOK + DISCORD via Popconfirm → cards removed.
+//   9. Delete WEBHOOK + DISCORD + PAGERDUTY via Popconfirm → cards removed.
 //
 // describe.serial because the SLACK card moves through tests 1 → 4 → 5 → 8 and
 // the WEBHOOK / DISCORD cards persist between tests 2/3 and the delete loop.
@@ -254,6 +257,40 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     await expect(page.getByText(DISCORD_NAME, { exact: true })).toBeVisible();
   });
 
+  test('3b) create PAGERDUTY channel via modal → card appears', async ({ page }) => {
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/notifications');
+    await waitForChannelsListReady(page);
+
+    await page.getByRole('button', { name: 'Add channel' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    await dialog.getByLabel('Name', { exact: true }).fill(PAGERDUTY_NAME);
+    await selectAntdOption(dialog, 'Type', 'PagerDuty');
+    await dialog.getByLabel('Integration routing key').fill(`R0UT1NG-${UNIQUE_SUFFIX}`);
+    await selectAntdOption(dialog, 'Default severity', 'Critical');
+    await dialog.getByRole('checkbox', { name: 'AI critical-risk query' }).check();
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/notification-channels$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await dialog.getByRole('button', { name: 'Create channel' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as { id: string; name: string };
+    created.set('pagerduty', { id: body.id, name: body.name });
+    expect(body.name).toBe(PAGERDUTY_NAME);
+
+    await expect(page.getByText('Channel created', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText(PAGERDUTY_NAME, { exact: true })).toBeVisible();
+  });
+
   test('4) edit SLACK channel name → card reflects new name', async ({ page }) => {
     const slack = created.get('slack');
     test.skip(!slack, 'Test 1 must succeed to seed the SLACK channel');
@@ -321,6 +358,36 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
       { timeout: 15_000 },
     );
     await slackCard.getByRole('button', { name: 'Test' }).click();
+    expect((await testResponsePromise).status()).toBe(200);
+
+    await expect(
+      page.getByText('Test notification dispatched', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.unroute('**/api/v1/admin/notification-channels/*/test');
+  });
+
+  test('5b) row Test action on PAGERDUTY (stubbed OK) → success toast', async ({ page }) => {
+    const pagerduty = created.get('pagerduty');
+    test.skip(!pagerduty, 'Test 3b must succeed to seed the PAGERDUTY channel');
+
+    await stubTestEndpointOk(page);
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/notifications');
+    await waitForChannelsListReady(page);
+
+    const pagerdutyCard = page
+      .locator('div', { hasText: PAGERDUTY_NAME })
+      .filter({ has: page.getByRole('button', { name: 'Test' }) })
+      .last();
+
+    const testResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        new RegExp(`/api/v1/admin/notification-channels/${pagerduty!.id}/test$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await pagerdutyCard.getByRole('button', { name: 'Test' }).click();
     expect((await testResponsePromise).status()).toBe(200);
 
     await expect(
@@ -437,18 +504,25 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     created.delete('slack');
   });
 
-  test('9) delete WEBHOOK + DISCORD via Popconfirm → cards removed', async ({ page }) => {
+  test('9) delete WEBHOOK + DISCORD + PAGERDUTY via Popconfirm → cards removed', async ({
+    page,
+  }) => {
     const webhook = created.get('webhook');
     const discord = created.get('discord');
-    test.skip(!webhook || !discord, 'Tests 2 and 3 must succeed to seed WEBHOOK + DISCORD');
+    const pagerduty = created.get('pagerduty');
+    test.skip(
+      !webhook || !discord || !pagerduty,
+      'Tests 2, 3 and 3b must succeed to seed WEBHOOK + DISCORD + PAGERDUTY',
+    );
 
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
-    const targets: Array<{ key: 'webhook' | 'discord'; id: string; name: string }> = [
+    const targets: Array<{ key: 'webhook' | 'discord' | 'pagerduty'; id: string; name: string }> = [
       { key: 'webhook', id: webhook!.id, name: WEBHOOK_NAME },
       { key: 'discord', id: discord!.id, name: DISCORD_NAME },
+      { key: 'pagerduty', id: pagerduty!.id, name: PAGERDUTY_NAME },
     ];
 
     for (const target of targets) {

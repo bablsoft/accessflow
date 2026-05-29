@@ -12,9 +12,12 @@ import java.time.Duration;
 public record NotificationsProperties(
         @NotNull URI publicBaseUrl,
         @NotNull Retry retry,
-        URI telegramApiBaseUrl) {
+        URI telegramApiBaseUrl,
+        URI pagerDutyApiBaseUrl) {
 
     private static final URI DEFAULT_TELEGRAM_API_BASE_URL = URI.create("https://api.telegram.org/");
+    private static final URI DEFAULT_PAGERDUTY_API_BASE_URL =
+            URI.create("https://events.pagerduty.com/");
 
     public NotificationsProperties {
         if (retry == null) {
@@ -26,6 +29,14 @@ public record NotificationsProperties(
             var raw = telegramApiBaseUrl.toString();
             if (!raw.endsWith("/")) {
                 telegramApiBaseUrl = URI.create(raw + "/");
+            }
+        }
+        if (pagerDutyApiBaseUrl == null) {
+            pagerDutyApiBaseUrl = DEFAULT_PAGERDUTY_API_BASE_URL;
+        } else {
+            var raw = pagerDutyApiBaseUrl.toString();
+            if (!raw.endsWith("/")) {
+                pagerDutyApiBaseUrl = URI.create(raw + "/");
             }
         }
     }

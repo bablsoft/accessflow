@@ -57,7 +57,8 @@ class TelegramNotificationStrategyTest {
         var properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
                 new NotificationsProperties.Retry(Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3)),
-                URI.create("http://127.0.0.1:" + port + "/"));
+                URI.create("http://127.0.0.1:" + port + "/"),
+                null);
         var messageFactory = new TelegramMessageFactory(tools.jackson.databind.json.JsonMapper.builder().build());
 
         strategy = new TelegramNotificationStrategy(codec, messageFactory, RestClient.create(), properties);

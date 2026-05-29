@@ -500,13 +500,13 @@ Unique constraint on `(organization_id, resource_type, resource_id)` (`uq_bootst
 
 ## notification_channels
 
-Stores notification channel configurations (email, Slack, webhook, Discord, Telegram, Microsoft Teams).
+Stores notification channel configurations (email, Slack, webhook, Discord, Telegram, Microsoft Teams, PagerDuty).
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
-| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` \| `DISCORD` \| `TELEGRAM` \| `MS_TEAMS` |
+| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` \| `DISCORD` \| `TELEGRAM` \| `MS_TEAMS` \| `PAGERDUTY` |
 | `name` | VARCHAR(255) — human label |
 | `config` | JSONB — channel-specific config (sensitive fields AES-encrypted) |
 | `is_active` | BOOLEAN DEFAULT true |
@@ -517,6 +517,7 @@ Sensitive `config` fields encrypted with AES-256-GCM and masked on read:
 - `EMAIL` → `smtp_password` → `smtp_password_encrypted`
 - `WEBHOOK` → `secret` → `secret_encrypted`
 - `TELEGRAM` → `bot_token` → `bot_token_encrypted`
+- `PAGERDUTY` → `routing_key` → `routing_key_encrypted`
 
 ---
 

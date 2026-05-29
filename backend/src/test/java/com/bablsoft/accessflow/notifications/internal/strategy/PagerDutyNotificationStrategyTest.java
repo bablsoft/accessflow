@@ -1,13 +1,16 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.audit.events.NotificationDeliveryExhaustedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
+import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
-import com.bablsoft.accessflow.notifications.internal.codec.WebhookChannelConfig;
+import com.bablsoft.accessflow.notifications.internal.codec.PagerDutyChannelConfig;
+import com.bablsoft.accessflow.notifications.internal.codec.PagerDutySeverity;
+import com.bablsoft.accessflow.notifications.internal.codec.PagerDutyTrigger;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
@@ -24,11 +27,12 @@ import org.springframework.web.client.RestClient;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,7 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-class WebhookNotificationStrategyTest {
+class PagerDutyNotificationStrategyTest {
 
     private HttpServer server;
     private final ConcurrentLinkedQueue<CapturedRequest> requests = new ConcurrentLinkedQueue<>();
@@ -53,14 +57,14 @@ class WebhookNotificationStrategyTest {
     private NotificationChannelRepository channelRepository;
     private RecordingTaskScheduler taskScheduler;
     private NotificationsProperties properties;
-    private WebhookPayloadFactory payloadFactory;
+    private PagerDutyPayloadFactory payloadFactory;
     private ApplicationEventPublisher eventPublisher;
-    private WebhookNotificationStrategy strategy;
+    private PagerDutyNotificationStrategy strategy;
     private NotificationChannelEntity channel;
 
     @BeforeEach
     void setUp() throws IOException {
-        nextResponseCode = new AtomicInteger(204);
+        nextResponseCode = new AtomicInteger(202);
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", this::handle);
         server.start();
@@ -68,33 +72,31 @@ class WebhookNotificationStrategyTest {
         codec = mock(ChannelConfigCodec.class);
         channelRepository = mock(NotificationChannelRepository.class);
         taskScheduler = new RecordingTaskScheduler();
-        payloadFactory = mock(WebhookPayloadFactory.class);
+        payloadFactory = mock(PagerDutyPayloadFactory.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        var port = server.getAddress().getPort();
         properties = new NotificationsProperties(
                 URI.create("https://app.example.test"),
                 new NotificationsProperties.Retry(
                         Duration.ofSeconds(1), Duration.ofSeconds(2), Duration.ofSeconds(3)),
                 null,
-                null);
-        strategy = new WebhookNotificationStrategy(
+                URI.create("http://127.0.0.1:" + port + "/"));
+        strategy = new PagerDutyNotificationStrategy(
                 codec, payloadFactory, RestClient.create(),
                 taskScheduler, properties, channelRepository, eventPublisher);
 
         channel = new NotificationChannelEntity();
         channel.setId(UUID.randomUUID());
         channel.setOrganizationId(UUID.randomUUID());
-        channel.setChannelType(NotificationChannelType.WEBHOOK);
-        channel.setName("Webhook");
+        channel.setChannelType(NotificationChannelType.PAGERDUTY);
+        channel.setName("PagerDuty");
         channel.setActive(true);
         channel.setConfigJson("{}");
         channel.setCreatedAt(Instant.now());
 
         when(channelRepository.findById(channel.getId())).thenReturn(Optional.of(channel));
-        var port = server.getAddress().getPort();
-        when(codec.decodeWebhook(anyString())).thenReturn(new WebhookChannelConfig(
-                URI.create("http://127.0.0.1:" + port + "/hook"), "topsecret", 5));
-        when(payloadFactory.buildBody(any())).thenReturn("{\"event\":\"X\"}");
-        when(payloadFactory.buildTestBody()).thenReturn("{\"event\":\"TEST\"}");
+        when(payloadFactory.buildEventBody(any(), any())).thenReturn("{\"event_action\":\"trigger\"}");
+        when(payloadFactory.buildTestBody(any())).thenReturn("{\"dedup_key\":\"accessflow-test\"}");
     }
 
     @AfterEach
@@ -102,60 +104,85 @@ class WebhookNotificationStrategyTest {
         server.stop(0);
     }
 
-    @Test
-    void supportsWebhook() {
-        assertThat(strategy.supports()).isEqualTo(NotificationChannelType.WEBHOOK);
+    private void stubConfig(Set<PagerDutyTrigger> triggers) {
+        when(codec.decodePagerDuty(anyString())).thenReturn(
+                new PagerDutyChannelConfig("R0UT1NGKEY", PagerDutySeverity.CRITICAL, triggers));
     }
 
     @Test
-    void successfulDeliveryDoesNotSchedule() {
-        nextResponseCode.set(204);
-        strategy.deliver(ctx(), channel);
+    void supportsPagerDuty() {
+        assertThat(strategy.supports()).isEqualTo(NotificationChannelType.PAGERDUTY);
+    }
+
+    @Test
+    void matchingCriticalRiskEventDelivers() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
+
         assertThat(requests).hasSize(1);
-        var req = requests.peek();
-        assertThat(req.event).isEqualTo("QUERY_SUBMITTED");
-        assertThat(req.signature).startsWith("sha256=");
-        assertThat(req.delivery).isNotBlank();
-        assertThat(req.body).isEqualTo("{\"event\":\"X\"}");
+        assertThat(requests.peek().path).isEqualTo("/v2/enqueue");
+        assertThat(taskScheduler.scheduled).isEmpty();
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void matchingReviewTimeoutEventDelivers() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.REVIEW_TIMEOUT));
+        strategy.deliver(ctx(NotificationEventType.REVIEW_TIMEOUT), channel);
+
+        assertThat(requests).hasSize(1);
+    }
+
+    @Test
+    void nonMatchingTriggerDoesNotFire() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.REVIEW_TIMEOUT));
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
+
+        assertThat(requests).isEmpty();
         assertThat(taskScheduler.scheduled).isEmpty();
     }
 
     @Test
-    void failedDeliverySchedulesRetryWithFirstDelay() {
+    void unmappedEventDoesNotFire() {
+        stubConfig(EnumSet.allOf(PagerDutyTrigger.class));
+        strategy.deliver(ctx(NotificationEventType.QUERY_SUBMITTED), channel);
+
+        assertThat(requests).isEmpty();
+        assertThat(taskScheduler.scheduled).isEmpty();
+    }
+
+    @Test
+    void transient5xxSchedulesRetry() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(500);
-        strategy.deliver(ctx(), channel);
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
 
         assertThat(taskScheduler.scheduled).hasSize(1);
         var elapsed = Duration.between(Instant.now(), taskScheduler.scheduled.get(0).when);
-        // The runtime computes Instant.now().plus(retry.first()) ≈ now+1s, so the
-        // expected delay is just under 1 second by the time we assert here.
         assertThat(elapsed).isLessThanOrEqualTo(Duration.ofSeconds(1)).isPositive();
     }
 
     @Test
     void retryAttemptsCascadeUntilExhausted() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(500);
-        strategy.deliver(ctx(), channel);
-        // Initial attempt failed; one retry queued. Run it manually:
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
         runAllScheduled();
         runAllScheduled();
         runAllScheduled();
-        // After 3 retries (attempts 1,2,3) all failing, the next attempt has no schedule.
         runAllScheduled();
         assertThat(taskScheduler.scheduled).isEmpty();
-        // Total HTTP calls = 4 (1 initial + 3 retries).
         assertThat(requests).hasSize(4);
     }
 
     @Test
     void exhaustedRetriesPublishSingleExhaustedEvent() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(503);
-        strategy.deliver(ctx(), channel);
-        // No event after the initial failure — only after exhaustion.
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
         verifyNoInteractions(eventPublisher);
         runAllScheduled();
         runAllScheduled();
-        // Three retries scheduled and run; still no event yet.
         verify(eventPublisher, never()).publishEvent(any(NotificationDeliveryExhaustedEvent.class));
         runAllScheduled();
         runAllScheduled();
@@ -166,8 +193,8 @@ class WebhookNotificationStrategyTest {
         var event = captor.getValue();
         assertThat(event.channelId()).isEqualTo(channel.getId());
         assertThat(event.organizationId()).isEqualTo(channel.getOrganizationId());
-        assertThat(event.channelType()).isEqualTo(NotificationChannelType.WEBHOOK.name());
-        assertThat(event.eventType()).isEqualTo(NotificationEventType.QUERY_SUBMITTED.name());
+        assertThat(event.channelType()).isEqualTo(NotificationChannelType.PAGERDUTY.name());
+        assertThat(event.eventType()).isEqualTo(NotificationEventType.AI_HIGH_RISK.name());
         assertThat(event.attemptCount()).isEqualTo(4);
         assertThat(event.lastHttpStatus()).isEqualTo(503);
         assertThat(event.lastError()).contains("503");
@@ -175,28 +202,28 @@ class WebhookNotificationStrategyTest {
 
     @Test
     void successfulDeliveryDoesNotPublishExhaustedEvent() {
-        nextResponseCode.set(204);
-        strategy.deliver(ctx(), channel);
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
+        nextResponseCode.set(202);
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
         verifyNoInteractions(eventPublisher);
     }
 
     @Test
     void retryStopsWhenChannelMissing() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(500);
-        strategy.deliver(ctx(), channel);
-        // Now simulate channel deletion before the retry runs.
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
         when(channelRepository.findById(channel.getId())).thenReturn(Optional.empty());
         runAllScheduled();
-        // No additional requests should be made.
         assertThat(requests).hasSize(1);
-        // No further retries scheduled.
         assertThat(taskScheduler.scheduled).isEmpty();
     }
 
     @Test
     void retryStopsWhenChannelDeactivated() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(500);
-        strategy.deliver(ctx(), channel);
+        strategy.deliver(ctx(NotificationEventType.AI_HIGH_RISK), channel);
         channel.setActive(false);
         runAllScheduled();
         assertThat(requests).hasSize(1);
@@ -204,20 +231,21 @@ class WebhookNotificationStrategyTest {
     }
 
     @Test
-    void sendTestPostsTestBodyWithoutScheduling() {
-        nextResponseCode.set(200);
+    void sendTestPostsTestBodyWithoutSchedulingAndBypassesFilter() {
+        stubConfig(EnumSet.noneOf(PagerDutyTrigger.class));
+        nextResponseCode.set(202);
         strategy.sendTest(channel, null);
         assertThat(requests).hasSize(1);
-        assertThat(requests.peek().body).isEqualTo("{\"event\":\"TEST\"}");
-        assertThat(requests.peek().event).isEqualTo("TEST");
+        assertThat(requests.peek().body).isEqualTo("{\"dedup_key\":\"accessflow-test\"}");
         assertThat(taskScheduler.scheduled).isEmpty();
     }
 
     @Test
     void sendTestPropagatesDeliveryFailure() {
+        stubConfig(EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
         nextResponseCode.set(500);
         assertThatThrownBy(() -> strategy.sendTest(channel, null))
-                .isInstanceOf(com.bablsoft.accessflow.notifications.api.NotificationDeliveryException.class);
+                .isInstanceOf(NotificationDeliveryException.class);
     }
 
     private void runAllScheduled() {
@@ -229,22 +257,19 @@ class WebhookNotificationStrategyTest {
     }
 
     private void handle(HttpExchange exchange) throws IOException {
-        var body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        requests.add(new CapturedRequest(
-                exchange.getRequestHeaders().getFirst("X-AccessFlow-Event"),
-                exchange.getRequestHeaders().getFirst("X-AccessFlow-Signature"),
-                exchange.getRequestHeaders().getFirst("X-AccessFlow-Delivery"),
-                body));
+        var body = new String(exchange.getRequestBody().readAllBytes(),
+                java.nio.charset.StandardCharsets.UTF_8);
+        requests.add(new CapturedRequest(exchange.getRequestURI().getPath(), body));
         exchange.sendResponseHeaders(nextResponseCode.get(), -1);
         exchange.close();
     }
 
-    private NotificationContext ctx() {
+    private NotificationContext ctx(NotificationEventType eventType) {
         return new NotificationContext(
-                NotificationEventType.QUERY_SUBMITTED,
+                eventType,
                 UUID.randomUUID(), UUID.randomUUID(), QueryType.UPDATE,
                 "UPDATE x", "UPDATE x", "UPDATE x",
-                RiskLevel.LOW, 10, "ok",
+                RiskLevel.CRITICAL, 95, "risky",
                 UUID.randomUUID(), "Production",
                 UUID.randomUUID(), "alice@example.com", "Alice",
                 null, null, null, null,
@@ -252,7 +277,7 @@ class WebhookNotificationStrategyTest {
                 List.of(), Instant.now(), "en", null);
     }
 
-    private record CapturedRequest(String event, String signature, String delivery, String body) {
+    private record CapturedRequest(String path, String body) {
     }
 
     private static final class RecordingTaskScheduler implements TaskScheduler {

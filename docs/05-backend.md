@@ -11,7 +11,7 @@ accessflow/
 ├── accessflow-workflow/          # Review workflow state machine, notification fanout
 ├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama adapters
 ├── accessflow-security/          # JWT config, Spring Security, SAML 2.0 SSO
-├── accessflow-notifications/     # Email (JavaMail), Slack, Webhook, Discord, Telegram, MS Teams dispatchers
+├── accessflow-notifications/     # Email (JavaMail), Slack, Webhook, Discord, Telegram, MS Teams, PagerDuty dispatchers
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
 ├── accessflow-mcp/               # Spring AI stateless MCP server — @Tool callbacks for AI agents

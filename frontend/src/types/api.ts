@@ -22,7 +22,14 @@ export type QueryStatus =
 export type QueryType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type ChannelType = 'EMAIL' | 'SLACK' | 'WEBHOOK' | 'DISCORD' | 'TELEGRAM' | 'MS_TEAMS';
+export type ChannelType =
+  | 'EMAIL'
+  | 'SLACK'
+  | 'WEBHOOK'
+  | 'DISCORD'
+  | 'TELEGRAM'
+  | 'MS_TEAMS'
+  | 'PAGERDUTY';
 export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'OLLAMA';
 
 export interface User {
@@ -799,11 +806,17 @@ export interface NotificationChannelWebhookConfig {
   secret?: string;
   timeout_seconds?: number;
 }
+export interface NotificationChannelPagerDutyConfig {
+  routing_key?: string;
+  default_severity: 'critical' | 'error' | 'warning' | 'info';
+  triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT'>;
+}
 
 export type NotificationChannelConfig =
   | NotificationChannelEmailConfig
   | NotificationChannelSlackConfig
-  | NotificationChannelWebhookConfig;
+  | NotificationChannelWebhookConfig
+  | NotificationChannelPagerDutyConfig;
 
 export interface NotificationChannel {
   id: string;

@@ -10,10 +10,12 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Reads and writes the JSONB {@code notification_channels.config} blob.
@@ -24,8 +26,8 @@ import java.util.Objects;
  * {@code bot_token_encrypted}). On read for API the codec replaces the encrypted keys with the
  * masked placeholder under the unsuffixed names. On read for dispatch the codec returns a typed
  * {@link EmailChannelConfig} / {@link SlackChannelConfig} / {@link WebhookChannelConfig} /
- * {@link DiscordChannelConfig} / {@link TelegramChannelConfig} / {@link MsTeamsChannelConfig}
- * with decrypted secrets.
+ * {@link DiscordChannelConfig} / {@link TelegramChannelConfig} / {@link MsTeamsChannelConfig} /
+ * {@link PagerDutyChannelConfig} with decrypted secrets.
  */
 @Component
 @RequiredArgsConstructor
@@ -58,6 +60,11 @@ public class ChannelConfigCodec {
     static final String KEY_BOT_TOKEN_ENCRYPTED = "bot_token_encrypted";
     static final String KEY_CHAT_ID = "chat_id";
 
+    static final String KEY_ROUTING_KEY = "routing_key";
+    static final String KEY_ROUTING_KEY_ENCRYPTED = "routing_key_encrypted";
+    static final String KEY_DEFAULT_SEVERITY = "default_severity";
+    static final String KEY_TRIGGERS = "triggers";
+
     private final ObjectMapper objectMapper;
     private final CredentialEncryptionService encryptionService;
 
@@ -73,6 +80,7 @@ public class ChannelConfigCodec {
             case DISCORD -> validateDiscord(config);
             case TELEGRAM -> validateTelegram(config);
             case MS_TEAMS -> validateMsTeams(config);
+            case PAGERDUTY -> validatePagerDuty(config);
         }
         encryptSensitive(config);
         return writeJson(config);
@@ -100,6 +108,7 @@ public class ChannelConfigCodec {
             case DISCORD -> validateDiscord(existing);
             case TELEGRAM -> validateTelegram(existing);
             case MS_TEAMS -> validateMsTeams(existing);
+            case PAGERDUTY -> validatePagerDuty(existing);
         }
         encryptSensitive(existing);
         return writeJson(existing);
@@ -122,6 +131,10 @@ public class ChannelConfigCodec {
         if (view.containsKey(KEY_BOT_TOKEN_ENCRYPTED)) {
             view.remove(KEY_BOT_TOKEN_ENCRYPTED);
             view.put(KEY_BOT_TOKEN, MASK);
+        }
+        if (view.containsKey(KEY_ROUTING_KEY_ENCRYPTED)) {
+            view.remove(KEY_ROUTING_KEY_ENCRYPTED);
+            view.put(KEY_ROUTING_KEY, MASK);
         }
         return view;
     }
@@ -180,6 +193,19 @@ public class ChannelConfigCodec {
         return new MsTeamsChannelConfig(requireUri(c, KEY_WEBHOOK_URL));
     }
 
+    public PagerDutyChannelConfig decodePagerDuty(String storedJson) {
+        var c = readJson(storedJson);
+        var encrypted = stringOrNull(c.get(KEY_ROUTING_KEY_ENCRYPTED));
+        var routingKeyPlain = encrypted != null ? encryptionService.decrypt(encrypted) : null;
+        var triggers = stringList(c.get(KEY_TRIGGERS)).stream()
+                .map(PagerDutyTrigger::fromConfig)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(PagerDutyTrigger.class)));
+        return new PagerDutyChannelConfig(
+                routingKeyPlain,
+                PagerDutySeverity.fromWire(requireString(c, KEY_DEFAULT_SEVERITY)),
+                triggers);
+    }
+
     private Map<String, Object> sanitizeInput(Map<String, Object> input) {
         if (input == null) {
             return new LinkedHashMap<>();
@@ -204,6 +230,9 @@ public class ChannelConfigCodec {
         if (MASK.equals(config.get(KEY_BOT_TOKEN))) {
             config.remove(KEY_BOT_TOKEN);
         }
+        if (MASK.equals(config.get(KEY_ROUTING_KEY))) {
+            config.remove(KEY_ROUTING_KEY);
+        }
     }
 
     private void encryptSensitive(Map<String, Object> config) {
@@ -218,6 +247,10 @@ public class ChannelConfigCodec {
         var botToken = stringOrNull(config.remove(KEY_BOT_TOKEN));
         if (botToken != null && !botToken.isBlank()) {
             config.put(KEY_BOT_TOKEN_ENCRYPTED, encryptionService.encrypt(botToken));
+        }
+        var routingKey = stringOrNull(config.remove(KEY_ROUTING_KEY));
+        if (routingKey != null && !routingKey.isBlank()) {
+            config.put(KEY_ROUTING_KEY_ENCRYPTED, encryptionService.encrypt(routingKey));
         }
     }
 
@@ -263,6 +296,22 @@ public class ChannelConfigCodec {
 
     private void validateMsTeams(Map<String, Object> config) {
         requireUri(config, KEY_WEBHOOK_URL);
+    }
+
+    private void validatePagerDuty(Map<String, Object> config) {
+        var hasPlaintext = stringOrNull(config.get(KEY_ROUTING_KEY)) != null;
+        var hasCipher = stringOrNull(config.get(KEY_ROUTING_KEY_ENCRYPTED)) != null;
+        if (!hasPlaintext && !hasCipher) {
+            throw new NotificationChannelConfigException(
+                    "PagerDuty channel config requires '" + KEY_ROUTING_KEY + "'");
+        }
+        PagerDutySeverity.fromWire(requireString(config, KEY_DEFAULT_SEVERITY));
+        var triggers = stringList(config.get(KEY_TRIGGERS));
+        if (triggers.isEmpty()) {
+            throw new NotificationChannelConfigException(
+                    "PagerDuty channel config requires at least one '" + KEY_TRIGGERS + "'");
+        }
+        triggers.forEach(PagerDutyTrigger::fromConfig);
     }
 
     private Map<String, Object> readJson(String json) {
