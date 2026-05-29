@@ -761,6 +761,8 @@ CREATE INDEX idx_query_requests_status ON query_requests(status);
 CREATE INDEX idx_query_requests_datasource ON query_requests(datasource_id);
 CREATE INDEX idx_query_requests_submitter ON query_requests(submitted_by);
 CREATE INDEX idx_query_requests_created ON query_requests(created_at DESC);
+-- Datasource health dashboard: per-datasource time-window aggregate (V52, AF-365)
+CREATE INDEX idx_query_requests_datasource_created_at ON query_requests(datasource_id, created_at);
 
 -- Audit log: time-range queries
 CREATE INDEX idx_audit_log_created ON audit_log(organization_id, created_at DESC);

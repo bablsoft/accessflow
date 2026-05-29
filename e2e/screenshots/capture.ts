@@ -1,11 +1,10 @@
 // Screenshot capture script for AccessFlow website docs.
 //
 // Drives the running e2e stack (http://localhost:5173 frontend,
-// http://localhost:8080 backend) and writes 31 PNGs into
-// ../website/images/docs/ — 19 re-captures of existing screens plus 12 new
-// v1.1 screens (ER diagram, AI analyses dashboard, audit log, drivers list,
-// review-plan templates dropdown, editor with scheduling, reviews queue with
-// bulk-action bar).
+// http://localhost:8080 backend) and writes 38 PNGs into
+// ../website/images/docs/ — the 31 existing screens (re-captured against the
+// current build) plus 7 new v1.2 captures: datasource health, Slack app config,
+// and user groups (light + dark), and the editor query-templates drawer (light).
 //
 // Run from the e2e/ directory after `npm run stack:up`:
 //   npx tsx screenshots/capture.ts
@@ -15,6 +14,7 @@
 
 import { chromium, request as pwRequest, type Page } from '@playwright/test';
 import {
+  apiBase,
   loginViaApi,
   listAiConfigsViaApi,
   createPostgresDatasource,
@@ -58,7 +58,7 @@ async function seedData() {
   // 2. Provision a reviewer (needed to approve admin's own queries — the
   //    workflow forbids self-approval).
   await purgeMailcrab(api).catch(() => {});
-  await inviteUserViaApi(api, adminToken, REVIEWER_EMAIL, 'Sample Reviewer', 'REVIEWER');
+  const reviewer = await inviteUserViaApi(api, adminToken, REVIEWER_EMAIL, 'Sample Reviewer', 'REVIEWER');
   const reviewerToken = await waitForInviteToken(api, REVIEWER_EMAIL).then(async (token) => {
     await acceptInvitationViaApi(api, token, REVIEWER_PASSWORD, 'Sample Reviewer');
     return loginViaApi(api, REVIEWER_EMAIL, REVIEWER_PASSWORD);
@@ -117,6 +117,62 @@ async function seedData() {
     future,
   );
   console.log('[seed] scheduled query submitted');
+
+  // 7. Seed user groups (AF-353) so /admin/groups renders a populated table,
+  //    with the seeded reviewer as a member of the first group.
+  const apiB = apiBase();
+  const adminHeaders = { Authorization: `Bearer ${adminToken}` };
+  const groupSpecs = [
+    {
+      name: `Data Platform Reviewers ${RUN_SUFFIX}`,
+      description: 'Reviewers for production analytics datasources',
+    },
+    {
+      name: `Analytics Team ${RUN_SUFFIX}`,
+      description: 'Read-only analysts, synced from the IdP',
+    },
+  ];
+  const groupIds: string[] = [];
+  for (const g of groupSpecs) {
+    const res = await api.post(`${apiB}/api/v1/admin/groups`, { headers: adminHeaders, data: g });
+    if (res.ok()) groupIds.push(((await res.json()) as { id: string }).id);
+    else console.warn(`  [warn] create group failed: ${res.status()} ${await res.text()}`);
+  }
+  if (groupIds[0]) {
+    const res = await api.post(`${apiB}/api/v1/admin/groups/${groupIds[0]}/members`, {
+      headers: adminHeaders,
+      data: { user_id: reviewer.id },
+    });
+    if (!res.ok()) console.warn(`  [warn] add group member failed: ${res.status()}`);
+  }
+  console.log(`[seed] ${groupIds.length} groups`);
+
+  // 8. Seed query templates (AF-364) so the editor Templates drawer lists rows.
+  const templateSpecs = [
+    {
+      name: 'Active users (last 30 days)',
+      body: 'SELECT id, email, display_name\nFROM users\nWHERE last_login_at > now() - INTERVAL :days\nORDER BY last_login_at DESC',
+      description: 'Recently active accounts for the current datasource',
+      tags: ['users', 'reporting'],
+      visibility: 'TEAM',
+      datasource_id: ds.id,
+    },
+    {
+      name: 'Query volume by status',
+      body: 'SELECT status, COUNT(*) AS total\nFROM query_requests\nGROUP BY status\nORDER BY total DESC',
+      description: 'Daily review-queue health check',
+      tags: ['ops'],
+      visibility: 'PRIVATE',
+      datasource_id: ds.id,
+    },
+  ];
+  let tmplCount = 0;
+  for (const tpl of templateSpecs) {
+    const res = await api.post(`${apiB}/api/v1/query-templates`, { headers: adminHeaders, data: tpl });
+    if (res.ok()) tmplCount++;
+    else console.warn(`  [warn] create template failed: ${res.status()} ${await res.text()}`);
+  }
+  console.log(`[seed] ${tmplCount} query templates`);
 
   await api.dispose();
   return { datasourceId: ds.id };
@@ -327,13 +383,10 @@ async function ensureReviewerSession(page: Page) {
   // Switch session if the current user isn't the reviewer. The reviews queue
   // filters to queries the current user can approve — for the bootstrap admin
   // (ADMIN role) on a plan with REVIEWER-role approvers, the queue is empty.
-  // Logging in as the reviewer surfaces the seeded queries.
-  const reviewerEmail = process.env.REVIEWER_EMAIL;
-  const reviewerPassword = process.env.REVIEWER_PASSWORD;
-  if (!reviewerEmail || !reviewerPassword) {
-    console.warn('  [warn] REVIEWER_EMAIL/PASSWORD not set; capturing queue as admin (likely empty)');
-    return;
-  }
+  // Logging in as the reviewer surfaces the seeded queries. Defaults to the
+  // reviewer seedData() provisioned this run; env vars override for SKIP_SEED.
+  const reviewerEmail = process.env.REVIEWER_EMAIL ?? REVIEWER_EMAIL;
+  const reviewerPassword = process.env.REVIEWER_PASSWORD ?? REVIEWER_PASSWORD;
   if (currentUser === 'reviewer') return;
   await loginUi(page, reviewerEmail, reviewerPassword);
   currentUser = 'reviewer';
@@ -402,6 +455,36 @@ async function prepDatasourcesErDiagram(page: Page, datasourceId: string) {
   await page.waitForTimeout(2000);
 }
 
+async function prepDatasourceHealth(page: Page) {
+  await gotoAndSettle(page, '/admin/datasource-health');
+  await page.waitForTimeout(1500); // pool rings + 24h aggregate need a beat
+}
+
+async function prepSlackConfig(page: Page) {
+  await gotoAndSettle(page, '/admin/slack');
+  await page.waitForTimeout(500);
+}
+
+async function prepGroupsList(page: Page) {
+  await gotoAndSettle(page, '/admin/groups');
+  await page.waitForTimeout(500);
+}
+
+async function prepEditorTemplates(page: Page) {
+  await prepEditor(page);
+  // The editor actions slot exposes a "Templates" button (editor.templates_button)
+  // next to "Save as template"; open the drawer listing the seeded templates.
+  // Non-exact match: AntD prepends the BookOutlined icon's aria-label to the
+  // button's accessible name, and "Save as template" (singular) never matches
+  // the plural /Templates/.
+  const btn = page.getByRole('button', { name: /Templates/ }).first();
+  if (await btn.count()) {
+    await btn.click();
+    await page.locator('.ant-drawer-content').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(800);
+  }
+}
+
 // ----------------------- main flow -----------------------
 
 async function main() {
@@ -444,6 +527,7 @@ async function main() {
     { name: 'editor', prep: prepEditor, darkToo: false },
     { name: 'queries-list', prep: prepQueriesList, darkToo: false },
     { name: 'editor-schedule', prep: prepEditorSchedule, darkToo: false },
+    { name: 'editor-query-templates', prep: prepEditorTemplates, darkToo: false },
 
     // v1.1 admin
     { name: 'audit-log', prep: prepAuditLog, darkToo: true },
@@ -454,6 +538,11 @@ async function main() {
       prep: (p) => prepDatasourcesErDiagram(p, seed.datasourceId),
       darkToo: true,
     },
+
+    // v1.2 admin (AF-365 health, AF-362 Slack, AF-353 groups)
+    { name: 'datasource-health', prep: prepDatasourceHealth, darkToo: true },
+    { name: 'slack-config', prep: prepSlackConfig, darkToo: true },
+    { name: 'groups-list', prep: prepGroupsList, darkToo: true },
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },
