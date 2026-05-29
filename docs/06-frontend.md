@@ -347,6 +347,29 @@ Displayed below or beside the editor. Shows:
 - "Analyzing…" skeleton state while request is in flight
 - Empty state if SQL is blank or analysis returns no issues
 
+### Query templates drawer (AF-364)
+
+The editor's `actions` slot exposes two buttons next to **History**:
+
+- **Templates** opens `QueryTemplatesDrawer` ([frontend/src/components/editor/QueryTemplatesDrawer.tsx](../frontend/src/components/editor/QueryTemplatesDrawer.tsx)) — an Ant `Drawer` listing templates the caller may read, filterable by `All / Mine / Team` and free-text search. Each row shows the template name, visibility, owner, a "pinned to current datasource" badge when `datasource_id` matches the editor's current datasource, plus tag chips. Row actions: `Open` always; `Delete` only when `editable === true` (the API returns this flag — owner-only).
+- **Save as template** opens `SaveTemplateModal` ([frontend/src/components/editor/SaveTemplateModal.tsx](../frontend/src/components/editor/SaveTemplateModal.tsx)) — capture name, visibility (default `PRIVATE`), description, tags, and an optional "pin to current datasource" checkbox. Disabled until the editor has non-empty SQL. The current editor SQL is supplied as a prop (not a form field).
+
+Picking **Open** stages the template in `pendingTemplate` state, which mounts `LoadTemplateModal` ([frontend/src/components/editor/LoadTemplateModal.tsx](../frontend/src/components/editor/LoadTemplateModal.tsx)). That component calls `extractPlaceholders(template.body)` ([frontend/src/utils/sqlPlaceholders.ts](../frontend/src/utils/sqlPlaceholders.ts)); when zero placeholders are present it auto-fires `onConfirm(body)` and skips the modal, otherwise it renders one required `Form.Item` per `:identifier` and substitutes via `substitutePlaceholders` on submit. The negative lookbehind `(?<![:\w])` excludes PostgreSQL `::` casts so `x::text` is never treated as a placeholder.
+
+API access lives in [frontend/src/api/queryTemplates.ts](../frontend/src/api/queryTemplates.ts) with the standard `queryTemplateKeys` factory (`all`, `lists`, `list(filters)`, `detail(id)`). Mutations invalidate `queryTemplateKeys.all` on success.
+
+**Validation parity** — every `Form.Item` rule mirrors a backend Bean Validation constraint per the CLAUDE.md parity rule:
+
+| Field | Backend constraint | Frontend rule |
+|---|---|---|
+| `name` | `@NotBlank` + `@Size(max=128)` | `required` + `max: 128` |
+| `body` | `@NotBlank` + `@Size(max=100_000)` | supplied as prop; gated by `sqlNonEmpty` |
+| `description` | `@Size(max=1000)` | `max: 1000` |
+| `tags` | `@Size(max=10)` + per-entry `@Size(max=32)` | custom validator (length + per-entry) |
+| `visibility` | `@NotNull` | `required` |
+
+The drawer / save modal / load modal each ship a Vitest + React Testing Library suite under [frontend/src/components/editor/](../frontend/src/components/editor/) covering the happy path, the auto-confirm shortcut, validation, and the editable-flag visibility of Edit / Delete buttons.
+
 ---
 
 ## Theming

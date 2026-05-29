@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "未关联审核计划",
       "empty_description": "该数据源没有审核计划。提交将直接进入执行策略。"
+    },
+    "templates_button": "模板",
+    "save_template_button": "另存为模板",
+    "templates": {
+      "drawer_title": "查询模板",
+      "search_placeholder": "按名称或描述搜索…",
+      "filter_all": "全部",
+      "filter_private": "我的",
+      "filter_team": "团队",
+      "empty_state": "暂无模板 — 保存当前 SQL 以开始建立您的库。",
+      "open_button": "打开",
+      "delete_button": "删除",
+      "delete_confirm_title": "删除此模板？",
+      "delete_confirm_body": "删除模板「{{name}}」？此操作无法撤销。",
+      "delete_success": "模板已删除",
+      "owner_label": "作者：{{name}}",
+      "pinned_to_current": "已固定到当前数据源",
+      "save_modal_title": "另存为模板",
+      "save_success": "模板已保存",
+      "load_modal_title": "加载模板",
+      "load_modal_intro_one": "在加载前填写 {{count}} 个占位符以替换。",
+      "load_modal_intro_other": "在加载前填写 {{count}} 个占位符以替换。",
+      "load_button": "加载",
+      "visibility_private": "私有",
+      "visibility_team": "团队",
+      "fields": {
+        "name": "名称",
+        "name_placeholder": "例如：按注册的活跃用户",
+        "description": "描述",
+        "description_placeholder": "可选 — 描述此查询的用途",
+        "visibility": "可见性",
+        "tags": "标签",
+        "tags_placeholder": "添加标签并按回车",
+        "pin_to_datasource": "固定到当前数据源",
+        "pin_to_datasource_help": "固定后，模板仅在选中此数据源时显示。"
+      },
+      "validation": {
+        "name_required": "模板名称为必填",
+        "name_size": "名称最多 128 个字符",
+        "description_max": "描述最多 1000 个字符",
+        "tags_max": "模板最多 10 个标签",
+        "tag_size": "每个标签最多 32 个字符",
+        "visibility_required": "可见性为必填",
+        "placeholder_required": ":{{name}} 的值为必填"
+      }
     }
   },
   "ai_panel": {

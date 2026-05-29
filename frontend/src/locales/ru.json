@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "План проверки не привязан",
       "empty_description": "У этого источника данных нет плана проверки. Запрос пойдёт сразу к политике выполнения."
+    },
+    "templates_button": "Шаблоны",
+    "save_template_button": "Сохранить как шаблон",
+    "templates": {
+      "drawer_title": "Шаблоны запросов",
+      "search_placeholder": "Поиск по имени или описанию…",
+      "filter_all": "Все",
+      "filter_private": "Мои",
+      "filter_team": "Команда",
+      "empty_state": "Шаблонов пока нет — сохраните текущий SQL, чтобы начать свою библиотеку.",
+      "open_button": "Открыть",
+      "delete_button": "Удалить",
+      "delete_confirm_title": "Удалить этот шаблон?",
+      "delete_confirm_body": "Удалить шаблон «{{name}}»? Это действие нельзя отменить.",
+      "delete_success": "Шаблон удалён",
+      "owner_label": "автор: {{name}}",
+      "pinned_to_current": "привязан к текущему источнику данных",
+      "save_modal_title": "Сохранить как шаблон",
+      "save_success": "Шаблон сохранён",
+      "load_modal_title": "Загрузить шаблон",
+      "load_modal_intro_one": "Заполните {{count}} плейсхолдер для подстановки перед загрузкой.",
+      "load_modal_intro_other": "Заполните {{count}} плейсхолдеров для подстановки перед загрузкой.",
+      "load_button": "Загрузить",
+      "visibility_private": "Личный",
+      "visibility_team": "Командный",
+      "fields": {
+        "name": "Имя",
+        "name_placeholder": "напр. Топ пользователей по регистрации",
+        "description": "Описание",
+        "description_placeholder": "По желанию — опишите, что делает этот запрос",
+        "visibility": "Видимость",
+        "tags": "Теги",
+        "tags_placeholder": "Добавьте теги и нажмите Enter",
+        "pin_to_datasource": "Привязать к текущему источнику данных",
+        "pin_to_datasource_help": "Если привязан, шаблон показывается только при выборе этого источника данных."
+      },
+      "validation": {
+        "name_required": "Имя шаблона обязательно",
+        "name_size": "Имя должно быть не длиннее 128 символов",
+        "description_max": "Описание должно быть не длиннее 1000 символов",
+        "tags_max": "У шаблона может быть не более 10 тегов",
+        "tag_size": "Каждый тег должен быть не длиннее 32 символов",
+        "visibility_required": "Видимость обязательна",
+        "placeholder_required": "Требуется значение для :{{name}}"
+      }
     }
   },
   "ai_panel": {

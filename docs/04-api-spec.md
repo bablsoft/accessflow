@@ -2520,6 +2520,95 @@ Reports which onboarding steps the caller's organization has completed. The fron
 
 ---
 
+## Query Template Endpoints
+
+Saved SQL snippets analysts can load into `/editor`. Templates are owned by a user, scoped to an organisation, optionally pinned to a datasource, and visible either `PRIVATE` (owner only) or `TEAM` (every user in the org). Only the owner may mutate or delete a template. `:identifier` placeholders in the body are stored verbatim; substitution happens on the client before submission, and submission still flows through `POST /api/v1/queries` unchanged.
+
+All endpoints require a valid JWT; no role is required — every authenticated user can manage their own templates and read team templates.
+
+| Method | Path | Status |
+|--------|------|--------|
+| `GET` | `/query-templates` | Paginated list of templates the caller may read |
+| `POST` | `/query-templates` | Create a new template owned by the caller |
+| `GET` | `/query-templates/{id}` | Read a single template (subject to visibility) |
+| `PUT` | `/query-templates/{id}` | Update a template (owner only) |
+| `DELETE` | `/query-templates/{id}` | Delete a template (owner only) |
+
+### GET /query-templates — Query Parameters
+
+`page` (default 0), `size` (default 20, max 100), plus optional filters:
+
+- `datasource_id` — only return templates pinned to that datasource
+- `tag` — exact, case-sensitive match against the `tags` array
+- `visibility` — `PRIVATE` or `TEAM`
+- `q` — free-text substring on `name` and `description` (case-insensitive)
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "organization_id": "uuid",
+      "owner_id": "uuid",
+      "owner_display_name": "Alice",
+      "datasource_id": "uuid",
+      "name": "Top users",
+      "body": "SELECT * FROM users WHERE country = :country LIMIT :limit",
+      "description": "Recent signups by country.",
+      "tags": ["billing", "weekly"],
+      "visibility": "TEAM",
+      "editable": true,
+      "created_at": "2026-05-01T10:00:00Z",
+      "updated_at": "2026-05-02T11:30:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`editable` is `true` when the caller is the template's owner; the SPA uses it to enable Edit / Delete row actions in the drawer.
+
+### POST /query-templates
+
+**Request:**
+```json
+{
+  "name": "Top users",
+  "body": "SELECT * FROM users WHERE country = :country LIMIT :limit",
+  "description": "Recent signups by country.",
+  "tags": ["billing", "weekly"],
+  "datasource_id": "uuid",
+  "visibility": "PRIVATE"
+}
+```
+
+Validation: `name` 1–128 chars; `body` 1–100 000 chars; `description` ≤ 1000 chars; `tags` ≤ 10 entries, each ≤ 32 chars; `visibility` required.
+
+**Response 201:** Single template object (same shape as the list `content` entry). `Location` header points to the new resource.
+
+**Response 409 (`QUERY_TEMPLATE_NAME_CONFLICT`):** Caller already owns a template with that name (case-insensitive).
+
+### PUT /query-templates/{id}
+
+Same request and response shape as `POST`. Caller must be the owner; non-owners with TEAM read access get **403** rather than 404 so the UI can render the row as read-only.
+
+### DELETE /query-templates/{id}
+
+**Response 204:** Deleted.
+
+### Error Codes
+
+- `QUERY_TEMPLATE_NOT_FOUND` (404) — id does not exist in the caller's org, **or** the template is `PRIVATE` and the caller is not its owner. Existence is intentionally not leaked.
+- `QUERY_TEMPLATE_FORBIDDEN` (403) — caller can see the template (TEAM visibility) but is not its owner, on mutate / delete.
+- `QUERY_TEMPLATE_NAME_CONFLICT` (409) — duplicate name on create / rename.
+- Standard `VALIDATION_ERROR` (400) for Bean Validation failures.
+
+---
+
 ## Notification Endpoints
 
 In-app notification inbox for the authenticated caller. All endpoints require a valid JWT;

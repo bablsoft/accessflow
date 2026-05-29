@@ -21,7 +21,8 @@ public enum AuditResourceType {
     SAML_CONFIG("saml_config"),
     AUDIT_LOG("audit_log"),
     USER_GROUP("user_group"),
-    DATASOURCE_REVIEWER("datasource_reviewer");
+    DATASOURCE_REVIEWER("datasource_reviewer"),
+    QUERY_TEMPLATE("query_template");
 
     private final String dbValue;
 

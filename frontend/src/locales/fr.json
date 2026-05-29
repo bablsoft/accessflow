@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "Aucun plan de revue associé",
       "empty_description": "Cette source de données n'a pas de plan de revue. La soumission ira directement à la politique d'exécution."
+    },
+    "templates_button": "Modèles",
+    "save_template_button": "Enregistrer comme modèle",
+    "templates": {
+      "drawer_title": "Modèles de requête",
+      "search_placeholder": "Rechercher par nom ou description…",
+      "filter_all": "Tous",
+      "filter_private": "Les miens",
+      "filter_team": "Équipe",
+      "empty_state": "Aucun modèle pour l’instant — enregistrez le SQL actuel pour démarrer votre bibliothèque.",
+      "open_button": "Ouvrir",
+      "delete_button": "Supprimer",
+      "delete_confirm_title": "Supprimer ce modèle ?",
+      "delete_confirm_body": "Supprimer le modèle « {{name}} » ? Cette action est irréversible.",
+      "delete_success": "Modèle supprimé",
+      "owner_label": "par {{name}}",
+      "pinned_to_current": "épinglé à la source de données actuelle",
+      "save_modal_title": "Enregistrer comme modèle",
+      "save_success": "Modèle enregistré",
+      "load_modal_title": "Charger le modèle",
+      "load_modal_intro_one": "Renseignez {{count}} espace réservé à substituer avant le chargement.",
+      "load_modal_intro_other": "Renseignez {{count}} espaces réservés à substituer avant le chargement.",
+      "load_button": "Charger",
+      "visibility_private": "Privé",
+      "visibility_team": "Équipe",
+      "fields": {
+        "name": "Nom",
+        "name_placeholder": "ex. Utilisateurs principaux par inscription",
+        "description": "Description",
+        "description_placeholder": "Optionnel — décrivez ce que fait cette requête",
+        "visibility": "Visibilité",
+        "tags": "Étiquettes",
+        "tags_placeholder": "Ajoutez des étiquettes et appuyez sur Entrée",
+        "pin_to_datasource": "Épingler à la source de données actuelle",
+        "pin_to_datasource_help": "Une fois épinglé, le modèle n’apparaît que lorsque cette source de données est sélectionnée."
+      },
+      "validation": {
+        "name_required": "Le nom du modèle est requis",
+        "name_size": "Le nom doit comporter au maximum 128 caractères",
+        "description_max": "La description doit comporter au maximum 1000 caractères",
+        "tags_max": "Un modèle ne peut avoir que 10 étiquettes au maximum",
+        "tag_size": "Chaque étiquette doit comporter au maximum 32 caractères",
+        "visibility_required": "La visibilité est requise",
+        "placeholder_required": "Une valeur est requise pour :{{name}}"
+      }
     }
   },
   "ai_panel": {

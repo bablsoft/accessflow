@@ -1043,3 +1043,51 @@ export interface CreateDatasourceReviewerInput {
   userId?: string;
   groupId?: string;
 }
+
+// ── Query templates (AF-364) ─────────────────────────────────────────────────
+export type QueryTemplateVisibility = 'PRIVATE' | 'TEAM';
+
+export interface QueryTemplate {
+  id: string;
+  organization_id: string;
+  owner_id: string;
+  owner_display_name: string | null;
+  datasource_id: string | null;
+  name: string;
+  body: string;
+  description: string | null;
+  tags: string[];
+  visibility: QueryTemplateVisibility;
+  editable: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type QueryTemplatePage = PageEnvelope<QueryTemplate>;
+
+export interface QueryTemplateFilters {
+  page?: number;
+  size?: number;
+  datasourceId?: string;
+  tag?: string;
+  visibility?: QueryTemplateVisibility;
+  q?: string;
+}
+
+export interface CreateQueryTemplateInput {
+  name: string;
+  body: string;
+  description?: string | null;
+  tags?: string[];
+  datasource_id?: string | null;
+  visibility: QueryTemplateVisibility;
+}
+
+export interface UpdateQueryTemplateInput {
+  name: string;
+  body: string;
+  description?: string | null;
+  tags?: string[];
+  datasource_id?: string | null;
+  visibility: QueryTemplateVisibility;
+}

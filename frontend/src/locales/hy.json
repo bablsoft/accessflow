@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "Վերանայման պլան կցված չէ",
       "empty_description": "Այս տվյալների աղբյուրը վերանայման պլան չունի։ Ներկայացումը անմիջապես կանցնի կատարման քաղաքականությանը։"
+    },
+    "templates_button": "Կաղապարներ",
+    "save_template_button": "Պահպանել որպես կաղապար",
+    "templates": {
+      "drawer_title": "Հարցման կաղապարներ",
+      "search_placeholder": "Որոնել անունով կամ նկարագրությամբ…",
+      "filter_all": "Բոլորը",
+      "filter_private": "Իմը",
+      "filter_team": "Թիմ",
+      "empty_state": "Դեռ կաղապարներ չկան — պահպանեք ընթացիկ SQL-ը՝ ձեր գրադարանը սկսելու համար։",
+      "open_button": "Բացել",
+      "delete_button": "Ջնջել",
+      "delete_confirm_title": "Ջնջե՞լ այս կաղապարը։",
+      "delete_confirm_body": "Ջնջե՞լ «{{name}}» կաղապարը։ Այս գործողությունը հնարավոր չէ հետ բերել։",
+      "delete_success": "Կաղապարը ջնջվեց",
+      "owner_label": "հեղինակ՝ {{name}}",
+      "pinned_to_current": "կցված է ընթացիկ տվյալների աղբյուրին",
+      "save_modal_title": "Պահպանել որպես կաղապար",
+      "save_success": "Կաղապարը պահպանվեց",
+      "load_modal_title": "Բեռնել կաղապարը",
+      "load_modal_intro_one": "Լրացրեք {{count}} տեղապահ՝ բեռնելուց առաջ փոխարինելու համար։",
+      "load_modal_intro_other": "Լրացրեք {{count}} տեղապահ՝ բեռնելուց առաջ փոխարինելու համար։",
+      "load_button": "Բեռնել",
+      "visibility_private": "Անձնական",
+      "visibility_team": "Թիմային",
+      "fields": {
+        "name": "Անուն",
+        "name_placeholder": "օր.՝ Թոփ օգտատերերը գրանցմամբ",
+        "description": "Նկարագրություն",
+        "description_placeholder": "Կամընտիր՝ նկարագրեք, թե ինչ է անում այս հարցումը",
+        "visibility": "Տեսանելիություն",
+        "tags": "Թեգեր",
+        "tags_placeholder": "Ավելացրեք թեգեր և սեղմեք Enter",
+        "pin_to_datasource": "Կցել ընթացիկ տվյալների աղբյուրին",
+        "pin_to_datasource_help": "Կցելու դեպքում կաղապարը հայտնվում է միայն այս տվյալների աղբյուրն ընտրելիս։"
+      },
+      "validation": {
+        "name_required": "Կաղապարի անունը պարտադիր է",
+        "name_size": "Անունը պետք է լինի առավելագույնը 128 նիշ",
+        "description_max": "Նկարագրությունը պետք է լինի առավելագույնը 1000 նիշ",
+        "tags_max": "Կաղապարը կարող է ունենալ առավելագույնը 10 թեգ",
+        "tag_size": "Յուրաքանչյուր թեգ պետք է լինի առավելագույնը 32 նիշ",
+        "visibility_required": "Տեսանելիությունը պարտադիր է",
+        "placeholder_required": ":{{name}}-ի համար արժեք պարտադիր է"
+      }
     }
   },
   "ai_panel": {

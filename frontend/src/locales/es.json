@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "No hay plan de revisión asociado",
       "empty_description": "Esta fuente de datos no tiene plan de revisión. El envío irá directamente a la política de ejecución."
+    },
+    "templates_button": "Plantillas",
+    "save_template_button": "Guardar como plantilla",
+    "templates": {
+      "drawer_title": "Plantillas de consulta",
+      "search_placeholder": "Buscar por nombre o descripción…",
+      "filter_all": "Todas",
+      "filter_private": "Mías",
+      "filter_team": "Equipo",
+      "empty_state": "Aún no hay plantillas — guarde el SQL actual para iniciar su biblioteca.",
+      "open_button": "Abrir",
+      "delete_button": "Eliminar",
+      "delete_confirm_title": "¿Eliminar esta plantilla?",
+      "delete_confirm_body": "¿Eliminar la plantilla «{{name}}»? Esta acción no se puede deshacer.",
+      "delete_success": "Plantilla eliminada",
+      "owner_label": "por {{name}}",
+      "pinned_to_current": "fijada a la fuente de datos actual",
+      "save_modal_title": "Guardar como plantilla",
+      "save_success": "Plantilla guardada",
+      "load_modal_title": "Cargar plantilla",
+      "load_modal_intro_one": "Complete {{count}} marcador para sustituir antes de cargar.",
+      "load_modal_intro_other": "Complete {{count}} marcadores para sustituir antes de cargar.",
+      "load_button": "Cargar",
+      "visibility_private": "Privada",
+      "visibility_team": "Equipo",
+      "fields": {
+        "name": "Nombre",
+        "name_placeholder": "p. ej. Usuarios principales por registro",
+        "description": "Descripción",
+        "description_placeholder": "Opcional — describa qué hace esta consulta",
+        "visibility": "Visibilidad",
+        "tags": "Etiquetas",
+        "tags_placeholder": "Añada etiquetas y pulse Intro",
+        "pin_to_datasource": "Fijar a la fuente de datos actual",
+        "pin_to_datasource_help": "Cuando se fija, la plantilla solo aparece cuando esta fuente de datos está seleccionada."
+      },
+      "validation": {
+        "name_required": "El nombre de la plantilla es obligatorio",
+        "name_size": "El nombre debe tener como máximo 128 caracteres",
+        "description_max": "La descripción debe tener como máximo 1000 caracteres",
+        "tags_max": "Una plantilla puede tener como máximo 10 etiquetas",
+        "tag_size": "Cada etiqueta debe tener como máximo 32 caracteres",
+        "visibility_required": "La visibilidad es obligatoria",
+        "placeholder_required": "Se requiere un valor para :{{name}}"
+      }
     }
   },
   "ai_panel": {

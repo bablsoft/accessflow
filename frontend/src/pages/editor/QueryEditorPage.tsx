@@ -6,6 +6,8 @@ import {
   PlayCircleOutlined,
   LoadingOutlined,
   FolderOpenOutlined,
+  BookOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,10 +18,14 @@ import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { SchemaTree } from '@/components/editor/SchemaTree';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
+import { QueryTemplatesDrawer } from '@/components/editor/QueryTemplatesDrawer';
+import { SaveTemplateModal } from '@/components/editor/SaveTemplateModal';
+import { LoadTemplateModal } from '@/components/editor/LoadTemplateModal';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
 import { formatSql } from '@/utils/sqlFormat';
+import type { QueryTemplate } from '@/types/api';
 import './editor.css';
 
 const EMPTY_SCHEMA = { schemas: [] };
@@ -40,6 +46,9 @@ export function QueryEditorPage() {
   const [sql, setSql] = useState('');
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<QueryTemplate | null>(null);
   const schemaQuery = useSchemaIntrospect(ds?.id);
   const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const { message } = App.useApp();
@@ -120,6 +129,16 @@ export function QueryEditorPage() {
           <>
             <Button icon={<FolderOpenOutlined />} onClick={() => navigate('/queries')}>
               {t('editor.history_button')}
+            </Button>
+            <Button icon={<BookOutlined />} onClick={() => setTemplatesOpen(true)}>
+              {t('editor.templates_button')}
+            </Button>
+            <Button
+              icon={<SaveOutlined />}
+              disabled={!sqlNonEmpty}
+              onClick={() => setSaveTemplateOpen(true)}
+            >
+              {t('editor.save_template_button')}
             </Button>
             {aiSupported && (
               <Button
@@ -241,6 +260,27 @@ export function QueryEditorPage() {
         </div>
         <AiHintPanel analyzing={analyzing} analysis={analysis} aiEnabled={ds.ai_analysis_enabled} />
       </div>
+      <QueryTemplatesDrawer
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        currentDatasourceId={ds.id}
+        onOpen={(template) => setPendingTemplate(template)}
+      />
+      <SaveTemplateModal
+        open={saveTemplateOpen}
+        sql={sql}
+        datasourceId={ds.id}
+        onClose={() => setSaveTemplateOpen(false)}
+      />
+      <LoadTemplateModal
+        template={pendingTemplate}
+        onCancel={() => setPendingTemplate(null)}
+        onConfirm={(rendered) => {
+          handleSqlChange(rendered);
+          setPendingTemplate(null);
+          setTemplatesOpen(false);
+        }}
+      />
     </div>
   );
 }

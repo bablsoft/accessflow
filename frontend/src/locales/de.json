@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "Kein Prüfplan zugeordnet",
       "empty_description": "Diese Datenquelle hat keinen Prüfplan. Die Abfrage wird direkt an die Ausführungsrichtlinie weitergeleitet."
+    },
+    "templates_button": "Vorlagen",
+    "save_template_button": "Als Vorlage speichern",
+    "templates": {
+      "drawer_title": "Abfragevorlagen",
+      "search_placeholder": "Nach Name oder Beschreibung suchen…",
+      "filter_all": "Alle",
+      "filter_private": "Meine",
+      "filter_team": "Team",
+      "empty_state": "Noch keine Vorlagen — speichern Sie das aktuelle SQL, um Ihre Bibliothek zu starten.",
+      "open_button": "Öffnen",
+      "delete_button": "Löschen",
+      "delete_confirm_title": "Diese Vorlage löschen?",
+      "delete_confirm_body": "Vorlage „{{name}}“ löschen? Das kann nicht rückgängig gemacht werden.",
+      "delete_success": "Vorlage gelöscht",
+      "owner_label": "von {{name}}",
+      "pinned_to_current": "an aktuelle Datenquelle gebunden",
+      "save_modal_title": "Als Vorlage speichern",
+      "save_success": "Vorlage gespeichert",
+      "load_modal_title": "Vorlage laden",
+      "load_modal_intro_one": "Geben Sie {{count}} Platzhalter ein, der vor dem Laden ersetzt werden soll.",
+      "load_modal_intro_other": "Geben Sie {{count}} Platzhalter ein, die vor dem Laden ersetzt werden sollen.",
+      "load_button": "Laden",
+      "visibility_private": "Privat",
+      "visibility_team": "Team",
+      "fields": {
+        "name": "Name",
+        "name_placeholder": "z. B. Top-Nutzer nach Anmeldung",
+        "description": "Beschreibung",
+        "description_placeholder": "Optional — beschreiben Sie, was diese Abfrage tut",
+        "visibility": "Sichtbarkeit",
+        "tags": "Tags",
+        "tags_placeholder": "Tags hinzufügen und Enter drücken",
+        "pin_to_datasource": "An aktuelle Datenquelle binden",
+        "pin_to_datasource_help": "Wenn gebunden, erscheint die Vorlage nur, wenn diese Datenquelle ausgewählt ist."
+      },
+      "validation": {
+        "name_required": "Vorlagenname ist erforderlich",
+        "name_size": "Name darf höchstens 128 Zeichen lang sein",
+        "description_max": "Beschreibung darf höchstens 1000 Zeichen lang sein",
+        "tags_max": "Eine Vorlage darf höchstens 10 Tags haben",
+        "tag_size": "Jedes Tag darf höchstens 32 Zeichen lang sein",
+        "visibility_required": "Sichtbarkeit ist erforderlich",
+        "placeholder_required": "Wert für :{{name}} ist erforderlich"
+      }
     }
   },
   "ai_panel": {
