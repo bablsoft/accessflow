@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.web;
 
+import com.bablsoft.accessflow.notifications.api.SlackAppConfigNotFoundException;
 import com.bablsoft.accessflow.notifications.api.SlackAppConfigView;
 import org.junit.jupiter.api.Test;
 
@@ -48,5 +49,32 @@ class SlackWebDtoTest {
         assertThat(TestSlackResponse.ok("good").detail()).isEqualTo("good");
         assertThat(TestSlackResponse.error("bad").status()).isEqualTo("ERROR");
         assertThat(TestSlackResponse.error("bad").detail()).isEqualTo("bad");
+    }
+
+    @Test
+    void slackLinkCodeResponseExposesFields() {
+        var expiresAt = Instant.now();
+        var response = new SlackLinkCodeResponse("CODE", expiresAt);
+        assertThat(response.code()).isEqualTo("CODE");
+        assertThat(response.expiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void slackLinkStatusResponseExposesFields() {
+        var linked = new SlackLinkStatusResponse(true, "U123");
+        assertThat(linked.linked()).isTrue();
+        assertThat(linked.slackUserId()).isEqualTo("U123");
+
+        var unlinked = new SlackLinkStatusResponse(false, null);
+        assertThat(unlinked.linked()).isFalse();
+        assertThat(unlinked.slackUserId()).isNull();
+    }
+
+    @Test
+    void slackAppConfigNotFoundExceptionCarriesOrganizationId() {
+        var org = UUID.randomUUID();
+        var ex = new SlackAppConfigNotFoundException(org);
+        assertThat(ex.organizationId()).isEqualTo(org);
+        assertThat(ex.getMessage()).contains(org.toString());
     }
 }
