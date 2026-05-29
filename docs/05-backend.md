@@ -559,6 +559,27 @@ To add a new job: place the `@Component` under `<module>/internal/scheduled/`, a
 
 ---
 
+## Query templates (AF-364)
+
+`workflow.api.QueryTemplateService` and its `Default*` implementation own the saved-snippets library exposed at `/api/v1/query-templates`. Templates are a pure save / load surface — submission still flows through `POST /api/v1/queries` unchanged. `:identifier` placeholders in the body are stored verbatim; the editor parses them and substitutes values on the client before submit, so there is no template-aware parameter binding on the backend.
+
+**Module placement.** The entity, repository, specifications, mapper, and service live in `workflow.internal.*`; the controller and DTOs in `workflow.internal.web.*`. The entity references `organization_id`, `owner_id`, and `datasource_id` as raw `UUID` columns (no `@ManyToOne` to `core.internal` entities) — keeps the modulith green and decouples the persistence layer from cross-module joins.
+
+**Visibility enforcement** is implemented by `DefaultQueryTemplateService`, not the controller — every read passes through `QueryTemplateSpecifications.forList(organizationId, callerUserId, filter)`:
+
+| Operation | Rule |
+|---|---|
+| `list` | `WHERE organization_id = :org AND (owner_id = :caller OR visibility = 'TEAM')` |
+| `get` | Load by id; if `organization_id != caller.org` or (`visibility = PRIVATE` and `owner_id != caller`), throw `QueryTemplateNotFoundException` — existence is not leaked |
+| `update` / `delete` | Apply the `get` rule first, then require `owner_id == caller`; non-owner TEAM access throws `QueryTemplateAccessDeniedException` (403, not 404 — the row is already visible) |
+| `create` | Inserts `owner_id = caller`; unique index `(organization_id, owner_id, LOWER(name))` enforces per-owner name uniqueness |
+
+**Tag storage** is a native PostgreSQL `text[]` column mapped via Hibernate 6's `@JdbcTypeCode(SqlTypes.ARRAY)` on a `String[]` field — no `hypersistence-utils` dependency. The list endpoint's tag filter uses `array_position(tags, :tag) IS NOT NULL` for index-friendly containment lookups, and the GIN index `idx_query_templates_tags_gin` keeps that path cheap.
+
+**Audit.** Every successful mutation calls `auditLogService.record(...)` with one of `QUERY_TEMPLATE_CREATED`, `QUERY_TEMPLATE_UPDATED`, `QUERY_TEMPLATE_DELETED` and resource type `QUERY_TEMPLATE`.
+
+---
+
 ## Startup bootstrap (env-driven admin config)
 
 The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/java/com/bablsoft/accessflow/bootstrap)) reconciles declared admin configuration from `accessflow.bootstrap.*` properties into the database on every backend start. It is the mechanism that lets a Helm/Kubernetes deployment ship organization, admin user, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP through GitOps — no admin-API click-ops required.

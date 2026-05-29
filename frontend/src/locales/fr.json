@@ -313,6 +313,51 @@
     "review_plan_preview": {
       "empty_title": "Aucun plan de revue associé",
       "empty_description": "Cette source de données n'a pas de plan de revue. La soumission ira directement à la politique d'exécution."
+    },
+    "templates_button": "Templates",
+    "save_template_button": "Save as template",
+    "templates": {
+      "drawer_title": "Query templates",
+      "search_placeholder": "Search by name or description…",
+      "filter_all": "All",
+      "filter_private": "Mine",
+      "filter_team": "Team",
+      "empty_state": "No templates yet — save the current SQL to start your library.",
+      "open_button": "Open",
+      "delete_button": "Delete",
+      "delete_confirm_title": "Delete this template?",
+      "delete_confirm_body": "Delete template ‘{{name}}’? This cannot be undone.",
+      "delete_success": "Template deleted",
+      "owner_label": "by {{name}}",
+      "pinned_to_current": "pinned to current datasource",
+      "save_modal_title": "Save as template",
+      "save_success": "Template saved",
+      "load_modal_title": "Load template",
+      "load_modal_intro_one": "Fill in {{count}} placeholder to substitute before loading.",
+      "load_modal_intro_other": "Fill in {{count}} placeholders to substitute before loading.",
+      "load_button": "Load",
+      "visibility_private": "Private",
+      "visibility_team": "Team",
+      "fields": {
+        "name": "Name",
+        "name_placeholder": "e.g. Top users by signup",
+        "description": "Description",
+        "description_placeholder": "Optional — describe what this query does",
+        "visibility": "Visibility",
+        "tags": "Tags",
+        "tags_placeholder": "Add tags and press Enter",
+        "pin_to_datasource": "Pin to current datasource",
+        "pin_to_datasource_help": "When pinned, the template only shows up when this datasource is selected."
+      },
+      "validation": {
+        "name_required": "Template name is required",
+        "name_size": "Name must be at most 128 characters",
+        "description_max": "Description must be at most 1000 characters",
+        "tags_max": "A template may have at most 10 tags",
+        "tag_size": "Each tag must be at most 32 characters",
+        "visibility_required": "Visibility is required",
+        "placeholder_required": "Value for :{{name}} is required"
+      }
     }
   },
   "ai_panel": {

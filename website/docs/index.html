@@ -1099,6 +1099,20 @@ APPROVED → FAILED (execution error)</pre>
             <figcaption><code>/editor</code> — schema browser, SQL pane, justification, scheduled-execution row, and AI analysis side panel.</figcaption>
           </figure>
 
+          <h3 id="flow-templates">Query templates library</h3>
+          <p>
+            The editor's toolbar has a <strong>Templates</strong> drawer button and a
+            <strong>Save as template</strong> shortcut. Saved templates are scoped to your
+            organisation and have two visibilities: <em>Private</em> (only you can see and load
+            them) or <em>Team</em> (every user in the org can read; only the owner can edit
+            or delete). Templates can optionally be pinned to a datasource so they surface
+            with a "pinned to current datasource" badge when that datasource is selected.
+            Template bodies can include <code>:placeholder</code> tokens — when you load a
+            template, AccessFlow prompts you for each placeholder value and substitutes
+            them client-side. Submission still flows through the standard AI analysis and
+            review pipeline; templates are a pure save / load surface, never a bypass.
+          </p>
+
           <h3 id="flow-history">Tracking submitted queries</h3>
           <p>
             <code>/queries</code> (labelled <em>Query history</em> in the sidebar) lists every

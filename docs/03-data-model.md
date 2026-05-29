@@ -260,6 +260,29 @@ Unique constraints: `(datasource_id, user_id)` where `user_id IS NOT NULL` and `
 
 ---
 
+## query_templates
+
+Saved SQL snippets that analysts load into `/editor`. Pure save / load surface — submission still goes through `POST /api/v1/queries` (AI analysis + review). `:param` placeholders are stored verbatim and substituted client-side before submission.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `owner_id` | FK → `users` ON DELETE CASCADE — the analyst who created the template |
+| `datasource_id` | FK → `datasources` ON DELETE SET NULL — optional "pinned" datasource for which the template was authored |
+| `name` | VARCHAR(128) NOT NULL |
+| `body` | TEXT NOT NULL — raw SQL, may contain `:param` placeholders |
+| `description` | VARCHAR(1000) nullable |
+| `tags` | TEXT[] NOT NULL DEFAULT `ARRAY[]::TEXT[]` — free-form tags, capped at 10 per template, 32 chars each |
+| `visibility` | ENUM `query_template_visibility`: `PRIVATE` (owner only) \| `TEAM` (every user in the org) |
+| `version` | BIGINT NOT NULL DEFAULT 0 — JPA optimistic-locking version |
+| `created_at` | TIMESTAMPTZ |
+| `updated_at` | TIMESTAMPTZ |
+
+Unique index `(organization_id, owner_id, LOWER(name))` — an owner may not have two templates with the same case-insensitive name, but two owners in the same org may. Filter indexes on `(organization_id, owner_id)`, `(organization_id, visibility)`, and `(organization_id, datasource_id) WHERE datasource_id IS NOT NULL`; GIN index on `tags` for tag filtering. Visibility enforcement (PRIVATE → owner only; TEAM → org-readable, owner-mutable) lives in `DefaultQueryTemplateService` — controllers do not implement it.
+
+---
+
 ## query_requests
 
 The central entity. Represents a single SQL submission through the platform.
