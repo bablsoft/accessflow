@@ -235,6 +235,7 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
+| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | ISO-8601 duration. Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll (default `PT30S`). |
 | `ACCESSFLOW_PUBLIC_BASE_URL` | Public base URL embedded in notification email links and webhook payloads (default `http://localhost:5173`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | ISO-8601 duration before the first webhook retry (default `PT30S`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |

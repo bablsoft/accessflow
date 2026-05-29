@@ -52,7 +52,8 @@
     "custom_drivers": "Benutzerdefinierte JDBC-Treiber",
     "profile": "Profileinstellungen",
     "version": "AccessFlow Version {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "Datenquellen-Zustand"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "Datenquellen-Zustand",
+      "subtitle": "Verbindungspool-Auslastung, Abfragevolumen, Latenz und Fehler pro Datenquelle (letzte 24 Std.).",
+      "empty_title": "Noch keine Datenquellen",
+      "empty_description": "Fügen Sie eine Datenquelle hinzu, um hier Verbindungspool- und Abfragevolumen-Signale zu sehen.",
+      "error_title": "Datenquellen-Zustand konnte nicht geladen werden",
+      "error_description": "Die Zustands-Momentaufnahme konnte nicht geladen werden. Bitte erneut versuchen.",
+      "inactive": "Inaktiv",
+      "pool_active": "Aktiv",
+      "pool_idle": "Inaktiv",
+      "pool_free": "Frei",
+      "pool_not_initialized": "Pool nicht initialisiert – keine Abfragen seit dem Start.",
+      "pool_caption": "{{active}} aktiv · {{idle}} inaktiv · {{waiting}} wartend / {{max}} max.",
+      "queries_last_24h": "Abfragen (24 Std.)",
+      "errors_last_24h": "Fehler (24 Std.)",
+      "execution_p50": "Ausf. p50",
+      "execution_p95": "Ausf. p95",
+      "unit_ms": "ms"
     }
   },
   "notifications": {

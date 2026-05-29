@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
+import com.bablsoft.accessflow.proxy.api.DatasourcePoolStats;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
 import com.zaxxer.hikari.HikariDataSource;
@@ -99,6 +100,21 @@ class DefaultDatasourceConnectionPoolManager implements DatasourceConnectionPool
     public void evict(UUID datasourceId) {
         closeAndRemove(pools, datasourceId, "primary");
         closeAndRemove(replicaPools, datasourceId, "replica");
+    }
+
+    @Override
+    public Optional<DatasourcePoolStats> poolStats(UUID datasourceId) {
+        var pool = pools.get(datasourceId);
+        if (pool == null || pool.isClosed()) {
+            return Optional.empty();
+        }
+        var mx = pool.getHikariPoolMXBean();
+        return Optional.of(new DatasourcePoolStats(
+                mx.getActiveConnections(),
+                mx.getIdleConnections(),
+                mx.getThreadsAwaitingConnection(),
+                mx.getTotalConnections(),
+                pool.getMaximumPoolSize()));
     }
 
     private static void closeAndRemove(ConcurrentMap<UUID, HikariDataSource> map, UUID id,

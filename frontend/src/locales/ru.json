@@ -52,7 +52,8 @@
     "custom_drivers": "Пользовательские JDBC-драйверы",
     "profile": "Настройки профиля",
     "version": "AccessFlow версия {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "Состояние источников"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "Состояние источников данных",
+      "subtitle": "Использование пула соединений, объём запросов, задержка и ошибки по источникам (за 24 ч).",
+      "empty_title": "Источников данных пока нет",
+      "empty_description": "Добавьте источник данных, чтобы видеть здесь показатели пула соединений и объёма запросов.",
+      "error_title": "Не удалось загрузить состояние источников",
+      "error_description": "Снимок состояния не загрузился. Повторите попытку.",
+      "inactive": "Неактивен",
+      "pool_active": "Активные",
+      "pool_idle": "Простаивающие",
+      "pool_free": "Свободные",
+      "pool_not_initialized": "Пул не инициализирован — запросов с момента запуска не было.",
+      "pool_caption": "{{active}} активных · {{idle}} простаивает · {{waiting}} в ожидании / {{max}} макс.",
+      "queries_last_24h": "Запросы (24 ч)",
+      "errors_last_24h": "Ошибки (24 ч)",
+      "execution_p50": "Вып. p50",
+      "execution_p95": "Вып. p95",
+      "unit_ms": "мс"
     }
   },
   "notifications": {

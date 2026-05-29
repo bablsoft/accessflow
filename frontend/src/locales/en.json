@@ -52,7 +52,8 @@
     "languages": "Languages",
     "custom_drivers": "Custom JDBC drivers",
     "profile": "Profile settings",
-    "version": "AccessFlow version {{version}}"
+    "version": "AccessFlow version {{version}}",
+    "datasource_health": "Datasource health"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -1222,6 +1223,25 @@
           "description": "AI plus a single reviewer; low/medium-risk reads auto-approved."
         }
       }
+    },
+    "datasource_health": {
+      "title": "Datasource health",
+      "subtitle": "Connection-pool utilisation, query volume, latency, and errors per datasource (last 24h).",
+      "empty_title": "No datasources yet",
+      "empty_description": "Add a datasource to start seeing connection-pool and query-volume signals here.",
+      "error_title": "Couldn't load datasource health",
+      "error_description": "The health snapshot failed to load. Try again.",
+      "inactive": "Inactive",
+      "pool_active": "Active",
+      "pool_idle": "Idle",
+      "pool_free": "Free",
+      "pool_not_initialized": "Pool not initialised — no queries since startup.",
+      "pool_caption": "{{active}} active · {{idle}} idle · {{waiting}} waiting / {{max}} max",
+      "queries_last_24h": "Queries (24h)",
+      "errors_last_24h": "Errors (24h)",
+      "execution_p50": "Exec p50",
+      "execution_p95": "Exec p95",
+      "unit_ms": "ms"
     }
   },
   "notifications": {

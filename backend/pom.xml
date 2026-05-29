@@ -124,6 +124,18 @@
             <version>${totp.version}</version>
         </dependency>
 
+        <!-- Spring cache abstraction + Caffeine provider, backing the per-(org, datasource)
+             datasource-health snapshot cache (AF-365). Caffeine supplies the expireAfterWrite
+             TTL the dashboard needs. Versions managed by the Spring Boot 4 parent BOM. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-core</artifactId>

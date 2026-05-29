@@ -1217,6 +1217,7 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 | `GET` | `/admin/saml-config` | Get SAML configuration *(ADMIN only)* |
 | `PUT` | `/admin/saml-config` | Update SAML configuration *(ADMIN only)* |
 | `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
+| `GET` | `/admin/datasource-health` | Per-datasource pool gauges + 24h query volume / latency / errors *(ADMIN only)* |
 | `GET` | `/system/info` | Returns version and feature flags |
 
 ### GET /admin/users — Query Parameters
@@ -2512,6 +2513,44 @@ Reports which onboarding steps the caller's organization has completed. The fron
   "completed_steps": 1,
   "total_steps": 3,
   "complete": false
+}
+```
+
+**Response 401:** Not authenticated.
+**Response 403:** Caller is not an `ADMIN`.
+
+### GET /admin/datasource-health
+
+Per-datasource operational health for the caller's organization, powering the `/admin/datasource-health` dashboard. Read-only; requires the caller to be an `ADMIN`. Each row combines live HikariCP pool gauges with a trailing 24-hour aggregate over `query_requests` (counted by `created_at`).
+
+The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cache abstraction, Caffeine-backed; TTL configurable via `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL`), so the dashboard's 30 s auto-refresh does not re-run the aggregate on every poll. Pool gauges are `null` when no live pool is currently cached for the datasource (it has not been queried since the last restart or pool eviction — pools are created lazily). Latency percentiles are `null` when no executed query carried an execution duration in the window.
+
+**Query parameters:** `page` (0-indexed, default `0`), `size` (default `50`, clamped to `100`).
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "datasource_id": "0c1f…",
+      "datasource_name": "prod-analytics",
+      "db_type": "POSTGRESQL",
+      "active": true,
+      "pool_active": 2,
+      "pool_idle": 8,
+      "pool_waiting": 0,
+      "pool_total": 10,
+      "pool_max": 20,
+      "queries_last_24h": 142,
+      "execution_ms_p50": 12.5,
+      "execution_ms_p95": 88.0,
+      "errors_last_24h": 3
+    }
+  ],
+  "page": 0,
+  "size": 50,
+  "total_elements": 1,
+  "total_pages": 1
 }
 ```
 

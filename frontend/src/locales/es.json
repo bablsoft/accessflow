@@ -52,7 +52,8 @@
     "custom_drivers": "Controladores JDBC personalizados",
     "profile": "Ajustes del perfil",
     "version": "AccessFlow versión {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "Estado de fuentes de datos"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "Estado de fuentes de datos",
+      "subtitle": "Uso del pool de conexiones, volumen de consultas, latencia y errores por fuente (últimas 24 h).",
+      "empty_title": "Aún no hay fuentes de datos",
+      "empty_description": "Añade una fuente de datos para ver aquí señales de pool de conexiones y volumen de consultas.",
+      "error_title": "No se pudo cargar el estado de las fuentes",
+      "error_description": "No se pudo cargar la instantánea de estado. Inténtalo de nuevo.",
+      "inactive": "Inactiva",
+      "pool_active": "Activas",
+      "pool_idle": "Inactivas",
+      "pool_free": "Libres",
+      "pool_not_initialized": "Pool no inicializado: sin consultas desde el arranque.",
+      "pool_caption": "{{active}} activas · {{idle}} inactivas · {{waiting}} en espera / {{max}} máx.",
+      "queries_last_24h": "Consultas (24 h)",
+      "errors_last_24h": "Errores (24 h)",
+      "execution_p50": "Ejec p50",
+      "execution_p95": "Ejec p95",
+      "unit_ms": "ms"
     }
   },
   "notifications": {

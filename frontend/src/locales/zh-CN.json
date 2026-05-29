@@ -52,7 +52,8 @@
     "custom_drivers": "自定义 JDBC 驱动",
     "profile": "个人资料设置",
     "version": "AccessFlow 版本 {{version}}",
-    "groups": "Groups"
+    "groups": "Groups",
+    "datasource_health": "数据源健康"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -1222,6 +1223,25 @@
         "title": "No members yet",
         "description": "Add users to this group to delegate reviewer access."
       }
+    },
+    "datasource_health": {
+      "title": "数据源健康",
+      "subtitle": "每个数据源的连接池使用率、查询量、延迟和错误（最近 24 小时）。",
+      "empty_title": "尚无数据源",
+      "empty_description": "添加数据源后，即可在此查看连接池和查询量信号。",
+      "error_title": "无法加载数据源健康",
+      "error_description": "健康快照加载失败，请重试。",
+      "inactive": "未启用",
+      "pool_active": "使用中",
+      "pool_idle": "空闲",
+      "pool_free": "可用",
+      "pool_not_initialized": "连接池未初始化——启动后无查询。",
+      "pool_caption": "{{active}} 使用中 · {{idle}} 空闲 · {{waiting}} 等待 / {{max}} 上限",
+      "queries_last_24h": "查询（24 小时）",
+      "errors_last_24h": "错误（24 小时）",
+      "execution_p50": "执行 p50",
+      "execution_p95": "执行 p95",
+      "unit_ms": "毫秒"
     }
   },
   "notifications": {
