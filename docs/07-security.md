@@ -22,6 +22,7 @@ The `SecurityConfiguration` `permitAll()` list is short and intentional. Every o
 - `/auth/invitations/*`, `/auth/invitations/*/accept`, `/auth/password/forgot`, `/auth/password/reset/*` — invitation + password-reset flows tied to single-use tokens.
 - `/api-docs/**`, `/swagger-ui/**`, `/actuator/health`, `/actuator/info` — docs + probes.
 - `/ws` — WebSocket upgrade (auth happens in `JwtHandshakeInterceptor`, not here).
+- `/api/v1/integrations/slack/actions`, `/api/v1/integrations/slack/commands` — inbound Slack callbacks. JWT-exempt because Slack cannot attach an `Authorization` header to these server-to-server posts; they are authenticated instead by the `X-Slack-Signature` HMAC inside the controller (see [Slack request verification](#slack-request-verification-af-362)). The self-service linking endpoints (`/api/v1/integrations/slack/link-codes`, `/api/v1/integrations/slack/link`) stay JWT-authenticated.
 
 ### Two-factor authentication (TOTP)
 
@@ -198,6 +199,17 @@ server and other programmatic clients without a browser session. The flow:
   best-effort and swallow exceptions to avoid impacting auth latency.
 
 See `docs/13-mcp.md` for the end-user guide.
+
+### Slack request verification (AF-362)
+
+Inbound Slack callbacks (`/api/v1/integrations/slack/actions`, `/api/v1/integrations/slack/commands`) are JWT-exempt and authenticated by the Slack **signing secret** instead. `SlackRequestVerifier`:
+
+- Reads the **raw** request body (the controller binds `@RequestBody String`; nothing accesses request parameters first, so the form stream stays intact for an exact-bytes HMAC).
+- Looks up the org's `slack_app_config` by the payload's `api_app_id`, decrypts its signing secret, and recomputes `HMAC-SHA256` over the base string `v0:{X-Slack-Request-Timestamp}:{body}`. The result (`v0=<hex>`) is compared against `X-Slack-Signature` in **constant time** (`MessageDigest.isEqual`).
+- **Rejects (401):** missing `X-Slack-Signature` / `X-Slack-Request-Timestamp`; a timestamp outside the ±`accessflow.notifications.slack.signature-tolerance` window (default 5 min); and an HMAC mismatch.
+- **Replay protection:** every verified signature is recorded in Redis (`slack:sig:<sig>`, `SETNX` with TTL = the tolerance window) by `SlackReplayGuard`; a second sighting within the window is rejected as a replay.
+
+Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encrypted` are AES-256-GCM ciphertext via `CredentialEncryptionService`, `@JsonIgnore` on the entity, and never returned by the admin API (only `has_bot_token` / `has_signing_secret` booleans). Approve/Reject clicks run through the same `ReviewService` path as REST, so the self-approval block and RBAC/stage checks apply identically — a Slack user can never approve their own query.
 
 ---
 

@@ -53,7 +53,8 @@
     "profile": "Profileinstellungen",
     "version": "AccessFlow Version {{version}}",
     "groups": "Groups",
-    "datasource_health": "Datenquellen-Zustand"
+    "datasource_health": "Datenquellen-Zustand",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "E-Mail ist erforderlich.",
       "role_required": "Rolle ist erforderlich."
+    },
+    "slack": {
+      "app_id_required": "App-ID ist erforderlich",
+      "app_id_max": "App-ID darf höchstens 64 Zeichen lang sein",
+      "default_channel_required": "Standard-Kanal-ID ist erforderlich",
+      "default_channel_max": "Standard-Kanal-ID darf höchstens 64 Zeichen lang sein",
+      "bot_token_required": "Bot-Token ist erforderlich",
+      "bot_token_max": "Bot-Token darf höchstens 512 Zeichen lang sein",
+      "signing_secret_required": "Signing-Secret ist erforderlich",
+      "signing_secret_max": "Signing-Secret darf höchstens 255 Zeichen lang sein"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "Ausf. p50",
       "execution_p95": "Ausf. p95",
       "unit_ms": "ms"
+    },
+    "slack": {
+      "title": "Slack-App",
+      "subtitle": "Verbinden Sie eine Slack-App, damit Prüfer Abfragen direkt aus Slack genehmigen oder ablehnen können.",
+      "status_configured": "Für diese Organisation ist eine Slack-App konfiguriert.",
+      "status_unconfigured": "Es ist noch keine Slack-App konfiguriert.",
+      "label_app_id": "App-ID",
+      "label_default_channel": "Standard-Kanal-ID",
+      "label_bot_token": "Bot-Token",
+      "label_signing_secret": "Signing-Secret",
+      "label_active": "Aktiv",
+      "save_button": "Speichern",
+      "save_success": "Slack-App-Konfiguration gespeichert",
+      "test_button": "Testnachricht senden",
+      "test_success": "Testnachricht an Slack gesendet",
+      "test_failed": "Test fehlgeschlagen: {{detail}}",
+      "delete_button": "Löschen",
+      "delete_confirm": "Slack-App-Konfiguration löschen?",
+      "delete_success": "Slack-App-Konfiguration gelöscht",
+      "load_error": "Slack-App-Konfiguration konnte nicht geladen werden"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "Aktiv",
         "revoked": "Widerrufen"
       }
+    },
+    "slack": {
+      "title": "Slack-Konto",
+      "description": "Verknüpfen Sie Ihr Slack-Konto, um Abfragen aus Slack zu genehmigen oder abzulehnen.",
+      "linked_as": "Verknüpft mit Slack-Benutzer",
+      "unlink": "Verknüpfung aufheben",
+      "unlink_confirm": "Slack-Konto-Verknüpfung aufheben?",
+      "unlink_success": "Slack-Konto-Verknüpfung aufgehoben",
+      "generate_code": "Verknüpfungscode erstellen",
+      "code_ready": "Führen Sie diesen Befehl in Slack aus, um die Verknüpfung abzuschließen:",
+      "code_instructions": "Der Code läuft bald ab. Erstellen Sie bei Bedarf einen neuen."
     }
   },
   "totp_login": {

@@ -9,7 +9,7 @@ import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(NotificationsProperties.class)
+@EnableConfigurationProperties({NotificationsProperties.class, SlackProperties.class})
 class NotificationsConfiguration {
 
     @Bean

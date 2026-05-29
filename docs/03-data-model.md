@@ -471,12 +471,13 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `OAUTH2_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies a per-provider OAuth2 config from `accessflow.bootstrap.oauth2[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `provider`, `config_type: "oauth2"`, optional `changed_fields`. |
 | `SAML_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies the SAML configuration from `accessflow.bootstrap.saml`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `config_type: "saml"`, optional `changed_fields`. |
 | `AUDIT_LOG_EXPORTED` | Admin called `GET /admin/audit-log/export.csv`. Resource: `audit_log`, no resource id. Metadata captures the export filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). |
+| `SLACK_APP_CONFIG_UPDATED` / `SLACK_APP_CONFIG_DELETED` | Admin creates/updates (`PUT`) or deletes (`DELETE`) the org's `slack_app_config` row. Resource: `slack_app_config`. Metadata on update: `app_id`, `active`. |
 
 Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`, `AI_CONFIG`, `REVIEW_PLAN`, `USER`, and `SYSTEM_SMTP_UPDATED` — `metadata.source = "BOOTSTRAP"` plus `metadata.change_kind` is what distinguishes a bootstrap-driven write from an admin-UI-driven one. See [docs/05-backend.md → "Bootstrap audit semantics"](05-backend.md#bootstrap-audit-semantics).
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`.
 
 ---
 
@@ -516,6 +517,42 @@ Sensitive `config` fields encrypted with AES-256-GCM and masked on read:
 - `EMAIL` → `smtp_password` → `smtp_password_encrypted`
 - `WEBHOOK` → `secret` → `secret_encrypted`
 - `TELEGRAM` → `bot_token` → `bot_token_encrypted`
+
+---
+
+## slack_app_config
+
+Per-organization Slack **app** configuration (AF-362). Distinct from a one-way `SLACK` row in `notification_channels`: when present and active, review-request messages are sent via the bot token (`chat.postMessage`) and carry interactive **Approve** / **Reject** buttons. One row per organization (UNIQUE on `organization_id`).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations`, UNIQUE — one Slack app per org |
+| `app_id` | VARCHAR(64) NOT NULL, UNIQUE — Slack `api_app_id`; routes inbound callbacks back to this org |
+| `bot_token_encrypted` | TEXT NOT NULL — AES-256-GCM via `CredentialEncryptionService`, `@JsonIgnore` |
+| `signing_secret_encrypted` | TEXT NOT NULL — AES-256-GCM, `@JsonIgnore`; verifies the `X-Slack-Signature` HMAC |
+| `default_channel_id` | VARCHAR(64) NOT NULL — channel for outbound messages when a `SLACK` channel has no override |
+| `active` | BOOLEAN NOT NULL DEFAULT TRUE |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+The admin API returns only `has_bot_token` / `has_signing_secret` booleans — never the secrets. On update, omitting a secret (or sending the `********` placeholder) keeps the existing ciphertext.
+
+---
+
+## user_slack_mapping
+
+Maps an AccessFlow user to a Slack workspace user id (AF-362), populated by the `/accessflow link <code>` slash-command flow. Inbound Approve/Reject callbacks resolve the Slack user back to the AccessFlow user here, then run the decision through the same `ReviewService` guards as the REST API.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `user_id` | FK → `users`, UNIQUE — one Slack identity per user |
+| `slack_user_id` | VARCHAR(64) NOT NULL — UNIQUE per `(organization_id, slack_user_id)` |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+
+One-time link codes are not stored here — they live in Redis (`slack:link:<code>`, single-use, TTL `accessflow.notifications.slack.link-code-ttl`).
 
 ---
 

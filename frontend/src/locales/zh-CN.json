@@ -53,7 +53,8 @@
     "profile": "个人资料设置",
     "version": "AccessFlow 版本 {{version}}",
     "groups": "Groups",
-    "datasource_health": "数据源健康"
+    "datasource_health": "数据源健康",
+    "slack": "Slack"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -216,6 +217,16 @@
     "invite": {
       "email_required": "电子邮箱为必填项。",
       "role_required": "角色为必填项。"
+    },
+    "slack": {
+      "app_id_required": "应用 ID 为必填项",
+      "app_id_max": "应用 ID 最多 64 个字符",
+      "default_channel_required": "默认频道 ID 为必填项",
+      "default_channel_max": "默认频道 ID 最多 64 个字符",
+      "bot_token_required": "机器人令牌为必填项",
+      "bot_token_max": "机器人令牌最多 512 个字符",
+      "signing_secret_required": "签名密钥为必填项",
+      "signing_secret_max": "签名密钥最多 255 个字符"
     }
   },
   "errors": {
@@ -1242,6 +1253,26 @@
       "execution_p50": "执行 p50",
       "execution_p95": "执行 p95",
       "unit_ms": "毫秒"
+    },
+    "slack": {
+      "title": "Slack 应用",
+      "subtitle": "连接 Slack 应用，让审核者可以直接在 Slack 中批准或拒绝查询。",
+      "status_configured": "该组织已配置 Slack 应用。",
+      "status_unconfigured": "尚未配置 Slack 应用。",
+      "label_app_id": "应用 ID",
+      "label_default_channel": "默认频道 ID",
+      "label_bot_token": "机器人令牌",
+      "label_signing_secret": "签名密钥",
+      "label_active": "启用",
+      "save_button": "保存",
+      "save_success": "Slack 应用配置已保存",
+      "test_button": "发送测试消息",
+      "test_success": "测试消息已发送到 Slack",
+      "test_failed": "测试失败：{{detail}}",
+      "delete_button": "删除",
+      "delete_confirm": "删除 Slack 应用配置？",
+      "delete_success": "Slack 应用配置已删除",
+      "load_error": "无法加载 Slack 应用配置"
     }
   },
   "notifications": {
@@ -1343,6 +1374,17 @@
         "active": "可用",
         "revoked": "已撤销"
       }
+    },
+    "slack": {
+      "title": "Slack 账户",
+      "description": "关联你的 Slack 账户，以便从 Slack 批准或拒绝查询。",
+      "linked_as": "已关联到 Slack 用户",
+      "unlink": "取消关联",
+      "unlink_confirm": "取消关联你的 Slack 账户？",
+      "unlink_success": "已取消关联 Slack 账户",
+      "generate_code": "生成关联代码",
+      "code_ready": "在 Slack 中运行此命令以完成关联：",
+      "code_instructions": "该代码很快过期。如失效请重新生成。"
     }
   },
   "totp_login": {

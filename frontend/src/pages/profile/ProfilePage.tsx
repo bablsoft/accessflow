@@ -9,6 +9,7 @@ import { DisplayNameForm } from './sections/DisplayNameForm';
 import { ChangePasswordForm } from './sections/ChangePasswordForm';
 import { TwoFactorSection } from './sections/TwoFactorSection';
 import { ApiKeysSection } from './sections/ApiKeysSection';
+import { SlackLinkSection } from './sections/SlackLinkSection';
 
 export function ProfilePage() {
   const { t } = useTranslation();
@@ -72,6 +73,10 @@ export function ProfilePage() {
 
             <Card title={t('profile.api_keys.title')}>
               {isLoading || !profile ? <Skeleton active /> : <ApiKeysSection />}
+            </Card>
+
+            <Card title={t('profile.slack.title')}>
+              {isLoading || !profile ? <Skeleton active /> : <SlackLinkSection />}
             </Card>
           </Space>
         </div>

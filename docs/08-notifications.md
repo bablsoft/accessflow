@@ -96,8 +96,22 @@ Messages use **Block Kit** formatting:
 - Risk badge as emoji + text (`🔴 CRITICAL`, `🟡 MEDIUM`, etc.)
 - SQL preview in a `code` block (first 300 chars)
 - Action buttons: **View in AccessFlow** (link to UI query detail page)
-- For `QUERY_SUBMITTED` events: **Approve** and **Reject** buttons are deep links to the UI (not direct API calls — reviewers must be authenticated)
+- For `QUERY_SUBMITTED` events without a Slack app configured (incoming-webhook only): a single **View in AccessFlow** deep link (reviewers approve in the UI).
 - For `REVIEW_TIMEOUT` events: the header uses `⌛ Query Auto-Rejected (review timeout)` and the summary section adds an `*Auto-rejected after:*` field showing the configured `approval_timeout_hours` so the submitter can tell the message apart from a reviewer rejection. Slack header text and field labels remain English in this release; localising the Slack channel is tracked as a follow-up.
+
+#### Slack app (interactive Approve / Reject) — AF-362
+
+Beyond the one-way incoming-webhook channel above, an organization can configure a **Slack app** (`slack_app_config`: bot token + signing secret + app id + default channel, all encrypted at rest). When an active Slack app exists, `SlackNotificationStrategy` delivers via the **bot token** (`chat.postMessage`) instead of the webhook, and `QUERY_SUBMITTED` review-request messages carry **Approve** (`action_id=approve`, green) and **Reject** (`action_id=reject`, red) buttons whose `value` is the query request id. Without an app, the original text-only webhook path is used unchanged.
+
+**Linking a reviewer.** A reviewer maps their Slack identity to their AccessFlow account once: `POST /api/v1/integrations/slack/link-codes` issues a short-lived one-time code (Redis, TTL `accessflow.notifications.slack.link-code-ttl`, default `PT10M`); the reviewer runs `/accessflow link <code>` in Slack; the verified slash command persists the `(user_id, slack_user_id)` row in `user_slack_mapping`.
+
+**Handling a click.** Slack POSTs a `block_actions` payload to `POST /api/v1/integrations/slack/actions`. AccessFlow:
+1. Parses `api_app_id` → loads that org's `slack_app_config` (and its signing secret).
+2. Verifies the `X-Slack-Signature` HMAC over the raw body and rejects stale/replayed requests (see [docs/07-security.md → Slack request verification](07-security.md#slack-request-verification-af-362)).
+3. Resolves the Slack user → AccessFlow user via `user_slack_mapping`; an unlinked user gets an ephemeral "not linked" reply.
+4. Routes `approve` / `reject` through **the same `ReviewService.approve()` / `reject()`** path as the REST API — so the self-approval block (submitter ≠ reviewer) and RBAC/stage checks apply identically. A blocked decision returns an ephemeral error; a successful one mutates the original message in place via the Slack `response_url` to show the decision and reviewer.
+
+The `/accessflow link <code>` slash command is delivered to `POST /api/v1/integrations/slack/commands` (same signature verification). Outbound interactive messages keep English Block Kit text (consistent with the existing webhook path); inbound ephemeral replies are localized to the org's default language.
 
 **Example Slack Block Kit payload:**
 ```json
