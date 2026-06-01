@@ -4,7 +4,9 @@ import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
 import com.bablsoft.accessflow.access.api.AccessRequestView;
 import com.bablsoft.accessflow.access.events.AccessGrantExpiredEvent;
+import com.bablsoft.accessflow.access.events.AccessGrantRevokedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestApprovedEvent;
+import com.bablsoft.accessflow.access.events.AccessRequestRejectedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -72,6 +75,40 @@ class AccessNotificationListenerTest {
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_REQUEST_APPROVED), eq(Set.of(requesterId)),
                 eq(organizationId), eq(null), any());
+    }
+
+    @Test
+    void rejectedNotifiesRequester() {
+        when(accessRequestLookupService.findById(requestId))
+                .thenReturn(Optional.of(view(AccessGrantStatus.REJECTED)));
+
+        listener().onAccessRequestRejected(new AccessRequestRejectedEvent(requestId, UUID.randomUUID()));
+
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.ACCESS_REQUEST_REJECTED), eq(Set.of(requesterId)),
+                eq(organizationId), eq(null), any());
+    }
+
+    @Test
+    void revokedNotifiesRequester() {
+        when(accessRequestLookupService.findById(requestId))
+                .thenReturn(Optional.of(view(AccessGrantStatus.REVOKED)));
+
+        listener().onAccessGrantRevoked(
+                new AccessGrantRevokedEvent(requestId, requesterId, UUID.randomUUID(), UUID.randomUUID()));
+
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.ACCESS_GRANT_REVOKED), eq(Set.of(requesterId)),
+                eq(organizationId), eq(null), any());
+    }
+
+    @Test
+    void swallowsLookupFailure() {
+        when(accessRequestLookupService.findById(requestId)).thenThrow(new RuntimeException("db down"));
+        assertThatCode(() -> listener().onAccessRequestApproved(
+                new AccessRequestApprovedEvent(requestId, UUID.randomUUID())))
+                .doesNotThrowAnyException();
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any());
     }
 
     @Test

@@ -234,12 +234,54 @@ class AccessRequestControllerIntegrationTest {
     }
 
     @Test
+    void approveIdempotentReplaySkipsAuditAndReturns200() {
+        var id = UUID.randomUUID();
+        when(accessReviewService.approve(eq(id), any(), any())).thenReturn(
+                new DecisionOutcome(UUID.randomUUID(), DecisionType.APPROVED,
+                        AccessGrantStatus.APPROVED, true));
+        var response = mvc.post().uri("/api/v1/admin/access-requests/{id}/approve", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"comment\":\"ok\"}")
+                .exchange();
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.idempotent_replay").isEqualTo(true);
+    }
+
+    @Test
+    void rejectReturns200() {
+        var id = UUID.randomUUID();
+        when(accessReviewService.reject(eq(id), any(), any())).thenReturn(
+                new DecisionOutcome(UUID.randomUUID(), DecisionType.REJECTED,
+                        AccessGrantStatus.REJECTED, false));
+        var response = mvc.post().uri("/api/v1/admin/access-requests/{id}/reject", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"comment\":\"denied\"}")
+                .exchange();
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.resulting_status").asString()
+                .isEqualTo("REJECTED");
+    }
+
+    @Test
     void rejectRequiresComment() {
         var response = mvc.post().uri("/api/v1/admin/access-requests/{id}/reject", UUID.randomUUID())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"comment\":\"\"}")
                 .exchange();
         assertThat(response).hasStatus(400);
+    }
+
+    @Test
+    void revokeNoOpSkipsAuditAndReturns200() {
+        var id = UUID.randomUUID();
+        when(accessReviewService.revoke(eq(id), any(), any()))
+                .thenReturn(new RevocationOutcome(AccessGrantStatus.EXPIRED, true));
+        var response = mvc.post().uri("/api/v1/admin/access-requests/{id}/revoke", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}")
+                .exchange();
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.no_op").isEqualTo(true);
     }
 
     @Test
