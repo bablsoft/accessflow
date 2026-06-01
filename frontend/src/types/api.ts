@@ -10,6 +10,7 @@ export type OAuth2Provider =
   | 'GITLAB_ENTERPRISE';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
+export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
 export type QueryStatus =
   | 'PENDING_AI'
   | 'PENDING_REVIEW'
@@ -865,6 +866,32 @@ export interface DatasourcePermission {
   created_by: string;
   created_at: string;
 }
+
+export interface MaskingPolicy {
+  id: string;
+  datasource_id: string;
+  column_ref: string;
+  strategy: MaskingStrategy;
+  strategy_params: Record<string, string>;
+  reveal_to_roles: Role[];
+  reveal_to_group_ids: string[];
+  reveal_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateMaskingPolicyInput {
+  column_ref: string;
+  strategy: MaskingStrategy;
+  strategy_params?: Record<string, string>;
+  reveal_to_roles?: string[];
+  reveal_to_group_ids?: string[];
+  reveal_to_user_ids?: string[];
+  enabled?: boolean;
+}
+
+export type UpdateMaskingPolicyInput = CreateMaskingPolicyInput;
 
 export interface NotificationChannelEmailConfig {
   smtp_host: string;

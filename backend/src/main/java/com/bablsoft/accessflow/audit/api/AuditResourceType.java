@@ -24,7 +24,8 @@ public enum AuditResourceType {
     DATASOURCE_REVIEWER("datasource_reviewer"),
     QUERY_TEMPLATE("query_template"),
     SLACK_APP_CONFIG("slack_app_config"),
-    ACCESS_GRANT_REQUEST("access_grant_request");
+    ACCESS_GRANT_REQUEST("access_grant_request"),
+    MASKING_POLICY("masking_policy");
 
     private final String dbValue;
 

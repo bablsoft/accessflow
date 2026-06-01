@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -15,6 +16,7 @@ import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
 import com.bablsoft.accessflow.core.api.SqlCanonicalizer;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
@@ -42,6 +44,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -56,6 +59,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final SqlParserService sqlParserService;
     private final SqlCanonicalizer sqlCanonicalizer;
     private final DatasourceUserPermissionLookupService permissionLookupService;
+    private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final AuditLogService auditLogService;
@@ -131,16 +135,25 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .findFor(query.submittedByUserId(), query.datasourceId())
                     .map(p -> p.restrictedColumns())
                     .orElse(List.of());
+            var columnMasks = maskingPolicyResolutionService
+                    .resolveApplicable(query.organizationId(), query.datasourceId(),
+                            query.submittedByUserId())
+                    .stream()
+                    .map(m -> new ColumnMaskDirective(m.columnRef(), m.strategy(), m.params(),
+                            m.policyId()))
+                    .toList();
             var parsed = sqlParserService.parse(query.sqlText());
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
-                    restrictedColumns, parsed.transactional(), parsed.statements()));
+                    restrictedColumns, columnMasks, parsed.transactional(), parsed.statements()));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;
+            Set<UUID> appliedMaskingPolicyIds = Set.of();
             switch (result) {
                 case SelectExecutionResult select -> {
                     rowsAffected = select.rowCount();
+                    appliedMaskingPolicyIds = select.appliedMaskingPolicyIds();
                     persistSelectResult(query.id(), select, durationMs);
                 }
                 case UpdateExecutionResult update -> rowsAffected = update.rowsAffected();
@@ -157,6 +170,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             successMetadata.put("duration_ms", durationMs);
             if (trigger != null) {
                 successMetadata.put("trigger", trigger);
+            }
+            if (!appliedMaskingPolicyIds.isEmpty()) {
+                successMetadata.put("applied_masking_policy_ids", appliedMaskingPolicyIds.stream()
+                        .map(UUID::toString).sorted().toList());
             }
             recordAudit(AuditAction.QUERY_EXECUTED, query.id(), actorUserId,
                     query.organizationId(), successMetadata);

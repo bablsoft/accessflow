@@ -300,6 +300,30 @@ A user can self-request temporary, scoped access instead of an admin pre-grantin
 - The AI analyzer renders `*RESTRICTED*` markers next to flagged columns in the schema context and is instructed to emit `RESTRICTED_COLUMN_ACCESS` issues (severity `LOW`) — the workflow state machine ignores this category for auto-rejection logic.
 - For high-confidentiality data where the value must never be retrievable at all, prefer an `allowed_tables` denial or a database-side view that excludes the column.
 
+### Dynamic data masking policies (AF-381)
+
+`masking_policy` rows extend the static masking above with **per-column strategies** and a
+**conditional reveal** evaluated per query submitter. Same trust posture — a defense-in-depth
+value-rendering control, not an access boundary:
+
+- **Strategies:** `FULL` (`***`, the legacy behaviour), `PARTIAL` (keep last N chars), `HASH` (stable
+  SHA-256 hex — same input always yields the same digest, enabling correlation without disclosure),
+  `EMAIL` (`j***@domain`), `FORMAT_PRESERVING` (preserve length/shape).
+- **Reveal is explicit only.** A submitter sees the unmasked value only when their role, one of their
+  group ids, or their user id is listed in the policy's `reveal_to_*` columns. There is **no implicit
+  ADMIN bypass** — admins are masked too unless explicitly revealed, so the rule is fully expressed in
+  the row and auditable. Masking is keyed on the query **submitter** (`submittedByUserId`), consistent
+  with `restricted_columns`.
+- **No unmasked persistence.** Masking is applied at result-read time in the proxy (`ColumnMasker`),
+  before serialization and before the `query_request_results` snapshot is stored. The raw value is read
+  transiently into the masker and discarded; for `FULL` the raw value is never materialized at all.
+- **Audit.** The ids of the policies that actually applied to a result are recorded in the
+  `QUERY_EXECUTED` audit metadata (`applied_masking_policy_ids`). Unmasked values are never logged or
+  stored. Policy create/update/delete emit `MASKING_POLICY_CREATED/UPDATED/DELETED` audit actions.
+- **Precedence.** An explicit policy overrides the `FULL` default that a bare `restricted_columns`
+  entry would apply to the same column; a `restricted_columns` entry with no covering policy is
+  unchanged (backward compatible).
+
 ---
 
 ## Database Credential Security

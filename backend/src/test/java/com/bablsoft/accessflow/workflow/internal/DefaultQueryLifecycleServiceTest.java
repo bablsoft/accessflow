@@ -8,6 +8,8 @@ import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
+import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -19,7 +21,9 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SqlCanonicalizer;
+import com.bablsoft.accessflow.core.api.ResolvedColumnMask;
 import com.bablsoft.accessflow.core.events.AiReanalysisRequestedEvent;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
@@ -76,6 +80,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock SqlParserService sqlParserService;
     @Mock SqlCanonicalizer sqlCanonicalizer;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
+    @Mock MaskingPolicyResolutionService maskingPolicyResolutionService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock AuditLogService auditLogService;
@@ -100,6 +105,7 @@ class DefaultQueryLifecycleServiceTest {
                 sqlParserService,
                 sqlCanonicalizer,
                 permissionLookupService,
+                maskingPolicyResolutionService,
                 aiAnalysisLookupService,
                 aiAnalysisPersistenceService,
                 auditLogService,
@@ -112,6 +118,8 @@ class DefaultQueryLifecycleServiceTest {
         });
         when(sqlCanonicalizer.canonicalize(anyString())).thenAnswer(inv ->
                 ((String) inv.getArgument(0)).toUpperCase(Locale.ROOT));
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(List.of());
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {
@@ -294,6 +302,41 @@ class DefaultQueryLifecycleServiceTest {
                 .contains("\"name\":\"ssn\"")
                 .contains("\"restricted\":true")
                 .contains("\"restricted\":false");
+    }
+
+    @Test
+    void executeResolvesMaskingPoliciesAndAuditsAppliedIds() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(permissionLookupService.findFor(submitterId, datasourceId))
+                .thenReturn(Optional.empty());
+        var policyId = UUID.randomUUID();
+        when(maskingPolicyResolutionService.resolveApplicable(organizationId, datasourceId,
+                submitterId)).thenReturn(List.of(new ResolvedColumnMask(policyId,
+                "public.users.email", MaskingStrategy.PARTIAL, java.util.Map.of("visible_suffix", "4"))));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("email", 12, "varchar", true)),
+                List.of(List.of("****le.com")),
+                1L, false, Duration.ofMillis(30), java.util.Set.of(policyId)));
+
+        service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
+
+        var requestCaptor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().columnMasks())
+                .extracting(ColumnMaskDirective::strategy)
+                .containsExactly(MaskingStrategy.PARTIAL);
+        assertThat(requestCaptor.getValue().columnMasks())
+                .extracting(ColumnMaskDirective::policyId)
+                .containsExactly(policyId);
+
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        var executed = auditCaptor.getAllValues().stream()
+                .filter(e -> e.action() == AuditAction.QUERY_EXECUTED)
+                .findFirst().orElseThrow();
+        assertThat(executed.metadata()).containsEntry("applied_masking_policy_ids",
+                List.of(policyId.toString()));
     }
 
     @Test

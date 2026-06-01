@@ -14,6 +14,7 @@ public record QueryExecutionRequest(
         Integer maxRowsOverride,
         Duration statementTimeoutOverride,
         List<String> restrictedColumns,
+        List<ColumnMaskDirective> columnMasks,
         boolean transactional,
         List<String> statements) {
 
@@ -31,6 +32,7 @@ public record QueryExecutionRequest(
             throw new IllegalArgumentException("statementTimeoutOverride must be positive");
         }
         restrictedColumns = restrictedColumns == null ? List.of() : List.copyOf(restrictedColumns);
+        columnMasks = columnMasks == null ? List.of() : List.copyOf(columnMasks);
         statements = statements == null || statements.isEmpty()
                 ? List.of(sql)
                 : List.copyOf(statements);
@@ -53,13 +55,21 @@ public record QueryExecutionRequest(
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                List.of(), false, null);
+                List.of(), List.of(), false, null);
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride,
                                  List<String> restrictedColumns) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                restrictedColumns, false, null);
+                restrictedColumns, List.of(), false, null);
+    }
+
+    public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
+                                 Integer maxRowsOverride, Duration statementTimeoutOverride,
+                                 List<String> restrictedColumns, boolean transactional,
+                                 List<String> statements) {
+        this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
+                restrictedColumns, List.of(), transactional, statements);
     }
 }

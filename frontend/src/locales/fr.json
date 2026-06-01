@@ -755,7 +755,51 @@
       "activity_empty": "Aucune requête n'a encore été soumise sur cette source.",
       "activity_load_error": "Impossible de charger les requêtes récentes",
       "not_found_message": "Source de données introuvable.",
-      "back_to_list": "Retour à la liste"
+      "back_to_list": "Retour à la liste",
+      "tab_masking": "Masquage · {{count}}",
+      "masking": {
+        "title": "Politiques de masquage",
+        "description": "Affiche les valeurs des colonnes sensibles avec une stratégie de masquage. Les utilisateurs listés dans « Révéler à » voient la valeur non masquée ; les autres voient la sortie masquée. Cela étend le masquage statique des colonnes restreintes.",
+        "add": "Ajouter une politique",
+        "empty_title": "Aucune politique de masquage",
+        "empty_description": "Ajoutez une politique pour masquer la valeur d’une colonne aux utilisateurs non révélés.",
+        "loading": "Chargement des politiques de masquage…",
+        "load_error": "Échec du chargement des politiques de masquage",
+        "col_column": "Colonne",
+        "col_strategy": "Stratégie",
+        "col_reveal": "Révéler à",
+        "col_enabled": "Activée",
+        "col_actions": "Actions",
+        "reveal_none": "Personne (toujours masqué)",
+        "reveal_roles": "{{count}} rôle(s)",
+        "reveal_groups": "{{count}} groupe(s)",
+        "reveal_users": "{{count}} utilisateur(s)",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "delete_confirm_title": "Supprimer cette politique de masquage ?",
+        "delete_confirm_body": "La colonne reviendra à son rendu par défaut pour tous les utilisateurs.",
+        "create_title": "Ajouter une politique de masquage",
+        "edit_title": "Modifier la politique de masquage",
+        "label_column_ref": "Colonne",
+        "placeholder_column_ref": "schéma.table.colonne",
+        "label_strategy": "Stratégie",
+        "label_visible_suffix": "Longueur du suffixe visible",
+        "label_reveal_roles": "Révéler aux rôles",
+        "label_reveal_groups": "Révéler aux groupes",
+        "label_reveal_users": "Révéler aux utilisateurs",
+        "label_enabled": "Activée",
+        "preview_label": "Aperçu",
+        "preview_sample": "Valeur d’exemple",
+        "column_required": "La colonne cible est obligatoire",
+        "column_max": "La colonne cible ne doit pas dépasser 512 caractères",
+        "strategy_required": "Une stratégie de masquage est requise",
+        "visible_suffix_range": "Le suffixe visible doit être compris entre 1 et 256",
+        "save_success": "Politique de masquage enregistrée",
+        "save_error": "Échec de l’enregistrement de la politique de masquage",
+        "delete_success": "Politique de masquage supprimée",
+        "delete_error": "Échec de la suppression de la politique de masquage",
+        "state_disabled": "Désactivée"
+      }
     }
   },
   "admin": {
@@ -1558,6 +1602,13 @@
       "EXPIRED": "Expiré",
       "REVOKED": "Révoqué",
       "CANCELLED": "Annulé"
+    },
+    "masking_strategy": {
+      "FULL": "Masquage complet",
+      "PARTIAL": "Partiel (garder les N derniers)",
+      "HASH": "Hachage (SHA-256)",
+      "EMAIL": "Préserve l’e-mail",
+      "FORMAT_PRESERVING": "Préserve le format"
     }
   },
   "access": {

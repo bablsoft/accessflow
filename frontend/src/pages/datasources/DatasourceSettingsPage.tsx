@@ -58,6 +58,8 @@ import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
 import { listQueries, queryKeys, type QueryListFilters } from '@/api/queries';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { ErDiagramTab } from '@/components/datasources/ErDiagramTab';
+import { MaskingTab } from '@/components/datasources/MaskingTab';
+import { listMaskingPolicies, maskingPolicyKeys } from '@/api/maskingPolicies';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type {
   CreatePermissionInput,
@@ -85,6 +87,12 @@ export function DatasourceSettingsPage() {
   const permissionsQuery = useQuery({
     queryKey: id ? datasourceKeys.permissions(id) : ['datasources', 'permissions', 'idle'],
     queryFn: () => listPermissions(id!),
+    enabled: !!id,
+  });
+
+  const maskingPoliciesQuery = useQuery({
+    queryKey: id ? maskingPolicyKeys.list(id) : ['masking-policies', 'list', 'idle'],
+    queryFn: () => listMaskingPolicies(id!),
     enabled: !!id,
   });
 
@@ -155,6 +163,7 @@ export function DatasourceSettingsPage() {
 
   const ds = dsQuery.data;
   const permissionsCount = permissionsQuery.data?.length ?? 0;
+  const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
   const testIcon =
     testMutation.isPending ? (
       <LoadingOutlined />
@@ -199,6 +208,10 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_permissions', { count: permissionsCount }),
           },
           { key: 'schema', label: t('datasources.settings.tab_schema') },
+          {
+            key: 'masking',
+            label: t('datasources.settings.tab_masking', { count: maskingCount }),
+          },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
@@ -207,6 +220,7 @@ export function DatasourceSettingsPage() {
         {tab === 'config' && <ConfigTab ds={ds} onDelete={onDelete} deletePending={deleteMutation.isPending} />}
         {tab === 'permissions' && <PermissionMatrix dsId={ds.id} />}
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
+        {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>

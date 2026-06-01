@@ -35,6 +35,33 @@ class QueryExecutionRequestTest {
     }
 
     @Test
+    void columnMasksDefaultToEmptyAcrossConstructors() {
+        var basic = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, null, null);
+        assertThat(basic.columnMasks()).isEmpty();
+
+        var withRestricted = new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, null, null, java.util.List.of("public.t.c"));
+        assertThat(withRestricted.columnMasks()).isEmpty();
+        assertThat(withRestricted.restrictedColumns()).containsExactly("public.t.c");
+
+        var transactional = new QueryExecutionRequest(datasourceId, "UPDATE t SET v=1",
+                QueryType.UPDATE, null, null, java.util.List.of(), true,
+                java.util.List.of("UPDATE t SET v=1"));
+        assertThat(transactional.columnMasks()).isEmpty();
+    }
+
+    @Test
+    void columnMasksAreRetainedAndCopied() {
+        var directive = new ColumnMaskDirective("public.t.c",
+                com.bablsoft.accessflow.core.api.MaskingStrategy.HASH, java.util.Map.of(),
+                UUID.randomUUID());
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT,
+                null, null, java.util.List.of(), java.util.List.of(directive), false, null);
+
+        assertThat(request.columnMasks()).containsExactly(directive);
+    }
+
+    @Test
     void nullDatasourceIdIsRejected() {
         assertThatThrownBy(() -> new QueryExecutionRequest(null, "SELECT 1",
                 QueryType.SELECT, null, null))

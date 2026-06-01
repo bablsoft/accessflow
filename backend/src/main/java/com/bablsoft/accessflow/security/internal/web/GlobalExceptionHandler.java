@@ -14,6 +14,8 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
+import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -264,6 +266,24 @@ class GlobalExceptionHandler {
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_permission"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(MaskingPolicyNotFoundException.class)
+    ProblemDetail handleMaskingPolicyNotFound(MaskingPolicyNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.masking_policy_not_found"));
+        pd.setProperty("error", "MASKING_POLICY_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalMaskingPolicyException.class)
+    ProblemDetail handleIllegalMaskingPolicy(IllegalMaskingPolicyException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultMaskingPolicyAdminService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_MASKING_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

@@ -161,10 +161,44 @@ Grants a specific user access to a specific datasource with granular controls.
 | `row_limit_override` | INTEGER nullable — overrides datasource default |
 | `allowed_schemas` | TEXT[] — null means all schemas permitted |
 | `allowed_tables` | TEXT[] — null means all tables permitted |
-| `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions |
+| `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |
+
+---
+
+## masking_policy
+
+Conditional / role-based dynamic data masking (AF-381). Each row binds a masking **strategy** to one
+datasource column, with an optional **reveal condition** evaluated per query submitter. A submitter
+whose role, one of whose group ids, or whose user id appears in any `reveal_to_*` column sees the
+unmasked value; everyone else gets the strategy output. This *enhances* `restricted_columns` masking —
+it governs *how* a visible value is rendered, applied at result-read time in the proxy **before
+serialization and before the result snapshot is stored**, so unmasked values never persist. Created by
+`V58__create_masking_policy.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `datasource_id` | FK → `datasources` |
+| `column_ref` | TEXT — `schema.table.column` (matched with the same `schema.table.column` → `table.column` → bare-column precedence as `restricted_columns`) |
+| `strategy` | ENUM `masking_strategy`: `FULL` \| `PARTIAL` \| `HASH` \| `EMAIL` \| `FORMAT_PRESERVING` |
+| `strategy_params` | JSONB DEFAULT `'{}'` — strategy parameters, e.g. `{"visible_suffix": "4"}` for `PARTIAL` |
+| `reveal_to_roles` | TEXT[] nullable — `user_role_type` values that see the unmasked value |
+| `reveal_to_group_ids` | UUID[] nullable — user-group ids that see the unmasked value |
+| `reveal_to_user_ids` | UUID[] nullable — individual user ids that see the unmasked value |
+| `enabled` | BOOLEAN DEFAULT true — disabled policies are ignored during resolution |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id, datasource_id, enabled)` to back the per-execution resolution scan.
+
+**`masking_strategy` values:** `FULL` (whole value → `***`, identical to legacy `restricted_columns`),
+`PARTIAL` (keep the last N characters per `visible_suffix`, default 4), `HASH` (stable SHA-256 hex of
+the value), `EMAIL` (`j***@domain` — preserve the first local-part character and the domain),
+`FORMAT_PRESERVING` (preserve length/shape: digits and letters replaced, separators kept).
 
 ---
 

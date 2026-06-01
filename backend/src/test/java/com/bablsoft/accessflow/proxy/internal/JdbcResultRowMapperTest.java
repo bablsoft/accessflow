@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -619,6 +621,57 @@ class JdbcResultRowMapperTest {
 
         assertThat(result.rows().getFirst().getFirst()).isEqualTo("payload");
         assertThat(result.columns().getFirst().restricted()).isFalse();
+    }
+
+    @Test
+    void columnMaskDirectiveAppliesStrategyAndReportsAppliedPolicyId() throws SQLException {
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("email");
+        when(metadata.getColumnType(1)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getString(1)).thenReturn("jane@example.com");
+        when(rs.wasNull()).thenReturn(false);
+
+        var policyId = UUID.randomUUID();
+        var directive = new ColumnMaskDirective("public.users.email", MaskingStrategy.EMAIL,
+                java.util.Map.of(), policyId);
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of(directive));
+
+        assertThat(result.rows().getFirst().getFirst()).isEqualTo("j***@example.com");
+        assertThat(result.columns().getFirst().restricted()).isTrue();
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void partialDirectiveNullValueStaysNull() throws SQLException {
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("email");
+        when(metadata.getColumnType(1)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getString(1)).thenReturn(null);
+        when(rs.wasNull()).thenReturn(true);
+
+        var directive = new ColumnMaskDirective("email", MaskingStrategy.PARTIAL,
+                java.util.Map.of(), UUID.randomUUID());
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of(directive));
+
+        assertThat(result.rows().getFirst().getFirst()).isNull();
     }
 
     private static ResultSetMetaData singleColumnMeta(String name, int type, String typeName)
