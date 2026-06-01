@@ -183,15 +183,22 @@ test.describe.serial('dynamic data masking policies (AF-381)', () => {
     await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Add policy' }).click();
+    const dialog = page.getByRole('dialog');
 
     // Live preview is fully client-side: FULL strategy (the default) renders '***'.
-    await expect(page.getByText('***', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('***', { exact: true })).toBeVisible();
 
-    await page.getByPlaceholder('schema.table.column').fill('public.users.name');
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Save' }).click();
+    // The column field is the first AntD combobox (AutoComplete) in the modal.
+    // getByPlaceholder doesn't work — AntD renders the placeholder as an overlay
+    // span, not an input attribute — so target it by combobox role like
+    // access-requests.spec.ts does. A free-text ref avoids any dependency on the
+    // introspected schema. Don't press Escape: that closes the whole AntD modal —
+    // blur via the sample input so the option dropdown can't intercept the Save.
+    await dialog.getByRole('combobox').first().fill('public.demo.secret');
+    await dialog.getByLabel('Sample value').click();
+    await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(page.getByText('Masking policy saved')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('public.users.name').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('public.demo.secret').first()).toBeVisible({ timeout: 10_000 });
   });
 });
