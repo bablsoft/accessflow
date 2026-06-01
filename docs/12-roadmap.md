@@ -103,15 +103,30 @@
 
 ---
 
+## v1.3
+
+**Theme:** Fine-grained access control and data protection.
+
+- **Just-in-time (JIT) time-bound access requests** — users self-request temporary, scoped datasource access (e.g. write for 4 hours); granted on approval and auto-revoked on expiry by a clustered scheduler (AF-378)
+- **Policy-as-code routing engine** — attribute-based rules decide query routing (auto-approve, auto-reject, require N approvers, escalate) from query type, referenced tables, AI risk, role / group membership, and time-of-day (AF-379)
+- **Row-level security policies** — per-user/group/datasource row predicates injected at the AST layer so users see only the rows they are authorised for (AF-380)
+- **Dynamic data masking policies** — per-column masking strategies (full, partial, hash, email, format-preserving) with role/group-based reveal conditions, extending today's static `restricted_columns` masking (AF-381)
+
+---
+
 ## v2.0
 
-**Theme:** Beyond relational databases.
+**Theme:** Beyond relational databases — plus native client access and continuous governance.
 
 - **MongoDB support** — query governance for MongoDB (find, update, delete, aggregation pipeline review)
 - **Redis read-access governance** — audit and optionally require review for Redis GET/SCAN/keys operations
 - **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
 - **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
+- **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
+- **Behavioral anomaly detection (UBA)** — rolling per-user / per-role baselines built from the audit stream flag out-of-pattern activity (volume, active hours, tables touched, rows returned) and escalate via the policy engine (AF-383)
+- **Access recertification campaigns** — recurring attestation campaigns where datasource owners certify or revoke standing access, with exportable evidence for SOC2 / ISO 27001 audits (AF-384)
+- **Break-glass / emergency access** — a gated, audited, time-boxed bypass that executes immediately while notifying all admins (incl. PagerDuty) and forcing a mandatory post-hoc review (AF-385)
 
 ---
 
