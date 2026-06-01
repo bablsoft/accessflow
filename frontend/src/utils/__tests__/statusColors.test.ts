@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { statusColor } from '../statusColors';
-import type { QueryStatus } from '@/types/api';
+import { accessGrantStatusColor, statusColor } from '../statusColors';
+import type { AccessGrantStatus, QueryStatus } from '@/types/api';
 
 describe('statusColor', () => {
   it.each<[QueryStatus, string]>([
@@ -27,6 +27,31 @@ describe('statusColor', () => {
     ];
     for (const s of statuses) {
       const c = statusColor(s);
+      expect(c.fg).toBeDefined();
+      expect(c.bg).toBeDefined();
+      expect(c.border).toBeDefined();
+    }
+  });
+});
+
+describe('accessGrantStatusColor', () => {
+  it.each<[AccessGrantStatus, string]>([
+    ['PENDING', 'var(--status-info)'],
+    ['APPROVED', 'var(--risk-low)'],
+    ['REJECTED', 'var(--risk-crit)'],
+    ['EXPIRED', 'var(--status-warn)'],
+    ['REVOKED', 'var(--fg-muted)'],
+    ['CANCELLED', 'var(--fg-muted)'],
+  ])('maps %s to the expected fg token', (status, fg) => {
+    expect(accessGrantStatusColor(status).fg).toBe(fg);
+  });
+
+  it('returns a complete triple for every status', () => {
+    const statuses: AccessGrantStatus[] = [
+      'PENDING', 'APPROVED', 'REJECTED', 'EXPIRED', 'REVOKED', 'CANCELLED',
+    ];
+    for (const s of statuses) {
+      const c = accessGrantStatusColor(s);
       expect(c.fg).toBeDefined();
       expect(c.bg).toBeDefined();
       expect(c.border).toBeDefined();

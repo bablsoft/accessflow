@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type {
+  AccessGrantStatus,
   AiProvider,
   AuthProvider,
   ChannelType,
@@ -13,8 +14,20 @@ import type {
   SslMode,
 } from '@/types/api';
 
+export const ACCESS_GRANT_STATUSES: readonly AccessGrantStatus[] = [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'EXPIRED',
+  'REVOKED',
+  'CANCELLED',
+] as const;
+
 export const queryStatusLabel = (t: TFunction, v: QueryStatus): string =>
   t(`enums.query_status.${v}` as const);
+
+export const accessGrantStatusLabel = (t: TFunction, v: AccessGrantStatus): string =>
+  t(`enums.access_grant_status.${v}` as const);
 
 export const queryTypeLabel = (t: TFunction, v: QueryType): string =>
   t(`enums.query_type.${v}` as const);

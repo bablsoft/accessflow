@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.realtime.internal;
 
+import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
+import com.bablsoft.accessflow.access.events.AccessRequestStatusChangedEvent;
+import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -48,6 +51,7 @@ class RealtimeEventDispatcher {
     private final DatasourceAdminService datasourceAdminService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserNotificationLookupService userNotificationLookupService;
+    private final AccessRequestLookupService accessRequestLookupService;
     private final Clock clock;
 
     @Autowired
@@ -58,10 +62,11 @@ class RealtimeEventDispatcher {
                             UserQueryService userQueryService,
                             DatasourceAdminService datasourceAdminService,
                             AiAnalysisLookupService aiAnalysisLookupService,
-                            UserNotificationLookupService userNotificationLookupService) {
+                            UserNotificationLookupService userNotificationLookupService,
+                            AccessRequestLookupService accessRequestLookupService) {
         this(sessionRegistry, objectMapper, queryRequestLookupService, reviewPlanLookupService,
                 userQueryService, datasourceAdminService, aiAnalysisLookupService,
-                userNotificationLookupService, Clock.systemUTC());
+                userNotificationLookupService, accessRequestLookupService, Clock.systemUTC());
     }
 
     // Package-private constructor for tests that need a fixed clock.
@@ -73,6 +78,7 @@ class RealtimeEventDispatcher {
                             DatasourceAdminService datasourceAdminService,
                             AiAnalysisLookupService aiAnalysisLookupService,
                             UserNotificationLookupService userNotificationLookupService,
+                            AccessRequestLookupService accessRequestLookupService,
                             Clock clock) {
         this.sessionRegistry = sessionRegistry;
         this.objectMapper = objectMapper;
@@ -82,6 +88,7 @@ class RealtimeEventDispatcher {
         this.datasourceAdminService = datasourceAdminService;
         this.aiAnalysisLookupService = aiAnalysisLookupService;
         this.userNotificationLookupService = userNotificationLookupService;
+        this.accessRequestLookupService = accessRequestLookupService;
         this.clock = clock;
     }
 
@@ -217,6 +224,35 @@ class RealtimeEventDispatcher {
                 data.putNull("comment");
             }
             sendTo(event.submitterId(), "review.decision_made", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onAccessRequestSubmitted(AccessRequestSubmittedEvent event) {
+        safe("access_request.created", event.accessRequestId(), () -> {
+            var recipients = accessRequestLookupService
+                    .findReviewerRecipients(event.accessRequestId());
+            if (recipients.isEmpty()) {
+                return;
+            }
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("access_request_id", event.accessRequestId().toString());
+            data.put("requester_id", event.requesterId().toString());
+            var envelope = serialize("access_request.created", data);
+            for (var reviewerId : recipients) {
+                sessionRegistry.sendToUser(reviewerId, envelope);
+            }
+        });
+    }
+
+    @ApplicationModuleListener
+    void onAccessRequestStatusChanged(AccessRequestStatusChangedEvent event) {
+        safe("access_request.status_changed", event.accessRequestId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("access_request_id", event.accessRequestId().toString());
+            data.put("old_status", event.oldStatus().name());
+            data.put("new_status", event.newStatus().name());
+            sendTo(event.requesterId(), "access_request.status_changed", data);
         });
     }
 

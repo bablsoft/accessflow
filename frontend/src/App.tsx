@@ -19,6 +19,8 @@ import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
 import { ReviewQueuePage } from '@/pages/reviews/ReviewQueuePage';
+import { RequestAccessPage } from '@/pages/access-requests/RequestAccessPage';
+import { AccessRequestsQueuePage } from '@/pages/access-requests/AccessRequestsQueuePage';
 import { DatasourceListPage } from '@/pages/datasources/DatasourceListPage';
 import { DatasourceSettingsPage } from '@/pages/datasources/DatasourceSettingsPage';
 
@@ -120,6 +122,7 @@ export function App() {
           <Route path="/" element={<Navigate to="/editor" replace />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editor" element={<QueryEditorPage />} />
+          <Route path="/access-requests" element={<RequestAccessPage />} />
           <Route path="/queries" element={<QueryListPage />} />
           <Route path="/queries/:id" element={<QueryDetailPage />} />
           <Route
@@ -127,6 +130,14 @@ export function App() {
             element={
               <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
                 <ReviewQueuePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/access-requests"
+            element={
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+                <AccessRequestsQueuePage />
               </AuthGuard>
             }
           />

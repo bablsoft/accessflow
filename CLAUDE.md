@@ -227,6 +227,9 @@ com.bablsoft.accessflow/
 | `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service (default: `PT1M`). |
+| `ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AccessGrantExpiryJob` (the `access` module) scans for `APPROVED` JIT access grants past their `expires_at` and revokes the materialised permission (default: `PT5M`). |
+| `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
+| `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
 | `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` | HikariCP `connectionTimeout` for customer-DB pools (default `30s`). |
 | `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | HikariCP `idleTimeout` (default `10m`). |

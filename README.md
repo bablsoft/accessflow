@@ -65,6 +65,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 
 - **Proxy-first execution** — no user ever holds production credentials; the proxy holds them encrypted and opens connections only after approval. Single SQL statements run with autocommit; multi-statement INSERT/UPDATE/DELETE batches wrapped in `BEGIN; … COMMIT;` execute atomically inside one JDBC transaction (mixed SELECT/DML batches are rejected at parse time). Optional **read-replica routing**: attach a replica JDBC URL to a datasource and SELECT traffic is served from there, with automatic primary fall-back and an audit row on replica failure.
 - **Configurable review workflows** — per-datasource review plans, multi-stage sequential approval chains, optional auto-approve for reads, approval timeouts with auto-reject. Reviewers can be scoped **per-datasource** (directly or via groups) so different teams see only the queues that belong to them.
+- **Just-in-time (JIT) access requests** — users self-request temporary, scoped datasource access (read/write/DDL for an ISO-8601 duration). Requests flow through the same approval engine, a time-boxed permission is granted on approval, and a clustered scheduler auto-revokes it on expiry (admins can also revoke early).
 - **User groups** — bundle reviewers (and other users) into groups; groups can be assigned as datasource reviewers and auto-synced from SAML / OAuth2 IdP claims via per-IdP `group_mappings` (admin-managed memberships are preserved across logins).
 - **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, and self-hosted Ollama; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI; admin **AI analyses dashboard** charts average risk over time, top issue categories, and most active submitters.
 - **Datasource health dashboard** — admin-only `/admin/datasource-health` surfaces per-datasource HikariCP pool utilisation plus a trailing 24h summary of query volume, p50/p95 execution latency, and error count, so operators can spot pool exhaustion, slow datasources, or volume spikes. Auto-refreshes every 30s.
@@ -208,6 +209,7 @@ accessflow/
 │   │   ├── core/             # Domain entities, repositories, shared service contracts
 │   │   ├── proxy/            # SQL proxy engine, JDBC connection management
 │   │   ├── workflow/         # Review state machine, approval chains, scheduled jobs
+│   │   ├── access/           # JIT time-bound access requests + grant-expiry job
 │   │   ├── ai/               # Spring AI adapters (OpenAI / Anthropic / Ollama)
 │   │   ├── security/         # JWT, Spring Security filters, SAML 2.0 SSO
 │   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty dispatchers

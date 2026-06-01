@@ -69,6 +69,52 @@ class DefaultDatasourceLookupServiceTest {
     }
 
     @Test
+    void findRefReturnsIdAndName() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var entity = new DatasourceEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setName("analytics");
+        when(datasourceRepository.findById(id)).thenReturn(Optional.of(entity));
+
+        var ref = service.findRef(id).orElseThrow();
+        assertThat(ref.id()).isEqualTo(id);
+        assertThat(ref.name()).isEqualTo("analytics");
+    }
+
+    @Test
+    void findRefReturnsEmptyForNullId() {
+        assertThat(service.findRef(null)).isEmpty();
+    }
+
+    @Test
+    void findActiveRefsByOrganizationSortsByNameCaseInsensitive() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var a = new DatasourceEntity();
+        a.setId(UUID.randomUUID());
+        a.setOrganization(org);
+        a.setName("Zeta");
+        var b = new DatasourceEntity();
+        b.setId(UUID.randomUUID());
+        b.setOrganization(org);
+        b.setName("alpha");
+        when(datasourceRepository.findAllByOrganization_IdAndActiveTrue(organizationId))
+                .thenReturn(java.util.List.of(a, b));
+
+        var refs = service.findActiveRefsByOrganization(organizationId);
+
+        assertThat(refs).extracting(com.bablsoft.accessflow.core.api.DatasourceRef::name)
+                .containsExactly("alpha", "Zeta");
+    }
+
+    @Test
+    void findActiveRefsByOrganizationReturnsEmptyForNull() {
+        assertThat(service.findActiveRefsByOrganization(null)).isEmpty();
+    }
+
+    @Test
     void findByIdMapsCustomDriverIdAndJdbcUrlOverride() {
         var org = new OrganizationEntity();
         org.setId(organizationId);

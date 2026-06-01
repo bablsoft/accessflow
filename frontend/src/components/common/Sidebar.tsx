@@ -19,6 +19,8 @@ import {
   CloseOutlined,
   BarChartOutlined,
   DashboardOutlined,
+  KeyOutlined,
+  UnlockOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -68,6 +70,7 @@ export function Sidebar({
         { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
+        { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
       ],
     },
     {
@@ -84,6 +87,7 @@ export function Sidebar({
       items: [
         { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
         { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, roles: ['ADMIN'] },
+        { id: 'access-requests', to: '/admin/access-requests', label: t('nav.access_requests'), icon: <UnlockOutlined />, roles: ['REVIEWER', 'ADMIN'] },
         { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
         { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
         { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },

@@ -1,0 +1,96 @@
+import { apiClient } from './client';
+import type {
+  AccessDecisionResult,
+  AccessGrantStatus,
+  AccessRequest,
+  AccessRequestPage,
+  AccessRevocationResult,
+  PendingAccessRequestsPage,
+  RequestableDatasource,
+  SubmitAccessRequestInput,
+} from '@/types/api';
+
+const BASE = '/api/v1/access-requests';
+const ADMIN_BASE = '/api/v1/admin/access-requests';
+
+export interface MyAccessRequestsFilters {
+  page?: number;
+  size?: number;
+  status?: AccessGrantStatus;
+}
+
+export const accessRequestKeys = {
+  all: ['access-requests'] as const,
+  mine: (filters: MyAccessRequestsFilters) => ['access-requests', 'mine', filters] as const,
+  datasources: () => ['access-requests', 'datasources'] as const,
+  queue: () => ['access-requests', 'queue'] as const,
+  queueFor: (filters: { page?: number; size?: number }) =>
+    ['access-requests', 'queue', filters] as const,
+};
+
+export async function submitAccessRequest(
+  input: SubmitAccessRequestInput,
+): Promise<AccessRequest> {
+  const { data } = await apiClient.post<AccessRequest>(BASE, input);
+  return data;
+}
+
+export async function listMyAccessRequests(
+  filters: MyAccessRequestsFilters = {},
+): Promise<AccessRequestPage> {
+  const params: Record<string, string | number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  if (filters.status) params.status = filters.status;
+  const { data } = await apiClient.get<AccessRequestPage>(BASE, { params });
+  return data;
+}
+
+export async function listRequestableDatasources(): Promise<RequestableDatasource[]> {
+  const { data } = await apiClient.get<RequestableDatasource[]>(`${BASE}/datasources`);
+  return data;
+}
+
+export async function cancelAccessRequest(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/${id}`);
+}
+
+export async function listPendingAccessRequests(
+  filters: { page?: number; size?: number } = {},
+): Promise<PendingAccessRequestsPage> {
+  const params: Record<string, number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  const { data } = await apiClient.get<PendingAccessRequestsPage>(ADMIN_BASE, { params });
+  return data;
+}
+
+export async function approveAccessRequest(
+  id: string,
+  comment?: string,
+): Promise<AccessDecisionResult> {
+  const { data } = await apiClient.post<AccessDecisionResult>(`${ADMIN_BASE}/${id}/approve`, {
+    comment: comment ?? null,
+  });
+  return data;
+}
+
+export async function rejectAccessRequest(
+  id: string,
+  comment: string,
+): Promise<AccessDecisionResult> {
+  const { data } = await apiClient.post<AccessDecisionResult>(`${ADMIN_BASE}/${id}/reject`, {
+    comment,
+  });
+  return data;
+}
+
+export async function revokeAccessGrant(
+  id: string,
+  comment?: string,
+): Promise<AccessRevocationResult> {
+  const { data } = await apiClient.post<AccessRevocationResult>(`${ADMIN_BASE}/${id}/revoke`, {
+    comment: comment ?? null,
+  });
+  return data;
+}

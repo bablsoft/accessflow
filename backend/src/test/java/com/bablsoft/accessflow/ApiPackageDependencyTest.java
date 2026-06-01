@@ -16,6 +16,7 @@ class ApiPackageDependencyTest {
     static final ArchRule api_packages_depend_only_on_jdk_and_project_classes =
             noClasses().that()
                     .resideInAnyPackage(
+                            "com.bablsoft.accessflow.access.api..",
                             "com.bablsoft.accessflow.ai.api..",
                             "com.bablsoft.accessflow.audit.api..",
                             "com.bablsoft.accessflow.core.api..",

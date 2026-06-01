@@ -37,7 +37,8 @@ the right.
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
-| [`docs/08-notifications.md`](../docs/08-notifications.md) | "Configurable review workflows" feature tile |
+| [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/05-backend.md`](../docs/05-backend.md) "JIT time-bound access requests" + [`docs/07-security.md`](../docs/07-security.md) | "Configurable review workflows" feature tile (incl. JIT access-request blurb) |
+| [`docs/05-backend.md`](../docs/05-backend.md) "JIT time-bound access requests", [`docs/07-security.md`](../docs/07-security.md) JIT section, [`docs/09-deployment.md`](../docs/09-deployment.md) `ACCESSFLOW_ACCESS_*` env vars | "Just-in-time (JIT) access requests" paragraph + RBAC rows under "User roles &amp; RBAC" in [`docs/index.html`](docs/index.html) |
 | [`docs/05-backend.md`](../docs/05-backend.md) "Observability and tracing", [`docs/09-deployment.md`](../docs/09-deployment.md) Observability env-var table | "Observability" architecture callout (homepage) + structured-logs note under "Docker Compose" in [`docs/index.html`](docs/index.html) |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) | Roadmap track |
 | [`docs/`](../docs/) chapter filenames + H1s | Docs grid cards |

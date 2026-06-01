@@ -224,6 +224,10 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 | View all query history | — | — | ✓ | ✓ |
 | Approve / reject queries | — | — | ✓ | ✓ |
 | Approve own submitted queries | — | — | — | — |
+| Request time-bound datasource access (AF-378) | ✓ | ✓ | ✓ | ✓ |
+| Review / approve / reject access requests | — | — | ✓ | ✓ |
+| Approve own access request | — | — | — | — |
+| Early-revoke an active grant | — | — | — | ✓ |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ |
 | Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ |
 | Create / edit datasources | — | — | — | ✓ |
@@ -277,6 +281,15 @@ Are restricted_columns set?
          ↓
   PROCEED to review plan
 ```
+
+### Just-in-time (JIT) time-bound access requests (AF-378)
+
+A user can self-request temporary, scoped access instead of an admin pre-granting it. The request flows through the **same reviewer-eligibility + multi-stage approval machinery** as query review, with these security invariants:
+
+- **A requester can never approve their own request.** Enforced in `DefaultAccessReviewService.prepareDecision()` at the service layer (not just the UI) — `requesterId == reviewerId` raises `AccessDeniedException` (403), exactly as the query-review self-approval block does.
+- **Eligibility is identical to query review.** The reviewer must be an approver at the request's current stage in the datasource's review plan *and* within the datasource's scoped-reviewer set (`datasource_reviewers`) when one is configured. `REVIEWER`/`ADMIN` role is necessary but not sufficient.
+- **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard datasource-access check above returns 403.
+- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* permission is revoked and replaced (extend/widen). This preserves standing access as the source of truth while letting JIT grants stack predictably.
 
 ### Column-level restrictions
 

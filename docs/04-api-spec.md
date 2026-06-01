@@ -1189,6 +1189,70 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 
 ---
 
+## Access Request Endpoints (AF-378)
+
+Just-in-time, time-bound access requests. A user requests temporary scoped access to a datasource; it flows through the same reviewer-eligibility + multi-stage approval machinery as query review (a requester can never approve their own request — enforced at the service layer). On final-stage approval a time-boxed `datasource_user_permissions` row is materialised (`expires_at = now + requested_duration`) and `AccessGrantExpiryJob` revokes it on expiry.
+
+### POST /access-requests — Request Body *(any authenticated user)*
+
+```json
+{
+  "datasource_id": "uuid",
+  "can_read": true,
+  "can_write": false,
+  "can_ddl": false,
+  "allowed_schemas": ["analytics"],
+  "allowed_tables": null,
+  "requested_duration": "PT4H",
+  "justification": "Investigate incident #1234"
+}
+```
+
+`requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. **Response 201** returns the created request (`status: "PENDING"`).
+
+### GET /access-requests — Query Parameters
+
+`page`, `size`, optional `status`. Returns the caller's own access requests (paginated, newest first).
+
+### DELETE /access-requests/{id} — Response 204
+
+Requester cancels their own request. Only a `PENDING` request is cancellable (`409 ACCESS_REQUEST_NOT_CANCELLABLE` otherwise); a foreign/unknown id returns `404 ACCESS_REQUEST_NOT_FOUND`.
+
+### GET /access-requests/datasources — Response 200 *(any authenticated user)*
+
+`[{ "id": "uuid", "name": "analytics-prod" }]` — active datasources in the organization the caller may target. Not scoped to existing permissions (id + name only; no connection details).
+
+### GET /admin/access-requests — Query Parameters *(REVIEWER / ADMIN)*
+
+Paginated queue of access requests the caller can currently act on (current-stage + datasource-scope filtered, self-requests excluded), mirroring `/reviews/pending`.
+
+### POST /admin/access-requests/{id}/approve — Request Body *(REVIEWER / ADMIN)*
+
+`{ "comment": "approved" }` (optional). Records an approval; on final stage the grant is materialised. **Response 200** → `{ access_request_id, decision_id, decision, resulting_status, idempotent_replay }`.
+
+### POST /admin/access-requests/{id}/reject — Request Body *(REVIEWER / ADMIN)*
+
+`{ "comment": "denied" }` (**required**). **Response 200**, same shape as approve.
+
+### POST /admin/access-requests/{id}/revoke — Request Body *(ADMIN only)*
+
+`{ "comment": "offboarded" }` (optional). Early-revokes an active grant before its natural expiry — revokes the materialised permission and transitions the request to `REVOKED`. Idempotent (`no_op: true` when already inactive). **Response 200** → `{ access_request_id, resulting_status, no_op }`.
+
+### Access Request Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure (missing datasource, bad duration format, no capability, justification too long) |
+| 403 | `FORBIDDEN` | Requester attempted to review their own request |
+| 403 | `ACCESS_REVIEWER_NOT_ELIGIBLE` | Caller is not an eligible reviewer at the current stage |
+| 404 | `ACCESS_REQUEST_NOT_FOUND` | Request does not exist or belongs to another user/org |
+| 409 | `ACCESS_REQUEST_NOT_PENDING` | Decision attempted on a non-pending request |
+| 409 | `ACCESS_REQUEST_NOT_CANCELLABLE` | Cancel attempted on a non-pending request |
+| 409 | `ACCESS_GRANT_ALREADY_EXISTS` | Requester already holds a standing (non-expiring) permission on the datasource |
+| 422 | `INVALID_ACCESS_DURATION` | Requested duration outside the configured min/max bounds |
+
+---
+
 ## Admin Endpoints
 
 | Method | Path | Description |
@@ -2780,6 +2844,8 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `query.executed` | Execution completed | `query_id`, `rows_affected`, `duration_ms` |
 | `ai.analysis_complete` | AI analysis finished | `query_id`, `risk_level`, `risk_score` |
 | `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
+| `access_request.created` | New JIT access request needs a reviewer's decision | `access_request_id`, `requester_id` |
+| `access_request.status_changed` | Access request changed status (approved/rejected/expired/revoked/cancelled) — pushed to the requester | `access_request_id`, `old_status`, `new_status` |
 
 ### WebSocket Message Format
 

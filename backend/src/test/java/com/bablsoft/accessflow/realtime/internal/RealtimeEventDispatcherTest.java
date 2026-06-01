@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.realtime.internal;
 
+import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -61,6 +62,7 @@ class RealtimeEventDispatcherTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock UserNotificationLookupService userNotificationLookupService;
+    @Mock AccessRequestLookupService accessRequestLookupService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-07T10:00:00Z"),
@@ -79,7 +81,7 @@ class RealtimeEventDispatcherTest {
         dispatcher = new RealtimeEventDispatcher(sessionRegistry, objectMapper,
                 queryRequestLookupService, reviewPlanLookupService, userQueryService,
                 datasourceAdminService, aiAnalysisLookupService, userNotificationLookupService,
-                clock);
+                accessRequestLookupService, clock);
     }
 
     @Test

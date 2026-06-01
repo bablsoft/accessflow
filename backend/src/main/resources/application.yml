@@ -151,6 +151,13 @@ accessflow:
     # Cadence at which ScheduledQueryRunJob scans for APPROVED queries whose scheduled_for
     # timestamp has been reached. ShedLock makes this safe under horizontal scaling.
     scheduled-run-poll-interval: ${ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL:PT1M}
+  access:
+    # Cadence at which AccessGrantExpiryJob scans for APPROVED access grants past their
+    # expires_at and revokes them. ShedLock makes this safe under horizontal scaling.
+    grant-expiry-poll-interval: ${ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL:PT5M}
+    # Inclusive bounds the requested JIT access duration (ISO-8601) must fall within.
+    min-duration: ${ACCESSFLOW_ACCESS_MIN_DURATION:PT15M}
+    max-duration: ${ACCESSFLOW_ACCESS_MAX_DURATION:P30D}
   audit:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.

@@ -54,7 +54,9 @@
     "version": "AccessFlow версия {{version}}",
     "groups": "Groups",
     "datasource_health": "Состояние источников",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Запросить доступ",
+    "access_requests": "Запросы доступа"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Принято",
       "REVOKED": "Отозвано",
       "EXPIRED": "Истекло"
+    },
+    "access_grant_status": {
+      "PENDING": "Ожидает",
+      "APPROVED": "Одобрено",
+      "REJECTED": "Отклонено",
+      "EXPIRED": "Истёк",
+      "REVOKED": "Отозвано",
+      "CANCELLED": "Отменено"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Запросить доступ",
+      "subtitle": "Запросите временный ограниченный доступ к источнику данных",
+      "datasource": "Источник данных",
+      "datasource_placeholder": "Выберите источник данных",
+      "capabilities": "Возможности",
+      "can_read": "Чтение",
+      "can_write": "Запись",
+      "can_ddl": "DDL",
+      "schemas": "Схемы (необязательно)",
+      "schemas_placeholder": "Все схемы",
+      "tables": "Таблицы (необязательно)",
+      "tables_placeholder": "Все таблицы",
+      "duration": "Длительность",
+      "justification": "Обоснование",
+      "justification_placeholder": "Зачем вам нужен этот доступ?",
+      "submit": "Отправить запрос",
+      "submit_success": "Запрос доступа отправлен",
+      "my_requests": "Мои запросы",
+      "cancel": "Отменить",
+      "cancel_confirm": "Отменить этот запрос доступа?",
+      "cancel_success": "Запрос доступа отменён",
+      "empty": "У вас пока нет запросов доступа",
+      "validation": {
+        "datasource_required": "Выберите источник данных",
+        "capability_required": "Выберите хотя бы одно: чтение, запись или DDL",
+        "duration_required": "Выберите длительность",
+        "justification_required": "Обоснование обязательно",
+        "justification_max": "Обоснование не должно превышать 4 000 символов"
+      },
+      "durations": {
+        "PT1H": "1 час",
+        "PT4H": "4 часа",
+        "PT8H": "8 часов",
+        "P1D": "1 день",
+        "P3D": "3 дня",
+        "P7D": "7 дней"
+      }
+    },
+    "queue": {
+      "title": "Запросы доступа",
+      "subtitle": "Просматривайте и решайте по ожидающим запросам доступа",
+      "requester": "Запросивший",
+      "datasource": "Источник данных",
+      "capabilities": "Возможности",
+      "duration": "Длительность",
+      "justification": "Обоснование",
+      "requested": "Запрошено",
+      "approve": "Одобрить",
+      "reject": "Отклонить",
+      "reject_reason": "Причина отклонения",
+      "reject_required": "Для отклонения требуется комментарий",
+      "on_approve": "Запрос доступа одобрен",
+      "on_reject": "Запрос доступа отклонён",
+      "empty": "Нет запросов доступа, ожидающих вашего рассмотрения"
+    },
+    "ttl": {
+      "remaining": "осталось {{value}}",
+      "expired": "Истёк"
+    },
+    "columns": {
+      "status": "Статус",
+      "expires": "Истекает"
     }
   }
 }

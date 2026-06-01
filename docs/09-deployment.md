@@ -836,6 +836,9 @@ Two layers exist:
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours`. ShedLock makes this safe under horizontal scaling. |
 | `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | Optional | `PT1M` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service. ShedLock makes this safe under horizontal scaling. |
+| `ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `AccessGrantExpiryJob` (the `access` module) scans for `APPROVED` JIT access grants past their `expires_at` and revokes the materialised permission. ShedLock makes this safe under horizontal scaling. |
+| `ACCESSFLOW_ACCESS_MIN_DURATION` | Optional | `PT15M` | ISO-8601 duration. Smallest requestable JIT access-grant duration; enforced server-side on submit. |
+| `ACCESSFLOW_ACCESS_MAX_DURATION` | Optional | `P30D` | ISO-8601 duration. Largest requestable JIT access-grant duration. |
 | `ACCESSFLOW_PUBLIC_BASE_URL` | Optional | `http://localhost:5173` | Public base URL used in notification email links and webhook payloads |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | Optional | `PT30S` | ISO-8601 duration — delay before the first webhook retry |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | Optional | `PT2M` | ISO-8601 duration — delay before the second webhook retry |

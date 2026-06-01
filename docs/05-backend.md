@@ -9,6 +9,7 @@ accessflow/
 ├── accessflow-core/              # Domain entities, JPA repositories, service interfaces
 ├── accessflow-proxy/             # SQL proxy engine, JDBC connection pool management
 ├── accessflow-workflow/          # Review workflow state machine, notification fanout
+├── accessflow-access/            # JIT time-bound access requests — approval, grant materialisation, expiry job
 ├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama adapters
 ├── accessflow-security/          # JWT config, Spring Security, SAML 2.0 SSO
 ├── accessflow-notifications/     # Email (JavaMail), Slack, Webhook, Discord, Telegram, MS Teams, PagerDuty dispatchers
@@ -561,10 +562,29 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 |-----|--------|-----------|------------------|---------|
 | `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
+| `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
+
+`AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
 
 `ScheduledQueryRunJob` implements query scheduling (AF-345): a submitter may include `scheduled_for` on `POST /queries` to defer execution. The query still goes through the normal AI / review flow; once it reaches `APPROVED`, the job picks it up at the next tick where `scheduled_for ≤ now()` and calls `QueryLifecycleService.executeScheduled(id)`. That method bypasses the per-user ownership guard (the actor is the scheduler, not a request principal), records the submitter as the audit actor, and tags the audit metadata with `"trigger": "scheduled"`. The job is idempotent — if the query is no longer `APPROVED` (manual execute / cancel raced the tick), the lifecycle service logs and returns without firing.
 
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
+
+---
+
+## JIT time-bound access requests (AF-378)
+
+The `access` module (`com.bablsoft.accessflow.access`) lets users self-request temporary, scoped datasource access that is granted on approval and auto-revoked on expiry.
+
+**Approval reuses query-review machinery.** `DefaultAccessReviewService` mirrors `DefaultReviewService`: it resolves the datasource's `ReviewPlanSnapshot` (`core.api.ReviewPlanLookupService`), computes the current stage from the recorded `access_grant_decision` rows, checks the caller is an approver at that stage and within the datasource's scoped-reviewer set (`core.api.ReviewerEligibilityService`), and **blocks self-approval at the service layer** (`requesterId == reviewerId` → `AccessDeniedException`). Multi-stage chains are supported exactly as for queries — only the final stage transitions the request to `APPROVED`. The state primitive `AccessGrantRequestStateService` (pessimistic row lock, idempotent replay on `(requestId, reviewerId, stage)`) is the sole owner of `access_grant_request.status`.
+
+**Grant materialisation.** On final-stage approval, `approve()` runs `AccessGrantMaterializer` inside the same transaction so approval + grant commit atomically. The materializer computes `expires_at = now + Duration.parse(requested_duration)`, calls `core.api.DatasourceAdminService.grantPermission(...)`, and stores the new permission id on the request.
+
+**Pre-existing-permission policy.** If the requester already holds a permission on the datasource: a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409). Another **time-boxed** (JIT) permission is revoked and replaced so the new grant's capabilities/expiry take effect (extend/widen). This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
+
+**Expiry & revoke.** `AccessGrantExpiryJob` (see "Scheduled jobs" above) revokes grants past `expires_at` → `EXPIRED`. An admin may early-revoke an active grant (`POST /admin/access-requests/{id}/revoke`) → `REVOKED`. Both paths revoke the materialised permission (tolerating an already-deleted row) and publish events consumed by the notifications + realtime modules.
+
+**Module boundaries.** `access → core.api`, `audit.api`; `notifications`/`realtime`/`audit` read access data through `access.api.AccessRequestLookupService` (and never reach into `access.internal`). `access` only *publishes* events to notifications/realtime, so there is no cycle. In-app + WebSocket notifications are delivered for access events (`AccessNotificationListener` + `RealtimeEventDispatcher`); per-channel email/Slack delivery for access events is a follow-up.
 
 ---
 

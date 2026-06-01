@@ -109,6 +109,9 @@ class NotificationContextBuilder {
                     .map(NotificationContextBuilder::toRecipient)
                     .toList();
             case TEST -> submitter != null ? List.of(toRecipient(submitter)) : List.of();
+            // Access (JIT) events are not query-backed; they are handled by AccessNotificationListener.
+            case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> List.of();
         };
     }
 

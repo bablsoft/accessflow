@@ -184,6 +184,16 @@ Available to users with `REVIEWER` or `ADMIN` role:
 - The ID column renders a small clock icon (with a "Scheduled to run at …" tooltip) when the row carries a non-null `scheduled_for`, so users can spot scheduled queries at a glance from `/queries` without opening the detail page.
 - `ApprovalTimeline` shows which reviewers in the plan have already decided
 
+### RequestAccessPage (`/access-requests`)
+
+Available to any authenticated user (AF-378). A form (`api/accessRequests.ts` + TanStack Query) to request temporary, scoped access:
+- Datasource `Select` populated from `GET /api/v1/access-requests/datasources` (active org datasources — not scoped to existing permissions), capability checkboxes (Read / Write / DDL, validated as at-least-one to mirror the backend `@AtLeastOneCapability`), optional schema/table tag inputs, a duration `Select` (preset ISO-8601 periods 1h–7d), and a justification textarea (max 4,000, mirroring the backend `@Size`).
+- Below the form, a "My requests" table lists the caller's own requests with an `AccessStatusPill`, a remaining-TTL chip for active grants (via `utils/accessTtl.ts`), and a Cancel action on `PENDING` rows (`DELETE /api/v1/access-requests/{id}`).
+
+### AccessRequestsQueuePage (`/admin/access-requests`)
+
+Available to `REVIEWER` / `ADMIN` (AF-378). Mirrors `ReviewQueuePage`: a TanStack Query list of pending access requests (`GET /api/v1/admin/access-requests`), per-row Approve and Reject (the reject modal requires a comment, mirroring the backend `@NotBlank`), with optimistic cache invalidation on decision. Status/colour go through `accessGrantStatusColor` / `accessGrantStatusLabel` (single source of truth in `utils/`).
+
 ### QueryDetailPage
 
 Full detail view for any query:
