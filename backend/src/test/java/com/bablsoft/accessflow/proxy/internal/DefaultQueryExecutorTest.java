@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
+import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
@@ -34,6 +36,7 @@ import java.time.ZoneOffset;
 import org.springframework.context.MessageSource;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -126,6 +129,34 @@ class DefaultQueryExecutorTest {
         assertThat(result.rowCount()).isEqualTo(3);
         assertThat(result.truncated()).isTrue();
         verify(statement).setMaxRows(4);
+    }
+
+    @Test
+    void selectAppliesColumnMaskDirectiveAndReportsAppliedPolicyId() throws SQLException {
+        var rs = mock(ResultSet.class);
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("email");
+        when(metadata.getColumnType(1)).thenReturn(Types.VARCHAR);
+        when(metadata.getColumnTypeName(1)).thenReturn("varchar");
+        when(metadata.getSchemaName(1)).thenReturn("public");
+        when(metadata.getTableName(1)).thenReturn("users");
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.getString(1)).thenReturn("jane@example.com");
+        when(rs.wasNull()).thenReturn(false);
+        when(rs.next()).thenReturn(true, false);
+        when(statement.executeQuery()).thenReturn(rs);
+
+        var policyId = UUID.randomUUID();
+        var request = new QueryExecutionRequest(datasourceId, "SELECT email FROM users",
+                QueryType.SELECT, null, null, List.of(),
+                List.of(new ColumnMaskDirective("public.users.email", MaskingStrategy.EMAIL,
+                        Map.of(), policyId)), false, null);
+
+        var result = (SelectExecutionResult) executor.execute(request);
+
+        assertThat(result.rows().getFirst().getFirst()).isEqualTo("j***@example.com");
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
     }
 
     @Test

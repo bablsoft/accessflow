@@ -6,6 +6,7 @@ import type {
   ChannelType,
   DbType,
   InvitationStatus,
+  MaskingStrategy,
   OAuth2Provider,
   QueryStatus,
   QueryType,
@@ -58,6 +59,17 @@ export const oauth2ProviderLabel = (t: TFunction, v: OAuth2Provider): string =>
 
 export const invitationStatusLabel = (t: TFunction, v: InvitationStatus): string =>
   t(`enums.invitation_status.${v}` as const);
+
+export const MASKING_STRATEGIES: readonly MaskingStrategy[] = [
+  'FULL',
+  'PARTIAL',
+  'HASH',
+  'EMAIL',
+  'FORMAT_PRESERVING',
+] as const;
+
+export const maskingStrategyLabel = (t: TFunction, v: MaskingStrategy): string =>
+  t(`enums.masking_strategy.${v}` as const);
 
 export interface EnumOption<V extends string> {
   value: V;

@@ -9,6 +9,8 @@ import {
   dbTypeLabel,
   enumOptions,
   invitationStatusLabel,
+  maskingStrategyLabel,
+  MASKING_STRATEGIES,
   oauth2ProviderLabel,
   queryStatusLabel,
   queryTypeLabel,
@@ -22,6 +24,7 @@ import type {
   ChannelType,
   DbType,
   InvitationStatus,
+  MaskingStrategy,
   OAuth2Provider,
   QueryStatus,
   QueryType,
@@ -72,6 +75,9 @@ describe('enumLabels (key shape)', () => {
   it('invitationStatusLabel builds enums.invitation_status.<value>', () => {
     expect(invitationStatusLabel(stubT, 'PENDING')).toBe('enums.invitation_status.PENDING');
   });
+  it('maskingStrategyLabel builds enums.masking_strategy.<value>', () => {
+    expect(maskingStrategyLabel(stubT, 'PARTIAL')).toBe('enums.masking_strategy.PARTIAL');
+  });
 });
 
 describe('enumLabels (English text round-trip)', () => {
@@ -89,6 +95,7 @@ describe('enumLabels (English text round-trip)', () => {
   const auth: AuthProvider[] = ['LOCAL', 'SAML', 'OAUTH2'];
   const oauth2: OAuth2Provider[] = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'GITLAB', 'OIDC'];
   const invites: InvitationStatus[] = ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'];
+  const maskingStrategies: MaskingStrategy[] = [...MASKING_STRATEGIES];
 
   it('returns a non-empty resolved string for every QueryStatus', () => {
     for (const v of statuses) expect(queryStatusLabel(t, v)).not.toBe(`enums.query_status.${v}`);
@@ -122,6 +129,11 @@ describe('enumLabels (English text round-trip)', () => {
   });
   it('returns a non-empty resolved string for every InvitationStatus', () => {
     for (const v of invites) expect(invitationStatusLabel(t, v)).not.toBe(`enums.invitation_status.${v}`);
+  });
+  it('returns a non-empty resolved string for every MaskingStrategy', () => {
+    for (const v of maskingStrategies) {
+      expect(maskingStrategyLabel(t, v)).not.toBe(`enums.masking_strategy.${v}`);
+    }
   });
 
   it('renders well-known English labels', () => {

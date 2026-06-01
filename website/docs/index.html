@@ -783,6 +783,19 @@
             </picture>
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>ER diagram</em>. Auto-laid-out via dagre; node positions persist after manual edits.</figcaption>
           </figure>
+          <p>
+            <strong>Masking policies.</strong> The datasource <em>Masking</em> tab adds per-column
+            <em>dynamic data masking</em> on top of the static restricted-columns masking above. Each
+            policy targets a <code>schema.table.column</code> and picks a strategy —
+            <em>full</em> (<code>***</code>), <em>partial</em> (keep the last N characters),
+            <em>hash</em> (stable SHA-256), <em>email</em> (<code>j***@domain</code>), or
+            <em>format-preserving</em> — with an optional <em>reveal-to</em> condition. A query
+            submitter whose role, group, or user id is listed in <em>reveal to</em> sees the unmasked
+            value; everyone else sees the strategy output. A live preview shows how a sample value will
+            render. Masking is applied at result-read time before results are serialized or stored, so
+            unmasked values never persist, and the ids of the policies that applied are recorded in the
+            execution's audit metadata. Reveal is explicit — there is no implicit admin bypass.
+          </p>
 
           <h3 id="cfg-drivers">Custom JDBC drivers</h3>
           <p>

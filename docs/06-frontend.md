@@ -81,6 +81,7 @@ accessflow-ui/
 │   │   │   ├── DriverStatusBadge.tsx # READY / AVAILABLE / UNAVAILABLE indicator
 │   │   │   ├── ConnectionTester.tsx # Live connection test widget
 │   │   │   ├── PermissionMatrix.tsx # User × permission grid
+│   │   │   ├── MaskingTab.tsx       # Dynamic data masking policies tab + create/edit modal (AF-381)
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
 │   │   │
 │   │   └── audit/
@@ -267,6 +268,7 @@ immediately.
 - **ER diagram** tab (`components/datasources/ErDiagramTab.tsx` → `ErDiagram.tsx`) — renders the introspected schema as a `@xyflow/react` graph, one node per table (showing columns + PK markers) and one edge per foreign key (label `from → to`). Auto-layout via `dagre` (LR rank direction); read-only — `nodesDraggable={false}`. Clicking a node highlights all edges touching it (others fade to opacity 0.18); clicking the canvas background clears the selection. Loading state is a same-size `Skeleton.Node` to avoid CLS; databases without FKs (denormalized warehouses, custom drivers without `getImportedKeys`) render an `EmptyState`. The CSS in `src/styles/globals.css` already honours `prefers-reduced-motion` for all transitions.
 - `PermissionMatrix` — table of all users × (can_read, can_write, can_ddl, row_limit, allowed_schemas, restricted columns count, expires_at). Restricted columns render as `"N columns"` with a hover tooltip listing the fully-qualified names; `"—"` when none.
 - `GrantAccessModal` includes a `restricted_columns` multi-select populated from the datasource's introspected schema (`flattenSchemaToColumns` in `src/utils/schemaColumns.ts`). Help text explains that values are masked in results and the AI reviewer is informed but does not auto-reject.
+- **Masking** tab (`components/datasources/MaskingTab.tsx`, AF-381) — a table of dynamic data masking policies (column, strategy, reveal-to summary, enabled) with a create/edit modal. The modal picks a column via an `AutoComplete` from the introspected schema, a strategy `Select` driven by `enumOptions(MASKING_STRATEGIES, maskingStrategyLabel, t)`, a conditional `visible_suffix` field shown only for `PARTIAL`, and reveal-to multi-selects for roles (`enumOptions`), groups, and users. A **live preview** renders the masked output of an editable sample value through `src/utils/maskingPreview.ts` (a pure client-side mirror of the backend `ColumnMasker` strategies; `HASH` shows an illustrative fixed digest since the real SHA-256 is computed server-side). CRUD calls `src/api/maskingPolicies.ts`; validation parity matches the backend DTO (required column ≤ 512 chars, required strategy, `visible_suffix` 1–256).
 - Review plan assignment and row limit configuration
 
 ### AuditLogPage *(ADMIN)*

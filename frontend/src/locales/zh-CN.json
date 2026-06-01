@@ -755,7 +755,51 @@
       "activity_empty": "尚未对此数据源提交任何查询。",
       "activity_load_error": "加载最近查询失败",
       "not_found_message": "未找到数据源。",
-      "back_to_list": "返回列表"
+      "back_to_list": "返回列表",
+      "tab_masking": "脱敏 · {{count}}",
+      "masking": {
+        "title": "脱敏策略",
+        "description": "按脱敏策略呈现敏感列的值。“揭示给”中列出的用户可看到未脱敏的值，其他用户看到脱敏后的输出。此功能扩展了受限列的静态脱敏。",
+        "add": "添加策略",
+        "empty_title": "暂无脱敏策略",
+        "empty_description": "添加策略以对未揭示的用户脱敏某列的值。",
+        "loading": "正在加载脱敏策略…",
+        "load_error": "加载脱敏策略失败",
+        "col_column": "列",
+        "col_strategy": "策略",
+        "col_reveal": "揭示给",
+        "col_enabled": "已启用",
+        "col_actions": "操作",
+        "reveal_none": "无人（始终脱敏）",
+        "reveal_roles": "{{count}} 个角色",
+        "reveal_groups": "{{count}} 个组",
+        "reveal_users": "{{count}} 个用户",
+        "edit": "编辑",
+        "delete": "删除",
+        "delete_confirm_title": "删除此脱敏策略？",
+        "delete_confirm_body": "该列将对所有用户恢复为默认呈现。",
+        "create_title": "添加脱敏策略",
+        "edit_title": "编辑脱敏策略",
+        "label_column_ref": "列",
+        "placeholder_column_ref": "schema.table.column",
+        "label_strategy": "策略",
+        "label_visible_suffix": "可见后缀长度",
+        "label_reveal_roles": "揭示给角色",
+        "label_reveal_groups": "揭示给组",
+        "label_reveal_users": "揭示给用户",
+        "label_enabled": "已启用",
+        "preview_label": "预览",
+        "preview_sample": "示例值",
+        "column_required": "必须指定目标列",
+        "column_max": "目标列最多 512 个字符",
+        "strategy_required": "需要脱敏策略",
+        "visible_suffix_range": "可见后缀必须在 1 到 256 之间",
+        "save_success": "脱敏策略已保存",
+        "save_error": "保存脱敏策略失败",
+        "delete_success": "脱敏策略已删除",
+        "delete_error": "删除脱敏策略失败",
+        "state_disabled": "已禁用"
+      }
     }
   },
   "admin": {
@@ -1558,6 +1602,13 @@
       "EXPIRED": "已过期",
       "REVOKED": "已撤销",
       "CANCELLED": "已取消"
+    },
+    "masking_strategy": {
+      "FULL": "完全脱敏",
+      "PARTIAL": "部分（保留末 N 位）",
+      "HASH": "哈希（SHA-256）",
+      "EMAIL": "保留邮箱格式",
+      "FORMAT_PRESERVING": "保留格式"
     }
   },
   "access": {

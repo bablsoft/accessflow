@@ -132,6 +132,10 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
+| `GET` | `/datasources/{id}/masking-policies` | ADMIN | List dynamic data masking policies for a datasource |
+| `POST` | `/datasources/{id}/masking-policies` | ADMIN | Create a masking policy on a datasource column |
+| `PUT` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Update a masking policy |
+| `DELETE` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Delete a masking policy |
 | `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
 | `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
 | `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
@@ -472,6 +476,74 @@ The `foreign_keys` array is always present on each table (possibly empty). Each 
 
 **Response 204:** No content.
 **Response 404:** Permission does not exist or belongs to a different datasource. `error: DATASOURCE_PERMISSION_NOT_FOUND`.
+
+---
+
+### Masking policies (AF-381)
+
+Admin-only, organization-scoped per-column dynamic data masking. A policy renders a column's value via
+a **strategy** for query submitters who are *not* revealed by it; a submitter whose role, group, or
+user id is listed in `reveal_to_*` sees the unmasked value. Masking is applied at result-read time in
+the proxy, before serialization and before the result snapshot is stored — unmasked values never
+persist. Applied policy ids are recorded in the `QUERY_EXECUTED` audit metadata
+(`applied_masking_policy_ids`); unmasked values are never logged.
+
+#### POST /datasources/{id}/masking-policies — Request Body
+
+```json
+{
+  "column_ref": "public.users.email",
+  "strategy": "PARTIAL",
+  "strategy_params": { "visible_suffix": "4" },
+  "reveal_to_roles": ["ADMIN"],
+  "reveal_to_group_ids": ["uuid"],
+  "reveal_to_user_ids": ["uuid"],
+  "enabled": true
+}
+```
+
+`column_ref` is required (non-blank, ≤ 512 chars) and matched against result columns with the same
+`schema.table.column` → `table.column` → bare-column precedence as `restricted_columns`. `strategy` is
+required: one of `FULL` (→ `***`), `PARTIAL` (keep last N via `strategy_params.visible_suffix`, default
+4), `HASH` (stable SHA-256 hex), `EMAIL` (`j***@domain`), `FORMAT_PRESERVING` (preserve length/shape).
+The `reveal_to_*` lists are optional; reveal targets must belong to the caller's organization.
+
+**Response 201:** Masking policy object. `Location` header points to
+`/api/v1/datasources/{id}/masking-policies/{policyId}`.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Invalid strategy params, unknown reveal role, or a reveal user/group outside the
+organization. `error: ILLEGAL_MASKING_POLICY`.
+
+#### GET /datasources/{id}/masking-policies — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "column_ref": "public.users.email",
+      "strategy": "PARTIAL",
+      "strategy_params": { "visible_suffix": "4" },
+      "reveal_to_roles": ["ADMIN"],
+      "reveal_to_group_ids": [],
+      "reveal_to_user_ids": ["uuid"],
+      "enabled": true,
+      "created_at": "2026-06-01T10:00:00Z",
+      "updated_at": "2026-06-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### PUT /datasources/{id}/masking-policies/{policyId}
+
+Same body as `POST`; replaces the policy. **Response 200:** updated policy object. **Response 404:**
+`MASKING_POLICY_NOT_FOUND` when the policy is missing or belongs to a different datasource.
+
+#### DELETE /datasources/{id}/masking-policies/{policyId}
+
+**Response 204:** No content. **Response 404:** `MASKING_POLICY_NOT_FOUND`.
 
 ---
 

@@ -54,6 +54,7 @@ export default defineConfig({
         'src/api/client.ts',
         'src/api/datasourceHealth.ts',
         'src/api/datasources.ts',
+        'src/api/maskingPolicies.ts',
         'src/api/notifications.ts',
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',

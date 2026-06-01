@@ -755,7 +755,51 @@
       "activity_empty": "Es wurden noch keine Abfragen gegen diese Datenquelle eingereicht.",
       "activity_load_error": "Aktuelle Abfragen konnten nicht geladen werden",
       "not_found_message": "Datenquelle nicht gefunden.",
-      "back_to_list": "Zurück zur Liste"
+      "back_to_list": "Zurück zur Liste",
+      "tab_masking": "Maskierung · {{count}}",
+      "masking": {
+        "title": "Maskierungsrichtlinien",
+        "description": "Sensible Spaltenwerte mit einer Maskierungsstrategie darstellen. Unter „Freigeben für“ aufgeführte Benutzer sehen den unmaskierten Wert; alle anderen sehen die maskierte Ausgabe. Dies erweitert die statische Maskierung eingeschränkter Spalten.",
+        "add": "Richtlinie hinzufügen",
+        "empty_title": "Keine Maskierungsrichtlinien",
+        "empty_description": "Fügen Sie eine Richtlinie hinzu, um den Wert einer Spalte für nicht freigegebene Benutzer zu maskieren.",
+        "loading": "Maskierungsrichtlinien werden geladen…",
+        "load_error": "Maskierungsrichtlinien konnten nicht geladen werden",
+        "col_column": "Spalte",
+        "col_strategy": "Strategie",
+        "col_reveal": "Freigeben für",
+        "col_enabled": "Aktiviert",
+        "col_actions": "Aktionen",
+        "reveal_none": "Niemand (immer maskiert)",
+        "reveal_roles": "{{count}} Rolle(n)",
+        "reveal_groups": "{{count}} Gruppe(n)",
+        "reveal_users": "{{count}} Benutzer",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "delete_confirm_title": "Diese Maskierungsrichtlinie löschen?",
+        "delete_confirm_body": "Die Spalte wird für alle Benutzer auf ihre Standarddarstellung zurückgesetzt.",
+        "create_title": "Maskierungsrichtlinie hinzufügen",
+        "edit_title": "Maskierungsrichtlinie bearbeiten",
+        "label_column_ref": "Spalte",
+        "placeholder_column_ref": "schema.tabelle.spalte",
+        "label_strategy": "Strategie",
+        "label_visible_suffix": "Länge des sichtbaren Suffixes",
+        "label_reveal_roles": "Für Rollen freigeben",
+        "label_reveal_groups": "Für Gruppen freigeben",
+        "label_reveal_users": "Für Benutzer freigeben",
+        "label_enabled": "Aktiviert",
+        "preview_label": "Vorschau",
+        "preview_sample": "Beispielwert",
+        "column_required": "Zielspalte ist erforderlich",
+        "column_max": "Zielspalte darf höchstens 512 Zeichen lang sein",
+        "strategy_required": "Eine Maskierungsstrategie ist erforderlich",
+        "visible_suffix_range": "Sichtbares Suffix muss zwischen 1 und 256 liegen",
+        "save_success": "Maskierungsrichtlinie gespeichert",
+        "save_error": "Maskierungsrichtlinie konnte nicht gespeichert werden",
+        "delete_success": "Maskierungsrichtlinie gelöscht",
+        "delete_error": "Maskierungsrichtlinie konnte nicht gelöscht werden",
+        "state_disabled": "Deaktiviert"
+      }
     }
   },
   "admin": {
@@ -1558,6 +1602,13 @@
       "EXPIRED": "Abgelaufen",
       "REVOKED": "Widerrufen",
       "CANCELLED": "Abgebrochen"
+    },
+    "masking_strategy": {
+      "FULL": "Vollständige Maskierung",
+      "PARTIAL": "Teilweise (letzte N behalten)",
+      "HASH": "Hash (SHA-256)",
+      "EMAIL": "E-Mail-erhaltend",
+      "FORMAT_PRESERVING": "Formaterhaltend"
     }
   },
   "access": {

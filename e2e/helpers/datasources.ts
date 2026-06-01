@@ -414,6 +414,77 @@ export async function approveQueryViaApi(
   }
 }
 
+// POST /api/v1/datasources/{id}/permissions — grants a user access to a
+// datasource. Requires an ADMIN token. Specs that need a non-admin submitter to
+// query a datasource must grant at least can_read first.
+export async function grantPermissionViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  userId: string,
+  opts: { canRead?: boolean; canWrite?: boolean; canDdl?: boolean } = {},
+): Promise<void> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/permissions`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        user_id: userId,
+        can_read: opts.canRead ?? true,
+        can_write: opts.canWrite ?? false,
+        can_ddl: opts.canDdl ?? false,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Grant permission failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+export interface CreatedMaskingPolicy {
+  id: string;
+  column_ref: string;
+  strategy: string;
+}
+
+// POST /api/v1/datasources/{id}/masking-policies (AF-381) — creates a per-column
+// dynamic masking policy. Requires an ADMIN token. `revealToUserIds` lists the
+// users who see the unmasked value; everyone else gets the strategy output.
+export async function createMaskingPolicyViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    columnRef: string;
+    strategy: string;
+    strategyParams?: Record<string, string>;
+    revealToRoles?: string[];
+    revealToGroupIds?: string[];
+    revealToUserIds?: string[];
+    enabled?: boolean;
+  },
+): Promise<CreatedMaskingPolicy> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/masking-policies`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        column_ref: opts.columnRef,
+        strategy: opts.strategy,
+        strategy_params: opts.strategyParams ?? {},
+        reveal_to_roles: opts.revealToRoles ?? [],
+        reveal_to_group_ids: opts.revealToGroupIds ?? [],
+        reveal_to_user_ids: opts.revealToUserIds ?? [],
+        enabled: opts.enabled ?? true,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Create masking policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedMaskingPolicy;
+}
+
 export interface InvitedUser {
   id: string;
   email: string;

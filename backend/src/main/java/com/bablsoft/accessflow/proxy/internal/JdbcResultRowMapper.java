@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.ResultColumn;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
 import org.slf4j.Logger;
@@ -26,22 +27,27 @@ import java.util.UUID;
 @Component
 class JdbcResultRowMapper {
 
-    static final String MASKED_VALUE = "***";
-
     private static final Logger log = LoggerFactory.getLogger(JdbcResultRowMapper.class);
     private static final String BASE64_PREFIX = "base64:";
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration)
             throws SQLException {
-        return materialize(rs, maxRows, dbType, duration, List.of());
+        return materialize(rs, maxRows, dbType, duration, List.of(), List.of());
     }
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration,
                                       List<String> restrictedColumns)
             throws SQLException {
+        return materialize(rs, maxRows, dbType, duration, restrictedColumns, List.of());
+    }
+
+    SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration,
+                                      List<String> restrictedColumns,
+                                      List<ColumnMaskDirective> columnMasks)
+            throws SQLException {
         var metadata = rs.getMetaData();
-        var matcher = RestrictedColumnMatcher.build(metadata, restrictedColumns);
-        var columns = describeColumns(metadata, matcher);
+        var resolver = ColumnMaskResolver.build(metadata, restrictedColumns, columnMasks);
+        var columns = describeColumns(metadata, resolver);
         var rows = new ArrayList<List<Object>>();
         boolean truncated = false;
         while (rs.next()) {
@@ -49,13 +55,14 @@ class JdbcResultRowMapper {
                 truncated = true;
                 break;
             }
-            rows.add(readRow(rs, metadata, dbType, matcher));
+            rows.add(readRow(rs, metadata, dbType, resolver));
         }
-        return new SelectExecutionResult(columns, rows, rows.size(), truncated, duration);
+        return new SelectExecutionResult(columns, rows, rows.size(), truncated, duration,
+                resolver.appliedPolicyIds());
     }
 
     private List<ResultColumn> describeColumns(ResultSetMetaData metadata,
-                                               RestrictedColumnMatcher matcher) throws SQLException {
+                                               ColumnMaskResolver resolver) throws SQLException {
         var count = metadata.getColumnCount();
         var columns = new ArrayList<ResultColumn>(count);
         for (int i = 1; i <= count; i++) {
@@ -64,24 +71,38 @@ class JdbcResultRowMapper {
                 label = metadata.getColumnName(i);
             }
             columns.add(new ResultColumn(label, metadata.getColumnType(i),
-                    metadata.getColumnTypeName(i), matcher.isRestricted(i)));
+                    metadata.getColumnTypeName(i), resolver.isMasked(i)));
         }
         return columns;
     }
 
     private List<Object> readRow(ResultSet rs, ResultSetMetaData metadata, DbType dbType,
-                                 RestrictedColumnMatcher matcher) throws SQLException {
+                                 ColumnMaskResolver resolver) throws SQLException {
         var count = metadata.getColumnCount();
         var values = new ArrayList<>(count);
         for (int i = 1; i <= count; i++) {
-            if (matcher.isRestricted(i)) {
-                values.add(rs.getObject(i) == null && rs.wasNull() ? null : MASKED_VALUE);
-            } else {
+            var mask = resolver.maskFor(i);
+            if (mask == null) {
                 values.add(readValue(rs, i, metadata.getColumnType(i),
                         metadata.getColumnTypeName(i), dbType));
+            } else {
+                values.add(maskValue(rs, i, mask));
             }
         }
         return values;
+    }
+
+    private Object maskValue(ResultSet rs, int index, ColumnMaskResolver.AppliedMask mask)
+            throws SQLException {
+        if (mask.strategy() == com.bablsoft.accessflow.core.api.MaskingStrategy.FULL) {
+            // Never materialize the raw value for full masking — only check for NULL.
+            return rs.getObject(index) == null && rs.wasNull() ? null : ColumnMasker.FULL_MASK;
+        }
+        var raw = rs.getString(index);
+        if (raw == null && rs.wasNull()) {
+            return null;
+        }
+        return ColumnMasker.apply(mask.strategy(), raw, mask.params());
     }
 
     private Object readValue(ResultSet rs, int index, int jdbcType, String typeName, DbType dbType)

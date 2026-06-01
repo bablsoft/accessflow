@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.proxy.internal;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionResult;
@@ -65,7 +66,7 @@ class DefaultQueryExecutor implements QueryExecutor {
                 statement.setFetchSize(Math.min(effectiveMaxRows + 1, execProps.defaultFetchSize()));
                 if (request.queryType() == QueryType.SELECT) {
                     return runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
-                            request.restrictedColumns());
+                            request.restrictedColumns(), request.columnMasks());
                 }
                 return runUpdate(statement, start);
             }
@@ -109,11 +110,13 @@ class DefaultQueryExecutor implements QueryExecutor {
 
     private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
                                            DbType dbType, Instant start,
-                                           List<String> restrictedColumns) throws SQLException {
+                                           List<String> restrictedColumns,
+                                           List<ColumnMaskDirective> columnMasks)
+            throws SQLException {
         statement.setMaxRows(effectiveMaxRows + 1);
         try (var resultSet = statement.executeQuery()) {
             return rowMapper.materialize(resultSet, effectiveMaxRows, dbType,
-                    durationSince(start), restrictedColumns);
+                    durationSince(start), restrictedColumns, columnMasks);
         }
     }
 

@@ -755,7 +755,51 @@
       "activity_empty": "Aún no se han enviado consultas contra esta fuente de datos.",
       "activity_load_error": "No se pudieron cargar las consultas recientes",
       "not_found_message": "Fuente de datos no encontrada.",
-      "back_to_list": "Volver a la lista"
+      "back_to_list": "Volver a la lista",
+      "tab_masking": "Enmascaramiento · {{count}}",
+      "masking": {
+        "title": "Políticas de enmascaramiento",
+        "description": "Muestra los valores de columnas sensibles con una estrategia de enmascaramiento. Los usuarios indicados en «Revelar a» ven el valor sin enmascarar; el resto ve la salida enmascarada. Esto amplía el enmascaramiento estático de columnas restringidas.",
+        "add": "Añadir política",
+        "empty_title": "Sin políticas de enmascaramiento",
+        "empty_description": "Añade una política para enmascarar el valor de una columna a los usuarios no revelados.",
+        "loading": "Cargando políticas de enmascaramiento…",
+        "load_error": "No se pudieron cargar las políticas de enmascaramiento",
+        "col_column": "Columna",
+        "col_strategy": "Estrategia",
+        "col_reveal": "Revelar a",
+        "col_enabled": "Activada",
+        "col_actions": "Acciones",
+        "reveal_none": "Nadie (siempre enmascarado)",
+        "reveal_roles": "{{count}} rol(es)",
+        "reveal_groups": "{{count}} grupo(s)",
+        "reveal_users": "{{count}} usuario(s)",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "delete_confirm_title": "¿Eliminar esta política de enmascaramiento?",
+        "delete_confirm_body": "La columna volverá a su representación predeterminada para todos los usuarios.",
+        "create_title": "Añadir política de enmascaramiento",
+        "edit_title": "Editar política de enmascaramiento",
+        "label_column_ref": "Columna",
+        "placeholder_column_ref": "esquema.tabla.columna",
+        "label_strategy": "Estrategia",
+        "label_visible_suffix": "Longitud del sufijo visible",
+        "label_reveal_roles": "Revelar a roles",
+        "label_reveal_groups": "Revelar a grupos",
+        "label_reveal_users": "Revelar a usuarios",
+        "label_enabled": "Activada",
+        "preview_label": "Vista previa",
+        "preview_sample": "Valor de ejemplo",
+        "column_required": "La columna de destino es obligatoria",
+        "column_max": "La columna de destino debe tener como máximo 512 caracteres",
+        "strategy_required": "Se requiere una estrategia de enmascaramiento",
+        "visible_suffix_range": "El sufijo visible debe estar entre 1 y 256",
+        "save_success": "Política de enmascaramiento guardada",
+        "save_error": "No se pudo guardar la política de enmascaramiento",
+        "delete_success": "Política de enmascaramiento eliminada",
+        "delete_error": "No se pudo eliminar la política de enmascaramiento",
+        "state_disabled": "Desactivada"
+      }
     }
   },
   "admin": {
@@ -1558,6 +1602,13 @@
       "EXPIRED": "Caducado",
       "REVOKED": "Revocado",
       "CANCELLED": "Cancelado"
+    },
+    "masking_strategy": {
+      "FULL": "Enmascaramiento total",
+      "PARTIAL": "Parcial (conservar últimos N)",
+      "HASH": "Hash (SHA-256)",
+      "EMAIL": "Conserva el correo",
+      "FORMAT_PRESERVING": "Conserva el formato"
     }
   },
   "access": {

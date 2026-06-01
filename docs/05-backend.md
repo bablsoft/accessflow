@@ -423,13 +423,26 @@ Edge cases:
 When a `(user_id, datasource_id)` permission row carries `restricted_columns` (a `TEXT[]` of fully-qualified `schema.table.column` strings), SELECT result values for those columns are masked **before** rows are added to the in-memory result list — and therefore before they are serialised into `query_request_results.rows`. The raw sensitive value never lands in our database.
 
 - Wiring: `DefaultQueryLifecycleService.execute(...)` resolves `restrictedColumns` via `DatasourceUserPermissionLookupService`, threads them into `QueryExecutionRequest`, which `DefaultQueryExecutor` forwards to `JdbcResultRowMapper.materialize(...)`.
-- Matching uses `RestrictedColumnMatcher`, which inspects each column's `ResultSetMetaData` and applies (in priority order):
+- Matching uses `ColumnMaskResolver`, which inspects each column's `ResultSetMetaData` and applies (in priority order):
   1. Exact `schema.table.column` match (case-insensitive) when the JDBC driver populates both `getSchemaName(i)` and `getTableName(i)`.
   2. `table.column` fallback when only the table name is available.
   3. Bare `column` fallback for computed expressions, aliased outputs, and other cases where the driver omits table metadata. This errs toward over-masking, which is the secure default.
-- Sentinel: a restricted cell is replaced with the literal string `"***"`. `null` values stay `null`.
+- Sentinel: a restricted cell with no policy is replaced with the literal string `"***"` (strategy `FULL`). `null` values stay `null`.
 - Each `ResultColumn` returned from `materialize(...)` carries a `restricted` boolean so the API response (and the persisted `columns` JSON in `query_request_results`) tells the frontend which headers should render a "masked" marker.
 - Write statements (INSERT / UPDATE / DELETE) have no result set to mask. Restrictions still surface in the AI prompt (see below) — informational only.
+
+### Dynamic data masking policies (AF-381)
+
+`masking_policy` rows (see [docs/03-data-model.md](03-data-model.md)) layer **per-column masking
+strategies** with **conditional reveal** on top of the static `restricted_columns` masking above. This
+governs *how* a visible value is rendered — distinct from column-permission enforcement (which governs
+*whether* a column is accessible).
+
+- Resolution: `DefaultQueryLifecycleService.doExecute(...)` calls `MaskingPolicyResolutionService.resolveApplicable(organizationId, datasourceId, submitterUserId)` (`core` module). It loads enabled policies for the datasource, looks up the submitter's role (user repo) and group ids (`UserGroupMembershipRepository.findGroupIdsForUser`), and returns one `ResolvedColumnMask` **per policy that applies** — i.e. the submitter is *not* revealed. Reveal is explicit only: a submitter sees the unmasked value when their role ∈ `reveal_to_roles`, their user id ∈ `reveal_to_user_ids`, or any of their group ids ∈ `reveal_to_group_ids`. There is no implicit ADMIN bypass.
+- The resolved masks are mapped to `proxy.api.ColumnMaskDirective` and threaded through `QueryExecutionRequest.columnMasks` alongside `restrictedColumns`. `ColumnMaskResolver.build(...)` combines both: an explicit policy directive **wins** over the `FULL` default a bare `restricted_columns` entry would apply; among multiple matching directives the most specific level wins.
+- Strategy application is the pure `ColumnMasker.apply(strategy, rawValue, params)` (`proxy.internal`): `FULL` → `***` (never reads the raw value), `PARTIAL` → keep the last N chars (`visible_suffix`, default 4; values no longer than the window mask fully), `HASH` → stable SHA-256 hex of the UTF-8 value, `EMAIL` → `j***@domain` (non-email falls back to `FULL`), `FORMAT_PRESERVING` → digits→`*`, letters→`x`, separators preserved.
+- `materialize(...)` returns the set of **applied** policy ids on `SelectExecutionResult.appliedMaskingPolicyIds` (a policy that matched a result column for a non-revealed submitter). The lifecycle service records them in the `QUERY_EXECUTED` audit metadata under `applied_masking_policy_ids`. Unmasked values are never logged or stored.
+- Backward compatible: a `restricted_columns` entry with no covering policy keeps today's `"***"` behaviour.
 
 ### Schema introspection
 
