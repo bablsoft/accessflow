@@ -418,6 +418,48 @@ A unique index on `(query_request_id, reviewer_id, stage)` (Flyway V11) enforces
 
 ---
 
+## access_grant_request
+
+Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-requests temporary, scoped access to a datasource; on final-stage approval the `access` module materialises a time-boxed `datasource_user_permissions` row and `AccessGrantExpiryJob` revokes it on expiry. Owned by the `access` module; cross-aggregate references are stored as bare UUIDs (no JPA relationship across the module boundary).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID FK → `organizations` |
+| `requester_id` | UUID FK → `users` |
+| `datasource_id` | UUID FK → `datasources` |
+| `can_read` / `can_write` / `can_ddl` | BOOLEAN — requested capabilities. `CHECK (can_read OR can_write OR can_ddl)` |
+| `allowed_schemas` / `allowed_tables` | TEXT[] nullable — optional scope (null = all) |
+| `requested_duration` | TEXT — ISO-8601 period (e.g. `PT4H`, `P1D`); bounded by `accessflow.access.min-duration`/`max-duration` |
+| `justification` | TEXT |
+| `status` | ENUM `access_grant_status`: `PENDING` \| `APPROVED` \| `REJECTED` \| `EXPIRED` \| `REVOKED` \| `CANCELLED` |
+| `expires_at` | TIMESTAMPTZ nullable — set to `now + requested_duration` on grant |
+| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Status transitions: `PENDING → APPROVED` (final-stage approval, materialises the permission) `→ EXPIRED` (job) or `→ REVOKED` (admin early-revoke); `PENDING → REJECTED` (reviewer) or `→ CANCELLED` (requester). A partial index on `(expires_at) WHERE status = 'APPROVED'` backs the expiry scan.
+
+---
+
+## access_grant_decision
+
+Per-stage reviewer decisions on an access request, mirroring `review_decisions` for the multi-stage approval chain (Flyway V57). Reuses the existing `decision` PG enum.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `access_grant_request_id` | FK → `access_grant_request` (`ON DELETE CASCADE`) |
+| `reviewer_id` | UUID FK → `users` |
+| `decision` | ENUM `decision`: `APPROVED` \| `REJECTED` \| `REQUESTED_CHANGES` (only APPROVED/REJECTED used) |
+| `stage` | INTEGER — which stage of the datasource's review plan |
+| `comment` | TEXT nullable |
+| `decided_at` | TIMESTAMPTZ |
+
+A unique index on `(access_grant_request_id, reviewer_id, stage)` enforces single-decision-per-stage and drives idempotent-replay handling, exactly as `review_decisions` does for query review.
+
+---
+
 ## audit_log
 
 Append-only tamper-evident log of every meaningful action in the system. **No query result data is stored here — metadata only.**
@@ -472,12 +514,17 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `SAML_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies the SAML configuration from `accessflow.bootstrap.saml`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `config_type: "saml"`, optional `changed_fields`. |
 | `AUDIT_LOG_EXPORTED` | Admin called `GET /admin/audit-log/export.csv`. Resource: `audit_log`, no resource id. Metadata captures the export filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). |
 | `SLACK_APP_CONFIG_UPDATED` / `SLACK_APP_CONFIG_DELETED` | Admin creates/updates (`PUT`) or deletes (`DELETE`) the org's `slack_app_config` row. Resource: `slack_app_config`. Metadata on update: `app_id`, `active`. |
+| `ACCESS_REQUEST_SUBMITTED` | User submits a JIT access-grant request. Resource: `access_grant_request`. Metadata: `datasource_id`, `requested_duration`, `can_read`/`can_write`/`can_ddl`. |
+| `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | Reviewer approves/rejects an access request. Metadata: `resulting_status`, optional `comment`. |
+| `ACCESS_REQUEST_CANCELLED` | Requester cancels their own pending access request. |
+| `ACCESS_GRANT_EXPIRED` | `AccessGrantExpiryJob` revokes a grant past its `expires_at` (system-driven, `actor_id = NULL`). Metadata: `reason: "expiry"`, optional `granted_permission_id`. |
+| `ACCESS_GRANT_REVOKED` | Admin early-revokes an active grant via `POST /admin/access-requests/{id}/revoke`. Metadata: optional `comment`. |
 
 Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`, `AI_CONFIG`, `REVIEW_PLAN`, `USER`, and `SYSTEM_SMTP_UPDATED` — `metadata.source = "BOOTSTRAP"` plus `metadata.change_kind` is what distinguishes a bootstrap-driven write from an admin-UI-driven one. See [docs/05-backend.md → "Bootstrap audit semantics"](05-backend.md#bootstrap-audit-semantics).
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`, `access_grant_request`.
 
 ---
 

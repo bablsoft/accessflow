@@ -271,6 +271,25 @@ class EmailNotificationStrategyTest {
         verify(sender, times(1)).send(any(MimeMessage.class));
     }
 
+    @Test
+    void hasTemplateForReflectsQueryEventsAndExcludesAccessEvents() {
+        // Query/AI events resolve to an email template…
+        assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_SUBMITTED))
+                .isTrue();
+        assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_APPROVED))
+                .isTrue();
+        // …while TEST and the JIT access (in-app only) events have no template.
+        assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.TEST)).isFalse();
+        for (var event : new NotificationEventType[]{
+                NotificationEventType.ACCESS_REQUEST_SUBMITTED,
+                NotificationEventType.ACCESS_REQUEST_APPROVED,
+                NotificationEventType.ACCESS_REQUEST_REJECTED,
+                NotificationEventType.ACCESS_GRANT_EXPIRED,
+                NotificationEventType.ACCESS_GRANT_REVOKED}) {
+            assertThat(EmailNotificationStrategy.hasTemplateFor(event)).isFalse();
+        }
+    }
+
     private static EmailChannelConfig emailConfig(String fromName) {
         return new EmailChannelConfig(
                 "smtp.example.com", 587, "smtpuser", "smtppw", true,

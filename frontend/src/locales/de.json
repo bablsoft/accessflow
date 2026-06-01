@@ -54,7 +54,9 @@
     "version": "AccessFlow Version {{version}}",
     "groups": "Groups",
     "datasource_health": "Datenquellen-Zustand",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Zugriff anfragen",
+    "access_requests": "Zugriffsanfragen"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Angenommen",
       "REVOKED": "Widerrufen",
       "EXPIRED": "Abgelaufen"
+    },
+    "access_grant_status": {
+      "PENDING": "Ausstehend",
+      "APPROVED": "Genehmigt",
+      "REJECTED": "Abgelehnt",
+      "EXPIRED": "Abgelaufen",
+      "REVOKED": "Widerrufen",
+      "CANCELLED": "Abgebrochen"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Zugriff anfragen",
+      "subtitle": "Temporären, abgegrenzten Zugriff auf eine Datenquelle anfragen",
+      "datasource": "Datenquelle",
+      "datasource_placeholder": "Datenquelle auswählen",
+      "capabilities": "Berechtigungen",
+      "can_read": "Lesen",
+      "can_write": "Schreiben",
+      "can_ddl": "DDL",
+      "schemas": "Schemas (optional)",
+      "schemas_placeholder": "Alle Schemas",
+      "tables": "Tabellen (optional)",
+      "tables_placeholder": "Alle Tabellen",
+      "duration": "Dauer",
+      "justification": "Begründung",
+      "justification_placeholder": "Warum benötigen Sie diesen Zugriff?",
+      "submit": "Anfrage senden",
+      "submit_success": "Zugriffsanfrage gesendet",
+      "my_requests": "Meine Anfragen",
+      "cancel": "Abbrechen",
+      "cancel_confirm": "Diese Zugriffsanfrage abbrechen?",
+      "cancel_success": "Zugriffsanfrage abgebrochen",
+      "empty": "Sie haben noch keine Zugriffsanfragen",
+      "validation": {
+        "datasource_required": "Datenquelle auswählen",
+        "capability_required": "Wählen Sie mindestens Lesen, Schreiben oder DDL",
+        "duration_required": "Dauer auswählen",
+        "justification_required": "Begründung ist erforderlich",
+        "justification_max": "Begründung darf höchstens 4.000 Zeichen lang sein"
+      },
+      "durations": {
+        "PT1H": "1 Stunde",
+        "PT4H": "4 Stunden",
+        "PT8H": "8 Stunden",
+        "P1D": "1 Tag",
+        "P3D": "3 Tage",
+        "P7D": "7 Tage"
+      }
+    },
+    "queue": {
+      "title": "Zugriffsanfragen",
+      "subtitle": "Ausstehende Zugriffsanfragen prüfen und entscheiden",
+      "requester": "Anforderer",
+      "datasource": "Datenquelle",
+      "capabilities": "Berechtigungen",
+      "duration": "Dauer",
+      "justification": "Begründung",
+      "requested": "Angefragt",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "reject_reason": "Grund für die Ablehnung",
+      "reject_required": "Für die Ablehnung ist ein Kommentar erforderlich",
+      "on_approve": "Zugriffsanfrage genehmigt",
+      "on_reject": "Zugriffsanfrage abgelehnt",
+      "empty": "Keine Zugriffsanfragen warten auf Ihre Prüfung"
+    },
+    "ttl": {
+      "remaining": "noch {{value}}",
+      "expired": "Abgelaufen"
+    },
+    "columns": {
+      "status": "Status",
+      "expires": "Läuft ab"
     }
   }
 }

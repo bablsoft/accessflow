@@ -54,7 +54,9 @@
     "profile": "Profile settings",
     "version": "AccessFlow version {{version}}",
     "datasource_health": "Datasource health",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Request access",
+    "access_requests": "Access requests"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Accepted",
       "REVOKED": "Revoked",
       "EXPIRED": "Expired"
+    },
+    "access_grant_status": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "EXPIRED": "Expired",
+      "REVOKED": "Revoked",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Request access",
+      "subtitle": "Request temporary, scoped access to a datasource",
+      "datasource": "Datasource",
+      "datasource_placeholder": "Select a datasource",
+      "capabilities": "Capabilities",
+      "can_read": "Read",
+      "can_write": "Write",
+      "can_ddl": "DDL",
+      "schemas": "Schemas (optional)",
+      "schemas_placeholder": "All schemas",
+      "tables": "Tables (optional)",
+      "tables_placeholder": "All tables",
+      "duration": "Duration",
+      "justification": "Justification",
+      "justification_placeholder": "Why do you need this access?",
+      "submit": "Submit request",
+      "submit_success": "Access request submitted",
+      "my_requests": "My requests",
+      "cancel": "Cancel",
+      "cancel_confirm": "Cancel this access request?",
+      "cancel_success": "Access request cancelled",
+      "empty": "You have no access requests yet",
+      "validation": {
+        "datasource_required": "Select a datasource",
+        "capability_required": "Select at least one of read, write, or DDL",
+        "duration_required": "Select a duration",
+        "justification_required": "Justification is required",
+        "justification_max": "Justification must be at most 4,000 characters"
+      },
+      "durations": {
+        "PT1H": "1 hour",
+        "PT4H": "4 hours",
+        "PT8H": "8 hours",
+        "P1D": "1 day",
+        "P3D": "3 days",
+        "P7D": "7 days"
+      }
+    },
+    "queue": {
+      "title": "Access requests",
+      "subtitle": "Review and decide pending access requests",
+      "requester": "Requester",
+      "datasource": "Datasource",
+      "capabilities": "Capabilities",
+      "duration": "Duration",
+      "justification": "Justification",
+      "requested": "Requested",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reject_reason": "Reason for rejection",
+      "reject_required": "A comment is required to reject",
+      "on_approve": "Access request approved",
+      "on_reject": "Access request rejected",
+      "empty": "No access requests awaiting your review"
+    },
+    "ttl": {
+      "remaining": "{{value}} left",
+      "expired": "Expired"
+    },
+    "columns": {
+      "status": "Status",
+      "expires": "Expires"
     }
   }
 }

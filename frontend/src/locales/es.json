@@ -54,7 +54,9 @@
     "version": "AccessFlow versión {{version}}",
     "groups": "Groups",
     "datasource_health": "Estado de fuentes de datos",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Solicitar acceso",
+    "access_requests": "Solicitudes de acceso"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Aceptada",
       "REVOKED": "Revocada",
       "EXPIRED": "Caducada"
+    },
+    "access_grant_status": {
+      "PENDING": "Pendiente",
+      "APPROVED": "Aprobado",
+      "REJECTED": "Rechazado",
+      "EXPIRED": "Caducado",
+      "REVOKED": "Revocado",
+      "CANCELLED": "Cancelado"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Solicitar acceso",
+      "subtitle": "Solicita acceso temporal y delimitado a una fuente de datos",
+      "datasource": "Fuente de datos",
+      "datasource_placeholder": "Selecciona una fuente de datos",
+      "capabilities": "Permisos",
+      "can_read": "Lectura",
+      "can_write": "Escritura",
+      "can_ddl": "DDL",
+      "schemas": "Esquemas (opcional)",
+      "schemas_placeholder": "Todos los esquemas",
+      "tables": "Tablas (opcional)",
+      "tables_placeholder": "Todas las tablas",
+      "duration": "Duración",
+      "justification": "Justificación",
+      "justification_placeholder": "¿Por qué necesitas este acceso?",
+      "submit": "Enviar solicitud",
+      "submit_success": "Solicitud de acceso enviada",
+      "my_requests": "Mis solicitudes",
+      "cancel": "Cancelar",
+      "cancel_confirm": "¿Cancelar esta solicitud de acceso?",
+      "cancel_success": "Solicitud de acceso cancelada",
+      "empty": "Aún no tienes solicitudes de acceso",
+      "validation": {
+        "datasource_required": "Selecciona una fuente de datos",
+        "capability_required": "Selecciona al menos lectura, escritura o DDL",
+        "duration_required": "Selecciona una duración",
+        "justification_required": "La justificación es obligatoria",
+        "justification_max": "La justificación no puede superar los 4.000 caracteres"
+      },
+      "durations": {
+        "PT1H": "1 hora",
+        "PT4H": "4 horas",
+        "PT8H": "8 horas",
+        "P1D": "1 día",
+        "P3D": "3 días",
+        "P7D": "7 días"
+      }
+    },
+    "queue": {
+      "title": "Solicitudes de acceso",
+      "subtitle": "Revisa y decide las solicitudes de acceso pendientes",
+      "requester": "Solicitante",
+      "datasource": "Fuente de datos",
+      "capabilities": "Permisos",
+      "duration": "Duración",
+      "justification": "Justificación",
+      "requested": "Solicitado",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "reject_reason": "Motivo del rechazo",
+      "reject_required": "Se requiere un comentario para rechazar",
+      "on_approve": "Solicitud de acceso aprobada",
+      "on_reject": "Solicitud de acceso rechazada",
+      "empty": "No hay solicitudes de acceso pendientes de tu revisión"
+    },
+    "ttl": {
+      "remaining": "quedan {{value}}",
+      "expired": "Caducado"
+    },
+    "columns": {
+      "status": "Estado",
+      "expires": "Caduca"
     }
   }
 }

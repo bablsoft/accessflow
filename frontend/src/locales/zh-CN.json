@@ -54,7 +54,9 @@
     "version": "AccessFlow 版本 {{version}}",
     "groups": "Groups",
     "datasource_health": "数据源健康",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "申请访问",
+    "access_requests": "访问申请"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "已接受",
       "REVOKED": "已撤销",
       "EXPIRED": "已过期"
+    },
+    "access_grant_status": {
+      "PENDING": "待处理",
+      "APPROVED": "已批准",
+      "REJECTED": "已拒绝",
+      "EXPIRED": "已过期",
+      "REVOKED": "已撤销",
+      "CANCELLED": "已取消"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "申请访问",
+      "subtitle": "申请对数据源的临时受限访问",
+      "datasource": "数据源",
+      "datasource_placeholder": "选择数据源",
+      "capabilities": "权限",
+      "can_read": "读取",
+      "can_write": "写入",
+      "can_ddl": "DDL",
+      "schemas": "模式（可选）",
+      "schemas_placeholder": "所有模式",
+      "tables": "表（可选）",
+      "tables_placeholder": "所有表",
+      "duration": "有效期",
+      "justification": "理由",
+      "justification_placeholder": "您为何需要此访问权限？",
+      "submit": "提交申请",
+      "submit_success": "访问申请已提交",
+      "my_requests": "我的申请",
+      "cancel": "取消",
+      "cancel_confirm": "取消此访问申请？",
+      "cancel_success": "访问申请已取消",
+      "empty": "您还没有访问申请",
+      "validation": {
+        "datasource_required": "请选择数据源",
+        "capability_required": "请至少选择读取、写入或 DDL 之一",
+        "duration_required": "请选择有效期",
+        "justification_required": "理由为必填项",
+        "justification_max": "理由不能超过 4,000 个字符"
+      },
+      "durations": {
+        "PT1H": "1 小时",
+        "PT4H": "4 小时",
+        "PT8H": "8 小时",
+        "P1D": "1 天",
+        "P3D": "3 天",
+        "P7D": "7 天"
+      }
+    },
+    "queue": {
+      "title": "访问申请",
+      "subtitle": "审核并处理待定的访问申请",
+      "requester": "申请人",
+      "datasource": "数据源",
+      "capabilities": "权限",
+      "duration": "有效期",
+      "justification": "理由",
+      "requested": "申请时间",
+      "approve": "批准",
+      "reject": "拒绝",
+      "reject_reason": "拒绝原因",
+      "reject_required": "拒绝时必须填写备注",
+      "on_approve": "访问申请已批准",
+      "on_reject": "访问申请已拒绝",
+      "empty": "没有等待您审核的访问申请"
+    },
+    "ttl": {
+      "remaining": "剩余 {{value}}",
+      "expired": "已过期"
+    },
+    "columns": {
+      "status": "状态",
+      "expires": "过期时间"
     }
   }
 }

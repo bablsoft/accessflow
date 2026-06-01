@@ -54,7 +54,9 @@
     "version": "AccessFlow տարբերակ {{version}}",
     "groups": "Groups",
     "datasource_health": "Տվյալների աղբյուրների վիճակ",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Հայցել մուտք",
+    "access_requests": "Մուտքի հարցումներ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Ընդունված",
       "REVOKED": "Չեղարկված",
       "EXPIRED": "Ժամկետանց"
+    },
+    "access_grant_status": {
+      "PENDING": "Սպասում է",
+      "APPROVED": "Հաստատված",
+      "REJECTED": "Մերժված",
+      "EXPIRED": "Ժամկետանց",
+      "REVOKED": "Հետ կանչված",
+      "CANCELLED": "Չեղարկված"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Հայցել մուտք",
+      "subtitle": "Հայցեք ժամանակավոր, սահմանափակ մուտք տվյալների աղբյուր",
+      "datasource": "Տվյալների աղբյուր",
+      "datasource_placeholder": "Ընտրեք տվյալների աղբյուր",
+      "capabilities": "Թույլտվություններ",
+      "can_read": "Կարդալ",
+      "can_write": "Գրել",
+      "can_ddl": "DDL",
+      "schemas": "Սխեմաներ (ըստ ցանկության)",
+      "schemas_placeholder": "Բոլոր սխեմաները",
+      "tables": "Աղյուսակներ (ըստ ցանկության)",
+      "tables_placeholder": "Բոլոր աղյուսակները",
+      "duration": "Տևողություն",
+      "justification": "Հիմնավորում",
+      "justification_placeholder": "Ինչու՞ է ձեզ անհրաժեշտ այս մուտքը:",
+      "submit": "Ուղարկել հարցումը",
+      "submit_success": "Մուտքի հարցումն ուղարկվեց",
+      "my_requests": "Իմ հարցումները",
+      "cancel": "Չեղարկել",
+      "cancel_confirm": "Չեղարկե՞լ այս մուտքի հարցումը:",
+      "cancel_success": "Մուտքի հարցումը չեղարկվեց",
+      "empty": "Դուք դեռ մուտքի հարցումներ չունեք",
+      "validation": {
+        "datasource_required": "Ընտրեք տվյալների աղբյուր",
+        "capability_required": "Ընտրեք առնվազն մեկը՝ կարդալ, գրել կամ DDL",
+        "duration_required": "Ընտրեք տևողություն",
+        "justification_required": "Հիմնավորումը պարտադիր է",
+        "justification_max": "Հիմնավորումը պետք է լինի առավելագույնը 4000 նիշ"
+      },
+      "durations": {
+        "PT1H": "1 ժամ",
+        "PT4H": "4 ժամ",
+        "PT8H": "8 ժամ",
+        "P1D": "1 օր",
+        "P3D": "3 օր",
+        "P7D": "7 օր"
+      }
+    },
+    "queue": {
+      "title": "Մուտքի հարցումներ",
+      "subtitle": "Վերանայեք և որոշեք սպասող մուտքի հարցումները",
+      "requester": "Հայցող",
+      "datasource": "Տվյալների աղբյուր",
+      "capabilities": "Թույլտվություններ",
+      "duration": "Տևողություն",
+      "justification": "Հիմնավորում",
+      "requested": "Հայցված",
+      "approve": "Հաստատել",
+      "reject": "Մերժել",
+      "reject_reason": "Մերժման պատճառ",
+      "reject_required": "Մերժելու համար անհրաժեշտ է մեկնաբանություն",
+      "on_approve": "Մուտքի հարցումը հաստատվեց",
+      "on_reject": "Մուտքի հարցումը մերժվեց",
+      "empty": "Ձեր վերանայմանը սպասող մուտքի հարցումներ չկան"
+    },
+    "ttl": {
+      "remaining": "մնաց {{value}}",
+      "expired": "Ժամկետանց"
+    },
+    "columns": {
+      "status": "Կարգավիճակ",
+      "expires": "Ավարտվում է"
     }
   }
 }

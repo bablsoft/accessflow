@@ -69,6 +69,52 @@ class DefaultDatasourceLookupServiceTest {
     }
 
     @Test
+    void findRefReturnsIdAndName() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var entity = new DatasourceEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setName("analytics");
+        when(datasourceRepository.findById(id)).thenReturn(Optional.of(entity));
+
+        var ref = service.findRef(id).orElseThrow();
+        assertThat(ref.id()).isEqualTo(id);
+        assertThat(ref.name()).isEqualTo("analytics");
+    }
+
+    @Test
+    void findRefReturnsEmptyForNullId() {
+        assertThat(service.findRef(null)).isEmpty();
+    }
+
+    @Test
+    void findActiveRefsByOrganizationSortsByNameCaseInsensitive() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var a = new DatasourceEntity();
+        a.setId(UUID.randomUUID());
+        a.setOrganization(org);
+        a.setName("Zeta");
+        var b = new DatasourceEntity();
+        b.setId(UUID.randomUUID());
+        b.setOrganization(org);
+        b.setName("alpha");
+        when(datasourceRepository.findAllByOrganization_IdAndActiveTrue(organizationId))
+                .thenReturn(java.util.List.of(a, b));
+
+        var refs = service.findActiveRefsByOrganization(organizationId);
+
+        assertThat(refs).extracting(com.bablsoft.accessflow.core.api.DatasourceRef::name)
+                .containsExactly("alpha", "Zeta");
+    }
+
+    @Test
+    void findActiveRefsByOrganizationReturnsEmptyForNull() {
+        assertThat(service.findActiveRefsByOrganization(null)).isEmpty();
+    }
+
+    @Test
     void findByIdMapsCustomDriverIdAndJdbcUrlOverride() {
         var org = new OrganizationEntity();
         org.setId(organizationId);
@@ -105,5 +151,61 @@ class DefaultDatasourceLookupServiceTest {
         assertThat(descriptor.host()).isNull();
         assertThat(descriptor.port()).isNull();
         assertThat(descriptor.databaseName()).isNull();
+    }
+
+    @Test
+    void findRefsByAiConfigIdReturnsEmptyForNull() {
+        assertThat(service.findRefsByAiConfigId(null)).isEmpty();
+    }
+
+    @Test
+    void findRefsByAiConfigIdMapsRefs() {
+        var aiConfigId = UUID.randomUUID();
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var entity = new DatasourceEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setName("metrics");
+        when(datasourceRepository.findAllByAiConfigId(aiConfigId))
+                .thenReturn(java.util.List.of(entity));
+
+        var refs = service.findRefsByAiConfigId(aiConfigId);
+
+        assertThat(refs).singleElement()
+                .satisfies(r -> assertThat(r.name()).isEqualTo("metrics"));
+    }
+
+    @Test
+    void countsByAiConfigIdsReturnsEmptyForEmptyInput() {
+        assertThat(service.countsByAiConfigIds(java.util.Set.of())).isEmpty();
+        assertThat(service.countsByAiConfigIds(null)).isEmpty();
+    }
+
+    @Test
+    void countsByAiConfigIdsAggregatesRows() {
+        var a = UUID.randomUUID();
+        var b = UUID.randomUUID();
+        when(datasourceRepository.countByAiConfigIdIn(java.util.Set.of(a, b)))
+                .thenReturn(java.util.List.of(new Object[]{a, 3L}, new Object[]{b, 1L}));
+
+        var counts = service.countsByAiConfigIds(java.util.Set.of(a, b));
+
+        assertThat(counts).containsEntry(a, 3).containsEntry(b, 1);
+    }
+
+    @Test
+    void findActiveAiAnalysisAiConfigIdsReturnsEmptyForNull() {
+        assertThat(service.findActiveAiAnalysisAiConfigIdsByOrganization(null)).isEmpty();
+    }
+
+    @Test
+    void findActiveAiAnalysisAiConfigIdsDelegatesToRepository() {
+        var configId = UUID.randomUUID();
+        when(datasourceRepository.findActiveAiAnalysisAiConfigIdsByOrganization(organizationId))
+                .thenReturn(java.util.List.of(configId));
+
+        assertThat(service.findActiveAiAnalysisAiConfigIdsByOrganization(organizationId))
+                .containsExactly(configId);
     }
 }

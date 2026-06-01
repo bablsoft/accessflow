@@ -148,6 +148,8 @@ class MsTeamsPayloadFactory {
             case REVIEW_TIMEOUT -> "⌛ Query Auto-Rejected (review timeout)";
             case AI_HIGH_RISK -> "🚨 AI Flagged High-Risk Query";
             case TEST -> "AccessFlow Test";
+            case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };
     }
 

@@ -12,6 +12,7 @@ import {
   Switch,
   Table,
   Tabs,
+  Tag,
   Tooltip,
 } from 'antd';
 import {
@@ -33,6 +34,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
+import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
@@ -704,12 +706,32 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
           },
           {
             title: t('datasources.settings.perm_col_expires'),
-            width: 130,
-            render: (_v, p) => (
-              <span className="muted" style={{ fontSize: 12 }}>
-                {p.expires_at ? fmtDate(p.expires_at) : t('datasources.settings.perm_never_expires')}
-              </span>
-            ),
+            width: 170,
+            render: (_v, p) => {
+              if (!p.expires_at) {
+                return (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {t('datasources.settings.perm_never_expires')}
+                  </span>
+                );
+              }
+              const ms = remainingTtlMs(p.expires_at);
+              return (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {fmtDate(p.expires_at)}
+                  {ms !== null && (
+                    <Tag
+                      color={ms > 0 ? 'green' : 'default'}
+                      style={{ marginLeft: 6 }}
+                    >
+                      {ms > 0
+                        ? t('access.ttl.remaining', { value: formatDurationCompact(ms) })
+                        : t('access.ttl.expired')}
+                    </Tag>
+                  )}
+                </span>
+              );
+            },
           },
           {
             title: t('datasources.settings.perm_col_actions'),

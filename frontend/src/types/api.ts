@@ -565,6 +565,85 @@ export interface BulkReviewDecisionResponse {
   results: BulkReviewRowResult[];
 }
 
+// --- Access requests (JIT time-bound access) ---
+
+export type AccessGrantStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXPIRED'
+  | 'REVOKED'
+  | 'CANCELLED';
+
+export interface AccessRequest {
+  id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  requester_id: string;
+  requester_email: string | null;
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  allowed_schemas: string[] | null;
+  allowed_tables: string[] | null;
+  requested_duration: string;
+  justification: string;
+  status: AccessGrantStatus;
+  expires_at: string | null;
+  granted_permission_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AccessRequestPage = PageEnvelope<AccessRequest>;
+
+export interface SubmitAccessRequestInput {
+  datasource_id: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  allowed_schemas?: string[] | null;
+  allowed_tables?: string[] | null;
+  requested_duration: string;
+  justification: string;
+}
+
+export interface RequestableDatasource {
+  id: string;
+  name: string;
+}
+
+export interface PendingAccessRequestItem {
+  id: string;
+  datasource: { id: string; name: string | null };
+  requested_by: { id: string; email: string | null };
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  allowed_schemas: string[] | null;
+  allowed_tables: string[] | null;
+  requested_duration: string;
+  justification: string;
+  current_stage: number;
+  created_at: string;
+}
+
+export type PendingAccessRequestsPage = PageEnvelope<PendingAccessRequestItem>;
+
+export interface AccessDecisionResult {
+  access_request_id: string;
+  decision_id: string | null;
+  decision: ReviewDecisionType;
+  resulting_status: AccessGrantStatus;
+  idempotent_replay: boolean;
+}
+
+export interface AccessRevocationResult {
+  access_request_id: string;
+  resulting_status: AccessGrantStatus;
+  no_op: boolean;
+}
+
 export interface AiIssue {
   severity: IssueSeverity;
   category: string;

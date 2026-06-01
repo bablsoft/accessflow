@@ -48,6 +48,7 @@ export default defineConfig({
         'src/config/runtimeConfig.ts',
         'src/config/version.ts',
         'src/mocks/delay.ts',
+        'src/api/accessRequests.ts',
         'src/api/admin.ts',
         'src/api/auth.ts',
         'src/api/client.ts',

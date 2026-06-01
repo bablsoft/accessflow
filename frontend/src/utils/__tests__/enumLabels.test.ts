@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import i18n from '@/i18n';
 import {
+  accessGrantStatusLabel,
   aiProviderLabel,
   authProviderLabel,
   channelTypeLabel,
@@ -37,6 +38,9 @@ const t = i18n.t.bind(i18n) as unknown as TFunction;
 describe('enumLabels (key shape)', () => {
   it('queryStatusLabel builds enums.query_status.<value>', () => {
     expect(queryStatusLabel(stubT, 'PENDING_REVIEW')).toBe('enums.query_status.PENDING_REVIEW');
+  });
+  it('accessGrantStatusLabel builds enums.access_grant_status.<value>', () => {
+    expect(accessGrantStatusLabel(stubT, 'APPROVED')).toBe('enums.access_grant_status.APPROVED');
   });
   it('queryTypeLabel builds enums.query_type.<value>', () => {
     expect(queryTypeLabel(stubT, 'SELECT')).toBe('enums.query_type.SELECT');

@@ -54,7 +54,9 @@
     "version": "AccessFlow version {{version}}",
     "groups": "Groups",
     "datasource_health": "Santé des sources",
-    "slack": "Slack"
+    "slack": "Slack",
+    "request_access": "Demander l'accès",
+    "access_requests": "Demandes d'accès"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -1548,6 +1550,80 @@
       "ACCEPTED": "Acceptée",
       "REVOKED": "Révoquée",
       "EXPIRED": "Expirée"
+    },
+    "access_grant_status": {
+      "PENDING": "En attente",
+      "APPROVED": "Approuvé",
+      "REJECTED": "Rejeté",
+      "EXPIRED": "Expiré",
+      "REVOKED": "Révoqué",
+      "CANCELLED": "Annulé"
+    }
+  },
+  "access": {
+    "request": {
+      "title": "Demander l'accès",
+      "subtitle": "Demander un accès temporaire et délimité à une source de données",
+      "datasource": "Source de données",
+      "datasource_placeholder": "Sélectionner une source de données",
+      "capabilities": "Capacités",
+      "can_read": "Lecture",
+      "can_write": "Écriture",
+      "can_ddl": "DDL",
+      "schemas": "Schémas (facultatif)",
+      "schemas_placeholder": "Tous les schémas",
+      "tables": "Tables (facultatif)",
+      "tables_placeholder": "Toutes les tables",
+      "duration": "Durée",
+      "justification": "Justification",
+      "justification_placeholder": "Pourquoi avez-vous besoin de cet accès ?",
+      "submit": "Envoyer la demande",
+      "submit_success": "Demande d'accès envoyée",
+      "my_requests": "Mes demandes",
+      "cancel": "Annuler",
+      "cancel_confirm": "Annuler cette demande d'accès ?",
+      "cancel_success": "Demande d'accès annulée",
+      "empty": "Vous n'avez pas encore de demandes d'accès",
+      "validation": {
+        "datasource_required": "Sélectionner une source de données",
+        "capability_required": "Sélectionnez au moins lecture, écriture ou DDL",
+        "duration_required": "Sélectionner une durée",
+        "justification_required": "La justification est obligatoire",
+        "justification_max": "La justification ne doit pas dépasser 4 000 caractères"
+      },
+      "durations": {
+        "PT1H": "1 heure",
+        "PT4H": "4 heures",
+        "PT8H": "8 heures",
+        "P1D": "1 jour",
+        "P3D": "3 jours",
+        "P7D": "7 jours"
+      }
+    },
+    "queue": {
+      "title": "Demandes d'accès",
+      "subtitle": "Examiner et décider les demandes d'accès en attente",
+      "requester": "Demandeur",
+      "datasource": "Source de données",
+      "capabilities": "Capacités",
+      "duration": "Durée",
+      "justification": "Justification",
+      "requested": "Demandé",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "reject_reason": "Motif du rejet",
+      "reject_required": "Un commentaire est requis pour rejeter",
+      "on_approve": "Demande d'accès approuvée",
+      "on_reject": "Demande d'accès rejetée",
+      "empty": "Aucune demande d'accès en attente de votre examen"
+    },
+    "ttl": {
+      "remaining": "{{value}} restant",
+      "expired": "Expiré"
+    },
+    "columns": {
+      "status": "Statut",
+      "expires": "Expire"
     }
   }
 }

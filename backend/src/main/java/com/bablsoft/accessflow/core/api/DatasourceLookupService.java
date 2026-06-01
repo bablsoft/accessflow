@@ -10,6 +10,17 @@ public interface DatasourceLookupService {
 
     Optional<DatasourceConnectionDescriptor> findById(UUID datasourceId);
 
+    /** @return the id + name of a single datasource, or empty when it does not exist. */
+    Optional<DatasourceRef> findRef(UUID datasourceId);
+
+    /**
+     * @return id + name references to every <em>active</em> datasource in the organization,
+     * ordered by name. Unlike the per-user datasource list this is not scoped to existing
+     * permissions — the access (JIT) module uses it to let any user pick a datasource to request
+     * access to. Carries no connection details.
+     */
+    List<DatasourceRef> findActiveRefsByOrganization(UUID organizationId);
+
     /**
      * @return references to every datasource (any state) whose {@code ai_config_id} equals the
      * supplied value. Used by the AI module to surface "in use" details in delete errors.

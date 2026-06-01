@@ -157,7 +157,10 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_REJECTED -> "email/query-rejected";
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
-            case TEST -> null;
+            // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
+            // not through the channel-strategy email path — no email template.
+            case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> null;
         };
     }
 
@@ -176,7 +179,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_REJECTED -> "notification.email.subject.query_rejected";
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
-            case TEST -> "notification.email.subject.test";
+            // Unreachable for access events (no email template); kept for switch exhaustiveness.
+            case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";
         };
     }
 

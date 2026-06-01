@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,28 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
     public Optional<DatasourceConnectionDescriptor> findById(UUID datasourceId) {
         return datasourceRepository.findById(datasourceId)
                 .map(DefaultDatasourceLookupService::toDescriptor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<DatasourceRef> findRef(UUID datasourceId) {
+        if (datasourceId == null) {
+            return Optional.empty();
+        }
+        return datasourceRepository.findById(datasourceId)
+                .map(d -> new DatasourceRef(d.getId(), d.getName()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourceRef> findActiveRefsByOrganization(UUID organizationId) {
+        if (organizationId == null) {
+            return List.of();
+        }
+        return datasourceRepository.findAllByOrganization_IdAndActiveTrue(organizationId).stream()
+                .map(d -> new DatasourceRef(d.getId(), d.getName()))
+                .sorted(Comparator.comparing(DatasourceRef::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     @Override
