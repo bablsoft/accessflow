@@ -66,6 +66,12 @@ class RoutingConditionCodecTest {
     }
 
     @Test
+    void decodeRejectsNullJson() {
+        assertThatThrownBy(() -> codec.decode(null))
+                .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
     void decodeRejectsMalformedJson() {
         assertThatThrownBy(() -> codec.decode("{\"type\":\"nope\"}"))
                 .isInstanceOf(IllegalRoutingPolicyException.class);
@@ -75,6 +81,26 @@ class RoutingConditionCodecTest {
     void fromJsonRejectsEmptyTree() {
         var empty = JsonMapper.builder().build().createObjectNode();
         assertThatThrownBy(() -> codec.fromJson(empty))
+                .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
+    void fromJsonRejectsNull() {
+        assertThatThrownBy(() -> codec.fromJson(null))
+                .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
+    void fromJsonRejectsNullNode() {
+        var nullNode = JsonMapper.builder().build().nullNode();
+        assertThatThrownBy(() -> codec.fromJson(nullNode))
+                .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
+    void fromJsonRejectsMalformedNonEmptyTree() {
+        var bad = JsonMapper.builder().build().createObjectNode().put("type", "garbage");
+        assertThatThrownBy(() -> codec.fromJson(bad))
                 .isInstanceOf(IllegalRoutingPolicyException.class);
     }
 
