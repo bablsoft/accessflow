@@ -73,10 +73,48 @@ class DefaultAccessRequestLookupServiceTest {
     }
 
     @Test
-    void findReviewerRecipientsEmptyWhenNoPlan() {
+    void findReviewerRecipientsEmptyWhenNoPlanAndNoAdmins() {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity()));
         when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        when(userQueryService.findByOrganizationAndRole(organizationId, UserRoleType.ADMIN))
+                .thenReturn(List.of());
         assertThat(service().findReviewerRecipients(requestId)).isEmpty();
+    }
+
+    @Test
+    void findReviewerRecipientsFallsBackToActiveAdminsWhenNoPlan() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        var adminA = UUID.randomUUID();
+        var inactiveAdmin = UUID.randomUUID();
+        when(userQueryService.findByOrganizationAndRole(organizationId, UserRoleType.ADMIN))
+                .thenReturn(List.of(user(adminA, true), user(inactiveAdmin, false),
+                        user(requesterId, true)));
+
+        var recipients = service().findReviewerRecipients(requestId);
+
+        // Active admins only, and never the requester (even when the requester is an admin).
+        assertThat(recipients).containsExactly(adminA);
+    }
+
+    @Test
+    void findReviewerRecipientsFallsBackToAdminsWhenDatasourceScopeFiltersEveryone() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity()));
+        var planReviewer = UUID.randomUUID();
+        var plan = new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 0,
+                List.of(new ApproverRule(planReviewer, null, 0)), List.of());
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.of(plan));
+        when(userQueryService.findById(planReviewer)).thenReturn(Optional.of(user(planReviewer, true)));
+        // Scope set excludes the only plan approver → plan routes to nobody.
+        when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
+                .thenReturn(Optional.of(Set.of(UUID.randomUUID())));
+        var adminA = UUID.randomUUID();
+        when(userQueryService.findByOrganizationAndRole(organizationId, UserRoleType.ADMIN))
+                .thenReturn(List.of(user(adminA, true)));
+
+        var recipients = service().findReviewerRecipients(requestId);
+
+        assertThat(recipients).containsExactly(adminA);
     }
 
     @Test

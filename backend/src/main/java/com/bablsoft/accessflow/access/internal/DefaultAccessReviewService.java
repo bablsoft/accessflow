@@ -71,9 +71,15 @@ class DefaultAccessReviewService implements AccessReviewService {
     @Transactional
     public DecisionOutcome approve(UUID accessRequestId, ReviewerContext context, String comment) {
         var prep = prepareDecision(accessRequestId, context);
-        var command = new RecordAccessApprovalCommand(accessRequestId, context.userId(),
-                prep.currentStage(), prep.plan().minApprovalsRequired(),
-                prep.currentStage() == prep.plan().maxStage(), comment);
+        // An admin acting outside the datasource's review plan (no plan, or not a named approver)
+        // finalises the request with a single approval; a plan-eligible reviewer follows the
+        // multi-stage chain so only the final stage materialises the grant.
+        var command = prep.adminOverride()
+                ? new RecordAccessApprovalCommand(accessRequestId, context.userId(),
+                        prep.currentStage(), 1, true, comment)
+                : new RecordAccessApprovalCommand(accessRequestId, context.userId(),
+                        prep.currentStage(), prep.plan().minApprovalsRequired(),
+                        prep.currentStage() == prep.plan().maxStage(), comment);
         var result = stateService.recordApprovalAndAdvance(command);
         if (result.resultingStatus() == AccessGrantStatus.APPROVED && !result.wasIdempotentReplay()) {
             materializer.materialize(accessRequestId, context.userId());
@@ -131,26 +137,33 @@ class DefaultAccessReviewService implements AccessReviewService {
         if (!REVIEWER_ROLES.contains(context.role())) {
             throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
         }
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId())
-                .orElseThrow(() -> new AccessReviewerNotEligibleException(context.userId(),
-                        accessRequestId));
-        if (!plan.organizationId().equals(entity.getOrganizationId())) {
-            throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
+        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+        var sameOrgPlan = plan != null && plan.organizationId().equals(entity.getOrganizationId());
+        var currentStage = sameOrgPlan
+                ? currentStage(plan, stateService.listDecisions(accessRequestId))
+                : 0;
+        var planEligible = sameOrgPlan
+                && isInDatasourceScope(entity.getDatasourceId(), context.userId())
+                && isApproverAtStage(plan, currentStage, context);
+        if (planEligible) {
+            return new DecisionPreparation(plan, currentStage, entity.getRequesterId(), false);
         }
-        var decisions = stateService.listDecisions(accessRequestId);
-        var currentStage = currentStage(plan, decisions);
-        if (!isApproverAtStage(plan, currentStage, context)) {
-            throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
+        // Admins are the backstop approver: when the datasource's plan does not route the
+        // request to them (no plan, foreign-org plan, out of scope, or not a named approver)
+        // they may still decide it. Non-admin reviewers stay strictly plan-gated.
+        if (context.role() == UserRoleType.ADMIN) {
+            return new DecisionPreparation(sameOrgPlan ? plan : null, currentStage,
+                    entity.getRequesterId(), true);
         }
-        if (!isInDatasourceScope(entity.getDatasourceId(), context.userId())) {
-            throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
-        }
-        return new DecisionPreparation(plan, currentStage, entity.getRequesterId());
+        throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
     }
 
     private boolean isCurrentlyActionable(AccessGrantRequestEntity entity, ReviewerContext context) {
         if (entity.getRequesterId().equals(context.userId())) {
             return false;
+        }
+        if (context.role() == UserRoleType.ADMIN) {
+            return true;
         }
         var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
         if (plan == null || !plan.organizationId().equals(entity.getOrganizationId())) {
@@ -203,9 +216,11 @@ class DefaultAccessReviewService implements AccessReviewService {
     }
 
     private PendingAccessRequest toPendingAccessRequest(AccessGrantRequestEntity entity) {
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElseThrow();
+        // The datasource may have no review plan (admins still see such requests via the
+        // fallback) — report stage 0 rather than throwing.
+        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
         var decisions = stateService.listDecisions(entity.getId());
-        var stage = currentStage(plan, decisions);
+        var stage = plan != null ? currentStage(plan, decisions) : 0;
         var requesterEmail = userQueryService.findById(entity.getRequesterId())
                 .map(UserView::email).orElse(null);
         var datasourceName = datasourceLookupService.findRef(entity.getDatasourceId())
@@ -242,6 +257,7 @@ class DefaultAccessReviewService implements AccessReviewService {
         return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
     }
 
-    private record DecisionPreparation(ReviewPlanSnapshot plan, int currentStage, UUID requesterId) {
+    private record DecisionPreparation(ReviewPlanSnapshot plan, int currentStage, UUID requesterId,
+                                       boolean adminOverride) {
     }
 }

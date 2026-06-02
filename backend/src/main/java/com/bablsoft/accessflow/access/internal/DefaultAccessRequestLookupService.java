@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +44,14 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
         if (entity == null) {
             return Set.of();
         }
+        var planRecipients = resolvePlanRecipients(entity);
+        // When the datasource's review plan cannot route the request to anyone (no plan, no
+        // approvers, or datasource scope filtered everyone out), admins are the backstop
+        // approver and must still be notified so the request is never silently orphaned.
+        return planRecipients.isEmpty() ? activeAdminRecipients(entity) : planRecipients;
+    }
+
+    private Set<UUID> resolvePlanRecipients(AccessGrantRequestEntity entity) {
         var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
         if (plan == null || plan.approvers() == null || plan.approvers().isEmpty()) {
             return Set.of();
@@ -52,6 +62,16 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
                 .orElse(0);
         Set<UUID> reviewers = collectReviewersAtStage(plan, lowestStage, entity);
         return applyDatasourceScope(entity.getDatasourceId(), reviewers);
+    }
+
+    private Set<UUID> activeAdminRecipients(AccessGrantRequestEntity entity) {
+        return userQueryService
+                .findByOrganizationAndRole(entity.getOrganizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .filter(u -> !u.id().equals(entity.getRequesterId()))
+                .map(UserView::id)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Set<UUID> collectReviewersAtStage(ReviewPlanSnapshot plan, int stage,
