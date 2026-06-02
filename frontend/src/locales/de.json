@@ -29,7 +29,9 @@
     "close": "Schließen",
     "ok": "OK",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "Ja",
+    "no": "Nein"
   },
   "nav": {
     "editor": "SQL-Editor",
@@ -56,7 +58,8 @@
     "datasource_health": "Datenquellen-Zustand",
     "slack": "Slack",
     "request_access": "Zugriff anfragen",
-    "access_requests": "Zugriffsanfragen"
+    "access_requests": "Zugriffsanfragen",
+    "routing_policies": "Routing-Richtlinien"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "Das JAR überschreitet das Upload-Limit von {{maxMb}} MB. Entferne nicht benötigte Klassen oder teile das Bundle auf.",
     "custom_driver_not_found": "Benutzerdefinierter JDBC-Treiber nicht gefunden.",
     "custom_driver_validation": "Einige erforderliche Upload-Felder fehlen oder sind ungültig.",
-    "custom_driver_generic": "Der JDBC-Treiber konnte nicht hochgeladen werden. Bitte erneut versuchen."
+    "custom_driver_generic": "Der JDBC-Treiber konnte nicht hochgeladen werden. Bitte erneut versuchen.",
+    "routing_policy_not_found": "Routing-Richtlinie nicht gefunden.",
+    "routing_policy_priority_conflict": "Eine andere Routing-Richtlinie verwendet diese Priorität bereits.",
+    "routing_policy_invalid": "Die Routing-Richtlinie ist ungültig.",
+    "routing_policy_generic": "Die Routing-Richtlinie konnte nicht gespeichert werden. Bitte erneut versuchen."
   },
   "editor": {
     "title": "SQL-Editor",
@@ -484,7 +491,11 @@
       "timeout_title": "Auto-abgelehnt durch Genehmigungs-Timeout",
       "timeout_body_with_plan": "Plan „{{plan}}\" verlangt Genehmigung innerhalb von {{hours}} h. Timeout {{when}}.",
       "timeout_body_without_plan": "Genehmigungsfenster von {{hours}} h ohne Entscheidung verstrichen. Timeout {{when}}.",
-      "timeline_timed_out": "Timeout"
+      "timeline_timed_out": "Timeout",
+      "matched_policy_title": "Automatisch entschieden durch Routing-Richtlinie ({{action}})",
+      "matched_policy_body": "Richtlinie \"{{name}}\" — {{reason}}",
+      "matched_policy_deleted": "(gelöschte Richtlinie)",
+      "matched_policy_no_reason": "keine Begründung angegeben"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "Slack-App-Konfiguration löschen?",
       "delete_success": "Slack-App-Konfiguration gelöscht",
       "load_error": "Slack-App-Konfiguration konnte nicht geladen werden"
+    },
+    "routing_policies": {
+      "title": "Routing-Richtlinien",
+      "subtitle": "Attributbasierte Regeln, die das Query-Routing vor der Prüfer-Zuteilung automatisch entscheiden.",
+      "add_button": "Richtlinie hinzufügen",
+      "load_error": "Routing-Richtlinien konnten nicht geladen werden.",
+      "empty": "Noch keine Routing-Richtlinien. Abfragen folgen dem Review-Plan der Datenquelle.",
+      "create_modal_title": "Routing-Richtlinie hinzufügen",
+      "edit_modal_title": "Routing-Richtlinie bearbeiten · {{name}}",
+      "save_create": "Richtlinie erstellen",
+      "save_update": "Änderungen speichern",
+      "create_success": "Routing-Richtlinie erstellt.",
+      "update_success": "Routing-Richtlinie aktualisiert.",
+      "delete_success": "Routing-Richtlinie gelöscht.",
+      "delete_confirm_title": "Routing-Richtlinie löschen?",
+      "delete_confirm_body": "\"{{name}}\" löschen? Abfragen werden nicht mehr über diese Regel geleitet.",
+      "col_order": "Reihenfolge",
+      "col_priority": "Priorität",
+      "col_name": "Name",
+      "col_action": "Aktion",
+      "col_scope": "Geltungsbereich",
+      "col_condition": "Bedingung",
+      "col_enabled": "Aktiviert",
+      "col_actions": "Aktionen",
+      "move_up": "Nach oben",
+      "move_down": "Nach unten",
+      "label_name": "Name",
+      "label_description": "Beschreibung",
+      "label_scope": "Datenquellen-Bereich",
+      "label_priority": "Priorität",
+      "label_enabled": "Aktiviert",
+      "label_action": "Aktion",
+      "label_required_approvals": "Erforderliche Genehmigungen",
+      "label_reason": "Begründung",
+      "label_match_type": "Übereinstimmung",
+      "label_conditions": "Bedingungen",
+      "scope_org_wide": "Alle Datenquellen",
+      "match_all": "Alle Bedingungen erfüllen",
+      "match_any": "Beliebige Bedingung erfüllen",
+      "match_all_joiner": "und",
+      "match_any_joiner": "oder",
+      "condition_add": "Bedingung hinzufügen",
+      "condition_remove": "Bedingung entfernen",
+      "validation_min_conditions": "Fügen Sie mindestens eine Bedingung hinzu.",
+      "table_globs_placeholder": "z. B. payroll.*, *.users",
+      "groups_placeholder": "Gruppen auswählen",
+      "negate_hint": "Diese Bedingung negieren (NICHT).",
+      "not_prefix": "NICHT",
+      "is_prefix": "IST",
+      "bool_present_label": "Vorhanden",
+      "group_count": "{{count}} Gruppe(n)",
+      "condition_advanced": "Erweiterte Bedingung",
+      "condition_advanced_warning": "Diese Richtlinie verwendet eine verschachtelte Bedingung, die der geführte Editor nicht bearbeiten kann; Speichern ersetzt sie.",
+      "condition_any_query": "Jede Abfrage"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Hash (SHA-256)",
       "EMAIL": "E-Mail-erhaltend",
       "FORMAT_PRESERVING": "Formaterhaltend"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Automatisch genehmigen",
+      "AUTO_REJECT": "Automatisch ablehnen",
+      "REQUIRE_APPROVALS": "Genehmigungen verlangen",
+      "ESCALATE": "Eskalieren"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Montag",
+      "TUESDAY": "Dienstag",
+      "WEDNESDAY": "Mittwoch",
+      "THURSDAY": "Donnerstag",
+      "FRIDAY": "Freitag",
+      "SATURDAY": "Samstag",
+      "SUNDAY": "Sonntag"
+    },
+    "condition_operand": {
+      "query_type": "Abfragetyp",
+      "referenced_table": "Referenzierte Tabelle",
+      "risk_level": "KI-Risikostufe",
+      "risk_score": "KI-Risikowert",
+      "requester_role": "Rolle des Anforderers",
+      "requester_group": "Gruppe des Anforderers",
+      "time_of_day": "Tageszeit",
+      "day_of_week": "Wochentag",
+      "has_where": "Hat WHERE-Klausel",
+      "has_limit": "Hat LIMIT-Klausel",
+      "transactional": "Transaktional"
     }
   },
   "access": {

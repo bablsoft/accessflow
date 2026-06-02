@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ReanalyzeQueryCommand;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -62,6 +63,7 @@ class QueryReadController {
     private final QueryLifecycleService queryLifecycleService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryCsvExportService queryCsvExportService;
+    private final RoutingDecisionService routingDecisionService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -151,7 +153,8 @@ class QueryReadController {
                 && !detail.submittedByUserId().equals(caller.userId())) {
             throw new QueryRequestNotFoundException(id);
         }
-        return QueryDetailResponse.from(detail);
+        var matchedPolicy = routingDecisionService.findMatchedPolicy(id).orElse(null);
+        return QueryDetailResponse.from(detail, matchedPolicy);
     }
 
     @PostMapping("/{id}/cancel")

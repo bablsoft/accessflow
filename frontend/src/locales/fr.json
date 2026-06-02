@@ -29,7 +29,9 @@
     "close": "Fermer",
     "ok": "OK",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "Oui",
+    "no": "Non"
   },
   "nav": {
     "editor": "Éditeur SQL",
@@ -56,7 +58,8 @@
     "datasource_health": "Santé des sources",
     "slack": "Slack",
     "request_access": "Demander l'accès",
-    "access_requests": "Demandes d'accès"
+    "access_requests": "Demandes d'accès",
+    "routing_policies": "Politiques de routage"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "Le JAR dépasse la limite de téléversement de {{maxMb}} Mo. Retirez les classes inutilisées ou divisez le bundle.",
     "custom_driver_not_found": "Pilote JDBC personnalisé introuvable.",
     "custom_driver_validation": "Certains champs de téléversement obligatoires sont manquants ou invalides.",
-    "custom_driver_generic": "Impossible de téléverser le pilote JDBC. Veuillez réessayer."
+    "custom_driver_generic": "Impossible de téléverser le pilote JDBC. Veuillez réessayer.",
+    "routing_policy_not_found": "Politique de routage introuvable.",
+    "routing_policy_priority_conflict": "Une autre politique de routage utilise déjà cette priorité.",
+    "routing_policy_invalid": "La politique de routage est invalide.",
+    "routing_policy_generic": "Impossible d'enregistrer la politique de routage. Veuillez réessayer."
   },
   "editor": {
     "title": "Éditeur SQL",
@@ -484,7 +491,11 @@
       "timeout_title": "Auto-rejetée par expiration de l'approbation",
       "timeout_body_with_plan": "Le plan « {{plan}} » exige une approbation sous {{hours}} h. Délai expiré {{when}}.",
       "timeout_body_without_plan": "Fenêtre d'approbation de {{hours}} h écoulée sans décision. Délai expiré {{when}}.",
-      "timeline_timed_out": "Délai expiré"
+      "timeline_timed_out": "Délai expiré",
+      "matched_policy_title": "Décidé automatiquement par la politique de routage ({{action}})",
+      "matched_policy_body": "Politique « {{name}} » — {{reason}}",
+      "matched_policy_deleted": "(politique supprimée)",
+      "matched_policy_no_reason": "aucune raison indiquée"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "Supprimer la configuration de l'application Slack ?",
       "delete_success": "Configuration de l'application Slack supprimée",
       "load_error": "Échec du chargement de la configuration de l'application Slack"
+    },
+    "routing_policies": {
+      "title": "Politiques de routage",
+      "subtitle": "Règles basées sur des attributs qui décident automatiquement du routage des requêtes avant la répartition aux relecteurs.",
+      "add_button": "Ajouter une politique",
+      "load_error": "Impossible de charger les politiques de routage.",
+      "empty": "Aucune politique de routage pour l'instant. Les requêtes suivent le plan de revue de la source de données.",
+      "create_modal_title": "Ajouter une politique de routage",
+      "edit_modal_title": "Modifier la politique de routage · {{name}}",
+      "save_create": "Créer la politique",
+      "save_update": "Enregistrer les modifications",
+      "create_success": "Politique de routage créée.",
+      "update_success": "Politique de routage mise à jour.",
+      "delete_success": "Politique de routage supprimée.",
+      "delete_confirm_title": "Supprimer la politique de routage ?",
+      "delete_confirm_body": "Supprimer « {{name}} » ? Les requêtes ne seront plus routées par cette règle.",
+      "col_order": "Ordre",
+      "col_priority": "Priorité",
+      "col_name": "Nom",
+      "col_action": "Action",
+      "col_scope": "Portée",
+      "col_condition": "Condition",
+      "col_enabled": "Activée",
+      "col_actions": "Actions",
+      "move_up": "Monter",
+      "move_down": "Descendre",
+      "label_name": "Nom",
+      "label_description": "Description",
+      "label_scope": "Portée de la source de données",
+      "label_priority": "Priorité",
+      "label_enabled": "Activée",
+      "label_action": "Action",
+      "label_required_approvals": "Approbations requises",
+      "label_reason": "Raison",
+      "label_match_type": "Correspondance",
+      "label_conditions": "Conditions",
+      "scope_org_wide": "Toutes les sources de données",
+      "match_all": "Toutes les conditions",
+      "match_any": "N'importe quelle condition",
+      "match_all_joiner": "et",
+      "match_any_joiner": "ou",
+      "condition_add": "Ajouter une condition",
+      "condition_remove": "Supprimer la condition",
+      "validation_min_conditions": "Ajoutez au moins une condition.",
+      "table_globs_placeholder": "ex. payroll.*, *.users",
+      "groups_placeholder": "Sélectionner des groupes",
+      "negate_hint": "Inverser cette condition (NON).",
+      "not_prefix": "NON",
+      "is_prefix": "EST",
+      "bool_present_label": "Présent",
+      "group_count": "{{count}} groupe(s)",
+      "condition_advanced": "Condition avancée",
+      "condition_advanced_warning": "Cette politique utilise une condition imbriquée que l'éditeur guidé ne peut pas modifier ; l'enregistrement ici la remplacera.",
+      "condition_any_query": "Toute requête"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Hachage (SHA-256)",
       "EMAIL": "Préserve l’e-mail",
       "FORMAT_PRESERVING": "Préserve le format"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Approbation automatique",
+      "AUTO_REJECT": "Rejet automatique",
+      "REQUIRE_APPROVALS": "Exiger des approbations",
+      "ESCALATE": "Escalader"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Lundi",
+      "TUESDAY": "Mardi",
+      "WEDNESDAY": "Mercredi",
+      "THURSDAY": "Jeudi",
+      "FRIDAY": "Vendredi",
+      "SATURDAY": "Samedi",
+      "SUNDAY": "Dimanche"
+    },
+    "condition_operand": {
+      "query_type": "Type de requête",
+      "referenced_table": "Table référencée",
+      "risk_level": "Niveau de risque IA",
+      "risk_score": "Score de risque IA",
+      "requester_role": "Rôle du demandeur",
+      "requester_group": "Groupe du demandeur",
+      "time_of_day": "Heure de la journée",
+      "day_of_week": "Jour de la semaine",
+      "has_where": "A une clause WHERE",
+      "has_limit": "A une clause LIMIT",
+      "transactional": "Transactionnel"
     }
   },
   "access": {

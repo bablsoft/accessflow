@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.workflow.api.RoutingAction;
+import com.bablsoft.accessflow.workflow.internal.routing.MatchedRoutingPolicyView;
 
 import java.time.Instant;
 import java.util.List;
@@ -28,12 +30,17 @@ public record QueryDetailResponse(
         UUID previousRunId,
         String reviewPlanName,
         Integer approvalTimeoutHours,
+        MatchedPolicyDetail matchedPolicy,
         List<ReviewDecisionDetail> reviewDecisions,
         Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
+        return from(view, null);
+    }
+
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -50,10 +57,26 @@ public record QueryDetailResponse(
                 view.previousRunId(),
                 view.reviewPlanName(),
                 view.approvalTimeoutHours(),
+                MatchedPolicyDetail.from(matched),
                 view.reviewDecisions().stream().map(ReviewDecisionDetail::from).toList(),
                 view.scheduledFor(),
                 view.createdAt(),
                 view.updatedAt());
+    }
+
+    public record MatchedPolicyDetail(
+            UUID policyId,
+            String policyName,
+            RoutingAction action,
+            String reason) {
+
+        static MatchedPolicyDetail from(MatchedRoutingPolicyView src) {
+            if (src == null) {
+                return null;
+            }
+            return new MatchedPolicyDetail(src.policyId(), src.policyName(), src.action(),
+                    src.reason());
+        }
     }
 
     public record AiAnalysisDetail(

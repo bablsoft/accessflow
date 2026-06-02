@@ -44,6 +44,7 @@ function makeQuery(overrides: Partial<QueryDetail>): QueryDetail {
     previous_run_id: null,
     review_plan_name: null,
     approval_timeout_hours: null,
+    matched_policy: null,
     review_decisions: [],
     scheduled_for: null,
     created_at: '2026-05-01T09:00:00Z',

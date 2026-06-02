@@ -9,12 +9,22 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.UserGroupService;
+import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
+import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
+import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import com.bablsoft.accessflow.workflow.api.RoutingAction;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,6 +38,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +49,11 @@ class QueryReviewStateMachineTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
+    @Mock SqlParserService sqlParserService;
+    @Mock UserQueryService userQueryService;
+    @Mock UserGroupService userGroupService;
+    @Mock RoutingPolicyEngine routingPolicyEngine;
+    @Mock RoutingDecisionService routingDecisionService;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks QueryReviewStateMachine stateMachine;
 
@@ -46,6 +62,15 @@ class QueryReviewStateMachineTest {
     private final UUID organizationId = UUID.randomUUID();
     private final UUID submitterId = UUID.randomUUID();
     private final UUID aiAnalysisId = UUID.randomUUID();
+    private final UUID policyId = UUID.randomUUID();
+
+    @BeforeEach
+    void stubSignals() {
+        // Routing context is built before evaluation; keep the parser harmless for the
+        // plan-fallthrough tests. evaluate() defaults to Optional.empty() unless a test overrides it.
+        lenient().when(sqlParserService.parse(any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT 1"));
+    }
 
     @Test
     void aiCompletedTransitionsToApprovedWhenHumanApprovalNotRequired() {
@@ -157,6 +182,81 @@ class QueryReviewStateMachineTest {
         verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
     }
 
+    // ── Routing-policy decisions ──────────────────────────────────────────────
+
+    @Test
+    void aiCompletedAutoApprovesWhenPolicyMatches() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.HIGH);
+        givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.HIGH, 90));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.APPROVED),
+                any(RoutingMatch.class), eq(null));
+        verify(eventPublisher).publishEvent(any(QueryAutoApprovedEvent.class));
+        // Plan fall-through must not run when a policy matched.
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+    }
+
+    @Test
+    void aiCompletedAutoRejectsWhenPolicyMatches() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.HIGH);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.HIGH, 95));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.REJECTED),
+                any(RoutingMatch.class), eq(null));
+        verify(eventPublisher).publishEvent(any(QueryAutoRejectedEvent.class));
+    }
+
+    @Test
+    void aiCompletedRequireApprovalsUsesAbsoluteCount() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, true, RiskLevel.MEDIUM);
+        givenPolicyMatch(RoutingAction.REQUIRE_APPROVALS, 3);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.MEDIUM, 50));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.PENDING_REVIEW),
+                any(RoutingMatch.class), eq(3));
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+    }
+
+    @Test
+    void aiCompletedEscalateAddsDeltaToPlanMinimum() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        // plan min approvals = 1 (see givenPlan)
+        givenPlan(false, true, RiskLevel.HIGH);
+        givenPolicyMatch(RoutingAction.ESCALATE, 2);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.HIGH, 80));
+
+        // 1 (plan min) + 2 (escalate delta) = 3
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.PENDING_REVIEW),
+                any(RoutingMatch.class), eq(3));
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+    }
+
+    @Test
+    void aiSkippedAppliesPolicyAutoReject() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.REJECTED),
+                any(RoutingMatch.class), eq(null));
+        verify(eventPublisher).publishEvent(any(QueryAutoRejectedEvent.class));
+    }
+
     @Test
     void aiFailedAlwaysTransitionsToPendingReview() {
         givenPendingAiQuery(QueryType.SELECT);
@@ -166,8 +266,9 @@ class QueryReviewStateMachineTest {
         verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
                 QueryStatus.PENDING_REVIEW);
         verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
-        // Plan is never consulted on failure path
+        // Plan and routing are never consulted on failure path
         verify(reviewPlanLookupService, never()).findForDatasource(any());
+        verify(routingPolicyEngine, never()).evaluate(any(), any(), any());
     }
 
     @Test
@@ -275,6 +376,12 @@ class QueryReviewStateMachineTest {
                         autoApproveReads, 1,
                         List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1)),
                         List.of())));
+    }
+
+    private void givenPolicyMatch(RoutingAction action, Integer requiredApprovals) {
+        when(routingPolicyEngine.evaluate(eq(organizationId), eq(datasourceId), any()))
+                .thenReturn(Optional.of(new RoutingMatch(policyId, "P", action, requiredApprovals,
+                        "matched")));
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status) {

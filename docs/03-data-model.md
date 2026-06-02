@@ -249,6 +249,85 @@ Maps users or roles to a review plan, with support for multi-stage sequential ap
 
 ---
 
+## routing_policy
+
+Ordered, attribute-based **policy-as-code routing rules** (AF-379, Flyway `V59__create_routing_policy.sql`). Evaluated by the workflow state machine after AI analysis and before reviewer fan-out: the **first enabled policy by ascending `priority` whose `condition` matches** decides how the query is routed; on no match the query falls through to the datasource's review plan exactly as before. A policy with a null `datasource_id` is org-wide; otherwise it is scoped to that datasource.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` NOT NULL |
+| `datasource_id` | FK → `datasources` NULL — null means org-wide; otherwise scopes the policy to one datasource |
+| `name` | VARCHAR(255) NOT NULL |
+| `description` | VARCHAR(2000) nullable |
+| `priority` | INTEGER NOT NULL — evaluation order, lowest first; **UNIQUE per `organization_id`** |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true — disabled policies are skipped during evaluation |
+| `condition` | JSONB NOT NULL DEFAULT `'{}'` — typed condition tree (wire format below) |
+| `action` | ENUM `routing_action`: `AUTO_APPROVE` \| `AUTO_REJECT` \| `REQUIRE_APPROVALS` \| `ESCALATE` |
+| `required_approvals` | INTEGER nullable — non-null only for `REQUIRE_APPROVALS` (absolute minimum) and `ESCALATE` (delta added to the review-plan minimum; default 1) |
+| `reason` | VARCHAR(500) nullable — recorded on the resulting `routing_decision` and audit row |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+**Indexes**
+- `(organization_id, enabled, priority)` — backs the per-submission ascending-priority evaluation scan.
+- UNIQUE `(organization_id, priority)` — each priority is used at most once per org; the reorder API rewrites the full set atomically.
+
+**`routing_action` values:** `AUTO_APPROVE` (short-circuit straight to `APPROVED`), `AUTO_REJECT` (short-circuit straight to `REJECTED` — a new `PENDING_AI → REJECTED` state-machine edge), `REQUIRE_APPROVALS` (force human review with an absolute minimum of `required_approvals` approvers), `ESCALATE` (force human review with effective minimum = the review plan's minimum + `required_approvals` delta, default delta 1).
+
+### `condition` JSONB wire format
+
+The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no external policy engine, no raw SQL). Logical combinators nest arbitrarily; the UI's guided builder authors a single-level `and` / `or` of (optionally `not`-wrapped) leaf conditions, while API/bootstrap-authored policies may nest freely.
+
+| `"type"` | Fields | Matches when |
+|----------|--------|--------------|
+| `and` | `children: []` | all children match |
+| `or` | `children: []` | any child matches |
+| `not` | `child` | the child does not match |
+| `query_type` | `any_of: [QueryType]` | the query's type is in the set |
+| `referenced_table` | `globs: [string]` | a referenced table matches a glob (e.g. `payroll.*`, `*.users`) |
+| `risk_level` | `any_of: [RiskLevel]` | the AI risk level is in the set |
+| `risk_score` | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `value` | the AI risk score satisfies the comparison |
+| `requester_role` | `any_of: [Role]` | the submitter's role is in the set |
+| `requester_group` | `group_ids: [uuid]` | the submitter belongs to one of the groups |
+| `time_of_day` | `start_minute_of_day`, `end_minute_of_day` | the submission time (server local timezone) falls in the window; supports overnight wrap-around |
+| `day_of_week` | `any_of: [DayOfWeek]` | the submission day is in the set |
+| `has_where` | `expected: bool` | presence of a WHERE clause equals `expected` |
+| `has_limit` | `expected: bool` | presence of a LIMIT clause equals `expected` |
+| `transactional` | `expected: bool` | the `BEGIN…COMMIT` transactional flag equals `expected` |
+
+On the AI-skipped path (`datasource.ai_analysis_enabled=false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal. Routing is **not** run on the AI-failure path.
+
+Example:
+
+```json
+{
+  "type": "and",
+  "children": [
+    { "type": "query_type", "any_of": ["DELETE"] },
+    { "type": "referenced_table", "globs": ["payroll.*"] }
+  ]
+}
+```
+
+---
+
+## routing_decision
+
+Records the outcome of routing a single query request (AF-379, Flyway `V59__create_routing_policy.sql`). One row per query that reached the routing stage.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | FK → `query_requests` NOT NULL — **UNIQUE** (one decision per query) |
+| `matched_policy_id` | FK → `routing_policy` NULL, `ON DELETE SET NULL` — null when no policy matched (fall-through) or the policy was later deleted |
+| `action` | ENUM `routing_action` — the action that fired |
+| `effective_min_approvals` | INTEGER nullable — resolved absolute approver count for `ESCALATE` / `REQUIRE_APPROVALS`; read by the review service as the per-stage minimum override |
+| `reason` | VARCHAR(500) nullable — copied from the matched policy |
+| `created_at` | TIMESTAMPTZ |
+
+---
+
 ## user_groups
 
 Named, organisation-scoped collections of users. Groups are used as the indirection layer for reviewer assignment (see `datasource_reviewers`) and may be auto-synced from OAuth2 / SAML IdP claims.
@@ -350,6 +429,8 @@ PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
                            ↘ REJECTED   (manual reviewer rejection)
                            ↘ TIMED_OUT  (approval-timeout auto-reject, see review_plans → Approval timeout)
            ↘ PENDING_REVIEW (if no AI)
+           ↘ APPROVED       (routing policy AUTO_APPROVE — see routing_policy)
+           ↘ REJECTED       (routing policy AUTO_REJECT — see routing_policy)
 PENDING_REVIEW → CANCELLED (by submitter)
 APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet)
 APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now())
@@ -553,12 +634,16 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ACCESS_REQUEST_CANCELLED` | Requester cancels their own pending access request. |
 | `ACCESS_GRANT_EXPIRED` | `AccessGrantExpiryJob` revokes a grant past its `expires_at` (system-driven, `actor_id = NULL`). Metadata: `reason: "expiry"`, optional `granted_permission_id`. |
 | `ACCESS_GRANT_REVOKED` | Admin early-revokes an active grant via `POST /admin/access-requests/{id}/revoke`. Metadata: optional `comment`. |
+| `ROUTING_POLICY_CREATED` / `ROUTING_POLICY_UPDATED` / `ROUTING_POLICY_DELETED` | Admin creates / updates / deletes a routing policy via the `/admin/routing-policies` CRUD endpoints. Resource: `routing_policy`. |
+| `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
+
+Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
 Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`, `AI_CONFIG`, `REVIEW_PLAN`, `USER`, and `SYSTEM_SMTP_UPDATED` — `metadata.source = "BOOTSTRAP"` plus `metadata.change_kind` is what distinguishes a bootstrap-driven write from an admin-UI-driven one. See [docs/05-backend.md → "Bootstrap audit semantics"](05-backend.md#bootstrap-audit-semantics).
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`, `access_grant_request`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`.
 
 ---
 

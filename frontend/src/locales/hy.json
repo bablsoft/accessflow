@@ -29,7 +29,9 @@
     "close": "Փակել",
     "ok": "Լավ",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "Այո",
+    "no": "Ոչ"
   },
   "nav": {
     "editor": "SQL խմբագիր",
@@ -56,7 +58,8 @@
     "datasource_health": "Տվյալների աղբյուրների վիճակ",
     "slack": "Slack",
     "request_access": "Հայցել մուտք",
-    "access_requests": "Մուտքի հարցումներ"
+    "access_requests": "Մուտքի հարցումներ",
+    "routing_policies": "Երթուղավորման քաղաքականություններ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "JAR-ը գերազանցում է {{maxMb}} ՄԲ բեռնման սահմանաչափը։ Հեռացրեք չօգտագործվող դասերը կամ բաժանեք bundle-ը։",
     "custom_driver_not_found": "Հատուկ JDBC դրայվեր չի գտնվել։",
     "custom_driver_validation": "Բեռնման որոշ պարտադիր դաշտեր բացակայում են կամ անվավեր են։",
-    "custom_driver_generic": "Չհաջողվեց բեռնել JDBC դրայվերը։ Փորձեք նորից։"
+    "custom_driver_generic": "Չհաջողվեց բեռնել JDBC դրայվերը։ Փորձեք նորից։",
+    "routing_policy_not_found": "Երթուղավորման քաղաքականությունը չի գտնվել.",
+    "routing_policy_priority_conflict": "Մեկ այլ երթուղավորման քաղաքականություն արդեն օգտագործում է այս առաջնահերթությունը.",
+    "routing_policy_invalid": "Երթուղավորման քաղաքականությունն անվավեր է.",
+    "routing_policy_generic": "Չհաջողվեց պահպանել երթուղավորման քաղաքականությունը. Փորձեք նորից."
   },
   "editor": {
     "title": "SQL խմբագիր",
@@ -484,7 +491,11 @@
       "timeout_title": "Ինքնաշխատորեն մերժված հաստատման ժամկետի լրացման պատճառով",
       "timeout_body_with_plan": "«{{plan}}» պլանը պահանջում է հաստատում {{hours}} ժամում։ Ժամկետը լրացել է {{when}}։",
       "timeout_body_without_plan": "Հաստատման {{hours}} ժամանոց պատուհանը անցել է առանց որոշման։ Ժամկետը լրացել է {{when}}։",
-      "timeline_timed_out": "Ժամկետը լրացել է"
+      "timeline_timed_out": "Ժամկետը լրացել է",
+      "matched_policy_title": "Ավտոմատ որոշվել է երթուղավորման քաղաքականությամբ ({{action}})",
+      "matched_policy_body": "Քաղաքականություն «{{name}}» — {{reason}}",
+      "matched_policy_deleted": "(ջնջված քաղաքականություն)",
+      "matched_policy_no_reason": "պատճառ նշված չէ"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "Ջնջե՞լ Slack հավելվածի կարգավորումը։",
       "delete_success": "Slack հավելվածի կարգավորումը ջնջվեց",
       "load_error": "Չհաջողվեց բեռնել Slack հավելվածի կարգավորումը"
+    },
+    "routing_policies": {
+      "title": "Երթուղավորման քաղաքականություններ",
+      "subtitle": "Հատկանիշների վրա հիմնված կանոններ, որոնք ավտոմատ որոշում են հարցումների երթուղավորումը նախքան ստուգողներին բաշխելը.",
+      "add_button": "Ավելացնել քաղաքականություն",
+      "load_error": "Չհաջողվեց բեռնել երթուղավորման քաղաքականությունները.",
+      "empty": "Դեռ չկան երթուղավորման քաղաքականություններ. Հարցումները հետևում են տվյալների աղբյուրի ստուգման պլանին.",
+      "create_modal_title": "Ավելացնել երթուղավորման քաղաքականություն",
+      "edit_modal_title": "Խմբագրել երթուղավորման քաղաքականությունը · {{name}}",
+      "save_create": "Ստեղծել քաղաքականություն",
+      "save_update": "Պահպանել փոփոխությունները",
+      "create_success": "Երթուղավորման քաղաքականությունը ստեղծվեց.",
+      "update_success": "Երթուղավորման քաղաքականությունը թարմացվեց.",
+      "delete_success": "Երթուղավորման քաղաքականությունը ջնջվեց.",
+      "delete_confirm_title": "Ջնջե՞լ երթուղավորման քաղաքականությունը:",
+      "delete_confirm_body": "Ջնջե՞լ «{{name}}»: Հարցումներն այլևս չեն երթուղավորվի այս կանոնով.",
+      "col_order": "Հերթականություն",
+      "col_priority": "Առաջնահերթություն",
+      "col_name": "Անուն",
+      "col_action": "Գործողություն",
+      "col_scope": "Շրջանակ",
+      "col_condition": "Պայման",
+      "col_enabled": "Միացված",
+      "col_actions": "Գործողություններ",
+      "move_up": "Վեր",
+      "move_down": "Վար",
+      "label_name": "Անուն",
+      "label_description": "Նկարագրություն",
+      "label_scope": "Տվյալների աղբյուրի շրջանակ",
+      "label_priority": "Առաջնահերթություն",
+      "label_enabled": "Միացված",
+      "label_action": "Գործողություն",
+      "label_required_approvals": "Պահանջվող հաստատումներ",
+      "label_reason": "Պատճառ",
+      "label_match_type": "Համընկնում",
+      "label_conditions": "Պայմաններ",
+      "scope_org_wide": "Բոլոր տվյալների աղբյուրները",
+      "match_all": "Համապատասխանել բոլոր պայմաններին",
+      "match_any": "Համապատասխանել որևէ պայմանի",
+      "match_all_joiner": "և",
+      "match_any_joiner": "կամ",
+      "condition_add": "Ավելացնել պայման",
+      "condition_remove": "Հեռացնել պայմանը",
+      "validation_min_conditions": "Ավելացրեք առնվազն մեկ պայման.",
+      "table_globs_placeholder": "օր. payroll.*, *.users",
+      "groups_placeholder": "Ընտրել խմբեր",
+      "negate_hint": "Հակադարձել այս պայմանը (ՈՉ).",
+      "not_prefix": "ՈՉ",
+      "is_prefix": "Է",
+      "bool_present_label": "Առկա",
+      "group_count": "{{count}} խումբ",
+      "condition_advanced": "Բարդ պայման",
+      "condition_advanced_warning": "Այս քաղաքականությունն օգտագործում է ներդրված պայման, որը կառավարվող խմբագրիչը չի կարող խմբագրել. այստեղ պահպանելը այն կփոխարինի.",
+      "condition_any_query": "Ցանկացած հարցում"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Հեշ (SHA-256)",
       "EMAIL": "Էլ. փոստը պահպանող",
       "FORMAT_PRESERVING": "Ձևաչափը պահպանող"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Ավտոմատ հաստատել",
+      "AUTO_REJECT": "Ավտոմատ մերժել",
+      "REQUIRE_APPROVALS": "Պահանջել հաստատումներ",
+      "ESCALATE": "Սրընթացել"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Երկուշաբթի",
+      "TUESDAY": "Երեքշաբթի",
+      "WEDNESDAY": "Չորեքշաբթի",
+      "THURSDAY": "Հինգշաբթի",
+      "FRIDAY": "Ուրբաթ",
+      "SATURDAY": "Շաբաթ",
+      "SUNDAY": "Կիրակի"
+    },
+    "condition_operand": {
+      "query_type": "Հարցման տեսակ",
+      "referenced_table": "Հղված աղյուսակ",
+      "risk_level": "AI ռիսկի մակարդակ",
+      "risk_score": "AI ռիսկի միավոր",
+      "requester_role": "Հայցողի դերը",
+      "requester_group": "Հայցողի խումբը",
+      "time_of_day": "Օրվա ժամ",
+      "day_of_week": "Շաբաթվա օր",
+      "has_where": "Ունի WHERE դրույթ",
+      "has_limit": "Ունի LIMIT դրույթ",
+      "transactional": "Տրանզակցիոն"
     }
   },
   "access": {

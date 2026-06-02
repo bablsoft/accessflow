@@ -19,9 +19,15 @@ import java.util.Set;
  * otherwise. CTE aliases are excluded. The set may be empty (e.g. {@code SELECT 1} or DDL
  * statements that JSqlParser cannot deparse) — callers must treat an empty set as "no tables
  * detected", not "allow everything".
+ *
+ * <p>{@code hasWhereClause} / {@code hasLimitClause} report whether any parsed statement carries a
+ * WHERE clause or a LIMIT clause respectively (OR-ed across a transactional batch). They feed the
+ * routing-policy engine's {@code has_where} / {@code has_limit} conditions; LIMIT is only
+ * meaningful for SELECT.
  */
 public record SqlParseResult(QueryType type, boolean transactional, List<String> statements,
-                              Set<String> referencedTables) {
+                             Set<String> referencedTables, boolean hasWhereClause,
+                             boolean hasLimitClause) {
 
     public SqlParseResult {
         if (statements == null || statements.isEmpty()) {
@@ -32,6 +38,11 @@ public record SqlParseResult(QueryType type, boolean transactional, List<String>
     }
 
     public SqlParseResult(QueryType type, String sql) {
-        this(type, false, List.of(sql), Set.of());
+        this(type, false, List.of(sql), Set.of(), false, false);
+    }
+
+    public SqlParseResult(QueryType type, boolean transactional, List<String> statements,
+                          Set<String> referencedTables) {
+        this(type, transactional, statements, referencedTables, false, false);
     }
 }

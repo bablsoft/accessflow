@@ -22,6 +22,33 @@ export type QueryStatus =
   | 'CANCELLED';
 export type QueryType = 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'DDL';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type RoutingAction =
+  | 'AUTO_APPROVE'
+  | 'AUTO_REJECT'
+  | 'REQUIRE_APPROVALS'
+  | 'ESCALATE';
+export type ComparisonOperator = 'LT' | 'LTE' | 'GT' | 'GTE' | 'EQ';
+/** Leaf condition operands the guided routing-policy builder exposes. */
+export type RoutingConditionOperand =
+  | 'query_type'
+  | 'referenced_table'
+  | 'risk_level'
+  | 'risk_score'
+  | 'requester_role'
+  | 'requester_group'
+  | 'time_of_day'
+  | 'day_of_week'
+  | 'has_where'
+  | 'has_limit'
+  | 'transactional';
+export type Weekday =
+  | 'MONDAY'
+  | 'TUESDAY'
+  | 'WEDNESDAY'
+  | 'THURSDAY'
+  | 'FRIDAY'
+  | 'SATURDAY'
+  | 'SUNDAY';
 export type IssueSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type ChannelType =
   | 'EMAIL'
@@ -757,10 +784,72 @@ export interface QueryDetail {
   previous_run_id: string | null;
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
+  matched_policy: MatchedRoutingPolicy | null;
   review_decisions: ReviewDecisionDetail[];
   scheduled_for: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** The routing policy that auto-decided a query, surfaced on the detail timeline. */
+export interface MatchedRoutingPolicy {
+  policy_id: string | null;
+  policy_name: string | null;
+  action: RoutingAction;
+  reason: string | null;
+}
+
+/**
+ * Typed, attribute-based condition tree mirroring the backend {@code routing_policy.condition}
+ * JSONB wire shape (snake_case, "type"-discriminated).
+ */
+export type RoutingCondition =
+  | { type: 'and'; children: RoutingCondition[] }
+  | { type: 'or'; children: RoutingCondition[] }
+  | { type: 'not'; child: RoutingCondition }
+  | { type: 'query_type'; any_of: QueryType[] }
+  | { type: 'referenced_table'; globs: string[] }
+  | { type: 'risk_level'; any_of: RiskLevel[] }
+  | { type: 'risk_score'; operator: ComparisonOperator; value: number }
+  | { type: 'requester_role'; any_of: Role[] }
+  | { type: 'requester_group'; group_ids: string[] }
+  | { type: 'time_of_day'; start_minute_of_day: number; end_minute_of_day: number }
+  | { type: 'day_of_week'; any_of: Weekday[] }
+  | { type: 'has_where'; expected: boolean }
+  | { type: 'has_limit'; expected: boolean }
+  | { type: 'transactional'; expected: boolean };
+
+export interface RoutingPolicy {
+  id: string;
+  organization_id: string;
+  datasource_id: string | null;
+  name: string;
+  description: string | null;
+  priority: number;
+  enabled: boolean;
+  condition: RoutingCondition;
+  action: RoutingAction;
+  required_approvals: number | null;
+  reason: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoutingPolicyWriteRequest {
+  name: string;
+  description?: string | null;
+  datasource_id?: string | null;
+  priority: number;
+  enabled: boolean;
+  condition: RoutingCondition;
+  action: RoutingAction;
+  required_approvals?: number | null;
+  reason?: string | null;
+}
+
+export interface ReorderRoutingPoliciesRequest {
+  ordered_ids: string[];
 }
 
 export interface QueryDiffResponse {

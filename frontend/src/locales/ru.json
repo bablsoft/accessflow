@@ -29,7 +29,9 @@
     "close": "Закрыть",
     "ok": "OK",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "Да",
+    "no": "Нет"
   },
   "nav": {
     "editor": "Редактор SQL",
@@ -56,7 +58,8 @@
     "datasource_health": "Состояние источников",
     "slack": "Slack",
     "request_access": "Запросить доступ",
-    "access_requests": "Запросы доступа"
+    "access_requests": "Запросы доступа",
+    "routing_policies": "Политики маршрутизации"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "JAR превышает лимит загрузки {{maxMb}} МБ. Удалите неиспользуемые классы или разделите сборку.",
     "custom_driver_not_found": "Пользовательский JDBC-драйвер не найден.",
     "custom_driver_validation": "Некоторые обязательные поля загрузки отсутствуют или некорректны.",
-    "custom_driver_generic": "Не удалось загрузить JDBC-драйвер. Попробуйте ещё раз."
+    "custom_driver_generic": "Не удалось загрузить JDBC-драйвер. Попробуйте ещё раз.",
+    "routing_policy_not_found": "Политика маршрутизации не найдена.",
+    "routing_policy_priority_conflict": "Другая политика маршрутизации уже использует этот приоритет.",
+    "routing_policy_invalid": "Политика маршрутизации недопустима.",
+    "routing_policy_generic": "Не удалось сохранить политику маршрутизации. Повторите попытку."
   },
   "editor": {
     "title": "Редактор SQL",
@@ -484,7 +491,11 @@
       "timeout_title": "Авто-отклонено по тайм-ауту утверждения",
       "timeout_body_with_plan": "План «{{plan}}» требует утверждения за {{hours}} ч. Тайм-аут {{when}}.",
       "timeout_body_without_plan": "Окно утверждения {{hours}} ч истекло без решения. Тайм-аут {{when}}.",
-      "timeline_timed_out": "Тайм-аут"
+      "timeline_timed_out": "Тайм-аут",
+      "matched_policy_title": "Решено автоматически политикой маршрутизации ({{action}})",
+      "matched_policy_body": "Политика «{{name}}» — {{reason}}",
+      "matched_policy_deleted": "(удалённая политика)",
+      "matched_policy_no_reason": "причина не указана"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "Удалить конфигурацию приложения Slack?",
       "delete_success": "Конфигурация приложения Slack удалена",
       "load_error": "Не удалось загрузить конфигурацию приложения Slack"
+    },
+    "routing_policies": {
+      "title": "Политики маршрутизации",
+      "subtitle": "Правила на основе атрибутов, которые автоматически определяют маршрутизацию запросов до распределения проверяющим.",
+      "add_button": "Добавить политику",
+      "load_error": "Не удалось загрузить политики маршрутизации.",
+      "empty": "Политик маршрутизации пока нет. Запросы следуют плану проверки источника данных.",
+      "create_modal_title": "Добавить политику маршрутизации",
+      "edit_modal_title": "Изменить политику маршрутизации · {{name}}",
+      "save_create": "Создать политику",
+      "save_update": "Сохранить изменения",
+      "create_success": "Политика маршрутизации создана.",
+      "update_success": "Политика маршрутизации обновлена.",
+      "delete_success": "Политика маршрутизации удалена.",
+      "delete_confirm_title": "Удалить политику маршрутизации?",
+      "delete_confirm_body": "Удалить «{{name}}»? Запросы больше не будут маршрутизироваться этим правилом.",
+      "col_order": "Порядок",
+      "col_priority": "Приоритет",
+      "col_name": "Название",
+      "col_action": "Действие",
+      "col_scope": "Область",
+      "col_condition": "Условие",
+      "col_enabled": "Включено",
+      "col_actions": "Действия",
+      "move_up": "Вверх",
+      "move_down": "Вниз",
+      "label_name": "Название",
+      "label_description": "Описание",
+      "label_scope": "Область источника данных",
+      "label_priority": "Приоритет",
+      "label_enabled": "Включено",
+      "label_action": "Действие",
+      "label_required_approvals": "Требуемые подтверждения",
+      "label_reason": "Причина",
+      "label_match_type": "Совпадение",
+      "label_conditions": "Условия",
+      "scope_org_wide": "Все источники данных",
+      "match_all": "Все условия",
+      "match_any": "Любое условие",
+      "match_all_joiner": "и",
+      "match_any_joiner": "или",
+      "condition_add": "Добавить условие",
+      "condition_remove": "Удалить условие",
+      "validation_min_conditions": "Добавьте хотя бы одно условие.",
+      "table_globs_placeholder": "напр. payroll.*, *.users",
+      "groups_placeholder": "Выберите группы",
+      "negate_hint": "Инвертировать это условие (НЕ).",
+      "not_prefix": "НЕ",
+      "is_prefix": "ЕСТЬ",
+      "bool_present_label": "Присутствует",
+      "group_count": "групп: {{count}}",
+      "condition_advanced": "Расширенное условие",
+      "condition_advanced_warning": "Эта политика использует вложенное условие, которое нельзя изменить в визуальном редакторе; сохранение заменит его.",
+      "condition_any_query": "Любой запрос"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Хеш (SHA-256)",
       "EMAIL": "С сохранением e-mail",
       "FORMAT_PRESERVING": "С сохранением формата"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Автоодобрение",
+      "AUTO_REJECT": "Автоотклонение",
+      "REQUIRE_APPROVALS": "Требовать подтверждения",
+      "ESCALATE": "Эскалировать"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Понедельник",
+      "TUESDAY": "Вторник",
+      "WEDNESDAY": "Среда",
+      "THURSDAY": "Четверг",
+      "FRIDAY": "Пятница",
+      "SATURDAY": "Суббота",
+      "SUNDAY": "Воскресенье"
+    },
+    "condition_operand": {
+      "query_type": "Тип запроса",
+      "referenced_table": "Используемая таблица",
+      "risk_level": "Уровень риска ИИ",
+      "risk_score": "Оценка риска ИИ",
+      "requester_role": "Роль запрашивающего",
+      "requester_group": "Группа запрашивающего",
+      "time_of_day": "Время суток",
+      "day_of_week": "День недели",
+      "has_where": "Есть условие WHERE",
+      "has_limit": "Есть условие LIMIT",
+      "transactional": "Транзакционный"
     }
   },
   "access": {

@@ -518,6 +518,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/ai-configs/:id               → AiConfigEditPage
 /admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
+/admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
@@ -553,6 +554,22 @@ Groups (and individual users) can be assigned as **per-datasource reviewers** so
 sees the review queues it owns; the client for that endpoint is
 [frontend/src/api/datasourceReviewers.ts](../frontend/src/api/datasourceReviewers.ts)
 (`listReviewers` / `addReviewer` / `removeReviewer` against `/datasources/{id}/reviewers`).
+
+### Routing policies (AF-379)
+
+`RoutingPoliciesPage` (`/admin/routing-policies`, lazy, admin-only) is the admin surface for the
+policy-as-code routing engine. The nav entry **Routing policies** sits in the **Security** group
+next to **Review plans**. The page renders a `<Table>` of the org's policies in priority order with
+priority up/down reorder controls (`PUT /admin/routing-policies/reorder`), an action pill
+(`AUTO_APPROVE` / `AUTO_REJECT` / `REQUIRE_APPROVALS` / `ESCALATE`), an `enabled` `Switch` toggle, a
+human-readable condition summary, and per-row edit / delete. Create / edit open a `Modal` with a
+**guided condition builder** — the builder produces a single-level ALL (AND) / ANY (OR) of leaf
+conditions, each optionally negated (NOT); there is no raw-JSON editor. API access lives in
+[frontend/src/api/routingPolicies.ts](../frontend/src/api/routingPolicies.ts); the form↔wire mapping
+helper is [frontend/src/pages/admin/routingPolicyForm.ts](../frontend/src/pages/admin/routingPolicyForm.ts);
+types (`RoutingPolicy`, `RoutingCondition`, `RoutingAction`, …) live in `src/types/api.ts`.
+`QueryDetailPage` shows a **matched-policy** alert when `GET /queries/{id}` returns a non-null
+`matched_policy`.
 
 ### OAuth 2.0 sign-in
 

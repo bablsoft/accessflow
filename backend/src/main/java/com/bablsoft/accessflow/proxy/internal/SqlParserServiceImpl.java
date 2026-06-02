@@ -67,7 +67,7 @@ class SqlParserServiceImpl implements SqlParserService {
         }
         var statement = statements.get(0);
         return new SqlParseResult(classify(statement), false, List.of(sql),
-                extractReferencedTables(statement));
+                extractReferencedTables(statement), hasWhere(statement), hasLimit(statement));
     }
 
     private SqlParseResult parseTransaction(String sql, TransactionMarkerScanner.Boundary boundary) {
@@ -110,10 +110,15 @@ class SqlParserServiceImpl implements SqlParserService {
         var representativeType = classify(statements.get(0));
         var statementSlices = sliceStatements(statements);
         var referencedTables = new HashSet<String>();
+        boolean anyWhere = false;
+        boolean anyLimit = false;
         for (Statement statement : statements) {
             referencedTables.addAll(extractReferencedTables(statement));
+            anyWhere = anyWhere || hasWhere(statement);
+            anyLimit = anyLimit || hasLimit(statement);
         }
-        return new SqlParseResult(representativeType, true, statementSlices, referencedTables);
+        return new SqlParseResult(representativeType, true, statementSlices, referencedTables,
+                anyWhere, anyLimit);
     }
 
     private List<Statement> parseStatementsOrThrow(String sql) {
@@ -182,6 +187,23 @@ class SqlParserServiceImpl implements SqlParserService {
             stripped.append(c);
         }
         return stripped.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean hasWhere(Statement statement) {
+        return switch (statement) {
+            case Select select -> {
+                var plain = select.getPlainSelect();
+                yield plain != null && plain.getWhere() != null;
+            }
+            case Update update -> update.getWhere() != null;
+            case Delete delete -> delete.getWhere() != null;
+            default -> false;
+        };
+    }
+
+    private static boolean hasLimit(Statement statement) {
+        // LIMIT is only meaningful for SELECT.
+        return statement instanceof Select select && select.getLimit() != null;
     }
 
     private static QueryType classify(Statement statement) {

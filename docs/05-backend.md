@@ -504,6 +504,33 @@ Decision rules:
 
 `AiAnalysisSkippedEvent` (added in AF-307) covers the case where the datasource has `ai_analysis_enabled = false`. The state machine respects `plan.requires_human_approval`: when human review is not required the query transitions `PENDING_AI → APPROVED`; otherwise (plan requires human approval, or no plan is configured) it transitions to `PENDING_REVIEW`. The fast-path `auto_approve_reads` shortcut is **never** applied — without an AI risk signal, the SELECT/low-risk shortcut cannot be evaluated. No sentinel `ai_analyses` row is persisted, so the frontend renders the analysis step as bypassed rather than failed.
 
+### Policy-as-code routing engine (AF-379)
+
+Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:
+
+1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, transactional flag) via `RoutingConditionEvaluator`.
+2. **First match wins.** The first enabled policy whose condition matches decides the action; evaluation stops there. On **no match** the query falls through to the datasource's review plan exactly as before — deterministic fall-through, identical to the pre-AF-379 behaviour.
+3. The outcome (matched policy id, action, resolved `effective_min_approvals`, reason) is persisted as a single `routing_decision` row (`RoutingDecisionService`), and surfaced on `GET /queries/{id}` as `matched_policy`.
+
+The four `routing_action` effects:
+
+| Action | Effect |
+|--------|--------|
+| `AUTO_APPROVE` | Short-circuit straight to `APPROVED`, skipping human review. |
+| `AUTO_REJECT` | Short-circuit straight to `REJECTED` — a **new** `PENDING_AI → REJECTED` state-machine edge. Illegal before AF-379. |
+| `REQUIRE_APPROVALS` | Force human review (`PENDING_REVIEW`) with an **absolute** minimum approvals = the policy's `required_approvals`. |
+| `ESCALATE` | Force human review with effective minimum = the review plan's `min_approvals_required` + the policy's `required_approvals` delta (default delta 1). |
+
+For `REQUIRE_APPROVALS` / `ESCALATE`, the resolved absolute count is written to `routing_decision.effective_min_approvals` and read by `DefaultReviewService` as the **per-stage minimum override** in place of the plan's `min_approvals_required` — so the routing decision, not just the plan, governs how many approvals a stage needs.
+
+**Condition model.** The condition tree is a typed, pure-Java model (no external policy engine, no raw SQL) serialised to / from the `routing_policy.condition` JSONB by `RoutingConditionCodec`. Logical combinators (`and` / `or` / `not`) nest arbitrarily for API/bootstrap-authored policies; the UI's guided builder authors a single-level `and` / `or` of (optionally negated) leaf conditions. The wire format is documented in [docs/03-data-model.md → routing_policy](03-data-model.md#routing_policy).
+
+**Timezone.** `time_of_day` and `day_of_week` operands are evaluated in the **server's local timezone**; `time_of_day` supports overnight wrap-around (e.g. a 22:00–06:00 window).
+
+**Skip / failure paths.** On the AI-skipped path (`datasource.ai_analysis_enabled = false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal, so risk-gated policies simply don't match and the query continues to non-risk policies or the plan fall-through. Routing is **not** run on the AI-failure path (`AiAnalysisFailedEvent`) — a missing AI signal never feeds an automated routing decision; the query lands in `PENDING_REVIEW` for a human, consistent with the auto-approve asymmetry above.
+
+**Audit.** Automated decisions reuse the `QUERY_APPROVED` / `QUERY_REJECTED` audit actions with metadata `{ auto_approved | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`. Policy CRUD writes the dedicated `ROUTING_POLICY_CREATED` / `_UPDATED` / `_DELETED` / `_REORDERED` actions against the `routing_policy` resource type. The engine reads / writes the new `routing_policy` and `routing_decision` tables (Flyway `V59__create_routing_policy.sql`).
+
 ### Implementation: review decisions
 
 `workflow.internal.DefaultReviewService` enforces eligibility and orchestrates state transitions through `core.api.QueryRequestStateService`:

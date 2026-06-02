@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
@@ -49,6 +50,7 @@ class DefaultReviewService implements ReviewService {
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final QueryRequestStateService queryRequestStateService;
     private final ReviewerEligibilityService reviewerEligibilityService;
+    private final RoutingDecisionService routingDecisionService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -75,7 +77,7 @@ class DefaultReviewService implements ReviewService {
         var prep = prepareDecision(queryRequestId, context);
         var command = new RecordApprovalCommand(queryRequestId, context.userId(),
                 prep.currentStage(),
-                prep.plan().minApprovalsRequired(),
+                prep.effectiveMinApprovals(),
                 prep.currentStage() == prep.plan().maxStage(),
                 comment);
         var result = mapTransitionFailure(queryRequestId,
@@ -198,15 +200,25 @@ class DefaultReviewService implements ReviewService {
         if (!plan.organizationId().equals(view.organizationId())) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
+        var effectiveMin = effectiveMinApprovals(queryRequestId, plan);
         var decisions = queryRequestStateService.listDecisions(queryRequestId);
-        var currentStage = currentStage(plan, decisions);
+        var currentStage = currentStage(plan, decisions, effectiveMin);
         if (!isApproverAtStage(plan, currentStage, context)) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
         if (!isInDatasourceScope(view.datasourceId(), context.userId())) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
-        return new DecisionPreparation(plan, currentStage, view.submittedByUserId());
+        return new DecisionPreparation(plan, currentStage, effectiveMin, view.submittedByUserId());
+    }
+
+    /**
+     * The effective minimum approvals for a query — a routing-policy override (ESCALATE /
+     * REQUIRE_APPROVALS) when one was recorded, otherwise the review plan's value.
+     */
+    private int effectiveMinApprovals(UUID queryRequestId, ReviewPlanSnapshot plan) {
+        return routingDecisionService.findEffectiveMinApprovals(queryRequestId)
+                .orElseGet(plan::minApprovalsRequired);
     }
 
     private boolean isInDatasourceScope(UUID datasourceId, UUID userId) {
@@ -215,7 +227,8 @@ class DefaultReviewService implements ReviewService {
     }
 
     private static int currentStage(ReviewPlanSnapshot plan,
-                                    List<ReviewDecisionSnapshot> decisions) {
+                                    List<ReviewDecisionSnapshot> decisions,
+                                    int minApprovalsRequired) {
         var stages = plan.approvers().stream()
                 .map(ApproverRule::stage)
                 .distinct()
@@ -225,7 +238,7 @@ class DefaultReviewService implements ReviewService {
             long approvedAtStage = decisions.stream()
                     .filter(d -> d.stage() == stage && d.decision() == DecisionType.APPROVED)
                     .count();
-            if (approvedAtStage < plan.minApprovalsRequired()) {
+            if (approvedAtStage < minApprovalsRequired) {
                 return stage;
             }
         }
@@ -261,14 +274,16 @@ class DefaultReviewService implements ReviewService {
             return false;
         }
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
-        var stage = currentStage(plan, decisions);
+        var stage = currentStage(plan, decisions,
+                effectiveMinApprovals(view.queryRequestId(), plan));
         return isApproverAtStage(plan, stage, context);
     }
 
     private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context) {
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElseThrow();
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
-        var stage = currentStage(plan, decisions);
+        var stage = currentStage(plan, decisions,
+                effectiveMinApprovals(view.queryRequestId(), plan));
         return new PendingReview(
                 view.queryRequestId(),
                 view.datasourceId(),
@@ -296,6 +311,6 @@ class DefaultReviewService implements ReviewService {
     }
 
     private record DecisionPreparation(ReviewPlanSnapshot plan, int currentStage,
-                                       UUID submitterId) {
+                                       int effectiveMinApprovals, UUID submitterId) {
     }
 }

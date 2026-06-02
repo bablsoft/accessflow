@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
+import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import lombok.RequiredArgsConstructor;
@@ -127,15 +128,52 @@ class AuditEventListener {
     void onQueryAutoApproved(QueryAutoApprovedEvent event) {
         recordSafely(AuditAction.QUERY_APPROVED, event.queryRequestId(),
                 () -> queryRequestLookupService.findById(event.queryRequestId()),
-                snapshot -> new AuditEntry(
-                        AuditAction.QUERY_APPROVED,
-                        AuditResourceType.QUERY_REQUEST,
-                        snapshot.id(),
-                        snapshot.organizationId(),
-                        null,
-                        Map.of("auto_approved", true),
-                        null,
-                        null));
+                snapshot -> {
+                    var metadata = new HashMap<String, Object>();
+                    metadata.put("auto_approved", true);
+                    if (event.matchedPolicyId() != null) {
+                        metadata.put("source", "ROUTING_POLICY");
+                        metadata.put("routing_policy_id", event.matchedPolicyId().toString());
+                        if (event.reason() != null) {
+                            metadata.put("reason", event.reason());
+                        }
+                    }
+                    return new AuditEntry(
+                            AuditAction.QUERY_APPROVED,
+                            AuditResourceType.QUERY_REQUEST,
+                            snapshot.id(),
+                            snapshot.organizationId(),
+                            null,
+                            metadata,
+                            null,
+                            null);
+                });
+    }
+
+    @ApplicationModuleListener
+    void onQueryAutoRejected(QueryAutoRejectedEvent event) {
+        recordSafely(AuditAction.QUERY_REJECTED, event.queryRequestId(),
+                () -> queryRequestLookupService.findById(event.queryRequestId()),
+                snapshot -> {
+                    var metadata = new HashMap<String, Object>();
+                    metadata.put("auto_rejected", true);
+                    metadata.put("source", "ROUTING_POLICY");
+                    if (event.matchedPolicyId() != null) {
+                        metadata.put("routing_policy_id", event.matchedPolicyId().toString());
+                    }
+                    if (event.reason() != null) {
+                        metadata.put("reason", event.reason());
+                    }
+                    return new AuditEntry(
+                            AuditAction.QUERY_REJECTED,
+                            AuditResourceType.QUERY_REQUEST,
+                            snapshot.id(),
+                            snapshot.organizationId(),
+                            null,
+                            metadata,
+                            null,
+                            null);
+                });
     }
 
     @ApplicationModuleListener
