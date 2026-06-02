@@ -10,6 +10,8 @@ import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.access.internal.config.AccessProperties;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
+import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
@@ -36,6 +38,7 @@ class DefaultAccessRequestService implements AccessRequestService {
     private final AccessGrantRequestStateService stateService;
     private final AccessRequestViewMapper viewMapper;
     private final DatasourceLookupService datasourceLookupService;
+    private final DatasourceAdminService datasourceAdminService;
     private final AccessProperties properties;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
@@ -98,6 +101,15 @@ class DefaultAccessRequestService implements AccessRequestService {
         return datasourceLookupService.findActiveRefsByOrganization(organizationId).stream()
                 .map(ref -> new DatasourceOption(ref.id(), ref.name()))
                 .toList();
+    }
+
+    @Override
+    public DatabaseSchemaView introspectRequestableDatasourceSchema(UUID datasourceId,
+                                                                    UUID organizationId) {
+        // introspectSchemaForSystem is org-scoped (loadInOrganization) and not permission-gated —
+        // a JIT requester does not yet hold a permission on the datasource. It manages its own
+        // REQUIRES_NEW read-only transaction, so no @Transactional is needed here.
+        return datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId);
     }
 
     private void requireRequestableDatasource(UUID organizationId, UUID datasourceId) {

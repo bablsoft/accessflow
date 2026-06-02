@@ -1294,6 +1294,16 @@ Requester cancels their own request. Only a `PENDING` request is cancellable (`4
 
 `[{ "id": "uuid", "name": "analytics-prod" }]` — active datasources in the organization the caller may target. Not scoped to existing permissions (id + name only; no connection details).
 
+### GET /access-requests/datasources/{id}/schema — Response 200 *(any authenticated user)* (AF-389)
+
+Introspects the live schema of a requestable datasource so the request form can populate its **Schemas** / **Tables** dropdowns. Unlike `GET /datasources/{id}/schema` (which is permission-gated and 404s for callers without an existing grant), this endpoint is **org-scoped but not permission-gated** — JIT access exists precisely to scope access a user does not yet have. To keep exposure minimal it returns **schema and table names only** (no columns or foreign keys):
+
+```json
+{ "schemas": [{ "name": "public", "tables": ["orders", "customers"] }] }
+```
+
+`404 DATASOURCE_NOT_FOUND` when the datasource is not active in the caller's organization; `422 DATASOURCE_CONNECTION_TEST_FAILED` when live introspection fails.
+
 ### GET /admin/access-requests — Query Parameters *(REVIEWER / ADMIN)*
 
 Paginated queue of access requests the caller can currently act on (current-stage + datasource-scope filtered, self-requests excluded), mirroring `/reviews/pending`.

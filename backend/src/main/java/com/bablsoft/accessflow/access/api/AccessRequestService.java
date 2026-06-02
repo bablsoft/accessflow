@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.access.api;
 
+import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 
@@ -34,6 +35,17 @@ public interface AccessRequestService {
      * JIT access exists precisely to grant access a user does not yet have.
      */
     List<DatasourceOption> listRequestableDatasources(UUID organizationId);
+
+    /**
+     * Introspects the live schema (schema + table names only) of a requestable datasource so a JIT
+     * requester can scope their access request. Org-scoped but NOT permission-gated — like
+     * {@link #listRequestableDatasources(UUID)}, JIT access exists to scope access a user does not yet
+     * have. Throws {@link com.bablsoft.accessflow.core.api.DatasourceNotFoundException} when the
+     * datasource is not in the organization and
+     * {@link com.bablsoft.accessflow.core.api.DatasourceConnectionTestException} when introspection
+     * fails.
+     */
+    DatabaseSchemaView introspectRequestableDatasourceSchema(UUID datasourceId, UUID organizationId);
 
     record SubmitCommand(
             UUID organizationId,

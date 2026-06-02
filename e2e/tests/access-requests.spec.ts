@@ -101,6 +101,27 @@ test.describe.serial('access requests (AF-378)', () => {
     await expect(page.getByText(/left$/)).toBeVisible({ timeout: 15_000 });
   });
 
+  test('schema dropdown populates from the selected datasource (AF-389)', async ({ page }) => {
+    // A non-admin requester holds no permission grant on the datasource, yet must be able to
+    // introspect schema/table names to scope the request — served by the JIT-scoped endpoint
+    // GET /access-requests/datasources/{id}/schema (not the permission-gated datasource schema).
+    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await page.goto('/access-requests');
+
+    // Select the datasource (first combobox in the form).
+    const dsSelect = page.getByRole('combobox').first();
+    await dsSelect.click();
+    await page.locator('.ant-select-item-option').filter({ hasText: datasource!.name }).click();
+    await page.keyboard.press('Escape');
+
+    // Open the Schemas dropdown (second combobox) — the seeded datasource points at the
+    // control-plane Postgres, whose `public` schema is always present.
+    await page.getByRole('combobox').nth(1).click();
+    await expect(
+      page.locator('.ant-select-item-option').filter({ hasText: 'public' }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
   test('requester can cancel a pending request', async ({ page }) => {
     await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, datasource!.name);

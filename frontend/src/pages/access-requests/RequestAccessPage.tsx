@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Select, Skeleton, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import { reviewErrorMessage } from '@/utils/apiErrors';
 import {
   accessRequestKeys,
   cancelAccessRequest,
+  getRequestableDatasourceSchema,
   listMyAccessRequests,
   listRequestableDatasources,
   submitAccessRequest,
@@ -38,6 +40,39 @@ export function RequestAccessPage() {
     queryKey: accessRequestKeys.datasources(),
     queryFn: listRequestableDatasources,
   });
+
+  const selectedDatasource = Form.useWatch('datasource_id', form);
+  const selectedSchemas = Form.useWatch('allowed_schemas', form);
+
+  const schema = useQuery({
+    queryKey: accessRequestKeys.schema(selectedDatasource ?? ''),
+    queryFn: () => getRequestableDatasourceSchema(selectedDatasource as string),
+    enabled: !!selectedDatasource,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const schemaOptions = useMemo(
+    () => (schema.data?.schemas ?? []).map((s) => ({ value: s.name, label: s.name })),
+    [schema.data],
+  );
+
+  const tableOptions = useMemo(() => {
+    const schemas = schema.data?.schemas ?? [];
+    const filter =
+      selectedSchemas && selectedSchemas.length > 0 ? new Set(selectedSchemas) : null;
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    for (const s of schemas) {
+      if (filter && !filter.has(s.name)) continue;
+      for (const tb of s.tables) {
+        if (seen.has(tb)) continue;
+        seen.add(tb);
+        opts.push({ value: tb, label: tb });
+      }
+    }
+    return opts;
+  }, [schema.data, selectedSchemas]);
 
   const mine = useQuery({
     queryKey: accessRequestKeys.mine({ size: 50 }),
@@ -132,97 +167,116 @@ export function RequestAccessPage() {
   ];
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('access.request.title')} subtitle={t('access.request.subtitle')} />
 
-      <Card style={{ marginBottom: 24, maxWidth: 640 }}>
-        <Form<RequestFormValues>
-          form={form}
-          layout="vertical"
-          onFinish={(values) => submit.mutate(values)}
-          initialValues={{ capabilities: ['read'], requested_duration: 'PT4H' }}
-        >
-          <Form.Item
-            name="datasource_id"
-            label={t('access.request.datasource')}
-            rules={[{ required: true, message: t('access.request.validation.datasource_required') }]}
+      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        <Card style={{ marginBottom: 24, maxWidth: 640 }}>
+          <Form<RequestFormValues>
+            form={form}
+            layout="vertical"
+            onFinish={(values) => submit.mutate(values)}
+            initialValues={{ capabilities: ['read'], requested_duration: 'PT4H' }}
           >
-            <Select
-              placeholder={t('access.request.datasource_placeholder')}
-              loading={datasources.isLoading}
-              options={(datasources.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
-              showSearch
-              optionFilterProp="label"
-            />
-          </Form.Item>
+            <Form.Item
+              name="datasource_id"
+              label={t('access.request.datasource')}
+              rules={[{ required: true, message: t('access.request.validation.datasource_required') }]}
+            >
+              <Select
+                placeholder={t('access.request.datasource_placeholder')}
+                loading={datasources.isLoading}
+                options={(datasources.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
+                showSearch
+                optionFilterProp="label"
+                onChange={() =>
+                  form.setFieldsValue({ allowed_schemas: undefined, allowed_tables: undefined })
+                }
+              />
+            </Form.Item>
 
-          <Form.Item
-            name="capabilities"
-            label={t('access.request.capabilities')}
-            rules={[{ required: true, message: t('access.request.validation.capability_required') }]}
-          >
-            <Checkbox.Group
-              options={[
-                { value: 'read', label: t('access.request.can_read') },
-                { value: 'write', label: t('access.request.can_write') },
-                { value: 'ddl', label: t('access.request.can_ddl') },
+            <Form.Item
+              name="capabilities"
+              label={t('access.request.capabilities')}
+              rules={[{ required: true, message: t('access.request.validation.capability_required') }]}
+            >
+              <Checkbox.Group
+                options={[
+                  { value: 'read', label: t('access.request.can_read') },
+                  { value: 'write', label: t('access.request.can_write') },
+                  { value: 'ddl', label: t('access.request.can_ddl') },
+                ]}
+              />
+            </Form.Item>
+
+            <Form.Item name="allowed_schemas" label={t('access.request.schemas')}>
+              <Select
+                mode="tags"
+                placeholder={t('access.request.schemas_placeholder')}
+                tokenSeparators={[',']}
+                options={schemaOptions}
+                loading={schema.isLoading}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+
+            <Form.Item name="allowed_tables" label={t('access.request.tables')}>
+              <Select
+                mode="tags"
+                placeholder={t('access.request.tables_placeholder')}
+                tokenSeparators={[',']}
+                options={tableOptions}
+                loading={schema.isLoading}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="requested_duration"
+              label={t('access.request.duration')}
+              rules={[{ required: true, message: t('access.request.validation.duration_required') }]}
+            >
+              <Select
+                options={DURATIONS.map((d) => ({ value: d, label: t(`access.request.durations.${d}` as const) }))}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="justification"
+              label={t('access.request.justification')}
+              rules={[
+                { required: true, message: t('access.request.validation.justification_required') },
+                { max: 4000, message: t('access.request.validation.justification_max') },
               ]}
-            />
-          </Form.Item>
+            >
+              <Input.TextArea
+                rows={3}
+                maxLength={4000}
+                placeholder={t('access.request.justification_placeholder')}
+              />
+            </Form.Item>
 
-          <Form.Item name="allowed_schemas" label={t('access.request.schemas')}>
-            <Select mode="tags" placeholder={t('access.request.schemas_placeholder')} tokenSeparators={[',']} />
-          </Form.Item>
+            <Button type="primary" htmlType="submit" loading={submit.isPending}>
+              {t('access.request.submit')}
+            </Button>
+          </Form>
+        </Card>
 
-          <Form.Item name="allowed_tables" label={t('access.request.tables')}>
-            <Select mode="tags" placeholder={t('access.request.tables_placeholder')} tokenSeparators={[',']} />
-          </Form.Item>
-
-          <Form.Item
-            name="requested_duration"
-            label={t('access.request.duration')}
-            rules={[{ required: true, message: t('access.request.validation.duration_required') }]}
-          >
-            <Select
-              options={DURATIONS.map((d) => ({ value: d, label: t(`access.request.durations.${d}` as const) }))}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="justification"
-            label={t('access.request.justification')}
-            rules={[
-              { required: true, message: t('access.request.validation.justification_required') },
-              { max: 4000, message: t('access.request.validation.justification_max') },
-            ]}
-          >
-            <Input.TextArea
-              rows={3}
-              maxLength={4000}
-              placeholder={t('access.request.justification_placeholder')}
-            />
-          </Form.Item>
-
-          <Button type="primary" htmlType="submit" loading={submit.isPending}>
-            {t('access.request.submit')}
-          </Button>
-        </Form>
-      </Card>
-
-      <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
-      {mine.isLoading ? (
-        <Skeleton active />
-      ) : (mine.data?.content.length ?? 0) === 0 ? (
-        <EmptyState title={t('access.request.empty')} />
-      ) : (
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={mine.data?.content ?? []}
-          pagination={false}
-          size="middle"
-        />
-      )}
+        <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
+        {mine.isLoading ? (
+          <Skeleton active />
+        ) : (mine.data?.content.length ?? 0) === 0 ? (
+          <EmptyState title={t('access.request.empty')} />
+        ) : (
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={mine.data?.content ?? []}
+            pagination={false}
+            size="middle"
+          />
+        )}
+      </div>
     </div>
   );
 }

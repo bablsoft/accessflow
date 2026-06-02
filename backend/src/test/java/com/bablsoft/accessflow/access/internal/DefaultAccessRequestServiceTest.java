@@ -10,6 +10,8 @@ import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.access.internal.config.AccessProperties;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
+import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
@@ -42,6 +44,7 @@ class DefaultAccessRequestServiceTest {
     @Mock AccessGrantRequestStateService stateService;
     @Mock AccessRequestViewMapper viewMapper;
     @Mock DatasourceLookupService datasourceLookupService;
+    @Mock DatasourceAdminService datasourceAdminService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
 
@@ -57,7 +60,8 @@ class DefaultAccessRequestServiceTest {
         var properties = new AccessProperties(Duration.ofMinutes(5), Duration.ofMinutes(15),
                 Duration.ofDays(30));
         service = new DefaultAccessRequestService(requestRepository, stateService, viewMapper,
-                datasourceLookupService, properties, eventPublisher, messageSource);
+                datasourceLookupService, datasourceAdminService, properties, eventPublisher,
+                messageSource);
         lenient().when(messageSource.getMessage(anyString(), any(), any())).thenReturn("msg");
     }
 
@@ -158,6 +162,30 @@ class DefaultAccessRequestServiceTest {
         var options = service.listRequestableDatasources(organizationId);
         assertThat(options).singleElement()
                 .satisfies(o -> assertThat(o.name()).isEqualTo("analytics"));
+    }
+
+    @Test
+    void introspectRequestableDatasourceSchemaDelegatesToSystemIntrospection() {
+        var schema = new DatabaseSchemaView(List.of(
+                new DatabaseSchemaView.Schema("public", List.of(
+                        new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
+                .thenReturn(schema);
+
+        var result = service.introspectRequestableDatasourceSchema(datasourceId, organizationId);
+
+        assertThat(result).isSameAs(schema);
+        verify(datasourceAdminService).introspectSchemaForSystem(datasourceId, organizationId);
+    }
+
+    @Test
+    void introspectRequestableDatasourceSchemaPropagatesNotFound() {
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
+                .thenThrow(new DatasourceNotFoundException(datasourceId));
+
+        assertThatThrownBy(
+                () -> service.introspectRequestableDatasourceSchema(datasourceId, organizationId))
+                .isInstanceOf(DatasourceNotFoundException.class);
     }
 
     private AccessGrantRequestEntity pendingEntity() {

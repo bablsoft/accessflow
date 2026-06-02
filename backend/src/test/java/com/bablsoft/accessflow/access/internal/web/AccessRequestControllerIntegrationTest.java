@@ -14,6 +14,9 @@ import com.bablsoft.accessflow.access.api.AccessReviewerNotEligibleException;
 import com.bablsoft.accessflow.access.api.InvalidAccessDurationException;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
+import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
+import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -173,6 +176,59 @@ class AccessRequestControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
                 .exchange();
         assertThat(response).hasStatus(200);
+    }
+
+    @Test
+    void getRequestableDatasourceSchemaReturns200ForAnalyst() {
+        var id = UUID.randomUUID();
+        when(accessRequestService.introspectRequestableDatasourceSchema(eq(id), any()))
+                .thenReturn(new DatabaseSchemaView(List.of(
+                        new DatabaseSchemaView.Schema("public", List.of(
+                                new DatabaseSchemaView.Table("orders", List.of(), List.of()))))));
+
+        // analystToken proves the endpoint is NOT permission-gated — a JIT requester with no grant.
+        var response = mvc.get().uri("/api/v1/access-requests/datasources/{id}/schema", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.schemas[0].name").asString()
+                .isEqualTo("public");
+        assertThat(response).bodyJson().extractingPath("$.schemas[0].tables[0]").asString()
+                .isEqualTo("orders");
+    }
+
+    @Test
+    void getRequestableDatasourceSchemaMapsNotFoundTo404() {
+        var id = UUID.randomUUID();
+        when(accessRequestService.introspectRequestableDatasourceSchema(eq(id), any()))
+                .thenThrow(new DatasourceNotFoundException(id));
+        var response = mvc.get().uri("/api/v1/access-requests/datasources/{id}/schema", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("DATASOURCE_NOT_FOUND");
+    }
+
+    @Test
+    void getRequestableDatasourceSchemaMapsIntrospectionFailureTo422() {
+        var id = UUID.randomUUID();
+        when(accessRequestService.introspectRequestableDatasourceSchema(eq(id), any()))
+                .thenThrow(new DatasourceConnectionTestException("boom"));
+        var response = mvc.get().uri("/api/v1/access-requests/datasources/{id}/schema", id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+        assertThat(response).hasStatus(422);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("DATASOURCE_CONNECTION_TEST_FAILED");
+    }
+
+    @Test
+    void getRequestableDatasourceSchemaRequiresAuth() {
+        var response = mvc.get().uri("/api/v1/access-requests/datasources/{id}/schema",
+                UUID.randomUUID()).exchange();
+        assertThat(response).hasStatus(401);
     }
 
     @Test
