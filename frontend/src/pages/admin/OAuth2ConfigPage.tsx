@@ -78,7 +78,7 @@ export function OAuth2ConfigPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('admin.oauth2.title')} subtitle={t('admin.oauth2.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Tabs
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as OAuth2Provider)}

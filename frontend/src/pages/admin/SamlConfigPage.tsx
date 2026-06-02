@@ -104,7 +104,7 @@ export function SamlConfigPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('admin.saml.title')} subtitle={t('admin.saml.subtitle')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: 28, maxWidth: 760 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Form<SamlFormValues> form={form} layout="vertical" onFinish={onFinish}>
           <Section title={t('admin.saml.section_idp')}>
             <Form.Item

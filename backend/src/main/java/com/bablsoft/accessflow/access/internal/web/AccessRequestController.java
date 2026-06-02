@@ -86,6 +86,19 @@ class AccessRequestController {
                 .toList();
     }
 
+    @GetMapping("/datasources/{id}/schema")
+    @Operation(summary = "Introspect schema + table names of a requestable datasource (no permission required)")
+    @ApiResponse(responseCode = "200", description = "Schema and table names for the access-request form")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "404", description = "Datasource not found in the caller's organization")
+    @ApiResponse(responseCode = "422", description = "Schema introspection failed")
+    RequestableSchemaResponse getRequestableDatasourceSchema(@PathVariable UUID id,
+                                                             Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return RequestableSchemaResponse.from(
+                accessRequestService.introspectRequestableDatasourceSchema(id, caller.organizationId()));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Cancel the caller's own pending access request")

@@ -188,7 +188,8 @@ Available to users with `REVIEWER` or `ADMIN` role:
 ### RequestAccessPage (`/access-requests`)
 
 Available to any authenticated user (AF-378). A form (`api/accessRequests.ts` + TanStack Query) to request temporary, scoped access:
-- Datasource `Select` populated from `GET /api/v1/access-requests/datasources` (active org datasources — not scoped to existing permissions), capability checkboxes (Read / Write / DDL, validated as at-least-one to mirror the backend `@AtLeastOneCapability`), optional schema/table tag inputs, a duration `Select` (preset ISO-8601 periods 1h–7d), and a justification textarea (max 4,000, mirroring the backend `@Size`).
+- Datasource `Select` populated from `GET /api/v1/access-requests/datasources` (active org datasources — not scoped to existing permissions), capability checkboxes (Read / Write / DDL, validated as at-least-one to mirror the backend `@AtLeastOneCapability`), schema/table `Select`s (`mode="tags"`), a duration `Select` (preset ISO-8601 periods 1h–7d), and a justification textarea (max 4,000, mirroring the backend `@Size`).
+- The schema/table dropdowns are populated by `GET /api/v1/access-requests/datasources/{id}/schema` (AF-389) — a JIT-scoped, non-permission-gated introspection so even a requester with no grant can scope the request; tables are filtered to the selected schemas. Tag mode still allows free-text entry when introspection is unavailable, and the selections clear when the datasource changes. The page is a full-height flex column with its own scroll region (header fixed, body scrolls).
 - Below the form, a "My requests" table lists the caller's own requests with an `AccessStatusPill`, a remaining-TTL chip for active grants (via `utils/accessTtl.ts`), and a Cancel action on `PENDING` rows (`DELETE /api/v1/access-requests/{id}`).
 
 ### AccessRequestsQueuePage (`/admin/access-requests`)

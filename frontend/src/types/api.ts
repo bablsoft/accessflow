@@ -614,6 +614,15 @@ export interface RequestableDatasource {
   name: string;
 }
 
+export interface RequestableSchemaNamespace {
+  name: string;
+  tables: string[];
+}
+
+export interface RequestableDatasourceSchema {
+  schemas: RequestableSchemaNamespace[];
+}
+
 export interface PendingAccessRequestItem {
   id: string;
   datasource: { id: string; name: string | null };

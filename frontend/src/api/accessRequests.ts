@@ -7,6 +7,7 @@ import type {
   AccessRevocationResult,
   PendingAccessRequestsPage,
   RequestableDatasource,
+  RequestableDatasourceSchema,
   SubmitAccessRequestInput,
 } from '@/types/api';
 
@@ -23,6 +24,8 @@ export const accessRequestKeys = {
   all: ['access-requests'] as const,
   mine: (filters: MyAccessRequestsFilters) => ['access-requests', 'mine', filters] as const,
   datasources: () => ['access-requests', 'datasources'] as const,
+  schema: (datasourceId: string) =>
+    ['access-requests', 'datasources', datasourceId, 'schema'] as const,
   queue: () => ['access-requests', 'queue'] as const,
   queueFor: (filters: { page?: number; size?: number }) =>
     ['access-requests', 'queue', filters] as const,
@@ -48,6 +51,15 @@ export async function listMyAccessRequests(
 
 export async function listRequestableDatasources(): Promise<RequestableDatasource[]> {
   const { data } = await apiClient.get<RequestableDatasource[]>(`${BASE}/datasources`);
+  return data;
+}
+
+export async function getRequestableDatasourceSchema(
+  datasourceId: string,
+): Promise<RequestableDatasourceSchema> {
+  const { data } = await apiClient.get<RequestableDatasourceSchema>(
+    `${BASE}/datasources/${datasourceId}/schema`,
+  );
   return data;
 }
 
