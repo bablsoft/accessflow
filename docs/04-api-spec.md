@@ -813,12 +813,20 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
   ],
   "review_plan_name": "Production reviews",
   "approval_timeout_hours": 24,
+  "matched_policy": {
+    "policy_id": "uuid",
+    "policy_name": "Block prod payroll deletes",
+    "action": "AUTO_REJECT",
+    "reason": "Payroll deletes require an out-of-band change request"
+  },
   "previous_run_id": "uuid",
   "scheduled_for": "2026-06-01T03:00:00Z",
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
 }
 ```
+
+`matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
@@ -1355,6 +1363,12 @@ Paginated queue of access requests the caller can currently act on, self-request
 | `POST` | `/admin/system-smtp/test` | Send a synthetic test email (optionally against an override config) |
 | `GET` | `/admin/audit-log` | Query audit log with filters (see below) |
 | `GET` | `/admin/audit-log/verify` | Verify the HMAC hash chain for the caller's org (tamper detection) |
+| `GET` | `/admin/routing-policies` | List routing policies (priority order) *(ADMIN only)* |
+| `POST` | `/admin/routing-policies` | Create a routing policy *(ADMIN only)* |
+| `GET` | `/admin/routing-policies/{id}` | Get a routing policy *(ADMIN only)* |
+| `PUT` | `/admin/routing-policies/{id}` | Update a routing policy (full replace) *(ADMIN only)* |
+| `DELETE` | `/admin/routing-policies/{id}` | Delete a routing policy *(ADMIN only)* |
+| `PUT` | `/admin/routing-policies/reorder` | Reorder routing policies by priority *(ADMIN only)* |
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
@@ -1542,6 +1556,104 @@ Deletes the group and cascades to memberships and `datasource_reviewers` rows th
 
 **Response 204:** No content.
 **Response 404:** `error: USER_GROUP_MEMBERSHIP_NOT_FOUND` when the user is not a member.
+
+### Routing Policies (`/admin/routing-policies`) *(ADMIN only)* (AF-379)
+
+Ordered, attribute-based policy-as-code routing rules. The workflow state machine evaluates them after AI analysis and before reviewer fan-out: the **first enabled policy by ascending `priority` whose `condition` matches** decides how the query is routed; on no match the query falls through to the datasource's review plan. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379) for evaluation semantics and [docs/03-data-model.md → routing_policy](03-data-model.md#routing_policy) for the `condition` JSONB wire format.
+
+All endpoints require `role=ADMIN` and operate within the caller's organization.
+
+#### POST /admin/routing-policies — Request Body
+
+```json
+{
+  "name": "Block prod payroll deletes",
+  "description": "Deletes against payroll.* are auto-rejected",
+  "datasource_id": null,
+  "priority": 10,
+  "enabled": true,
+  "condition": {
+    "type": "and",
+    "children": [
+      { "type": "query_type", "any_of": ["DELETE"] },
+      { "type": "referenced_table", "globs": ["payroll.*"] }
+    ]
+  },
+  "action": "AUTO_REJECT",
+  "required_approvals": null,
+  "reason": "Payroll deletes require an out-of-band change request"
+}
+```
+
+`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model.
+
+**Response 201:** Full routing-policy object (see the list shape below). `Location` header points to `/api/v1/admin/routing-policies/{id}`.
+**Response 400:** Bean Validation failure on the request body. `error: VALIDATION_ERROR`.
+**Response 409:** Another policy in the organization already uses that `priority`. `error: ROUTING_POLICY_PRIORITY_CONFLICT`.
+**Response 422:** Malformed `condition` tree, or `required_approvals` does not match the chosen `action`. `error: ROUTING_POLICY_INVALID`.
+
+#### GET /admin/routing-policies — Response 200
+
+Returns every routing policy in the caller's organization in ascending `priority` order (no pagination).
+
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "datasource_id": null,
+    "name": "Block prod payroll deletes",
+    "description": "Deletes against payroll.* are auto-rejected",
+    "priority": 10,
+    "enabled": true,
+    "condition": {
+      "type": "and",
+      "children": [
+        { "type": "query_type", "any_of": ["DELETE"] },
+        { "type": "referenced_table", "globs": ["payroll.*"] }
+      ]
+    },
+    "action": "AUTO_REJECT",
+    "required_approvals": null,
+    "reason": "Payroll deletes require an out-of-band change request",
+    "version": 0,
+    "created_at": "2026-06-01T10:00:00Z",
+    "updated_at": "2026-06-01T10:00:00Z"
+  }
+]
+```
+
+#### GET /admin/routing-policies/{id} — Response 200
+
+Single routing-policy object (same shape as a list element). **Response 404:** `ROUTING_POLICY_NOT_FOUND` when the policy is missing or in another organization.
+
+#### PUT /admin/routing-policies/{id}
+
+Full replace — same body as `POST`. **Response 200:** updated policy object. **Response 404:** `ROUTING_POLICY_NOT_FOUND`. **Response 409:** `ROUTING_POLICY_PRIORITY_CONFLICT`. **Response 422:** `ROUTING_POLICY_INVALID`.
+
+#### DELETE /admin/routing-policies/{id}
+
+**Response 204:** No content. **Response 404:** `ROUTING_POLICY_NOT_FOUND`.
+
+#### PUT /admin/routing-policies/reorder — Request Body
+
+Rewrites the priority order of the org's policies atomically.
+
+```json
+{ "ordered_ids": ["uuid-a", "uuid-b", "uuid-c"] }
+```
+
+`ordered_ids` must contain **every** policy id in the organization, in the desired ascending-priority order. **Response 200:** the reordered policy array (same shape as the list endpoint). **Response 422:** `ROUTING_POLICY_INVALID` when the supplied set does not exactly match the organization's policy ids.
+
+#### Routing-policies Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the request body |
+| 403 | `FORBIDDEN` | Caller is not an `ADMIN` |
+| 404 | `ROUTING_POLICY_NOT_FOUND` | Policy does not exist or is in another organization |
+| 409 | `ROUTING_POLICY_PRIORITY_CONFLICT` | Another policy in the organization already uses that priority |
+| 422 | `ROUTING_POLICY_INVALID` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies |
 
 ### Notification Channels (`/admin/notification-channels`)
 
@@ -2983,3 +3095,6 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ILLEGAL_LOCALIZATION_CONFIG` | 400 | `IllegalLocalizationConfigException` | Empty `available_languages`, or `default_language` not in `available_languages`. |
 | `API_KEY_NOT_FOUND` | 404 | `ApiKeyNotFoundException` | Unknown API key id, or the key is owned by another user. |
 | `API_KEY_DUPLICATE_NAME` | 409 | `ApiKeyDuplicateNameException` | The caller already has an API key with the requested name. |
+| `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
+| `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
+| `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |

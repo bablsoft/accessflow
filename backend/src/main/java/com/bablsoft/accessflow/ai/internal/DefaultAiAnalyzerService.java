@@ -123,7 +123,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                     result.affectsRowEstimate(), result.promptTokens(), result.completionTokens(),
                     false, null);
             var analysisId = aiAnalysisPersistenceService.persist(queryRequestId, command);
-            eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId, result.riskLevel()));
+            eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId,
+                    result.riskLevel(), result.riskScore()));
         } catch (AiAnalysisException | AiAnalysisParseException e) {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
             persistFailureAndPublish(queryRequestId, descriptor.aiConfigId(), e.getMessage());

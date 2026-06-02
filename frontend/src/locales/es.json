@@ -29,7 +29,9 @@
     "close": "Cerrar",
     "ok": "OK",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "Sí",
+    "no": "No"
   },
   "nav": {
     "editor": "Editor SQL",
@@ -56,7 +58,8 @@
     "datasource_health": "Estado de fuentes de datos",
     "slack": "Slack",
     "request_access": "Solicitar acceso",
-    "access_requests": "Solicitudes de acceso"
+    "access_requests": "Solicitudes de acceso",
+    "routing_policies": "Políticas de enrutamiento"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "El JAR supera el límite de carga de {{maxMb}} MB. Elimina clases no utilizadas o divide el paquete.",
     "custom_driver_not_found": "Controlador JDBC personalizado no encontrado.",
     "custom_driver_validation": "Algunos campos requeridos de la carga faltan o no son válidos.",
-    "custom_driver_generic": "No se pudo cargar el controlador JDBC. Inténtalo de nuevo."
+    "custom_driver_generic": "No se pudo cargar el controlador JDBC. Inténtalo de nuevo.",
+    "routing_policy_not_found": "Política de enrutamiento no encontrada.",
+    "routing_policy_priority_conflict": "Otra política de enrutamiento ya usa esta prioridad.",
+    "routing_policy_invalid": "La política de enrutamiento no es válida.",
+    "routing_policy_generic": "No se pudo guardar la política de enrutamiento. Inténtalo de nuevo."
   },
   "editor": {
     "title": "Editor SQL",
@@ -484,7 +491,11 @@
       "timeout_title": "Auto-rechazada por tiempo de aprobación",
       "timeout_body_with_plan": "El plan «{{plan}}» requiere aprobación en {{hours}} h. Tiempo agotado {{when}}.",
       "timeout_body_without_plan": "La ventana de aprobación de {{hours}} h transcurrió sin decisión. Tiempo agotado {{when}}.",
-      "timeline_timed_out": "Tiempo agotado"
+      "timeline_timed_out": "Tiempo agotado",
+      "matched_policy_title": "Decidido automáticamente por la política de enrutamiento ({{action}})",
+      "matched_policy_body": "Política \"{{name}}\" — {{reason}}",
+      "matched_policy_deleted": "(política eliminada)",
+      "matched_policy_no_reason": "sin motivo indicado"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "¿Eliminar la configuración de la app de Slack?",
       "delete_success": "Configuración de la app de Slack eliminada",
       "load_error": "No se pudo cargar la configuración de la app de Slack"
+    },
+    "routing_policies": {
+      "title": "Políticas de enrutamiento",
+      "subtitle": "Reglas basadas en atributos que deciden automáticamente el enrutamiento de consultas antes de asignar revisores.",
+      "add_button": "Añadir política",
+      "load_error": "No se pudieron cargar las políticas de enrutamiento.",
+      "empty": "Aún no hay políticas de enrutamiento. Las consultas siguen el plan de revisión de la fuente de datos.",
+      "create_modal_title": "Añadir política de enrutamiento",
+      "edit_modal_title": "Editar política de enrutamiento · {{name}}",
+      "save_create": "Crear política",
+      "save_update": "Guardar cambios",
+      "create_success": "Política de enrutamiento creada.",
+      "update_success": "Política de enrutamiento actualizada.",
+      "delete_success": "Política de enrutamiento eliminada.",
+      "delete_confirm_title": "¿Eliminar la política de enrutamiento?",
+      "delete_confirm_body": "¿Eliminar \"{{name}}\"? Las consultas dejarán de enrutarse con esta regla.",
+      "col_order": "Orden",
+      "col_priority": "Prioridad",
+      "col_name": "Nombre",
+      "col_action": "Acción",
+      "col_scope": "Alcance",
+      "col_condition": "Condición",
+      "col_enabled": "Habilitada",
+      "col_actions": "Acciones",
+      "move_up": "Subir",
+      "move_down": "Bajar",
+      "label_name": "Nombre",
+      "label_description": "Descripción",
+      "label_scope": "Alcance de fuente de datos",
+      "label_priority": "Prioridad",
+      "label_enabled": "Habilitada",
+      "label_action": "Acción",
+      "label_required_approvals": "Aprobaciones requeridas",
+      "label_reason": "Motivo",
+      "label_match_type": "Coincidencia",
+      "label_conditions": "Condiciones",
+      "scope_org_wide": "Todas las fuentes de datos",
+      "match_all": "Cumplir todas las condiciones",
+      "match_any": "Cumplir cualquier condición",
+      "match_all_joiner": "y",
+      "match_any_joiner": "o",
+      "condition_add": "Añadir condición",
+      "condition_remove": "Eliminar condición",
+      "validation_min_conditions": "Añade al menos una condición.",
+      "table_globs_placeholder": "p. ej. payroll.*, *.users",
+      "groups_placeholder": "Seleccionar grupos",
+      "negate_hint": "Negar esta condición (NO).",
+      "not_prefix": "NO",
+      "is_prefix": "ES",
+      "bool_present_label": "Presente",
+      "group_count": "{{count}} grupo(s)",
+      "condition_advanced": "Condición avanzada",
+      "condition_advanced_warning": "Esta política usa una condición anidada que el editor guiado no puede editar; guardar aquí la reemplazará.",
+      "condition_any_query": "Cualquier consulta"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Hash (SHA-256)",
       "EMAIL": "Conserva el correo",
       "FORMAT_PRESERVING": "Conserva el formato"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Aprobar automáticamente",
+      "AUTO_REJECT": "Rechazar automáticamente",
+      "REQUIRE_APPROVALS": "Requerir aprobaciones",
+      "ESCALATE": "Escalar"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Lunes",
+      "TUESDAY": "Martes",
+      "WEDNESDAY": "Miércoles",
+      "THURSDAY": "Jueves",
+      "FRIDAY": "Viernes",
+      "SATURDAY": "Sábado",
+      "SUNDAY": "Domingo"
+    },
+    "condition_operand": {
+      "query_type": "Tipo de consulta",
+      "referenced_table": "Tabla referenciada",
+      "risk_level": "Nivel de riesgo IA",
+      "risk_score": "Puntuación de riesgo IA",
+      "requester_role": "Rol del solicitante",
+      "requester_group": "Grupo del solicitante",
+      "time_of_day": "Hora del día",
+      "day_of_week": "Día de la semana",
+      "has_where": "Tiene cláusula WHERE",
+      "has_limit": "Tiene cláusula LIMIT",
+      "transactional": "Transaccional"
     }
   },
   "access": {

@@ -29,7 +29,9 @@
     "close": "关闭",
     "ok": "确定",
     "create": "Create",
-    "remove": "Remove"
+    "remove": "Remove",
+    "yes": "是",
+    "no": "否"
   },
   "nav": {
     "editor": "SQL 编辑器",
@@ -56,7 +58,8 @@
     "datasource_health": "数据源健康",
     "slack": "Slack",
     "request_access": "申请访问",
-    "access_requests": "访问申请"
+    "access_requests": "访问申请",
+    "routing_policies": "路由策略"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "JAR 超过 {{maxMb}} MB 的上传限制。请移除未使用的类或拆分包。",
     "custom_driver_not_found": "未找到自定义 JDBC 驱动。",
     "custom_driver_validation": "部分必填上传字段缺失或无效。",
-    "custom_driver_generic": "无法上传 JDBC 驱动,请稍后再试。"
+    "custom_driver_generic": "无法上传 JDBC 驱动,请稍后再试。",
+    "routing_policy_not_found": "未找到路由策略。",
+    "routing_policy_priority_conflict": "另一个路由策略已使用此优先级。",
+    "routing_policy_invalid": "路由策略无效。",
+    "routing_policy_generic": "无法保存路由策略。请重试。"
   },
   "editor": {
     "title": "SQL 编辑器",
@@ -484,7 +491,11 @@
       "timeout_title": "因审批超时被自动拒绝",
       "timeout_body_with_plan": "计划 “{{plan}}” 要求在 {{hours}} 小时内审批。已于 {{when}} 超时。",
       "timeout_body_without_plan": "{{hours}} 小时审批窗口已过且未做决定。已于 {{when}} 超时。",
-      "timeline_timed_out": "已超时"
+      "timeline_timed_out": "已超时",
+      "matched_policy_title": "由路由策略自动决定（{{action}}）",
+      "matched_policy_body": "策略“{{name}}” — {{reason}}",
+      "matched_policy_deleted": "（已删除的策略）",
+      "matched_policy_no_reason": "未提供原因"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "删除 Slack 应用配置？",
       "delete_success": "Slack 应用配置已删除",
       "load_error": "无法加载 Slack 应用配置"
+    },
+    "routing_policies": {
+      "title": "路由策略",
+      "subtitle": "基于属性的规则，在分配审阅者之前自动决定查询的路由。",
+      "add_button": "添加策略",
+      "load_error": "无法加载路由策略。",
+      "empty": "暂无路由策略。查询将遵循数据源的审查方案。",
+      "create_modal_title": "添加路由策略",
+      "edit_modal_title": "编辑路由策略 · {{name}}",
+      "save_create": "创建策略",
+      "save_update": "保存更改",
+      "create_success": "路由策略已创建。",
+      "update_success": "路由策略已更新。",
+      "delete_success": "路由策略已删除。",
+      "delete_confirm_title": "删除路由策略？",
+      "delete_confirm_body": "删除“{{name}}”？查询将不再由此规则路由。",
+      "col_order": "顺序",
+      "col_priority": "优先级",
+      "col_name": "名称",
+      "col_action": "操作",
+      "col_scope": "范围",
+      "col_condition": "条件",
+      "col_enabled": "已启用",
+      "col_actions": "操作",
+      "move_up": "上移",
+      "move_down": "下移",
+      "label_name": "名称",
+      "label_description": "描述",
+      "label_scope": "数据源范围",
+      "label_priority": "优先级",
+      "label_enabled": "已启用",
+      "label_action": "操作",
+      "label_required_approvals": "所需审批数",
+      "label_reason": "原因",
+      "label_match_type": "匹配",
+      "label_conditions": "条件",
+      "scope_org_wide": "所有数据源",
+      "match_all": "匹配所有条件",
+      "match_any": "匹配任一条件",
+      "match_all_joiner": "且",
+      "match_any_joiner": "或",
+      "condition_add": "添加条件",
+      "condition_remove": "移除条件",
+      "validation_min_conditions": "请至少添加一个条件。",
+      "table_globs_placeholder": "例如 payroll.*, *.users",
+      "groups_placeholder": "选择组",
+      "negate_hint": "取反此条件（非）。",
+      "not_prefix": "非",
+      "is_prefix": "是",
+      "bool_present_label": "存在",
+      "group_count": "{{count}} 个组",
+      "condition_advanced": "高级条件",
+      "condition_advanced_warning": "此策略使用了引导式编辑器无法编辑的嵌套条件；在此保存将替换它。",
+      "condition_any_query": "任何查询"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "哈希（SHA-256）",
       "EMAIL": "保留邮箱格式",
       "FORMAT_PRESERVING": "保留格式"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "自动批准",
+      "AUTO_REJECT": "自动拒绝",
+      "REQUIRE_APPROVALS": "要求审批",
+      "ESCALATE": "升级"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "星期一",
+      "TUESDAY": "星期二",
+      "WEDNESDAY": "星期三",
+      "THURSDAY": "星期四",
+      "FRIDAY": "星期五",
+      "SATURDAY": "星期六",
+      "SUNDAY": "星期日"
+    },
+    "condition_operand": {
+      "query_type": "查询类型",
+      "referenced_table": "引用的表",
+      "risk_level": "AI 风险等级",
+      "risk_score": "AI 风险分数",
+      "requester_role": "请求者角色",
+      "requester_group": "请求者组",
+      "time_of_day": "时段",
+      "day_of_week": "星期",
+      "has_where": "含 WHERE 子句",
+      "has_limit": "含 LIMIT 子句",
+      "transactional": "事务性"
     }
   },
   "access": {

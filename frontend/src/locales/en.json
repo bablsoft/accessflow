@@ -29,7 +29,9 @@
     "retry": "Retry",
     "language": "Language",
     "close": "Close",
-    "ok": "OK"
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No"
   },
   "nav": {
     "editor": "Query editor",
@@ -56,7 +58,8 @@
     "datasource_health": "Datasource health",
     "slack": "Slack",
     "request_access": "Request access",
-    "access_requests": "Access requests"
+    "access_requests": "Access requests",
+    "routing_policies": "Routing policies"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -298,7 +301,11 @@
     "custom_driver_too_large": "The JAR exceeds the {{maxMb}} MB upload limit. Strip unused classes or split the bundle.",
     "custom_driver_not_found": "Custom JDBC driver not found.",
     "custom_driver_validation": "Some required upload fields are missing or invalid.",
-    "custom_driver_generic": "Could not upload the JDBC driver. Please try again."
+    "custom_driver_generic": "Could not upload the JDBC driver. Please try again.",
+    "routing_policy_not_found": "Routing policy not found.",
+    "routing_policy_priority_conflict": "Another routing policy already uses this priority.",
+    "routing_policy_invalid": "The routing policy is invalid.",
+    "routing_policy_generic": "Could not save the routing policy. Please try again."
   },
   "editor": {
     "title": "SQL editor",
@@ -484,7 +491,11 @@
       "timeout_title": "Auto-rejected by approval timeout",
       "timeout_body_with_plan": "Plan \"{{plan}}\" requires approval within {{hours}}h. Timed out {{when}}.",
       "timeout_body_without_plan": "Approval window of {{hours}}h elapsed without a decision. Timed out {{when}}.",
-      "timeline_timed_out": "Timed out"
+      "timeline_timed_out": "Timed out",
+      "matched_policy_title": "Auto-decided by routing policy ({{action}})",
+      "matched_policy_body": "Policy \"{{name}}\" — {{reason}}",
+      "matched_policy_deleted": "(deleted policy)",
+      "matched_policy_no_reason": "no reason given"
     }
   },
   "reviews": {
@@ -1328,6 +1339,60 @@
       "delete_confirm": "Delete the Slack app configuration?",
       "delete_success": "Slack app configuration deleted",
       "load_error": "Failed to load the Slack app configuration"
+    },
+    "routing_policies": {
+      "title": "Routing policies",
+      "subtitle": "Attribute-based rules that auto-decide query routing before reviewer fan-out.",
+      "add_button": "Add policy",
+      "load_error": "Could not load routing policies.",
+      "empty": "No routing policies yet. Queries fall through to the datasource review plan.",
+      "create_modal_title": "Add routing policy",
+      "edit_modal_title": "Edit routing policy · {{name}}",
+      "save_create": "Create policy",
+      "save_update": "Save changes",
+      "create_success": "Routing policy created.",
+      "update_success": "Routing policy updated.",
+      "delete_success": "Routing policy deleted.",
+      "delete_confirm_title": "Delete routing policy?",
+      "delete_confirm_body": "Delete \"{{name}}\"? Queries will no longer be routed by this rule.",
+      "col_order": "Order",
+      "col_priority": "Priority",
+      "col_name": "Name",
+      "col_action": "Action",
+      "col_scope": "Scope",
+      "col_condition": "Condition",
+      "col_enabled": "Enabled",
+      "col_actions": "Actions",
+      "move_up": "Move up",
+      "move_down": "Move down",
+      "label_name": "Name",
+      "label_description": "Description",
+      "label_scope": "Datasource scope",
+      "label_priority": "Priority",
+      "label_enabled": "Enabled",
+      "label_action": "Action",
+      "label_required_approvals": "Required approvals",
+      "label_reason": "Reason",
+      "label_match_type": "Match",
+      "label_conditions": "Conditions",
+      "scope_org_wide": "All datasources",
+      "match_all": "Match all conditions",
+      "match_any": "Match any condition",
+      "match_all_joiner": "and",
+      "match_any_joiner": "or",
+      "condition_add": "Add condition",
+      "condition_remove": "Remove condition",
+      "validation_min_conditions": "Add at least one condition.",
+      "table_globs_placeholder": "e.g. payroll.*, *.users",
+      "groups_placeholder": "Select groups",
+      "negate_hint": "Negate this condition (NOT).",
+      "not_prefix": "NOT",
+      "is_prefix": "IS",
+      "bool_present_label": "Present",
+      "group_count": "{{count}} group(s)",
+      "condition_advanced": "Advanced condition",
+      "condition_advanced_warning": "This policy uses a nested condition the guided builder can't edit; saving here will replace it.",
+      "condition_any_query": "Any query"
     }
   },
   "notifications": {
@@ -1609,6 +1674,41 @@
       "HASH": "Hash (SHA-256)",
       "EMAIL": "Email-preserving",
       "FORMAT_PRESERVING": "Format-preserving"
+    },
+    "routing_action": {
+      "AUTO_APPROVE": "Auto-approve",
+      "AUTO_REJECT": "Auto-reject",
+      "REQUIRE_APPROVALS": "Require approvals",
+      "ESCALATE": "Escalate"
+    },
+    "comparison_operator": {
+      "LT": "<",
+      "LTE": "≤",
+      "GT": ">",
+      "GTE": "≥",
+      "EQ": "="
+    },
+    "weekday": {
+      "MONDAY": "Monday",
+      "TUESDAY": "Tuesday",
+      "WEDNESDAY": "Wednesday",
+      "THURSDAY": "Thursday",
+      "FRIDAY": "Friday",
+      "SATURDAY": "Saturday",
+      "SUNDAY": "Sunday"
+    },
+    "condition_operand": {
+      "query_type": "Query type",
+      "referenced_table": "Referenced table",
+      "risk_level": "AI risk level",
+      "risk_score": "AI risk score",
+      "requester_role": "Requester role",
+      "requester_group": "Requester group",
+      "time_of_day": "Time of day",
+      "day_of_week": "Day of week",
+      "has_where": "Has WHERE clause",
+      "has_limit": "Has LIMIT clause",
+      "transactional": "Transactional"
     }
   },
   "access": {

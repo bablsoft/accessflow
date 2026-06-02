@@ -306,6 +306,9 @@ com.bablsoft.accessflow/
              ↘ PENDING_REVIEW or APPROVED (if AI not required —
                                             datasource.ai_analysis_enabled=false;
                                             APPROVED only when plan.requires_human_approval=false)
+  PENDING_AI → APPROVED  (routing-policy AUTO_APPROVE — AF-379)
+  PENDING_AI → REJECTED  (routing-policy AUTO_REJECT — AF-379; no review_decisions row,
+                          audited via QueryAutoRejectedEvent)
   PENDING_REVIEW → CANCELLED (submitter only)
   APPROVED       → CANCELLED (submitter only, when scheduled_for is set and the
                               deferred run has not yet fired — AF-345)

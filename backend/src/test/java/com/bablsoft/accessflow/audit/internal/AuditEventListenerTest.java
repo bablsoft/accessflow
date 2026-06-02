@@ -115,6 +115,45 @@ class AuditEventListenerTest {
         assertThat(entry.action()).isEqualTo(AuditAction.QUERY_APPROVED);
         assertThat(entry.actorId()).isNull();
         assertThat(entry.metadata()).containsEntry("auto_approved", true);
+        assertThat(entry.metadata()).doesNotContainKey("routing_policy_id");
+    }
+
+    @Test
+    void onQueryAutoApprovedRecordsRoutingPolicyProvenance() {
+        var queryId = UUID.randomUUID();
+        var policyId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoApproved(new QueryAutoApprovedEvent(queryId, policyId, "trusted"));
+
+        var entry = captor.getValue();
+        assertThat(entry.metadata()).containsEntry("auto_approved", true);
+        assertThat(entry.metadata()).containsEntry("source", "ROUTING_POLICY");
+        assertThat(entry.metadata()).containsEntry("routing_policy_id", policyId.toString());
+        assertThat(entry.metadata()).containsEntry("reason", "trusted");
+    }
+
+    @Test
+    void onQueryAutoRejectedRecordsRejectedWithPolicyProvenance() {
+        var queryId = UUID.randomUUID();
+        var policyId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoRejected(
+                new com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent(queryId, policyId,
+                        "payroll deletes blocked"));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_REJECTED);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.metadata()).containsEntry("auto_rejected", true);
+        assertThat(entry.metadata()).containsEntry("source", "ROUTING_POLICY");
+        assertThat(entry.metadata()).containsEntry("routing_policy_id", policyId.toString());
+        assertThat(entry.metadata()).containsEntry("reason", "payroll deletes blocked");
     }
 
     @Test

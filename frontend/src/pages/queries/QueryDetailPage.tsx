@@ -26,6 +26,7 @@ import { ApprovalTimeline, type TimelineStage } from '@/components/review/Approv
 import { IssueCard } from '@/components/editor/IssueCard';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
+import { routingActionLabel } from '@/utils/enumLabels';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { cancelQuery, executeQuery, getQuery, queryKeys, reanalyzeQuery } from '@/api/queries';
 import {
@@ -329,6 +330,22 @@ export function QueryDetailPage() {
                       when: timeAgo(query.updated_at),
                     })
               }
+            />
+          )}
+          {query.matched_policy && (
+            <Alert
+              type="info"
+              showIcon
+              message={t('queries.detail.matched_policy_title', {
+                action: routingActionLabel(t, query.matched_policy.action),
+              })}
+              description={t('queries.detail.matched_policy_body', {
+                name:
+                  query.matched_policy.policy_name ??
+                  t('queries.detail.matched_policy_deleted'),
+                reason:
+                  query.matched_policy.reason ?? t('queries.detail.matched_policy_no_reason'),
+              })}
             />
           )}
           <Card title={t('queries.detail.card_sql')} icon={<FileTextOutlined />} extra={<QueryTypePill type={query.query_type} />}>

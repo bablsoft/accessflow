@@ -137,6 +137,42 @@ class QueryDetailResponseTest {
         assertThat(response.approvalTimeoutHours()).isNull();
         assertThat(response.reviewDecisions()).isEmpty();
         assertThat(response.scheduledFor()).isNull();
+        assertThat(response.matchedPolicy()).isNull();
+    }
+
+    @Test
+    void matchedPolicyIsNullWithoutRoutingDecision() {
+        var response = QueryDetailResponse.from(minimalView());
+
+        assertThat(response.matchedPolicy()).isNull();
+    }
+
+    @Test
+    void matchedPolicyIsPopulatedFromRoutingDecision() {
+        var policyId = UUID.randomUUID();
+        var matched = new com.bablsoft.accessflow.workflow.internal.routing.MatchedRoutingPolicyView(
+                policyId, "Block payroll deletes",
+                com.bablsoft.accessflow.workflow.api.RoutingAction.AUTO_REJECT, "payroll protected");
+
+        var response = QueryDetailResponse.from(minimalView(), matched);
+
+        assertThat(response.matchedPolicy()).isNotNull();
+        assertThat(response.matchedPolicy().policyId()).isEqualTo(policyId);
+        assertThat(response.matchedPolicy().policyName()).isEqualTo("Block payroll deletes");
+        assertThat(response.matchedPolicy().action())
+                .isEqualTo(com.bablsoft.accessflow.workflow.api.RoutingAction.AUTO_REJECT);
+        assertThat(response.matchedPolicy().reason()).isEqualTo("payroll protected");
+    }
+
+    private QueryDetailView minimalView() {
+        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
+                "SELECT 1", QueryType.SELECT, QueryStatus.REJECTED,
+                "x", null, null, null, null, null,
+                null, null,
+                List.of(),
+                null,
+                Instant.now(), Instant.now());
     }
 
     @Test

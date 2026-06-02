@@ -54,6 +54,40 @@ class SqlParserServiceImplTest {
     }
 
     @Test
+    void detectsWhereClauseOnSelect() {
+        assertThat(service.parse("SELECT * FROM users WHERE id = 1").hasWhereClause()).isTrue();
+        assertThat(service.parse("SELECT * FROM users").hasWhereClause()).isFalse();
+    }
+
+    @Test
+    void detectsLimitClauseOnSelect() {
+        assertThat(service.parse("SELECT * FROM users LIMIT 10").hasLimitClause()).isTrue();
+        assertThat(service.parse("SELECT * FROM users").hasLimitClause()).isFalse();
+    }
+
+    @Test
+    void detectsWhereClauseOnUpdateAndDelete() {
+        assertThat(service.parse("UPDATE users SET active = false WHERE id = 1").hasWhereClause())
+                .isTrue();
+        assertThat(service.parse("DELETE FROM users WHERE id = 1").hasWhereClause()).isTrue();
+        assertThat(service.parse("DELETE FROM users").hasWhereClause()).isFalse();
+    }
+
+    @Test
+    void updateAndDeleteNeverReportLimit() {
+        assertThat(service.parse("DELETE FROM users WHERE id = 1").hasLimitClause()).isFalse();
+    }
+
+    @Test
+    void transactionalBatchOrsWhereClauseAcrossStatements() {
+        var result = service.parse(
+                "BEGIN; UPDATE users SET active = false; DELETE FROM users WHERE id = 1; COMMIT;");
+
+        assertThat(result.transactional()).isTrue();
+        assertThat(result.hasWhereClause()).isTrue();
+    }
+
+    @Test
     void parsesSelectWithCte() {
         SqlParseResult result =
                 service.parse("WITH t AS (SELECT 1 AS x) SELECT x FROM t");

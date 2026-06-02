@@ -67,6 +67,16 @@ class NotificationListenerTest {
     }
 
     @Test
+    void autoRejectedDispatchesQueryRejectedWithoutReviewer() {
+        var id = UUID.randomUUID();
+        listener.onQueryAutoRejected(
+                new com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent(id,
+                        UUID.randomUUID(), "blocked"));
+        verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_REJECTED), eq(id),
+                isNull(), isNull(), isNull());
+    }
+
+    @Test
     void timedOutDispatchesReviewTimeoutWithApprovalTimeoutHours() {
         var id = UUID.randomUUID();
         listener.onQueryTimedOut(new QueryTimedOutEvent(id, 24));

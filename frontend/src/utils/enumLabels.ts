@@ -4,6 +4,7 @@ import type {
   AiProvider,
   AuthProvider,
   ChannelType,
+  ComparisonOperator,
   DbType,
   InvitationStatus,
   MaskingStrategy,
@@ -12,7 +13,10 @@ import type {
   QueryType,
   RiskLevel,
   Role,
+  RoutingAction,
+  RoutingConditionOperand,
   SslMode,
+  Weekday,
 } from '@/types/api';
 
 export const ACCESS_GRANT_STATUSES: readonly AccessGrantStatus[] = [
@@ -70,6 +74,80 @@ export const MASKING_STRATEGIES: readonly MaskingStrategy[] = [
 
 export const maskingStrategyLabel = (t: TFunction, v: MaskingStrategy): string =>
   t(`enums.masking_strategy.${v}` as const);
+
+// ── Routing policies ──────────────────────────────────────────────────────────
+export const QUERY_TYPES: readonly QueryType[] = [
+  'SELECT',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'DDL',
+] as const;
+
+export const RISK_LEVELS: readonly RiskLevel[] = [
+  'LOW',
+  'MEDIUM',
+  'HIGH',
+  'CRITICAL',
+] as const;
+
+export const ROUTING_ROLES: readonly Role[] = [
+  'READONLY',
+  'ANALYST',
+  'REVIEWER',
+  'ADMIN',
+] as const;
+
+export const ROUTING_ACTIONS: readonly RoutingAction[] = [
+  'AUTO_APPROVE',
+  'AUTO_REJECT',
+  'REQUIRE_APPROVALS',
+  'ESCALATE',
+] as const;
+
+export const COMPARISON_OPERATORS: readonly ComparisonOperator[] = [
+  'LT',
+  'LTE',
+  'GT',
+  'GTE',
+  'EQ',
+] as const;
+
+export const WEEKDAYS: readonly Weekday[] = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+] as const;
+
+export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
+  'query_type',
+  'referenced_table',
+  'risk_level',
+  'risk_score',
+  'requester_role',
+  'requester_group',
+  'time_of_day',
+  'day_of_week',
+  'has_where',
+  'has_limit',
+  'transactional',
+] as const;
+
+export const routingActionLabel = (t: TFunction, v: RoutingAction): string =>
+  t(`enums.routing_action.${v}` as const);
+
+export const comparisonOperatorLabel = (t: TFunction, v: ComparisonOperator): string =>
+  t(`enums.comparison_operator.${v}` as const);
+
+export const weekdayLabel = (t: TFunction, v: Weekday): string =>
+  t(`enums.weekday.${v}` as const);
+
+export const conditionOperandLabel = (t: TFunction, v: RoutingConditionOperand): string =>
+  t(`enums.condition_operand.${v}` as const);
 
 export interface EnumOption<V extends string> {
   value: V;

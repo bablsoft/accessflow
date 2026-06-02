@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
 import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
@@ -57,6 +58,7 @@ class DefaultReviewServiceTest {
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock com.bablsoft.accessflow.core.api.ReviewerEligibilityService reviewerEligibilityService;
+    @Mock RoutingDecisionService routingDecisionService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultReviewService service;
@@ -90,6 +92,27 @@ class DefaultReviewServiceTest {
         assertThat(captor.getValue().stage()).isEqualTo(1);
         assertThat(captor.getValue().isLastStage()).isTrue();
         verify(eventPublisher).publishEvent(any(QueryApprovedEvent.class));
+    }
+
+    @Test
+    void approveUsesRoutingOverrideForEffectiveMinApprovals() {
+        // A single-stage plan needs 1 approval, but a routing policy escalated it to 2: the
+        // effective minimum must flow into the approval command and gate stage advancement.
+        givenPendingReview();
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        when(routingDecisionService.findEffectiveMinApprovals(queryId)).thenReturn(Optional.of(2));
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
+                        QueryStatus.PENDING_REVIEW, false));
+
+        service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok");
+
+        var captor = ArgumentCaptor.forClass(RecordApprovalCommand.class);
+        verify(queryRequestStateService).recordApprovalAndAdvance(captor.capture());
+        assertThat(captor.getValue().minApprovalsRequired()).isEqualTo(2);
+        assertThat(captor.getValue().stage()).isEqualTo(1);
+        assertThat(captor.getValue().isLastStage()).isTrue();
     }
 
     @Test

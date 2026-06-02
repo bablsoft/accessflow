@@ -302,3 +302,26 @@ export function reviewPlanErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.review_plan_generic');
 }
+
+export function routingPolicyErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'ROUTING_POLICY_NOT_FOUND') {
+      return i18n.t('errors.routing_policy_not_found');
+    }
+    if (code === 'ROUTING_POLICY_PRIORITY_CONFLICT') {
+      return i18n.t('errors.routing_policy_priority_conflict');
+    }
+    if (code === 'ROUTING_POLICY_INVALID') {
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.routing_policy_invalid');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.routing_policy_generic');
+}

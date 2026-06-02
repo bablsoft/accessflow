@@ -38,6 +38,7 @@ const AiAnalysesPage = lazy(() => import('@/pages/admin/AiAnalysesPage'));
 const DatasourceHealthPage = lazy(() => import('@/pages/admin/DatasourceHealthPage'));
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
 import { ReviewPlansPage } from '@/pages/admin/ReviewPlansPage';
+import { RoutingPoliciesPage } from '@/pages/admin/RoutingPoliciesPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 const OAuth2ConfigPage = lazy(() => import('@/pages/admin/OAuth2ConfigPage'));
 const SlackConfigPage = lazy(() => import('@/pages/admin/SlackConfigPage'));
@@ -200,6 +201,14 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <ReviewPlansPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/routing-policies"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <RoutingPoliciesPage />
               </AuthGuard>
             }
           />

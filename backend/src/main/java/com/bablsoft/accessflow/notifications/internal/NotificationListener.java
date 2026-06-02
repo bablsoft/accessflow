@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
+import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -49,6 +50,12 @@ class NotificationListener {
     void onQueryRejected(QueryRejectedEvent event) {
         safeDispatch(NotificationEventType.QUERY_REJECTED, event.queryRequestId(),
                 event.reviewerId(), null, null);
+    }
+
+    @ApplicationModuleListener
+    void onQueryAutoRejected(QueryAutoRejectedEvent event) {
+        safeDispatch(NotificationEventType.QUERY_REJECTED, event.queryRequestId(),
+                null, null, null);
     }
 
     @ApplicationModuleListener
