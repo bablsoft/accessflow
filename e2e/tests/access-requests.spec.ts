@@ -134,3 +134,50 @@ test.describe.serial('access requests (AF-378)', () => {
     await expect(page.getByText('Cancelled', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
   });
 });
+
+// Admin fallback: a datasource with NO review plan can't route a request to any plan
+// approver. Admins are the backstop — they must still see the request in the queue and be
+// able to approve it (otherwise the request is orphaned in PENDING forever). Regression guard
+// for the "request invisible on Admin Access Requests" bug.
+test.describe.serial('access requests — admin fallback with no review plan', () => {
+  let datasource: CreatedDatasource | null = null;
+  let adminToken = '';
+  const requesterEmail = `af-noplan-${randomUUID()}@e2e.local`;
+
+  test.beforeAll(async ({ request }) => {
+    adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    // No reviewPlanId → no plan approver exists for this datasource.
+    datasource = await createPostgresDatasource(request, adminToken, {
+      name: `AF-noplan DS ${Date.now()}`,
+    });
+    await purgeMailcrab(request);
+    await inviteUserViaApi(request, adminToken, requesterEmail, 'AF NoPlan Requester', 'ANALYST');
+    const token = await waitForInviteToken(request, requesterEmail);
+    await acceptInvitationViaApi(request, token, REQUESTER_PASSWORD, 'AF NoPlan Requester');
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (datasource) await deleteDatasource(request, adminToken, datasource.id);
+  });
+
+  test('admin sees and approves a request on a plan-less datasource', async ({ page }) => {
+    // 1. Requester submits against the plan-less datasource.
+    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await submitAccessRequest(page, datasource!.name);
+    await expect(page.getByText('Pending', { exact: true })).toBeVisible({ timeout: 15_000 });
+
+    // 2. Admin still finds it in the queue (the fallback) and approves it.
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/access-requests');
+    const row = page.getByRole('row').filter({ hasText: requesterEmail });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.getByRole('button', { name: 'Approve' }).click();
+    await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
+
+    // 3. The grant materialised: requester's row flips to APPROVED with a TTL chip.
+    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await page.goto('/access-requests');
+    await expect(page.getByText('Approved', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/left$/)).toBeVisible({ timeout: 15_000 });
+  });
+});

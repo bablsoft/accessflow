@@ -673,7 +673,11 @@
             <code>/access-requests</code> — pick a datasource, the capabilities they need
             (read / write / DDL), an optional schema/table scope, and a duration. The request runs
             through the same reviewer-eligibility and multi-stage approval engine as query review
-            (a requester can never approve their own). On final approval AccessFlow writes a
+            (a requester can never approve their own). Admins are the backstop approver: an admin
+            sees and can approve <em>every</em> pending access request from
+            <code>/admin/access-requests</code> — even on datasources with no review plan — so a
+            request is never stuck waiting for an approver who was never configured. On final
+            approval AccessFlow writes a
             time-boxed <code>datasource_user_permissions</code> row (<code>expires_at = now +
             duration</code>); a clustered scheduler revokes it on expiry, and an admin can revoke an
             active grant early from <code>/admin/access-requests</code>. Tune the revocation cadence

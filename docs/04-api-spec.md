@@ -1265,6 +1265,8 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 
 Just-in-time, time-bound access requests. A user requests temporary scoped access to a datasource; it flows through the same reviewer-eligibility + multi-stage approval machinery as query review (a requester can never approve their own request — enforced at the service layer). On final-stage approval a time-boxed `datasource_user_permissions` row is materialised (`expires_at = now + requested_duration`) and `AccessGrantExpiryJob` revokes it on expiry.
 
+**Admin fallback.** Admins are the backstop approver: an `ADMIN` sees **every** `PENDING` access request in their organization (except their own) on the queue below and may approve/reject it regardless of the datasource's review plan — including datasources with no plan, or a plan that does not route to them. A single admin approval finalises such a request immediately. When the datasource *does* route to the admin as a configured stage approver, the normal multi-stage chain still applies (their approval advances one stage). Non-admin `REVIEWER`s remain strictly plan-gated. If a submitted request's plan resolves no eligible approver, the submission notification falls back to all active admins so it is never silently orphaned.
+
 ### POST /access-requests — Request Body *(any authenticated user)*
 
 ```json
@@ -1306,11 +1308,11 @@ Introspects the live schema of a requestable datasource so the request form can 
 
 ### GET /admin/access-requests — Query Parameters *(REVIEWER / ADMIN)*
 
-Paginated queue of access requests the caller can currently act on (current-stage + datasource-scope filtered, self-requests excluded), mirroring `/reviews/pending`.
+Paginated queue of access requests the caller can currently act on, self-requests excluded. For a `REVIEWER` this is current-stage + datasource-scope filtered, mirroring `/reviews/pending`. For an `ADMIN` it is **every** `PENDING` request in the organization (the admin-fallback backstop), so requests on plan-less datasources are still visible.
 
 ### POST /admin/access-requests/{id}/approve — Request Body *(REVIEWER / ADMIN)*
 
-`{ "comment": "approved" }` (optional). Records an approval; on final stage the grant is materialised. **Response 200** → `{ access_request_id, decision_id, decision, resulting_status, idempotent_replay }`.
+`{ "comment": "approved" }` (optional). Records an approval; on final stage the grant is materialised. An admin acting outside the plan (no plan / not a named approver) finalises the request with this single approval. **Response 200** → `{ access_request_id, decision_id, decision, resulting_status, idempotent_replay }`.
 
 ### POST /admin/access-requests/{id}/reject — Request Body *(REVIEWER / ADMIN)*
 

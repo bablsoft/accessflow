@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -260,6 +261,126 @@ class DefaultAccessReviewServiceTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).id()).isEqualTo(requestId);
+    }
+
+    // --- AF: admin fallback (admins are the backstop approver) ---------------------------------
+
+    private ReviewPlanSnapshot twoStageAdminPlan() {
+        return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 1,
+                List.of(new ApproverRule(null, UserRoleType.ADMIN, 0),
+                        new ApproverRule(null, UserRoleType.ADMIN, 1)), List.of());
+    }
+
+    @Test
+    void adminSeesPendingRequestEvenWhenDatasourceHasNoPlan() {
+        when(requestRepository.findAllByOrganizationIdAndStatusOrderByCreatedAtAsc(
+                organizationId, AccessGrantStatus.PENDING))
+                .thenReturn(List.of(pending()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        when(stateService.listDecisions(requestId)).thenReturn(List.of());
+        when(userQueryService.findById(requesterId)).thenReturn(Optional.empty());
+        when(datasourceLookupService.findRef(datasourceId)).thenReturn(Optional.empty());
+
+        var page = service.listPendingForReviewer(reviewer(UserRoleType.ADMIN),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).id()).isEqualTo(requestId);
+        assertThat(page.content().get(0).currentStage()).isZero();
+    }
+
+    @Test
+    void adminStillCannotSeeOwnRequest() {
+        var own = pending();
+        own.setRequesterId(reviewerId);
+        when(requestRepository.findAllByOrganizationIdAndStatusOrderByCreatedAtAsc(
+                organizationId, AccessGrantStatus.PENDING))
+                .thenReturn(List.of(own));
+
+        var page = service.listPendingForReviewer(reviewer(UserRoleType.ADMIN),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void adminOverrideApproveFinalisesRequestWithNoPlan() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pending()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        var command = ArgumentCaptor.forClass(RecordAccessApprovalCommand.class);
+        when(stateService.recordApprovalAndAdvance(command.capture()))
+                .thenReturn(new RecordAccessDecisionResult(UUID.randomUUID(),
+                        AccessGrantStatus.APPROVED, false));
+
+        var outcome = service.approve(requestId, reviewer(UserRoleType.ADMIN), "ok");
+
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
+        assertThat(command.getValue().minApprovalsRequired()).isEqualTo(1);
+        assertThat(command.getValue().isLastStage()).isTrue();
+        verify(materializer).materialize(requestId, reviewerId);
+        verify(eventPublisher).publishEvent(any(AccessRequestApprovedEvent.class));
+    }
+
+    @Test
+    void adminOverrideRejectsRequestWithNoPlan() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pending()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        when(stateService.recordRejection(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn(new RecordAccessDecisionResult(UUID.randomUUID(),
+                        AccessGrantStatus.REJECTED, false));
+
+        var outcome = service.reject(requestId, reviewer(UserRoleType.ADMIN), "no");
+
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.REJECTED);
+        verify(eventPublisher).publishEvent(any(AccessRequestRejectedEvent.class));
+    }
+
+    @Test
+    void adminCannotApproveOwnRequestEvenViaOverride() {
+        var own = pending();
+        own.setRequesterId(reviewerId);
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(own));
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(UserRoleType.ADMIN), null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(stateService, never()).recordApprovalAndAdvance(any());
+    }
+
+    @Test
+    void adminAsNamedApproverFollowsMultiStagePlanWithoutShortCircuit() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pending()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(twoStageAdminPlan()));
+        when(stateService.listDecisions(requestId)).thenReturn(List.of());
+        when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
+                .thenReturn(Optional.empty());
+        var command = ArgumentCaptor.forClass(RecordAccessApprovalCommand.class);
+        when(stateService.recordApprovalAndAdvance(command.capture()))
+                .thenReturn(new RecordAccessDecisionResult(UUID.randomUUID(),
+                        AccessGrantStatus.PENDING, false));
+
+        var outcome = service.approve(requestId, reviewer(UserRoleType.ADMIN), "stage 1");
+
+        // First of two stages: the plan governs, so the request stays PENDING and no grant
+        // is materialised (the admin is not allowed to skip the chain when it routes to them).
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.PENDING);
+        assertThat(command.getValue().isLastStage()).isFalse();
+        verify(materializer, never()).materialize(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(AccessRequestApprovedEvent.class));
+    }
+
+    @Test
+    void reviewerWithoutPlanMatchStaysIneligible() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pending()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(twoStageAdminPlan())); // names ADMIN only
+        when(stateService.listDecisions(requestId)).thenReturn(List.of());
+        when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(UserRoleType.REVIEWER), null))
+                .isInstanceOf(AccessReviewerNotEligibleException.class);
+        verify(stateService, never()).recordApprovalAndAdvance(any());
     }
 
     private AccessGrantRequestEntity approved() {

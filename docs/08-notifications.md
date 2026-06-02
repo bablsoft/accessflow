@@ -22,6 +22,9 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
 | `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter and every active ADMIN user in the org (de-duplicated when the submitter is themselves an admin) | implemented |
+| `ACCESS_REQUEST_SUBMITTED` | JIT access request enters `PENDING` | Eligible approvers at the lowest stage of the datasource's review plan (excluding the requester); **falls back to all active ADMIN users in the org** when the plan resolves no eligible approver (no plan, empty approver list, or datasource scope filtered everyone out) so the request is never silently orphaned | implemented |
+| `ACCESS_REQUEST_APPROVED` | JIT access request fully approved and grant materialised | Requester | implemented |
+| `ACCESS_REQUEST_REJECTED` | Reviewer/admin rejects a JIT access request | Requester | implemented |
 
 `AI_HIGH_RISK` only fires for `RiskLevel.CRITICAL`; lower risk levels still surface via the standard `QUERY_SUBMITTED` notification.
 
@@ -343,6 +346,8 @@ in `NotificationContextBuilder`:
 | `QUERY_REJECTED` | The original submitter |
 | `REVIEW_TIMEOUT` | The original submitter and every active org admin (de-duplicated) |
 | `AI_HIGH_RISK` | All active org admins |
+| `ACCESS_REQUEST_SUBMITTED` | Eligible plan approvers at the lowest stage (excluding the requester), falling back to all active org admins when the plan resolves no one |
+| `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | The requester |
 | `TEST` | Skipped — never persisted to the inbox |
 
 **Persistence flow.** `NotificationDispatcher` first calls `userNotificationService.recordForUsers(...)`
