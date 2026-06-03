@@ -155,21 +155,36 @@ Log in with the seeded admin via `preview_fill` + `preview_click` (assert succes
 
 #### 3c. Capture each page in light and dark
 
-Canonical list — these are the PNGs that exist today plus the routes they were captured from. Cross-check against `git ls-files website/images/docs/` before each release; if extra PNGs exist, update this table and the `website/README.md` content-source map in the same PR.
+Canonical list — these are the PNGs that exist today plus the routes they were captured from. **The authoritative source is the `targets[]` array in [`e2e/screenshots/capture.ts`](../../e2e/screenshots/capture.ts)** — keep this table in sync with it. Cross-check against `git ls-files website/images/docs/` before each release; if extra PNGs exist, update this table and the `website/README.md` content-source map in the same PR.
 
 | Source page (admin SPA) | Output PNGs |
 |---|---|
 | `/admin/users` → invite drawer open | `users-invite-light.png`, `users-invite-dark.png` |
 | `/datasources` → create wizard open | `datasources-create-light.png`, `datasources-create-dark.png` |
-| `/admin/review-plans` → create drawer open (after picking a template) | `review-plans-create-light.png`, `review-plans-create-dark.png` |
+| `/admin/review-plans` → create drawer open | `review-plans-create-light.png`, `review-plans-create-dark.png` |
+| `/admin/review-plans` → templates dropdown open | `review-plans-templates-light.png`, `review-plans-templates-dark.png` |
 | `/admin/ai-configs/new` (create wizard) | `ai-configs-create-light.png`, `ai-configs-create-dark.png` |
 | `/admin/notifications` → create channel drawer open | `notification-channels-create-light.png`, `notification-channels-create-dark.png` |
-| System SMTP edit form (rendered via `SystemSmtpCard`, on whichever route hosts it — confirm in `frontend/src/App.tsx` before navigating) | `system-smtp-edit-light.png`, `system-smtp-edit-dark.png` |
-| `/admin/oauth` → Google provider form populated | `oauth2-google-light.png`, `oauth2-google-dark.png` |
+| System SMTP edit form (rendered via `SystemSmtpCard`, on `/admin/notifications` — confirm in `frontend/src/App.tsx` before navigating) | `system-smtp-edit-light.png`, `system-smtp-edit-dark.png` |
+| `/admin/oauth2` → Google provider form populated | `oauth2-google-light.png`, `oauth2-google-dark.png` |
 | `/admin/saml` → config form populated | `saml-config-light.png`, `saml-config-dark.png` |
+| `/admin/audit-log` with seeded data | `audit-log-light.png`, `audit-log-dark.png` |
+| `/admin/ai-analyses` dashboard with seeded data | `ai-analyses-dashboard-light.png`, `ai-analyses-dashboard-dark.png` |
+| `/admin/drivers` list | `drivers-list-light.png`, `drivers-list-dark.png` |
+| `/datasources/<id>/settings` → ER diagram tab | `datasources-er-diagram-light.png`, `datasources-er-diagram-dark.png` |
+| `/admin/datasource-health` dashboard | `datasource-health-light.png`, `datasource-health-dark.png` |
+| `/admin/slack` config | `slack-config-light.png`, `slack-config-dark.png` |
+| `/admin/groups` list | `groups-list-light.png`, `groups-list-dark.png` |
+| `/admin/routing-policies` list (AF-379) | `routing-policies-light.png`, `routing-policies-dark.png` |
+| `/admin/access-requests` queue (AF-378) | `access-requests-queue-light.png`, `access-requests-queue-dark.png` |
+| `/datasources/<id>/settings` → Masking tab (AF-381) | `datasources-masking-light.png`, `datasources-masking-dark.png` |
+| `/datasources/<id>/settings` → Row security tab (AF-380) | `datasources-row-security-light.png`, `datasources-row-security-dark.png` |
 | `/editor` with a sample query and the AI hint panel visible | `editor-light.png` (light-only by precedent) |
+| `/editor` → schedule date picker open | `editor-schedule-light.png` (light-only by precedent) |
+| `/editor` → query-templates drawer open | `editor-query-templates-light.png` (light-only by precedent) |
 | `/queries` list with seeded data | `queries-list-light.png` (light-only by precedent) |
 | `/reviews` queue with seeded data | `reviews-queue-light.png` (light-only by precedent) |
+| `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.png` (light-only by precedent) |
 
 For each row:
 
