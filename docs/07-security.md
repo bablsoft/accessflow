@@ -324,6 +324,39 @@ value-rendering control, not an access boundary:
   entry would apply to the same column; a `restricted_columns` entry with no covering policy is
   unchanged (backward compatible).
 
+### Row-level security policies (AF-380)
+
+`row_security_policy` rows filter **which rows** a submitter can see (SELECT) or change (UPDATE/DELETE)
+on a table — a primary access boundary at the row grain, enforced in the proxy at the AST layer.
+
+- **Parameter-bound, never concatenated.** The proxy builds the predicate AST from the policy's
+  structured `column / operator / value` parts and binds the value(s) as JDBC parameters (`?`) — it
+  never string-concatenates the value into SQL (CLAUDE.md security rule #1). Admins author a structured
+  predicate, not raw SQL, so there is no injection surface from the policy definition itself.
+- **`applies_to` polarity is inverted vs. masking.** Where masking `reveal_to_*` *exempts* the listed
+  targets, row-security `applies_to_*` *applies* to them. All three empty ⇒ the policy filters **every**
+  submitter (governance-safe default); non-empty narrows by role / group / user id. There is **no
+  implicit ADMIN bypass** — with empty `applies_to_*`, admins are filtered too. Keyed on the query
+  **submitter** (`submittedByUserId`), consistent with masking and `restricted_columns`.
+- **Fail-closed.** A `VARIABLE` that cannot be resolved (a missing `users.attributes` key, or
+  `user.groups` for a user in no groups) collapses to an always-false `1=0` predicate, so the submitter
+  sees nothing rather than everything.
+- **Reject, don't leak.** Query shapes the rewriter cannot provably filter (a policied table inside a
+  `UNION`, a CTE, a sub-select, an `INSERT … SELECT`, or an `UPDATE … FROM` / `DELETE … USING` join onto
+  another policied table) are rejected with **HTTP 422** (`ROW_SECURITY_UNREWRITABLE`), never run
+  unfiltered. DML inside a `BEGIN…COMMIT` batch is rewritten per-statement so a user cannot wrap an
+  UPDATE to bypass the predicate.
+- **Composition.** Row security composes with the schema/table allow-list (checked at submission) and
+  column masking (applied at result-read): the security-barrier subquery exposes all columns via
+  `SELECT *`, so masking still finds them; rows are filtered first, then surviving rows' columns masked.
+- **Predicate variables hold only what AccessFlow stores.** Built-ins resolve from the user record
+  (`user.id` / `user.email` / `user.role`) and group memberships (`user.groups`); `:user.<key>` resolves
+  from the admin-set `users.attributes` map. Attributes are **not** synced from the IdP — an admin sets
+  them explicitly, so there is no implicit trust of arbitrary IdP claims.
+- **Audit.** The ids of the policies actually applied to an execution ride on the `QUERY_EXECUTED`
+  metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
+  `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
+
 ---
 
 ## Database Credential Security

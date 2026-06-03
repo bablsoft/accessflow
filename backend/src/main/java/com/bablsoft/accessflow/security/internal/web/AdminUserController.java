@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.security.internal.token.RefreshTokenStore;
 import com.bablsoft.accessflow.security.internal.web.model.AdminUserResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateUserRequest;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateUserRequest;
+import com.bablsoft.accessflow.security.internal.web.model.UserAttributesResponse;
 import com.bablsoft.accessflow.security.internal.web.model.UserPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -102,10 +103,21 @@ class AdminUserController {
                                  @Valid @RequestBody UpdateUserRequest request,
                                  Authentication authentication) {
         var caller = currentClaims(authentication);
-        var command = new UpdateUserCommand(request.role(), request.active(), request.displayName());
+        var command = new UpdateUserCommand(request.role(), request.active(), request.displayName(),
+                request.attributes());
         var updated = userAdminService.updateUser(id, caller.organizationId(),
                 caller.userId(), command);
         return AdminUserResponse.from(updated);
+    }
+
+    @GetMapping("/{id}/attributes")
+    @Operation(summary = "Get a user's admin-set attribute map (used by row-security predicates)")
+    @ApiResponse(responseCode = "200", description = "User attribute map")
+    @ApiResponse(responseCode = "404", description = "User not found in caller's organization")
+    UserAttributesResponse getUserAttributes(@PathVariable UUID id, Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return new UserAttributesResponse(
+                userAdminService.getUserAttributes(id, caller.organizationId()));
     }
 
     @DeleteMapping("/{id}")

@@ -801,6 +801,22 @@
             unmasked values never persist, and the ids of the policies that applied are recorded in the
             execution's audit metadata. Reveal is explicit — there is no implicit admin bypass.
           </p>
+          <p>
+            <strong>Row security policies.</strong> The datasource <em>Row security</em> tab adds
+            <em>row-level security</em>: per-table predicates the proxy injects into the parsed SQL so a
+            scoped user only sees (SELECT) or affects (UPDATE/DELETE) the rows they are authorised for.
+            Each policy is a structured <code>column operator value</code> predicate where the value is a
+            fixed <em>literal</em> or a <code>:user.*</code> <em>variable</em> — the built-in
+            <code>:user.id</code> / <code>:user.email</code> / <code>:user.role</code> /
+            <code>:user.groups</code>, or an admin-set per-user attribute (the <em>Attributes</em>
+            key/value editor on <em>Admin → Users</em>). The <em>applies to</em> roles / groups / users
+            scope it (empty = everyone, no implicit admin bypass — the inverse of masking's
+            <em>reveal to</em>). Values are bound as parameters, never concatenated; an unresolved
+            variable filters out every row (fail-closed); and a query the engine can't safely rewrite
+            (a policied table inside a UNION, CTE, sub-select, or join-onto-another-policied-table) is
+            rejected rather than run unfiltered. Applied policy ids are recorded in the execution's audit
+            metadata.
+          </p>
 
           <h3 id="cfg-drivers">Custom JDBC drivers</h3>
           <p>

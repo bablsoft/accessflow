@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -35,6 +36,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final ProxyPoolProperties properties;
     private final JdbcResultRowMapper rowMapper;
     private final SqlExceptionTranslator sqlExceptionTranslator;
+    private final RowSecurityRewriter rowSecurityRewriter;
     private final Clock clock;
     private final MessageSource messageSource;
 
@@ -58,17 +60,20 @@ class DefaultQueryExecutor implements QueryExecutor {
         if (request.transactional()) {
             return executeTransactional(request, effectiveTimeout, start);
         }
+        var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates());
         try (Connection connection = routingResolver.acquire(request.datasourceId(),
                 request.queryType())) {
             connection.setReadOnly(request.queryType() == QueryType.SELECT);
-            try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
+            try (PreparedStatement statement = connection.prepareStatement(rewrite.sql())) {
                 statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
                 statement.setFetchSize(Math.min(effectiveMaxRows + 1, execProps.defaultFetchSize()));
+                bind(statement, rewrite.binds());
                 if (request.queryType() == QueryType.SELECT) {
                     return runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
-                            request.restrictedColumns(), request.columnMasks());
+                            request.restrictedColumns(), request.columnMasks(),
+                            rewrite.appliedPolicyIds());
                 }
-                return runUpdate(statement, start);
+                return runUpdate(statement, start, rewrite.appliedPolicyIds());
             }
         } catch (SQLException ex) {
             log.debug("SQL execution failed for datasource {}: {}",
@@ -79,6 +84,7 @@ class DefaultQueryExecutor implements QueryExecutor {
 
     private QueryExecutionResult executeTransactional(QueryExecutionRequest request,
                                                       Duration effectiveTimeout, Instant start) {
+        var appliedPolicyIds = new java.util.LinkedHashSet<java.util.UUID>();
         try (Connection connection = routingResolver.acquire(request.datasourceId(),
                 QueryType.OTHER)) {
             connection.setReadOnly(false);
@@ -86,8 +92,12 @@ class DefaultQueryExecutor implements QueryExecutor {
             long totalAffected = 0;
             try {
                 for (String stmtSql : request.statements()) {
-                    try (PreparedStatement statement = connection.prepareStatement(stmtSql)) {
+                    var rewrite = rowSecurityRewriter.rewrite(stmtSql,
+                            request.rowSecurityPredicates());
+                    appliedPolicyIds.addAll(rewrite.appliedPolicyIds());
+                    try (PreparedStatement statement = connection.prepareStatement(rewrite.sql())) {
                         statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
+                        bind(statement, rewrite.binds());
                         totalAffected += statement.executeLargeUpdate();
                     }
                 }
@@ -100,7 +110,7 @@ class DefaultQueryExecutor implements QueryExecutor {
                 }
                 throw ex;
             }
-            return new UpdateExecutionResult(totalAffected, durationSince(start));
+            return new UpdateExecutionResult(totalAffected, durationSince(start), appliedPolicyIds);
         } catch (SQLException ex) {
             log.debug("Transactional SQL execution failed for datasource {}: {}",
                     request.datasourceId(), ex.getMessage());
@@ -111,19 +121,30 @@ class DefaultQueryExecutor implements QueryExecutor {
     private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
                                            DbType dbType, Instant start,
                                            List<String> restrictedColumns,
-                                           List<ColumnMaskDirective> columnMasks)
+                                           List<ColumnMaskDirective> columnMasks,
+                                           java.util.Set<java.util.UUID> appliedRowSecurityPolicyIds)
             throws SQLException {
         statement.setMaxRows(effectiveMaxRows + 1);
         try (var resultSet = statement.executeQuery()) {
-            return rowMapper.materialize(resultSet, effectiveMaxRows, dbType,
+            SelectExecutionResult result = rowMapper.materialize(resultSet, effectiveMaxRows, dbType,
                     durationSince(start), restrictedColumns, columnMasks);
+            return appliedRowSecurityPolicyIds.isEmpty()
+                    ? result
+                    : result.withRowSecurityPolicyIds(appliedRowSecurityPolicyIds);
         }
     }
 
-    private UpdateExecutionResult runUpdate(PreparedStatement statement, Instant start)
+    private UpdateExecutionResult runUpdate(PreparedStatement statement, Instant start,
+                                            java.util.Set<java.util.UUID> appliedRowSecurityPolicyIds)
             throws SQLException {
         long affected = statement.executeLargeUpdate();
-        return new UpdateExecutionResult(affected, durationSince(start));
+        return new UpdateExecutionResult(affected, durationSince(start), appliedRowSecurityPolicyIds);
+    }
+
+    private static void bind(PreparedStatement statement, List<Object> binds) throws SQLException {
+        for (int i = 0; i < binds.size(); i++) {
+            statement.setObject(i + 1, binds.get(i));
+        }
     }
 
     private Duration durationSince(Instant start) {

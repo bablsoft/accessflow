@@ -136,6 +136,10 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `POST` | `/datasources/{id}/masking-policies` | ADMIN | Create a masking policy on a datasource column |
 | `PUT` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Update a masking policy |
 | `DELETE` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Delete a masking policy |
+| `GET` | `/datasources/{id}/row-security-policies` | ADMIN | List row-level security policies for a datasource (AF-380) |
+| `POST` | `/datasources/{id}/row-security-policies` | ADMIN | Create a row-security policy on a datasource table |
+| `PUT` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Update a row-security policy |
+| `DELETE` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Delete a row-security policy |
 | `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
 | `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
 | `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
@@ -544,6 +548,85 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 #### DELETE /datasources/{id}/masking-policies/{policyId}
 
 **Response 204:** No content. **Response 404:** `MASKING_POLICY_NOT_FOUND`.
+
+---
+
+### Row security policies (AF-380)
+
+Admin-only, organization-scoped per-table row-level security. A policy injects a structured predicate
+(`column operator value`) into queries against the table so a scoped submitter only sees (SELECT) or
+affects (UPDATE/DELETE) authorised rows. Enforced in the proxy at the AST layer with the value bound as
+a JDBC parameter. Applied policy ids are recorded in the `QUERY_EXECUTED` audit metadata
+(`applied_row_security_policy_ids`); no row data is logged.
+
+#### POST /datasources/{id}/row-security-policies — Request Body
+
+```json
+{
+  "table_name": "public.orders",
+  "column_name": "region",
+  "operator": "EQUALS",
+  "value_type": "VARIABLE",
+  "value_expression": ":user.region",
+  "applies_to_roles": ["ANALYST"],
+  "applies_to_group_ids": ["uuid"],
+  "applies_to_user_ids": ["uuid"],
+  "enabled": true
+}
+```
+
+`table_name` and `column_name` are required (non-blank, ≤ 512 chars). `operator` is one of `EQUALS`,
+`NOT_EQUALS`, `LESS_THAN`, `LESS_THAN_OR_EQUAL`, `GREATER_THAN`, `GREATER_THAN_OR_EQUAL`, `IN`, `NOT_IN`.
+`value_type` is `VARIABLE` or `LITERAL`. `value_expression` is required (≤ 512 chars): for `VARIABLE` a
+`user.<key>` reference (built-ins `user.id` / `user.email` / `user.role` / `user.groups`, or a
+`users.attributes` key — a leading `:` is accepted and stripped); for `LITERAL` the fixed value. The
+`applies_to_*` lists are optional — **all empty ⇒ applies to every submitter** (non-empty narrows by
+role / group / user id); targets must belong to the caller's organization.
+
+**Response 201:** Row-security policy object. `Location` header points to
+`/api/v1/datasources/{id}/row-security-policies/{policyId}`.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Blank table/column/value, a variable outside the `user.*` namespace, a list variable
+(`user.groups`) with a scalar operator, an unknown applies-to role, or an applies-to user/group outside
+the organization. `error: ILLEGAL_ROW_SECURITY_POLICY`.
+
+#### GET /datasources/{id}/row-security-policies — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "table_name": "public.orders",
+      "column_name": "region",
+      "operator": "EQUALS",
+      "value_type": "VARIABLE",
+      "value_expression": "user.region",
+      "applies_to_roles": ["ANALYST"],
+      "applies_to_group_ids": [],
+      "applies_to_user_ids": [],
+      "enabled": true,
+      "created_at": "2026-06-01T10:00:00Z",
+      "updated_at": "2026-06-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### PUT /datasources/{id}/row-security-policies/{policyId}
+
+Same body as `POST`; replaces the policy. **Response 200:** updated policy object. **Response 404:**
+`ROW_SECURITY_POLICY_NOT_FOUND` when the policy is missing or belongs to a different datasource.
+
+#### DELETE /datasources/{id}/row-security-policies/{policyId}
+
+**Response 204:** No content. **Response 404:** `ROW_SECURITY_POLICY_NOT_FOUND`.
+
+> **Enforcement note.** When a query references a policied table in a shape the proxy cannot safely
+> rewrite (a policied table inside a `UNION`, a CTE, a sub-select, an `INSERT … SELECT`, or an
+> `UPDATE … FROM` / `DELETE … USING` join onto another policied table), execution returns **HTTP 422**
+> `error: ROW_SECURITY_UNREWRITABLE` rather than running unfiltered.
 
 ---
 
@@ -1351,7 +1434,8 @@ Paginated queue of access requests the caller can currently act on, self-request
 |--------|------|-------------|
 | `GET` | `/admin/users` | List all users in the organization |
 | `POST` | `/admin/users` | Create local user (LOCAL auth provider) |
-| `PUT` | `/admin/users/{id}` | Update user role or active status |
+| `PUT` | `/admin/users/{id}` | Update user role, active status, display name, or `attributes` (AF-380) |
+| `GET` | `/admin/users/{id}/attributes` | Get a user's admin-set attribute map (used by row-security predicates, AF-380) |
 | `DELETE` | `/admin/users/{id}` | Deactivate user |
 | `GET` | `/admin/users/invitations` | List user invitations (paginated) |
 | `POST` | `/admin/users/invitations` | Invite a user by email |
@@ -1444,13 +1528,28 @@ All fields optional. Omitted fields are left unchanged.
 {
   "role": "REVIEWER",
   "active": true,
-  "display_name": "Updated Name"
+  "display_name": "Updated Name",
+  "attributes": { "region": "EU", "tenant": "acme" }
 }
 ```
+
+`attributes` (AF-380) is an optional key/value map (≤ 50 entries; key ≤ 128, value ≤ 512 chars). When
+present it **replaces** the user's attribute map; omit it to leave attributes unchanged. These values
+resolve in row-security predicates as `:user.<key>`. They are admin-set, **not** synced from the IdP.
 
 **Response 200:** Updated user object.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 **Response 422:** Self-protection violation — admins cannot demote themselves from `ADMIN` or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
+
+### GET /admin/users/{id}/attributes — Response 200
+
+Returns the user's admin-set attribute map (AF-380), used to prefill the attributes editor.
+
+```json
+{ "attributes": { "region": "EU", "tenant": "acme" } }
+```
+
+**Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 
 ### DELETE /admin/users/{id}
 

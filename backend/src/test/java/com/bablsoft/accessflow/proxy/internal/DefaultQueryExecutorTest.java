@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
@@ -44,6 +46,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -86,7 +90,7 @@ class DefaultQueryExecutorTest {
         var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
                 messageSource);
         executor = new DefaultQueryExecutor(router, lookupService, properties,
-                rowMapper, translator, clock, messageSource);
+                rowMapper, translator, new RowSecurityRewriter(messageSource), clock, messageSource);
     }
 
     @Test
@@ -151,7 +155,7 @@ class DefaultQueryExecutorTest {
         var request = new QueryExecutionRequest(datasourceId, "SELECT email FROM users",
                 QueryType.SELECT, null, null, List.of(),
                 List.of(new ColumnMaskDirective("public.users.email", MaskingStrategy.EMAIL,
-                        Map.of(), policyId)), false, null);
+                        Map.of(), policyId)), List.of(), false, null);
 
         var result = (SelectExecutionResult) executor.execute(request);
 
@@ -307,6 +311,38 @@ class DefaultQueryExecutorTest {
 
         verify(connection).rollback();
         verify(connection, never()).commit();
+    }
+
+    @Test
+    void selectAppliesRowSecurityPredicateAndBindsParameter() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "t", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+        var request = new QueryExecutionRequest(datasourceId, "SELECT v FROM t", QueryType.SELECT,
+                null, null, List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (SelectExecutionResult) executor.execute(request);
+
+        verify(connection).prepareStatement(contains("(SELECT * FROM t WHERE region = ?)"));
+        verify(statement).setObject(1, "EU");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void updateAppliesRowSecurityPredicateAndBindsParameter() throws SQLException {
+        when(statement.executeLargeUpdate()).thenReturn(3L);
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "t", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+        var request = new QueryExecutionRequest(datasourceId, "UPDATE t SET v = 1",
+                QueryType.UPDATE, null, null, List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        verify(statement).setObject(eq(1), eq("EU"));
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
     }
 
     private DatasourceConnectionDescriptor descriptor(int maxRows) {

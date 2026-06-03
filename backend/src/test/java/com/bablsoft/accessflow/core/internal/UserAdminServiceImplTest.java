@@ -11,14 +11,16 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEnti
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,12 +36,18 @@ class UserAdminServiceImplTest {
 
     @Mock UserRepository userRepository;
     @Mock OrganizationRepository organizationRepository;
-    @InjectMocks UserAdminServiceImpl service;
+    UserAdminServiceImpl service;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final UUID orgId = UUID.randomUUID();
     private final UUID otherOrgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
     private final UUID adminId = UUID.randomUUID();
+
+    @BeforeEach
+    void setUp() {
+        service = new UserAdminServiceImpl(userRepository, organizationRepository, objectMapper);
+    }
 
     @Test
     void listUsersReturnsPageMappedToView() {
@@ -91,7 +99,7 @@ class UserAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
 
         var result = service.updateUser(userId, orgId, adminId,
-                new UpdateUserCommand(UserRoleType.REVIEWER, false, null));
+                new UpdateUserCommand(UserRoleType.REVIEWER, false, null, null));
 
         assertThat(result.role()).isEqualTo(UserRoleType.REVIEWER);
         assertThat(result.active()).isFalse();
@@ -104,7 +112,7 @@ class UserAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
 
         assertThatThrownBy(() -> service.updateUser(userId, orgId, adminId,
-                new UpdateUserCommand(UserRoleType.REVIEWER, null, null)))
+                new UpdateUserCommand(UserRoleType.REVIEWER, null, null, null)))
                 .isInstanceOf(UserNotFoundException.class);
     }
 
@@ -114,7 +122,7 @@ class UserAdminServiceImplTest {
         when(userRepository.findById(adminId)).thenReturn(Optional.of(entity));
 
         assertThatThrownBy(() -> service.updateUser(adminId, orgId, adminId,
-                new UpdateUserCommand(UserRoleType.ANALYST, null, null)))
+                new UpdateUserCommand(UserRoleType.ANALYST, null, null, null)))
                 .isInstanceOf(IllegalUserOperationException.class);
     }
 
@@ -124,7 +132,7 @@ class UserAdminServiceImplTest {
         when(userRepository.findById(adminId)).thenReturn(Optional.of(entity));
 
         assertThatThrownBy(() -> service.updateUser(adminId, orgId, adminId,
-                new UpdateUserCommand(null, false, null)))
+                new UpdateUserCommand(null, false, null, null)))
                 .isInstanceOf(IllegalUserOperationException.class);
     }
 
@@ -179,6 +187,37 @@ class UserAdminServiceImplTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(userId).email()).isEqualTo("user@example.com");
+    }
+
+    @Test
+    void updateUserPersistsAttributesAsJson() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        service.updateUser(userId, orgId, adminId,
+                new UpdateUserCommand(null, null, null, Map.of("region", "EU")));
+
+        assertThat(entity.getAttributes()).contains("\"region\"").contains("EU");
+    }
+
+    @Test
+    void getUserAttributesParsesStoredJson() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        entity.setAttributes("{\"region\":\"EU\",\"tier\":\"gold\"}");
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThat(service.getUserAttributes(userId, orgId))
+                .containsEntry("region", "EU")
+                .containsEntry("tier", "gold");
+    }
+
+    @Test
+    void getUserAttributesThrowsForUserInDifferentOrg() {
+        var entity = buildUser(userId, otherOrgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.getUserAttributes(userId, orgId))
+                .isInstanceOf(UserNotFoundException.class);
     }
 
     private UserEntity buildUser(UUID id, UUID organizationId, String email, UserRoleType role) {

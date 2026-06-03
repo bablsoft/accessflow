@@ -60,6 +60,11 @@ import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { ErDiagramTab } from '@/components/datasources/ErDiagramTab';
 import { MaskingTab } from '@/components/datasources/MaskingTab';
 import { listMaskingPolicies, maskingPolicyKeys } from '@/api/maskingPolicies';
+import { RowSecurityTab } from '@/components/datasources/RowSecurityTab';
+import {
+  listRowSecurityPolicies,
+  rowSecurityPolicyKeys,
+} from '@/api/rowSecurityPolicies';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type {
   CreatePermissionInput,
@@ -93,6 +98,12 @@ export function DatasourceSettingsPage() {
   const maskingPoliciesQuery = useQuery({
     queryKey: id ? maskingPolicyKeys.list(id) : ['masking-policies', 'list', 'idle'],
     queryFn: () => listMaskingPolicies(id!),
+    enabled: !!id,
+  });
+
+  const rowSecurityPoliciesQuery = useQuery({
+    queryKey: id ? rowSecurityPolicyKeys.list(id) : ['row-security-policies', 'list', 'idle'],
+    queryFn: () => listRowSecurityPolicies(id!),
     enabled: !!id,
   });
 
@@ -164,6 +175,7 @@ export function DatasourceSettingsPage() {
   const ds = dsQuery.data;
   const permissionsCount = permissionsQuery.data?.length ?? 0;
   const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
+  const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
   const testIcon =
     testMutation.isPending ? (
       <LoadingOutlined />
@@ -212,6 +224,10 @@ export function DatasourceSettingsPage() {
             key: 'masking',
             label: t('datasources.settings.tab_masking', { count: maskingCount }),
           },
+          {
+            key: 'row-security',
+            label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
+          },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
@@ -221,6 +237,7 @@ export function DatasourceSettingsPage() {
         {tab === 'permissions' && <PermissionMatrix dsId={ds.id} />}
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
+        {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>

@@ -810,6 +810,55 @@
         "delete_success": "Politique de masquage supprimée",
         "delete_error": "Échec de la suppression de la politique de masquage",
         "state_disabled": "Désactivée"
+      },
+      "tab_row_security": "Sécurité des lignes · {{count}}",
+      "row_security": {
+        "title": "Politiques de sécurité au niveau des lignes",
+        "description": "Filtre les lignes qu’un utilisateur peut voir (SELECT) ou modifier (UPDATE/DELETE) dans une table. Chaque politique compare une colonne à une valeur par utilisateur ; les utilisateurs concernés ne voient que les lignes autorisées.",
+        "add": "Ajouter une politique",
+        "empty_title": "Aucune politique de sécurité des lignes",
+        "empty_description": "Ajoutez une politique pour restreindre les lignes auxquelles un utilisateur peut accéder dans une table.",
+        "col_table": "Table",
+        "col_predicate": "Prédicat",
+        "col_applies": "S’applique à",
+        "col_enabled": "Activée",
+        "col_actions": "Actions",
+        "state_disabled": "Désactivée",
+        "applies_everyone": "Tout le monde",
+        "applies_roles": "{{count}} rôle(s)",
+        "applies_groups": "{{count}} groupe(s)",
+        "applies_users": "{{count}} utilisateur(s)",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "delete_confirm_title": "Supprimer cette politique de sécurité des lignes ?",
+        "delete_confirm_body": "La table ne sera plus filtrée par lignes pour les utilisateurs concernés.",
+        "create_title": "Ajouter une politique de sécurité des lignes",
+        "edit_title": "Modifier la politique de sécurité des lignes",
+        "label_table": "Table",
+        "placeholder_table": "schéma.table",
+        "label_column": "Colonne",
+        "placeholder_column": "colonne",
+        "label_operator": "Opérateur",
+        "label_value_type": "Source de la valeur",
+        "label_value": "Valeur",
+        "value_variable_hint": "Une variable :user.*, p. ex. :user.region, :user.role, :user.groups.",
+        "value_literal_hint": "Une valeur fixe comparée telle quelle.",
+        "label_applies_roles": "S’applique aux rôles",
+        "label_applies_groups": "S’applique aux groupes",
+        "label_applies_users": "S’applique aux utilisateurs",
+        "label_enabled": "Activée",
+        "table_required": "La table cible est obligatoire",
+        "table_max": "La table cible ne doit pas dépasser 512 caractères",
+        "column_required": "La colonne cible est obligatoire",
+        "column_max": "La colonne cible ne doit pas dépasser 512 caractères",
+        "operator_required": "L’opérateur est obligatoire",
+        "value_type_required": "La source de la valeur est obligatoire",
+        "value_required": "La valeur est obligatoire",
+        "value_max": "La valeur ne doit pas dépasser 512 caractères",
+        "save_success": "Politique de sécurité des lignes enregistrée",
+        "save_error": "Échec de l’enregistrement de la politique de sécurité des lignes",
+        "delete_success": "Politique de sécurité des lignes supprimée",
+        "delete_error": "Échec de la suppression de la politique de sécurité des lignes"
       }
     }
   },
@@ -875,7 +924,13 @@
       "invite_revoke": "Révoquer",
       "invite_revoke_success": "Invitation révoquée",
       "invite_revoke_confirm_title": "Révoquer cette invitation ?",
-      "invite_revoke_confirm_body": "Le lien d'invitation pour {{email}} cessera de fonctionner."
+      "invite_revoke_confirm_body": "Le lien d'invitation pour {{email}} cessera de fonctionner.",
+      "label_attributes": "Attributs",
+      "attributes_hint": "Attributs clé/valeur résolubles dans les prédicats de sécurité des lignes via :user.<clé>.",
+      "attribute_key": "Clé",
+      "attribute_value": "Valeur",
+      "attribute_add": "Ajouter un attribut",
+      "attribute_remove": "Supprimer l’attribut"
     },
     "audit": {
       "title": "Journal d'audit",
@@ -1709,6 +1764,20 @@
       "has_where": "A une clause WHERE",
       "has_limit": "A une clause LIMIT",
       "transactional": "Transactionnel"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Variable",
+      "LITERAL": "Littéral"
     }
   },
   "access": {

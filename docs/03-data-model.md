@@ -42,6 +42,7 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `totp_secret_encrypted` | VARCHAR(512) — AES-256-GCM ciphertext of the TOTP shared secret. Set during enrolment, cleared on disable. Null when 2FA is not enabled. |
 | `totp_enabled` | BOOLEAN NOT NULL DEFAULT false — flipped to true only after the user confirms enrolment with a valid code |
 | `totp_backup_codes_encrypted` | TEXT — AES-256-GCM ciphertext of a JSON array of bcrypt hashes (one per single-use recovery code). Codes are removed from the array as they're consumed. Null when 2FA is not enabled. |
+| `attributes` | JSONB NOT NULL DEFAULT `'{}'` (AF-380) — admin-editable per-user attribute map, resolvable in row-security predicates as `:user.<key>`. Set via the user admin API; **not** synced from the IdP. Added by `V61__add_users_attributes.sql`. |
 | `created_at` | TIMESTAMPTZ |
 
 ---
@@ -199,6 +200,52 @@ Indexed by `(organization_id, datasource_id, enabled)` to back the per-execution
 `PARTIAL` (keep the last N characters per `visible_suffix`, default 4), `HASH` (stable SHA-256 hex of
 the value), `EMAIL` (`j***@domain` — preserve the first local-part character and the domain),
 `FORMAT_PRESERVING` (preserve length/shape: digits and letters replaced, separators kept).
+
+---
+
+## row_security_policy
+
+Per-table **row-level security** predicates (AF-380). Each row binds a structured predicate
+(`column operator value`) to one datasource table, evaluated per query submitter so a scoped user
+only **sees** (SELECT) or **affects** (UPDATE/DELETE) the rows they are authorised for. Enforcement
+runs in the proxy at the **AST layer**: for each referenced policied table, the predicate is injected
+as a security-barrier subquery (SELECT) or a `WHERE` conjunct (UPDATE/DELETE), with the comparison
+value **bound as a JDBC parameter** — never string-concatenated. Created by
+`V60__create_row_security_policy.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `datasource_id` | FK → `datasources` |
+| `table_name` | TEXT — `schema.table` (or bare `table`); matched case-insensitively against parsed table references, schema-optional |
+| `column_name` | TEXT — the column the predicate filters on |
+| `operator` | ENUM `row_security_operator`: `EQUALS` \| `NOT_EQUALS` \| `LESS_THAN` \| `LESS_THAN_OR_EQUAL` \| `GREATER_THAN` \| `GREATER_THAN_OR_EQUAL` \| `IN` \| `NOT_IN` |
+| `value_type` | ENUM `row_security_value_type`: `VARIABLE` \| `LITERAL` |
+| `value_expression` | TEXT — for `VARIABLE`, a `user.<key>` reference (built-ins `user.id` / `user.email` / `user.role` / `user.groups`, or a `users.attributes` key); for `LITERAL`, the fixed value |
+| `applies_to_roles` | TEXT[] nullable — `user_role_type` values the policy applies to |
+| `applies_to_group_ids` | UUID[] nullable — user-group ids the policy applies to |
+| `applies_to_user_ids` | UUID[] nullable — individual user ids the policy applies to |
+| `enabled` | BOOLEAN DEFAULT true — disabled policies are ignored during resolution |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id, datasource_id, enabled)` to back the per-execution resolution scan.
+
+**`applies_to_*` polarity (note the inversion vs. masking).** Where `masking_policy.reveal_to_*`
+*exempts* the listed targets, `row_security_policy.applies_to_*` *applies* to them. All three
+`applies_to_*` empty ⇒ the policy filters **every** submitter (governance-safe default); a non-empty
+list narrows it to submitters whose role / group / user id matches. There is **no implicit ADMIN
+bypass** — when `applies_to_*` are empty, admins are filtered too, exactly as masking masks admins
+unless `reveal_to` lists them.
+
+**Fail-closed.** When a `VARIABLE` cannot be resolved (a missing `users.attributes` key, or
+`user.groups` for a user in no groups), the predicate collapses to an always-false `1=0`, so the
+submitter sees nothing rather than everything. Query shapes the proxy cannot provably filter (a
+policied table inside a `UNION`, a CTE, a sub-select, an `INSERT … SELECT`, or an `UPDATE … FROM` /
+`DELETE … USING` join onto another policied table) are **rejected with HTTP 422**, never run
+unfiltered. Applied policy ids ride on the `QUERY_EXECUTED` audit metadata
+(`applied_row_security_policy_ids`) — no row data is stored.
 
 ---
 
@@ -636,6 +683,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ACCESS_GRANT_REVOKED` | Admin early-revokes an active grant via `POST /admin/access-requests/{id}/revoke`. Metadata: optional `comment`. |
 | `ROUTING_POLICY_CREATED` / `ROUTING_POLICY_UPDATED` / `ROUTING_POLICY_DELETED` | Admin creates / updates / deletes a routing policy via the `/admin/routing-policies` CRUD endpoints. Resource: `routing_policy`. |
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
+| `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
+| `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 

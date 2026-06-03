@@ -15,7 +15,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.Instant;
@@ -76,6 +78,13 @@ public class UserEntity {
     @JsonIgnore
     @Column(name = "totp_backup_codes_encrypted", columnDefinition = "TEXT")
     private String totpBackupCodesEncrypted;
+
+    // Admin-editable per-user attribute map, resolved in row-security predicate templates as
+    // :user.<key> (AF-380). JSONB; never synced from the IdP. Stored as a JSON string and parsed
+    // in the service layer, matching the house style for JSONB columns (see MaskingPolicyEntity).
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attributes", nullable = false, columnDefinition = "jsonb")
+    private String attributes = "{}";
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

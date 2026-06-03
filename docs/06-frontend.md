@@ -82,6 +82,7 @@ accessflow-ui/
 │   │   │   ├── ConnectionTester.tsx # Live connection test widget
 │   │   │   ├── PermissionMatrix.tsx # User × permission grid
 │   │   │   ├── MaskingTab.tsx       # Dynamic data masking policies tab + create/edit modal (AF-381)
+│   │   │   ├── RowSecurityTab.tsx    # Row-level security policies tab + create/edit modal (AF-380)
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
 │   │   │
 │   │   └── audit/
@@ -270,6 +271,7 @@ immediately.
 - `PermissionMatrix` — table of all users × (can_read, can_write, can_ddl, row_limit, allowed_schemas, restricted columns count, expires_at). Restricted columns render as `"N columns"` with a hover tooltip listing the fully-qualified names; `"—"` when none.
 - `GrantAccessModal` includes a `restricted_columns` multi-select populated from the datasource's introspected schema (`flattenSchemaToColumns` in `src/utils/schemaColumns.ts`). Help text explains that values are masked in results and the AI reviewer is informed but does not auto-reject.
 - **Masking** tab (`components/datasources/MaskingTab.tsx`, AF-381) — a table of dynamic data masking policies (column, strategy, reveal-to summary, enabled) with a create/edit modal. The modal picks a column via an `AutoComplete` from the introspected schema, a strategy `Select` driven by `enumOptions(MASKING_STRATEGIES, maskingStrategyLabel, t)`, a conditional `visible_suffix` field shown only for `PARTIAL`, and reveal-to multi-selects for roles (`enumOptions`), groups, and users. A **live preview** renders the masked output of an editable sample value through `src/utils/maskingPreview.ts` (a pure client-side mirror of the backend `ColumnMasker` strategies; `HASH` shows an illustrative fixed digest since the real SHA-256 is computed server-side). CRUD calls `src/api/maskingPolicies.ts`; validation parity matches the backend DTO (required column ≤ 512 chars, required strategy, `visible_suffix` 1–256).
+- **Row security** tab (`components/datasources/RowSecurityTab.tsx`, AF-380) — a table of row-level security policies (table, `column operator value` predicate, applies-to summary, enabled) with a create/edit modal. The structured form picks a table and column via `AutoComplete`s from the introspected schema, an operator `Select` (`enumOptions(ROW_SECURITY_OPERATORS, rowSecurityOperatorLabel, t)`), a value-source `Select` (`VARIABLE` | `LITERAL`), and a value field that switches to a `:user.*` variable `AutoComplete` (offering the `:user.id` / `:user.email` / `:user.role` / `:user.groups` built-ins) when the source is `VARIABLE`. Applies-to multi-selects target roles, groups, and users (empty = everyone). CRUD calls `src/api/rowSecurityPolicies.ts`; validation parity matches the backend DTO (required table/column/value ≤ 512 chars, required operator, required value source).
 - Review plan assignment and row limit configuration
 
 ### AuditLogPage *(ADMIN)*
@@ -537,6 +539,8 @@ All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/re
 ### User invitations on `/admin/users`
 
 The primary action button is now a `Dropdown.Button` — the default click sends an email invitation (`POST /admin/users/invitations`), while the dropdown menu still exposes the legacy "Create with password" path (`POST /admin/users`). A **Pending invitations** table below the user list shows invitations and exposes per-row resend / revoke actions (`POST /admin/users/invitations/{id}/resend`, `DELETE /admin/users/invitations/{id}`).
+
+The **Edit user** modal includes an **Attributes** key/value editor (AF-380, a `Form.List`) bound to `users.attributes`. Current values are loaded via `GET /admin/users/{id}/attributes` (`getUserAttributes`) and saved through the existing `PUT /admin/users/{id}` with the `attributes` field. These attributes resolve in row-security predicates as `:user.<key>` (up to 50 entries; key ≤ 128, value ≤ 512 chars — validation parity with the backend).
 
 ### User groups and reviewer scope (AF-353)
 

@@ -84,6 +84,13 @@ describe('api/admin', () => {
     expect(put).toHaveBeenCalledWith('/api/v1/admin/users/u-1', { role: 'REVIEWER' });
   });
 
+  it('getUserAttributes GETs /admin/users/{id}/attributes and unwraps the map', async () => {
+    get.mockResolvedValueOnce({ data: { attributes: { region: 'EU' } } });
+    const result = await adminApi.getUserAttributes('u-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/users/u-1/attributes');
+    expect(result).toEqual({ region: 'EU' });
+  });
+
   it('deactivateUser DELETEs /admin/users/{id}', async () => {
     del.mockResolvedValueOnce({ data: undefined });
     await adminApi.deactivateUser('u-1');

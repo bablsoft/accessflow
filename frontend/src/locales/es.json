@@ -810,6 +810,55 @@
         "delete_success": "Política de enmascaramiento eliminada",
         "delete_error": "No se pudo eliminar la política de enmascaramiento",
         "state_disabled": "Desactivada"
+      },
+      "tab_row_security": "Seguridad de filas · {{count}}",
+      "row_security": {
+        "title": "Políticas de seguridad de filas",
+        "description": "Filtra las filas que un usuario puede ver (SELECT) o modificar (UPDATE/DELETE) en una tabla. Cada política compara una columna con un valor por usuario; los usuarios en alcance solo ven las filas autorizadas.",
+        "add": "Añadir política",
+        "empty_title": "Sin políticas de seguridad de filas",
+        "empty_description": "Añade una política para restringir a qué filas puede acceder un usuario en una tabla.",
+        "col_table": "Tabla",
+        "col_predicate": "Predicado",
+        "col_applies": "Se aplica a",
+        "col_enabled": "Activa",
+        "col_actions": "Acciones",
+        "state_disabled": "Desactivada",
+        "applies_everyone": "Todos",
+        "applies_roles": "{{count}} rol(es)",
+        "applies_groups": "{{count}} grupo(s)",
+        "applies_users": "{{count}} usuario(s)",
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "delete_confirm_title": "¿Eliminar esta política de seguridad de filas?",
+        "delete_confirm_body": "La tabla dejará de filtrarse por filas para los usuarios afectados.",
+        "create_title": "Añadir política de seguridad de filas",
+        "edit_title": "Editar política de seguridad de filas",
+        "label_table": "Tabla",
+        "placeholder_table": "esquema.tabla",
+        "label_column": "Columna",
+        "placeholder_column": "columna",
+        "label_operator": "Operador",
+        "label_value_type": "Origen del valor",
+        "label_value": "Valor",
+        "value_variable_hint": "Una variable :user.*, p. ej. :user.region, :user.role, :user.groups.",
+        "value_literal_hint": "Un valor fijo comparado tal cual.",
+        "label_applies_roles": "Se aplica a roles",
+        "label_applies_groups": "Se aplica a grupos",
+        "label_applies_users": "Se aplica a usuarios",
+        "label_enabled": "Activa",
+        "table_required": "La tabla de destino es obligatoria",
+        "table_max": "La tabla de destino debe tener como máximo 512 caracteres",
+        "column_required": "La columna de destino es obligatoria",
+        "column_max": "La columna de destino debe tener como máximo 512 caracteres",
+        "operator_required": "El operador es obligatorio",
+        "value_type_required": "El origen del valor es obligatorio",
+        "value_required": "El valor es obligatorio",
+        "value_max": "El valor debe tener como máximo 512 caracteres",
+        "save_success": "Política de seguridad de filas guardada",
+        "save_error": "No se pudo guardar la política de seguridad de filas",
+        "delete_success": "Política de seguridad de filas eliminada",
+        "delete_error": "No se pudo eliminar la política de seguridad de filas"
       }
     }
   },
@@ -875,7 +924,13 @@
       "invite_revoke": "Revocar",
       "invite_revoke_success": "Invitación revocada",
       "invite_revoke_confirm_title": "¿Revocar esta invitación?",
-      "invite_revoke_confirm_body": "El enlace de invitación de {{email}} dejará de funcionar."
+      "invite_revoke_confirm_body": "El enlace de invitación de {{email}} dejará de funcionar.",
+      "label_attributes": "Atributos",
+      "attributes_hint": "Atributos clave/valor resolubles en predicados de seguridad de filas como :user.<clave>.",
+      "attribute_key": "Clave",
+      "attribute_value": "Valor",
+      "attribute_add": "Añadir atributo",
+      "attribute_remove": "Eliminar atributo"
     },
     "audit": {
       "title": "Registro de auditoría",
@@ -1709,6 +1764,20 @@
       "has_where": "Tiene cláusula WHERE",
       "has_limit": "Tiene cláusula LIMIT",
       "transactional": "Transaccional"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Variable",
+      "LITERAL": "Literal"
     }
   },
   "access": {

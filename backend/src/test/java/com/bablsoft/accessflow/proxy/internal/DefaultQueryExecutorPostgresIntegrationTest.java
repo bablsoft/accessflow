@@ -11,13 +11,17 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
+
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -146,6 +150,51 @@ class DefaultQueryExecutorPostgresIntegrationTest {
         datasourceRepository.deleteAll();
         userRepository.deleteAll();
         organizationRepository.deleteAll();
+    }
+
+    @Test
+    void rowSecurityPredicateFiltersSelectedRows() {
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "items", "qty",
+                RowSecurityOperator.GREATER_THAN, List.of(5));
+        var request = new QueryExecutionRequest(datasource.getId(),
+                "SELECT name FROM items ORDER BY qty", QueryType.SELECT, null, null,
+                List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (SelectExecutionResult) executor.execute(request);
+
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.rows()).extracting(row -> row.get(0))
+                .containsExactly("date", "eggplant");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void rowSecurityInPredicateFiltersSelectedRows() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "items", "name",
+                RowSecurityOperator.IN, List.of("apple", "carrot"));
+        var request = new QueryExecutionRequest(datasource.getId(),
+                "SELECT name FROM items ORDER BY name", QueryType.SELECT, null, null,
+                List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (SelectExecutionResult) executor.execute(request);
+
+        assertThat(result.rows()).extracting(row -> row.get(0)).containsExactly("apple", "carrot");
+    }
+
+    @Test
+    void rowSecurityPredicateFiltersUpdatedRows() {
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "items", "qty",
+                RowSecurityOperator.GREATER_THAN, List.of(5));
+        var request = new QueryExecutionRequest(datasource.getId(),
+                "UPDATE items SET name = 'updated'", QueryType.UPDATE, null, null,
+                List.of(), List.of(), List.of(directive), false, null);
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(2);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
     }
 
     @Test

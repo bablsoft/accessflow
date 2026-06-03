@@ -26,7 +26,8 @@ public enum AuditResourceType {
     SLACK_APP_CONFIG("slack_app_config"),
     ACCESS_GRANT_REQUEST("access_grant_request"),
     MASKING_POLICY("masking_policy"),
-    ROUTING_POLICY("routing_policy");
+    ROUTING_POLICY("routing_policy"),
+    ROW_SECURITY_POLICY("row_security_policy");
 
     private final String dbValue;
 

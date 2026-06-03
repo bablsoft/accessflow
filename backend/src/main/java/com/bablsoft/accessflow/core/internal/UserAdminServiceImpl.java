@@ -17,6 +17,8 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -28,8 +30,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 class UserAdminServiceImpl implements UserAdminService {
 
+    private static final TypeReference<Map<String, Object>> ATTR_TYPE = new TypeReference<>() {};
+
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -86,7 +91,16 @@ class UserAdminServiceImpl implements UserAdminService {
         if (command.displayName() != null) {
             entity.setDisplayName(command.displayName());
         }
+        if (command.attributes() != null) {
+            entity.setAttributes(serializeAttributes(command.attributes()));
+        }
         return toView(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, String> getUserAttributes(UUID id, UUID organizationId) {
+        return parseAttributes(loadInOrganization(id, organizationId).getAttributes());
     }
 
     @Override
@@ -122,6 +136,31 @@ class UserAdminServiceImpl implements UserAdminService {
             throw new UserNotFoundException(id);
         }
         return entity;
+    }
+
+    private String serializeAttributes(Map<String, String> attributes) {
+        if (attributes == null || attributes.isEmpty()) {
+            return "{}";
+        }
+        return objectMapper.writeValueAsString(attributes);
+    }
+
+    private Map<String, String> parseAttributes(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> raw = objectMapper.readValue(json, ATTR_TYPE);
+            var out = new LinkedHashMap<String, String>();
+            raw.forEach((key, value) -> {
+                if (value != null) {
+                    out.put(key, String.valueOf(value));
+                }
+            });
+            return out;
+        } catch (RuntimeException ex) {
+            return Map.of();
+        }
     }
 
     private UserView toView(UserEntity entity) {

@@ -444,6 +444,49 @@ governs *how* a visible value is rendered — distinct from column-permission en
 - `materialize(...)` returns the set of **applied** policy ids on `SelectExecutionResult.appliedMaskingPolicyIds` (a policy that matched a result column for a non-revealed submitter). The lifecycle service records them in the `QUERY_EXECUTED` audit metadata under `applied_masking_policy_ids`. Unmasked values are never logged or stored.
 - Backward compatible: a `restricted_columns` entry with no covering policy keeps today's `"***"` behaviour.
 
+### Row-level security policies (AF-380)
+
+`row_security_policy` rows (see [docs/03-data-model.md](03-data-model.md)) inject **per-table row
+predicates** into the parsed SQL so a scoped submitter only **sees** (SELECT) or **affects**
+(UPDATE/DELETE) authorised rows. This governs *which rows* are returned/affected — orthogonal to
+masking (*how* a value is rendered) and the schema/table allow-list (*whether* a table is reachable).
+All three compose: the allow-list is checked at submission, then masking + row-security apply at
+execution.
+
+- **Resolution** (`core` module): `DefaultQueryLifecycleService.doExecute(...)` calls
+  `RowSecurityResolutionService.resolveApplicable(organizationId, datasourceId, submitterUserId)`. It
+  loads enabled policies for the datasource, filters by `applies_to` targeting (empty scope = applies
+  to everyone; non-empty narrows by role / group / user id — **no implicit ADMIN bypass**), and
+  resolves each policy's `value_expression` to concrete bound value(s): built-ins `user.id` /
+  `user.email` / `user.role` / `user.groups` (group names), or a key from the submitter's
+  `users.attributes`. A `LITERAL` is used as-is. An **unresolvable** variable (missing attribute, or
+  `user.groups` for a user in no groups) returns an empty value list — the fail-closed deny signal.
+  Each applicable policy becomes a `proxy.api.RowSecurityDirective` threaded through
+  `QueryExecutionRequest.rowSecurityPredicates`.
+- **Rewrite** (`proxy.internal.RowSecurityRewriter`): re-parses the statement with JSqlParser and, for
+  each top-level FROM/JOIN reference to a policied table, replaces the `Table` with a **security-barrier
+  derived table** `(SELECT * FROM t WHERE <predicate>) t` (alias preserved, so self-joins each get
+  their own barrier and bind). For UPDATE/DELETE the predicate is ANDed (qualified to the target) into
+  the `WHERE` clause. Comparison values are bound as **JDBC parameters** (`?`) — never
+  string-concatenated. Empty value lists / unresolvable variables emit an always-false `1=0`. The rewrite
+  is a pure no-op when no directives apply (no re-parse, zero hot-path overhead).
+- **Parameter binding** is the one place the proxy binds positional parameters. Because submitted SQL is
+  fully literal, every `?` in the rewritten statement is one the rewriter injected; binds are collected
+  in the same left-to-right traversal order JSqlParser deparses them (FROM before WHERE), so positional
+  binding always aligns. `DefaultQueryExecutor` binds them via `setObject` before executing (single
+  statement and each statement of a `BEGIN…COMMIT` batch — so DML cannot be wrapped to bypass the
+  predicate).
+- **Reject-to-422**: query shapes the rewriter cannot provably filter — a policied table inside a
+  `UNION`/`INTERSECT`/`EXCEPT`, a CTE, a sub-select, an `INSERT … SELECT`, or an `UPDATE … FROM` /
+  `DELETE … USING` join onto another policied table — raise `proxy.api.UnrewritableRowSecurityException`,
+  mapped to **HTTP 422** (`error=ROW_SECURITY_UNREWRITABLE`) rather than run unfiltered. Because this is
+  a client error the user can act on, `doExecute` **rethrows** it (and a parse-time `InvalidSqlException`)
+  for an interactive execute so the controller returns 422; for a system-driven scheduled run there is no
+  caller to surface to, so it is recorded as a `FAILED` execution instead of looping forever.
+- `SelectExecutionResult` / `UpdateExecutionResult` carry `appliedRowSecurityPolicyIds`; the lifecycle
+  service records them in the `QUERY_EXECUTED` audit metadata under `applied_row_security_policy_ids`. No
+  row data is stored.
+
 ### Schema introspection
 
 `DatasourceAdminService.introspectSchema(...)` opens a one-shot JDBC connection (no Hikari pool reuse) to the customer database and walks `DatabaseMetaData`:

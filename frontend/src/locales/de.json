@@ -810,6 +810,55 @@
         "delete_success": "Maskierungsrichtlinie gelöscht",
         "delete_error": "Maskierungsrichtlinie konnte nicht gelöscht werden",
         "state_disabled": "Deaktiviert"
+      },
+      "tab_row_security": "Zeilensicherheit · {{count}}",
+      "row_security": {
+        "title": "Zeilensicherheitsrichtlinien",
+        "description": "Filtert die Zeilen, die ein Benutzer in einer Tabelle sehen (SELECT) oder ändern (UPDATE/DELETE) darf. Jede Richtlinie vergleicht eine Spalte mit einem benutzerspezifischen Wert; Benutzer im Geltungsbereich sehen nur autorisierte Zeilen.",
+        "add": "Richtlinie hinzufügen",
+        "empty_title": "Keine Zeilensicherheitsrichtlinien",
+        "empty_description": "Fügen Sie eine Richtlinie hinzu, um einzuschränken, auf welche Zeilen ein Benutzer in einer Tabelle zugreifen kann.",
+        "col_table": "Tabelle",
+        "col_predicate": "Prädikat",
+        "col_applies": "Gilt für",
+        "col_enabled": "Aktiv",
+        "col_actions": "Aktionen",
+        "state_disabled": "Deaktiviert",
+        "applies_everyone": "Alle",
+        "applies_roles": "{{count}} Rolle(n)",
+        "applies_groups": "{{count}} Gruppe(n)",
+        "applies_users": "{{count}} Benutzer",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "delete_confirm_title": "Diese Zeilensicherheitsrichtlinie löschen?",
+        "delete_confirm_body": "Die Tabelle wird für betroffene Benutzer nicht mehr zeilengefiltert.",
+        "create_title": "Zeilensicherheitsrichtlinie hinzufügen",
+        "edit_title": "Zeilensicherheitsrichtlinie bearbeiten",
+        "label_table": "Tabelle",
+        "placeholder_table": "schema.tabelle",
+        "label_column": "Spalte",
+        "placeholder_column": "spalte",
+        "label_operator": "Operator",
+        "label_value_type": "Wertquelle",
+        "label_value": "Wert",
+        "value_variable_hint": "Eine :user.*-Variable, z. B. :user.region, :user.role, :user.groups.",
+        "value_literal_hint": "Ein fester Wert, der unverändert verglichen wird.",
+        "label_applies_roles": "Gilt für Rollen",
+        "label_applies_groups": "Gilt für Gruppen",
+        "label_applies_users": "Gilt für Benutzer",
+        "label_enabled": "Aktiv",
+        "table_required": "Zieltabelle ist erforderlich",
+        "table_max": "Zieltabelle darf höchstens 512 Zeichen lang sein",
+        "column_required": "Zielspalte ist erforderlich",
+        "column_max": "Zielspalte darf höchstens 512 Zeichen lang sein",
+        "operator_required": "Operator ist erforderlich",
+        "value_type_required": "Wertquelle ist erforderlich",
+        "value_required": "Wert ist erforderlich",
+        "value_max": "Wert darf höchstens 512 Zeichen lang sein",
+        "save_success": "Zeilensicherheitsrichtlinie gespeichert",
+        "save_error": "Zeilensicherheitsrichtlinie konnte nicht gespeichert werden",
+        "delete_success": "Zeilensicherheitsrichtlinie gelöscht",
+        "delete_error": "Zeilensicherheitsrichtlinie konnte nicht gelöscht werden"
       }
     }
   },
@@ -875,7 +924,13 @@
       "invite_revoke": "Widerrufen",
       "invite_revoke_success": "Einladung widerrufen",
       "invite_revoke_confirm_title": "Diese Einladung widerrufen?",
-      "invite_revoke_confirm_body": "Der Einladungslink für {{email}} funktioniert anschließend nicht mehr."
+      "invite_revoke_confirm_body": "Der Einladungslink für {{email}} funktioniert anschließend nicht mehr.",
+      "label_attributes": "Attribute",
+      "attributes_hint": "Schlüssel/Wert-Attribute, in Zeilensicherheitsprädikaten als :user.<schlüssel> auflösbar.",
+      "attribute_key": "Schlüssel",
+      "attribute_value": "Wert",
+      "attribute_add": "Attribut hinzufügen",
+      "attribute_remove": "Attribut entfernen"
     },
     "audit": {
       "title": "Audit-Log",
@@ -1709,6 +1764,20 @@
       "has_where": "Hat WHERE-Klausel",
       "has_limit": "Hat LIMIT-Klausel",
       "transactional": "Transaktional"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Variable",
+      "LITERAL": "Literal"
     }
   },
   "access": {

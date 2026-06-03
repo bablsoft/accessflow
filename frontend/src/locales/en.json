@@ -810,7 +810,56 @@
       "activity_empty": "No queries have been submitted against this datasource yet.",
       "activity_load_error": "Failed to load recent queries",
       "not_found_message": "Datasource not found.",
-      "back_to_list": "Back to list"
+      "back_to_list": "Back to list",
+      "tab_row_security": "Row security · {{count}}",
+      "row_security": {
+        "title": "Row security policies",
+        "description": "Filter the rows a user can see (SELECT) or change (UPDATE/DELETE) on a table. Each policy compares a column against a per-user value; users in scope only see authorised rows.",
+        "add": "Add policy",
+        "empty_title": "No row security policies",
+        "empty_description": "Add a policy to restrict which rows a user can access on a table.",
+        "col_table": "Table",
+        "col_predicate": "Predicate",
+        "col_applies": "Applies to",
+        "col_enabled": "Enabled",
+        "col_actions": "Actions",
+        "state_disabled": "Disabled",
+        "applies_everyone": "Everyone",
+        "applies_roles": "{{count}} role(s)",
+        "applies_groups": "{{count}} group(s)",
+        "applies_users": "{{count}} user(s)",
+        "edit": "Edit",
+        "delete": "Delete",
+        "delete_confirm_title": "Delete this row security policy?",
+        "delete_confirm_body": "The table will no longer be row-filtered for affected users.",
+        "create_title": "Add row security policy",
+        "edit_title": "Edit row security policy",
+        "label_table": "Table",
+        "placeholder_table": "schema.table",
+        "label_column": "Column",
+        "placeholder_column": "column",
+        "label_operator": "Operator",
+        "label_value_type": "Value source",
+        "label_value": "Value",
+        "value_variable_hint": "A :user.* variable, e.g. :user.region, :user.role, :user.groups.",
+        "value_literal_hint": "A fixed value compared as-is.",
+        "label_applies_roles": "Applies to roles",
+        "label_applies_groups": "Applies to groups",
+        "label_applies_users": "Applies to users",
+        "label_enabled": "Enabled",
+        "table_required": "Target table is required",
+        "table_max": "Target table must be at most 512 characters",
+        "column_required": "Target column is required",
+        "column_max": "Target column must be at most 512 characters",
+        "operator_required": "Operator is required",
+        "value_type_required": "Value source is required",
+        "value_required": "Value is required",
+        "value_max": "Value must be at most 512 characters",
+        "save_success": "Row security policy saved",
+        "save_error": "Failed to save row security policy",
+        "delete_success": "Row security policy deleted",
+        "delete_error": "Failed to delete row security policy"
+      }
     }
   },
   "admin": {
@@ -932,7 +981,13 @@
       "invite_revoke": "Revoke",
       "invite_revoke_success": "Invitation revoked",
       "invite_revoke_confirm_title": "Revoke this invitation?",
-      "invite_revoke_confirm_body": "The invitation link for {{email}} will stop working."
+      "invite_revoke_confirm_body": "The invitation link for {{email}} will stop working.",
+      "label_attributes": "Attributes",
+      "attributes_hint": "Key/value attributes resolvable in row-security predicates as :user.<key>.",
+      "attribute_key": "Key",
+      "attribute_value": "Value",
+      "attribute_add": "Add attribute",
+      "attribute_remove": "Remove attribute"
     },
     "audit": {
       "title": "Audit log",
@@ -1709,6 +1764,20 @@
       "has_where": "Has WHERE clause",
       "has_limit": "Has LIMIT clause",
       "transactional": "Transactional"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Variable",
+      "LITERAL": "Literal"
     }
   },
   "access": {
