@@ -15,7 +15,9 @@ import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
+import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
+import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -58,6 +60,7 @@ import com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteExce
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
+import com.bablsoft.accessflow.proxy.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
@@ -329,6 +332,33 @@ class GlobalExceptionHandler {
         // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "INVALID_SQL");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(UnrewritableRowSecurityException.class)
+    ProblemDetail handleUnrewritableRowSecurity(UnrewritableRowSecurityException ex) {
+        // Message resolved at throw site via MessageSource — see RowSecurityRewriter.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ROW_SECURITY_UNREWRITABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(RowSecurityPolicyNotFoundException.class)
+    ProblemDetail handleRowSecurityPolicyNotFound(RowSecurityPolicyNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.row_security_policy_not_found"));
+        pd.setProperty("error", "ROW_SECURITY_POLICY_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalRowSecurityPolicyException.class)
+    ProblemDetail handleIllegalRowSecurityPolicy(IllegalRowSecurityPolicyException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultRowSecurityPolicyAdminService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_ROW_SECURITY_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

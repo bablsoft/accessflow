@@ -15,6 +15,8 @@ import type {
   Role,
   RoutingAction,
   RoutingConditionOperand,
+  RowSecurityOperator,
+  RowSecurityValueType,
   SslMode,
   Weekday,
 } from '@/types/api';
@@ -74,6 +76,28 @@ export const MASKING_STRATEGIES: readonly MaskingStrategy[] = [
 
 export const maskingStrategyLabel = (t: TFunction, v: MaskingStrategy): string =>
   t(`enums.masking_strategy.${v}` as const);
+
+export const ROW_SECURITY_OPERATORS: readonly RowSecurityOperator[] = [
+  'EQUALS',
+  'NOT_EQUALS',
+  'LESS_THAN',
+  'LESS_THAN_OR_EQUAL',
+  'GREATER_THAN',
+  'GREATER_THAN_OR_EQUAL',
+  'IN',
+  'NOT_IN',
+] as const;
+
+export const rowSecurityOperatorLabel = (t: TFunction, v: RowSecurityOperator): string =>
+  t(`enums.row_security_operator.${v}` as const);
+
+export const ROW_SECURITY_VALUE_TYPES: readonly RowSecurityValueType[] = [
+  'VARIABLE',
+  'LITERAL',
+] as const;
+
+export const rowSecurityValueTypeLabel = (t: TFunction, v: RowSecurityValueType): string =>
+  t(`enums.row_security_value_type.${v}` as const);
 
 // ── Routing policies ──────────────────────────────────────────────────────────
 export const QUERY_TYPES: readonly QueryType[] = [

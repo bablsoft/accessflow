@@ -810,6 +810,55 @@
         "delete_success": "Политика маскирования удалена",
         "delete_error": "Не удалось удалить политику маскирования",
         "state_disabled": "Отключена"
+      },
+      "tab_row_security": "Безопасность строк · {{count}}",
+      "row_security": {
+        "title": "Политики безопасности строк",
+        "description": "Фильтрует строки, которые пользователь может видеть (SELECT) или изменять (UPDATE/DELETE) в таблице. Каждая политика сравнивает столбец с значением для каждого пользователя; пользователи в области действия видят только разрешённые строки.",
+        "add": "Добавить политику",
+        "empty_title": "Нет политик безопасности строк",
+        "empty_description": "Добавьте политику, чтобы ограничить, к каким строкам таблицы может обращаться пользователь.",
+        "col_table": "Таблица",
+        "col_predicate": "Предикат",
+        "col_applies": "Применяется к",
+        "col_enabled": "Включена",
+        "col_actions": "Действия",
+        "state_disabled": "Отключена",
+        "applies_everyone": "Ко всем",
+        "applies_roles": "{{count}} рол(ей)",
+        "applies_groups": "{{count}} групп(ы)",
+        "applies_users": "{{count}} пользовател(ей)",
+        "edit": "Редактировать",
+        "delete": "Удалить",
+        "delete_confirm_title": "Удалить эту политику безопасности строк?",
+        "delete_confirm_body": "Таблица больше не будет фильтроваться по строкам для затронутых пользователей.",
+        "create_title": "Добавить политику безопасности строк",
+        "edit_title": "Редактировать политику безопасности строк",
+        "label_table": "Таблица",
+        "placeholder_table": "схема.таблица",
+        "label_column": "Столбец",
+        "placeholder_column": "столбец",
+        "label_operator": "Оператор",
+        "label_value_type": "Источник значения",
+        "label_value": "Значение",
+        "value_variable_hint": "Переменная :user.*, например :user.region, :user.role, :user.groups.",
+        "value_literal_hint": "Фиксированное значение, сравниваемое как есть.",
+        "label_applies_roles": "Применяется к ролям",
+        "label_applies_groups": "Применяется к группам",
+        "label_applies_users": "Применяется к пользователям",
+        "label_enabled": "Включена",
+        "table_required": "Целевая таблица обязательна",
+        "table_max": "Целевая таблица не должна превышать 512 символов",
+        "column_required": "Целевой столбец обязателен",
+        "column_max": "Целевой столбец не должен превышать 512 символов",
+        "operator_required": "Оператор обязателен",
+        "value_type_required": "Источник значения обязателен",
+        "value_required": "Значение обязательно",
+        "value_max": "Значение не должно превышать 512 символов",
+        "save_success": "Политика безопасности строк сохранена",
+        "save_error": "Не удалось сохранить политику безопасности строк",
+        "delete_success": "Политика безопасности строк удалена",
+        "delete_error": "Не удалось удалить политику безопасности строк"
       }
     }
   },
@@ -875,7 +924,13 @@
       "invite_revoke": "Отозвать",
       "invite_revoke_success": "Приглашение отозвано",
       "invite_revoke_confirm_title": "Отозвать это приглашение?",
-      "invite_revoke_confirm_body": "Ссылка-приглашение для {{email}} перестанет работать."
+      "invite_revoke_confirm_body": "Ссылка-приглашение для {{email}} перестанет работать.",
+      "label_attributes": "Атрибуты",
+      "attributes_hint": "Атрибуты ключ/значение, разрешаемые в предикатах безопасности строк как :user.<ключ>.",
+      "attribute_key": "Ключ",
+      "attribute_value": "Значение",
+      "attribute_add": "Добавить атрибут",
+      "attribute_remove": "Удалить атрибут"
     },
     "audit": {
       "title": "Журнал аудита",
@@ -1709,6 +1764,20 @@
       "has_where": "Есть условие WHERE",
       "has_limit": "Есть условие LIMIT",
       "transactional": "Транзакционный"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Переменная",
+      "LITERAL": "Литерал"
     }
   },
   "access": {

@@ -30,6 +30,7 @@ import {
   createInvitation,
   createUser,
   deactivateUser,
+  getUserAttributes,
   invitationKeys,
   listUsers,
   listInvitations,
@@ -78,6 +79,7 @@ interface EditFormValues {
   role: Role;
   active: boolean;
   display_name?: string;
+  attributes?: { key: string; value: string }[];
 }
 
 const PAGE_SIZE = 20;
@@ -526,16 +528,23 @@ function EditUserModal({
 }) {
   const { t } = useTranslation();
   const [form] = Form.useForm<EditFormValues>();
+  const attributesQuery = useQuery({
+    queryKey: ['user-attributes', user?.id ?? 'none'],
+    queryFn: () => getUserAttributes(user!.id),
+    enabled: !!user,
+  });
   useEffect(() => {
-    if (user) {
-      form.resetFields();
-      form.setFieldsValue({
-        role: user.role,
-        active: user.active,
-        display_name: user.display_name,
-      });
-    }
-  }, [user, form]);
+    if (!user) return;
+    form.setFieldsValue({
+      role: user.role,
+      active: user.active,
+      display_name: user.display_name,
+      attributes: Object.entries(attributesQuery.data ?? {}).map(([key, value]) => ({
+        key,
+        value,
+      })),
+    });
+  }, [user, attributesQuery.data, form]);
 
   return (
     <Modal
@@ -551,13 +560,19 @@ function EditUserModal({
       <Form<EditFormValues>
         form={form}
         layout="vertical"
-        onFinish={(values) =>
+        onFinish={(values) => {
+          const attributes: Record<string, string> = {};
+          for (const row of values.attributes ?? []) {
+            const key = row?.key?.trim();
+            if (key) attributes[key] = (row.value ?? '').trim();
+          }
           onSubmit({
             role: values.role,
             active: values.active,
             display_name: values.display_name?.trim() || null,
-          })
-        }
+            attributes,
+          });
+        }}
       >
         <Form.Item
           name="display_name"
@@ -571,6 +586,51 @@ function EditUserModal({
         </Form.Item>
         <Form.Item name="active" label={t('admin.users.label_active')} valuePropName="checked">
           <Switch />
+        </Form.Item>
+        <Form.Item
+          label={t('admin.users.label_attributes')}
+          tooltip={t('admin.users.attributes_hint')}
+        >
+          <Form.List name="attributes">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field) => (
+                  <div key={field.key} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <Form.Item
+                      name={[field.name, 'key']}
+                      noStyle
+                      rules={[{ max: 128 }]}
+                    >
+                      <Input placeholder={t('admin.users.attribute_key')} />
+                    </Form.Item>
+                    <Form.Item
+                      name={[field.name, 'value']}
+                      noStyle
+                      rules={[{ max: 512 }]}
+                    >
+                      <Input placeholder={t('admin.users.attribute_value')} />
+                    </Form.Item>
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label={t('admin.users.attribute_remove')}
+                      onClick={() => remove(field.name)}
+                    />
+                  </div>
+                ))}
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={() => add({ key: '', value: '' })}
+                  disabled={fields.length >= 50}
+                  block
+                >
+                  {t('admin.users.attribute_add')}
+                </Button>
+              </>
+            )}
+          </Form.List>
         </Form.Item>
       </Form>
     </Modal>

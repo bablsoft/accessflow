@@ -128,6 +128,13 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
   return data;
 }
 
+export async function getUserAttributes(id: string): Promise<Record<string, string>> {
+  const { data } = await apiClient.get<{ attributes: Record<string, string> }>(
+    `${USERS_BASE}/${id}/attributes`,
+  );
+  return data.attributes;
+}
+
 export async function deactivateUser(id: string): Promise<void> {
   await apiClient.delete(`${USERS_BASE}/${id}`);
 }

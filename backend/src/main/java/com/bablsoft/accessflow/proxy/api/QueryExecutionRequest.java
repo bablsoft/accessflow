@@ -15,6 +15,7 @@ public record QueryExecutionRequest(
         Duration statementTimeoutOverride,
         List<String> restrictedColumns,
         List<ColumnMaskDirective> columnMasks,
+        List<RowSecurityDirective> rowSecurityPredicates,
         boolean transactional,
         List<String> statements) {
 
@@ -33,6 +34,8 @@ public record QueryExecutionRequest(
         }
         restrictedColumns = restrictedColumns == null ? List.of() : List.copyOf(restrictedColumns);
         columnMasks = columnMasks == null ? List.of() : List.copyOf(columnMasks);
+        rowSecurityPredicates = rowSecurityPredicates == null
+                ? List.of() : List.copyOf(rowSecurityPredicates);
         statements = statements == null || statements.isEmpty()
                 ? List.of(sql)
                 : List.copyOf(statements);
@@ -55,14 +58,14 @@ public record QueryExecutionRequest(
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                List.of(), List.of(), false, null);
+                List.of(), List.of(), List.of(), false, null);
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride,
                                  List<String> restrictedColumns) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                restrictedColumns, List.of(), false, null);
+                restrictedColumns, List.of(), List.of(), false, null);
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
@@ -70,6 +73,6 @@ public record QueryExecutionRequest(
                                  List<String> restrictedColumns, boolean transactional,
                                  List<String> statements) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                restrictedColumns, List.of(), transactional, statements);
+                restrictedColumns, List.of(), List.of(), transactional, statements);
     }
 }

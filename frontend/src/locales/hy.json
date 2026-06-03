@@ -810,6 +810,55 @@
         "delete_success": "Դիմակավորման քաղաքականությունը ջնջվեց",
         "delete_error": "Չհաջողվեց ջնջել դիմակավորման քաղաքականությունը",
         "state_disabled": "Անջատված"
+      },
+      "tab_row_security": "Տողերի անվտանգություն · {{count}}",
+      "row_security": {
+        "title": "Տողերի անվտանգության քաղաքականություններ",
+        "description": "Ֆիլտրում է տողերը, որոնք օգտատերն կարող է տեսնել (SELECT) կամ փոփոխել (UPDATE/DELETE) աղյուսակում։ Ամեն քաղաքականություն համեմատում է սյունակը օգտատերական արժեքի հետ:",
+        "add": "Ավելացնել քաղաքականություն",
+        "empty_title": "Տողերի անվտանգության քաղաքականություններ չկան",
+        "empty_description": "Ավելացրեք քաղաքականություն։",
+        "col_table": "Աղյուսակ",
+        "col_predicate": "Պրեդիկատ",
+        "col_applies": "Կիրառվում է",
+        "col_enabled": "Միացված",
+        "col_actions": "Գործողություններ",
+        "state_disabled": "Անջատված",
+        "applies_everyone": "Բոլորին",
+        "applies_roles": "{{count}} դեր",
+        "applies_groups": "{{count}} խումբ",
+        "applies_users": "{{count}} օգտատեր",
+        "edit": "Խմբագրել",
+        "delete": "Ջնջել",
+        "delete_confirm_title": "Ջնջել այս տողերի անվտանգության քաղաքականությունը՞",
+        "delete_confirm_body": "Աղյուսակը այլեվս չի ֆիլտրվի տողերով ազդեցված օգտատերի համար:",
+        "create_title": "Ավելացնել տողերի անվտանգության քաղաքականություն",
+        "edit_title": "Խմբագրել տողերի անվտանգության քաղաքականություն",
+        "label_table": "Աղյուսակ",
+        "placeholder_table": "schema.table",
+        "label_column": "Սյունակ",
+        "placeholder_column": "սյունակ",
+        "label_operator": "Օպերատոր",
+        "label_value_type": "Արժեքի աղբյուր",
+        "label_value": "Արժեք",
+        "value_variable_hint": ":user.* փոփոխական, օրինակ` :user.region, :user.role, :user.groups:",
+        "value_literal_hint": "Ֆիքսված արժեք, որը համեմատվում է այնպես, ինչպես կա:",
+        "label_applies_roles": "Կիրառվում է դերերին",
+        "label_applies_groups": "Կիրառվում է խմբերին",
+        "label_applies_users": "Կիրառվում է օգտատերերին",
+        "label_enabled": "Միացված",
+        "table_required": "Թիրախ աղյուսակը պարտադիր է",
+        "table_max": "Թիրախ աղյուսակը պետք է լինի առավելագույնը 512 նիշ",
+        "column_required": "Թիրախ սյունակը պարտադիր է",
+        "column_max": "Թիրախ սյունակը պետք է լինի առավելագույնը 512 նիշ",
+        "operator_required": "Օպերատորը պարտադիր է",
+        "value_type_required": "Արժեքի աղբյուրը պարտադիր է",
+        "value_required": "Արժեքը պարտադիր է",
+        "value_max": "Արժեքը պետք է լինի առավելագույնը 512 նիշ",
+        "save_success": "Տողերի անվտանգության քաղաքականությունը պահպանվեց",
+        "save_error": "Չհաջողվեց պահպանել տողերի անվտանգության քաղաքականությունը",
+        "delete_success": "Տողերի անվտանգության քաղաքականությունը ջնջվեց",
+        "delete_error": "Չհաջողվեց ջնջել տողերի անվտանգության քաղաքականությունը"
       }
     }
   },
@@ -875,7 +924,13 @@
       "invite_revoke": "Հետ կանչել",
       "invite_revoke_success": "Հրավերը հետ կանչվեց",
       "invite_revoke_confirm_title": "Հետ կանչե՞լ այս հրավերը։",
-      "invite_revoke_confirm_body": "{{email}}-ի հրավերի հղումն այլևս չի աշխատի։"
+      "invite_revoke_confirm_body": "{{email}}-ի հրավերի հղումն այլևս չի աշխատի։",
+      "label_attributes": "Հատկանիշներ",
+      "attributes_hint": "Բանալի/արժեք հատկանիշներ, որոնք լուծվում են տողերի անվտանգության պրեդիկատներում` :user.<բանալի>:",
+      "attribute_key": "Բանալի",
+      "attribute_value": "Արժեք",
+      "attribute_add": "Ավելացնել հատկանիշ",
+      "attribute_remove": "Հեռացնել հատկանիշ"
     },
     "audit": {
       "title": "Աուդիտի մատյան",
@@ -1709,6 +1764,20 @@
       "has_where": "Ունի WHERE դրույթ",
       "has_limit": "Ունի LIMIT դրույթ",
       "transactional": "Տրանզակցիոն"
+    },
+    "row_security_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in"
+    },
+    "row_security_value_type": {
+      "VARIABLE": "Փոփոխական",
+      "LITERAL": "Լիտերալ"
     }
   },
   "access": {

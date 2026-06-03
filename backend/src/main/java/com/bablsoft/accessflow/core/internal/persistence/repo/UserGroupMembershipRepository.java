@@ -24,6 +24,9 @@ public interface UserGroupMembershipRepository
     @Query("select m.group.id from UserGroupMembershipEntity m where m.user.id = :userId")
     List<UUID> findGroupIdsForUser(@Param("userId") UUID userId);
 
+    @Query("select m.group.name from UserGroupMembershipEntity m where m.user.id = :userId")
+    List<String> findGroupNamesForUser(@Param("userId") UUID userId);
+
     @Query("select distinct m.user.id from UserGroupMembershipEntity m "
             + "where m.group.id in :groupIds")
     List<UUID> findUserIdsInGroups(@Param("groupIds") List<UUID> groupIds);

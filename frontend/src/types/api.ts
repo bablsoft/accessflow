@@ -155,6 +155,11 @@ export interface UpdateUserInput {
   role?: Role;
   active?: boolean;
   display_name?: string | null;
+  attributes?: Record<string, string>;
+}
+
+export interface UserAttributes {
+  attributes: Record<string, string>;
 }
 
 export interface SetupProgress {
@@ -990,6 +995,48 @@ export interface CreateMaskingPolicyInput {
 }
 
 export type UpdateMaskingPolicyInput = CreateMaskingPolicyInput;
+
+export type RowSecurityOperator =
+  | 'EQUALS'
+  | 'NOT_EQUALS'
+  | 'LESS_THAN'
+  | 'LESS_THAN_OR_EQUAL'
+  | 'GREATER_THAN'
+  | 'GREATER_THAN_OR_EQUAL'
+  | 'IN'
+  | 'NOT_IN';
+
+export type RowSecurityValueType = 'VARIABLE' | 'LITERAL';
+
+export interface RowSecurityPolicy {
+  id: string;
+  datasource_id: string;
+  table_name: string;
+  column_name: string;
+  operator: RowSecurityOperator;
+  value_type: RowSecurityValueType;
+  value_expression: string;
+  applies_to_roles: Role[];
+  applies_to_group_ids: string[];
+  applies_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateRowSecurityPolicyInput {
+  table_name: string;
+  column_name: string;
+  operator: RowSecurityOperator;
+  value_type: RowSecurityValueType;
+  value_expression: string;
+  applies_to_roles?: string[];
+  applies_to_group_ids?: string[];
+  applies_to_user_ids?: string[];
+  enabled?: boolean;
+}
+
+export type UpdateRowSecurityPolicyInput = CreateRowSecurityPolicyInput;
 
 export interface NotificationChannelEmailConfig {
   smtp_host: string;

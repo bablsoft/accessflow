@@ -485,6 +485,72 @@ export async function createMaskingPolicyViaApi(
   return (await res.json()) as CreatedMaskingPolicy;
 }
 
+export interface CreatedRowSecurityPolicy {
+  id: string;
+  table_name: string;
+  column_name: string;
+}
+
+// POST /api/v1/datasources/{id}/row-security-policies (AF-380) — creates a
+// per-table row-level security predicate. Requires an ADMIN token. The proxy
+// injects `<column> <operator> <value>` into matching queries; a VARIABLE value
+// (e.g. `:user.region`) resolves per submitter from built-ins or user attributes.
+export async function createRowSecurityPolicyViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    tableName: string;
+    columnName: string;
+    operator: string;
+    valueType: 'VARIABLE' | 'LITERAL';
+    valueExpression: string;
+    appliesToRoles?: string[];
+    appliesToGroupIds?: string[];
+    appliesToUserIds?: string[];
+    enabled?: boolean;
+  },
+): Promise<CreatedRowSecurityPolicy> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/row-security-policies`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        table_name: opts.tableName,
+        column_name: opts.columnName,
+        operator: opts.operator,
+        value_type: opts.valueType,
+        value_expression: opts.valueExpression,
+        applies_to_roles: opts.appliesToRoles ?? [],
+        applies_to_group_ids: opts.appliesToGroupIds ?? [],
+        applies_to_user_ids: opts.appliesToUserIds ?? [],
+        enabled: opts.enabled ?? true,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Create row security policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedRowSecurityPolicy;
+}
+
+// PUT /api/v1/admin/users/{id} (AF-380) — sets the admin-editable attribute map
+// resolvable in row-security predicates as `:user.<key>`. Requires an ADMIN token.
+export async function setUserAttributesViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  userId: string,
+  attributes: Record<string, string>,
+): Promise<void> {
+  const res = await request.put(`${apiBase()}/api/v1/admin/users/${userId}`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: { attributes },
+  });
+  if (!res.ok()) {
+    throw new Error(`Set user attributes failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
 export interface InvitedUser {
   id: string;
   email: string;

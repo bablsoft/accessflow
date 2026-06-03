@@ -56,9 +56,24 @@ class QueryExecutionRequestTest {
                 com.bablsoft.accessflow.core.api.MaskingStrategy.HASH, java.util.Map.of(),
                 UUID.randomUUID());
         var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT,
-                null, null, java.util.List.of(), java.util.List.of(directive), false, null);
+                null, null, java.util.List.of(), java.util.List.of(directive), java.util.List.of(),
+                false, null);
 
         assertThat(request.columnMasks()).containsExactly(directive);
+    }
+
+    @Test
+    void rowSecurityPredicatesDefaultEmptyAndAreRetained() {
+        var basic = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT, null, null);
+        assertThat(basic.rowSecurityPredicates()).isEmpty();
+
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "public.t", "region",
+                com.bablsoft.accessflow.core.api.RowSecurityOperator.EQUALS,
+                java.util.List.of("EU"));
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT,
+                null, null, java.util.List.of(), java.util.List.of(), java.util.List.of(directive),
+                false, null);
+        assertThat(request.rowSecurityPredicates()).containsExactly(directive);
     }
 
     @Test

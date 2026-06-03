@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService.SaveResultCommand;
+import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
@@ -81,6 +82,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock SqlCanonicalizer sqlCanonicalizer;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock MaskingPolicyResolutionService maskingPolicyResolutionService;
+    @Mock RowSecurityResolutionService rowSecurityResolutionService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock AuditLogService auditLogService;
@@ -106,6 +108,7 @@ class DefaultQueryLifecycleServiceTest {
                 sqlCanonicalizer,
                 permissionLookupService,
                 maskingPolicyResolutionService,
+                rowSecurityResolutionService,
                 aiAnalysisLookupService,
                 aiAnalysisPersistenceService,
                 auditLogService,
