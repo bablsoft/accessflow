@@ -35,8 +35,12 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(AiAnalyzerStrategyHolder.class);
     private static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-    // OPENAI_COMPATIBLE allows a keyless config (self-hosted vLLM / LM Studio etc.). The OpenAI
-    // Java client still wants a non-blank key to construct, so substitute a non-secret placeholder.
+    // Hugging Face Inference Providers router (OpenAI-compatible). Used by default for the
+    // HUGGING_FACE provider; admins override it with a local TGI / Dedicated Endpoint base URL.
+    private static final String DEFAULT_HUGGING_FACE_BASE_URL = "https://router.huggingface.co/v1";
+    // OPENAI_COMPATIBLE and HUGGING_FACE allow a keyless config (self-hosted vLLM / LM Studio /
+    // local TGI etc.). The OpenAI Java client still wants a non-blank key to construct, so
+    // substitute a non-secret placeholder.
     private static final String PLACEHOLDER_API_KEY = "not-needed";
 
     private final AiConfigRepository aiConfigRepository;
@@ -87,6 +91,7 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser);
             case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser);
             case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser);
             case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser);
         };
     }
@@ -107,6 +112,16 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         var apiKey = optionalApiKey(entity);
         return chatModelFactory.openAi(apiKey, entity.getModel(),
                 entity.getMaxCompletionTokens(), entity.getTimeoutMs(), entity.getEndpoint());
+    }
+
+    private ChatModel buildHuggingFaceChatModel(AiConfigEntity entity) {
+        // Keyless-capable: a HF token is used for the hosted router but local TGI runs tokenless.
+        // The endpoint defaults to the HF router; a custom base URL targets local TGI / Dedicated
+        // Endpoints. Same OpenAI-compatible client as OPENAI / OPENAI_COMPATIBLE.
+        var apiKey = optionalApiKey(entity);
+        var baseUrl = baseUrlOrDefault(entity, DEFAULT_HUGGING_FACE_BASE_URL);
+        return chatModelFactory.openAi(apiKey, entity.getModel(),
+                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), baseUrl);
     }
 
     private ChatModel buildOllamaChatModel(AiConfigEntity entity) {

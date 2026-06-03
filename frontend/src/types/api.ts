@@ -58,7 +58,12 @@ export type ChannelType =
   | 'TELEGRAM'
   | 'MS_TEAMS'
   | 'PAGERDUTY';
-export type AiProvider = 'OPENAI' | 'ANTHROPIC' | 'OLLAMA' | 'OPENAI_COMPATIBLE';
+export type AiProvider =
+  | 'OPENAI'
+  | 'ANTHROPIC'
+  | 'OLLAMA'
+  | 'OPENAI_COMPATIBLE'
+  | 'HUGGING_FACE';
 
 export interface User {
   id: string;

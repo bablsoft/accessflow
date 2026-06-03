@@ -24,7 +24,7 @@ AccessFlow is an open-source **database access governance platform**. It acts as
 - **Frontend:** React 19 + Vite + TypeScript + Ant Design 6 + CodeMirror 6
 - **Internal DB:** PostgreSQL 15+
 - **Target DBs:** PostgreSQL, MySQL (v1.0)
-- **AI Backends:** OpenAI API, Anthropic Claude API, Ollama (self-hosted) — admin configurable
+- **AI Backends:** OpenAI API, Anthropic Claude API, Ollama (self-hosted), any OpenAI-compatible endpoint, Hugging Face (Inference Providers router or local TGI) — admin configurable
 - **Auth:** JWT RS256 + optional SAML 2.0 SSO
 - **Deploy:** Docker Compose, Helm 3 / Kubernetes
 - **Notifications:** Email (SMTP), Slack (Incoming Webhooks), Webhooks (HMAC-signed)

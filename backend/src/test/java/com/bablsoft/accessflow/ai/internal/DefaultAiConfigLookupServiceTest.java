@@ -64,6 +64,16 @@ class DefaultAiConfigLookupServiceTest {
     }
 
     @Test
+    void returnsTrueForHuggingFaceConfigWithoutApiKey() {
+        var orgId = UUID.randomUUID();
+        when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))
+                .thenReturn(List.of(entity(AiProviderType.HUGGING_FACE, null)));
+
+        // HUGGING_FACE is keyless-capable (local TGI runs tokenless) -> usable without a key.
+        assertThat(service.hasAnyUsableAiConfig(orgId)).isTrue();
+    }
+
+    @Test
     void returnsFalseForAnthropicConfigWithBlankApiKey() {
         var orgId = UUID.randomUUID();
         when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))

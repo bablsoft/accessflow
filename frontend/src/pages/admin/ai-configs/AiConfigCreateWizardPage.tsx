@@ -62,6 +62,15 @@ const PROVIDERS: ProviderTile[] = [
     needsApiKey: false,
     needsEndpoint: true,
   },
+  {
+    id: 'HUGGING_FACE',
+    label: 'Hugging Face',
+    desc: 'Inference Providers router or local TGI',
+    defaultModel: 'meta-llama/Llama-3.3-70B-Instruct',
+    defaultEndpoint: 'https://router.huggingface.co/v1',
+    needsApiKey: false,
+    needsEndpoint: true,
+  },
 ];
 
 interface FormValues {

@@ -70,7 +70,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Dynamic data masking** — per-column masking policies (full, partial last-N, stable hash, email-preserving, format-preserving) with role / group / user **reveal** conditions evaluated per requester. Masking is applied at result-read time before results are serialized or stored, so unmasked values never persist; applied policy ids are recorded in the audit log. Extends the static `restricted_columns` masking.
 - **Row-level security** — per-table row predicates the proxy injects into the parsed SQL so a scoped user only sees (SELECT) or affects (UPDATE/DELETE) the rows they are authorised for. Admins author a structured `column operator value` predicate where the value is a fixed literal or a `:user.*` variable (built-in id / email / role / groups, or an admin-set per-user attribute). Values are bound as JDBC parameters — never concatenated; predicates that can't be safely applied are rejected, never run unfiltered. Composes with column masking and the schema/table allow-list.
 - **User groups** — bundle reviewers (and other users) into groups; groups can be assigned as datasource reviewers and auto-synced from SAML / OAuth2 IdP claims via per-IdP `group_mappings` (admin-managed memberships are preserved across logins).
-- **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, self-hosted Ollama, and any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …) via a custom endpoint; risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI; admin **AI analyses dashboard** charts average risk over time, top issue categories, and most active submitters.
+- **AI query analysis** — pluggable adapters for OpenAI, Anthropic Claude, self-hosted Ollama, any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …) via a custom endpoint, and Hugging Face (Inference Providers router or a local / self-hosted TGI server); risk scoring (0–100), missing-index detection, anti-pattern hints. Per-organization configuration via the admin UI; admin **AI analyses dashboard** charts average risk over time, top issue categories, and most active submitters.
 - **Datasource health dashboard** — admin-only `/admin/datasource-health` surfaces per-datasource HikariCP pool utilisation plus a trailing 24h summary of query volume, p50/p95 execution latency, and error count, so operators can spot pool exhaustion, slow datasources, or volume spikes. Auto-refreshes every 30s.
 - **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.
 - **Query templates library** — save frequently used queries (private or team-visible) with tags and `:placeholder` substitution, then load them straight into the editor and share them across the team.
@@ -113,7 +113,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | Server state | TanStack Query 5 |
 | Client state | Zustand 5 |
 | Cache & locks | Redis 8 (JWT refresh-token revocation, ShedLock locks for `@Scheduled` jobs) |
-| AI backends | OpenAI, Anthropic, Ollama, any OpenAI-compatible endpoint (admin-configurable per organization) |
+| AI backends | OpenAI, Anthropic, Ollama, any OpenAI-compatible endpoint, Hugging Face (Inference Providers router or local TGI) (admin-configurable per organization) |
 | Auth | JWT RS256 + optional SAML 2.0 SSO and OAuth 2.0 / OIDC (Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, self-managed GitLab built in) |
 | Deploy | Docker Compose, Helm 3 |
 
@@ -213,7 +213,7 @@ accessflow/
 │   │   ├── proxy/            # SQL proxy engine, JDBC connection management
 │   │   ├── workflow/         # Review state machine, approval chains, scheduled jobs
 │   │   ├── access/           # JIT time-bound access requests + grant-expiry job
-│   │   ├── ai/               # Spring AI adapters (OpenAI / Anthropic / Ollama)
+│   │   ├── ai/               # Spring AI adapters (OpenAI / Anthropic / Ollama / Hugging Face)
 │   │   ├── security/         # JWT, Spring Security filters, SAML 2.0 SSO
 │   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty dispatchers
 │   │   ├── audit/            # INSERT-only, HMAC-chained audit log

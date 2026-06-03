@@ -975,6 +975,7 @@ APPROVED → FAILED (execution error)</pre>
             <li><strong>OpenAI</strong> — default model <code>gpt-4o</code>.</li>
             <li><strong>Ollama</strong> — self-hosted, set <em>Endpoint</em> to the Ollama server URL.</li>
             <li><strong>Custom (OpenAI-compatible)</strong> — any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …). Set <em>Endpoint</em> to the server's base URL (required); the API key is optional for keyless self-hosted servers.</li>
+            <li><strong>Hugging Face</strong> — default model <code>meta-llama/Llama-3.3-70B-Instruct</code>. <em>Endpoint</em> defaults to the hosted Inference Providers router (<code>https://router.huggingface.co/v1</code>, authenticated with a HF token) and can point at a local / self-hosted <strong>Text Generation Inference (TGI)</strong> server or a Dedicated Inference Endpoint. Keyless-capable, so local TGI runs without a token.</li>
           </ul>
           <figure class="docs-figure">
             <picture>
@@ -986,8 +987,8 @@ APPROVED → FAILED (execution error)</pre>
             <figcaption><code>/admin/ai-configs/new</code> — three-step wizard: <em>Provider → Connection → Test</em>.</figcaption>
           </figure>
           <ol>
-            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible). The wizard pre-fills the default model for the provider you chose.</li>
-            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama and Custom OpenAI-compatible providers supply an <em>Endpoint</em> URL instead — required for the custom provider). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
+            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible / Hugging Face). The wizard pre-fills the default model for the provider you chose.</li>
+            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama, Custom OpenAI-compatible, and Hugging Face providers supply an <em>Endpoint</em> URL instead — required for the custom provider, pre-filled with the router URL for Hugging Face and editable to a local TGI / Dedicated Endpoint). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
             <li><strong>Test.</strong> The wizard sends a synthetic SQL snippet to the provider and shows the score, risk level, and any issues so you can confirm the credentials and model are working before you save.</li>
           </ol>
           <p>

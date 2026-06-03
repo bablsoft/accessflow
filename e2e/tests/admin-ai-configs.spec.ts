@@ -12,6 +12,7 @@ const PRIMARY_NAME = `e2e-ollama-${UNIQUE_SUFFIX}`;
 const ANTHROPIC_NAME = `e2e-anthropic-${UNIQUE_SUFFIX}`;
 const OPENAI_NAME = `e2e-openai-${UNIQUE_SUFFIX}`;
 const COMPAT_NAME = `e2e-compat-${UNIQUE_SUFFIX}`;
+const HF_NAME = `e2e-hf-${UNIQUE_SUFFIX}`;
 const IN_USE_NAME = `e2e-inuse-${UNIQUE_SUFFIX}`;
 const DUPLICATE_NAME = `e2e-dupe-${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
@@ -74,7 +75,7 @@ async function createAiConfigViaApi(
   accessToken: string,
   body: {
     name: string;
-    provider: 'OLLAMA' | 'OPENAI' | 'ANTHROPIC' | 'OPENAI_COMPATIBLE';
+    provider: 'OLLAMA' | 'OPENAI' | 'ANTHROPIC' | 'OPENAI_COMPATIBLE' | 'HUGGING_FACE';
     model: string;
     endpoint?: string | null;
     api_key?: string | null;
@@ -172,6 +173,7 @@ async function openWizardFresh(page: Page): Promise<void> {
 //   9. Delete in-use config → modal lists bound datasources (high-value guard).
 //  10. Create with duplicate name → 409 → error toast.
 //  11. Create Custom (OpenAI-compatible) via wizard — endpoint required + keyless.
+//  12. Create Hugging Face via wizard — router endpoint pre-filled + keyless (local TGI path).
 //
 // describe.serial because the primary Ollama config walks through tests
 // 2 → 4 → 5 → 6 → 7 → 8 (create → edit → test ok → test ok via list →
@@ -186,6 +188,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let boundDatasourceId: string | null = null;
   let duplicateAiConfigId: string | null = null;
   let compatAiConfigId: string | null = null;
+  let huggingFaceAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -207,6 +210,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       inUseAiConfigId,
       duplicateAiConfigId,
       compatAiConfigId,
+      huggingFaceAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -820,6 +824,74 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       row.getByText('Custom (OpenAI-compatible)', { exact: true }),
     ).toBeVisible();
     await expect(row.getByText('qwen2.5', { exact: true })).toBeVisible();
+
+    await page.unroute('**/api/v1/admin/ai-configs/*/test');
+  });
+
+  test('12) create Hugging Face via wizard — router endpoint pre-filled, keyless', async ({
+    page,
+  }) => {
+    await stubTestEndpoint(page, {
+      status: 'OK',
+      detail: 'AI provider responded with risk_level=LOW (HUGGING_FACE)',
+    });
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await openWizardFresh(page);
+
+    // Step 1 — pick the Hugging Face tile.
+    await page.getByRole('button', { name: /Hugging Face/ }).click();
+
+    // Step 2 — the endpoint field is shown and pre-filled with the HF Inference
+    // Providers router; the API key is optional (needs_api_key=false) so a local
+    // TGI server can be configured tokenless.
+    await expect(page.getByLabel('API endpoint')).toHaveValue('https://router.huggingface.co/v1');
+    await expect(page.getByLabel('API key')).toBeVisible();
+
+    await page.getByLabel('Configuration name').fill(HF_NAME);
+    await page.getByLabel('Model').fill('meta-llama/Llama-3.3-70B-Instruct');
+
+    // Leave the endpoint at the router default and the API key blank — keyless submit.
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/ai-configs$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save and continue' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as {
+      id: string;
+      provider: string;
+      model: string;
+      endpoint: string | null;
+      api_key: string | null;
+    };
+    huggingFaceAiConfigId = body.id;
+    expect(body.provider).toBe('HUGGING_FACE');
+    expect(body.model).toBe('meta-llama/Llama-3.3-70B-Instruct');
+    expect(body.endpoint).toBe('https://router.huggingface.co/v1');
+    // Keyless config — the API key is omitted from the response (never the masked value).
+    expect(body.api_key ?? null).toBeNull();
+
+    // Step 3 — happy-path Send test prompt + Done.
+    await page.getByRole('button', { name: 'Send test prompt' }).click();
+    await expect(
+      page.getByText('AI provider responded with risk_level=LOW (HUGGING_FACE)'),
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.waitForURL('**/admin/ai-configs');
+    await waitForAiConfigsListReady(page);
+
+    const row = page.getByRole('row', {
+      name: new RegExp(escapeRegex(HF_NAME)),
+    });
+    await expect(row).toBeVisible();
+    await expect(row.getByText('Hugging Face', { exact: true })).toBeVisible();
+    await expect(
+      row.getByText('meta-llama/Llama-3.3-70B-Instruct', { exact: true }),
+    ).toBeVisible();
 
     await page.unroute('**/api/v1/admin/ai-configs/*/test');
   });

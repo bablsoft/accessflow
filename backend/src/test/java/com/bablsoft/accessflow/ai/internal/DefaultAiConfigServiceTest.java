@@ -154,6 +154,23 @@ class DefaultAiConfigServiceTest {
     }
 
     @Test
+    void createHuggingFaceWithoutEndpointSucceedsKeyless() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "HF")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // HUGGING_FACE has a built-in router default, so a blank endpoint is allowed (unlike
+        // OPENAI_COMPATIBLE), and it is keyless-capable for local TGI.
+        var cmd = new CreateAiConfigCommand("HF", AiProviderType.HUGGING_FACE,
+                "meta-llama/Llama-3.3-70B-Instruct", null, null, null, null, null);
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.provider()).isEqualTo(AiProviderType.HUGGING_FACE);
+        assertThat(view.endpoint()).isNull();
+        assertThat(view.apiKeyMasked()).isFalse();
+        verify(encryptionService, never()).encrypt(anyString());
+    }
+
+    @Test
     void updateToOpenAiCompatibleWithoutEndpointThrows() {
         var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
         when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));

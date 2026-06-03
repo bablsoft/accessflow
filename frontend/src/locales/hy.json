@@ -1695,7 +1695,8 @@
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
-      "OPENAI_COMPATIBLE": "Հատուկ (OpenAI-համատեղելի)"
+      "OPENAI_COMPATIBLE": "Հատուկ (OpenAI-համատեղելի)",
+      "HUGGING_FACE": "Hugging Face"
     },
     "auth_provider": {
       "LOCAL": "Տեղական",

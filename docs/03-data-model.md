@@ -496,7 +496,7 @@ Stores the result of an AI analysis run for a query request.
 |--------|-------------|
 | `id` | UUID PK |
 | `query_request_id` | FK → `query_requests` |
-| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` |
+| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |
 | `risk_level` | ENUM: `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` |
@@ -545,9 +545,9 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` (not unique — many configs per org) |
 | `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
-| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` |
+| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `model` | VARCHAR(100) — provider-specific model name |
-| `endpoint` | VARCHAR(500) nullable — base URL. Honored at runtime when `provider = OLLAMA` or `provider = OPENAI_COMPATIBLE` (**required** for the latter, which has no built-in default); ignored for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
+| `endpoint` | VARCHAR(500) nullable — base URL. Honored at runtime when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE` (**required** for `OPENAI_COMPATIBLE`, which has no built-in default; optional for `OLLAMA` and `HUGGING_FACE`, which fall back to `http://localhost:11434` and `https://router.huggingface.co/v1` respectively); ignored for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
 | `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
@@ -561,6 +561,13 @@ OpenRouter, …): it reuses the OpenAI Spring AI client against the configured `
 keyless (`api_key_encrypted` null) for self-hosted servers that need no auth. Creating or updating a
 row with `provider = OPENAI_COMPATIBLE` and a blank `endpoint` is rejected (HTTP 400
 `AI_CONFIG_ENDPOINT_REQUIRED`).
+
+`HUGGING_FACE` also reuses the OpenAI Spring AI client (Hugging Face speaks the OpenAI-compatible
+`/v1/chat/completions` wire format) and is keyless-capable. It defaults `endpoint` to the hosted
+Inference Providers router (`https://router.huggingface.co/v1`, authenticated with a HF token) and
+accepts a custom base URL to target a **local / self-hosted Text Generation Inference (TGI ≥ 1.4)**
+server (e.g. `http://localhost:3000/v1`, tokenless) or a Dedicated Inference Endpoint. Unlike
+`OPENAI_COMPATIBLE`, a blank `endpoint` is accepted (the router default applies).
 
 Deletion is rejected (HTTP 409 `AI_CONFIG_IN_USE`) while any datasource still references the
 row. Unbind first (by switching the datasource to a different config or disabling

@@ -79,7 +79,7 @@ com.bablsoft.accessflow/
 ├── workflow/       # Review state machine, approval chains
 │   ├── api/
 │   └── internal/
-├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama)
+├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama, Hugging Face)
 │   ├── api/
 │   └── internal/
 ├── security/       # JWT config, Spring Security filters, SAML 2.0 SSO
@@ -730,6 +730,7 @@ substitutes `(no schema introspection available)` in that case.
 - The response must be parsed strictly as JSON matching the `AiAnalysisResult` schema. If the AI returns non-JSON or an unexpected schema, log and mark the analysis as failed; do not propagate the exception to the query request.
 - For Anthropic: use `claude-sonnet-4-20250514` as the default model.
 - For OpenAI: use `gpt-4o` as the default model.
+- For Hugging Face: reuse `OpenAiAnalyzerStrategy` (OpenAI-compatible wire format) with the Inference Providers router base URL `https://router.huggingface.co/v1` (default; override with a local TGI / Dedicated Endpoint URL). Keyless-capable (placeholder key when no HF token is stored). Default model `meta-llama/Llama-3.3-70B-Instruct`.
 
 ---
 
