@@ -2245,12 +2245,12 @@ Creates a new AI configuration.
 }
 ```
 
-Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA}; `model` non-blank ≤ 100; `endpoint` ≤ 500; `api_key` ≤ 4096; `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
+Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA and OPENAI_COMPATIBLE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
 
-`endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
+`endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA` or `provider = OPENAI_COMPATIBLE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
 **Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
-**Response 400:** Validation error.
+**Response 400:** Validation error, or `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`).
 **Response 409:** Another configuration in this organization already uses that name (`error: AI_CONFIG_NAME_ALREADY_EXISTS`).
 
 Writes an `AI_CONFIG_CREATED` audit row.
@@ -2264,6 +2264,7 @@ A successful PUT triggers a runtime refresh of the cached `AiAnalyzerStrategy` d
 **Request body:** Same shape as POST, all fields optional.
 
 **Response 200:** Updated configuration.
+**Response 400:** Resulting `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`).
 **Response 404:** Configuration not found in this organization.
 **Response 409:** Another configuration in this organization already uses the new name.
 

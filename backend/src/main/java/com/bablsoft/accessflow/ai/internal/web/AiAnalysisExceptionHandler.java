@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal.web;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
+import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
@@ -55,6 +56,15 @@ class AiAnalysisExceptionHandler {
     ProblemDetail handleAiConfigNotFound(AiConfigNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.ai_config.not_found"));
         pd.setProperty("error", "AI_CONFIG_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiConfigEndpointRequiredException.class)
+    ProblemDetail handleAiConfigEndpointRequired(AiConfigEndpointRequiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.ai_config.endpoint_required"));
+        pd.setProperty("error", "AI_CONFIG_ENDPOINT_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

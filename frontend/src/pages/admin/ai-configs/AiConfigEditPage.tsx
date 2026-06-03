@@ -55,11 +55,12 @@ export default function AiConfigEditPage() {
 
   useEffect(() => {
     if (cfgQuery.data) {
-      const isOllama = cfgQuery.data.provider === 'OLLAMA';
+      const showsEndpoint =
+        cfgQuery.data.provider === 'OLLAMA' || cfgQuery.data.provider === 'OPENAI_COMPATIBLE';
       form.setFieldsValue({
         name: cfgQuery.data.name,
         model: cfgQuery.data.model,
-        endpoint: isOllama ? (cfgQuery.data.endpoint ?? '') : '',
+        endpoint: showsEndpoint ? (cfgQuery.data.endpoint ?? '') : '',
         api_key: cfgQuery.data.api_key ?? '',
         timeout_ms: cfgQuery.data.timeout_ms,
         max_prompt_tokens: cfgQuery.data.max_prompt_tokens,
@@ -119,13 +120,14 @@ export default function AiConfigEditPage() {
 
   const cfg = cfgQuery.data;
 
+  const needsEndpoint = cfg.provider === 'OLLAMA' || cfg.provider === 'OPENAI_COMPATIBLE';
+
   const onSave = (values: FormValues) => {
     const apiKey = values.api_key === MASK ? undefined : values.api_key;
-    const isOllama = cfg.provider === 'OLLAMA';
     saveMutation.mutate({
       name: values.name.trim(),
       model: values.model.trim(),
-      endpoint: isOllama ? (values.endpoint?.trim() || null) : null,
+      endpoint: needsEndpoint ? (values.endpoint?.trim() || null) : null,
       api_key: apiKey ?? null,
       timeout_ms: values.timeout_ms,
       max_prompt_tokens: values.max_prompt_tokens,
@@ -167,11 +169,16 @@ export default function AiConfigEditPage() {
           >
             <Input className="mono" maxLength={100} />
           </Form.Item>
-          {cfg.provider === 'OLLAMA' && (
+          {needsEndpoint && (
             <Form.Item
               name="endpoint"
               label={t('admin.ai_configs.field_endpoint')}
-              rules={[{ max: 500 }]}
+              rules={[
+                cfg.provider === 'OPENAI_COMPATIBLE'
+                  ? { required: true, message: t('admin.ai_configs.endpoint_required') }
+                  : {},
+                { max: 500 },
+              ]}
             >
               <Input className="mono" maxLength={500} />
             </Form.Item>

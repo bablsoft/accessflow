@@ -1020,6 +1020,7 @@
       "field_max_completion_tokens": "Պատասխանի տոկենների առավելագույնը",
       "name_required": "Կարգավորման անունը պարտադիր է",
       "api_key_required": "Այս մատակարարի համար API բանալին պարտադիր է",
+      "endpoint_required": "Հատուկ մատակարարի համար API վերջնակետը պարտադիր է",
       "wizard": {
         "title": "Նոր AI կարգավորում",
         "subtitle": "Ընտրեք մատակարար, լրացրեք միացման տվյալները և գործարկեք փորձնական հարցում։",
@@ -1693,7 +1694,8 @@
     "ai_provider": {
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
-      "OLLAMA": "Ollama"
+      "OLLAMA": "Ollama",
+      "OPENAI_COMPATIBLE": "Հատուկ (OpenAI-համատեղելի)"
     },
     "auth_provider": {
       "LOCAL": "Տեղական",

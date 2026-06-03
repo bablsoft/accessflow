@@ -1020,6 +1020,7 @@
       "field_max_completion_tokens": "Max. Antwort-Tokens",
       "name_required": "Konfigurationsname ist erforderlich",
       "api_key_required": "Für diesen Anbieter ist ein API-Schlüssel erforderlich",
+      "endpoint_required": "Für einen benutzerdefinierten Anbieter ist ein API-Endpunkt erforderlich",
       "wizard": {
         "title": "Neue KI-Konfiguration",
         "subtitle": "Wähle einen Anbieter aus, gib die Verbindungsdetails ein und führe einen Test-Prompt aus.",
@@ -1693,7 +1694,8 @@
     "ai_provider": {
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
-      "OLLAMA": "Ollama"
+      "OLLAMA": "Ollama",
+      "OPENAI_COMPATIBLE": "Benutzerdefiniert (OpenAI-kompatibel)"
     },
     "auth_provider": {
       "LOCAL": "Lokal",

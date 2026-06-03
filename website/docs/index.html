@@ -967,13 +967,14 @@ APPROVED → FAILED (execution error)</pre>
           <!-- AI -->
           <h3 id="cfg-ai">AI configurations</h3>
           <p>
-            AI analysis is per-organization. AccessFlow ships adapters for three providers — pick
+            AI analysis is per-organization. AccessFlow ships adapters for four providers — pick
             one that fits your data-egress policy:
           </p>
           <ul>
             <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
-            <li><strong>OpenAI</strong> (or any OpenAI-compatible endpoint) — default model <code>gpt-4o</code>.</li>
+            <li><strong>OpenAI</strong> — default model <code>gpt-4o</code>.</li>
             <li><strong>Ollama</strong> — self-hosted, set <em>Endpoint</em> to the Ollama server URL.</li>
+            <li><strong>Custom (OpenAI-compatible)</strong> — any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …). Set <em>Endpoint</em> to the server's base URL (required); the API key is optional for keyless self-hosted servers.</li>
           </ul>
           <figure class="docs-figure">
             <picture>
@@ -985,8 +986,8 @@ APPROVED → FAILED (execution error)</pre>
             <figcaption><code>/admin/ai-configs/new</code> — three-step wizard: <em>Provider → Connection → Test</em>.</figcaption>
           </figure>
           <ol>
-            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama). The wizard pre-fills the default model for the provider you chose.</li>
-            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama; supply an <em>Endpoint</em> URL instead). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
+            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible). The wizard pre-fills the default model for the provider you chose.</li>
+            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama and Custom OpenAI-compatible providers supply an <em>Endpoint</em> URL instead — required for the custom provider). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
             <li><strong>Test.</strong> The wizard sends a synthetic SQL snippet to the provider and shows the score, risk level, and any issues so you can confirm the credentials and model are working before you save.</li>
           </ol>
           <p>

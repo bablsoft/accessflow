@@ -156,6 +156,48 @@ class AdminAiConfigsControllerIntegrationTest {
     }
 
     @Test
+    void createOpenAiCompatibleWithoutEndpointReturns400() {
+        var body = """
+                {
+                  "name": "LocalLLM",
+                  "provider": "OPENAI_COMPATIBLE",
+                  "model": "qwen2.5"
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("AI_CONFIG_ENDPOINT_REQUIRED");
+    }
+
+    @Test
+    void createKeylessOpenAiCompatibleReturns201() {
+        var body = """
+                {
+                  "name": "LocalLLM",
+                  "provider": "OPENAI_COMPATIBLE",
+                  "model": "qwen2.5",
+                  "endpoint": "http://vllm:8000/v1"
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.provider").asString().isEqualTo("OPENAI_COMPATIBLE");
+        assertThat(result).bodyJson().extractingPath("$.endpoint").asString().isEqualTo("http://vllm:8000/v1");
+        // Keyless config — the api_key field is omitted from the response (null is not serialized).
+        assertThat(result).bodyJson().doesNotHavePath("$.api_key");
+    }
+
+    @Test
     void createDuplicateNameReturns409() {
         seedConfig("Existing", AiProviderType.ANTHROPIC, null);
         var body = """

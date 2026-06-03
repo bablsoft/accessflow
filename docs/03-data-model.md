@@ -496,7 +496,7 @@ Stores the result of an AI analysis run for a query request.
 |--------|-------------|
 | `id` | UUID PK |
 | `query_request_id` | FK → `query_requests` |
-| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` |
+| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |
 | `risk_level` | ENUM: `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` |
@@ -545,9 +545,9 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` (not unique — many configs per org) |
 | `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
-| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` |
+| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` |
 | `model` | VARCHAR(100) — provider-specific model name |
-| `endpoint` | VARCHAR(500) nullable — base URL. Honored only when `provider = OLLAMA`; ignored at runtime for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
+| `endpoint` | VARCHAR(500) nullable — base URL. Honored at runtime when `provider = OLLAMA` or `provider = OPENAI_COMPATIBLE` (**required** for the latter, which has no built-in default); ignored for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
 | `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
@@ -555,6 +555,12 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
+
+`OPENAI_COMPATIBLE` targets any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq,
+OpenRouter, …): it reuses the OpenAI Spring AI client against the configured `endpoint` and may run
+keyless (`api_key_encrypted` null) for self-hosted servers that need no auth. Creating or updating a
+row with `provider = OPENAI_COMPATIBLE` and a blank `endpoint` is rejected (HTTP 400
+`AI_CONFIG_ENDPOINT_REQUIRED`).
 
 Deletion is rejected (HTTP 409 `AI_CONFIG_IN_USE`) while any datasource still references the
 row. Unbind first (by switching the datasource to a different config or disabling

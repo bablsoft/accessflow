@@ -23,6 +23,7 @@ const PROVIDER_COLOR: Record<AiProvider, string> = {
   ANTHROPIC: 'purple',
   OPENAI: 'blue',
   OLLAMA: 'cyan',
+  OPENAI_COMPATIBLE: 'gold',
 };
 
 export function AiConfigListPage() {

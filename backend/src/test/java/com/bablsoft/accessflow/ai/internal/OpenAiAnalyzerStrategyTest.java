@@ -5,9 +5,9 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,7 +39,12 @@ class OpenAiAnalyzerStrategyTest {
     @Spy SystemPromptRenderer renderer = new SystemPromptRenderer();
     @Spy AiResponseParser parser = new AiResponseParser(JsonMapper.builder().build());
 
-    @InjectMocks OpenAiAnalyzerStrategy strategy;
+    private OpenAiAnalyzerStrategy strategy;
+
+    @BeforeEach
+    void setUp() {
+        strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser);
+    }
 
     private static ChatResponse buildResponse(String text, int promptTokens, int completionTokens, String model) {
         var generation = new Generation(new AssistantMessage(text));
@@ -63,6 +68,19 @@ class OpenAiAnalyzerStrategyTest {
         assertThat(result.aiModel()).isEqualTo("gpt-4o");
         assertThat(result.promptTokens()).isEqualTo(200);
         assertThat(result.completionTokens()).isEqualTo(90);
+    }
+
+    @Test
+    void analyzeRecordsConfiguredProviderForOpenAiCompatible() {
+        var compatStrategy = new OpenAiAnalyzerStrategy(
+                AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser);
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(buildResponse(SUCCESS_JSON, 12, 8, "qwen2.5"));
+
+        var result = compatStrategy.analyze("SELECT * FROM users", DbType.POSTGRESQL, null, "en", ORG_ID);
+
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.OPENAI_COMPATIBLE);
+        assertThat(result.aiModel()).isEqualTo("qwen2.5");
     }
 
     @Test

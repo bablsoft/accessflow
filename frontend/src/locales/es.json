@@ -1020,6 +1020,7 @@
       "field_max_completion_tokens": "Máx. tokens de respuesta",
       "name_required": "El nombre de la configuración es obligatorio",
       "api_key_required": "Se requiere una clave de API para este proveedor",
+      "endpoint_required": "Se requiere un endpoint de API para un proveedor personalizado",
       "wizard": {
         "title": "Nueva configuración de IA",
         "subtitle": "Elige un proveedor, completa los datos de conexión y ejecuta un prompt de prueba.",
@@ -1693,7 +1694,8 @@
     "ai_provider": {
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
-      "OLLAMA": "Ollama"
+      "OLLAMA": "Ollama",
+      "OPENAI_COMPATIBLE": "Personalizado (compatible con OpenAI)"
     },
     "auth_provider": {
       "LOCAL": "Local",

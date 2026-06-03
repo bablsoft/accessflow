@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,9 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(AiAnalyzerStrategyHolder.class);
     private static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
+    // OPENAI_COMPATIBLE allows a keyless config (self-hosted vLLM / LM Studio etc.). The OpenAI
+    // Java client still wants a non-blank key to construct, so substitute a non-secret placeholder.
+    private static final String PLACEHOLDER_API_KEY = "not-needed";
 
     private final AiConfigRepository aiConfigRepository;
     private final CredentialEncryptionService encryptionService;
@@ -81,7 +85,8 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
         return switch (entity.getProvider()) {
             case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser);
-            case OPENAI -> new OpenAiAnalyzerStrategy(buildOpenAiChatModel(entity), promptRenderer, responseParser);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser);
             case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser);
         };
     }
@@ -95,7 +100,13 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private ChatModel buildOpenAiChatModel(AiConfigEntity entity) {
         var apiKey = requireApiKey(entity);
         return chatModelFactory.openAi(apiKey, entity.getModel(),
-                entity.getMaxCompletionTokens(), entity.getTimeoutMs());
+                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), null);
+    }
+
+    private ChatModel buildOpenAiCompatibleChatModel(AiConfigEntity entity) {
+        var apiKey = optionalApiKey(entity);
+        return chatModelFactory.openAi(apiKey, entity.getModel(),
+                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), entity.getEndpoint());
     }
 
     private ChatModel buildOllamaChatModel(AiConfigEntity entity) {
@@ -112,6 +123,14 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         var ciphertext = entity.getApiKeyEncrypted();
         if (ciphertext == null || ciphertext.isBlank()) {
             throw notConfigured();
+        }
+        return encryptionService.decrypt(ciphertext);
+    }
+
+    private String optionalApiKey(AiConfigEntity entity) {
+        var ciphertext = entity.getApiKeyEncrypted();
+        if (ciphertext == null || ciphertext.isBlank()) {
+            return PLACEHOLDER_API_KEY;
         }
         return encryptionService.decrypt(ciphertext);
     }
