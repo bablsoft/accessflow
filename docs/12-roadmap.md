@@ -103,7 +103,7 @@
 
 ---
 
-## v1.3
+## v1.3 ✅ released
 
 **Theme:** Fine-grained access control and data protection.
 

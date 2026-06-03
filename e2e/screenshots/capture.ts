@@ -1,10 +1,11 @@
 // Screenshot capture script for AccessFlow website docs.
 //
 // Drives the running e2e stack (http://localhost:5173 frontend,
-// http://localhost:8080 backend) and writes 38 PNGs into
-// ../website/images/docs/ — the 31 existing screens (re-captured against the
-// current build) plus 7 new v1.2 captures: datasource health, Slack app config,
-// and user groups (light + dark), and the editor query-templates drawer (light).
+// http://localhost:8080 backend) and writes 46 PNGs into
+// ../website/images/docs/ — the 38 existing screens (re-captured against the
+// current build) plus 8 new v1.3 captures (light + dark each): the routing-policy
+// admin page (AF-379), the access-requests queue (AF-378), and the datasource
+// Masking (AF-381) + Row security (AF-380) settings tabs.
 //
 // Run from the e2e/ directory after `npm run stack:up`:
 //   npx tsx screenshots/capture.ts
@@ -173,6 +174,105 @@ async function seedData() {
     else console.warn(`  [warn] create template failed: ${res.status()} ${await res.text()}`);
   }
   console.log(`[seed] ${tmplCount} query templates`);
+
+  // 9. Seed v1.3 entities so the new admin pages render populated.
+  //    Routing policies (AF-379) — ordered auto-decision rules. Created last so
+  //    they can't retroactively re-route the queries submitted above.
+  const routingSpecs = [
+    {
+      name: `Auto-approve safe reads ${RUN_SUFFIX}`,
+      description: 'SELECT with a WHERE clause skips human review',
+      datasource_id: ds.id,
+      priority: 10,
+      enabled: true,
+      condition: {
+        type: 'and',
+        children: [
+          { type: 'query_type', any_of: ['SELECT'] },
+          { type: 'has_where', expected: true },
+        ],
+      },
+      action: 'AUTO_APPROVE',
+    },
+    {
+      name: `Escalate high-risk writes ${RUN_SUFFIX}`,
+      description: 'High / critical AI risk forces an extra approver',
+      datasource_id: ds.id,
+      priority: 20,
+      enabled: true,
+      condition: {
+        type: 'and',
+        children: [
+          { type: 'query_type', any_of: ['INSERT', 'UPDATE', 'DELETE'] },
+          { type: 'risk_level', any_of: ['HIGH', 'CRITICAL'] },
+        ],
+      },
+      action: 'ESCALATE',
+      required_approvals: 1,
+    },
+  ];
+  let routingCount = 0;
+  for (const rp of routingSpecs) {
+    const res = await api.post(`${apiB}/api/v1/admin/routing-policies`, { headers: adminHeaders, data: rp });
+    if (res.ok()) routingCount++;
+    else console.warn(`  [warn] create routing policy failed: ${res.status()} ${await res.text()}`);
+  }
+  console.log(`[seed] ${routingCount} routing policies`);
+
+  // Dynamic data masking policy (AF-381) on the datasource — emails masked,
+  // revealed only to ADMIN.
+  {
+    const res = await api.post(`${apiB}/api/v1/datasources/${ds.id}/masking-policies`, {
+      headers: adminHeaders,
+      data: {
+        column_ref: 'public.users.email',
+        strategy: 'EMAIL',
+        reveal_to_roles: ['ADMIN'],
+        enabled: true,
+      },
+    });
+    if (res.ok()) console.log('[seed] masking policy');
+    else console.warn(`  [warn] create masking policy failed: ${res.status()} ${await res.text()}`);
+  }
+
+  // Row-level security policy (AF-380) — users only see query_requests they own.
+  {
+    const res = await api.post(`${apiB}/api/v1/datasources/${ds.id}/row-security-policies`, {
+      headers: adminHeaders,
+      data: {
+        table_name: 'public.query_requests',
+        column_name: 'submitted_by',
+        operator: 'EQUALS',
+        value_type: 'VARIABLE',
+        value_expression: ':user.id',
+        applies_to_roles: [],
+        applies_to_group_ids: [],
+        applies_to_user_ids: [],
+        enabled: true,
+      },
+    });
+    if (res.ok()) console.log('[seed] row-security policy');
+    else console.warn(`  [warn] create row-security policy failed: ${res.status()} ${await res.text()}`);
+  }
+
+  // JIT access request (AF-378) raised by the reviewer (a non-admin) so the
+  // admin queue at /admin/access-requests shows a populated, pending row (the
+  // requester can't self-approve, so it stays PENDING).
+  {
+    const res = await api.post(`${apiB}/api/v1/access-requests`, {
+      headers: { Authorization: `Bearer ${reviewerToken}` },
+      data: {
+        datasource_id: ds.id,
+        can_read: true,
+        can_write: false,
+        can_ddl: false,
+        requested_duration: 'PT4H',
+        justification: 'Temporary read access to analytics for incident triage',
+      },
+    });
+    if (res.ok()) console.log('[seed] access request (pending)');
+    else console.warn(`  [warn] create access request failed: ${res.status()} ${await res.text()}`);
+  }
 
   await api.dispose();
   return { datasourceId: ds.id };
@@ -485,6 +585,32 @@ async function prepEditorTemplates(page: Page) {
   }
 }
 
+async function prepRoutingPolicies(page: Page) {
+  await gotoAndSettle(page, '/admin/routing-policies');
+  await page.waitForTimeout(800);
+}
+
+async function prepAccessRequestsQueue(page: Page) {
+  await gotoAndSettle(page, '/admin/access-requests');
+  await page.waitForTimeout(800);
+}
+
+async function prepDatasourcesMasking(page: Page, datasourceId: string) {
+  await gotoAndSettle(page, `/datasources/${datasourceId}/settings`);
+  await page.waitForTimeout(500);
+  const tab = page.getByRole('tab', { name: /Masking/i }).first();
+  if (await tab.count()) await tab.click();
+  await page.waitForTimeout(800);
+}
+
+async function prepDatasourcesRowSecurity(page: Page, datasourceId: string) {
+  await gotoAndSettle(page, `/datasources/${datasourceId}/settings`);
+  await page.waitForTimeout(500);
+  const tab = page.getByRole('tab', { name: /Row security/i }).first();
+  if (await tab.count()) await tab.click();
+  await page.waitForTimeout(800);
+}
+
 // ----------------------- main flow -----------------------
 
 async function main() {
@@ -543,6 +669,20 @@ async function main() {
     { name: 'datasource-health', prep: prepDatasourceHealth, darkToo: true },
     { name: 'slack-config', prep: prepSlackConfig, darkToo: true },
     { name: 'groups-list', prep: prepGroupsList, darkToo: true },
+
+    // v1.3 admin (AF-379 routing, AF-378 access requests, AF-381 masking, AF-380 row security)
+    { name: 'routing-policies', prep: prepRoutingPolicies, darkToo: true },
+    { name: 'access-requests-queue', prep: prepAccessRequestsQueue, darkToo: true },
+    {
+      name: 'datasources-masking',
+      prep: (p) => prepDatasourcesMasking(p, seed.datasourceId),
+      darkToo: true,
+    },
+    {
+      name: 'datasources-row-security',
+      prep: (p) => prepDatasourcesRowSecurity(p, seed.datasourceId),
+      darkToo: true,
+    },
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },
