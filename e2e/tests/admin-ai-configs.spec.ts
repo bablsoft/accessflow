@@ -355,10 +355,10 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
       await openWizardFresh(page);
 
-      // Step 1 — pick the provider. Anthropic / OpenAI tiles are unique by
-      // their label text; the description disambiguates from anything else
-      // matching "Anthropic" elsewhere on the page (there is none).
-      await page.getByRole('button', { name: new RegExp(provider.tile) }).click();
+      // Step 1 — pick the provider. Anchor the regex at the start of the tile's
+      // accessible name: a bare /OpenAI/ also matches the "Custom (OpenAI-compatible)"
+      // tile (substring), so `^` keeps this scoped to the intended tile.
+      await page.getByRole('button', { name: new RegExp(`^${provider.tile}`) }).click();
 
       // Step 2 — the API endpoint field MUST be hidden for non-Ollama
       // providers (no defaultEndpoint → field not rendered).
