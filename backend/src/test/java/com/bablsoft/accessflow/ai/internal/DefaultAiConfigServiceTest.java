@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
+import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
@@ -43,11 +44,15 @@ class DefaultAiConfigServiceTest {
     @Mock CredentialEncryptionService encryptionService;
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock SystemPromptRenderer promptRenderer;
     @InjectMocks DefaultAiConfigService service;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID otherOrgId = UUID.randomUUID();
     private final UUID configId = UUID.randomUUID();
+
+    // A minimal custom template that satisfies the {{sql}} guard.
+    private static final String CUSTOM_PROMPT = "Custom rules.\nSQL: {{sql}}\nRespond in: {{language}}.";
 
     @Test
     void listReturnsViewsWithInUseCounts() {
@@ -103,7 +108,7 @@ class DefaultAiConfigServiceTest {
         when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new CreateAiConfigCommand("  Prod  ", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514", null, "sk-test", null, null, null);
+                "claude-sonnet-4-20250514", null, "sk-test", null, null, null, null);
         var view = service.create(orgId, cmd);
 
         assertThat(view.name()).isEqualTo("Prod");
@@ -119,7 +124,7 @@ class DefaultAiConfigServiceTest {
         when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new CreateAiConfigCommand("Local", AiProviderType.OLLAMA,
-                "llama3.1:70b", "http://localhost:11434", null, null, null, null);
+                "llama3.1:70b", "http://localhost:11434", null, null, null, null, null);
         var view = service.create(orgId, cmd);
 
         assertThat(view.apiKeyMasked()).isFalse();
@@ -127,11 +132,48 @@ class DefaultAiConfigServiceTest {
     }
 
     @Test
+    void createPersistsSystemPromptTemplate() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Prod")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("Prod", AiProviderType.OPENAI,
+                "gpt-4o", null, "sk", null, null, null, CUSTOM_PROMPT);
+        when(encryptionService.encrypt("sk")).thenReturn("ENC(sk)");
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.systemPromptTemplate()).isEqualTo(CUSTOM_PROMPT);
+    }
+
+    @Test
+    void createBlankSystemPromptStoredAsNull() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Local")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("Local", AiProviderType.OLLAMA,
+                "llama3.1:70b", "http://localhost:11434", null, null, null, null, "   ");
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.systemPromptTemplate()).isNull();
+    }
+
+    @Test
+    void createWithPromptMissingSqlPlaceholderThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Prod")).thenReturn(false);
+
+        var cmd = new CreateAiConfigCommand("Prod", AiProviderType.OPENAI,
+                "gpt-4o", null, null, null, null, null, "No placeholder here");
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigInvalidPromptException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void createOpenAiCompatibleWithoutEndpointThrows() {
         when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Compat")).thenReturn(false);
 
         var cmd = new CreateAiConfigCommand("Compat", AiProviderType.OPENAI_COMPATIBLE,
-                "qwen2.5", null, null, null, null, null);
+                "qwen2.5", null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(orgId, cmd))
                 .isInstanceOf(AiConfigEndpointRequiredException.class);
@@ -144,7 +186,7 @@ class DefaultAiConfigServiceTest {
         when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var cmd = new CreateAiConfigCommand("Compat", AiProviderType.OPENAI_COMPATIBLE,
-                "qwen2.5", "https://api.example.com/v1", null, null, null, null);
+                "qwen2.5", "https://api.example.com/v1", null, null, null, null, null);
         var view = service.create(orgId, cmd);
 
         assertThat(view.provider()).isEqualTo(AiProviderType.OPENAI_COMPATIBLE);
@@ -161,7 +203,7 @@ class DefaultAiConfigServiceTest {
         // HUGGING_FACE has a built-in router default, so a blank endpoint is allowed (unlike
         // OPENAI_COMPATIBLE), and it is keyless-capable for local TGI.
         var cmd = new CreateAiConfigCommand("HF", AiProviderType.HUGGING_FACE,
-                "meta-llama/Llama-3.3-70B-Instruct", null, null, null, null, null);
+                "meta-llama/Llama-3.3-70B-Instruct", null, null, null, null, null, null);
         var view = service.create(orgId, cmd);
 
         assertThat(view.provider()).isEqualTo(AiProviderType.HUGGING_FACE);
@@ -176,7 +218,7 @@ class DefaultAiConfigServiceTest {
         when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
 
         var cmd = new UpdateAiConfigCommand(null, AiProviderType.OPENAI_COMPATIBLE, null, null,
-                null, null, null, null);
+                null, null, null, null, null);
 
         assertThatThrownBy(() -> service.update(configId, orgId, cmd))
                 .isInstanceOf(AiConfigEndpointRequiredException.class);
@@ -188,7 +230,7 @@ class DefaultAiConfigServiceTest {
         when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Prod")).thenReturn(true);
 
         var cmd = new CreateAiConfigCommand("Prod", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514", null, null, null, null, null);
+                "claude-sonnet-4-20250514", null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(orgId, cmd))
                 .isInstanceOf(AiConfigNameAlreadyExistsException.class);
@@ -205,7 +247,7 @@ class DefaultAiConfigServiceTest {
                 .thenReturn(Map.of(configId, 0));
 
         var cmd = new UpdateAiConfigCommand(null, AiProviderType.OPENAI, "gpt-4o", null, null,
-                null, null, null);
+                null, null, null, null);
         var view = service.update(configId, orgId, cmd);
 
         assertThat(view.provider()).isEqualTo(AiProviderType.OPENAI);
@@ -215,6 +257,73 @@ class DefaultAiConfigServiceTest {
         assertThat(event.getValue().aiConfigId()).isEqualTo(configId);
         assertThat(event.getValue().oldProvider()).isEqualTo(AiProviderType.ANTHROPIC);
         assertThat(event.getValue().newProvider()).isEqualTo(AiProviderType.OPENAI);
+        assertThat(event.getValue().promptChanged()).isFalse();
+    }
+
+    @Test
+    void updateSystemPromptPersistsAndPublishesPromptChangedEvent() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId)))
+                .thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, CUSTOM_PROMPT);
+        var view = service.update(configId, orgId, cmd);
+
+        assertThat(view.systemPromptTemplate()).isEqualTo(CUSTOM_PROMPT);
+        var event = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().promptChanged()).isTrue();
+        assertThat(event.getValue().apiKeyChanged()).isFalse();
+    }
+
+    @Test
+    void updateBlankSystemPromptResetsToDefaultAndPublishesEvent() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        entity.setSystemPromptTemplate(CUSTOM_PROMPT);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId)))
+                .thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, "");
+        var view = service.update(configId, orgId, cmd);
+
+        assertThat(view.systemPromptTemplate()).isNull();
+        var event = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().promptChanged()).isTrue();
+    }
+
+    @Test
+    void updateNullSystemPromptLeavesUnchangedAndPublishesNoEvent() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        entity.setSystemPromptTemplate(CUSTOM_PROMPT);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId)))
+                .thenReturn(Map.of(configId, 0));
+
+        // Only the name changes — prompt arg is null (= unchanged), nothing connectivity-relevant.
+        var cmd = new UpdateAiConfigCommand("Prod-renamed", null, null, null, null, null, null, null, null);
+        var view = service.update(configId, orgId, cmd);
+
+        assertThat(view.systemPromptTemplate()).isEqualTo(CUSTOM_PROMPT);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateWithPromptMissingSqlPlaceholderThrows() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null,
+                "Analyze this but forgot the placeholder");
+
+        assertThatThrownBy(() -> service.update(configId, orgId, cmd))
+                .isInstanceOf(AiConfigInvalidPromptException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -227,7 +336,7 @@ class DefaultAiConfigServiceTest {
                 .thenReturn(Map.of(configId, 0));
 
         var cmd = new UpdateAiConfigCommand(null, null, null, null,
-                UpdateAiConfigCommand.MASKED_API_KEY, null, null, null);
+                UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null);
         service.update(configId, orgId, cmd);
 
         assertThat(entity.getApiKeyEncrypted()).isEqualTo("ENC(existing)");
@@ -244,7 +353,7 @@ class DefaultAiConfigServiceTest {
         when(datasourceLookupService.countsByAiConfigIds(Set.of(configId)))
                 .thenReturn(Map.of(configId, 0));
 
-        var cmd = new UpdateAiConfigCommand(null, null, null, null, "", null, null, null);
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, "", null, null, null, null);
         service.update(configId, orgId, cmd);
 
         assertThat(entity.getApiKeyEncrypted()).isNull();
@@ -260,7 +369,7 @@ class DefaultAiConfigServiceTest {
         when(repository.existsByOrganizationIdAndNameIgnoreCaseAndIdNot(eq(orgId), eq("Other"), eq(configId)))
                 .thenReturn(true);
 
-        var cmd = new UpdateAiConfigCommand("Other", null, null, null, null, null, null, null);
+        var cmd = new UpdateAiConfigCommand("Other", null, null, null, null, null, null, null, null);
         assertThatThrownBy(() -> service.update(configId, orgId, cmd))
                 .isInstanceOf(AiConfigNameAlreadyExistsException.class);
         verify(repository, never()).save(any());
@@ -270,7 +379,7 @@ class DefaultAiConfigServiceTest {
     void updateNotFoundThrows() {
         when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.empty());
 
-        var cmd = new UpdateAiConfigCommand(null, null, "new-model", null, null, null, null, null);
+        var cmd = new UpdateAiConfigCommand(null, null, "new-model", null, null, null, null, null, null);
         assertThatThrownBy(() -> service.update(configId, orgId, cmd))
                 .isInstanceOf(AiConfigNotFoundException.class);
     }
@@ -325,9 +434,16 @@ class DefaultAiConfigServiceTest {
                 .thenReturn(Map.of(configId, 0));
 
         service.update(configId, orgId, new UpdateAiConfigCommand(
-                null, null, null, null, "sk-new", null, null, null));
+                null, null, null, null, "sk-new", null, null, null, null));
 
         verify(eventPublisher, times(1)).publishEvent(any(AiConfigUpdatedEvent.class));
+    }
+
+    @Test
+    void defaultSystemPromptTemplateDelegatesToRenderer() {
+        when(promptRenderer.defaultTemplate()).thenReturn(SystemPromptRenderer.DEFAULT_TEMPLATE);
+
+        assertThat(service.defaultSystemPromptTemplate()).isEqualTo(SystemPromptRenderer.DEFAULT_TEMPLATE);
     }
 
     private static AiConfigEntity build(UUID id, UUID organizationId, String name,

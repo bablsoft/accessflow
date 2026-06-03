@@ -16,6 +16,7 @@ const HF_NAME = `e2e-hf-${UNIQUE_SUFFIX}`;
 const IN_USE_NAME = `e2e-inuse-${UNIQUE_SUFFIX}`;
 const DUPLICATE_NAME = `e2e-dupe-${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
+const PROMPT_NAME = `e2e-prompt-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -174,6 +175,8 @@ async function openWizardFresh(page: Page): Promise<void> {
 //  10. Create with duplicate name → 409 → error toast.
 //  11. Create Custom (OpenAI-compatible) via wizard — endpoint required + keyless.
 //  12. Create Hugging Face via wizard — router endpoint pre-filled + keyless (local TGI path).
+//  13. Edit page system-prompt management (AF-332): {{sql}} guard blocks submit, "Load /
+//      reset to default" fills the built-in template, and a custom prompt round-trips on save.
 //
 // describe.serial because the primary Ollama config walks through tests
 // 2 → 4 → 5 → 6 → 7 → 8 (create → edit → test ok → test ok via list →
@@ -189,6 +192,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let duplicateAiConfigId: string | null = null;
   let compatAiConfigId: string | null = null;
   let huggingFaceAiConfigId: string | null = null;
+  let promptAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -211,6 +215,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       duplicateAiConfigId,
       compatAiConfigId,
       huggingFaceAiConfigId,
+      promptAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -894,5 +899,68 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     ).toBeVisible();
 
     await page.unroute('**/api/v1/admin/ai-configs/*/test');
+  });
+
+  test('13) edit page — system prompt {{sql}} guard, load-default, custom round-trip', async ({
+    page,
+    request,
+  }) => {
+    // Arrange via API: a fresh keyless Ollama config to edit (independent of the serial primary).
+    const cfg = await createAiConfigViaApi(request, adminAccessToken, {
+      name: PROMPT_NAME,
+      provider: 'OLLAMA',
+      model: 'llama3.1:70b',
+      endpoint: 'http://localhost:11434/api',
+    });
+    promptAiConfigId = cfg.id;
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/admin/ai-configs/${promptAiConfigId}`);
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(PROMPT_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    const promptField = page.getByLabel('System prompt');
+    await expect(promptField).toBeVisible();
+
+    // A custom prompt without {{sql}} must fail client validation — no PUT fires.
+    await promptField.fill('House rules without the required placeholder.');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(
+      page.getByText('A custom prompt must contain the {{sql}} placeholder'),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // "Load / reset to default" pulls the built-in template (which contains {{sql}}).
+    const defaultPromptResponse = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'GET' &&
+        /\/api\/v1\/admin\/ai-configs\/prompt-default$/.test(r.url()) &&
+        r.ok(),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Load / reset to default' }).click();
+    await defaultPromptResponse;
+    await expect(promptField).toHaveValue(/\{\{sql\}\}/, { timeout: 10_000 });
+
+    // Append a marker to the loaded default and save for real.
+    const loaded = await promptField.inputValue();
+    await promptField.fill(`${loaded}\nE2E-PROMPT-MARKER {{sql}}`);
+
+    const updateResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${promptAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const updateResponse = await updateResponsePromise;
+    expect(updateResponse.status()).toBe(200);
+    const body = (await updateResponse.json()) as { system_prompt_template: string | null };
+    expect(body.system_prompt_template).toContain('E2E-PROMPT-MARKER');
+    expect(body.system_prompt_template).toContain('{{sql}}');
+
+    await expect(
+      page.getByText('AI configuration saved', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

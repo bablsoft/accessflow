@@ -63,6 +63,14 @@ class AdminAiConfigsController {
                 .toList();
     }
 
+    @GetMapping("/prompt-default")
+    @Operation(summary = "Get the built-in analyzer system-prompt template (for pre-fill / reset)")
+    @ApiResponse(responseCode = "200", description = "Default prompt template")
+    @ApiResponse(responseCode = "403", description = "Caller is not an ADMIN")
+    DefaultPromptResponse promptDefault() {
+        return new DefaultPromptResponse(aiConfigService.defaultSystemPromptTemplate());
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Read a single AI configuration")
     @ApiResponse(responseCode = "200", description = "Configuration (API key masked)")
@@ -160,6 +168,9 @@ class AdminAiConfigsController {
         }
         if (apiKeyChanged(body, before)) {
             metadata.put("api_key_changed", true);
+        }
+        if (!Objects.equals(before.systemPromptTemplate(), after.systemPromptTemplate())) {
+            metadata.put("prompt_changed", true);
         }
         if (metadata.isEmpty()) {
             return;

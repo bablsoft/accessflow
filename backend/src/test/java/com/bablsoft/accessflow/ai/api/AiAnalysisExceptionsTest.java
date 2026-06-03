@@ -37,4 +37,11 @@ class AiAnalysisExceptionsTest {
         assertThat(ex.getMessage()).isEqualTo("bad json");
         assertThat(ex.getCause()).isNull();
     }
+
+    @Test
+    void invalidPromptExceptionCarriesMessage() {
+        var ex = new AiConfigInvalidPromptException();
+        assertThat(ex.getMessage()).contains("{{sql}}");
+        assertThat(ex.getCause()).isNull();
+    }
 }

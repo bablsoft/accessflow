@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import {
   aiConfigKeys,
   getAiConfig,
+  getDefaultAiPrompt,
   setupProgressKeys,
   testAiConfig,
   updateAiConfig,
@@ -33,6 +34,7 @@ interface FormValues {
   timeout_ms: number;
   max_prompt_tokens: number;
   max_completion_tokens: number;
+  system_prompt_template: string;
 }
 
 export default function AiConfigEditPage() {
@@ -67,6 +69,7 @@ export default function AiConfigEditPage() {
         timeout_ms: cfgQuery.data.timeout_ms,
         max_prompt_tokens: cfgQuery.data.max_prompt_tokens,
         max_completion_tokens: cfgQuery.data.max_completion_tokens,
+        system_prompt_template: cfgQuery.data.system_prompt_template ?? '',
       });
     }
   }, [cfgQuery.data, form]);
@@ -104,6 +107,21 @@ export default function AiConfigEditPage() {
     },
   });
 
+  const defaultPromptQuery = useQuery({
+    queryKey: aiConfigKeys.promptDefault(),
+    queryFn: getDefaultAiPrompt,
+    enabled: false,
+  });
+
+  const loadDefaultPrompt = async () => {
+    const result = await defaultPromptQuery.refetch();
+    if (result.data) {
+      form.setFieldValue('system_prompt_template', result.data.template);
+    } else if (result.error) {
+      showApiError(message, result.error, adminErrorMessage);
+    }
+  };
+
   if (cfgQuery.isLoading || !cfgQuery.data) {
     if (cfgQuery.isError) {
       return (
@@ -137,6 +155,7 @@ export default function AiConfigEditPage() {
       timeout_ms: values.timeout_ms,
       max_prompt_tokens: values.max_prompt_tokens,
       max_completion_tokens: values.max_completion_tokens,
+      system_prompt_template: values.system_prompt_template?.trim() ? values.system_prompt_template : '',
     });
   };
 
@@ -218,6 +237,29 @@ export default function AiConfigEditPage() {
               <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
             </Form.Item>
           </div>
+          <Form.Item
+            name="system_prompt_template"
+            label={t('admin.ai_configs.field_system_prompt')}
+            extra={t('admin.ai_configs.system_prompt_help')}
+            rules={[
+              { max: 20000 },
+              {
+                validator: (_, value?: string) =>
+                  value && value.trim() && !value.includes('{{sql}}')
+                    ? Promise.reject(new Error(t('admin.ai_configs.system_prompt_sql_required')))
+                    : Promise.resolve(),
+              },
+            ]}
+          >
+            <Input.TextArea className="mono" rows={14} maxLength={20000} autoComplete="off" />
+          </Form.Item>
+          <Button
+            onClick={() => void loadDefaultPrompt()}
+            loading={defaultPromptQuery.isFetching}
+            style={{ marginBottom: 16 }}
+          >
+            {t('admin.ai_configs.system_prompt_load_default')}
+          </Button>
           <div
             style={{
               display: 'flex',

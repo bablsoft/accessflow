@@ -119,7 +119,7 @@ class AdminSetupProgressControllerIntegrationTest {
     void reportsAllThreeOnceEachStepSatisfied() {
         var aiConfig = aiConfigService.create(org.getId(), new CreateAiConfigCommand(
                 "Primary AI", AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", null,
-                "sk-test", null, null, null));
+                "sk-test", null, null, null, null));
         seedDatasourceBoundTo(aiConfig.id());
         seedReviewPlan();
 

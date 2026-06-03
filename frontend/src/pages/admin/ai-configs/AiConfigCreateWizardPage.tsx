@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { App, Button, Form, Input, InputNumber, Result } from 'antd';
 import { ArrowLeftOutlined, CheckOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   aiConfigKeys,
   createAiConfig,
+  getDefaultAiPrompt,
   setupProgressKeys,
   testAiConfig,
 } from '@/api/admin';
@@ -81,6 +82,7 @@ interface FormValues {
   timeout_ms: number;
   max_prompt_tokens: number;
   max_completion_tokens: number;
+  system_prompt_template: string;
 }
 
 export default function AiConfigCreateWizardPage() {
@@ -109,6 +111,7 @@ export default function AiConfigCreateWizardPage() {
         timeout_ms: values.timeout_ms,
         max_prompt_tokens: values.max_prompt_tokens,
         max_completion_tokens: values.max_completion_tokens,
+        system_prompt_template: values.system_prompt_template?.trim() || null,
       };
       return createAiConfig(input);
     },
@@ -129,6 +132,21 @@ export default function AiConfigCreateWizardPage() {
     onSuccess: (result) => setTestResult(result),
     onError: (err: unknown) => showApiError(message, err, adminErrorMessage),
   });
+
+  const defaultPromptQuery = useQuery({
+    queryKey: aiConfigKeys.promptDefault(),
+    queryFn: getDefaultAiPrompt,
+    enabled: false,
+  });
+
+  const loadDefaultPrompt = async () => {
+    const result = await defaultPromptQuery.refetch();
+    if (result.data) {
+      form.setFieldValue('system_prompt_template', result.data.template);
+    } else if (result.error) {
+      showApiError(message, result.error, adminErrorMessage);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -252,6 +270,29 @@ export default function AiConfigCreateWizardPage() {
                   <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
                 </Form.Item>
               </div>
+              <Form.Item
+                name="system_prompt_template"
+                label={t('admin.ai_configs.field_system_prompt')}
+                extra={t('admin.ai_configs.system_prompt_help')}
+                rules={[
+                  { max: 20000 },
+                  {
+                    validator: (_, value?: string) =>
+                      value && value.trim() && !value.includes('{{sql}}')
+                        ? Promise.reject(new Error(t('admin.ai_configs.system_prompt_sql_required')))
+                        : Promise.resolve(),
+                  },
+                ]}
+              >
+                <Input.TextArea className="mono" rows={12} maxLength={20000} autoComplete="off" />
+              </Form.Item>
+              <Button
+                onClick={() => void loadDefaultPrompt()}
+                loading={defaultPromptQuery.isFetching}
+                style={{ marginBottom: 16 }}
+              >
+                {t('admin.ai_configs.system_prompt_load_default')}
+              </Button>
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <Button onClick={() => setCurrentStep('provider')}>{t('common.back')}</Button>
                 <Button type="primary" htmlType="submit" loading={createMutation.isPending}>

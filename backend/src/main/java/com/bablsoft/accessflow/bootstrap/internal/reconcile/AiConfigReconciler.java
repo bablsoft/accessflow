@@ -63,7 +63,10 @@ public class AiConfigReconciler {
                     spec.apiKey(),
                     spec.timeoutMs(),
                     spec.maxPromptTokens(),
-                    spec.maxCompletionTokens()));
+                    spec.maxCompletionTokens(),
+                    // Bootstrap does not manage the analyzer prompt — created configs use the
+                    // built-in default; a prompt later set via the admin UI is left untouched.
+                    null));
             log.info("Bootstrap: created AI config '{}' (id={})", spec.name(), created.id());
             stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                     created.id(), specFingerprint,
@@ -95,7 +98,9 @@ public class AiConfigReconciler {
                 spec.apiKey(),
                 spec.timeoutMs(),
                 spec.maxPromptTokens(),
-                spec.maxCompletionTokens()));
+                spec.maxCompletionTokens(),
+                // null = leave the analyzer prompt unchanged (bootstrap doesn't manage it).
+                null));
         log.info("Bootstrap: updated AI config '{}' (id={})", spec.name(), updated.id());
         stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                 updated.id(), specFingerprint,

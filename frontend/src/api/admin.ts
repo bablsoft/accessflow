@@ -10,6 +10,7 @@ import type {
   CreateAiConfigInput,
   CreateNotificationChannelInput,
   CreateUserInput,
+  DefaultAiPromptResult,
   NotificationChannel,
   OAuth2Config,
   OAuth2Provider,
@@ -77,6 +78,7 @@ export const aiConfigKeys = {
   lists: () => ['aiConfig', 'list'] as const,
   details: () => ['aiConfig', 'detail'] as const,
   detail: (id: string) => ['aiConfig', 'detail', id] as const,
+  promptDefault: () => ['aiConfig', 'promptDefault'] as const,
 };
 
 export const samlConfigKeys = {
@@ -285,6 +287,11 @@ export async function deleteAiConfig(id: string): Promise<void> {
 
 export async function testAiConfig(id: string): Promise<TestAiConfigResult> {
   const { data } = await apiClient.post<TestAiConfigResult>(`${AI_CONFIGS_BASE}/${id}/test`);
+  return data;
+}
+
+export async function getDefaultAiPrompt(): Promise<DefaultAiPromptResult> {
+  const { data } = await apiClient.get<DefaultAiPromptResult>(`${AI_CONFIGS_BASE}/prompt-default`);
   return data;
 }
 

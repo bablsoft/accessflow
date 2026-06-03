@@ -49,6 +49,9 @@ public class AiConfigEntity {
     @Column(name = "api_key_encrypted", columnDefinition = "text")
     private String apiKeyEncrypted;
 
+    @Column(name = "system_prompt_template", columnDefinition = "text")
+    private String systemPromptTemplate;
+
     @Column(name = "timeout_ms", nullable = false)
     private int timeoutMs = 30_000;
 

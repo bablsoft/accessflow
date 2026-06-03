@@ -20,6 +20,7 @@ public record AiConfigView(
         int timeoutMs,
         int maxPromptTokens,
         int maxCompletionTokens,
+        String systemPromptTemplate,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {

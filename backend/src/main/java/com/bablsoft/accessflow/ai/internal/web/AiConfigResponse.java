@@ -18,6 +18,7 @@ record AiConfigResponse(
         int timeoutMs,
         int maxPromptTokens,
         int maxCompletionTokens,
+        String systemPromptTemplate,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
@@ -34,6 +35,7 @@ record AiConfigResponse(
                 view.timeoutMs(),
                 view.maxPromptTokens(),
                 view.maxCompletionTokens(),
+                view.systemPromptTemplate(),
                 view.inUseCount(),
                 view.createdAt(),
                 view.updatedAt());

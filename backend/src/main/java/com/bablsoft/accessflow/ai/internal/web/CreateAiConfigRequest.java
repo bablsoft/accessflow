@@ -21,7 +21,8 @@ record CreateAiConfigRequest(
         @Min(value = 100, message = "{validation.ai_config.max_prompt_tokens.range}")
         @Max(value = 200000, message = "{validation.ai_config.max_prompt_tokens.range}") Integer maxPromptTokens,
         @Min(value = 100, message = "{validation.ai_config.max_completion_tokens.range}")
-        @Max(value = 200000, message = "{validation.ai_config.max_completion_tokens.range}") Integer maxCompletionTokens) {
+        @Max(value = 200000, message = "{validation.ai_config.max_completion_tokens.range}") Integer maxCompletionTokens,
+        @Size(max = 20000, message = "{validation.ai_config.system_prompt.max}") String systemPromptTemplate) {
 
     CreateAiConfigCommand toCommand() {
         return new CreateAiConfigCommand(
@@ -32,6 +33,7 @@ record CreateAiConfigRequest(
                 apiKey,
                 timeoutMs,
                 maxPromptTokens,
-                maxCompletionTokens);
+                maxCompletionTokens,
+                systemPromptTemplate);
     }
 }

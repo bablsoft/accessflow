@@ -306,6 +306,99 @@ class AdminAiConfigsControllerIntegrationTest {
     }
 
     @Test
+    void promptDefaultReturnsBuiltInTemplate() {
+        var result = mvc.get().uri("/api/v1/admin/ai-configs/prompt-default")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.template").asString().contains("{{sql}}");
+    }
+
+    @Test
+    void createWithCustomPromptRoundTrips() {
+        var body = """
+                {
+                  "name": "CustomPrompt",
+                  "provider": "OPENAI",
+                  "model": "gpt-4o",
+                  "api_key": "sk-test",
+                  "system_prompt_template": "House rules. Analyze {{sql}} on {{db_type}}."
+                }""";
+
+        var created = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(created).hasStatus(201);
+        assertThat(created).bodyJson().extractingPath("$.system_prompt_template").asString()
+                .isEqualTo("House rules. Analyze {{sql}} on {{db_type}}.");
+
+        var id = repository.findAllByOrganizationIdOrderByNameAsc(org.getId()).stream()
+                .filter(e -> e.getName().equals("CustomPrompt"))
+                .findFirst().orElseThrow().getId();
+        var fetched = mvc.get().uri("/api/v1/admin/ai-configs/" + id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+        assertThat(fetched).bodyJson().extractingPath("$.system_prompt_template").asString()
+                .isEqualTo("House rules. Analyze {{sql}} on {{db_type}}.");
+    }
+
+    @Test
+    void createWithPromptMissingSqlPlaceholderReturns400() {
+        var body = """
+                {
+                  "name": "BadPrompt",
+                  "provider": "OPENAI",
+                  "model": "gpt-4o",
+                  "api_key": "sk-test",
+                  "system_prompt_template": "Analyze the query but forgot the placeholder."
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("AI_CONFIG_INVALID_PROMPT");
+    }
+
+    @Test
+    void updatePromptThenResetToDefaultWithBlank() {
+        var existing = seedConfig("Promptable", AiProviderType.OPENAI, "ENC(k)");
+
+        var setBody = """
+                {
+                  "system_prompt_template": "Custom {{sql}} guidance."
+                }""";
+        var set = mvc.put().uri("/api/v1/admin/ai-configs/" + existing.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(setBody)
+                .exchange();
+        assertThat(set).hasStatus(200);
+        assertThat(set).bodyJson().extractingPath("$.system_prompt_template").asString()
+                .isEqualTo("Custom {{sql}} guidance.");
+
+        var resetBody = """
+                {
+                  "system_prompt_template": ""
+                }""";
+        var reset = mvc.put().uri("/api/v1/admin/ai-configs/" + existing.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(resetBody)
+                .exchange();
+        assertThat(reset).hasStatus(200);
+        // Blank resets to the built-in default — the stored value is null, so the field is omitted.
+        assertThat(reset).bodyJson().doesNotHavePath("$.system_prompt_template");
+    }
+
+    @Test
     void forbidsNonAdminCallers() {
         var result = mvc.get().uri("/api/v1/admin/ai-configs")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
