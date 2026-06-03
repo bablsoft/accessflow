@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -109,14 +110,45 @@ class AiAnalyzerStrategyHolderTest {
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI, "ENC(k)", "https://example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-openai");
         when(chatModelFactory.openAi(eq("sk-openai"), eq("test-model"),
-                anyInt(), anyInt())).thenReturn(chatModel);
+                anyInt(), anyInt(), isNull())).thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
         assertThat(result.aiProvider()).isEqualTo(AiProviderType.OPENAI);
         verify(chatModelFactory).openAi(eq("sk-openai"), eq("test-model"),
-                anyInt(), anyInt());
+                anyInt(), anyInt(), isNull());
+    }
+
+    @Test
+    void analyzeBuildsOpenAiCompatibleDelegateWithCustomEndpointAndNoKey() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI_COMPATIBLE, null, "https://api.example.com/v1")));
+        when(chatModelFactory.openAi(eq("not-needed"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://api.example.com/v1"))).thenReturn(chatModel);
+        when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
+
+        var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.OPENAI_COMPATIBLE);
+        verify(chatModelFactory).openAi(eq("not-needed"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://api.example.com/v1"));
+        verifyNoInteractions(encryptionService);
+    }
+
+    @Test
+    void analyzeBuildsOpenAiCompatibleDelegateWithApiKey() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI_COMPATIBLE, "ENC(k)", "https://api.example.com/v1")));
+        when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-compat");
+        when(chatModelFactory.openAi(eq("sk-compat"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://api.example.com/v1"))).thenReturn(chatModel);
+        when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
+
+        holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        verify(chatModelFactory).openAi(eq("sk-compat"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://api.example.com/v1"));
     }
 
     @Test
@@ -153,14 +185,15 @@ class AiAnalyzerStrategyHolderTest {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.OPENAI, "ENC(k)", "https://stored.example.com")));
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk");
-        when(chatModelFactory.openAi(anyString(), anyString(), anyInt(), anyInt()))
+        when(chatModelFactory.openAi(anyString(), anyString(), anyInt(), anyInt(), isNull()))
                 .thenReturn(chatModel);
         when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
 
         holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
 
-        // Factory signature has no baseUrl param for OpenAI — Spring AI's built-in default is used.
-        verify(chatModelFactory).openAi(anyString(), anyString(), anyInt(), anyInt());
+        // The OPENAI provider passes a null baseUrl — Spring AI's built-in default endpoint is used,
+        // even though the row stores one. (OPENAI_COMPATIBLE is the provider that honors it.)
+        verify(chatModelFactory).openAi(anyString(), anyString(), anyInt(), anyInt(), isNull());
     }
 
     @Test

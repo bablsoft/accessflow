@@ -55,6 +55,15 @@ class DefaultAiConfigLookupServiceTest {
     }
 
     @Test
+    void returnsTrueForOpenAiCompatibleConfigWithoutApiKey() {
+        var orgId = UUID.randomUUID();
+        when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))
+                .thenReturn(List.of(entity(AiProviderType.OPENAI_COMPATIBLE, null)));
+
+        assertThat(service.hasAnyUsableAiConfig(orgId)).isTrue();
+    }
+
+    @Test
     void returnsFalseForAnthropicConfigWithBlankApiKey() {
         var orgId = UUID.randomUUID();
         when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))

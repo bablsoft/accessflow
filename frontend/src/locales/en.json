@@ -1077,6 +1077,7 @@
       "field_max_completion_tokens": "Max completion tokens",
       "name_required": "Configuration name is required",
       "api_key_required": "API key is required for this provider",
+      "endpoint_required": "API endpoint is required for a custom provider",
       "wizard": {
         "title": "New AI configuration",
         "subtitle": "Pick a provider, fill in the connection details, and run a test prompt.",
@@ -1693,7 +1694,8 @@
     "ai_provider": {
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
-      "OLLAMA": "Ollama"
+      "OLLAMA": "Ollama",
+      "OPENAI_COMPATIBLE": "Custom (OpenAI-compatible)"
     },
     "auth_provider": {
       "LOCAL": "Local",

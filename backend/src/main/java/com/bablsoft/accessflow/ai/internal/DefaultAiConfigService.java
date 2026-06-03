@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.ai.internal;
 
+import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
@@ -9,6 +10,7 @@ import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
@@ -91,6 +93,7 @@ class DefaultAiConfigService implements AiConfigService {
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
+        requireEndpointForOpenAiCompatible(entity);
         var saved = repository.save(entity);
         return toView(saved, 0);
     }
@@ -133,6 +136,7 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setMaxCompletionTokens(command.maxCompletionTokens());
         }
         entity.setUpdatedAt(Instant.now());
+        requireEndpointForOpenAiCompatible(entity);
         var saved = repository.save(entity);
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
         if (oldProvider != saved.getProvider()
@@ -161,6 +165,13 @@ class DefaultAiConfigService implements AiConfigService {
         }
         repository.delete(entity);
         eventPublisher.publishEvent(new AiConfigDeletedEvent(entity.getId()));
+    }
+
+    private static void requireEndpointForOpenAiCompatible(AiConfigEntity entity) {
+        if (entity.getProvider() == AiProviderType.OPENAI_COMPATIBLE
+                && (entity.getEndpoint() == null || entity.getEndpoint().isBlank())) {
+            throw new AiConfigEndpointRequiredException();
+        }
     }
 
     private boolean hasConnectivityChange(UpdateAiConfigCommand command) {

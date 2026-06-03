@@ -3,5 +3,6 @@ package com.bablsoft.accessflow.core.api;
 public enum AiProviderType {
     OPENAI,
     ANTHROPIC,
-    OLLAMA
+    OLLAMA,
+    OPENAI_COMPATIBLE
 }

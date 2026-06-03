@@ -33,15 +33,17 @@ class SpringAiChatModelFactory implements ChatModelFactory {
     }
 
     @Override
-    public ChatModel openAi(String apiKey, String model, int maxCompletionTokens, int timeoutMs) {
-        var options = OpenAiChatOptions.builder()
+    public ChatModel openAi(String apiKey, String model, int maxCompletionTokens, int timeoutMs, String baseUrl) {
+        var optionsBuilder = OpenAiChatOptions.builder()
                 .model(model)
                 .maxCompletionTokens(maxCompletionTokens)
                 .apiKey(apiKey)
-                .timeout(Duration.ofMillis(timeoutMs))
-                .build();
+                .timeout(Duration.ofMillis(timeoutMs));
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            optionsBuilder.baseUrl(baseUrl);
+        }
         return OpenAiChatModel.builder()
-                .options(options)
+                .options(optionsBuilder.build())
                 .build();
     }
 

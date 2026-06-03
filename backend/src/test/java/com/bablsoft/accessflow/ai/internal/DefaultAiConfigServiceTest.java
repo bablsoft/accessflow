@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.ai.internal;
 
+import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
@@ -123,6 +124,46 @@ class DefaultAiConfigServiceTest {
 
         assertThat(view.apiKeyMasked()).isFalse();
         verify(encryptionService, never()).encrypt(anyString());
+    }
+
+    @Test
+    void createOpenAiCompatibleWithoutEndpointThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Compat")).thenReturn(false);
+
+        var cmd = new CreateAiConfigCommand("Compat", AiProviderType.OPENAI_COMPATIBLE,
+                "qwen2.5", null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigEndpointRequiredException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void createOpenAiCompatibleWithEndpointSucceeds() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Compat")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("Compat", AiProviderType.OPENAI_COMPATIBLE,
+                "qwen2.5", "https://api.example.com/v1", null, null, null, null);
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.provider()).isEqualTo(AiProviderType.OPENAI_COMPATIBLE);
+        assertThat(view.endpoint()).isEqualTo("https://api.example.com/v1");
+        assertThat(view.apiKeyMasked()).isFalse();
+        verify(encryptionService, never()).encrypt(anyString());
+    }
+
+    @Test
+    void updateToOpenAiCompatibleWithoutEndpointThrows() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+
+        var cmd = new UpdateAiConfigCommand(null, AiProviderType.OPENAI_COMPATIBLE, null, null,
+                null, null, null, null);
+
+        assertThatThrownBy(() -> service.update(configId, orgId, cmd))
+                .isInstanceOf(AiConfigEndpointRequiredException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test

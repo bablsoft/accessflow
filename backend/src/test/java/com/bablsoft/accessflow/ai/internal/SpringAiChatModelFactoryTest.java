@@ -21,7 +21,13 @@ class SpringAiChatModelFactoryTest {
 
     @Test
     void openAiBuildsChatModel() {
-        var model = factory.openAi("sk-test", "gpt-4o", 1000, 30_000);
+        var model = factory.openAi("sk-test", "gpt-4o", 1000, 30_000, null);
+        assertThat(model).isNotNull();
+    }
+
+    @Test
+    void openAiBuildsChatModelWithCustomBaseUrl() {
+        var model = factory.openAi("sk-test", "qwen2.5", 1000, 30_000, "https://api.example.com/v1");
         assertThat(model).isNotNull();
     }
 

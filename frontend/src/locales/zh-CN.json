@@ -1020,6 +1020,7 @@
       "field_max_completion_tokens": "回复最大 token 数",
       "name_required": "配置名称为必填项",
       "api_key_required": "此服务商需要 API 密钥",
+      "endpoint_required": "自定义服务商需要 API 端点",
       "wizard": {
         "title": "新建 AI 配置",
         "subtitle": "选择服务商,填写连接信息,然后运行一次测试提示。",
@@ -1693,7 +1694,8 @@
     "ai_provider": {
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
-      "OLLAMA": "Ollama"
+      "OLLAMA": "Ollama",
+      "OPENAI_COMPATIBLE": "自定义(OpenAI 兼容)"
     },
     "auth_provider": {
       "LOCAL": "本地",

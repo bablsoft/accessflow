@@ -11,6 +11,7 @@ const UNIQUE_SUFFIX = `af277-${Date.now()}`;
 const PRIMARY_NAME = `e2e-ollama-${UNIQUE_SUFFIX}`;
 const ANTHROPIC_NAME = `e2e-anthropic-${UNIQUE_SUFFIX}`;
 const OPENAI_NAME = `e2e-openai-${UNIQUE_SUFFIX}`;
+const COMPAT_NAME = `e2e-compat-${UNIQUE_SUFFIX}`;
 const IN_USE_NAME = `e2e-inuse-${UNIQUE_SUFFIX}`;
 const DUPLICATE_NAME = `e2e-dupe-${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
@@ -73,7 +74,7 @@ async function createAiConfigViaApi(
   accessToken: string,
   body: {
     name: string;
-    provider: 'OLLAMA' | 'OPENAI' | 'ANTHROPIC';
+    provider: 'OLLAMA' | 'OPENAI' | 'ANTHROPIC' | 'OPENAI_COMPATIBLE';
     model: string;
     endpoint?: string | null;
     api_key?: string | null;
@@ -170,6 +171,7 @@ async function openWizardFresh(page: Page): Promise<void> {
 //   8. Row "Delete" → row removed.
 //   9. Delete in-use config → modal lists bound datasources (high-value guard).
 //  10. Create with duplicate name → 409 → error toast.
+//  11. Create Custom (OpenAI-compatible) via wizard — endpoint required + keyless.
 //
 // describe.serial because the primary Ollama config walks through tests
 // 2 → 4 → 5 → 6 → 7 → 8 (create → edit → test ok → test ok via list →
@@ -183,6 +185,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let inUseAiConfigId: string | null = null;
   let boundDatasourceId: string | null = null;
   let duplicateAiConfigId: string | null = null;
+  let compatAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -203,6 +206,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       ...secondaryAiConfigIds,
       inUseAiConfigId,
       duplicateAiConfigId,
+      compatAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -743,5 +747,80 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
 
     // Wizard stays on step 2 — the Configuration name input is still mounted.
     await expect(page.getByLabel('Configuration name')).toHaveValue(DUPLICATE_NAME);
+  });
+
+  test('11) create Custom (OpenAI-compatible) via wizard — endpoint required, keyless', async ({
+    page,
+  }) => {
+    await stubTestEndpoint(page, {
+      status: 'OK',
+      detail: 'AI provider responded with risk_level=LOW (OPENAI_COMPATIBLE)',
+    });
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await openWizardFresh(page);
+
+    // Step 1 — pick the Custom (OpenAI-compatible) tile.
+    await page.getByRole('button', { name: /Custom \(OpenAI-compatible\)/ }).click();
+
+    // Step 2 — the API endpoint field is shown and the API key is optional
+    // (needs_api_key=false). The endpoint is pre-filled with the placeholder.
+    await expect(page.getByLabel('API endpoint')).toBeVisible();
+    await expect(page.getByLabel('API key')).toBeVisible();
+
+    await page.getByLabel('Configuration name').fill(COMPAT_NAME);
+    await page.getByLabel('Model').fill('qwen2.5');
+
+    // Clearing the endpoint must trigger the required-rule on submit — no POST fires.
+    await page.getByLabel('API endpoint').fill('');
+    await page.getByRole('button', { name: 'Save and continue' }).click();
+    await expect(
+      page.getByText('API endpoint is required for a custom provider'),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Supply an endpoint, leave the API key blank, and submit for real.
+    await page.getByLabel('API endpoint').fill('http://vllm:8000/v1');
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/ai-configs$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save and continue' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as {
+      id: string;
+      provider: string;
+      model: string;
+      endpoint: string | null;
+      api_key: string | null;
+    };
+    compatAiConfigId = body.id;
+    expect(body.provider).toBe('OPENAI_COMPATIBLE');
+    expect(body.model).toBe('qwen2.5');
+    expect(body.endpoint).toBe('http://vllm:8000/v1');
+    // Keyless config — the API key is omitted from the response (never the masked value).
+    expect(body.api_key ?? null).toBeNull();
+
+    // Step 3 — happy-path Send test prompt + Done.
+    await page.getByRole('button', { name: 'Send test prompt' }).click();
+    await expect(
+      page.getByText('AI provider responded with risk_level=LOW (OPENAI_COMPATIBLE)'),
+    ).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.waitForURL('**/admin/ai-configs');
+    await waitForAiConfigsListReady(page);
+
+    const row = page.getByRole('row', {
+      name: new RegExp(escapeRegex(COMPAT_NAME)),
+    });
+    await expect(row).toBeVisible();
+    await expect(
+      row.getByText('Custom (OpenAI-compatible)', { exact: true }),
+    ).toBeVisible();
+    await expect(row.getByText('qwen2.5', { exact: true })).toBeVisible();
+
+    await page.unroute('**/api/v1/admin/ai-configs/*/test');
   });
 });

@@ -26,6 +26,7 @@ interface ProviderTile {
   defaultModel: string;
   defaultEndpoint?: string;
   needsApiKey: boolean;
+  needsEndpoint?: boolean;
 }
 
 const PROVIDERS: ProviderTile[] = [
@@ -50,6 +51,16 @@ const PROVIDERS: ProviderTile[] = [
     defaultModel: 'llama3.1:70b',
     defaultEndpoint: 'http://localhost:11434/api',
     needsApiKey: false,
+    needsEndpoint: true,
+  },
+  {
+    id: 'OPENAI_COMPATIBLE',
+    label: 'Custom (OpenAI-compatible)',
+    desc: 'vLLM, LM Studio, Together, Groq, …',
+    defaultModel: '',
+    defaultEndpoint: 'https://api.example.com/v1',
+    needsApiKey: false,
+    needsEndpoint: true,
   },
 ];
 
@@ -79,12 +90,12 @@ export default function AiConfigCreateWizardPage() {
   const createMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       if (!selectedProvider) throw new Error('No provider selected');
-      const isOllama = selectedProvider.id === 'OLLAMA';
+      const sendsEndpoint = Boolean(selectedProvider.needsEndpoint);
       const input: CreateAiConfigInput = {
         name: values.name.trim(),
         provider: selectedProvider.id,
         model: values.model.trim(),
-        endpoint: isOllama ? (values.endpoint?.trim() || null) : null,
+        endpoint: sendsEndpoint ? (values.endpoint?.trim() || null) : null,
         api_key: values.api_key || null,
         timeout_ms: values.timeout_ms,
         max_prompt_tokens: values.max_prompt_tokens,
@@ -125,7 +136,7 @@ export default function AiConfigCreateWizardPage() {
         <AiConfigWizardSteps current={currentStep} />
         <div style={{ marginTop: 24 }}>
           {currentStep === 'provider' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {PROVIDERS.map((p) => (
                 <button
                   key={p.id}
@@ -177,11 +188,19 @@ export default function AiConfigCreateWizardPage() {
               >
                 <Input className="mono" maxLength={100} />
               </Form.Item>
-              {selectedProvider.id === 'OLLAMA' && (
+              {selectedProvider.needsEndpoint && (
                 <Form.Item
                   name="endpoint"
                   label={t('admin.ai_configs.field_endpoint')}
-                  rules={[{ max: 500 }]}
+                  rules={[
+                    selectedProvider.id === 'OPENAI_COMPATIBLE'
+                      ? {
+                          required: true,
+                          message: t('admin.ai_configs.endpoint_required'),
+                        }
+                      : {},
+                    { max: 500 },
+                  ]}
                 >
                   <Input className="mono" maxLength={500} />
                 </Form.Item>

@@ -19,8 +19,10 @@ import java.util.UUID;
 
 /**
  * Calls the OpenAI Chat Completions API via Spring AI's {@link ChatModel}. Instances are
- * constructed by {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row. Not a
- * Spring bean.
+ * constructed by {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row, for both
+ * the {@code OPENAI} and {@code OPENAI_COMPATIBLE} providers (identical wire format; the latter
+ * points the same client at a custom base URL). The {@code providerType} is recorded on the
+ * resulting analysis so dashboards group by the actual configured provider. Not a Spring bean.
  */
 @RequiredArgsConstructor
 class OpenAiAnalyzerStrategy implements AiAnalyzerStrategy {
@@ -30,6 +32,7 @@ class OpenAiAnalyzerStrategy implements AiAnalyzerStrategy {
             You analyze SQL for security and performance risks. Always reply with a single JSON object \
             matching the exact schema described in the user's message. Do not wrap the JSON in markdown.""";
 
+    private final AiProviderType providerType;
     private final ChatModel chatModel;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
@@ -77,6 +80,6 @@ class OpenAiAnalyzerStrategy implements AiAnalyzerStrategy {
         log.debug("OpenAI response: model={}, input_tokens={}, output_tokens={}",
                 model, promptTokens, completionTokens);
 
-        return responseParser.parse(text, AiProviderType.OPENAI, model, promptTokens, completionTokens);
+        return responseParser.parse(text, providerType, model, promptTokens, completionTokens);
     }
 }
