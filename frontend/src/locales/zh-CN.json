@@ -1695,7 +1695,8 @@
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
-      "OPENAI_COMPATIBLE": "自定义(OpenAI 兼容)"
+      "OPENAI_COMPATIBLE": "自定义(OpenAI 兼容)",
+      "HUGGING_FACE": "Hugging Face"
     },
     "auth_provider": {
       "LOCAL": "本地",

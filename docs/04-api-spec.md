@@ -2245,9 +2245,9 @@ Creates a new AI configuration.
 }
 ```
 
-Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA and OPENAI_COMPATIBLE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
+Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
 
-`endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA` or `provider = OPENAI_COMPATIBLE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
+`endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. `HUGGING_FACE` likewise reuses the OpenAI client and is keyless-capable; a blank `endpoint` defaults to the Hugging Face Inference Providers router (`https://router.huggingface.co/v1`), and a custom base URL targets a local / self-hosted TGI server or a Dedicated Inference Endpoint. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
 **Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
 **Response 400:** Validation error, or `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`).

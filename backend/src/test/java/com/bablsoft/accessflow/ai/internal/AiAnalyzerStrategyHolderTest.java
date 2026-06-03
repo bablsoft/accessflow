@@ -152,6 +152,40 @@ class AiAnalyzerStrategyHolderTest {
     }
 
     @Test
+    void analyzeBuildsHuggingFaceDelegateWithDefaultRouterUrlAndNoKey() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.HUGGING_FACE, null, null)));
+        when(chatModelFactory.openAi(eq("not-needed"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://router.huggingface.co/v1"))).thenReturn(chatModel);
+        when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
+
+        var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        // Keyless local-TGI path: no API key stored -> placeholder; blank endpoint -> HF router default.
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.HUGGING_FACE);
+        verify(chatModelFactory).openAi(eq("not-needed"), eq("test-model"),
+                anyInt(), anyInt(), eq("https://router.huggingface.co/v1"));
+        verifyNoInteractions(encryptionService);
+    }
+
+    @Test
+    void analyzeBuildsHuggingFaceDelegateWithCustomEndpointAndApiKey() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.HUGGING_FACE, "ENC(k)", "http://localhost:3000/v1")));
+        when(encryptionService.decrypt("ENC(k)")).thenReturn("hf_token");
+        when(chatModelFactory.openAi(eq("hf_token"), eq("test-model"),
+                anyInt(), anyInt(), eq("http://localhost:3000/v1"))).thenReturn(chatModel);
+        when(chatModel.call(any(Prompt.class))).thenReturn(successChatResponse());
+
+        var result = holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        // Custom base URL targets a local TGI / dedicated endpoint; an HF token is honored when set.
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.HUGGING_FACE);
+        verify(chatModelFactory).openAi(eq("hf_token"), eq("test-model"),
+                anyInt(), anyInt(), eq("http://localhost:3000/v1"));
+    }
+
+    @Test
     void analyzeBuildsOllamaDelegateWithoutApiKey() {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.OLLAMA, null, "https://example.com")));

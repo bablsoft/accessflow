@@ -1695,7 +1695,8 @@
       "OPENAI": "OpenAI",
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
-      "OPENAI_COMPATIBLE": "Benutzerdefiniert (OpenAI-kompatibel)"
+      "OPENAI_COMPATIBLE": "Benutzerdefiniert (OpenAI-kompatibel)",
+      "HUGGING_FACE": "Hugging Face"
     },
     "auth_provider": {
       "LOCAL": "Lokal",

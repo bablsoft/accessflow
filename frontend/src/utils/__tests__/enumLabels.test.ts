@@ -91,7 +91,7 @@ describe('enumLabels (English text round-trip)', () => {
   const dbs: DbType[] = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM'];
   const ssl: SslMode[] = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
   const channels: ChannelType[] = ['EMAIL', 'SLACK', 'WEBHOOK', 'DISCORD', 'TELEGRAM', 'MS_TEAMS'];
-  const ai: AiProvider[] = ['OPENAI', 'ANTHROPIC', 'OLLAMA'];
+  const ai: AiProvider[] = ['OPENAI', 'ANTHROPIC', 'OLLAMA', 'OPENAI_COMPATIBLE', 'HUGGING_FACE'];
   const auth: AuthProvider[] = ['LOCAL', 'SAML', 'OAUTH2'];
   const oauth2: OAuth2Provider[] = ['GOOGLE', 'GITHUB', 'MICROSOFT', 'GITLAB', 'OIDC'];
   const invites: InvitationStatus[] = ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'];
@@ -143,6 +143,7 @@ describe('enumLabels (English text round-trip)', () => {
     expect(dbTypeLabel(t, 'MSSQL')).toBe('Microsoft SQL Server');
     expect(channelTypeLabel(t, 'MS_TEAMS')).toBe('Microsoft Teams');
     expect(sslModeLabel(t, 'VERIFY_CA')).toBe('Verify CA');
+    expect(aiProviderLabel(t, 'HUGGING_FACE')).toBe('Hugging Face');
   });
 });
 

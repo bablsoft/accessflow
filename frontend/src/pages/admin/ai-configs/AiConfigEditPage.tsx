@@ -56,7 +56,9 @@ export default function AiConfigEditPage() {
   useEffect(() => {
     if (cfgQuery.data) {
       const showsEndpoint =
-        cfgQuery.data.provider === 'OLLAMA' || cfgQuery.data.provider === 'OPENAI_COMPATIBLE';
+        cfgQuery.data.provider === 'OLLAMA' ||
+        cfgQuery.data.provider === 'OPENAI_COMPATIBLE' ||
+        cfgQuery.data.provider === 'HUGGING_FACE';
       form.setFieldsValue({
         name: cfgQuery.data.name,
         model: cfgQuery.data.model,
@@ -120,7 +122,10 @@ export default function AiConfigEditPage() {
 
   const cfg = cfgQuery.data;
 
-  const needsEndpoint = cfg.provider === 'OLLAMA' || cfg.provider === 'OPENAI_COMPATIBLE';
+  const needsEndpoint =
+    cfg.provider === 'OLLAMA' ||
+    cfg.provider === 'OPENAI_COMPATIBLE' ||
+    cfg.provider === 'HUGGING_FACE';
 
   const onSave = (values: FormValues) => {
     const apiKey = values.api_key === MASK ? undefined : values.api_key;

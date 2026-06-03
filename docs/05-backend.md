@@ -10,7 +10,7 @@ accessflow/
 ├── accessflow-proxy/             # SQL proxy engine, JDBC connection pool management
 ├── accessflow-workflow/          # Review workflow state machine, notification fanout
 ├── accessflow-access/            # JIT time-bound access requests — approval, grant materialisation, expiry job
-├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama adapters
+├── accessflow-ai/                # AI analyzer — OpenAI / Anthropic / Ollama / Hugging Face adapters
 ├── accessflow-security/          # JWT config, Spring Security, SAML 2.0 SSO
 ├── accessflow-notifications/     # Email (JavaMail), Slack, Webhook, Discord, Telegram, MS Teams, PagerDuty dispatchers
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
@@ -755,19 +755,26 @@ identifies the specific `ai_config` row to use — resolved upstream from the da
 Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
 them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
 autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring AI 2.0
-(`spring-ai-bom:2.0.0-M7` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`):
+(`spring-ai-bom:2.0.0-M7` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`).
+`OpenAiAnalyzerStrategy` is reused for three providers (`OPENAI`, `OPENAI_COMPATIBLE`,
+`HUGGING_FACE`) since they share the OpenAI chat-completions wire format:
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
   provider / model / API key / timeout. The base URL comes from Spring AI's built-in default;
   the `ai_config.endpoint` column is ignored for this provider. Default boot model:
   `claude-sonnet-4-20250514`.
-- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Serves both the `OPENAI` provider (Spring AI's
-  built-in default base URL; `ai_config.endpoint` ignored; default boot model `gpt-4o`) and the
-  `OPENAI_COMPATIBLE` provider, which passes `ai_config.endpoint` to the OpenAI client as a custom
-  base URL so any OpenAI API–compatible backend works (vLLM, LM Studio, Together, Groq,
-  OpenRouter, …). `OPENAI_COMPATIBLE` requires an `endpoint` and may run keyless — when no API key
-  is stored, the holder substitutes a non-secret placeholder so the client still constructs. The
-  configured provider (`OPENAI` vs `OPENAI_COMPATIBLE`) is recorded on each `ai_analyses` row.
+- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Serves three providers: `OPENAI` (Spring AI's
+  built-in default base URL; `ai_config.endpoint` ignored; default boot model `gpt-4o`),
+  `OPENAI_COMPATIBLE`, which passes `ai_config.endpoint` to the OpenAI client as a custom base URL
+  so any OpenAI API–compatible backend works (vLLM, LM Studio, Together, Groq, OpenRouter, …), and
+  `HUGGING_FACE`, which points the same client at the Hugging Face Inference Providers router
+  (`https://router.huggingface.co/v1` by default — authenticated with a HF token) or, via a custom
+  base URL, at a **local / self-hosted Text Generation Inference (TGI ≥ 1.4)** server or a Dedicated
+  Inference Endpoint. `OPENAI_COMPATIBLE` requires an `endpoint`; `HUGGING_FACE` defaults it to the
+  router. Both may run keyless — when no API key is stored, the holder substitutes a non-secret
+  placeholder so the client still constructs (this is how local tokenless TGI works). Default boot
+  model for `HUGGING_FACE`: `meta-llama/Llama-3.3-70B-Instruct`. The configured provider is recorded
+  on each `ai_analyses` row.
 - `OllamaAnalyzerStrategy` — `OllamaChatModel`. Keyless; needs only `endpoint` (default
   `http://localhost:11434`).
 
@@ -799,7 +806,7 @@ opt-out paths exist:
   belongs to a different organization.
 
 If the looked-up `ai_config` row has no API key set (and the provider needs one — Anthropic /
-OpenAI; `OLLAMA` and `OPENAI_COMPATIBLE` are keyless), the holder throws `AiAnalysisException`
+OpenAI; `OLLAMA`, `OPENAI_COMPATIBLE` and `HUGGING_FACE` are keyless-capable), the holder throws `AiAnalysisException`
 whose message is resolved via `MessageSource` (`error.ai.not_configured` in
 `i18n/messages.properties`). The smoke endpoint `POST /admin/ai-configs/{id}/test` surfaces that
 text as the `detail` of `{"status":"ERROR", ...}`.
@@ -807,8 +814,8 @@ text as the `detail` of `{"status":"ERROR", ...}`.
 ### Setup progress
 
 `DefaultSetupProgressService` reports `ai_provider_configured = true` when the org has at
-least one `ai_config` row that is "usable" on its own — a keyless provider (`OLLAMA` or
-`OPENAI_COMPATIBLE`) or a non-blank API key is stored. This signal flows through
+least one `ai_config` row that is "usable" on its own — a keyless-capable provider (`OLLAMA`,
+`OPENAI_COMPATIBLE`, or `HUGGING_FACE`) or a non-blank API key is stored. This signal flows through
 `AiConfigLookupService.hasAnyUsableAiConfig(orgId)`, which simply scans
 `AiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId)` and filters on usability.
 The signal does **not** require any datasource to bind to the config — admins configure AI

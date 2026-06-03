@@ -28,9 +28,12 @@ class DefaultAiConfigLookupService implements AiConfigLookupService {
 
     private static boolean isUsable(AiConfigEntity entity) {
         var provider = entity.getProvider();
-        // OLLAMA and OPENAI_COMPATIBLE may run keyless (self-hosted); the endpoint is enforced at
-        // create/update time. OPENAI and ANTHROPIC require an API key to be usable.
-        if (provider == AiProviderType.OLLAMA || provider == AiProviderType.OPENAI_COMPATIBLE) {
+        // OLLAMA, OPENAI_COMPATIBLE and HUGGING_FACE may run keyless (self-hosted — e.g. local TGI);
+        // their endpoint has a default or is enforced at create/update time. OPENAI and ANTHROPIC
+        // require an API key to be usable.
+        if (provider == AiProviderType.OLLAMA
+                || provider == AiProviderType.OPENAI_COMPATIBLE
+                || provider == AiProviderType.HUGGING_FACE) {
             return true;
         }
         return entity.getApiKeyEncrypted() != null && !entity.getApiKeyEncrypted().isBlank();

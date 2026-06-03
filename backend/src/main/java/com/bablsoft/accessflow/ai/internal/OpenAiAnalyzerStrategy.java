@@ -19,9 +19,10 @@ import java.util.UUID;
 
 /**
  * Calls the OpenAI Chat Completions API via Spring AI's {@link ChatModel}. Instances are
- * constructed by {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row, for both
- * the {@code OPENAI} and {@code OPENAI_COMPATIBLE} providers (identical wire format; the latter
- * points the same client at a custom base URL). The {@code providerType} is recorded on the
+ * constructed by {@code AiAnalyzerStrategyHolder} from the per-org {@code ai_config} row, for the
+ * {@code OPENAI}, {@code OPENAI_COMPATIBLE} and {@code HUGGING_FACE} providers (identical wire
+ * format; the latter two point the same client at a custom base URL — a self-hosted backend or the
+ * Hugging Face Inference Providers router / local TGI). The {@code providerType} is recorded on the
  * resulting analysis so dashboards group by the actual configured provider. Not a Spring bean.
  */
 @RequiredArgsConstructor

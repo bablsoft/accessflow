@@ -40,7 +40,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 |---------|---------------|
 | **Query Proxy Service** | Core engine that intercepts SQL, validates against policies, routes to approval workflow or executes directly, streams results back to the user. |
 | **Review Workflow Service** | Manages approval chains: creates review requests, notifies reviewers, records decisions, triggers execution on approval. Implements a state machine for multi-stage approvals. |
-| **AI Query Analyzer Service** | Wraps configurable AI backends (OpenAI, Anthropic, or local Ollama). Provides risk scoring, query analysis, index hints, and syntax suggestions. |
+| **AI Query Analyzer Service** | Wraps configurable AI backends (OpenAI, Anthropic, local Ollama, any OpenAI-compatible endpoint, or Hugging Face — hosted router or local TGI). Provides risk scoring, query analysis, index hints, and syntax suggestions. |
 | **Admin & Audit Service** | Datasource CRUD, user/role management, policy configuration, audit log queries, notification channel setup. |
 | **Notification Dispatcher** | Fanout service sending review events to Email, Slack, and configurable webhooks asynchronously. |
 
@@ -62,7 +62,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 | Kubernetes | Helm 3 chart with ConfigMap/Secret templating |
 | Cache / Locks | Redis (JWT refresh-token revocation, ShedLock distributed locks for `@Scheduled` jobs) |
 | Background scheduling | Spring `@Scheduled` + ShedLock-on-Redis — safe for horizontally-scaled deployments (only one node runs each tick). See [05-backend.md → Scheduled jobs and clustering](05-backend.md#scheduled-jobs-and-clustering). |
-| AI Backends | OpenAI API, Anthropic Claude API, Ollama (self-hosted) — admin configurable |
+| AI Backends | OpenAI API, Anthropic Claude API, Ollama (self-hosted), any OpenAI-compatible endpoint, Hugging Face (Inference Providers router or local TGI) — admin configurable |
 
 ---
 
