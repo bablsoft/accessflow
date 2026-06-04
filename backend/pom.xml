@@ -21,7 +21,7 @@
     <properties>
         <java.version>25</java.version>
         <spring-modulith.version>2.0.6</spring-modulith.version>
-        <spring-ai.version>2.0.0-M7</spring-ai.version>
+        <spring-ai.version>2.0.0-M8</spring-ai.version>
         <shedlock.version>7.7.0</shedlock.version>
         <slack.sdk.version>1.49.0</slack.sdk.version>
         <springdoc.version>3.0.3</springdoc.version>
