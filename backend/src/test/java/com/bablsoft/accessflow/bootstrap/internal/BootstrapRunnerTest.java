@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.bootstrap.internal;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.AdminUserReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.AiConfigReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.DatasourceReconciler;
+import com.bablsoft.accessflow.bootstrap.internal.reconcile.LangfuseReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.NotificationChannelReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OAuth2Reconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OrganizationReconciler;
@@ -46,6 +47,7 @@ class BootstrapRunnerTest {
     @Mock DatasourceReconciler datasourceReconciler;
     @Mock SamlReconciler samlReconciler;
     @Mock OAuth2Reconciler oauth2Reconciler;
+    @Mock LangfuseReconciler langfuseReconciler;
     @Mock SystemSmtpReconciler systemSmtpReconciler;
     @Mock DistributedLockService distributedLockService;
 
@@ -207,6 +209,7 @@ class BootstrapRunnerTest {
                 datasourceReconciler,
                 samlReconciler,
                 oauth2Reconciler,
+                langfuseReconciler,
                 systemSmtpReconciler,
                 distributedLockService);
     }
@@ -222,10 +225,11 @@ class BootstrapRunnerTest {
                 List.of(),
                 null,
                 List.of(),
+                null,
                 null);
     }
 
     private BootstrapProperties disabled() {
-        return new BootstrapProperties(false, null, null, null, null, null, null, null, null, null);
+        return new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null);
     }
 }

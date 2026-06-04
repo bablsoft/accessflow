@@ -83,6 +83,8 @@ interface FormValues {
   max_prompt_tokens: number;
   max_completion_tokens: number;
   system_prompt_template: string;
+  langfuse_prompt_name: string;
+  langfuse_prompt_label: string;
 }
 
 export default function AiConfigCreateWizardPage() {
@@ -112,6 +114,8 @@ export default function AiConfigCreateWizardPage() {
         max_prompt_tokens: values.max_prompt_tokens,
         max_completion_tokens: values.max_completion_tokens,
         system_prompt_template: values.system_prompt_template?.trim() || null,
+        langfuse_prompt_name: values.langfuse_prompt_name?.trim() || null,
+        langfuse_prompt_label: values.langfuse_prompt_label?.trim() || null,
       };
       return createAiConfig(input);
     },
@@ -293,6 +297,23 @@ export default function AiConfigCreateWizardPage() {
               >
                 {t('admin.ai_configs.system_prompt_load_default')}
               </Button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <Form.Item
+                  name="langfuse_prompt_name"
+                  label={t('admin.ai_configs.field_langfuse_prompt_name')}
+                  extra={t('admin.ai_configs.langfuse_prompt_help')}
+                  rules={[{ max: 255 }]}
+                >
+                  <Input className="mono" maxLength={255} autoComplete="off" />
+                </Form.Item>
+                <Form.Item
+                  name="langfuse_prompt_label"
+                  label={t('admin.ai_configs.field_langfuse_prompt_label')}
+                  rules={[{ max: 255 }]}
+                >
+                  <Input className="mono" maxLength={255} autoComplete="off" placeholder="production" />
+                </Form.Item>
+              </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <Button onClick={() => setCurrentStep('provider')}>{t('common.back')}</Button>
                 <Button type="primary" htmlType="submit" loading={createMutation.isPending}>

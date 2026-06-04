@@ -10,6 +10,8 @@ public record AiConfigSpec(
         String apiKey,
         Integer timeoutMs,
         Integer maxPromptTokens,
-        Integer maxCompletionTokens
+        Integer maxCompletionTokens,
+        String langfusePromptName,
+        String langfusePromptLabel
 ) {
 }

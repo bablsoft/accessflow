@@ -77,6 +77,13 @@ bootstrap:
       baseUrl: https://gitlab.acme.corp
       defaultRole: ANALYST
       active: true
+  langfuse:
+    enabled: true
+    host: https://cloud.langfuse.com
+    publicKey: pk-lf-ci
+    secretKeyRef: { name: accessflow-bootstrap-secrets, key: langfuse-secret-key }
+    tracingEnabled: true
+    promptManagementEnabled: true
   systemSmtp:
     enabled: true
     host: smtp.acme.com

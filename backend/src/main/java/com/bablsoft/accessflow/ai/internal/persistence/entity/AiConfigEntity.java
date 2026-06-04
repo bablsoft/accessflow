@@ -52,6 +52,12 @@ public class AiConfigEntity {
     @Column(name = "system_prompt_template", columnDefinition = "text")
     private String systemPromptTemplate;
 
+    @Column(name = "langfuse_prompt_name", length = 255)
+    private String langfusePromptName;
+
+    @Column(name = "langfuse_prompt_label", length = 255)
+    private String langfusePromptLabel;
+
     @Column(name = "timeout_ms", nullable = false)
     private int timeoutMs = 30_000;
 

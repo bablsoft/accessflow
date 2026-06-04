@@ -2218,6 +2218,8 @@ Returns all AI configurations for the caller's organization, sorted by name. `in
     "max_prompt_tokens": 8000,
     "max_completion_tokens": 2000,
     "system_prompt_template": null,
+    "langfuse_prompt_name": null,
+    "langfuse_prompt_label": null,
     "in_use_count": 2,
     "created_at": "2026-05-06T10:00:00Z",
     "updated_at": "2026-05-06T10:00:00Z"
@@ -2225,7 +2227,7 @@ Returns all AI configurations for the caller's organization, sorted by name. `in
 ]
 ```
 
-`system_prompt_template` is the admin's custom analyzer prompt for this configuration, or `null` when the built-in default is used.
+`system_prompt_template` is the admin's custom analyzer prompt for this configuration, or `null` when the built-in default is used. `langfuse_prompt_name` / `langfuse_prompt_label` opt this configuration into Langfuse-managed prompts: when set **and** the org's Langfuse config has `prompt_management_enabled`, the analyzer fetches its system prompt from Langfuse by that name+label at render time (falling back to `system_prompt_template` / the built-in default on miss). Both are `null` when Langfuse prompts are not used; setting a name with no label defaults the label to `production`.
 
 #### GET /admin/ai-configs/{id}
 
@@ -2258,7 +2260,7 @@ Creates a new AI configuration.
 }
 ```
 
-Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000]; `system_prompt_template` ≤ 20000 and — when non-blank — **must contain the `{{sql}}` placeholder** (else **400** `AI_CONFIG_INVALID_PROMPT`). Omit it (or send blank) to use the built-in default; fetch the default via `GET /admin/ai-configs/prompt-default`.
+Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000]; `system_prompt_template` ≤ 20000 and — when non-blank — **must contain the `{{sql}}` placeholder** (else **400** `AI_CONFIG_INVALID_PROMPT`). Omit it (or send blank) to use the built-in default; fetch the default via `GET /admin/ai-configs/prompt-default`. `langfuse_prompt_name` and `langfuse_prompt_label` ≤ 255 each (both optional).
 
 `endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. `HUGGING_FACE` likewise reuses the OpenAI client and is keyless-capable; a blank `endpoint` defaults to the Hugging Face Inference Providers router (`https://router.huggingface.co/v1`), and a custom base URL targets a local / self-hosted TGI server or a Dedicated Inference Endpoint. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
@@ -2270,7 +2272,7 @@ Writes an `AI_CONFIG_CREATED` audit row.
 
 #### PUT /admin/ai-configs/{id}
 
-Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence. `system_prompt_template` follows the same null/blank pattern: omitting it leaves the stored prompt unchanged, sending a blank string resets it to the built-in default, and any other value is persisted (and must contain `{{sql}}`).
+Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence. `system_prompt_template` follows the same null/blank pattern: omitting it leaves the stored prompt unchanged, sending a blank string resets it to the built-in default, and any other value is persisted (and must contain `{{sql}}`). `langfuse_prompt_name` / `langfuse_prompt_label` follow the same pattern (omit = unchanged, blank = clear); clearing the name clears the label, and setting a name with a blank label defaults it to `production`.
 
 A successful PUT triggers a runtime refresh of the cached `AiAnalyzerStrategy` delegate for that `ai_config` row — the next call uses the new provider / model / key / prompt without an application restart. An `AI_CONFIG_UPDATED` audit row is written when any of `name`, `provider`, `model`, the API key, or the system prompt changes; the `metadata` JSONB carries only the fields that actually changed (`prompt_changed: true` when the prompt was altered).
 
@@ -2676,6 +2678,48 @@ Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs)
 
 **Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
 **Response 400:** Validation error.
+
+### Langfuse Configuration (`/admin/langfuse-config`) *(ADMIN only)*
+
+Per-organization Langfuse integration settings (singleton row). Drives analyzer **tracing** and **prompt management** — see [docs/05-backend.md → "Langfuse integration"](05-backend.md#langfuse-integration).
+
+#### GET /admin/langfuse-config
+
+Returns the org's configuration, or an all-default view (disabled, no credentials) when none exists. The secret key is never returned in clear text.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "enabled": true,
+  "host": "https://cloud.langfuse.com",
+  "public_key": "pk-lf-...",
+  "secret_key": "********",
+  "tracing_enabled": true,
+  "prompt_management_enabled": false,
+  "created_at": "2026-06-04T10:00:00Z",
+  "updated_at": "2026-06-04T10:00:00Z"
+}
+```
+
+`secret_key` is `"********"` when a secret is stored, `null` otherwise.
+
+#### PUT /admin/langfuse-config
+
+Partial update / upsert. Any omitted field is left unchanged. `secret_key` follows the mask pattern: `"********"` preserves the existing ciphertext, an empty string clears it, any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence. `host` blank falls back to `ACCESSFLOW_LANGFUSE_DEFAULT_HOST`.
+
+**Request body:** `{ "enabled": true, "host": "https://cloud.langfuse.com", "public_key": "pk-lf-...", "secret_key": "sk-lf-...", "tracing_enabled": true, "prompt_management_enabled": true }`
+
+Validation: `host` ≤ 500; `public_key` ≤ 255; `secret_key` ≤ 512.
+
+**Response 200:** Updated configuration (same shape as GET, `secret_key` masked). Emits an `LANGFUSE_CONFIG_UPDATED` audit row.
+
+#### POST /admin/langfuse-config/test
+
+Verifies the org's **saved** credentials by calling an authenticated Langfuse endpoint. Always returns **200**; the outcome is in the body.
+
+**Response 200:** `{ "status": "OK" | "ERROR", "message": "Successfully connected to Langfuse" }`
 
 ### GET /auth/oauth2/providers
 

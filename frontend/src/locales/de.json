@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "Zugriff anfragen",
     "access_requests": "Zugriffsanfragen",
-    "routing_policies": "Routing-Richtlinien"
+    "routing_policies": "Routing-Richtlinien",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -1035,7 +1036,10 @@
         "save_and_test": "Speichern und fortfahren",
         "test_button": "Test-Prompt senden",
         "finish": "Fertig"
-      }
+      },
+      "field_langfuse_prompt_name": "Langfuse-Prompt-Name",
+      "field_langfuse_prompt_label": "Langfuse-Prompt-Label",
+      "langfuse_prompt_help": "Optional. Wenn gesetzt und die Langfuse-Prompt-Verwaltung aktiviert ist, lädt der Analyzer diesen Prompt aus Langfuse statt des obigen System-Prompts."
     },
     "notifications": {
       "title": "Benachrichtigungskanäle",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "Erweiterte Bedingung",
       "condition_advanced_warning": "Diese Richtlinie verwendet eine verschachtelte Bedingung, die der geführte Editor nicht bearbeiten kann; Speichern ersetzt sie.",
       "condition_any_query": "Jede Abfrage"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "Verbinde Langfuse für LLM-Tracing und Prompt-Verwaltung.",
+      "section_connection": "Verbindung",
+      "section_features": "Funktionen",
+      "label_enabled": "Aktiviert",
+      "label_host": "Host-URL",
+      "label_public_key": "Öffentlicher Schlüssel",
+      "label_secret_key": "Geheimer Schlüssel",
+      "label_tracing_enabled": "Analyse-Traces senden",
+      "label_prompt_management_enabled": "Von Langfuse verwaltete Prompts verwenden",
+      "host_help": "Langfuse-Basis-URL. Leer lassen für den Standardwert (https://cloud.langfuse.com).",
+      "secret_key_help": "Geheimer Projektschlüssel (sk-lf-…). Verschlüsselt gespeichert; wird nicht erneut angezeigt.",
+      "tracing_help": "Sendet bei jeder KI-Analyse einen Trace an Langfuse.",
+      "prompt_management_help": "Lädt Analyzer-Prompts anhand des Namens aus Langfuse in den KI-Konfigurationen.",
+      "save_button": "Speichern",
+      "save_success": "Langfuse-Konfiguration gespeichert",
+      "load_error": "Langfuse-Konfiguration konnte nicht geladen werden",
+      "test_button": "Verbindung testen",
+      "error_host_invalid": "Gib eine gültige URL ein (https://…)"
     }
   },
   "notifications": {

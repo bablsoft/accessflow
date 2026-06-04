@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "申请访问",
     "access_requests": "访问申请",
-    "routing_policies": "路由策略"
+    "routing_policies": "路由策略",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -1035,7 +1036,10 @@
         "save_and_test": "保存并继续",
         "test_button": "发送测试提示",
         "finish": "完成"
-      }
+      },
+      "field_langfuse_prompt_name": "Langfuse 提示词名称",
+      "field_langfuse_prompt_label": "Langfuse 提示词标签",
+      "langfuse_prompt_help": "可选。设置后且启用 Langfuse 提示词管理时，分析器将从 Langfuse 获取此提示词，而不是上面的系统提示词。"
     },
     "notifications": {
       "title": "通知通道",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "高级条件",
       "condition_advanced_warning": "此策略使用了引导式编辑器无法编辑的嵌套条件；在此保存将替换它。",
       "condition_any_query": "任何查询"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "连接 Langfuse 以进行 LLM 追踪和提示词管理。",
+      "section_connection": "连接",
+      "section_features": "功能",
+      "label_enabled": "启用",
+      "label_host": "主机 URL",
+      "label_public_key": "公钥",
+      "label_secret_key": "私钥",
+      "label_tracing_enabled": "发送分析追踪",
+      "label_prompt_management_enabled": "使用 Langfuse 管理的提示词",
+      "host_help": "Langfuse 基础 URL。留空则使用默认值 (https://cloud.langfuse.com)。",
+      "secret_key_help": "项目私钥 (sk-lf-…)。加密存储，不会再次显示。",
+      "tracing_help": "每次 AI 分析都向 Langfuse 发送一条追踪记录。",
+      "prompt_management_help": "在 AI 配置中按名称从 Langfuse 获取分析器提示词。",
+      "save_button": "保存",
+      "save_success": "已保存 Langfuse 配置",
+      "load_error": "加载 Langfuse 配置失败",
+      "test_button": "测试连接",
+      "error_host_invalid": "请输入有效的 URL (https://…)"
     }
   },
   "notifications": {

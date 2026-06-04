@@ -21,6 +21,8 @@ public record AiConfigView(
         int maxPromptTokens,
         int maxCompletionTokens,
         String systemPromptTemplate,
+        String langfusePromptName,
+        String langfusePromptLabel,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {

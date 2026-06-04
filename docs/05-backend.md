@@ -827,6 +827,40 @@ whose message is resolved via `MessageSource` (`error.ai.not_configured` in
 `i18n/messages.properties`). The smoke endpoint `POST /admin/ai-configs/{id}/test` surfaces that
 text as the `detail` of `{"status":"ERROR", ...}`.
 
+### Langfuse integration
+
+The `ai` module integrates with [Langfuse](https://langfuse.com) for two independent, composable
+concerns, both configured per organization via the singleton `langfuse_config` row
+(`LangfuseConfigService` / `AdminLangfuseConfigController` at `/api/v1/admin/langfuse-config`,
+modeled on `saml_config`). The secret key is AES-256-GCM encrypted and never returned. A
+`LangfuseConfigResolver` loads + decrypts the row and caches it per org, evicting on
+`LangfuseConfigUpdatedEvent`; it returns empty when Langfuse is disabled or credentials are
+incomplete, so callers short-circuit. All Langfuse HTTP goes through `LangfuseClient` (a `RestClient`
+authenticated per call with HTTP Basic `publicKey:secretKey` — hand-rolled, no SDK, matching the
+notifications dispatchers). Outbound host/timeouts come from `accessflow.langfuse.*`
+(`LangfuseProperties`); per-org credentials live in the DB.
+
+- **Tracing.** `AiAnalyzerStrategyHolder` wraps every built delegate in a `TracingAiAnalyzerStrategy`
+  decorator, so both the editor-preview and submitted-query paths are covered. After each
+  `analyze(...)` the decorator fires `LangfuseTracer.trace(...)` (on success and failure). The tracer
+  resolves the org config on the calling thread (cheap, cached) to skip disabled orgs, then posts a
+  batched `trace-create` + `GENERATION` observation to `POST {host}/api/public/ingestion` on a
+  dedicated virtual-thread executor. It is **best-effort and non-blocking**: any failure (or a
+  disabled org) is logged and swallowed — analysis is never affected. The trace input is the SQL +
+  db-type + schema-context; the output is the structured `AiAnalysisResult` (model, provider, token
+  usage, latency in `usageDetails`).
+- **Prompt management.** Strategies resolve their template at call time via a `SystemPromptSource`.
+  When an `ai_config` row sets `langfuse_prompt_name`, the holder builds a source that asks
+  `LangfusePromptProvider` first (`GET {host}/api/public/v2/prompts/{name}?label={label}`), falling
+  back to the local `system_prompt_template` / built-in default when Langfuse / prompt-management is
+  off or the fetch fails. Successful fetches are cached for `accessflow.langfuse.prompt-cache-ttl`
+  (so Langfuse edits propagate without a restart) and evicted per org on `LangfuseConfigUpdatedEvent`.
+  Only text prompts are used; chat prompts and fetch errors fall back. Toggling Langfuse config does
+  **not** require rebuilding the holder delegate — the source re-asks the provider each call.
+
+`POST /admin/langfuse-config/test` verifies the saved credentials against an authenticated Langfuse
+endpoint via `LangfuseConfigService.testConnection(...)`.
+
 ### Setup progress
 
 `DefaultSetupProgressService` reports `ai_provider_configured = true` when the org has at

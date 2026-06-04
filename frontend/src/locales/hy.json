@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "Հայցել մուտք",
     "access_requests": "Մուտքի հարցումներ",
-    "routing_policies": "Երթուղավորման քաղաքականություններ"
+    "routing_policies": "Երթուղավորման քաղաքականություններ",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -1035,7 +1036,10 @@
         "save_and_test": "Պահպանել և շարունակել",
         "test_button": "Ուղարկել փորձնական հարցում",
         "finish": "Պատրաստ"
-      }
+      },
+      "field_langfuse_prompt_name": "Langfuse հուշման անուն",
+      "field_langfuse_prompt_label": "Langfuse հուշման պիտակ",
+      "langfuse_prompt_help": "Ընտրովի։ Երբ սահմանված է և Langfuse-ի հուշումների կառավարումը միացված է, վերլուծիչը բերում է այս հուշումը Langfuse-ից վերևի համակարգային հուշման փոխարեն։"
     },
     "notifications": {
       "title": "Ծանուցումների ալիքներ",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "Բարդ պայման",
       "condition_advanced_warning": "Այս քաղաքականությունն օգտագործում է ներդրված պայման, որը կառավարվող խմբագրիչը չի կարող խմբագրել. այստեղ պահպանելը այն կփոխարինի.",
       "condition_any_query": "Ցանկացած հարցում"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "Միացրեք Langfuse-ը LLM-ի հետագծման և հուշումների կառավարման համար։",
+      "section_connection": "Միացում",
+      "section_features": "Հնարավորություններ",
+      "label_enabled": "Միացված է",
+      "label_host": "Հոսթի URL",
+      "label_public_key": "Հանրային բանալի",
+      "label_secret_key": "Գաղտնի բանալի",
+      "label_tracing_enabled": "Ուղարկել վերլուծության հետագծերը",
+      "label_prompt_management_enabled": "Օգտագործել Langfuse-ի կառավարվող հուշումները",
+      "host_help": "Langfuse-ի հիմնական URL-ը։ Թողեք դատարկ՝ լռելյայն արժեքն օգտագործելու համար (https://cloud.langfuse.com)։",
+      "secret_key_help": "Նախագծի գաղտնի բանալին (sk-lf-…)։ Պահվում է գաղտնագրված; այլևս ցույց չի տրվում։",
+      "tracing_help": "Ուղարկում է հետագիծ Langfuse-ին յուրաքանչյուր AI վերլուծության համար։",
+      "prompt_management_help": "AI կարգավորումներում ըստ անվան բերում է վերլուծիչի հուշումները Langfuse-ից։",
+      "save_button": "Պահպանել",
+      "save_success": "Langfuse-ի կարգավորումը պահպանվեց",
+      "load_error": "Langfuse-ի կարգավորումը բեռնել չհաջողվեց",
+      "test_button": "Փորձարկել միացումը",
+      "error_host_invalid": "Մուտքագրեք վավեր URL (https://…)"
     }
   },
   "notifications": {

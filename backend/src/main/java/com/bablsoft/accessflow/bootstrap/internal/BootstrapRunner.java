@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.bootstrap.internal;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.AdminUserReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.AiConfigReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.DatasourceReconciler;
+import com.bablsoft.accessflow.bootstrap.internal.reconcile.LangfuseReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.NotificationChannelReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OAuth2Reconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OrganizationReconciler;
@@ -40,6 +41,7 @@ public class BootstrapRunner {
     private final DatasourceReconciler datasourceReconciler;
     private final SamlReconciler samlReconciler;
     private final OAuth2Reconciler oauth2Reconciler;
+    private final LangfuseReconciler langfuseReconciler;
     private final SystemSmtpReconciler systemSmtpReconciler;
     private final DistributedLockService distributedLockService;
 
@@ -108,6 +110,8 @@ public class BootstrapRunner {
                 () -> samlReconciler.reconcile(organizationId, properties.saml()));
         runStep(errors, "oauth2",
                 () -> oauth2Reconciler.reconcile(organizationId, properties.oauth2()));
+        runStep(errors, "langfuse",
+                () -> langfuseReconciler.reconcile(organizationId, properties.langfuse()));
         runStep(errors, "systemSmtp",
                 () -> systemSmtpReconciler.reconcile(organizationId, properties.systemSmtp()));
 

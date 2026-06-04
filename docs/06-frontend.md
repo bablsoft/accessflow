@@ -131,7 +131,8 @@ accessflow-ui/
 │   │       ├── AuditLogPage.tsx
 │   │       ├── AIConfigPage.tsx
 │   │       ├── NotificationsPage.tsx
-│   │       └── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
+│   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
+│   │       └── LangfuseConfigPage.tsx # Langfuse tracing + prompt management
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
@@ -310,6 +311,22 @@ reset to default** button fetches the built-in template from `GET /admin/ai-conf
 (`getDefaultAiPrompt`, query key `aiConfigKeys.promptDefault()`) and fills the editor so admins can
 tweak from the default. The help text lists the available placeholders (`{{sql}}`,
 `{{schema_context}}`, `{{db_type}}`, `{{language}}`).
+
+Both pages also expose optional **Langfuse prompt name** / **Langfuse prompt label** inputs
+(≤ 255 chars each). When set — and the org's Langfuse config has prompt management enabled — the
+analyzer fetches its system prompt from Langfuse by that name+label instead of the system prompt
+above (the label defaults to `production`).
+
+### Langfuse configuration (`pages/admin/LangfuseConfigPage.tsx`)
+
+`LangfuseConfigPage` (`/admin/langfuse`, lazy, admin-only — nav entry in the **System** group) is the
+single-org form for the [Langfuse](https://langfuse.com) integration. It mirrors `SamlConfigPage`:
+TanStack Query loads the config (`getLangfuseConfig`, key `langfuseConfigKeys.current()`), a
+`useMutation` saves it (`updateLangfuseConfig`), and the secret key round-trips masked as `********`
+(unchanged values are stripped from the payload). Fields: **Enabled**, **Host URL** (validated as a
+URL, ≤ 500), **Public key**, **Secret key** (`Input.Password`), **Send analysis traces**, and **Use
+Langfuse-managed prompts**. A **Test connection** button calls `testLangfuseConfig` and surfaces the
+server's status message as a toast.
 
 ### Topbar (`components/common/Topbar.tsx`)
 
@@ -538,6 +555,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/saml                         → SamlConfigPage
 /admin/oauth2                       → OAuth2ConfigPage (lazy)
 /admin/slack                        → SlackConfigPage (lazy; Slack app config — AF-362)
+/admin/langfuse                     → LangfuseConfigPage (lazy; Langfuse tracing + prompt management — AF-333)
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 

@@ -31,6 +31,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DefaultAiConfigService implements AiConfigService {
 
+    static final String DEFAULT_LANGFUSE_PROMPT_LABEL = "production";
+
     private final AiConfigRepository repository;
     private final CredentialEncryptionService encryptionService;
     private final DatasourceLookupService datasourceLookupService;
@@ -93,6 +95,9 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setMaxCompletionTokens(command.maxCompletionTokens());
         }
         entity.setSystemPromptTemplate(blankToNull(command.systemPromptTemplate()));
+        entity.setLangfusePromptName(blankToNull(command.langfusePromptName()));
+        entity.setLangfusePromptLabel(blankToNull(command.langfusePromptLabel()));
+        normalizeLangfusePrompt(entity);
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
@@ -110,6 +115,8 @@ class DefaultAiConfigService implements AiConfigService {
         var oldModel = entity.getModel();
         var oldCiphertext = entity.getApiKeyEncrypted();
         var oldPrompt = entity.getSystemPromptTemplate();
+        var oldLangfusePromptName = entity.getLangfusePromptName();
+        var oldLangfusePromptLabel = entity.getLangfusePromptLabel();
         if (command.name() != null) {
             var trimmedName = trim(command.name());
             if (trimmedName == null || trimmedName.isBlank()) {
@@ -143,12 +150,22 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.systemPromptTemplate() != null) {
             entity.setSystemPromptTemplate(blankToNull(command.systemPromptTemplate()));
         }
+        if (command.langfusePromptName() != null) {
+            entity.setLangfusePromptName(blankToNull(command.langfusePromptName()));
+        }
+        if (command.langfusePromptLabel() != null) {
+            entity.setLangfusePromptLabel(blankToNull(command.langfusePromptLabel()));
+        }
+        normalizeLangfusePrompt(entity);
         entity.setUpdatedAt(Instant.now());
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
         var saved = repository.save(entity);
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
-        var promptChanged = !Objects.equals(oldPrompt, saved.getSystemPromptTemplate());
+        var langfusePromptChanged = !Objects.equals(oldLangfusePromptName, saved.getLangfusePromptName())
+                || !Objects.equals(oldLangfusePromptLabel, saved.getLangfusePromptLabel());
+        var promptChanged = !Objects.equals(oldPrompt, saved.getSystemPromptTemplate())
+                || langfusePromptChanged;
         if (oldProvider != saved.getProvider()
                 || !Objects.equals(oldModel, saved.getModel())
                 || apiKeyChanged
@@ -187,6 +204,18 @@ class DefaultAiConfigService implements AiConfigService {
         if (entity.getProvider() == AiProviderType.OPENAI_COMPATIBLE
                 && (entity.getEndpoint() == null || entity.getEndpoint().isBlank())) {
             throw new AiConfigEndpointRequiredException();
+        }
+    }
+
+    /**
+     * A Langfuse prompt name always carries a label (defaulting to {@code "production"}); clearing
+     * the name clears the label too.
+     */
+    private static void normalizeLangfusePrompt(AiConfigEntity entity) {
+        if (entity.getLangfusePromptName() == null) {
+            entity.setLangfusePromptLabel(null);
+        } else if (entity.getLangfusePromptLabel() == null || entity.getLangfusePromptLabel().isBlank()) {
+            entity.setLangfusePromptLabel(DEFAULT_LANGFUSE_PROMPT_LABEL);
         }
     }
 
@@ -232,6 +261,8 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getMaxPromptTokens(),
                 entity.getMaxCompletionTokens(),
                 entity.getSystemPromptTemplate(),
+                entity.getLangfusePromptName(),
+                entity.getLangfusePromptLabel(),
                 inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());

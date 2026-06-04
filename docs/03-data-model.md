@@ -553,6 +553,8 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
 | `max_completion_tokens` | INTEGER — CHECK 100–200000 |
 | `system_prompt_template` | TEXT nullable — admin-editable analyzer prompt override. `NULL`/blank means "use the built-in default". A custom value must contain the `{{sql}}` placeholder (other tokens — `{{schema_context}}`, `{{db_type}}`, `{{language}}` — are optional) and is substituted at render time. Editing it evicts the cached delegate via `AiConfigUpdatedEvent`. Max 20,000 chars. |
+| `langfuse_prompt_name` | VARCHAR(255) nullable — when set **and** the org's `langfuse_config` has `prompt_management_enabled`, the analyzer fetches its system prompt from Langfuse by this name at render time (falling back to `system_prompt_template` / the built-in default on miss). `NULL` = do not use Langfuse for this config. |
+| `langfuse_prompt_label` | VARCHAR(255) nullable — Langfuse label/version selector for `langfuse_prompt_name` (defaults to `production` when a name is set with no label). Cleared automatically when the name is cleared. |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
@@ -706,7 +708,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`.
 
 ---
 
@@ -979,6 +981,27 @@ Stores OAuth 2.0 / OIDC provider configuration for an organization. One row per 
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
 Unique constraint: `(organization_id, provider)`. Partial index on `(organization_id)` where `active` for the public providers endpoint.
+
+---
+
+## langfuse_config
+
+Per-organization [Langfuse](https://langfuse.com) integration settings — one row per organization (singleton, like `saml_config`). Drives both LLM-call **tracing** (the analyzer posts a trace per AI analysis to the Langfuse ingestion API) and **prompt management** (analyzer prompts fetched at render time per `ai_config.langfuse_prompt_name`). The decrypted credentials are cached per org and evicted on update. See [docs/05-backend.md → "Langfuse integration"](05-backend.md#langfuse-integration).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations`, UNIQUE (one row per org) |
+| `enabled` | BOOLEAN NOT NULL DEFAULT FALSE — master switch; when off, neither tracing nor prompt fetch runs |
+| `host` | VARCHAR(500) nullable — Langfuse base URL; blank falls back to `accessflow.langfuse.default-host` (`https://cloud.langfuse.com`) |
+| `public_key` | VARCHAR(255) nullable — project public key (`pk-lf-…`) |
+| `secret_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext via `CredentialEncryptionService`; `@JsonIgnore`d. The admin API exposes only `secret_key_configured: boolean` (masked `********`). |
+| `tracing_enabled` | BOOLEAN NOT NULL DEFAULT TRUE — emit a trace per AI analysis |
+| `prompt_management_enabled` | BOOLEAN NOT NULL DEFAULT FALSE — fetch analyzer prompts from Langfuse by name on AI configs |
+| `version` | BIGINT — `@Version` optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Tracing and prompt fetch are **best-effort and non-blocking** — a Langfuse outage or misconfiguration never affects the analysis result (failures are logged and swallowed; prompt fetch falls back to the locally stored template).
 
 ---
 

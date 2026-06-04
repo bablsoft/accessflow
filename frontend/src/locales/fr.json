@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "Demander l'accès",
     "access_requests": "Demandes d'accès",
-    "routing_policies": "Politiques de routage"
+    "routing_policies": "Politiques de routage",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -1035,7 +1036,10 @@
         "save_and_test": "Enregistrer et continuer",
         "test_button": "Envoyer un prompt de test",
         "finish": "Terminé"
-      }
+      },
+      "field_langfuse_prompt_name": "Nom du prompt Langfuse",
+      "field_langfuse_prompt_label": "Étiquette du prompt Langfuse",
+      "langfuse_prompt_help": "Facultatif. Lorsqu'il est défini et que la gestion des prompts Langfuse est activée, l'analyseur récupère ce prompt depuis Langfuse au lieu du prompt système ci-dessus."
     },
     "notifications": {
       "title": "Canaux de notification",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "Condition avancée",
       "condition_advanced_warning": "Cette politique utilise une condition imbriquée que l'éditeur guidé ne peut pas modifier ; l'enregistrement ici la remplacera.",
       "condition_any_query": "Toute requête"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "Connectez Langfuse pour le traçage des LLM et la gestion des prompts.",
+      "section_connection": "Connexion",
+      "section_features": "Fonctionnalités",
+      "label_enabled": "Activé",
+      "label_host": "URL de l'hôte",
+      "label_public_key": "Clé publique",
+      "label_secret_key": "Clé secrète",
+      "label_tracing_enabled": "Envoyer les traces d'analyse",
+      "label_prompt_management_enabled": "Utiliser les prompts gérés par Langfuse",
+      "host_help": "URL de base Langfuse. Laissez vide pour utiliser la valeur par défaut (https://cloud.langfuse.com).",
+      "secret_key_help": "Clé secrète du projet (sk-lf-…). Stockée chiffrée ; jamais affichée à nouveau.",
+      "tracing_help": "Émet une trace vers Langfuse pour chaque analyse IA.",
+      "prompt_management_help": "Récupère les prompts de l'analyseur depuis Langfuse par nom dans les configurations IA.",
+      "save_button": "Enregistrer",
+      "save_success": "Configuration Langfuse enregistrée",
+      "load_error": "Échec du chargement de la configuration Langfuse",
+      "test_button": "Tester la connexion",
+      "error_host_invalid": "Saisissez une URL valide (https://…)"
     }
   },
   "notifications": {

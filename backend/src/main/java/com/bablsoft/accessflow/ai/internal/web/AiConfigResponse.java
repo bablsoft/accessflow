@@ -19,6 +19,8 @@ record AiConfigResponse(
         int maxPromptTokens,
         int maxCompletionTokens,
         String systemPromptTemplate,
+        String langfusePromptName,
+        String langfusePromptLabel,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
@@ -36,6 +38,8 @@ record AiConfigResponse(
                 view.maxPromptTokens(),
                 view.maxCompletionTokens(),
                 view.systemPromptTemplate(),
+                view.langfusePromptName(),
+                view.langfusePromptLabel(),
                 view.inUseCount(),
                 view.createdAt(),
                 view.updatedAt());

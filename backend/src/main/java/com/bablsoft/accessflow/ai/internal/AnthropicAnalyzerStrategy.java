@@ -33,12 +33,12 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
     private final ChatModel chatModel;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
-    private final String systemPromptTemplate;
+    private final SystemPromptSource promptSource;
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
                                     UUID aiConfigId) {
-        var userPrompt = promptRenderer.render(systemPromptTemplate, sql, dbType, schemaContext, language);
+        var userPrompt = promptRenderer.render(promptSource.template(), sql, dbType, schemaContext, language);
         var prompt = new Prompt(List.of(
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
                 new UserMessage(userPrompt)));

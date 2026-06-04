@@ -534,7 +534,7 @@ The canonical property tree lives in [BootstrapProperties.java](../backend/src/m
 organization → admin user → notification channels → AI configs →
 review plans (resolve approvers + channels) →
 datasources (resolve review plan + AI config) →
-SAML → OAuth2 → system SMTP
+SAML → OAuth2 → Langfuse → system SMTP
 ```
 
 If the organization reconciler fails, bootstrap aborts immediately. For every subsequent step, failures are logged at ERROR and collected; at the end the runner throws `BootstrapException` so the pod fails readiness — the operator sees the message in `kubectl describe pod` / `kubectl logs`.
@@ -561,6 +561,7 @@ Sensitive env vars **must** come from Kubernetes `Secret` objects, never from `C
 | `bootstrap.aiConfigs[N].apiKeySecretRef` | `ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_<N>_API_KEY` | Encrypted before persist |
 | `bootstrap.notificationChannels[N].sensitiveSecretRefs.<field>` | `ACCESSFLOW_BOOTSTRAP_NOTIFICATION_CHANNELS_<N>_CONFIG_<FIELD>` | Encrypted before persist |
 | `bootstrap.oauth2[N].clientSecretRef` | `ACCESSFLOW_BOOTSTRAP_OAUTH2_<N>_CLIENT_SECRET` | Encrypted before persist |
+| `bootstrap.langfuse.secretKeySecretRef` | `ACCESSFLOW_BOOTSTRAP_LANGFUSE_SECRET_KEY` | Encrypted before persist |
 | `bootstrap.systemSmtp.passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_PASSWORD` | Encrypted before persist |
 
 ### Helm walkthrough
@@ -694,6 +695,15 @@ bootstrap:
       scopesOverride: "openid email profile"
       defaultRole: ANALYST
       active: true
+  langfuse:
+    # Langfuse tracing + prompt management. Per-org singleton. host blank ⇒
+    # ACCESSFLOW_LANGFUSE_DEFAULT_HOST (https://cloud.langfuse.com).
+    enabled: true
+    host: https://cloud.langfuse.com
+    publicKey: pk-lf-...
+    secretKeyRef: { name: accessflow-bootstrap-secrets, key: langfuse-secret-key }
+    tracingEnabled: true
+    promptManagementEnabled: false
   systemSmtp:
     enabled: true
     host: smtp.acme.com
@@ -806,6 +816,17 @@ Two layers exist:
 | `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time SAML exchange code in Redis (separate `saml:exchange:` namespace from OAuth2). |
 | `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional | — | PEM-encoded RSA private key for the SP. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. The operator owns rotation. |
 | `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional | — | PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow and persists the encrypted private key + cleartext cert into `saml_config` so it survives restarts. |
+
+#### Langfuse Integration
+
+Per-organization Langfuse credentials and toggles live in the `langfuse_config` table (managed from `/admin/langfuse`), not in env. These variables only set deployment-wide defaults for the outbound Langfuse client.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_LANGFUSE_DEFAULT_HOST` | Optional | `https://cloud.langfuse.com` | Default Langfuse host pre-filled when a per-org config omits its own host. Point at a self-hosted Langfuse for on-prem. |
+| `ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL` | Optional | `PT60S` | ISO-8601 duration a Langfuse-managed analyzer prompt is cached before re-fetch. |
+| `ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT` | Optional | `PT5S` | Connect timeout for the Langfuse ingestion / prompt API client. |
+| `ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT` | Optional | `PT10S` | Read timeout for the Langfuse ingestion / prompt API client. |
 
 #### Customer-DB Proxy (HikariCP + Execution)
 

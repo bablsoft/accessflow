@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "Request access",
     "access_requests": "Access requests",
-    "routing_policies": "Routing policies"
+    "routing_policies": "Routing policies",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -1092,7 +1093,10 @@
         "save_and_test": "Save and continue",
         "test_button": "Send test prompt",
         "finish": "Done"
-      }
+      },
+      "field_langfuse_prompt_name": "Langfuse prompt name",
+      "field_langfuse_prompt_label": "Langfuse prompt label",
+      "langfuse_prompt_help": "Optional. When set and Langfuse prompt management is enabled, the analyzer fetches this prompt from Langfuse instead of the system prompt above."
     },
     "notifications": {
       "title": "Notification channels",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "Advanced condition",
       "condition_advanced_warning": "This policy uses a nested condition the guided builder can't edit; saving here will replace it.",
       "condition_any_query": "Any query"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "Connect Langfuse for LLM tracing and prompt management.",
+      "section_connection": "Connection",
+      "section_features": "Features",
+      "label_enabled": "Enabled",
+      "label_host": "Host URL",
+      "label_public_key": "Public key",
+      "label_secret_key": "Secret key",
+      "label_tracing_enabled": "Send analysis traces",
+      "label_prompt_management_enabled": "Use Langfuse-managed prompts",
+      "host_help": "Langfuse base URL. Leave blank to use the default (https://cloud.langfuse.com).",
+      "secret_key_help": "Project secret key (sk-lf-…). Stored encrypted; never shown again.",
+      "tracing_help": "Emit a trace to Langfuse for every AI analysis.",
+      "prompt_management_help": "Fetch analyzer prompts from Langfuse by name on AI configurations.",
+      "save_button": "Save",
+      "save_success": "Langfuse configuration saved",
+      "load_error": "Failed to load Langfuse configuration",
+      "test_button": "Test connection",
+      "error_host_invalid": "Enter a valid URL (https://…)"
     }
   },
   "notifications": {

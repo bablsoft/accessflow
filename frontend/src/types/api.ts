@@ -188,6 +188,8 @@ export interface AiConfig {
   max_prompt_tokens: number;
   max_completion_tokens: number;
   system_prompt_template: string | null;
+  langfuse_prompt_name: string | null;
+  langfuse_prompt_label: string | null;
   in_use_count: number;
   created_at: string;
   updated_at: string;
@@ -203,6 +205,8 @@ export interface CreateAiConfigInput {
   max_prompt_tokens?: number;
   max_completion_tokens?: number;
   system_prompt_template?: string | null;
+  langfuse_prompt_name?: string | null;
+  langfuse_prompt_label?: string | null;
 }
 
 export interface UpdateAiConfigInput {
@@ -215,6 +219,8 @@ export interface UpdateAiConfigInput {
   max_prompt_tokens?: number;
   max_completion_tokens?: number;
   system_prompt_template?: string | null;
+  langfuse_prompt_name?: string | null;
+  langfuse_prompt_label?: string | null;
 }
 
 export interface TestAiConfigResult {
@@ -265,6 +271,33 @@ export interface UpdateSamlConfigInput {
   group_mappings?: Record<string, string> | null;
   default_role?: Role;
   active?: boolean;
+}
+
+export interface LangfuseConfig {
+  id: string | null;
+  organization_id: string;
+  enabled: boolean;
+  host: string | null;
+  public_key: string | null;
+  secret_key: string | null;
+  tracing_enabled: boolean;
+  prompt_management_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateLangfuseConfigInput {
+  enabled?: boolean;
+  host?: string | null;
+  public_key?: string | null;
+  secret_key?: string | null;
+  tracing_enabled?: boolean;
+  prompt_management_enabled?: boolean;
+}
+
+export interface LangfuseConfigTestResult {
+  status: 'OK' | 'ERROR';
+  message: string;
 }
 
 export interface SlackAppConfig {

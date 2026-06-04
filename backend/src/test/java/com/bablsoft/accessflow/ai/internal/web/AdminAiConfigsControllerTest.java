@@ -117,7 +117,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "model",
-                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null);
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService, never()).record(any(AuditEntry.class));
@@ -131,7 +131,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.OPENAI, "claude",
-                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null);
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -145,7 +145,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, "NEW PROMPT {{sql}}");
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, "NEW PROMPT {{sql}}", null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -159,7 +159,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "rotated-key-value", null, null, null, null);
+                null, "rotated-key-value", null, null, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -173,7 +173,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "   ", null, null, null, null);
+                null, "   ", null, null, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -187,7 +187,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "   ", null, null, null, null);
+                null, "   ", null, null, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService, never()).record(any(AuditEntry.class));
@@ -201,7 +201,7 @@ class AdminAiConfigsControllerTest {
                 .thenThrow(new RuntimeException("audit down"));
 
         var request = new CreateAiConfigRequest("Prod", AiProviderType.ANTHROPIC, "claude",
-                null, "key", null, null, null, null);
+                null, "key", null, null, null, null, null, null);
         var response = controller.create(request, authentication, auditContext);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -224,7 +224,7 @@ class AdminAiConfigsControllerTest {
     private AiConfigView viewWith(String name, AiProviderType provider, String model,
                                   boolean apiKeyMasked, String systemPromptTemplate) {
         return new AiConfigView(configId, organizationId, name, provider, model,
-                null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, 0,
+                null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, null, null, 0,
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z"));
     }
