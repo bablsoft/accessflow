@@ -261,7 +261,10 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL` | ISO-8601 duration. TTL of the one-time SAML exchange code in Redis (default `PT1M`). Stored in a separate `saml:exchange:` Redis namespace so codes cannot be cross-replayed against OAuth2. |
 | `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional. PEM-encoded RSA private key for the SP, used to sign AuthnRequests and shipped (via the paired cert) in `GET /api/v1/auth/saml/metadata/{registrationId}`. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. |
 | `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional. PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow, encrypts the private key with `ENCRYPTION_KEY`, and persists both PEMs into `saml_config` so they survive restarts. |
-| `ACCESSFLOW_BOOTSTRAP_ENABLED` | Boolean. When `true`, the `bootstrap` module reconciles the declared `accessflow.bootstrap.*` admin config (org, admin user, review plans, AI configs, datasources, SAML, OAuth2, notification channels, system SMTP) into the database on every startup. Authoritative GitOps semantics — declared rows are upserted, omitted rows are untouched. Default `false`. See [docs/09-deployment.md → Bootstrap configuration](docs/09-deployment.md#bootstrap-configuration) for the full property tree (`ACCESSFLOW_BOOTSTRAP_ORGANIZATION_*`, `ACCESSFLOW_BOOTSTRAP_ADMIN_*`, `ACCESSFLOW_BOOTSTRAP_DATASOURCES_<N>_*`, etc.). |
+| `ACCESSFLOW_LANGFUSE_DEFAULT_HOST` | Default Langfuse host pre-filled when a per-org `langfuse_config` row omits its own host (default `https://cloud.langfuse.com`). Per-org credentials and toggles live in the `langfuse_config` table, not in env. |
+| `ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL` | ISO-8601 duration. How long a Langfuse-managed analyzer prompt is cached before re-fetch — edits in Langfuse take effect within this window without a restart (default `PT60S`). |
+| `ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT` / `ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT` | ISO-8601 durations for the outbound Langfuse ingestion / prompt API HTTP client (defaults `PT5S` / `PT10S`). |
+| `ACCESSFLOW_BOOTSTRAP_ENABLED` | Boolean. When `true`, the `bootstrap` module reconciles the declared `accessflow.bootstrap.*` admin config (org, admin user, review plans, AI configs, datasources, SAML, OAuth2, Langfuse, notification channels, system SMTP) into the database on every startup. Authoritative GitOps semantics — declared rows are upserted, omitted rows are untouched. Default `false`. See [docs/09-deployment.md → Bootstrap configuration](docs/09-deployment.md#bootstrap-configuration) for the full property tree (`ACCESSFLOW_BOOTSTRAP_ORGANIZATION_*`, `ACCESSFLOW_BOOTSTRAP_ADMIN_*`, `ACCESSFLOW_BOOTSTRAP_DATASOURCES_<N>_*`, etc.). |
 
 > Spring Boot's relaxed binding lets *any* `application.yml` key be overridden by its UPPER_SNAKE_CASE env-var equivalent (e.g. `spring.jpa.show-sql` → `SPRING_JPA_SHOW_SQL=true`). The table above lists the values we expect operators to tune; advanced framework knobs remain reachable via this mechanism.
 
@@ -537,6 +540,7 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 /admin/notifications           → NotificationsPage
 /admin/saml                    → SamlConfigPage
 /admin/slack                   → SlackConfigPage
+/admin/langfuse                → LangfuseConfigPage
 ```
 
 ### SQL Editor Component

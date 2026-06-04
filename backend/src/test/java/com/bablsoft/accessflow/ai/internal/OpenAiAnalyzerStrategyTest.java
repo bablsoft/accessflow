@@ -43,7 +43,7 @@ class OpenAiAnalyzerStrategyTest {
 
     @BeforeEach
     void setUp() {
-        strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser, null);
+        strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser, () -> null);
     }
 
     private static ChatResponse buildResponse(String text, int promptTokens, int completionTokens, String model) {
@@ -73,7 +73,7 @@ class OpenAiAnalyzerStrategyTest {
     @Test
     void analyzeRecordsConfiguredProviderForOpenAiCompatible() {
         var compatStrategy = new OpenAiAnalyzerStrategy(
-                AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser, null);
+                AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser, () -> null);
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse(SUCCESS_JSON, 12, 8, "qwen2.5"));
 
@@ -86,7 +86,7 @@ class OpenAiAnalyzerStrategyTest {
     @Test
     void analyzeUsesCustomSystemPromptTemplateWhenProvided() {
         var custom = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser,
-                "MARKER-TEMPLATE for {{sql}}");
+                () -> "MARKER-TEMPLATE for {{sql}}");
         var captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
         when(chatModel.call(captor.capture())).thenReturn(buildResponse(SUCCESS_JSON, 1, 1, "gpt-4o"));
 

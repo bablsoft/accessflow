@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.bootstrap.internal;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AiConfigSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.DatasourceSpec;
+import com.bablsoft.accessflow.bootstrap.internal.spec.LangfuseSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.NotificationChannelSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OAuth2Spec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
@@ -25,6 +26,7 @@ public record BootstrapProperties(
         @Valid List<NotificationChannelSpec> notificationChannels,
         @Valid SamlSpec saml,
         @Valid List<OAuth2Spec> oauth2,
+        @Valid LangfuseSpec langfuse,
         @Valid SystemSmtpSpec systemSmtp
 ) {
 

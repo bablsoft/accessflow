@@ -327,6 +327,29 @@ describe('api/admin', () => {
     expect(put).toHaveBeenCalledWith('/api/v1/admin/saml-config', { active: true });
   });
 
+  // ── Langfuse config ───────────────────────────────────────────────────────
+  it('getLangfuseConfig GETs /admin/langfuse-config', async () => {
+    get.mockResolvedValueOnce({ data: { enabled: false } });
+    await adminApi.getLangfuseConfig();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/langfuse-config');
+  });
+
+  it('updateLangfuseConfig PUTs the body', async () => {
+    put.mockResolvedValueOnce({ data: { enabled: true } });
+    await adminApi.updateLangfuseConfig({ enabled: true, tracing_enabled: true });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/langfuse-config', {
+      enabled: true,
+      tracing_enabled: true,
+    });
+  });
+
+  it('testLangfuseConfig POSTs /admin/langfuse-config/test', async () => {
+    post.mockResolvedValueOnce({ data: { status: 'OK', message: 'connected' } });
+    const result = await adminApi.testLangfuseConfig();
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/langfuse-config/test');
+    expect(result.status).toBe('OK');
+  });
+
   // ── OAuth2 config ─────────────────────────────────────────────────────────
   it('listOAuth2Configs GETs /admin/oauth2-config', async () => {
     get.mockResolvedValueOnce({ data: [] });

@@ -41,6 +41,7 @@ class AnthropicAnalyzerStrategyTest {
     @Mock ChatModel chatModel;
     @Spy SystemPromptRenderer renderer = new SystemPromptRenderer();
     @Spy AiResponseParser parser = new AiResponseParser(JsonMapper.builder().build());
+    @Mock SystemPromptSource promptSource;
 
     @InjectMocks AnthropicAnalyzerStrategy strategy;
 

@@ -189,6 +189,16 @@ accessflow:
       # in the saml_config row so it survives restarts.
       signing-key-pem: ${ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM:}
       signing-cert-pem: ${ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM:}
+  langfuse:
+    # Default Langfuse host pre-filled when a per-org langfuse_config omits its own host. Per-org
+    # credentials and toggles live in the langfuse_config table, not here.
+    default-host: ${ACCESSFLOW_LANGFUSE_DEFAULT_HOST:https://cloud.langfuse.com}
+    # How long a Langfuse-managed prompt is cached before it is re-fetched (edits in Langfuse take
+    # effect within this window without a restart).
+    prompt-cache-ttl: ${ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL:PT60S}
+    # Outbound HTTP timeouts for the Langfuse ingestion / prompt API.
+    connect-timeout: ${ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT:PT5S}
+    request-timeout: ${ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT:PT10S}
   # Env-driven startup bootstrap of admin config (org, admin user, review plans, AI configs,
   # datasources, SAML, OAuth2, notification channels, system SMTP). Disabled by default so the
   # setup wizard remains the path for non-K8s installs. See docs/09-deployment.md →

@@ -55,7 +55,7 @@ class AiConfigReconcilerTest {
                 .thenAnswer(inv -> view(newId, "claude", AiProviderType.ANTHROPIC));
 
         var spec = new AiConfigSpec("claude", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4", "", "sk-key", 30000, 4000, 1024);
+                "claude-sonnet-4", "", "sk-key", 30000, 4000, 1024, null, null);
 
         var result = reconciler.reconcile(ORG_ID, List.of(spec));
 
@@ -76,7 +76,7 @@ class AiConfigReconcilerTest {
                 .thenReturn(view(existingId, "claude", AiProviderType.ANTHROPIC));
 
         var spec = new AiConfigSpec("claude", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4", null, "new-key", null, null, null);
+                "claude-sonnet-4", null, "new-key", null, null, null, null, null);
 
         var result = reconciler.reconcile(ORG_ID, List.of(spec));
 
@@ -92,7 +92,7 @@ class AiConfigReconcilerTest {
                 .thenAnswer(inv -> view(newId, "claude", AiProviderType.ANTHROPIC));
 
         reconciler.reconcile(ORG_ID, List.of(new AiConfigSpec("claude", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4", "", "sk-key", 30000, 4000, 1024)));
+                "claude-sonnet-4", "", "sk-key", 30000, 4000, 1024, null, null)));
 
         var captor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
         verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
@@ -109,7 +109,7 @@ class AiConfigReconcilerTest {
         when(aiConfigService.list(ORG_ID)).thenReturn(List.of(
                 view(existingId, "claude", AiProviderType.ANTHROPIC)));
         var spec = new AiConfigSpec("claude", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4", "https://api", "key", 30000, 4000, 1024);
+                "claude-sonnet-4", "https://api", "key", 30000, 4000, 1024, null, null);
         when(fingerprinter.fingerprint(any())).thenReturn("matching-fp");
         when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.AI_CONFIG, existingId))
                 .thenReturn(Optional.of("matching-fp"));
@@ -131,7 +131,7 @@ class AiConfigReconcilerTest {
                 .thenReturn(view(existingId, "claude", AiProviderType.ANTHROPIC));
 
         reconciler.reconcile(ORG_ID, List.of(new AiConfigSpec("claude", AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-NEW", null, "key", 30000, 4000, 1024)));
+                "claude-sonnet-4-NEW", null, "key", 30000, 4000, 1024, null, null)));
 
         var captor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
         verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
@@ -144,7 +144,7 @@ class AiConfigReconcilerTest {
     @Test
     void throwsWhenNameMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new AiConfigSpec("", AiProviderType.ANTHROPIC, "m", null, null, null, null, null))))
+                new AiConfigSpec("", AiProviderType.ANTHROPIC, "m", null, null, null, null, null, null, null))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("name");
     }
@@ -152,7 +152,7 @@ class AiConfigReconcilerTest {
     @Test
     void throwsWhenProviderMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new AiConfigSpec("claude", null, "m", null, null, null, null, null))))
+                new AiConfigSpec("claude", null, "m", null, null, null, null, null, null, null))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("provider");
     }
@@ -160,13 +160,13 @@ class AiConfigReconcilerTest {
     @Test
     void throwsWhenModelMissing() {
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(
-                new AiConfigSpec("claude", AiProviderType.ANTHROPIC, " ", null, null, null, null, null))))
+                new AiConfigSpec("claude", AiProviderType.ANTHROPIC, " ", null, null, null, null, null, null, null))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("model");
     }
 
     private AiConfigView view(UUID id, String name, AiProviderType provider) {
         return new AiConfigView(id, ORG_ID, name, provider, "claude-sonnet-4", "", true,
-                30000, 4000, 1024, null, 0, Instant.now(), Instant.now());
+                30000, 4000, 1024, null, null, null, 0, Instant.now(), Instant.now());
     }
 }

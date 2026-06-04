@@ -60,6 +60,11 @@ so operators see misconfig at helm time rather than during pod CrashLoopBackOff.
       {{- fail "bootstrap.systemSmtp.enabled=true requires bootstrap.systemSmtp.passwordSecretRef" -}}
     {{- end -}}
   {{- end -}}
+  {{- if .Values.bootstrap.langfuse.enabled -}}
+    {{- if or (not .Values.bootstrap.langfuse.secretKeyRef.name) (not .Values.bootstrap.langfuse.secretKeyRef.key) -}}
+      {{- fail "bootstrap.langfuse.enabled=true requires bootstrap.langfuse.secretKeyRef" -}}
+    {{- end -}}
+  {{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -230,6 +235,21 @@ ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_ADDRESS: {{ .Values.bootstrap.systemSmtp.f
 ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_FROM_NAME: {{ . | quote }}
 {{- end }}
 {{- end }}
+{{- if .Values.bootstrap.langfuse.enabled }}
+ACCESSFLOW_BOOTSTRAP_LANGFUSE_ENABLED: "true"
+{{- with .Values.bootstrap.langfuse.host }}
+ACCESSFLOW_BOOTSTRAP_LANGFUSE_HOST: {{ . | quote }}
+{{- end }}
+{{- with .Values.bootstrap.langfuse.publicKey }}
+ACCESSFLOW_BOOTSTRAP_LANGFUSE_PUBLIC_KEY: {{ . | quote }}
+{{- end }}
+{{- if hasKey .Values.bootstrap.langfuse "tracingEnabled" }}
+ACCESSFLOW_BOOTSTRAP_LANGFUSE_TRACING_ENABLED: {{ .Values.bootstrap.langfuse.tracingEnabled | quote }}
+{{- end }}
+{{- if hasKey .Values.bootstrap.langfuse "promptManagementEnabled" }}
+ACCESSFLOW_BOOTSTRAP_LANGFUSE_PROMPT_MANAGEMENT_ENABLED: {{ .Values.bootstrap.langfuse.promptManagementEnabled | quote }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -279,6 +299,13 @@ list. Renders nothing when bootstrap.enabled=false.
     secretKeyRef:
       name: {{ $oa.clientSecretRef.name | quote }}
       key: {{ $oa.clientSecretRef.key | quote }}
+{{- end }}
+{{- if and .Values.bootstrap.langfuse.enabled .Values.bootstrap.langfuse.secretKeyRef.name }}
+- name: ACCESSFLOW_BOOTSTRAP_LANGFUSE_SECRET_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.bootstrap.langfuse.secretKeyRef.name | quote }}
+      key: {{ .Values.bootstrap.langfuse.secretKeyRef.key | quote }}
 {{- end }}
 {{- if .Values.bootstrap.systemSmtp.enabled }}
 - name: ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_PASSWORD

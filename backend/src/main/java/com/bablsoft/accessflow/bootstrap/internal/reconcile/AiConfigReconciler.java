@@ -64,9 +64,11 @@ public class AiConfigReconciler {
                     spec.timeoutMs(),
                     spec.maxPromptTokens(),
                     spec.maxCompletionTokens(),
-                    // Bootstrap does not manage the analyzer prompt — created configs use the
-                    // built-in default; a prompt later set via the admin UI is left untouched.
-                    null));
+                    // Bootstrap does not manage the analyzer prompt template — created configs use
+                    // the built-in default; a template later set via the admin UI is left untouched.
+                    null,
+                    spec.langfusePromptName(),
+                    spec.langfusePromptLabel()));
             log.info("Bootstrap: created AI config '{}' (id={})", spec.name(), created.id());
             stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                     created.id(), specFingerprint,
@@ -99,8 +101,10 @@ public class AiConfigReconciler {
                 spec.timeoutMs(),
                 spec.maxPromptTokens(),
                 spec.maxCompletionTokens(),
-                // null = leave the analyzer prompt unchanged (bootstrap doesn't manage it).
-                null));
+                // null = leave the analyzer prompt template unchanged (bootstrap doesn't manage it).
+                null,
+                spec.langfusePromptName(),
+                spec.langfusePromptLabel()));
         log.info("Bootstrap: updated AI config '{}' (id={})", spec.name(), updated.id());
         stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                 updated.id(), specFingerprint,
@@ -130,6 +134,8 @@ public class AiConfigReconciler {
         map.put("timeout_ms", spec.timeoutMs());
         map.put("max_prompt_tokens", spec.maxPromptTokens());
         map.put("max_completion_tokens", spec.maxCompletionTokens());
+        map.put("langfuse_prompt_name", spec.langfusePromptName());
+        map.put("langfuse_prompt_label", spec.langfusePromptLabel());
         return map;
     }
 
@@ -142,6 +148,8 @@ public class AiConfigReconciler {
         map.put("timeout_ms", view.timeoutMs());
         map.put("max_prompt_tokens", view.maxPromptTokens());
         map.put("max_completion_tokens", view.maxCompletionTokens());
+        map.put("langfuse_prompt_name", view.langfusePromptName());
+        map.put("langfuse_prompt_label", view.langfusePromptLabel());
         return map;
     }
 }

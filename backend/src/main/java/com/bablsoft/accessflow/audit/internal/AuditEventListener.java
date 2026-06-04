@@ -221,6 +221,7 @@ class AuditEventListener {
                     : AuditAction.DATASOURCE_UPDATED;
             case SAML_CONFIG -> AuditAction.SAML_CONFIG_UPDATED;
             case OAUTH2_CONFIG -> AuditAction.OAUTH2_CONFIG_UPDATED;
+            case LANGFUSE_CONFIG -> AuditAction.LANGFUSE_CONFIG_UPDATED;
             case SYSTEM_SMTP -> AuditAction.SYSTEM_SMTP_UPDATED;
         };
     }
@@ -235,6 +236,7 @@ class AuditEventListener {
             case DATASOURCE -> AuditResourceType.DATASOURCE;
             case SAML_CONFIG -> AuditResourceType.SAML_CONFIG;
             case OAUTH2_CONFIG -> AuditResourceType.OAUTH2_CONFIG;
+            case LANGFUSE_CONFIG -> AuditResourceType.LANGFUSE_CONFIG;
             case SYSTEM_SMTP -> AuditResourceType.SYSTEM_SMTP;
         };
     }

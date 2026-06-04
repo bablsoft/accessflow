@@ -418,6 +418,16 @@ bootstrap:
   #   defaultRole: ANALYST
   #   active: true
 
+  # Langfuse integration (singleton per org). Drives LLM-call tracing and
+  # prompt management. host blank ⇒ ACCESSFLOW_LANGFUSE_DEFAULT_HOST.
+  langfuse:
+    enabled: false
+    host: ""
+    publicKey: ""
+    secretKeyRef: { name: "", key: "" }   # required when enabled
+    tracingEnabled: true
+    promptManagementEnabled: false
+
   # System SMTP relay (singleton per org). Used for outbound email — review
   # notifications, password resets, invitations.
   systemSmtp:

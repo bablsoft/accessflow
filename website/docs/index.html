@@ -545,14 +545,14 @@
           <p>
             Set <code>ACCESSFLOW_BOOTSTRAP_ENABLED=true</code> and supply
             <code>ACCESSFLOW_BOOTSTRAP_*</code> properties for the organization, admin user,
-            review plans, AI configs, datasources, SAML, OAuth2, notification channels, and
+            review plans, AI configs, datasources, SAML, OAuth2, Langfuse, notification channels, and
             system SMTP. On every startup the bootstrap module reconciles the declared
             configuration into the database — declared rows are upserted, omitted rows are left
             alone.
           </p>
           <div class="docs-callout info">
             <strong>Reconciliation order.</strong> Organization → admin user → notification
-            channels → AI configs → review plans → datasources → SAML → OAuth2 → SMTP. Secret
+            channels → AI configs → review plans → datasources → SAML → OAuth2 → Langfuse → SMTP. Secret
             fields (passwords, API keys, webhook secrets) are read from Kubernetes Secrets, never
             from a ConfigMap. Full property tree:
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#bootstrap-configuration">docs/09-deployment.md
@@ -1006,6 +1006,21 @@ APPROVED → FAILED (execution error)</pre>
             default</em> to pull the built-in template into the editor as a starting point — saving it
             blank again reverts to the default. Prompt changes take effect immediately, just like
             provider switches.
+          </p>
+          <p>
+            <strong>Langfuse integration.</strong> AccessFlow optionally connects to
+            <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">Langfuse</a> for
+            LLM observability and prompt management, configured per organization at
+            <code>/admin/langfuse</code> (enable the integration, set the host — defaults to
+            <code>https://cloud.langfuse.com</code> — plus the public/secret key, which is stored
+            encrypted and never shown again). Two independent toggles: <em>Send analysis traces</em>
+            emits a trace of every AI analysis (input SQL, structured output, model, token usage,
+            latency) to Langfuse; <em>Use Langfuse-managed prompts</em> lets each AI configuration
+            point at a Langfuse prompt by name + label (the <em>Langfuse prompt name</em> /
+            <em>Langfuse prompt label</em> fields on the AI config pages) so you can iterate on prompts
+            in Langfuse without redeploying. Both are best-effort and non-blocking — a Langfuse outage
+            never affects query workflow. Use the <em>Test connection</em> button to verify your
+            credentials.
           </p>
           <div class="docs-callout info">
             <strong>What the AI returns.</strong> A 0–100 risk score, a risk level

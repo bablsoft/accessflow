@@ -42,6 +42,7 @@ import { RoutingPoliciesPage } from '@/pages/admin/RoutingPoliciesPage';
 import { SamlConfigPage } from '@/pages/admin/SamlConfigPage';
 const OAuth2ConfigPage = lazy(() => import('@/pages/admin/OAuth2ConfigPage'));
 const SlackConfigPage = lazy(() => import('@/pages/admin/SlackConfigPage'));
+const LangfuseConfigPage = lazy(() => import('@/pages/admin/LangfuseConfigPage'));
 const GroupsListPage = lazy(() =>
   import('@/pages/admin/groups/GroupsListPage').then((m) => ({ default: m.GroupsListPage })),
 );
@@ -318,6 +319,16 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <SlackConfigPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/langfuse"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <LangfuseConfigPage />
                 </Suspense>
               </AuthGuard>
             }

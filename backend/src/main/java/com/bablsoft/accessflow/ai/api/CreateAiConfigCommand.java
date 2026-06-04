@@ -16,5 +16,7 @@ public record CreateAiConfigCommand(
         Integer timeoutMs,
         Integer maxPromptTokens,
         Integer maxCompletionTokens,
-        String systemPromptTemplate) {
+        String systemPromptTemplate,
+        String langfusePromptName,
+        String langfusePromptLabel) {
 }

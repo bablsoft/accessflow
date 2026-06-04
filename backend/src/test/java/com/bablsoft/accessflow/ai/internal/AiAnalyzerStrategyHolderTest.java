@@ -22,6 +22,9 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.context.MessageSource;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -52,16 +55,20 @@ class AiAnalyzerStrategyHolderTest {
     @Mock MessageSource messageSource;
     @Mock ChatModelFactory chatModelFactory;
     @Mock ChatModel chatModel;
+    @Mock LangfusePromptProvider langfusePromptProvider;
+    @Mock LangfuseTracer langfuseTracer;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
+    private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
     private AiAnalyzerStrategyHolder holder;
 
     @BeforeEach
     void setUp() {
         holder = new AiAnalyzerStrategyHolder(aiConfigRepository, encryptionService,
-                promptRenderer, responseParser, messageSource, chatModelFactory);
+                promptRenderer, responseParser, messageSource, chatModelFactory,
+                langfusePromptProvider, langfuseTracer, clock);
     }
 
     @Test

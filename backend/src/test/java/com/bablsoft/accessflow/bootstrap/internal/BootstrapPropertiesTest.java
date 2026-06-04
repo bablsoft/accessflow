@@ -86,6 +86,6 @@ class BootstrapPropertiesTest {
         var source = new MapConfigurationPropertySource(values);
         return new Binder(source)
                 .bind("accessflow.bootstrap", BootstrapProperties.class)
-                .orElse(new BootstrapProperties(false, null, null, null, null, null, null, null, null, null));
+                .orElse(new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null));
     }
 }

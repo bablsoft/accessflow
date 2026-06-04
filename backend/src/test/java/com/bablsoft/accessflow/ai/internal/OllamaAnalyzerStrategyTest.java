@@ -38,6 +38,7 @@ class OllamaAnalyzerStrategyTest {
     @Mock ChatModel chatModel;
     @Spy SystemPromptRenderer renderer = new SystemPromptRenderer();
     @Spy AiResponseParser parser = new AiResponseParser(JsonMapper.builder().build());
+    @Mock SystemPromptSource promptSource;
 
     @InjectMocks OllamaAnalyzerStrategy strategy;
 

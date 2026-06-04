@@ -35,6 +35,8 @@ interface FormValues {
   max_prompt_tokens: number;
   max_completion_tokens: number;
   system_prompt_template: string;
+  langfuse_prompt_name: string;
+  langfuse_prompt_label: string;
 }
 
 export default function AiConfigEditPage() {
@@ -70,6 +72,8 @@ export default function AiConfigEditPage() {
         max_prompt_tokens: cfgQuery.data.max_prompt_tokens,
         max_completion_tokens: cfgQuery.data.max_completion_tokens,
         system_prompt_template: cfgQuery.data.system_prompt_template ?? '',
+        langfuse_prompt_name: cfgQuery.data.langfuse_prompt_name ?? '',
+        langfuse_prompt_label: cfgQuery.data.langfuse_prompt_label ?? '',
       });
     }
   }, [cfgQuery.data, form]);
@@ -156,6 +160,8 @@ export default function AiConfigEditPage() {
       max_prompt_tokens: values.max_prompt_tokens,
       max_completion_tokens: values.max_completion_tokens,
       system_prompt_template: values.system_prompt_template?.trim() ? values.system_prompt_template : '',
+      langfuse_prompt_name: values.langfuse_prompt_name?.trim() || '',
+      langfuse_prompt_label: values.langfuse_prompt_label?.trim() || '',
     });
   };
 
@@ -260,6 +266,23 @@ export default function AiConfigEditPage() {
           >
             {t('admin.ai_configs.system_prompt_load_default')}
           </Button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item
+              name="langfuse_prompt_name"
+              label={t('admin.ai_configs.field_langfuse_prompt_name')}
+              extra={t('admin.ai_configs.langfuse_prompt_help')}
+              rules={[{ max: 255 }]}
+            >
+              <Input className="mono" maxLength={255} autoComplete="off" />
+            </Form.Item>
+            <Form.Item
+              name="langfuse_prompt_label"
+              label={t('admin.ai_configs.field_langfuse_prompt_label')}
+              rules={[{ max: 255 }]}
+            >
+              <Input className="mono" maxLength={255} autoComplete="off" placeholder="production" />
+            </Form.Item>
+          </div>
           <div
             style={{
               display: 'flex',

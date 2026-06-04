@@ -19,6 +19,7 @@ public enum AuditResourceType {
     ORGANIZATION("organization"),
     OAUTH2_CONFIG("oauth2_config"),
     SAML_CONFIG("saml_config"),
+    LANGFUSE_CONFIG("langfuse_config"),
     AUDIT_LOG("audit_log"),
     USER_GROUP("user_group"),
     DATASOURCE_REVIEWER("datasource_reviewer"),

@@ -11,6 +11,8 @@ import type {
   CreateNotificationChannelInput,
   CreateUserInput,
   DefaultAiPromptResult,
+  LangfuseConfig,
+  LangfuseConfigTestResult,
   NotificationChannel,
   OAuth2Config,
   OAuth2Provider,
@@ -21,6 +23,7 @@ import type {
   TestNotificationResult,
   UpdateAiConfigInput,
   UpdateNotificationChannelInput,
+  UpdateLangfuseConfigInput,
   UpdateOAuth2ConfigInput,
   UpdateSamlConfigInput,
   UpdateUserInput,
@@ -41,6 +44,7 @@ const CHANNELS_BASE = '/api/v1/admin/notification-channels';
 const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
 const AI_ANALYSES_BASE = '/api/v1/admin/ai-analyses';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
+const LANGFUSE_CONFIG_BASE = '/api/v1/admin/langfuse-config';
 const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
 const SYSTEM_SMTP_BASE = '/api/v1/admin/system-smtp';
@@ -84,6 +88,11 @@ export const aiConfigKeys = {
 export const samlConfigKeys = {
   all: ['samlConfig'] as const,
   current: () => ['samlConfig', 'current'] as const,
+};
+
+export const langfuseConfigKeys = {
+  all: ['langfuseConfig'] as const,
+  current: () => ['langfuseConfig', 'current'] as const,
 };
 
 export const oauth2ConfigKeys = {
@@ -304,6 +313,25 @@ export async function getSamlConfig(): Promise<SamlConfig> {
 
 export async function updateSamlConfig(input: UpdateSamlConfigInput): Promise<SamlConfig> {
   const { data } = await apiClient.put<SamlConfig>(SAML_CONFIG_BASE, input);
+  return data;
+}
+
+// ── Langfuse config ──────────────────────────────────────────────────────────
+
+export async function getLangfuseConfig(): Promise<LangfuseConfig> {
+  const { data } = await apiClient.get<LangfuseConfig>(LANGFUSE_CONFIG_BASE);
+  return data;
+}
+
+export async function updateLangfuseConfig(
+  input: UpdateLangfuseConfigInput,
+): Promise<LangfuseConfig> {
+  const { data } = await apiClient.put<LangfuseConfig>(LANGFUSE_CONFIG_BASE, input);
+  return data;
+}
+
+export async function testLangfuseConfig(): Promise<LangfuseConfigTestResult> {
+  const { data } = await apiClient.post<LangfuseConfigTestResult>(`${LANGFUSE_CONFIG_BASE}/test`);
   return data;
 }
 

@@ -18,6 +18,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +50,9 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private final AiResponseParser responseParser;
     private final MessageSource messageSource;
     private final ChatModelFactory chatModelFactory;
+    private final LangfusePromptProvider langfusePromptProvider;
+    private final LangfuseTracer langfuseTracer;
+    private final Clock clock;
 
     private final ConcurrentHashMap<UUID, AiAnalyzerStrategy> cache = new ConcurrentHashMap<>();
 
@@ -87,14 +91,33 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     }
 
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
-        var template = entity.getSystemPromptTemplate();
-        return switch (entity.getProvider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, template);
-            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, template);
-            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, template);
-            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, template);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, template);
+        var promptSource = buildPromptSource(entity);
+        var base = switch (entity.getProvider()) {
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource);
+            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource);
         };
+        return new TracingAiAnalyzerStrategy(base, langfuseTracer, entity.getOrganizationId(),
+                entity.getProvider(), entity.getModel(), clock);
+    }
+
+    /**
+     * The effective system-prompt template, resolved per call. When the config names a Langfuse
+     * prompt the managed prompt is fetched (and cached) per call, falling back to the locally stored
+     * {@code system_prompt_template} when Langfuse / prompt-management is off or the fetch fails.
+     */
+    private SystemPromptSource buildPromptSource(AiConfigEntity entity) {
+        var localTemplate = entity.getSystemPromptTemplate();
+        var promptName = entity.getLangfusePromptName();
+        if (promptName == null || promptName.isBlank()) {
+            return () -> localTemplate;
+        }
+        var organizationId = entity.getOrganizationId();
+        var promptLabel = entity.getLangfusePromptLabel();
+        return () -> langfusePromptProvider.resolve(organizationId, promptName, promptLabel)
+                .orElse(localTemplate);
     }
 
     private ChatModel buildAnthropicChatModel(AiConfigEntity entity) {

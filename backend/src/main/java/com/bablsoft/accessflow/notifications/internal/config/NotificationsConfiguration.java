@@ -4,6 +4,7 @@ import com.slack.api.Slack;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.web.client.RestClient;
@@ -12,7 +13,10 @@ import org.springframework.web.client.RestClient;
 @EnableConfigurationProperties({NotificationsProperties.class, SlackProperties.class})
 class NotificationsConfiguration {
 
+    // @Primary so the notification strategies' by-type RestClient injection keeps resolving now
+    // that other modules (ai: langfuseRestClient) also define a RestClient bean.
     @Bean
+    @Primary
     RestClient notificationsRestClient() {
         return RestClient.create();
     }

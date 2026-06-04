@@ -59,7 +59,8 @@
     "slack": "Slack",
     "request_access": "Запросить доступ",
     "access_requests": "Запросы доступа",
-    "routing_policies": "Политики маршрутизации"
+    "routing_policies": "Политики маршрутизации",
+    "langfuse": "Langfuse"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -1035,7 +1036,10 @@
         "save_and_test": "Сохранить и продолжить",
         "test_button": "Отправить тестовый запрос",
         "finish": "Готово"
-      }
+      },
+      "field_langfuse_prompt_name": "Имя промпта Langfuse",
+      "field_langfuse_prompt_label": "Метка промпта Langfuse",
+      "langfuse_prompt_help": "Необязательно. Если задано и включено управление промптами Langfuse, анализатор загружает этот промпт из Langfuse вместо системного промпта выше."
     },
     "notifications": {
       "title": "Каналы уведомлений",
@@ -1454,6 +1458,27 @@
       "condition_advanced": "Расширенное условие",
       "condition_advanced_warning": "Эта политика использует вложенное условие, которое нельзя изменить в визуальном редакторе; сохранение заменит его.",
       "condition_any_query": "Любой запрос"
+    },
+    "langfuse": {
+      "title": "Langfuse",
+      "subtitle": "Подключите Langfuse для трассировки LLM и управления промптами.",
+      "section_connection": "Подключение",
+      "section_features": "Возможности",
+      "label_enabled": "Включено",
+      "label_host": "URL хоста",
+      "label_public_key": "Публичный ключ",
+      "label_secret_key": "Секретный ключ",
+      "label_tracing_enabled": "Отправлять трассировки анализа",
+      "label_prompt_management_enabled": "Использовать промпты из Langfuse",
+      "host_help": "Базовый URL Langfuse. Оставьте пустым для значения по умолчанию (https://cloud.langfuse.com).",
+      "secret_key_help": "Секретный ключ проекта (sk-lf-…). Хранится в зашифрованном виде; больше не отображается.",
+      "tracing_help": "Отправляет трассировку в Langfuse для каждого ИИ-анализа.",
+      "prompt_management_help": "Загружает промпты анализатора из Langfuse по имени в конфигурациях ИИ.",
+      "save_button": "Сохранить",
+      "save_success": "Конфигурация Langfuse сохранена",
+      "load_error": "Не удалось загрузить конфигурацию Langfuse",
+      "test_button": "Проверить подключение",
+      "error_host_invalid": "Введите корректный URL (https://…)"
     }
   },
   "notifications": {

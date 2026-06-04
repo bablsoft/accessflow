@@ -15,5 +15,6 @@ public enum BootstrapResourceType {
     DATASOURCE,
     SAML_CONFIG,
     OAUTH2_CONFIG,
+    LANGFUSE_CONFIG,
     SYSTEM_SMTP
 }

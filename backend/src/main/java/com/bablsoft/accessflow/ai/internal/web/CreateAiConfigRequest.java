@@ -22,7 +22,9 @@ record CreateAiConfigRequest(
         @Max(value = 200000, message = "{validation.ai_config.max_prompt_tokens.range}") Integer maxPromptTokens,
         @Min(value = 100, message = "{validation.ai_config.max_completion_tokens.range}")
         @Max(value = 200000, message = "{validation.ai_config.max_completion_tokens.range}") Integer maxCompletionTokens,
-        @Size(max = 20000, message = "{validation.ai_config.system_prompt.max}") String systemPromptTemplate) {
+        @Size(max = 20000, message = "{validation.ai_config.system_prompt.max}") String systemPromptTemplate,
+        @Size(max = 255, message = "{validation.ai_config.langfuse_prompt_name.max}") String langfusePromptName,
+        @Size(max = 255, message = "{validation.ai_config.langfuse_prompt_label.max}") String langfusePromptLabel) {
 
     CreateAiConfigCommand toCommand() {
         return new CreateAiConfigCommand(
@@ -34,6 +36,8 @@ record CreateAiConfigRequest(
                 timeoutMs,
                 maxPromptTokens,
                 maxCompletionTokens,
-                systemPromptTemplate);
+                systemPromptTemplate,
+                langfusePromptName,
+                langfusePromptLabel);
     }
 }
