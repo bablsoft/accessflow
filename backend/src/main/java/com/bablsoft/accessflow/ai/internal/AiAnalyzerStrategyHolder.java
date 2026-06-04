@@ -72,9 +72,9 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     void onConfigUpdated(AiConfigUpdatedEvent event) {
         var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
-            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={})",
+            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={})",
                     event.aiConfigId(), event.oldProvider(), event.newProvider(),
-                    event.oldModel(), event.newModel(), event.apiKeyChanged());
+                    event.oldModel(), event.newModel(), event.apiKeyChanged(), event.promptChanged());
         }
     }
 
@@ -87,12 +87,13 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     }
 
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
+        var template = entity.getSystemPromptTemplate();
         return switch (entity.getProvider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser);
-            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser);
-            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser);
-            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser);
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, template);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, template);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, template);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, template);
+            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, template);
         };
     }
 

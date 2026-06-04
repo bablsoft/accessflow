@@ -231,6 +231,29 @@ class AiAnalyzerStrategyHolderTest {
     }
 
     @Test
+    void analyzeThreadsCustomSystemPromptIntoDelegate() {
+        var entity = entityWithKey(AiProviderType.OPENAI, "ENC(k)", null);
+        entity.setSystemPromptTemplate("HOUSE-RULE-MARKER analyze {{sql}} in {{db_type}}");
+        when(aiConfigRepository.findById(AI_CONFIG_ID)).thenReturn(Optional.of(entity));
+        when(encryptionService.decrypt("ENC(k)")).thenReturn("sk");
+        when(chatModelFactory.openAi(anyString(), anyString(), anyInt(), anyInt(), isNull()))
+                .thenReturn(chatModel);
+        var promptCaptor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(promptCaptor.capture())).thenReturn(successChatResponse());
+
+        holder.analyze("SELECT secret FROM t", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        var userText = promptCaptor.getValue().getInstructions().stream()
+                .map(org.springframework.ai.chat.messages.Message::getText)
+                .reduce("", (a, b) -> a + "\n" + b);
+        assertThat(userText).contains("HOUSE-RULE-MARKER");
+        assertThat(userText).contains("SELECT secret FROM t");
+        assertThat(userText).contains("POSTGRESQL");
+        // The built-in default template's text must NOT appear — the custom template replaced it.
+        assertThat(userText).doesNotContain("database security and performance expert");
+    }
+
+    @Test
     void analyzeFallsBackToDefaultOllamaBaseUrl() {
         when(aiConfigRepository.findById(AI_CONFIG_ID))
                 .thenReturn(Optional.of(entityWithKey(AiProviderType.OLLAMA, null, null)));
@@ -249,7 +272,7 @@ class AiAnalyzerStrategyHolderTest {
 
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.OPENAI,
-                "claude-sonnet-4-20250514", "gpt-4o", true));
+                "claude-sonnet-4-20250514", "gpt-4o", true, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }
@@ -267,7 +290,7 @@ class AiAnalyzerStrategyHolderTest {
     void onConfigUpdatedIsSilentForUncachedConfig() {
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false));
+                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }

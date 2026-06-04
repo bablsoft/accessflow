@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
+import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.internal.BadAiAnalysisStatsQueryException;
@@ -65,6 +66,15 @@ class AiAnalysisExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 msg("error.ai_config.endpoint_required"));
         pd.setProperty("error", "AI_CONFIG_ENDPOINT_REQUIRED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiConfigInvalidPromptException.class)
+    ProblemDetail handleAiConfigInvalidPrompt(AiConfigInvalidPromptException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.ai_config.prompt_missing_sql_placeholder"));
+        pd.setProperty("error", "AI_CONFIG_INVALID_PROMPT");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

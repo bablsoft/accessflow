@@ -788,6 +788,22 @@ the transaction commits) and the cached delegate for that id is evicted — the 
 `analyze(...)` call rebuilds against the new (or absent) row. No application restart, no
 Spring context refresh.
 
+### Editable system prompt
+
+`SystemPromptRenderer` holds the built-in analyzer prompt (`DEFAULT_TEMPLATE`) and renders it
+with four named placeholders substituted at call time: `{{db_type}}`, `{{schema_context}}`,
+`{{sql}}` and `{{language}}`. `{{sql}}` is replaced last so SQL text that happens to contain
+another token string is never re-substituted.
+
+Admins may override the prompt per `ai_config` row via the `system_prompt_template` column
+(`NULL`/blank ⇒ use `DEFAULT_TEMPLATE`). `DefaultAiConfigService` validates that a custom template
+contains `{{sql}}` — otherwise the model never sees the query — throwing
+`AiConfigInvalidPromptException` (HTTP 400 `AI_CONFIG_INVALID_PROMPT`). The holder threads the
+row's template into the per-row strategy delegate, so the same `AiConfigUpdatedEvent` eviction
+above picks up a prompt change at runtime (the event's `promptChanged` flag is also logged). The
+admin UI fetches the default for pre-fill / reset via `GET /admin/ai-configs/prompt-default`
+(`AiConfigService.defaultSystemPromptTemplate()`).
+
 The analyzer service resolves which row to use by reading
 `DatasourceConnectionDescriptor.aiConfigId` from `DatasourceLookupService.findById(...)`. Two
 opt-out paths exist:

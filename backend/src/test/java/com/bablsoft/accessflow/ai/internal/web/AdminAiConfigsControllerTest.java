@@ -21,7 +21,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,6 +79,23 @@ class AdminAiConfigsControllerTest {
     }
 
     @Test
+    void promptDefaultReturnsServiceDefault() {
+        when(aiConfigService.defaultSystemPromptTemplate()).thenReturn("DEFAULT {{sql}}");
+
+        var response = controller.promptDefault();
+
+        assertThat(response.template()).isEqualTo("DEFAULT {{sql}}");
+    }
+
+    @Test
+    void getExposesSystemPromptTemplate() {
+        when(aiConfigService.get(configId, organizationId))
+                .thenReturn(viewWith("Prod", AiProviderType.ANTHROPIC, "claude", false, "RULE {{sql}}"));
+        var response = controller.get(configId, authentication);
+        assertThat(response.systemPromptTemplate()).isEqualTo("RULE {{sql}}");
+    }
+
+    @Test
     void testEndpointReturnsErrorWhenAnalyzerThrows() {
         when(aiConfigService.get(configId, organizationId))
                 .thenReturn(view("Prod", AiProviderType.ANTHROPIC, "claude", false));
@@ -101,7 +117,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "model",
-                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null);
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService, never()).record(any(AuditEntry.class));
@@ -115,7 +131,21 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.OPENAI, "claude",
-                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null);
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, null);
+        controller.update(configId, request, authentication, auditContext);
+
+        verify(auditLogService).record(any(AuditEntry.class));
+    }
+
+    @Test
+    void updateRecordsPromptChange() {
+        var before = view("Same", AiProviderType.ANTHROPIC, "claude", true);
+        var after = viewWith("Same", AiProviderType.ANTHROPIC, "claude", true, "NEW PROMPT {{sql}}");
+        when(aiConfigService.get(configId, organizationId)).thenReturn(before);
+        when(aiConfigService.update(any(), any(), any())).thenReturn(after);
+
+        var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
+                null, UpdateAiConfigCommand.MASKED_API_KEY, null, null, null, "NEW PROMPT {{sql}}");
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -129,7 +159,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "rotated-key-value", null, null, null);
+                null, "rotated-key-value", null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -143,7 +173,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "   ", null, null, null);
+                null, "   ", null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService).record(any(AuditEntry.class));
@@ -157,7 +187,7 @@ class AdminAiConfigsControllerTest {
         when(aiConfigService.update(any(), any(), any())).thenReturn(after);
 
         var request = new UpdateAiConfigRequest("Same", AiProviderType.ANTHROPIC, "claude",
-                null, "   ", null, null, null);
+                null, "   ", null, null, null, null);
         controller.update(configId, request, authentication, auditContext);
 
         verify(auditLogService, never()).record(any(AuditEntry.class));
@@ -171,7 +201,7 @@ class AdminAiConfigsControllerTest {
                 .thenThrow(new RuntimeException("audit down"));
 
         var request = new CreateAiConfigRequest("Prod", AiProviderType.ANTHROPIC, "claude",
-                null, "key", null, null, null);
+                null, "key", null, null, null, null);
         var response = controller.create(request, authentication, auditContext);
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -188,8 +218,13 @@ class AdminAiConfigsControllerTest {
 
     private AiConfigView view(String name, AiProviderType provider, String model,
                               boolean apiKeyMasked) {
+        return viewWith(name, provider, model, apiKeyMasked, null);
+    }
+
+    private AiConfigView viewWith(String name, AiProviderType provider, String model,
+                                  boolean apiKeyMasked, String systemPromptTemplate) {
         return new AiConfigView(configId, organizationId, name, provider, model,
-                null, apiKeyMasked, 30000, 4000, 4000, 0,
+                null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, 0,
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z"));
     }

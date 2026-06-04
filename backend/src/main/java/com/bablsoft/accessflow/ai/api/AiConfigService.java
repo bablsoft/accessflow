@@ -19,4 +19,11 @@ public interface AiConfigService {
     AiConfigView update(UUID id, UUID organizationId, UpdateAiConfigCommand command);
 
     void delete(UUID id, UUID organizationId);
+
+    /**
+     * The built-in analyzer system-prompt template, used by the admin UI to pre-fill / reset a
+     * configuration's custom prompt. Contains the {@code {{sql}}}, {@code {{schema_context}}},
+     * {@code {{db_type}}} and {@code {{language}}} placeholders.
+     */
+    String defaultSystemPromptTemplate();
 }

@@ -187,6 +187,7 @@ export interface AiConfig {
   timeout_ms: number;
   max_prompt_tokens: number;
   max_completion_tokens: number;
+  system_prompt_template: string | null;
   in_use_count: number;
   created_at: string;
   updated_at: string;
@@ -201,6 +202,7 @@ export interface CreateAiConfigInput {
   timeout_ms?: number;
   max_prompt_tokens?: number;
   max_completion_tokens?: number;
+  system_prompt_template?: string | null;
 }
 
 export interface UpdateAiConfigInput {
@@ -212,11 +214,16 @@ export interface UpdateAiConfigInput {
   timeout_ms?: number;
   max_prompt_tokens?: number;
   max_completion_tokens?: number;
+  system_prompt_template?: string | null;
 }
 
 export interface TestAiConfigResult {
   status: 'OK' | 'ERROR';
   detail: string;
+}
+
+export interface DefaultAiPromptResult {
+  template: string;
 }
 
 export interface AiConfigInUseError {

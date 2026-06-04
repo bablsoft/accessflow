@@ -15,5 +15,6 @@ public record CreateAiConfigCommand(
         String apiKey,
         Integer timeoutMs,
         Integer maxPromptTokens,
-        Integer maxCompletionTokens) {
+        Integer maxCompletionTokens,
+        String systemPromptTemplate) {
 }

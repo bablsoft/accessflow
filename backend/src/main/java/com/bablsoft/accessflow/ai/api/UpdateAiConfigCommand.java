@@ -10,6 +10,10 @@ import com.bablsoft.accessflow.core.api.AiProviderType;
  *     <li>blank string — clear the stored key.</li>
  *     <li>any other value — encrypt and persist.</li>
  * </ul>
+ *
+ * <p>{@code systemPromptTemplate} semantics: {@code null} leaves the stored template unchanged; a
+ * blank string resets it to the built-in default; any other value is persisted (and must contain
+ * the {@code {{sql}}} placeholder).
  */
 public record UpdateAiConfigCommand(
         String name,
@@ -19,7 +23,8 @@ public record UpdateAiConfigCommand(
         String apiKey,
         Integer timeoutMs,
         Integer maxPromptTokens,
-        Integer maxCompletionTokens) {
+        Integer maxCompletionTokens,
+        String systemPromptTemplate) {
 
     public static final String MASKED_API_KEY = "********";
 }

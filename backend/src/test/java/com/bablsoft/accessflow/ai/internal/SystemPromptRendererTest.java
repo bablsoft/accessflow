@@ -157,4 +157,51 @@ class SystemPromptRendererTest {
         assertThat(prompt).contains("RESTRICTED_COLUMN_ACCESS");
         assertThat(prompt).contains("masked at the proxy layer");
     }
+
+    @Test
+    void rendersCustomTemplateSubstitutingAllNamedPlaceholders() {
+        var template = "RULES. db={{db_type}} schema={{schema_context}} sql={{sql}} lang={{language}}";
+
+        var prompt = renderer.render(template, "SELECT 1", DbType.POSTGRESQL, "public.users(id int)", "en");
+
+        assertThat(prompt).isEqualTo("RULES. db=POSTGRESQL schema=public.users(id int) sql=SELECT 1 lang=English");
+    }
+
+    @Test
+    void customTemplateFallsBackToSchemaPlaceholderWhenSchemaBlank() {
+        var prompt = renderer.render("schema={{schema_context}} sql={{sql}}", "SELECT 1",
+                DbType.MYSQL, "   ", "en");
+
+        assertThat(prompt).contains("schema=(no schema introspection available)");
+    }
+
+    @Test
+    void blankCustomTemplateFallsBackToDefault() {
+        var fromBlank = renderer.render("   ", "SELECT 1", DbType.POSTGRESQL, null, "en");
+        var fromNull = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, "en");
+
+        assertThat(fromBlank).isEqualTo(fromNull);
+        assertThat(fromBlank).contains("database security and performance expert");
+        assertThat(fromBlank).contains("Database type: POSTGRESQL");
+    }
+
+    @Test
+    void sqlIsSubstitutedLastSoTokenStringInSqlIsNotReSubstituted() {
+        // The SQL value itself contains a "{{language}}" token. Because {{sql}} is replaced last,
+        // that literal must survive verbatim and must NOT be turned into the language name.
+        var sql = "SELECT '{{language}}'";
+
+        var prompt = renderer.render("sql={{sql}} lang={{language}}", sql, DbType.POSTGRESQL, null, "es");
+
+        assertThat(prompt).isEqualTo("sql=SELECT '{{language}}' lang=Español");
+    }
+
+    @Test
+    void defaultTemplateExposesBuiltInPromptWithSqlPlaceholder() {
+        var template = renderer.defaultTemplate();
+
+        assertThat(template).isEqualTo(SystemPromptRenderer.DEFAULT_TEMPLATE);
+        assertThat(template).contains(SystemPromptRenderer.SQL_PLACEHOLDER);
+        assertThat(template).contains("\"risk_score\":");
+    }
 }

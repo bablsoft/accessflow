@@ -552,6 +552,7 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
 | `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
 | `max_completion_tokens` | INTEGER — CHECK 100–200000 |
+| `system_prompt_template` | TEXT nullable — admin-editable analyzer prompt override. `NULL`/blank means "use the built-in default". A custom value must contain the `{{sql}}` placeholder (other tokens — `{{schema_context}}`, `{{db_type}}`, `{{language}}` — are optional) and is substituted at render time. Editing it evicts the cached delegate via `AiConfigUpdatedEvent`. Max 20,000 chars. |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
@@ -680,7 +681,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `USER_PASSWORD_RESET_REQUESTED` | User submitted the public forgot-password form for a real LOCAL account. Metadata: `email`, `source: "self_service"`. |
 | `USER_PASSWORD_RESET_COMPLETED` | User successfully set a new password via the reset link. Metadata: `source: "self_service"`. All refresh tokens for the user are revoked. |
 | `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
-| `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`). |
+| `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`, `prompt_changed`). |
 | `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
 | `ORGANIZATION_CREATED` | Emitted by the env-driven bootstrap reconciler when it provisions a brand-new organization. Metadata: `source: "BOOTSTRAP"`, `change_kind: "CREATE"`, `name`, `slug`. |
 | `NOTIFICATION_CHANNEL_CREATED` / `NOTIFICATION_CHANNEL_UPDATED` | Emitted by the bootstrap reconciler when it creates or updates a `notification_channels` row from `accessflow.bootstrap.notificationChannels[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind`, `name`, `channel_type`, optional `changed_fields`. |

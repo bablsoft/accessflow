@@ -300,6 +300,17 @@ State lives in `preferencesStore`:
 
 The relevant mutations (create datasource, create review plan, save AI config) invalidate `setupProgressKeys.current()` on success so the widget reacts immediately when an admin completes a step the real way.
 
+### AI configuration system prompt
+
+Both `AiConfigCreateWizardPage` (connection step) and `AiConfigEditPage` expose an optional
+**System prompt** `Input.TextArea`. Left blank, the configuration uses the built-in default
+analyzer prompt; a custom value is validated client-side to contain the `{{sql}}` placeholder
+(mirroring the backend `AI_CONFIG_INVALID_PROMPT` guard) and capped at 20,000 chars. A **Load /
+reset to default** button fetches the built-in template from `GET /admin/ai-configs/prompt-default`
+(`getDefaultAiPrompt`, query key `aiConfigKeys.promptDefault()`) and fills the editor so admins can
+tweak from the default. The help text lists the available placeholders (`{{sql}}`,
+`{{schema_context}}`, `{{db_type}}`, `{{language}}`).
+
 ### Topbar (`components/common/Topbar.tsx`)
 
 The app shell topbar contains: a mobile-nav menu button, a light/dark theme toggle, the
@@ -516,8 +527,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
 /admin/ai-configs                   → AiConfigListPage
-/admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard)
-/admin/ai-configs/:id               → AiConfigEditPage
+/admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor)
+/admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt)
 /admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
 /admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)

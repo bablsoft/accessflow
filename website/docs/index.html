@@ -995,6 +995,18 @@ APPROVED → FAILED (execution error)</pre>
             Provider switches take effect immediately — no restart is required. Once saved, link
             the configuration to a datasource (<a href="#cfg-datasources">Datasources</a> → <em>Configuration</em> step) or to a review plan, and AccessFlow scores every matching submission against it.
           </p>
+          <p>
+            <strong>Editable system prompt.</strong> Each configuration has an optional
+            <em>System prompt</em> field (on both the create wizard's <em>Connection</em> step and the
+            edit page). Leave it blank to use AccessFlow's built-in analyzer prompt, or paste your own
+            to add house rules, change tone, or steer the analysis. A custom prompt must contain the
+            <code>{{sql}}</code> placeholder (the query under review is substituted there); the
+            optional <code>{{schema_context}}</code>, <code>{{db_type}}</code>, and
+            <code>{{language}}</code> placeholders are substituted too. Click <em>Load / reset to
+            default</em> to pull the built-in template into the editor as a starting point — saving it
+            blank again reverts to the default. Prompt changes take effect immediately, just like
+            provider switches.
+          </p>
           <div class="docs-callout info">
             <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
             (<code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>CRITICAL</code>),

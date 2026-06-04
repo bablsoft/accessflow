@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
+import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
@@ -34,6 +35,7 @@ class DefaultAiConfigService implements AiConfigService {
     private final CredentialEncryptionService encryptionService;
     private final DatasourceLookupService datasourceLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final SystemPromptRenderer promptRenderer;
 
     @Override
     @Transactional(readOnly = true)
@@ -90,10 +92,12 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.maxCompletionTokens() != null) {
             entity.setMaxCompletionTokens(command.maxCompletionTokens());
         }
+        entity.setSystemPromptTemplate(blankToNull(command.systemPromptTemplate()));
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         requireEndpointForOpenAiCompatible(entity);
+        requireSqlPlaceholder(entity);
         var saved = repository.save(entity);
         return toView(saved, 0);
     }
@@ -105,6 +109,7 @@ class DefaultAiConfigService implements AiConfigService {
         var oldProvider = entity.getProvider();
         var oldModel = entity.getModel();
         var oldCiphertext = entity.getApiKeyEncrypted();
+        var oldPrompt = entity.getSystemPromptTemplate();
         if (command.name() != null) {
             var trimmedName = trim(command.name());
             if (trimmedName == null || trimmedName.isBlank()) {
@@ -135,17 +140,23 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.maxCompletionTokens() != null) {
             entity.setMaxCompletionTokens(command.maxCompletionTokens());
         }
+        if (command.systemPromptTemplate() != null) {
+            entity.setSystemPromptTemplate(blankToNull(command.systemPromptTemplate()));
+        }
         entity.setUpdatedAt(Instant.now());
         requireEndpointForOpenAiCompatible(entity);
+        requireSqlPlaceholder(entity);
         var saved = repository.save(entity);
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
+        var promptChanged = !Objects.equals(oldPrompt, saved.getSystemPromptTemplate());
         if (oldProvider != saved.getProvider()
                 || !Objects.equals(oldModel, saved.getModel())
                 || apiKeyChanged
+                || promptChanged
                 || hasConnectivityChange(command)) {
             eventPublisher.publishEvent(new AiConfigUpdatedEvent(
                     saved.getId(), oldProvider, saved.getProvider(),
-                    oldModel, saved.getModel(), apiKeyChanged));
+                    oldModel, saved.getModel(), apiKeyChanged, promptChanged));
         }
         var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(saved.getId()))
                 .getOrDefault(saved.getId(), 0);
@@ -167,10 +178,22 @@ class DefaultAiConfigService implements AiConfigService {
         eventPublisher.publishEvent(new AiConfigDeletedEvent(entity.getId()));
     }
 
+    @Override
+    public String defaultSystemPromptTemplate() {
+        return promptRenderer.defaultTemplate();
+    }
+
     private static void requireEndpointForOpenAiCompatible(AiConfigEntity entity) {
         if (entity.getProvider() == AiProviderType.OPENAI_COMPATIBLE
                 && (entity.getEndpoint() == null || entity.getEndpoint().isBlank())) {
             throw new AiConfigEndpointRequiredException();
+        }
+    }
+
+    private static void requireSqlPlaceholder(AiConfigEntity entity) {
+        var template = entity.getSystemPromptTemplate();
+        if (template != null && !template.contains(SystemPromptRenderer.SQL_PLACEHOLDER)) {
+            throw new AiConfigInvalidPromptException();
         }
     }
 
@@ -208,6 +231,7 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getTimeoutMs(),
                 entity.getMaxPromptTokens(),
                 entity.getMaxCompletionTokens(),
+                entity.getSystemPromptTemplate(),
                 inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());

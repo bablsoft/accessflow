@@ -2217,6 +2217,7 @@ Returns all AI configurations for the caller's organization, sorted by name. `in
     "timeout_ms": 30000,
     "max_prompt_tokens": 8000,
     "max_completion_tokens": 2000,
+    "system_prompt_template": null,
     "in_use_count": 2,
     "created_at": "2026-05-06T10:00:00Z",
     "updated_at": "2026-05-06T10:00:00Z"
@@ -2224,9 +2225,20 @@ Returns all AI configurations for the caller's organization, sorted by name. `in
 ]
 ```
 
+`system_prompt_template` is the admin's custom analyzer prompt for this configuration, or `null` when the built-in default is used.
+
 #### GET /admin/ai-configs/{id}
 
 Returns a single configuration. **404** if the id does not belong to the caller's organization.
+
+#### GET /admin/ai-configs/prompt-default
+
+Returns the built-in analyzer system-prompt template, so the admin UI can pre-fill or reset a configuration's custom prompt. The template contains the `{{sql}}`, `{{schema_context}}`, `{{db_type}}` and `{{language}}` placeholders.
+
+**Response 200:**
+```json
+{ "template": "You are a database security and performance expert ... SQL to analyze:\n{{sql}}\n..." }
+```
 
 #### POST /admin/ai-configs
 
@@ -2241,30 +2253,31 @@ Creates a new AI configuration.
   "api_key": "sk-...",
   "timeout_ms": 30000,
   "max_prompt_tokens": 8000,
-  "max_completion_tokens": 2000
+  "max_completion_tokens": 2000,
+  "system_prompt_template": "Custom analyzer rules ... {{sql}} ..."
 }
 ```
 
-Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000].
+Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000]; `system_prompt_template` ≤ 20000 and — when non-blank — **must contain the `{{sql}}` placeholder** (else **400** `AI_CONFIG_INVALID_PROMPT`). Omit it (or send blank) to use the built-in default; fetch the default via `GET /admin/ai-configs/prompt-default`.
 
 `endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. `HUGGING_FACE` likewise reuses the OpenAI client and is keyless-capable; a blank `endpoint` defaults to the Hugging Face Inference Providers router (`https://router.huggingface.co/v1`), and a custom base URL targets a local / self-hosted TGI server or a Dedicated Inference Endpoint. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
 **Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
-**Response 400:** Validation error, or `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`).
+**Response 400:** Validation error; `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`); or a custom `system_prompt_template` missing the `{{sql}}` placeholder (`error: AI_CONFIG_INVALID_PROMPT`).
 **Response 409:** Another configuration in this organization already uses that name (`error: AI_CONFIG_NAME_ALREADY_EXISTS`).
 
 Writes an `AI_CONFIG_CREATED` audit row.
 
 #### PUT /admin/ai-configs/{id}
 
-Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence.
+Partial update. Any field omitted is left unchanged. Sending `"api_key": "********"` preserves the existing ciphertext; sending an empty string clears it; any other value is encrypted with `ENCRYPTION_KEY` (AES-256-GCM) before persistence. `system_prompt_template` follows the same null/blank pattern: omitting it leaves the stored prompt unchanged, sending a blank string resets it to the built-in default, and any other value is persisted (and must contain `{{sql}}`).
 
-A successful PUT triggers a runtime refresh of the cached `AiAnalyzerStrategy` delegate for that `ai_config` row — the next call uses the new provider / model / key without an application restart. An `AI_CONFIG_UPDATED` audit row is written when any of `name`, `provider`, `model`, or the API key changes; the `metadata` JSONB carries only the fields that actually changed.
+A successful PUT triggers a runtime refresh of the cached `AiAnalyzerStrategy` delegate for that `ai_config` row — the next call uses the new provider / model / key / prompt without an application restart. An `AI_CONFIG_UPDATED` audit row is written when any of `name`, `provider`, `model`, the API key, or the system prompt changes; the `metadata` JSONB carries only the fields that actually changed (`prompt_changed: true` when the prompt was altered).
 
 **Request body:** Same shape as POST, all fields optional.
 
 **Response 200:** Updated configuration.
-**Response 400:** Resulting `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`).
+**Response 400:** Resulting `provider = OPENAI_COMPATIBLE` with a blank `endpoint` (`error: AI_CONFIG_ENDPOINT_REQUIRED`); or a custom `system_prompt_template` missing the `{{sql}}` placeholder (`error: AI_CONFIG_INVALID_PROMPT`).
 **Response 404:** Configuration not found in this organization.
 **Response 409:** Another configuration in this organization already uses the new name.
 

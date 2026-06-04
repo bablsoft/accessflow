@@ -17,5 +17,6 @@ record AiConfigUpdatedEvent(
         AiProviderType newProvider,
         String oldModel,
         String newModel,
-        boolean apiKeyChanged) {
+        boolean apiKeyChanged,
+        boolean promptChanged) {
 }

@@ -13,7 +13,12 @@ import java.util.Set;
 @Component
 class SystemPromptRenderer {
 
-    private static final String TEMPLATE = """
+    /**
+     * Built-in analyzer prompt. Admins may override it per {@code ai_config} row; the four
+     * {@code {{...}}} tokens are substituted at render time. {@code {{sql}}} is mandatory in any
+     * custom template (enforced by the service) — without it the model never sees the query.
+     */
+    static final String DEFAULT_TEMPLATE = """
             You are a database security and performance expert reviewing SQL before execution in production.
             Analyze the following SQL query and respond ONLY with a JSON object matching this exact schema.
             Do not include any text outside the JSON.
@@ -37,21 +42,39 @@ class SystemPromptRenderer {
 
             Columns marked *RESTRICTED* in the schema context are sensitive and the values returned for them are masked at the proxy layer. If the SQL references any *RESTRICTED* column (in SELECT, WHERE, JOIN, ORDER BY, INSERT, UPDATE, or DELETE), add an issue with category="RESTRICTED_COLUMN_ACCESS" and severity="LOW" summarizing which restricted columns are touched. Do NOT raise the overall risk_level above MEDIUM solely for this reason — this is informational, not a blocker.
 
-            Database type: %s
-            Schema context: %s
+            Database type: {{db_type}}
+            Schema context: {{schema_context}}
             SQL to analyze:
-            %s
-            Respond in: %s. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.
+            {{sql}}
+            Respond in: {{language}}. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.
             """;
 
+    /** The {@code {{sql}}} token a custom template must contain. */
+    static final String SQL_PLACEHOLDER = "{{sql}}";
+
+    String defaultTemplate() {
+        return DEFAULT_TEMPLATE;
+    }
+
     String render(String sql, DbType dbType, String schemaContext, String language) {
+        return render(null, sql, dbType, schemaContext, language);
+    }
+
+    String render(String template, String sql, DbType dbType, String schemaContext, String language) {
+        var effective = (template == null || template.isBlank()) ? DEFAULT_TEMPLATE : template;
         var schemaText = (schemaContext == null || schemaContext.isBlank())
                 ? "(no schema introspection available)"
                 : schemaContext;
         var displayName = SupportedLanguage.fromCode(language)
                 .map(SupportedLanguage::displayName)
                 .orElse(SupportedLanguage.EN.displayName());
-        return TEMPLATE.formatted(dbType.name(), schemaText, sql, displayName);
+        // {{sql}} is replaced last so SQL text that happens to contain another token string is
+        // never re-substituted.
+        return effective
+                .replace("{{db_type}}", dbType.name())
+                .replace("{{schema_context}}", schemaText)
+                .replace("{{language}}", displayName)
+                .replace(SQL_PLACEHOLDER, sql);
     }
 
     String describeSchema(DatabaseSchemaView schema) {
