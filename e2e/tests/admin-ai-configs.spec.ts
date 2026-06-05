@@ -995,10 +995,12 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await page.getByRole('switch').click();
 
     // Vector store = In-app (pgvector); embedding provider = Ollama; embedding model required.
-    await page.getByLabel('Vector store').click();
-    await page.getByRole('option', { name: 'In-app (pgvector)' }).click();
-    await page.getByLabel('Embedding provider').click();
-    await page.getByRole('option', { name: 'Ollama' }).click();
+    // AntD 6 renders dropdown items as `.ant-select-item-option` divs (not native role=option) and
+    // opens via the combobox — match the proven pattern in datasource-create-wizard.spec.ts.
+    await page.getByRole('combobox', { name: /Vector store/ }).click();
+    await page.locator('.ant-select-item-option[aria-label="In-app (pgvector)"]').click();
+    await page.getByRole('combobox', { name: /Embedding provider/ }).click();
+    await page.locator('.ant-select-item-option[aria-label="Ollama"]').click();
     await page.getByLabel('Embedding model').fill('nomic-embed-text');
 
     const updateResponsePromise = page.waitForResponse(
