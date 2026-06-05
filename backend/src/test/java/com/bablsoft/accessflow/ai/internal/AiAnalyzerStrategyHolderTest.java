@@ -60,6 +60,8 @@ class AiAnalyzerStrategyHolderTest {
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
+    private final SqlGenerationResponseParser sqlGenerationResponseParser =
+            new SqlGenerationResponseParser(JsonMapper.builder().build());
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
     private AiAnalyzerStrategyHolder holder;
@@ -67,7 +69,7 @@ class AiAnalyzerStrategyHolderTest {
     @BeforeEach
     void setUp() {
         holder = new AiAnalyzerStrategyHolder(aiConfigRepository, encryptionService,
-                promptRenderer, responseParser, messageSource, chatModelFactory,
+                promptRenderer, responseParser, sqlGenerationResponseParser, messageSource, chatModelFactory,
                 langfusePromptProvider, langfuseTracer, clock);
     }
 
@@ -315,6 +317,43 @@ class AiAnalyzerStrategyHolderTest {
         verify(chatModelFactory, times(0)).anthropic(any(), any(), anyInt(), anyInt());
     }
 
+    @Test
+    void generateSqlReusesCachedDelegate() {
+        var stub = new StubStrategy();
+        seedCache(AI_CONFIG_ID, stub);
+
+        var result = holder.generateSql("orders", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        assertThat(result.sql()).isEqualTo("SELECT 1");
+        verify(aiConfigRepository, never()).findById(any());
+    }
+
+    @Test
+    void generateSqlThrowsWhenAiConfigIdIsNull() {
+        when(messageSource.getMessage(eq("error.ai.not_configured"), any(), any(Locale.class)))
+                .thenReturn("AI is not configured");
+
+        assertThatThrownBy(() -> holder.generateSql("orders", DbType.POSTGRESQL, null, "en", null))
+                .isInstanceOf(AiAnalysisException.class);
+        verifyNoInteractions(chatModelFactory);
+        verify(aiConfigRepository, never()).findById(any());
+    }
+
+    @Test
+    void generateSqlBuildsDelegateAndCallsIt() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.ANTHROPIC, "ENC(k)", null)));
+        when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-anthropic");
+        when(chatModelFactory.anthropic(eq("sk-anthropic"), eq("test-model"), anyInt(), anyInt()))
+                .thenReturn(chatModel);
+        when(chatModel.call(any(Prompt.class))).thenReturn(generatedSqlChatResponse());
+
+        var result = holder.generateSql("all orders", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
+
+        assertThat(result.sql()).isEqualTo("SELECT 1");
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
+    }
+
     private AiConfigEntity entityWithoutKey(AiProviderType provider) {
         var entity = new AiConfigEntity();
         entity.setId(AI_CONFIG_ID);
@@ -334,6 +373,15 @@ class AiAnalyzerStrategyHolderTest {
 
     private ChatResponse successChatResponse() {
         var generation = new Generation(new AssistantMessage(SUCCESS_JSON));
+        var metadata = ChatResponseMetadata.builder()
+                .model("test-model")
+                .usage(new DefaultUsage(10, 5))
+                .build();
+        return new ChatResponse(List.of(generation), metadata);
+    }
+
+    private ChatResponse generatedSqlChatResponse() {
+        var generation = new Generation(new AssistantMessage("{\"sql\":\"SELECT 1\"}"));
         var metadata = ChatResponseMetadata.builder()
                 .model("test-model")
                 .usage(new DefaultUsage(10, 5))
@@ -375,6 +423,13 @@ class AiAnalyzerStrategyHolderTest {
                                         UUID aiConfigId) {
             calls++;
             return null;
+        }
+
+        @Override
+        public com.bablsoft.accessflow.ai.api.GeneratedSqlResult generateSql(String prompt,
+                DbType dbType, String schemaContext, String language, UUID aiConfigId) {
+            return new com.bablsoft.accessflow.ai.api.GeneratedSqlResult("SELECT 1",
+                    AiProviderType.ANTHROPIC, "stub-model", 0, 0);
         }
     }
 }

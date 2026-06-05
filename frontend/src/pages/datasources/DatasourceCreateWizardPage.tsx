@@ -53,6 +53,7 @@ interface SettingsFormValues {
   require_review_writes: boolean;
   ai_analysis_enabled: boolean;
   ai_config_id: string | null;
+  text_to_sql_enabled: boolean;
 }
 
 const SSL_MODES: SslMode[] = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
@@ -193,9 +194,11 @@ export default function DatasourceCreateWizardPage() {
         require_review_reads: values.require_review_reads,
         require_review_writes: values.require_review_writes,
         ai_analysis_enabled: values.ai_analysis_enabled,
-        ai_config_id: values.ai_analysis_enabled ? values.ai_config_id : null,
+        text_to_sql_enabled: values.text_to_sql_enabled,
+        ai_config_id:
+          values.ai_analysis_enabled || values.text_to_sql_enabled ? values.ai_config_id : null,
       };
-      if (!values.ai_analysis_enabled) {
+      if (!values.ai_analysis_enabled && !values.text_to_sql_enabled) {
         input.clear_ai_config = true;
       }
       return updateDatasource(createdDatasource.id, input);
@@ -439,6 +442,7 @@ export default function DatasourceCreateWizardPage() {
             require_review_writes: createdDatasource.require_review_writes,
             ai_analysis_enabled: createdDatasource.ai_analysis_enabled,
             ai_config_id: createdDatasource.ai_config_id ?? null,
+            text_to_sql_enabled: createdDatasource.text_to_sql_enabled,
           }}
         >
           <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
@@ -508,12 +512,22 @@ export default function DatasourceCreateWizardPage() {
               <Switch />
             </Form.Item>
             <Form.Item
+              label={t('datasources.create.field_text_to_sql_enabled')}
+              name="text_to_sql_enabled"
+              valuePropName="checked"
+              extra={t('datasources.create.field_text_to_sql_help')}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
               label={t('datasources.create.field_ai_config')}
               name="ai_config_id"
-              dependencies={['ai_analysis_enabled']}
+              dependencies={['ai_analysis_enabled', 'text_to_sql_enabled']}
               rules={[
                 ({ getFieldValue }) => ({
-                  required: getFieldValue('ai_analysis_enabled') === true,
+                  required:
+                    getFieldValue('ai_analysis_enabled') === true ||
+                    getFieldValue('text_to_sql_enabled') === true,
                   message: t('datasources.create.field_ai_config_required'),
                 }),
               ]}
@@ -525,7 +539,9 @@ export default function DatasourceCreateWizardPage() {
             >
               <Select
                 allowClear
-                disabled={!settingsValues?.ai_analysis_enabled}
+                disabled={
+                  !settingsValues?.ai_analysis_enabled && !settingsValues?.text_to_sql_enabled
+                }
                 placeholder={t('datasources.create.field_ai_config_placeholder')}
                 options={(aiConfigsQuery.data ?? []).map((c) => ({
                   value: c.id,

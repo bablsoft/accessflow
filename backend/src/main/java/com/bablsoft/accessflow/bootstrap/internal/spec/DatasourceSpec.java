@@ -19,6 +19,7 @@ public record DatasourceSpec(
         String reviewPlanName,
         Boolean aiAnalysisEnabled,
         String aiConfigName,
+        Boolean textToSqlEnabled,
         String jdbcUrlOverride
 ) {
 }

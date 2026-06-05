@@ -54,7 +54,7 @@ class DefaultDatasourceHealthServiceTest {
 
     private static DatasourceView view(UUID id, UUID org, String name, DbType type, boolean active) {
         return new DatasourceView(id, org, name, type, "host", 5432, "db", "user", SslMode.DISABLE,
-                10, 1000, false, false, null, false, null, null, null, null, null, active,
+                10, 1000, false, false, null, false, null, false, null, null, null, null, active,
                 Instant.parse("2026-01-01T00:00:00Z"));
     }
 

@@ -39,6 +39,8 @@ class OllamaAnalyzerStrategyTest {
     @Spy SystemPromptRenderer renderer = new SystemPromptRenderer();
     @Spy AiResponseParser parser = new AiResponseParser(JsonMapper.builder().build());
     @Mock SystemPromptSource promptSource;
+    @Spy SqlGenerationResponseParser sqlGenerationParser =
+            new SqlGenerationResponseParser(JsonMapper.builder().build());
 
     @InjectMocks OllamaAnalyzerStrategy strategy;
 
@@ -98,5 +100,26 @@ class OllamaAnalyzerStrategyTest {
 
         assertThatThrownBy(() -> strategy.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", ORG_ID))
                 .isInstanceOf(AiAnalysisParseException.class);
+    }
+
+    @Test
+    void generateSqlParsesEnvelopeAndTagsOllamaProvider() {
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(buildResponse("{\"sql\":\"SELECT now()\"}", 5, 3, "llama3.1:70b"));
+
+        var result = strategy.generateSql("current time", DbType.POSTGRESQL, null, "en", ORG_ID);
+
+        assertThat(result.sql()).isEqualTo("SELECT now()");
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.OLLAMA);
+        assertThat(result.aiModel()).isEqualTo("llama3.1:70b");
+    }
+
+    @Test
+    void generateSqlWrapsRuntimeExceptionAsAnalysisException() {
+        when(chatModel.call(any(Prompt.class))).thenThrow(new RuntimeException("connection refused"));
+
+        assertThatThrownBy(() -> strategy.generateSql("x", DbType.POSTGRESQL, null, "en", ORG_ID))
+                .isInstanceOf(AiAnalysisException.class)
+                .hasMessageContaining("connection refused");
     }
 }

@@ -19,6 +19,7 @@ public record CreateDatasourceCommand(
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        Boolean textToSqlEnabled,
         UUID customDriverId,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,

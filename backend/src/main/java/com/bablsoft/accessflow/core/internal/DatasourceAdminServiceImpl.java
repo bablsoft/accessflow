@@ -162,7 +162,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.aiConfigId() != null) {
             entity.setAiConfigId(command.aiConfigId());
         }
-        if (entity.isAiAnalysisEnabled() && entity.getAiConfigId() == null) {
+        if (command.textToSqlEnabled() != null) {
+            entity.setTextToSqlEnabled(command.textToSqlEnabled());
+        }
+        if ((entity.isAiAnalysisEnabled() || entity.isTextToSqlEnabled())
+                && entity.getAiConfigId() == null) {
             throw new MissingAiConfigForDatasourceException();
         }
         if (command.reviewPlanId() != null) {
@@ -226,7 +230,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.aiConfigId() != null) {
             entity.setAiConfigId(command.aiConfigId());
         }
-        if (entity.isAiAnalysisEnabled() && entity.getAiConfigId() == null) {
+        if (command.textToSqlEnabled() != null) {
+            entity.setTextToSqlEnabled(command.textToSqlEnabled());
+        }
+        if ((entity.isAiAnalysisEnabled() || entity.isTextToSqlEnabled())
+                && entity.getAiConfigId() == null) {
             throw new MissingAiConfigForDatasourceException();
         }
         if (command.jdbcUrlOverride() != null) {
@@ -521,6 +529,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getReviewPlan() != null ? entity.getReviewPlan().getId() : null,
                 entity.isAiAnalysisEnabled(),
                 entity.getAiConfigId(),
+                entity.isTextToSqlEnabled(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
                 entity.getJdbcUrlOverride(),
                 entity.getReadReplicaJdbcUrl(),

@@ -42,6 +42,8 @@ class AnthropicAnalyzerStrategyTest {
     @Spy SystemPromptRenderer renderer = new SystemPromptRenderer();
     @Spy AiResponseParser parser = new AiResponseParser(JsonMapper.builder().build());
     @Mock SystemPromptSource promptSource;
+    @Spy SqlGenerationResponseParser sqlGenerationParser =
+            new SqlGenerationResponseParser(JsonMapper.builder().build());
 
     @InjectMocks AnthropicAnalyzerStrategy strategy;
 
@@ -120,5 +122,21 @@ class AnthropicAnalyzerStrategyTest {
         assertThat(result.promptTokens()).isZero();
         assertThat(result.completionTokens()).isZero();
         assertThat(result.aiModel()).isEmpty();
+    }
+
+    @Test
+    void generateSqlBuildsPromptAndParsesEnvelope() {
+        var captor = ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(captor.capture()))
+                .thenReturn(buildResponse("{\"sql\":\"SELECT 1\"}", 40, 9, "claude-sonnet-4-20250514"));
+
+        var result = strategy.generateSql("count rows", DbType.POSTGRESQL, "public.t(id int)", "es", ORG_ID);
+
+        assertThat(result.sql()).isEqualTo("SELECT 1");
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
+        assertThat(result.aiModel()).isEqualTo("claude-sonnet-4-20250514");
+        var messages = captor.getValue().getInstructions();
+        assertThat(messages.get(0).getText()).contains("translate natural-language requests into SQL");
+        assertThat(messages.get(1).getText()).contains("count rows");
     }
 }

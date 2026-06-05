@@ -309,6 +309,15 @@
     "routing_policy_generic": "无法保存路由策略。请重试。"
   },
   "editor": {
+    "text_to_sql": {
+      "label": "描述您的查询",
+      "hint": "· 由 AI 生成 SQL",
+      "placeholder": "例如：最近 5 天的订单号",
+      "generate_button": "生成 SQL",
+      "generating": "生成中",
+      "success": "已生成 SQL，请在提交前检查",
+      "error": "无法根据您的描述生成 SQL"
+    },
     "title": "SQL 编辑器",
     "subtitle": "提交查询以进行 AI 和人工审核。",
     "history_button": "历史",
@@ -559,6 +568,8 @@
       "stat_plan_unknown": "—"
     },
     "create": {
+      "field_text_to_sql_enabled": "启用文本转 SQL",
+      "field_text_to_sql_help": "允许用户用自然语言起草 SQL（使用该 AI 配置）。",
       "title": "添加数据源",
       "subtitle": "连接一个新的客户数据库。AccessFlow 将代理并治理对它的查询。",
       "step_type": "数据库类型",
@@ -644,6 +655,8 @@
       "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。"
     },
     "settings": {
+      "label_text_to_sql_enabled": "启用文本转 SQL",
+      "text_to_sql_help": "允许用户用自然语言起草 SQL（使用该 AI 配置）。",
       "back_button": "返回",
       "test_connection": "测试连接",
       "connection_ok": "已连接 · {{ms}} ms",

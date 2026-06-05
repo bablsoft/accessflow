@@ -622,6 +622,7 @@ bootstrap:
       sslMode: REQUIRE
       reviewPlanName: standard
       aiAnalysisEnabled: true
+      textToSqlEnabled: false   # optional; when true users can draft SQL from natural language (reuses aiConfigName)
       aiConfigName: claude
   notificationChannels:
     - name: ops-slack

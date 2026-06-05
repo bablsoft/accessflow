@@ -56,7 +56,7 @@ class DatasourceReconcilerTest {
     @Test
     void throwsWhenNameMissing() {
         var spec = new DatasourceSpec(null, DbType.POSTGRESQL, "h", 5432, "db", "u", "p",
-                SslMode.DISABLE, 10, 100, false, true, null, false, null, null);
+                SslMode.DISABLE, 10, 100, false, true, null, false, null, null, null);
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(spec), Map.of(), Map.of()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("name");
@@ -65,7 +65,7 @@ class DatasourceReconcilerTest {
     @Test
     void throwsWhenDbTypeMissing() {
         var spec = new DatasourceSpec("ds", null, "h", 5432, "db", "u", "p",
-                SslMode.DISABLE, 10, 100, false, true, null, false, null, null);
+                SslMode.DISABLE, 10, 100, false, true, null, false, null, null, null);
         assertThatThrownBy(() -> reconciler.reconcile(ORG_ID, List.of(spec), Map.of(), Map.of()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("dbType");
@@ -163,12 +163,12 @@ class DatasourceReconcilerTest {
 
     private DatasourceSpec ds(String name, DbType dbType, String reviewPlan, String aiConfig) {
         return new DatasourceSpec(name, dbType, "host", 5432, "db", "user", "pw",
-                SslMode.DISABLE, 10, 100, false, true, reviewPlan, false, aiConfig, null);
+                SslMode.DISABLE, 10, 100, false, true, reviewPlan, false, aiConfig, null, null);
     }
 
     private DatasourceView view(UUID id, String name) {
         return new DatasourceView(id, ORG_ID, name, DbType.POSTGRESQL, "host", 5432, "db", "user",
-                SslMode.DISABLE, 10, 100, false, true, null, false, null, null, null,
+                SslMode.DISABLE, 10, 100, false, true, null, false, null, false, null, null,
                 null, null, true, Instant.now());
     }
 }

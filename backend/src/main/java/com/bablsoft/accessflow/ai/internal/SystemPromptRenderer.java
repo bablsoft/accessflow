@@ -52,6 +52,42 @@ class SystemPromptRenderer {
     /** The {@code {{sql}}} token a custom template must contain. */
     static final String SQL_PLACEHOLDER = "{{sql}}";
 
+    /** The natural-language token substituted into the SQL-generation template. */
+    static final String USER_REQUEST_PLACEHOLDER = "{{user_request}}";
+
+    /**
+     * Built-in natural-language → SQL generation prompt. The generated SQL is a draft the user
+     * reviews and submits through the normal pipeline, so the model is steered toward safe,
+     * schema-grounded, read-oriented statements.
+     */
+    static final String DEFAULT_SQL_GENERATION_TEMPLATE = """
+            You are an expert SQL author. Translate the user's natural-language request into a single
+            valid SQL statement for the target database, and respond ONLY with a JSON object matching
+            this exact schema. Do not include any text outside the JSON.
+
+            Schema:
+            {
+              "sql": <string — one runnable SQL statement, no trailing semicolon required>
+            }
+
+            Rules:
+            - Produce exactly ONE statement. Prefer a read-only SELECT unless the request clearly asks
+              to modify data.
+            - Use ONLY tables and columns present in the schema context below. Never invent names.
+            - Never reference any column marked *RESTRICTED* in the schema context — those are
+              sensitive and masked at the proxy layer.
+            - Use dialect-appropriate syntax for the given database type (date/time functions,
+              identifier quoting, LIMIT/TOP, etc.).
+            - If the request is ambiguous, choose the most reasonable interpretation and still return
+              a single statement.
+
+            Database type: {{db_type}}
+            Schema context: {{schema_context}}
+            Respond in: {{language}} for any string values you may include; keep SQL keywords in English.
+            User request:
+            {{user_request}}
+            """;
+
     String defaultTemplate() {
         return DEFAULT_TEMPLATE;
     }
@@ -75,6 +111,25 @@ class SystemPromptRenderer {
                 .replace("{{schema_context}}", schemaText)
                 .replace("{{language}}", displayName)
                 .replace(SQL_PLACEHOLDER, sql);
+    }
+
+    /**
+     * Render the SQL-generation prompt for {@code userRequest}. Mirrors {@link #render}; the
+     * {@code {{user_request}}} token is substituted last so request text that happens to contain a
+     * token string is never re-substituted.
+     */
+    String renderGeneration(String userRequest, DbType dbType, String schemaContext, String language) {
+        var schemaText = (schemaContext == null || schemaContext.isBlank())
+                ? "(no schema introspection available)"
+                : schemaContext;
+        var displayName = SupportedLanguage.fromCode(language)
+                .map(SupportedLanguage::displayName)
+                .orElse(SupportedLanguage.EN.displayName());
+        return DEFAULT_SQL_GENERATION_TEMPLATE
+                .replace("{{db_type}}", dbType.name())
+                .replace("{{schema_context}}", schemaText)
+                .replace("{{language}}", displayName)
+                .replace(USER_REQUEST_PLACEHOLDER, userRequest == null ? "" : userRequest);
     }
 
     String describeSchema(DatabaseSchemaView schema) {

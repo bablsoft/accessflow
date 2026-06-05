@@ -204,4 +204,33 @@ class SystemPromptRendererTest {
         assertThat(template).contains(SystemPromptRenderer.SQL_PLACEHOLDER);
         assertThat(template).contains("\"risk_score\":");
     }
+
+    @Test
+    void renderGenerationSubstitutesAllPlaceholders() {
+        var prompt = renderer.renderGeneration("orders for last 5 days", DbType.POSTGRESQL,
+                "public.orders(id int pk)", "en");
+
+        assertThat(prompt).contains("Database type: POSTGRESQL");
+        assertThat(prompt).contains("Schema context: public.orders(id int pk)");
+        assertThat(prompt).contains("User request:");
+        assertThat(prompt).contains("orders for last 5 days");
+        assertThat(prompt).contains("\"sql\":");
+        assertThat(prompt).contains("*RESTRICTED*");
+        assertThat(prompt).doesNotContain("{{user_request}}");
+    }
+
+    @Test
+    void renderGenerationFallsBackForBlankSchema() {
+        var prompt = renderer.renderGeneration("x", DbType.MYSQL, "  ", "en");
+
+        assertThat(prompt).contains("Schema context: (no schema introspection available)");
+    }
+
+    @Test
+    void renderGenerationHandlesNullUserRequestAndUnknownLanguage() {
+        var prompt = renderer.renderGeneration(null, DbType.POSTGRESQL, null, "xx");
+
+        assertThat(prompt).contains("Respond in: English");
+        assertThat(prompt).doesNotContain("{{user_request}}");
+    }
 }

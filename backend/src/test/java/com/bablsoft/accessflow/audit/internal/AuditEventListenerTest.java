@@ -180,7 +180,7 @@ class AuditEventListenerTest {
     void onDatasourceDeactivatedRecordsUpdatedWithChange() {
         var descriptor = new DatasourceConnectionDescriptor(datasourceId, organizationId,
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 5, 1000,
-                false, null, null, null, null, null, null, false);
+                false, null, false, null, null, null, null, null, false);
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor));
         var captor = ArgumentCaptor.forClass(AuditEntry.class);
         when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());

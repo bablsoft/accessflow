@@ -415,7 +415,7 @@ class NotificationContextBuilderTest {
     private DatasourceView datasourceView() {
         return new DatasourceView(datasourceId, orgId, "Production", DbType.POSTGRESQL,
                 "host", 5432, "db", "user", SslMode.DISABLE, 5, 1000,
-                false, true, UUID.randomUUID(), true, null, null, null,
+                false, true, UUID.randomUUID(), true, null, false, null, null,
                 null, null, true, Instant.now());
     }
 

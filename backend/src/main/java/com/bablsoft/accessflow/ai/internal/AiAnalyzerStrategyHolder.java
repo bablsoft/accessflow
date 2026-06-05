@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
@@ -48,6 +49,7 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private final CredentialEncryptionService encryptionService;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
+    private final SqlGenerationResponseParser sqlGenerationResponseParser;
     private final MessageSource messageSource;
     private final ChatModelFactory chatModelFactory;
     private final LangfusePromptProvider langfusePromptProvider;
@@ -72,6 +74,22 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         return delegate.analyze(sql, dbType, schemaContext, language, aiConfigId);
     }
 
+    @Override
+    public GeneratedSqlResult generateSql(String prompt, DbType dbType, String schemaContext,
+                                          String language, UUID aiConfigId) {
+        if (aiConfigId == null) {
+            throw notConfigured();
+        }
+        var delegate = cache.computeIfAbsent(aiConfigId, key -> {
+            var entity = aiConfigRepository.findById(key)
+                    .orElseThrow(() -> new AiConfigNotFoundException(key));
+            log.debug("Building AI analyzer delegate for ai_config={} provider={} model={}",
+                    key, entity.getProvider(), entity.getModel());
+            return buildDelegate(entity);
+        });
+        return delegate.generateSql(prompt, dbType, schemaContext, language, aiConfigId);
+    }
+
     @ApplicationModuleListener
     void onConfigUpdated(AiConfigUpdatedEvent event) {
         var removed = cache.remove(event.aiConfigId());
@@ -93,11 +111,11 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
         var promptSource = buildPromptSource(entity);
         var base = switch (entity.getProvider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource);
-            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource);
-            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource);
-            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource);
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
+            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
         };
         return new TracingAiAnalyzerStrategy(base, langfuseTracer, entity.getOrganizationId(),
                 entity.getProvider(), entity.getModel(), clock);

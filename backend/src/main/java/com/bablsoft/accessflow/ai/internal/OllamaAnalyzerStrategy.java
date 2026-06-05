@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import lombok.RequiredArgsConstructor;
@@ -29,11 +30,15 @@ class OllamaAnalyzerStrategy implements AiAnalyzerStrategy {
     private static final String SYSTEM_PROMPT_PREAMBLE = """
             You analyze SQL for security and performance risks. Always reply with a single JSON object \
             matching the exact schema described in the user's message. Do not wrap the JSON in markdown.""";
+    private static final String SQL_GENERATION_PREAMBLE = """
+            You translate natural-language requests into SQL. Always reply with a single JSON object \
+            {"sql": "..."} matching the schema in the user's message. Do not wrap the JSON in markdown.""";
 
     private final ChatModel chatModel;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
     private final SystemPromptSource promptSource;
+    private final SqlGenerationResponseParser sqlGenerationParser;
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
@@ -79,5 +84,15 @@ class OllamaAnalyzerStrategy implements AiAnalyzerStrategy {
                 model, promptTokens, completionTokens);
 
         return responseParser.parse(text, AiProviderType.OLLAMA, model, promptTokens, completionTokens);
+    }
+
+    @Override
+    public GeneratedSqlResult generateSql(String prompt, DbType dbType, String schemaContext,
+                                          String language, UUID aiConfigId) {
+        var userPrompt = promptRenderer.renderGeneration(prompt, dbType, schemaContext, language);
+        log.debug("Calling Ollama via Spring AI for SQL generation: prompt_chars={}", userPrompt.length());
+        var call = ChatModelInvoker.invoke(chatModel, SQL_GENERATION_PREAMBLE, userPrompt, "Ollama");
+        return sqlGenerationParser.parse(call.text(), AiProviderType.OLLAMA, call.model(),
+                call.promptTokens(), call.completionTokens());
     }
 }

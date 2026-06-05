@@ -20,6 +20,7 @@ public record DatasourceView(
         UUID reviewPlanId,
         boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        boolean textToSqlEnabled,
         UUID customDriverId,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,

@@ -276,6 +276,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     review_plan_id: ds.review_plan_id ?? null,
     ai_analysis_enabled: ds.ai_analysis_enabled,
     ai_config_id: ds.ai_config_id ?? null,
+    text_to_sql_enabled: ds.text_to_sql_enabled,
     read_replica_jdbc_url: ds.read_replica_jdbc_url ?? '',
     read_replica_username: ds.read_replica_username ?? '',
     active: ds.active,
@@ -346,7 +347,8 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
-    if (body.ai_analysis_enabled === false) {
+    // The AI config is shared by AI analysis and text-to-SQL; only unbind it when both are off.
+    if (body.ai_analysis_enabled === false && body.text_to_sql_enabled === false) {
       body.clear_ai_config = true;
       body.ai_config_id = null;
     }
@@ -513,36 +515,52 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               <Switch />
             </Form.Item>
             <Form.Item
-              shouldUpdate={(prev, next) => prev.ai_analysis_enabled !== next.ai_analysis_enabled}
+              label={t('datasources.settings.label_text_to_sql_enabled')}
+              name="text_to_sql_enabled"
+              valuePropName="checked"
+              extra={t('datasources.settings.text_to_sql_help')}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              shouldUpdate={(prev, next) =>
+                prev.ai_analysis_enabled !== next.ai_analysis_enabled ||
+                prev.text_to_sql_enabled !== next.text_to_sql_enabled
+              }
               noStyle
             >
-              {({ getFieldValue }) => (
-                <Form.Item
-                  label={t('datasources.settings.label_ai_config')}
-                  name="ai_config_id"
-                  rules={[
-                    {
-                      required: getFieldValue('ai_analysis_enabled') === true,
-                      message: t('datasources.settings.ai_config_required'),
-                    },
-                  ]}
-                  extra={
-                    <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
-                      {t('datasources.settings.add_ai_config_link')}
-                    </a>
-                  }
-                >
-                  <Select
-                    allowClear
-                    disabled={!getFieldValue('ai_analysis_enabled')}
-                    placeholder={t('datasources.settings.ai_config_placeholder')}
-                    options={(aiConfigsQuery.data ?? []).map((c) => ({
-                      value: c.id,
-                      label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
-                    }))}
-                  />
-                </Form.Item>
-              )}
+              {({ getFieldValue }) => {
+                const aiConfigNeeded =
+                  getFieldValue('ai_analysis_enabled') === true ||
+                  getFieldValue('text_to_sql_enabled') === true;
+                return (
+                  <Form.Item
+                    label={t('datasources.settings.label_ai_config')}
+                    name="ai_config_id"
+                    rules={[
+                      {
+                        required: aiConfigNeeded,
+                        message: t('datasources.settings.ai_config_required'),
+                      },
+                    ]}
+                    extra={
+                      <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
+                        {t('datasources.settings.add_ai_config_link')}
+                      </a>
+                    }
+                  >
+                    <Select
+                      allowClear
+                      disabled={!aiConfigNeeded}
+                      placeholder={t('datasources.settings.ai_config_placeholder')}
+                      options={(aiConfigsQuery.data ?? []).map((c) => ({
+                        value: c.id,
+                        label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
+                      }))}
+                    />
+                  </Form.Item>
+                );
+              }}
             </Form.Item>
             <Form.Item
               label={t('datasources.settings.label_active')}

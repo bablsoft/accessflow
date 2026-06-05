@@ -31,6 +31,7 @@ public record DatasourceConnectionDescriptor(
         int maxRowsPerQuery,
         boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        boolean textToSqlEnabled,
         UUID customDriverId,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,

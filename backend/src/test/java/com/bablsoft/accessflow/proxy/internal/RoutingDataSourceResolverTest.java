@@ -151,7 +151,7 @@ class RoutingDataSourceResolverTest {
     private DatasourceConnectionDescriptor activeDescriptor() {
         return new DatasourceConnectionDescriptor(datasourceId, organizationId,
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, 1000,
-                false, null, null, null,
+                false, null, false, null, null,
                 "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
     }
 

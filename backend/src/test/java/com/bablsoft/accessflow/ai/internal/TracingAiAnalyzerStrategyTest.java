@@ -90,4 +90,18 @@ class TracingAiAnalyzerStrategyTest {
         strategy().analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
         verify(delegate).analyze(any(), any(), any(), any(), any());
     }
+
+    @Test
+    void generateSqlDelegatesWithoutTracing() {
+        var generated = new com.bablsoft.accessflow.ai.api.GeneratedSqlResult(
+                "SELECT 1", AiProviderType.OPENAI, "gpt-4o", 1, 1);
+        when(delegate.generateSql("orders", DbType.POSTGRESQL, "schema", "en", AI_CONFIG_ID))
+                .thenReturn(generated);
+
+        var returned = strategy().generateSql("orders", DbType.POSTGRESQL, "schema", "en", AI_CONFIG_ID);
+
+        assertThat(returned).isSameAs(generated);
+        verify(delegate).generateSql("orders", DbType.POSTGRESQL, "schema", "en", AI_CONFIG_ID);
+        org.mockito.Mockito.verifyNoInteractions(tracer);
+    }
 }

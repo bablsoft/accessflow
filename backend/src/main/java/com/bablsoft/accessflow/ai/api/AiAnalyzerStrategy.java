@@ -32,4 +32,22 @@ public interface AiAnalyzerStrategy {
      */
     AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
                              UUID aiConfigId);
+
+    /**
+     * Translate the natural-language {@code prompt} into a single SQL statement for the target
+     * dialect. The {@code schemaContext}, {@code language} and {@code aiConfigId} arguments carry the
+     * same semantics as {@link #analyze}: schema is an opaque description (or {@code null}/empty),
+     * language is a BCP-47 code, and {@code aiConfigId} scopes the provider lookup.
+     *
+     * <p>The returned SQL is a <em>draft</em> — it is not parsed, validated or executed here. The
+     * caller submits it through the regular query pipeline, where JSqlParser validation, permission
+     * checks, AI risk analysis and human review still apply.
+     *
+     * @throws com.bablsoft.accessflow.ai.api.AiAnalysisException      provider call failed or AI is
+     *                                                                not configured
+     * @throws com.bablsoft.accessflow.ai.api.AiAnalysisParseException provider response did not
+     *                                                                contain a usable SQL statement
+     */
+    GeneratedSqlResult generateSql(String prompt, DbType dbType, String schemaContext, String language,
+                                   UUID aiConfigId);
 }

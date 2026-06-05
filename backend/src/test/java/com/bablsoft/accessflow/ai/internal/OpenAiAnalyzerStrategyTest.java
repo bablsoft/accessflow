@@ -43,7 +43,8 @@ class OpenAiAnalyzerStrategyTest {
 
     @BeforeEach
     void setUp() {
-        strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser, () -> null);
+        strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser, () -> null,
+                new SqlGenerationResponseParser(JsonMapper.builder().build()));
     }
 
     private static ChatResponse buildResponse(String text, int promptTokens, int completionTokens, String model) {
@@ -73,7 +74,8 @@ class OpenAiAnalyzerStrategyTest {
     @Test
     void analyzeRecordsConfiguredProviderForOpenAiCompatible() {
         var compatStrategy = new OpenAiAnalyzerStrategy(
-                AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser, () -> null);
+                AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser, () -> null,
+                new SqlGenerationResponseParser(JsonMapper.builder().build()));
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse(SUCCESS_JSON, 12, 8, "qwen2.5"));
 
@@ -86,7 +88,8 @@ class OpenAiAnalyzerStrategyTest {
     @Test
     void analyzeUsesCustomSystemPromptTemplateWhenProvided() {
         var custom = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser,
-                () -> "MARKER-TEMPLATE for {{sql}}");
+                () -> "MARKER-TEMPLATE for {{sql}}",
+                new SqlGenerationResponseParser(JsonMapper.builder().build()));
         var captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
         when(chatModel.call(captor.capture())).thenReturn(buildResponse(SUCCESS_JSON, 1, 1, "gpt-4o"));
 
@@ -146,5 +149,34 @@ class OpenAiAnalyzerStrategyTest {
         assertThat(result.promptTokens()).isZero();
         assertThat(result.completionTokens()).isZero();
         assertThat(result.aiModel()).isEmpty();
+    }
+
+    @Test
+    void generateSqlBuildsPromptAndParsesEnvelope() {
+        var captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(captor.capture()))
+                .thenReturn(buildResponse("{\"sql\":\"SELECT 1 FROM users\"}", 20, 6, "gpt-4o"));
+
+        var result = strategy.generateSql("all users", DbType.POSTGRESQL,
+                "public.users(id int pk)", "en", ORG_ID);
+
+        assertThat(result.sql()).isEqualTo("SELECT 1 FROM users");
+        assertThat(result.aiProvider()).isEqualTo(AiProviderType.OPENAI);
+        assertThat(result.aiModel()).isEqualTo("gpt-4o");
+        assertThat(result.promptTokens()).isEqualTo(20);
+        var text = captor.getValue().getInstructions().stream()
+                .map(org.springframework.ai.chat.messages.Message::getText)
+                .reduce("", (a, b) -> a + "\n" + b);
+        assertThat(text).contains("all users");
+        assertThat(text).contains("Database type: POSTGRESQL");
+    }
+
+    @Test
+    void generateSqlPropagatesParseFailureWhenContentIsMalformed() {
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(buildResponse("not json", 1, 1, "gpt-4o"));
+
+        assertThatThrownBy(() -> strategy.generateSql("x", DbType.POSTGRESQL, null, "en", ORG_ID))
+                .isInstanceOf(AiAnalysisParseException.class);
     }
 }
