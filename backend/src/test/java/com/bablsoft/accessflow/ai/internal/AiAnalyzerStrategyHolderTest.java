@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,6 +55,7 @@ class AiAnalyzerStrategyHolderTest {
     @Mock CredentialEncryptionService encryptionService;
     @Mock MessageSource messageSource;
     @Mock ChatModelFactory chatModelFactory;
+    @Mock RagComponentsFactory ragComponentsFactory;
     @Mock ChatModel chatModel;
     @Mock LangfusePromptProvider langfusePromptProvider;
     @Mock LangfuseTracer langfuseTracer;
@@ -70,7 +72,8 @@ class AiAnalyzerStrategyHolderTest {
     void setUp() {
         holder = new AiAnalyzerStrategyHolder(aiConfigRepository, encryptionService,
                 promptRenderer, responseParser, sqlGenerationResponseParser, messageSource, chatModelFactory,
-                langfusePromptProvider, langfuseTracer, clock);
+                ragComponentsFactory, langfusePromptProvider, langfuseTracer, clock);
+        lenient().when(ragComponentsFactory.retriever(any())).thenReturn(RagRetriever.DISABLED);
     }
 
     @Test
@@ -281,7 +284,7 @@ class AiAnalyzerStrategyHolderTest {
 
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.OPENAI,
-                "claude-sonnet-4-20250514", "gpt-4o", true, false));
+                "claude-sonnet-4-20250514", "gpt-4o", true, false, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }
@@ -299,7 +302,7 @@ class AiAnalyzerStrategyHolderTest {
     void onConfigUpdatedIsSilentForUncachedConfig() {
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false, false));
+                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false, false, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }

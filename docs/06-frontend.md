@@ -317,6 +317,23 @@ Both pages also expose optional **Langfuse prompt name** / **Langfuse prompt lab
 analyzer fetches its system prompt from Langfuse by that name+label instead of the system prompt
 above (the label defaults to `production`).
 
+### AI configuration RAG knowledge base (AF-336)
+
+`RagFormSection` (shared by the create wizard's connection step and `AiConfigEditPage`) renders an
+**Enable RAG** `Switch`; when on it reveals the vector-store fields (`rag_store_type` select —
+**In-app (pgvector)** / **Qdrant**, `rag_top_k` 1–20, `rag_similarity_threshold` 0–1, plus
+`rag_endpoint` / `rag_collection` / `rag_api_key` only for Qdrant) and a dedicated **Embeddings**
+block (`embedding_provider` select — Anthropic excluded, `embedding_model`, optional
+`embedding_endpoint` / `embedding_api_key`). Required rules fire only when the dependent field is
+mounted, and the form mirrors the backend `RAG_CONFIG_INVALID` constraints. API keys round-trip
+masked as `********`.
+
+`KnowledgeDocumentsSection` (edit page only — the config must already be saved with RAG enabled)
+lists the documents in an AntD `Table` (title / chars / chunks / status / created), with an **Add
+document** modal (title + content), per-row delete, and a **Test RAG connection** button
+(`testRag`). It uses TanStack Query (`aiConfigKeys.knowledge(id)`) with mutations that invalidate the
+list. Ingestion embeds immediately, so the section is gated on the *persisted* `rag_enabled` flag.
+
 ### Langfuse configuration (`pages/admin/LangfuseConfigPage.tsx`)
 
 `LangfuseConfigPage` (`/admin/langfuse`, lazy, admin-only — nav entry in the **System** group) is the
@@ -544,8 +561,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
 /admin/ai-configs                   → AiConfigListPage
-/admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor)
-/admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt)
+/admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor + RAG section)
+/admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt + RAG knowledge base)
 /admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
 /admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)

@@ -1022,6 +1022,29 @@ APPROVED → FAILED (execution error)</pre>
             never affects query workflow. Use the <em>Test connection</em> button to verify your
             credentials.
           </p>
+          <p>
+            <strong>RAG knowledge base.</strong> Each AI configuration can carry a
+            retrieval-augmented-generation knowledge base. Toggle <em>Enable RAG</em> on the create
+            wizard's <em>Connection</em> step or the edit page, pick a <em>Vector store</em> —
+            <strong>In-app (pgvector)</strong>, which stores vectors in AccessFlow's own PostgreSQL,
+            or <strong>Qdrant</strong> (supply the endpoint, collection, and optional API key) — and
+            configure a dedicated <em>Embedding provider</em> + <em>model</em> (OpenAI, Ollama,
+            OpenAI-compatible, or Hugging Face; Anthropic has no embeddings API). Then add
+            <em>Knowledge documents</em> (data-governance policies, naming conventions, schema notes)
+            on the edit page; each is chunked, embedded, and stored. At analysis and text-to-SQL time
+            the most relevant chunks are retrieved (tune <em>Top-K</em> and <em>Similarity
+            threshold</em>) and injected into the prompt, so the AI follows your house rules. Use
+            <em>Test RAG connection</em> to verify the embedding model and vector store are reachable.
+            Retrieval is best-effort — a store outage never blocks analysis.
+          </p>
+          <div class="docs-callout info">
+            <strong>pgvector requirement.</strong> The in-app store needs the PostgreSQL
+            <code>vector</code> extension. The bundled Docker Compose / Helm deployments provision it
+            automatically (a superuser init step); for external / managed PostgreSQL, install the
+            <code>vector</code> extension on the AccessFlow database before starting the backend, and
+            set <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (default 1536) to match your embedding
+            model's output dimension <em>before the first migration</em>.
+          </div>
           <div class="docs-callout info">
             <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
             (<code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>CRITICAL</code>),

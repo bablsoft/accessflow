@@ -11,9 +11,12 @@ import {
   invitationStatusLabel,
   maskingStrategyLabel,
   MASKING_STRATEGIES,
+  EMBEDDING_PROVIDERS,
   oauth2ProviderLabel,
   queryStatusLabel,
   queryTypeLabel,
+  RAG_STORE_TYPES,
+  ragStoreTypeLabel,
   riskLevelLabel,
   roleLabel,
   sslModeLabel,
@@ -144,6 +147,19 @@ describe('enumLabels (English text round-trip)', () => {
     expect(channelTypeLabel(t, 'MS_TEAMS')).toBe('Microsoft Teams');
     expect(sslModeLabel(t, 'VERIFY_CA')).toBe('Verify CA');
     expect(aiProviderLabel(t, 'HUGGING_FACE')).toBe('Hugging Face');
+  });
+});
+
+describe('ragStoreTypeLabel', () => {
+  it('translates each RAG store type', () => {
+    expect(ragStoreTypeLabel(t, 'PGVECTOR')).toBe('In-app (pgvector)');
+    expect(ragStoreTypeLabel(t, 'QDRANT')).toBe('Qdrant');
+  });
+
+  it('exposes the store types and embedding providers (Anthropic excluded)', () => {
+    expect(RAG_STORE_TYPES).toEqual(['PGVECTOR', 'QDRANT']);
+    expect(EMBEDDING_PROVIDERS).not.toContain('ANTHROPIC');
+    expect(EMBEDDING_PROVIDERS).toContain('OPENAI');
   });
 });
 

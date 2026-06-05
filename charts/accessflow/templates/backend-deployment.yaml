@@ -108,6 +108,11 @@ spec:
                 GRANT USAGE, CREATE ON SCHEMA public TO "${AUDIT_DB_USER}";
                 -- Membership lets the app role ALTER TABLE OWNER in V38 without superuser privs.
                 GRANT "${AUDIT_DB_USER}" TO "${APP_DB_USER}";
+                -- AF-336: the pgvector `vector` extension required by V69 (vector_store table for
+                -- the RAG knowledge base). CREATE EXTENSION needs a superuser, so it runs here (as
+                -- the postgres admin) rather than from Flyway under the non-superuser app role. The
+                -- bundled bitnami/postgresql image ships pgvector; external Postgres must install it.
+                CREATE EXTENSION IF NOT EXISTS vector;
               EOSQL
           resources:
             requests:

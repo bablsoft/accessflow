@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
@@ -13,6 +14,7 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.RagStoreType;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import lombok.RequiredArgsConstructor;
@@ -98,11 +100,31 @@ class DefaultAiConfigService implements AiConfigService {
         entity.setLangfusePromptName(blankToNull(command.langfusePromptName()));
         entity.setLangfusePromptLabel(blankToNull(command.langfusePromptLabel()));
         normalizeLangfusePrompt(entity);
+        entity.setRagEnabled(Boolean.TRUE.equals(command.ragEnabled()));
+        entity.setRagStoreType(command.ragStoreType());
+        if (command.ragTopK() != null) {
+            entity.setRagTopK(command.ragTopK());
+        }
+        if (command.ragSimilarityThreshold() != null) {
+            entity.setRagSimilarityThreshold(command.ragSimilarityThreshold());
+        }
+        entity.setRagEndpoint(blankToNull(command.ragEndpoint()));
+        entity.setRagCollection(blankToNull(command.ragCollection()));
+        if (command.ragApiKey() != null && !command.ragApiKey().isBlank()) {
+            entity.setRagApiKeyEncrypted(encryptionService.encrypt(command.ragApiKey()));
+        }
+        entity.setEmbeddingProvider(command.embeddingProvider());
+        entity.setEmbeddingModel(blankToNull(command.embeddingModel()));
+        entity.setEmbeddingEndpoint(blankToNull(command.embeddingEndpoint()));
+        if (command.embeddingApiKey() != null && !command.embeddingApiKey().isBlank()) {
+            entity.setEmbeddingApiKeyEncrypted(encryptionService.encrypt(command.embeddingApiKey()));
+        }
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
+        validateRag(entity);
         var saved = repository.save(entity);
         return toView(saved, 0);
     }
@@ -117,6 +139,7 @@ class DefaultAiConfigService implements AiConfigService {
         var oldPrompt = entity.getSystemPromptTemplate();
         var oldLangfusePromptName = entity.getLangfusePromptName();
         var oldLangfusePromptLabel = entity.getLangfusePromptLabel();
+        var oldRagFingerprint = RagFingerprint.of(entity);
         if (command.name() != null) {
             var trimmedName = trim(command.name());
             if (trimmedName == null || trimmedName.isBlank()) {
@@ -157,23 +180,27 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setLangfusePromptLabel(blankToNull(command.langfusePromptLabel()));
         }
         normalizeLangfusePrompt(entity);
+        applyRagUpdate(entity, command);
         entity.setUpdatedAt(Instant.now());
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
+        validateRag(entity);
         var saved = repository.save(entity);
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
         var langfusePromptChanged = !Objects.equals(oldLangfusePromptName, saved.getLangfusePromptName())
                 || !Objects.equals(oldLangfusePromptLabel, saved.getLangfusePromptLabel());
         var promptChanged = !Objects.equals(oldPrompt, saved.getSystemPromptTemplate())
                 || langfusePromptChanged;
+        var ragChanged = !oldRagFingerprint.equals(RagFingerprint.of(saved));
         if (oldProvider != saved.getProvider()
                 || !Objects.equals(oldModel, saved.getModel())
                 || apiKeyChanged
                 || promptChanged
+                || ragChanged
                 || hasConnectivityChange(command)) {
             eventPublisher.publishEvent(new AiConfigUpdatedEvent(
                     saved.getId(), oldProvider, saved.getProvider(),
-                    oldModel, saved.getModel(), apiKeyChanged, promptChanged));
+                    oldModel, saved.getModel(), apiKeyChanged, promptChanged, ragChanged));
         }
         var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(saved.getId()))
                 .getOrDefault(saved.getId(), 0);
@@ -226,6 +253,101 @@ class DefaultAiConfigService implements AiConfigService {
         }
     }
 
+    private void applyRagUpdate(AiConfigEntity entity, UpdateAiConfigCommand command) {
+        if (command.ragEnabled() != null) {
+            entity.setRagEnabled(command.ragEnabled());
+        }
+        if (command.ragStoreType() != null) {
+            entity.setRagStoreType(command.ragStoreType());
+        }
+        if (command.ragTopK() != null) {
+            entity.setRagTopK(command.ragTopK());
+        }
+        if (command.ragSimilarityThreshold() != null) {
+            entity.setRagSimilarityThreshold(command.ragSimilarityThreshold());
+        }
+        if (command.ragEndpoint() != null) {
+            entity.setRagEndpoint(blankToNull(command.ragEndpoint()));
+        }
+        if (command.ragCollection() != null) {
+            entity.setRagCollection(blankToNull(command.ragCollection()));
+        }
+        entity.setRagApiKeyEncrypted(
+                resolveEncryptedKey(command.ragApiKey(), entity.getRagApiKeyEncrypted()));
+        if (command.embeddingProvider() != null) {
+            entity.setEmbeddingProvider(command.embeddingProvider());
+        }
+        if (command.embeddingModel() != null) {
+            entity.setEmbeddingModel(blankToNull(command.embeddingModel()));
+        }
+        if (command.embeddingEndpoint() != null) {
+            entity.setEmbeddingEndpoint(blankToNull(command.embeddingEndpoint()));
+        }
+        entity.setEmbeddingApiKeyEncrypted(
+                resolveEncryptedKey(command.embeddingApiKey(), entity.getEmbeddingApiKeyEncrypted()));
+    }
+
+    /** Mirrors {@link UpdateAiConfigCommand} masking semantics for an encrypted key field. */
+    private String resolveEncryptedKey(String submitted, String current) {
+        if (submitted == null || UpdateAiConfigCommand.MASKED_API_KEY.equals(submitted)) {
+            return current;
+        }
+        if (submitted.isBlank()) {
+            return null;
+        }
+        return encryptionService.encrypt(submitted);
+    }
+
+    private static void validateRag(AiConfigEntity e) {
+        if (!e.isRagEnabled()) {
+            return;
+        }
+        if (e.getRagStoreType() == null) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.store_type_required");
+        }
+        if (e.getEmbeddingProvider() == null) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.embedding_provider_required");
+        }
+        if (e.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.embedding_provider_invalid");
+        }
+        if (e.getEmbeddingModel() == null || e.getEmbeddingModel().isBlank()) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.embedding_model_required");
+        }
+        if (e.getRagStoreType() == RagStoreType.QDRANT) {
+            if (e.getRagEndpoint() == null || e.getRagEndpoint().isBlank()) {
+                throw new AiConfigRagInvalidException("error.ai_config.rag.external_endpoint_required");
+            }
+            if (e.getRagCollection() == null || e.getRagCollection().isBlank()) {
+                throw new AiConfigRagInvalidException("error.ai_config.rag.external_collection_required");
+            }
+        }
+        if (e.getRagTopK() < 1 || e.getRagTopK() > 20) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.top_k_range");
+        }
+        if (e.getRagSimilarityThreshold() < 0 || e.getRagSimilarityThreshold() > 1) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.threshold_range");
+        }
+    }
+
+    /**
+     * The RAG / embedding fields that affect the cached analyzer delegate. An update that changes any
+     * of them must evict the delegate so the next call rebuilds the retriever / vector store.
+     */
+    private record RagFingerprint(
+            boolean ragEnabled, RagStoreType ragStoreType, int ragTopK, double ragSimilarityThreshold,
+            String ragEndpoint, String ragCollection, String ragApiKeyEncrypted,
+            AiProviderType embeddingProvider, String embeddingModel, String embeddingEndpoint,
+            String embeddingApiKeyEncrypted) {
+
+        static RagFingerprint of(AiConfigEntity e) {
+            return new RagFingerprint(e.isRagEnabled(), e.getRagStoreType(), e.getRagTopK(),
+                    e.getRagSimilarityThreshold(), e.getRagEndpoint(), e.getRagCollection(),
+                    e.getRagApiKeyEncrypted(), e.getEmbeddingProvider(), e.getEmbeddingModel(),
+                    e.getEmbeddingEndpoint(), e.getEmbeddingApiKeyEncrypted());
+        }
+    }
+
     private boolean hasConnectivityChange(UpdateAiConfigCommand command) {
         return command.endpoint() != null
                 || command.timeoutMs() != null
@@ -263,6 +385,17 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getSystemPromptTemplate(),
                 entity.getLangfusePromptName(),
                 entity.getLangfusePromptLabel(),
+                entity.isRagEnabled(),
+                entity.getRagStoreType(),
+                entity.getRagTopK(),
+                entity.getRagSimilarityThreshold(),
+                entity.getRagEndpoint(),
+                entity.getRagCollection(),
+                entity.getRagApiKeyEncrypted() != null && !entity.getRagApiKeyEncrypted().isBlank(),
+                entity.getEmbeddingProvider(),
+                entity.getEmbeddingModel(),
+                entity.getEmbeddingEndpoint(),
+                entity.getEmbeddingApiKeyEncrypted() != null && !entity.getEmbeddingApiKeyEncrypted().isBlank(),
                 inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());

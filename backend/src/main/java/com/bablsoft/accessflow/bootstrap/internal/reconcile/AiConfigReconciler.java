@@ -66,6 +66,7 @@ public class AiConfigReconciler {
                     spec.maxCompletionTokens(),
                     // Bootstrap does not manage the analyzer prompt template — created configs use
                     // the built-in default; a template later set via the admin UI is left untouched.
+                    // (RAG / embedding settings are likewise admin-managed — configs default to RAG off.)
                     null,
                     spec.langfusePromptName(),
                     spec.langfusePromptLabel()));
@@ -102,6 +103,7 @@ public class AiConfigReconciler {
                 spec.maxPromptTokens(),
                 spec.maxCompletionTokens(),
                 // null = leave the analyzer prompt template unchanged (bootstrap doesn't manage it).
+                // (RAG / embedding settings are likewise left unchanged — admin-managed.)
                 null,
                 spec.langfusePromptName(),
                 spec.langfusePromptLabel()));

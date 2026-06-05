@@ -829,6 +829,26 @@ Per-organization Langfuse credentials and toggles live in the `langfuse_config` 
 | `ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT` | Optional | `PT5S` | Connect timeout for the Langfuse ingestion / prompt API client. |
 | `ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT` | Optional | `PT10S` | Read timeout for the Langfuse ingestion / prompt API client. |
 
+#### RAG Knowledge Base (AF-336)
+
+Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, knowledge documents) are managed from `/admin/ai-configs`, not in env. These variables are deployment-wide.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | Optional | `1536` | Embedding dimension of the in-app pgvector `vector_store` column. **Set before the first migration** — it fixes the `vector(N)` column type (Flyway V69 placeholder). Must match the embedding model's output dimension (e.g. 1536 for OpenAI `text-embedding-3-small`, 768 for Ollama `nomic-embed-text`). |
+| `ACCESSFLOW_RAG_CHUNK_SIZE` | Optional | `800` | Token chunk size used when splitting a knowledge document for embedding. |
+| `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS` | Optional | `100000` | Maximum character length of a single knowledge document accepted for ingestion. |
+
+##### pgvector for RAG
+
+The in-app `PGVECTOR` store needs the PostgreSQL `vector` extension. Because `vector` is not a trusted extension and the application DB role is not a superuser, the extension is provisioned by a **superuser init step**, not by Flyway (which creates only the `vector_store` table, V69):
+
+- **Docker Compose** — the Postgres image is `pgvector/pgvector:pg18` and [`deploy/postgres-init/02-pgvector.sql`](../deploy/postgres-init/02-pgvector.sql) (`CREATE EXTENSION IF NOT EXISTS vector;`) runs once on first volume init (mounted into `/docker-entrypoint-initdb.d`).
+- **Helm** — the backend's `audit-role-provisioner` initContainer runs `CREATE EXTENSION IF NOT EXISTS vector;` as the postgres admin before Flyway. The bundled bitnami/postgresql image ships pgvector.
+- **External / managed Postgres** — install the `vector` extension on the AccessFlow database yourself before the backend boots.
+
+The extension exists regardless of whether any org actually enables RAG (the empty `vector_store` table is negligible overhead). The external `QDRANT` backend needs no Postgres extension — vectors live in Qdrant.
+
 #### Customer-DB Proxy (HikariCP + Execution)
 
 | Variable | Required | Default | Description |

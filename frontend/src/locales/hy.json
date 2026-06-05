@@ -1052,7 +1052,51 @@
       },
       "field_langfuse_prompt_name": "Langfuse հուշման անուն",
       "field_langfuse_prompt_label": "Langfuse հուշման պիտակ",
-      "langfuse_prompt_help": "Ընտրովի։ Երբ սահմանված է և Langfuse-ի հուշումների կառավարումը միացված է, վերլուծիչը բերում է այս հուշումը Langfuse-ից վերևի համակարգային հուշման փոխարեն։"
+      "langfuse_prompt_help": "Ընտրովի։ Երբ սահմանված է և Langfuse-ի հուշումների կառավարումը միացված է, վերլուծիչը բերում է այս հուշումը Langfuse-ից վերևի համակարգային հուշման փոխարեն։",
+      "rag": {
+        "section_title": "RAG գիտելիքների բազա",
+        "section_help": "Ստացեք կազմակերպությանը հատուկ գիտելիքներ և ներդրեք դրանք AI վերլուծության և SQL գեներացման մեջ։",
+        "enabled": "Միացնել RAG-ը",
+        "field_store_type": "Վեկտորային պահեստ",
+        "field_top_k": "Top-K արդյունքներ",
+        "field_threshold": "Նմանության շեմ",
+        "field_endpoint": "Վեկտորային պահեստի հասցե",
+        "field_collection": "Հավաքածուի անուն",
+        "field_api_key": "Վեկտորային պահեստի API բանալի",
+        "embedding_section": "Embedding-ներ",
+        "field_embedding_provider": "Embedding մատակարար",
+        "field_embedding_model": "Embedding մոդել",
+        "field_embedding_endpoint": "Embedding հասցե",
+        "field_embedding_api_key": "Embedding API բանալի",
+        "store_type_required": "RAG-ը միացված լինելու դեպքում անհրաժեշտ է վեկտորային պահեստ",
+        "embedding_provider_required": "Անհրաժեշտ է embedding մատակարար",
+        "embedding_model_required": "Անհրաժեշտ է embedding մոդել",
+        "endpoint_required": "Արտաքին վեկտորային պահեստի համար անհրաժեշտ է հասցե",
+        "collection_required": "Արտաքին վեկտորային պահեստի համար անհրաժեշտ է հավաքածուի անուն",
+        "top_k_range": "Top-K-ն պետք է լինի 1-ից 20-ի սահմաններում",
+        "threshold_range": "Նմանության շեմը պետք է լինի 0-ից 1-ի սահմաններում",
+        "test_button": "Փորձարկել RAG կապը",
+        "test_ok": "RAG կապը կարգին է",
+        "test_failed": "RAG փորձարկումը ձախողվեց՝ {{detail}}",
+        "documents_title": "Գիտելիքի փաստաթղթեր",
+        "documents_help": "Փաստաթղթերը բաժանվում, embedding են արվում և պահվում են որոնման համար։ Ավելացրեք դրանք կազմաձևումը պահպանելուց հետո։",
+        "documents_empty": "Դեռ գիտելիքի փաստաթղթեր չկան",
+        "documents_save_first": "Պահպանեք կազմաձևումը նախքան գիտելիքի փաստաթղթեր ավելացնելը։",
+        "add_document": "Ավելացնել փաստաթուղթ",
+        "document_title": "Վերնագիր",
+        "document_content": "Բովանդակություն",
+        "document_chars": "Նիշեր",
+        "document_chunks": "Հատվածներ",
+        "document_status": "Կարգավիճակ",
+        "document_created": "Ստեղծված",
+        "document_actions": "Գործողություններ",
+        "document_delete": "Ջնջել",
+        "document_delete_confirm": "Ջնջե՞լ այս գիտելիքի փաստաթուղթը։",
+        "document_title_required": "Վերնագիրը պարտադիր է",
+        "document_content_required": "Բովանդակությունը պարտադիր է",
+        "document_added": "Գիտելիքի փաստաթուղթն ավելացվեց",
+        "document_deleted": "Գիտելիքի փաստաթուղթը ջնջվեց"
+      }
     },
     "notifications": {
       "title": "Ծանուցումների ալիքներ",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "Փոփոխական",
       "LITERAL": "Լիտերալ"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "Ներկառուցված (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

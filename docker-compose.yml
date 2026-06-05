@@ -18,7 +18,9 @@
 
 services:
   postgres:
-    image: postgres:18
+    # pgvector-enabled Postgres: the `vector` extension is required by the RAG knowledge base
+    # (provisioned by deploy/postgres-init/02-pgvector.sql, used when an AI config sets PGVECTOR).
+    image: pgvector/pgvector:pg18
     container_name: accessflow-postgres
     environment:
       POSTGRES_DB: accessflow

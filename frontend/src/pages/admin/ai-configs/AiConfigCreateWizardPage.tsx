@@ -14,11 +14,12 @@ import {
 } from '@/api/admin';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
-import type { AiProvider, CreateAiConfigInput } from '@/types/api';
+import type { AiProvider, CreateAiConfigInput, RagStoreType } from '@/types/api';
 import {
   AiConfigWizardSteps,
   type AiConfigWizardStepKey,
 } from './AiConfigWizardSteps';
+import { RagFormSection } from './RagFormSection';
 
 interface ProviderTile {
   id: AiProvider;
@@ -85,6 +86,17 @@ interface FormValues {
   system_prompt_template: string;
   langfuse_prompt_name: string;
   langfuse_prompt_label: string;
+  rag_enabled: boolean;
+  rag_store_type: RagStoreType | null;
+  rag_top_k: number;
+  rag_similarity_threshold: number;
+  rag_endpoint: string;
+  rag_collection: string;
+  rag_api_key: string;
+  embedding_provider: AiProvider | null;
+  embedding_model: string;
+  embedding_endpoint: string;
+  embedding_api_key: string;
 }
 
 export default function AiConfigCreateWizardPage() {
@@ -116,6 +128,23 @@ export default function AiConfigCreateWizardPage() {
         system_prompt_template: values.system_prompt_template?.trim() || null,
         langfuse_prompt_name: values.langfuse_prompt_name?.trim() || null,
         langfuse_prompt_label: values.langfuse_prompt_label?.trim() || null,
+        rag_enabled: values.rag_enabled,
+        rag_store_type: values.rag_enabled ? values.rag_store_type : null,
+        rag_top_k: values.rag_top_k,
+        rag_similarity_threshold: values.rag_similarity_threshold,
+        rag_endpoint:
+          values.rag_enabled && values.rag_store_type === 'QDRANT'
+            ? values.rag_endpoint?.trim() || null
+            : null,
+        rag_collection:
+          values.rag_enabled && values.rag_store_type === 'QDRANT'
+            ? values.rag_collection?.trim() || null
+            : null,
+        rag_api_key: values.rag_api_key?.trim() || null,
+        embedding_provider: values.rag_enabled ? values.embedding_provider : null,
+        embedding_model: values.rag_enabled ? values.embedding_model?.trim() || null : null,
+        embedding_endpoint: values.embedding_endpoint?.trim() || null,
+        embedding_api_key: values.embedding_api_key?.trim() || null,
       };
       return createAiConfig(input);
     },
@@ -180,6 +209,9 @@ export default function AiConfigCreateWizardPage() {
                       timeout_ms: 30_000,
                       max_prompt_tokens: 8_000,
                       max_completion_tokens: 2_000,
+                      rag_enabled: false,
+                      rag_top_k: 4,
+                      rag_similarity_threshold: 0.5,
                     });
                     setCurrentStep('connection');
                   }}
@@ -314,6 +346,7 @@ export default function AiConfigCreateWizardPage() {
                   <Input className="mono" maxLength={255} autoComplete="off" placeholder="production" />
                 </Form.Item>
               </div>
+              <RagFormSection form={form} />
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <Button onClick={() => setCurrentStep('provider')}>{t('common.back')}</Button>
                 <Button type="primary" htmlType="submit" loading={createMutation.isPending}>

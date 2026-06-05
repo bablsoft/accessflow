@@ -556,6 +556,17 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `system_prompt_template` | TEXT nullable — admin-editable analyzer prompt override. `NULL`/blank means "use the built-in default". A custom value must contain the `{{sql}}` placeholder (other tokens — `{{schema_context}}`, `{{db_type}}`, `{{language}}` — are optional) and is substituted at render time. Editing it evicts the cached delegate via `AiConfigUpdatedEvent`. Max 20,000 chars. |
 | `langfuse_prompt_name` | VARCHAR(255) nullable — when set **and** the org's `langfuse_config` has `prompt_management_enabled`, the analyzer fetches its system prompt from Langfuse by this name at render time (falling back to `system_prompt_template` / the built-in default on miss). `NULL` = do not use Langfuse for this config. |
 | `langfuse_prompt_label` | VARCHAR(255) nullable — Langfuse label/version selector for `langfuse_prompt_name` (defaults to `production` when a name is set with no label). Cleared automatically when the name is cleared. |
+| `rag_enabled` | BOOLEAN DEFAULT false — when true, RAG retrieval augments analysis / text-to-SQL for this config (AF-336). The remaining `rag_*` / `embedding_*` columns are validated only when this is true. |
+| `rag_store_type` | ENUM `rag_store_type`: `PGVECTOR` (in-app, shared Postgres + `vector` extension) \| `QDRANT` (external). Nullable; required when `rag_enabled`. |
+| `rag_top_k` | INTEGER DEFAULT 4 — number of chunks retrieved per query, CHECK 1–20. |
+| `rag_similarity_threshold` | DOUBLE PRECISION DEFAULT 0.5 — minimum cosine similarity, CHECK 0–1. |
+| `rag_endpoint` | VARCHAR(500) nullable — external store endpoint (QDRANT host[:port] or URL). Required for `QDRANT`. |
+| `rag_collection` | VARCHAR(255) nullable — external collection/index name. Required for `QDRANT`. |
+| `rag_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the external store API key; `@JsonIgnore`. |
+| `embedding_provider` | ENUM `ai_provider` nullable — dedicated embedding provider, independent of the chat `provider`. `ANTHROPIC` is rejected (no embeddings API). Required when `rag_enabled`. |
+| `embedding_model` | VARCHAR(100) nullable — embedding model name. Required when `rag_enabled`. |
+| `embedding_endpoint` | VARCHAR(500) nullable — custom embedding base URL (OLLAMA / OPENAI_COMPATIBLE / HUGGING_FACE). |
+| `embedding_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the embedding provider key; `@JsonIgnore`. |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
@@ -576,6 +587,48 @@ server (e.g. `http://localhost:3000/v1`, tokenless) or a Dedicated Inference End
 Deletion is rejected (HTTP 409 `AI_CONFIG_IN_USE`) while any datasource still references the
 row. Unbind first (by switching the datasource to a different config or disabling
 `ai_analysis_enabled`) before deleting.
+
+Invalid RAG settings on create/update are rejected with HTTP 400 `RAG_CONFIG_INVALID` (e.g. RAG
+enabled without a store type or embedding model, an `ANTHROPIC` embedding provider, or a `QDRANT`
+backend missing its endpoint/collection).
+
+---
+
+## knowledge_document
+
+RAG knowledge-base documents attached to a RAG-enabled `ai_config` (AF-336). The raw `content` is
+the admin-managed source of truth; on ingestion it is chunked, embedded with the config's embedding
+model, and upserted into the configured vector store. Deleting a row removes its stored chunks.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `ai_config_id` | FK → `ai_config(id)` NOT NULL, ON DELETE CASCADE |
+| `organization_id` | FK → `organizations` NOT NULL |
+| `title` | VARCHAR(255) NOT NULL |
+| `content` | TEXT NOT NULL — capped by `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS` (default 100,000) |
+| `char_count` | INTEGER NOT NULL |
+| `chunk_count` | INTEGER NOT NULL — number of embedded chunks produced |
+| `status` | VARCHAR(20) — `INDEXED` \| `FAILED` |
+| `error_message` | TEXT nullable |
+| `version` | BIGINT — optimistic locking |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+## vector_store
+
+Spring AI `PgVectorStore` table for the in-app (`PGVECTOR`) backend. Created by Flyway V69 with
+`initializeSchema=false`; the `vector` extension itself is provisioned by a superuser init script
+(`deploy/postgres-init/02-pgvector.sql` / the Helm initContainer / Testcontainers init), **not** by
+Flyway. The embedding dimension is a Flyway placeholder (`ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`,
+default 1536). Rows are partitioned per config via an `ai_config_id` metadata entry. The `QDRANT`
+backend stores vectors externally instead of here.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK DEFAULT `gen_random_uuid()` |
+| `content` | TEXT — chunk text |
+| `metadata` | JSON — `{ai_config_id, document_id, organization_id, title}` |
+| `embedding` | `vector(N)` — N = `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`; HNSW cosine index |
 
 ---
 
@@ -686,6 +739,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
 | `AI_CONFIG_UPDATED` | Admin updates an `ai_config` row via `PUT /admin/ai-configs/{id}`. Metadata includes only the fields that changed (`old_provider`, `new_provider`, `old_model`, `new_model`, `old_name`, `new_name`, `api_key_changed`, `prompt_changed`). |
 | `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
+| `KNOWLEDGE_DOCUMENT_CREATED` | Admin adds a RAG knowledge document via `POST /admin/ai-configs/{id}/knowledge-documents`. Metadata: `ai_config_id`, `title`, `chunk_count`. |
+| `KNOWLEDGE_DOCUMENT_DELETED` | Admin deletes a RAG knowledge document. Metadata: `ai_config_id`. |
 | `ORGANIZATION_CREATED` | Emitted by the env-driven bootstrap reconciler when it provisions a brand-new organization. Metadata: `source: "BOOTSTRAP"`, `change_kind: "CREATE"`, `name`, `slug`. |
 | `NOTIFICATION_CHANNEL_CREATED` / `NOTIFICATION_CHANNEL_UPDATED` | Emitted by the bootstrap reconciler when it creates or updates a `notification_channels` row from `accessflow.bootstrap.notificationChannels[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind`, `name`, `channel_type`, optional `changed_fields`. |
 | `NOTIFICATION_DELIVERY_EXHAUSTED` | Emitted by the notifications dispatcher after a webhook channel exhausts its retry budget (1 initial attempt + 3 scheduled retries at +30 s / +2 min / +10 min). Resource: `notification_channel`, `actor_id = NULL`. Metadata: `source: "DISPATCHER"`, `channel_id`, `channel_type`, `event_type`, `attempt_count`, optional `last_http_status`, optional `last_error` (truncated to 500 chars). Other channels (Slack/Discord/Teams/Telegram/Email) are not yet audited on exhaustion. |

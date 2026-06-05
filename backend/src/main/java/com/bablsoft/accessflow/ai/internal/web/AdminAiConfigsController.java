@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal.web;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
+import com.bablsoft.accessflow.ai.api.KnowledgeBaseService;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
@@ -50,6 +51,7 @@ class AdminAiConfigsController {
 
     private final AiConfigService aiConfigService;
     private final AiAnalyzerStrategy aiAnalyzerStrategy;
+    private final KnowledgeBaseService knowledgeBaseService;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -148,6 +150,16 @@ class AdminAiConfigsController {
             log.warn("AI test prompt failed for ai_config={}", id, ex);
             return TestAiConfigResponse.error(ex.getMessage());
         }
+    }
+
+    @PostMapping("/{id}/rag/test")
+    @Operation(summary = "Verify the configuration's RAG embedding model and vector store are reachable")
+    @ApiResponse(responseCode = "200", description = "Connectivity result — see status")
+    @ApiResponse(responseCode = "400", description = "RAG is not enabled / configured for this configuration")
+    @ApiResponse(responseCode = "404", description = "Configuration not found in this organization")
+    RagTestResponse testRag(@PathVariable UUID id, Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return RagTestResponse.from(knowledgeBaseService.testConnection(id, caller.organizationId()));
     }
 
     private void recordAuditIfChanged(AiConfigView before, AiConfigView after,

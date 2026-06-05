@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    # pgvector-enabled image — the `vector` extension (deploy/postgres-init/02-pgvector.sql) is
+    # required by the RAG knowledge base.
+    image: pgvector/pgvector:pg18
     container_name: accessflow-dev-postgres
     environment:
       POSTGRES_DB: accessflow

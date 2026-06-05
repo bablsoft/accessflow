@@ -11,6 +11,7 @@ import type {
   OAuth2Provider,
   QueryStatus,
   QueryType,
+  RagStoreType,
   RiskLevel,
   Role,
   RoutingAction,
@@ -56,6 +57,19 @@ export const channelTypeLabel = (t: TFunction, v: ChannelType): string =>
 
 export const aiProviderLabel = (t: TFunction, v: AiProvider): string =>
   t(`enums.ai_provider.${v}` as const);
+
+export const RAG_STORE_TYPES: readonly RagStoreType[] = ['PGVECTOR', 'QDRANT'] as const;
+
+export const ragStoreTypeLabel = (t: TFunction, v: RagStoreType): string =>
+  t(`enums.rag_store_type.${v}` as const);
+
+// Anthropic has no embeddings API, so it is excluded from embedding-provider choices.
+export const EMBEDDING_PROVIDERS: readonly AiProvider[] = [
+  'OPENAI',
+  'OPENAI_COMPATIBLE',
+  'HUGGING_FACE',
+  'OLLAMA',
+] as const;
 
 export const authProviderLabel = (t: TFunction, v: AuthProvider): string =>
   t(`enums.auth_provider.${v}` as const);

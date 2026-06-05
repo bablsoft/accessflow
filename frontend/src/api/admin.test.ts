@@ -314,6 +314,34 @@ describe('api/admin', () => {
     expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/test');
   });
 
+  it('testRag POSTs /admin/ai-configs/{id}/rag/test', async () => {
+    post.mockResolvedValueOnce({ data: { status: 'OK', detail: 'ok', embedding_dimensions: 1536 } });
+    const result = await adminApi.testRag('a-1');
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/rag/test');
+    expect(result.embedding_dimensions).toBe(1536);
+  });
+
+  it('listKnowledgeDocuments GETs the knowledge-documents collection', async () => {
+    get.mockResolvedValueOnce({ data: [] });
+    await adminApi.listKnowledgeDocuments('a-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/knowledge-documents');
+  });
+
+  it('createKnowledgeDocument POSTs the document body', async () => {
+    post.mockResolvedValueOnce({ data: { id: 'd-1' } });
+    await adminApi.createKnowledgeDocument('a-1', { title: 'Policy', content: 'No PII.' });
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/knowledge-documents', {
+      title: 'Policy',
+      content: 'No PII.',
+    });
+  });
+
+  it('deleteKnowledgeDocument DELETEs the document', async () => {
+    del.mockResolvedValueOnce({ data: undefined });
+    await adminApi.deleteKnowledgeDocument('a-1', 'd-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/ai-configs/a-1/knowledge-documents/d-1');
+  });
+
   // ── SAML config ───────────────────────────────────────────────────────────
   it('getSamlConfig GETs /admin/saml-config', async () => {
     get.mockResolvedValueOnce({ data: { active: false } });

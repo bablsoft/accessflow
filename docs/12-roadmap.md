@@ -114,6 +114,16 @@
 
 ---
 
+## v1.4 — AI enhancements (on `main`)
+
+**Theme:** Deeper, configurable AI integrations.
+
+- **Langfuse integration** — per-org LLM-call tracing + managed analyzer prompts (AF-333)
+- **Text-to-SQL generation** — draft SQL from a natural-language prompt, still submitted through the full review pipeline (AF-335)
+- **RAG knowledge base** — per-AI-config retrieval-augmented generation: admins attach knowledge documents (in-app pgvector or external Qdrant) that are embedded and injected into risk analysis and text-to-SQL prompts (AF-336)
+
+---
+
 ## v2.0
 
 **Theme:** Beyond relational databases — plus native client access and continuous governance.

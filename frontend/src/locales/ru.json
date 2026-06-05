@@ -1052,7 +1052,51 @@
       },
       "field_langfuse_prompt_name": "Имя промпта Langfuse",
       "field_langfuse_prompt_label": "Метка промпта Langfuse",
-      "langfuse_prompt_help": "Необязательно. Если задано и включено управление промптами Langfuse, анализатор загружает этот промпт из Langfuse вместо системного промпта выше."
+      "langfuse_prompt_help": "Необязательно. Если задано и включено управление промптами Langfuse, анализатор загружает этот промпт из Langfuse вместо системного промпта выше.",
+      "rag": {
+        "section_title": "База знаний RAG",
+        "section_help": "Извлекайте знания, специфичные для организации, и добавляйте их в анализ ИИ и генерацию SQL.",
+        "enabled": "Включить RAG",
+        "field_store_type": "Векторное хранилище",
+        "field_top_k": "Результаты Top-K",
+        "field_threshold": "Порог схожести",
+        "field_endpoint": "Адрес векторного хранилища",
+        "field_collection": "Имя коллекции",
+        "field_api_key": "API-ключ векторного хранилища",
+        "embedding_section": "Эмбеддинги",
+        "field_embedding_provider": "Поставщик эмбеддингов",
+        "field_embedding_model": "Модель эмбеддингов",
+        "field_embedding_endpoint": "Адрес эмбеддингов",
+        "field_embedding_api_key": "API-ключ эмбеддингов",
+        "store_type_required": "При включённом RAG необходимо векторное хранилище",
+        "embedding_provider_required": "Необходим поставщик эмбеддингов",
+        "embedding_model_required": "Необходима модель эмбеддингов",
+        "endpoint_required": "Для внешнего векторного хранилища требуется адрес",
+        "collection_required": "Для внешнего векторного хранилища требуется имя коллекции",
+        "top_k_range": "Top-K должно быть от 1 до 20",
+        "threshold_range": "Порог схожести должен быть от 0 до 1",
+        "test_button": "Проверить подключение RAG",
+        "test_ok": "Подключение RAG в порядке",
+        "test_failed": "Ошибка проверки RAG: {{detail}}",
+        "documents_title": "Документы базы знаний",
+        "documents_help": "Документы разбиваются на фрагменты, встраиваются и сохраняются для извлечения. Добавляйте их после сохранения конфигурации.",
+        "documents_empty": "Пока нет документов базы знаний",
+        "documents_save_first": "Сохраните конфигурацию перед добавлением документов базы знаний.",
+        "add_document": "Добавить документ",
+        "document_title": "Заголовок",
+        "document_content": "Содержимое",
+        "document_chars": "Символов",
+        "document_chunks": "Фрагментов",
+        "document_status": "Статус",
+        "document_created": "Создано",
+        "document_actions": "Действия",
+        "document_delete": "Удалить",
+        "document_delete_confirm": "Удалить этот документ базы знаний?",
+        "document_title_required": "Требуется заголовок",
+        "document_content_required": "Требуется содержимое",
+        "document_added": "Документ базы знаний добавлен",
+        "document_deleted": "Документ базы знаний удалён"
+      }
     },
     "notifications": {
       "title": "Каналы уведомлений",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "Переменная",
       "LITERAL": "Литерал"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "Встроенный (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

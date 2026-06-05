@@ -52,6 +52,7 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private final SqlGenerationResponseParser sqlGenerationResponseParser;
     private final MessageSource messageSource;
     private final ChatModelFactory chatModelFactory;
+    private final RagComponentsFactory ragComponentsFactory;
     private final LangfusePromptProvider langfusePromptProvider;
     private final LangfuseTracer langfuseTracer;
     private final Clock clock;
@@ -94,9 +95,10 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     void onConfigUpdated(AiConfigUpdatedEvent event) {
         var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
-            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={})",
+            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={}, rag_changed={})",
                     event.aiConfigId(), event.oldProvider(), event.newProvider(),
-                    event.oldModel(), event.newModel(), event.apiKeyChanged(), event.promptChanged());
+                    event.oldModel(), event.newModel(), event.apiKeyChanged(), event.promptChanged(),
+                    event.ragChanged());
         }
     }
 
@@ -110,12 +112,13 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
         var promptSource = buildPromptSource(entity);
+        var rag = ragComponentsFactory.retriever(entity);
         var base = switch (entity.getProvider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
-            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
-            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
-            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser);
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
         };
         return new TracingAiAnalyzerStrategy(base, langfuseTracer, entity.getOrganizationId(),
                 entity.getProvider(), entity.getModel(), clock);

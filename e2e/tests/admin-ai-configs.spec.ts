@@ -17,6 +17,7 @@ const IN_USE_NAME = `e2e-inuse-${UNIQUE_SUFFIX}`;
 const DUPLICATE_NAME = `e2e-dupe-${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
 const PROMPT_NAME = `e2e-prompt-${UNIQUE_SUFFIX}`;
+const RAG_NAME = `e2e-rag-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -177,6 +178,8 @@ async function openWizardFresh(page: Page): Promise<void> {
 //  12. Create Hugging Face via wizard — router endpoint pre-filled + keyless (local TGI path).
 //  13. Edit page system-prompt management (AF-332): {{sql}} guard blocks submit, "Load /
 //      reset to default" fills the built-in template, and a custom prompt round-trips on save.
+//  14. Edit page RAG config (AF-336): enable RAG, pick pgvector + Ollama embeddings, save, and
+//      assert the rag_*/embedding_* fields round-trip (ingestion/retrieval not e2e-covered).
 //
 // describe.serial because the primary Ollama config walks through tests
 // 2 → 4 → 5 → 6 → 7 → 8 (create → edit → test ok → test ok via list →
@@ -193,6 +196,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let compatAiConfigId: string | null = null;
   let huggingFaceAiConfigId: string | null = null;
   let promptAiConfigId: string | null = null;
+  let ragAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -216,6 +220,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       compatAiConfigId,
       huggingFaceAiConfigId,
       promptAiConfigId,
+      ragAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -962,5 +967,77 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await expect(
       page.getByText('AI configuration saved', { exact: true }),
     ).toBeVisible({ timeout: 10_000 });
+  });
+
+  // AF-336: RAG config round-trip on the edit page. Saving the config does NOT embed, so this
+  // runs without a live embedding provider. Knowledge-document ingestion + retrieval are NOT
+  // e2e-covered — they require a reachable embedding backend (Ollama/OpenAI) absent in CI.
+  test('14) edit page — enable RAG (pgvector + Ollama embeddings) round-trips on save', async ({
+    page,
+    request,
+  }) => {
+    const cfg = await createAiConfigViaApi(request, adminAccessToken, {
+      name: RAG_NAME,
+      provider: 'OLLAMA',
+      model: 'llama3.1:70b',
+      endpoint: 'http://localhost:11434/api',
+    });
+    ragAiConfigId = cfg.id;
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/admin/ai-configs/${ragAiConfigId}`);
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(RAG_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // RAG section is collapsed (switch off) until enabled.
+    await expect(page.getByRole('heading', { name: 'RAG knowledge base' })).toBeVisible();
+    await page.getByRole('switch').click();
+
+    // Vector store = In-app (pgvector); embedding provider = Ollama; embedding model required.
+    // AntD 6 renders the clickable dropdown items as `.ant-select-item-option` divs (the visible
+    // text is the label; the `role=option` peers are a 0px screen-reader listbox) and opens via the
+    // combobox — match the proven pattern in datasource-create-wizard.spec.ts.
+    await page.getByRole('combobox', { name: /Vector store/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: 'In-app (pgvector)' }).click();
+    await page.getByRole('combobox', { name: /Embedding provider/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: /^Ollama$/ }).click();
+    await page.getByLabel('Embedding model').fill('nomic-embed-text');
+
+    const updateResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${ragAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const updateResponse = await updateResponsePromise;
+    expect(updateResponse.status()).toBe(200);
+    const body = (await updateResponse.json()) as {
+      rag_enabled: boolean;
+      rag_store_type: string | null;
+      embedding_provider: string | null;
+      embedding_model: string | null;
+    };
+    expect(body.rag_enabled).toBe(true);
+    expect(body.rag_store_type).toBe('PGVECTOR');
+    expect(body.embedding_provider).toBe('OLLAMA');
+    expect(body.embedding_model).toBe('nomic-embed-text');
+
+    await expect(
+      page.getByText('AI configuration saved', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Reload: the persisted RAG state drives the documents section — the switch is on and
+    // "Add document" is enabled (ingestion itself is out of e2e scope, see the note above).
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(RAG_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('switch')).toBeChecked();
+    await expect(
+      page.getByRole('heading', { name: 'Knowledge documents' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add document' })).toBeEnabled();
   });
 });
