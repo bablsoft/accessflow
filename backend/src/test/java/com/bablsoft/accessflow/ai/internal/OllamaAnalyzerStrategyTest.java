@@ -41,6 +41,7 @@ class OllamaAnalyzerStrategyTest {
     @Mock SystemPromptSource promptSource;
     @Spy SqlGenerationResponseParser sqlGenerationParser =
             new SqlGenerationResponseParser(JsonMapper.builder().build());
+    @Mock RagRetriever ragRetriever;
 
     @InjectMocks OllamaAnalyzerStrategy strategy;
 
