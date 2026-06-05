@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import org.slf4j.Logger;
@@ -54,6 +55,14 @@ class TracingAiAnalyzerStrategy implements AiAnalyzerStrategy {
                     e.getMessage(), start, clock.instant())));
             throw e;
         }
+    }
+
+    @Override
+    public GeneratedSqlResult generateSql(String prompt, DbType dbType, String schemaContext,
+                                          String language, UUID aiConfigId) {
+        // v1: SQL generation is not yet traced to Langfuse (the trace context is analysis-shaped).
+        // Delegate straight through; tracing parity is a follow-up.
+        return delegate.generateSql(prompt, dbType, schemaContext, language, aiConfigId);
     }
 
     private void safeTrace(Runnable trace) {

@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type {
   AiAnalysis,
   ExecuteQueryResponse,
+  GeneratedSql,
   PaginatedResponse,
   QueryDetail,
   QueryDiffResponse,
@@ -24,6 +25,11 @@ export interface SubmitQueryInput {
 export interface AnalyzeQueryInput {
   datasource_id: string;
   sql: string;
+}
+
+export interface GenerateSqlInput {
+  datasource_id: string;
+  prompt: string;
 }
 
 export interface QueryListFilters {
@@ -98,6 +104,11 @@ export async function getQueryDiff(id: string): Promise<QueryDiffResponse> {
 
 export async function analyzeOnly(input: AnalyzeQueryInput): Promise<AiAnalysis> {
   const { data } = await apiClient.post<AiAnalysis>(`${BASE}/analyze`, input);
+  return data;
+}
+
+export async function generateSql(input: GenerateSqlInput): Promise<GeneratedSql> {
+  const { data } = await apiClient.post<GeneratedSql>(`${BASE}/generate-sql`, input);
   return data;
 }
 

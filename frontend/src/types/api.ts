@@ -410,6 +410,7 @@ export interface Datasource {
   review_plan_id: string | null;
   ai_analysis_enabled: boolean;
   ai_config_id: string | null;
+  text_to_sql_enabled: boolean;
   custom_driver_id: string | null;
   jdbc_url_override: string | null;
   read_replica_jdbc_url: string | null;
@@ -440,6 +441,7 @@ export interface CreateDatasourceInput {
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
   ai_config_id?: string | null;
+  text_to_sql_enabled?: boolean;
   custom_driver_id?: string | null;
   jdbc_url_override?: string | null;
   read_replica_jdbc_url?: string | null;
@@ -462,6 +464,7 @@ export interface UpdateDatasourceInput {
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
   ai_config_id?: string | null;
+  text_to_sql_enabled?: boolean;
   clear_ai_config?: boolean;
   jdbc_url_override?: string | null;
   read_replica_jdbc_url?: string | null;
@@ -747,6 +750,14 @@ export interface AiAnalysis {
   affects_rows?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
+}
+
+export interface GeneratedSql {
+  sql: string;
+  ai_provider: AiProvider;
+  ai_model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
 }
 
 export interface QueryRequest {

@@ -44,4 +44,18 @@ class AiAnalysisExceptionsTest {
         assertThat(ex.getMessage()).contains("{{sql}}");
         assertThat(ex.getCause()).isNull();
     }
+
+    @Test
+    void textToSqlDisabledExceptionCarriesMessage() {
+        var ex = new TextToSqlDisabledException();
+        assertThat(ex.getMessage()).contains("disabled");
+        assertThat(ex.getCause()).isNull();
+    }
+
+    @Test
+    void textToSqlNotConfiguredExceptionCarriesMessage() {
+        var ex = new TextToSqlNotConfiguredException();
+        assertThat(ex.getMessage()).contains("AI configuration");
+        assertThat(ex.getCause()).isNull();
+    }
 }

@@ -309,6 +309,15 @@
     "routing_policy_generic": "Die Routing-Richtlinie konnte nicht gespeichert werden. Bitte erneut versuchen."
   },
   "editor": {
+    "text_to_sql": {
+      "label": "Beschreiben Sie Ihre Abfrage",
+      "hint": "· KI schreibt das SQL",
+      "placeholder": "z. B. Bestellnummern der letzten 5 Tage",
+      "generate_button": "SQL generieren",
+      "generating": "Wird generiert",
+      "success": "SQL generiert – vor dem Absenden prüfen",
+      "error": "SQL konnte nicht aus Ihrer Beschreibung generiert werden"
+    },
     "title": "SQL-Editor",
     "subtitle": "Reiche eine Abfrage zur KI- und menschlichen Prüfung ein.",
     "history_button": "Verlauf",
@@ -559,6 +568,8 @@
       "stat_plan_unknown": "—"
     },
     "create": {
+      "field_text_to_sql_enabled": "Text-zu-SQL aktivieren",
+      "field_text_to_sql_help": "Nutzer können SQL aus natürlicher Sprache entwerfen (verwendet die KI-Konfiguration).",
       "title": "Datenquelle hinzufügen",
       "subtitle": "Verbinde eine neue Kunden-Datenbank. AccessFlow vermittelt und steuert Abfragen darauf.",
       "step_type": "Datenbanktyp",
@@ -644,6 +655,8 @@
       "types_error_body": "Der /datasources/types-Endpoint hat nicht geantwortet. Lade die Seite neu oder prüfe die Backend-Logs."
     },
     "settings": {
+      "label_text_to_sql_enabled": "Text-zu-SQL aktivieren",
+      "text_to_sql_help": "Nutzer können SQL aus natürlicher Sprache entwerfen (verwendet die KI-Konfiguration).",
       "back_button": "Zurück",
       "test_connection": "Verbindung testen",
       "connection_ok": "Verbunden · {{ms}} ms",

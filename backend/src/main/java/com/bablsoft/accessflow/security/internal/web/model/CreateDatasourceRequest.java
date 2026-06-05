@@ -33,6 +33,7 @@ public record CreateDatasourceRequest(
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        Boolean textToSqlEnabled,
         UUID customDriverId,
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",

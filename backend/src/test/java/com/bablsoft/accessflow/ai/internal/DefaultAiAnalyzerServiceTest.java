@@ -101,7 +101,7 @@ class DefaultAiAnalyzerServiceTest {
     private DatasourceConnectionDescriptor descriptor(DbType dbType, boolean aiEnabled, UUID boundAiConfigId) {
         return new DatasourceConnectionDescriptor(datasourceId, organizationId, dbType, "h",
                 5432, "db", "u", "ENC(p)", SslMode.DISABLE, 5, 1000, aiEnabled, boundAiConfigId,
-                null, null, null, null, null, true);
+                false, null, null, null, null, null, true);
     }
 
     private DatabaseSchemaView schemaView() {

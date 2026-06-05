@@ -84,6 +84,7 @@ public class DatasourceReconciler {
                     reviewPlanId,
                     spec.aiAnalysisEnabled(),
                     aiConfigId,
+                    spec.textToSqlEnabled(),
                     null,
                     spec.jdbcUrlOverride(),
                     null,
@@ -128,6 +129,7 @@ public class DatasourceReconciler {
                         reviewPlanId,
                         spec.aiAnalysisEnabled(),
                         aiConfigId,
+                        spec.textToSqlEnabled(),
                         null,
                         spec.jdbcUrlOverride(),
                         null,
@@ -196,6 +198,7 @@ public class DatasourceReconciler {
         map.put("review_plan_id", reviewPlanId == null ? null : reviewPlanId.toString());
         map.put("ai_analysis_enabled", spec.aiAnalysisEnabled());
         map.put("ai_config_id", aiConfigId == null ? null : aiConfigId.toString());
+        map.put("text_to_sql_enabled", spec.textToSqlEnabled());
         map.put("jdbc_url_override", spec.jdbcUrlOverride());
         return map;
     }
@@ -216,6 +219,7 @@ public class DatasourceReconciler {
         map.put("review_plan_id", view.reviewPlanId() == null ? null : view.reviewPlanId().toString());
         map.put("ai_analysis_enabled", view.aiAnalysisEnabled());
         map.put("ai_config_id", view.aiConfigId() == null ? null : view.aiConfigId().toString());
+        map.put("text_to_sql_enabled", view.textToSqlEnabled());
         map.put("jdbc_url_override", view.jdbcUrlOverride());
         return map;
     }

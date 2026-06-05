@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
+import com.bablsoft.accessflow.ai.api.TextToSqlNotConfiguredException;
 import com.bablsoft.accessflow.ai.internal.BadAiAnalysisStatsQueryException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -57,6 +59,23 @@ class AiAnalysisExceptionHandler {
     ProblemDetail handleAiConfigNotFound(AiConfigNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.ai_config.not_found"));
         pd.setProperty("error", "AI_CONFIG_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TextToSqlDisabledException.class)
+    ProblemDetail handleTextToSqlDisabled(TextToSqlDisabledException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.text_to_sql.disabled"));
+        pd.setProperty("error", "TEXT_TO_SQL_DISABLED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TextToSqlNotConfiguredException.class)
+    ProblemDetail handleTextToSqlNotConfigured(TextToSqlNotConfiguredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.text_to_sql.not_configured"));
+        pd.setProperty("error", "TEXT_TO_SQL_NOT_CONFIGURED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

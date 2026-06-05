@@ -86,6 +86,7 @@ const baseDatasource: Datasource = {
   review_plan_id: 'rp-1',
   ai_analysis_enabled: true,
   ai_config_id: 'aic-1',
+  text_to_sql_enabled: false,
   custom_driver_id: null,
   jdbc_url_override: null,
   read_replica_jdbc_url: null,

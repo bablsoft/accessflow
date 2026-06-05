@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
+import { TextToSqlBar } from '@/components/editor/TextToSqlBar';
 import { SchemaTree } from '@/components/editor/SchemaTree';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
 import { QueryTemplatesDrawer } from '@/components/editor/QueryTemplatesDrawer';
@@ -112,6 +113,7 @@ export function QueryEditorPage() {
   }
 
   const aiSupported = ds.ai_analysis_enabled && !!ds.ai_config_id;
+  const textToSqlSupported = ds.text_to_sql_enabled && !!ds.ai_config_id;
   const sqlNonEmpty = sql.trim().length > 0;
   const hasFreshAnalysis = !!analyzeMutation.data;
   const canAnalyze = aiSupported && sqlNonEmpty && !analyzeMutation.isPending;
@@ -206,6 +208,9 @@ export function QueryEditorPage() {
             </Button>
           </div>
           <div className="af-editor-body">
+            {textToSqlSupported && (
+              <TextToSqlBar datasourceId={ds.id} onGenerated={handleSqlChange} />
+            )}
             <SqlEditor
               value={sql}
               onChange={handleSqlChange}

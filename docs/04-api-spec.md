@@ -767,6 +767,7 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
+| `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft SQL statement (text-to-SQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
 
 ### POST /queries — Request Body
 
@@ -1029,6 +1030,41 @@ Each delta is `current - previous`. A positive value means the new run returned 
   "affects_row_estimate": null
 }
 ```
+
+### POST /queries/generate-sql — Request Body
+
+Natural-language → SQL generation (AF-335). Requires the datasource to have `text_to_sql_enabled = true`
+and a bound `ai_config_id` (the same AI configuration used for risk analysis). The returned `sql` is a
+**draft** — nothing is persisted or executed. The user reviews/edits it and submits it through
+`POST /api/v1/queries`, where JSqlParser validation, permission checks, AI risk analysis and human
+review still apply.
+
+```json
+{
+  "datasource_id": "uuid",
+  "prompt": "I want to see order numbers for the last 5 days"
+}
+```
+
+`prompt` is required (`@NotBlank`, max 4000 chars).
+
+**Response 200:**
+```json
+{
+  "sql": "SELECT order_number FROM orders WHERE created_at >= now() - interval '5 days'",
+  "ai_provider": "ANTHROPIC",
+  "ai_model": "claude-sonnet-4-20250514",
+  "prompt_tokens": 320,
+  "completion_tokens": 28
+}
+```
+
+**Errors:**
+- `400 VALIDATION_ERROR` — blank/oversized prompt or missing `datasource_id`.
+- `400 TEXT_TO_SQL_NOT_CONFIGURED` — no `ai_config` is bound to the datasource.
+- `409 TEXT_TO_SQL_DISABLED` — the datasource has `text_to_sql_enabled = false`.
+- `422 AI_RESPONSE_INVALID` — the provider returned no usable SQL.
+- `503 AI_PROVIDER_UNAVAILABLE` — the provider call failed.
 
 ---
 

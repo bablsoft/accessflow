@@ -309,6 +309,15 @@
     "routing_policy_generic": "Could not save the routing policy. Please try again."
   },
   "editor": {
+    "text_to_sql": {
+      "label": "Describe your query",
+      "hint": "· AI writes the SQL",
+      "placeholder": "e.g. order numbers for the last 5 days",
+      "generate_button": "Generate SQL",
+      "generating": "Generating",
+      "success": "SQL generated — review it before submitting",
+      "error": "Could not generate SQL from your description"
+    },
     "title": "SQL editor",
     "subtitle": "Submit a query for AI and human review.",
     "history_button": "History",
@@ -623,6 +632,8 @@
       "field_password": "Password",
       "field_ssl_mode": "SSL mode",
       "field_ai_analysis_enabled": "Enable AI analysis",
+      "field_text_to_sql_enabled": "Enable text-to-SQL",
+      "field_text_to_sql_help": "Let users draft SQL from natural language (uses the AI configuration).",
       "field_ai_config": "AI configuration",
       "field_ai_config_placeholder": "Pick an AI configuration",
       "field_ai_config_required": "Select an AI configuration or disable AI analysis",
@@ -739,6 +750,8 @@
       "label_require_writes": "Require review for writes",
       "label_require_reads": "Require review for reads",
       "label_ai_enabled": "Enable AI query analysis",
+      "label_text_to_sql_enabled": "Enable text-to-SQL",
+      "text_to_sql_help": "Let users draft SQL from natural language (uses the AI configuration).",
       "label_ai_config": "AI configuration",
       "ai_config_placeholder": "Pick an AI configuration",
       "ai_config_required": "Pick an AI configuration or disable AI analysis",

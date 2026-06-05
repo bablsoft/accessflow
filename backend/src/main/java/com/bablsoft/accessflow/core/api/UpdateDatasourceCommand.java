@@ -17,6 +17,7 @@ public record UpdateDatasourceCommand(
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
+        Boolean textToSqlEnabled,
         Boolean clearAiConfig,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,

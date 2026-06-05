@@ -86,6 +86,9 @@ public class DatasourceEntity {
     @Column(name = "ai_config_id")
     private UUID aiConfigId;
 
+    @Column(name = "text_to_sql_enabled", nullable = false)
+    private boolean textToSqlEnabled = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "custom_driver_id")
     private CustomJdbcDriverEntity customDriver;

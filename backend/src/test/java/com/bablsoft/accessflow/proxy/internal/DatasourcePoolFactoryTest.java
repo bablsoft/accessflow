@@ -49,7 +49,7 @@ class DatasourcePoolFactoryTest {
     private final UUID organizationId = UUID.randomUUID();
     private final DatasourceConnectionDescriptor descriptor = new DatasourceConnectionDescriptor(
             datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+            "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, null, null,
             null, null, null, true);
 
     @BeforeEach
@@ -162,7 +162,7 @@ class DatasourcePoolFactoryTest {
         var customDriverId = UUID.randomUUID();
         var customDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null,
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, customDriverId, null,
                 null, null, null, true);
         // HikariConfig.setDriverClassName() eagerly verifies the class is loadable, so we use
         // a real class name on the test classpath. The classloader-swap assertion still
@@ -200,7 +200,7 @@ class DatasourcePoolFactoryTest {
         var customDriverId = UUID.randomUUID();
         var customDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, customDriverId, null,
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, customDriverId, null,
                 null, null, null, true);
         when(customJdbcDriverService.findById(customDriverId, organizationId))
                 .thenReturn(java.util.Optional.empty());
@@ -218,7 +218,7 @@ class DatasourcePoolFactoryTest {
         var dynamicDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL,
                 null, null, null, "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, overrideUrl,
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, null, overrideUrl,
                 null, null, null, true);
 
         var captured = new AtomicReference<HikariConfig>();
@@ -239,7 +239,7 @@ class DatasourcePoolFactoryTest {
     void createReplicaPoolUsesReplicaUrlAndCredentials() {
         var replicaDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(primary)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+                "ENC(primary)", SslMode.DISABLE, 15, 1000, false, null, false, null, null,
                 "jdbc:postgresql://replica:5432/appdb", "replica-user", "ENC(replica-pw)", true);
         when(encryptionService.decrypt("ENC(replica-pw)")).thenReturn("replica-pw-plain");
 
@@ -265,7 +265,7 @@ class DatasourcePoolFactoryTest {
     void createReplicaPoolFallsBackToPrimaryUsernameAndPasswordWhenReplicaCredsAbsent() {
         var replicaDescriptor = new DatasourceConnectionDescriptor(
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
-                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, null, null,
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, null, null,
                 "jdbc:postgresql://replica:5432/appdb", null, null, true);
 
         var captured = new AtomicReference<HikariConfig>();
