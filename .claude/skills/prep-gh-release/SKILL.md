@@ -179,9 +179,12 @@ Canonical list — these are the PNGs that exist today plus the routes they were
 | `/admin/access-requests` queue (AF-378) | `access-requests-queue-light.png`, `access-requests-queue-dark.png` |
 | `/datasources/<id>/settings` → Masking tab (AF-381) | `datasources-masking-light.png`, `datasources-masking-dark.png` |
 | `/datasources/<id>/settings` → Row security tab (AF-380) | `datasources-row-security-light.png`, `datasources-row-security-dark.png` |
+| `/admin/langfuse` config form (AF-333) | `langfuse-config-light.png`, `langfuse-config-dark.png` |
+| `/admin/ai-configs/new` → Connection step, Enable RAG toggled (AF-336) | `ai-configs-rag-light.png`, `ai-configs-rag-dark.png` |
 | `/editor` with a sample query and the AI hint panel visible | `editor-light.png` (light-only by precedent) |
 | `/editor` → schedule date picker open | `editor-schedule-light.png` (light-only by precedent) |
 | `/editor` → query-templates drawer open | `editor-query-templates-light.png` (light-only by precedent) |
+| `/editor` → text-to-SQL bar with a natural-language prompt (AF-335) | `editor-text-to-sql-light.png` (light-only by precedent) |
 | `/queries` list with seeded data | `queries-list-light.png` (light-only by precedent) |
 | `/reviews` queue with seeded data | `reviews-queue-light.png` (light-only by precedent) |
 | `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.png` (light-only by precedent) |

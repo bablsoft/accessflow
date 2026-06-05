@@ -66,6 +66,13 @@ export interface CreatePostgresDatasourceOptions {
    * Optional ai_config UUID to bind. Required when `aiAnalysisEnabled` is true.
    */
   aiConfigId?: string;
+  /**
+   * Enable text-to-SQL generation (AF-335) on the datasource. Defaults to
+   * false. Requires `aiConfigId` to be set — the editor only renders the
+   * "Describe your query" bar when both the flag and a bound AI config are
+   * present. Used by the screenshot seed to showcase the feature.
+   */
+  textToSqlEnabled?: boolean;
 }
 
 // POST /api/v1/auth/login → returns the access token. Mirrors the inline
@@ -252,6 +259,7 @@ export async function createPostgresDatasource(
     ssl_mode: 'DISABLE',
     ai_analysis_enabled: opts.aiAnalysisEnabled ?? false,
     ai_config_id: opts.aiConfigId ?? null,
+    text_to_sql_enabled: opts.textToSqlEnabled ?? false,
     custom_driver_id: null,
     review_plan_id: opts.reviewPlanId ?? null,
   };
