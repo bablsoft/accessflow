@@ -1052,7 +1052,51 @@
       },
       "field_langfuse_prompt_name": "Langfuse 提示词名称",
       "field_langfuse_prompt_label": "Langfuse 提示词标签",
-      "langfuse_prompt_help": "可选。设置后且启用 Langfuse 提示词管理时，分析器将从 Langfuse 获取此提示词，而不是上面的系统提示词。"
+      "langfuse_prompt_help": "可选。设置后且启用 Langfuse 提示词管理时，分析器将从 Langfuse 获取此提示词，而不是上面的系统提示词。",
+      "rag": {
+        "section_title": "RAG 知识库",
+        "section_help": "检索组织特定的知识，并将其注入 AI 分析和 SQL 生成。",
+        "enabled": "启用 RAG",
+        "field_store_type": "向量存储",
+        "field_top_k": "Top-K 结果",
+        "field_threshold": "相似度阈值",
+        "field_endpoint": "向量存储端点",
+        "field_collection": "集合名称",
+        "field_api_key": "向量存储 API 密钥",
+        "embedding_section": "嵌入",
+        "field_embedding_provider": "嵌入提供商",
+        "field_embedding_model": "嵌入模型",
+        "field_embedding_endpoint": "嵌入端点",
+        "field_embedding_api_key": "嵌入 API 密钥",
+        "store_type_required": "启用 RAG 时需要向量存储",
+        "embedding_provider_required": "需要嵌入提供商",
+        "embedding_model_required": "需要嵌入模型",
+        "endpoint_required": "外部向量存储需要端点",
+        "collection_required": "外部向量存储需要集合名称",
+        "top_k_range": "Top-K 必须介于 1 和 20 之间",
+        "threshold_range": "相似度阈值必须介于 0 和 1 之间",
+        "test_button": "测试 RAG 连接",
+        "test_ok": "RAG 连接正常",
+        "test_failed": "RAG 测试失败：{{detail}}",
+        "documents_title": "知识文档",
+        "documents_help": "文档将被分块、嵌入并存储以供检索。请在保存配置后添加它们。",
+        "documents_empty": "尚无知识文档",
+        "documents_save_first": "请先保存配置，然后再添加知识文档。",
+        "add_document": "添加文档",
+        "document_title": "标题",
+        "document_content": "内容",
+        "document_chars": "字符",
+        "document_chunks": "分块",
+        "document_status": "状态",
+        "document_created": "创建时间",
+        "document_actions": "操作",
+        "document_delete": "删除",
+        "document_delete_confirm": "删除此知识文档？",
+        "document_title_required": "标题为必填项",
+        "document_content_required": "内容为必填项",
+        "document_added": "已添加知识文档",
+        "document_deleted": "已删除知识文档"
+      }
     },
     "notifications": {
       "title": "通知通道",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "变量",
       "LITERAL": "字面量"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "内置 (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

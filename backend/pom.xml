@@ -157,6 +157,34 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-ollama</artifactId>
         </dependency>
+        <!--
+            RAG (AF-336): per-AI-config knowledge base. Both backends go through Spring AI's
+            VectorStore abstraction, built per ai_config row by SpringAiVectorStoreFactory.
+            pgvector is the in-app store (shared Postgres + the `vector` extension); Qdrant is the
+            external store. Embeddings are produced by per-config OpenAiEmbeddingModel /
+            OllamaEmbeddingModel from the starters above. Versions managed by spring-ai-bom.
+        -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
+        </dependency>
+        <!--
+            The Qdrant client's gRPC stack transitively pulls com.google.guava:guava in the
+            "-android" flavor, whose Predicates$ObjectPredicate does not implement
+            java.util.function.Predicate. OpenSAML (SAML SSO filter chain) calls Stream.filter with a
+            Guava Predicate and fails at runtime with IncompatibleClassChangeError. Pin the latest
+            stable "-jre" flavor explicitly so it wins the version mediation. Revisit on Spring AI /
+            grpc bumps.
+        -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.6.0-jre</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>

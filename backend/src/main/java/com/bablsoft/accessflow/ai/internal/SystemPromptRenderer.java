@@ -44,6 +44,8 @@ class SystemPromptRenderer {
 
             Database type: {{db_type}}
             Schema context: {{schema_context}}
+            Knowledge base context (authoritative organization-specific guidance retrieved for this query — prefer it over general assumptions when it applies):
+            {{rag_context}}
             SQL to analyze:
             {{sql}}
             Respond in: {{language}}. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.
@@ -54,6 +56,11 @@ class SystemPromptRenderer {
 
     /** The natural-language token substituted into the SQL-generation template. */
     static final String USER_REQUEST_PLACEHOLDER = "{{user_request}}";
+
+    /** The RAG knowledge-base token; substituted with retrieved context or a fallback. */
+    static final String RAG_CONTEXT_PLACEHOLDER = "{{rag_context}}";
+
+    private static final String NO_RAG_CONTEXT = "(no knowledge base context available)";
 
     /**
      * Built-in natural-language → SQL generation prompt. The generated SQL is a draft the user
@@ -83,6 +90,8 @@ class SystemPromptRenderer {
 
             Database type: {{db_type}}
             Schema context: {{schema_context}}
+            Knowledge base context (authoritative organization-specific guidance retrieved for this request — prefer it over general assumptions when it applies):
+            {{rag_context}}
             Respond in: {{language}} for any string values you may include; keep SQL keywords in English.
             User request:
             {{user_request}}
@@ -93,10 +102,11 @@ class SystemPromptRenderer {
     }
 
     String render(String sql, DbType dbType, String schemaContext, String language) {
-        return render(null, sql, dbType, schemaContext, language);
+        return render(null, sql, dbType, schemaContext, null, language);
     }
 
-    String render(String template, String sql, DbType dbType, String schemaContext, String language) {
+    String render(String template, String sql, DbType dbType, String schemaContext, String ragContext,
+                  String language) {
         var effective = (template == null || template.isBlank()) ? DEFAULT_TEMPLATE : template;
         var schemaText = (schemaContext == null || schemaContext.isBlank())
                 ? "(no schema introspection available)"
@@ -109,6 +119,7 @@ class SystemPromptRenderer {
         return effective
                 .replace("{{db_type}}", dbType.name())
                 .replace("{{schema_context}}", schemaText)
+                .replace(RAG_CONTEXT_PLACEHOLDER, ragText(ragContext))
                 .replace("{{language}}", displayName)
                 .replace(SQL_PLACEHOLDER, sql);
     }
@@ -118,7 +129,8 @@ class SystemPromptRenderer {
      * {@code {{user_request}}} token is substituted last so request text that happens to contain a
      * token string is never re-substituted.
      */
-    String renderGeneration(String userRequest, DbType dbType, String schemaContext, String language) {
+    String renderGeneration(String userRequest, DbType dbType, String schemaContext, String ragContext,
+                            String language) {
         var schemaText = (schemaContext == null || schemaContext.isBlank())
                 ? "(no schema introspection available)"
                 : schemaContext;
@@ -128,8 +140,13 @@ class SystemPromptRenderer {
         return DEFAULT_SQL_GENERATION_TEMPLATE
                 .replace("{{db_type}}", dbType.name())
                 .replace("{{schema_context}}", schemaText)
+                .replace(RAG_CONTEXT_PLACEHOLDER, ragText(ragContext))
                 .replace("{{language}}", displayName)
                 .replace(USER_REQUEST_PLACEHOLDER, userRequest == null ? "" : userRequest);
+    }
+
+    private static String ragText(String ragContext) {
+        return (ragContext == null || ragContext.isBlank()) ? NO_RAG_CONTEXT : ragContext;
     }
 
     String describeSchema(DatabaseSchemaView schema) {

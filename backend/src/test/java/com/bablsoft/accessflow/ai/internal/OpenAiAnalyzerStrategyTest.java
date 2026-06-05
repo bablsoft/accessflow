@@ -44,7 +44,7 @@ class OpenAiAnalyzerStrategyTest {
     @BeforeEach
     void setUp() {
         strategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser, () -> null,
-                new SqlGenerationResponseParser(JsonMapper.builder().build()));
+                new SqlGenerationResponseParser(JsonMapper.builder().build()), RagRetriever.DISABLED);
     }
 
     private static ChatResponse buildResponse(String text, int promptTokens, int completionTokens, String model) {
@@ -75,7 +75,7 @@ class OpenAiAnalyzerStrategyTest {
     void analyzeRecordsConfiguredProviderForOpenAiCompatible() {
         var compatStrategy = new OpenAiAnalyzerStrategy(
                 AiProviderType.OPENAI_COMPATIBLE, chatModel, renderer, parser, () -> null,
-                new SqlGenerationResponseParser(JsonMapper.builder().build()));
+                new SqlGenerationResponseParser(JsonMapper.builder().build()), RagRetriever.DISABLED);
         when(chatModel.call(any(Prompt.class)))
                 .thenReturn(buildResponse(SUCCESS_JSON, 12, 8, "qwen2.5"));
 
@@ -89,7 +89,7 @@ class OpenAiAnalyzerStrategyTest {
     void analyzeUsesCustomSystemPromptTemplateWhenProvided() {
         var custom = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser,
                 () -> "MARKER-TEMPLATE for {{sql}}",
-                new SqlGenerationResponseParser(JsonMapper.builder().build()));
+                new SqlGenerationResponseParser(JsonMapper.builder().build()), RagRetriever.DISABLED);
         var captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
         when(chatModel.call(captor.capture())).thenReturn(buildResponse(SUCCESS_JSON, 1, 1, "gpt-4o"));
 
@@ -169,6 +169,22 @@ class OpenAiAnalyzerStrategyTest {
                 .reduce("", (a, b) -> a + "\n" + b);
         assertThat(text).contains("all users");
         assertThat(text).contains("Database type: POSTGRESQL");
+    }
+
+    @Test
+    void analyzeInjectsRetrievedRagContextIntoPrompt() {
+        var ragStrategy = new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, renderer, parser,
+                () -> null, new SqlGenerationResponseParser(JsonMapper.builder().build()),
+                query -> "KB: never touch users.ssn");
+        var captor = org.mockito.ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(captor.capture())).thenReturn(buildResponse(SUCCESS_JSON, 1, 1, "gpt-4o"));
+
+        ragStrategy.analyze("SELECT * FROM users", DbType.POSTGRESQL, null, "en", ORG_ID);
+
+        var text = captor.getValue().getInstructions().stream()
+                .map(org.springframework.ai.chat.messages.Message::getText)
+                .reduce("", (a, b) -> a + "\n" + b);
+        assertThat(text).contains("KB: never touch users.ssn");
     }
 
     @Test

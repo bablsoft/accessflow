@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.RagStoreType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -66,6 +67,47 @@ public class AiConfigEntity {
 
     @Column(name = "max_completion_tokens", nullable = false)
     private int maxCompletionTokens = 2_000;
+
+    // --- RAG knowledge base (AF-336) ---
+
+    @Column(name = "rag_enabled", nullable = false)
+    private boolean ragEnabled = false;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "rag_store_type", columnDefinition = "rag_store_type")
+    private RagStoreType ragStoreType;
+
+    @Column(name = "rag_top_k", nullable = false)
+    private int ragTopK = 4;
+
+    @Column(name = "rag_similarity_threshold", nullable = false)
+    private double ragSimilarityThreshold = 0.5;
+
+    @Column(name = "rag_endpoint", length = 500)
+    private String ragEndpoint;
+
+    @Column(name = "rag_collection", length = 255)
+    private String ragCollection;
+
+    @JsonIgnore
+    @Column(name = "rag_api_key_encrypted", columnDefinition = "text")
+    private String ragApiKeyEncrypted;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "embedding_provider", columnDefinition = "ai_provider")
+    private AiProviderType embeddingProvider;
+
+    @Column(name = "embedding_model", length = 100)
+    private String embeddingModel;
+
+    @Column(name = "embedding_endpoint", length = 500)
+    private String embeddingEndpoint;
+
+    @JsonIgnore
+    @Column(name = "embedding_api_key_encrypted", columnDefinition = "text")
+    private String embeddingApiKeyEncrypted;
 
     @Version
     @Column(nullable = false)

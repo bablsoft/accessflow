@@ -22,7 +22,9 @@ import {
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
-import type { UpdateAiConfigInput } from '@/types/api';
+import type { AiProvider, RagStoreType, UpdateAiConfigInput } from '@/types/api';
+import { RagFormSection } from './RagFormSection';
+import { KnowledgeDocumentsSection } from './KnowledgeDocumentsSection';
 
 const MASK = '********';
 
@@ -37,6 +39,17 @@ interface FormValues {
   system_prompt_template: string;
   langfuse_prompt_name: string;
   langfuse_prompt_label: string;
+  rag_enabled: boolean;
+  rag_store_type: RagStoreType | null;
+  rag_top_k: number;
+  rag_similarity_threshold: number;
+  rag_endpoint: string;
+  rag_collection: string;
+  rag_api_key: string;
+  embedding_provider: AiProvider | null;
+  embedding_model: string;
+  embedding_endpoint: string;
+  embedding_api_key: string;
 }
 
 export default function AiConfigEditPage() {
@@ -74,6 +87,17 @@ export default function AiConfigEditPage() {
         system_prompt_template: cfgQuery.data.system_prompt_template ?? '',
         langfuse_prompt_name: cfgQuery.data.langfuse_prompt_name ?? '',
         langfuse_prompt_label: cfgQuery.data.langfuse_prompt_label ?? '',
+        rag_enabled: cfgQuery.data.rag_enabled,
+        rag_store_type: cfgQuery.data.rag_store_type,
+        rag_top_k: cfgQuery.data.rag_top_k,
+        rag_similarity_threshold: cfgQuery.data.rag_similarity_threshold,
+        rag_endpoint: cfgQuery.data.rag_endpoint ?? '',
+        rag_collection: cfgQuery.data.rag_collection ?? '',
+        rag_api_key: cfgQuery.data.rag_api_key ?? '',
+        embedding_provider: cfgQuery.data.embedding_provider,
+        embedding_model: cfgQuery.data.embedding_model ?? '',
+        embedding_endpoint: cfgQuery.data.embedding_endpoint ?? '',
+        embedding_api_key: cfgQuery.data.embedding_api_key ?? '',
       });
     }
   }, [cfgQuery.data, form]);
@@ -151,6 +175,9 @@ export default function AiConfigEditPage() {
 
   const onSave = (values: FormValues) => {
     const apiKey = values.api_key === MASK ? undefined : values.api_key;
+    const ragApiKey = values.rag_api_key === MASK ? undefined : values.rag_api_key;
+    const embeddingApiKey = values.embedding_api_key === MASK ? undefined : values.embedding_api_key;
+    const isQdrant = values.rag_enabled && values.rag_store_type === 'QDRANT';
     saveMutation.mutate({
       name: values.name.trim(),
       model: values.model.trim(),
@@ -162,6 +189,17 @@ export default function AiConfigEditPage() {
       system_prompt_template: values.system_prompt_template?.trim() ? values.system_prompt_template : '',
       langfuse_prompt_name: values.langfuse_prompt_name?.trim() || '',
       langfuse_prompt_label: values.langfuse_prompt_label?.trim() || '',
+      rag_enabled: values.rag_enabled,
+      rag_store_type: values.rag_enabled ? values.rag_store_type : null,
+      rag_top_k: values.rag_top_k,
+      rag_similarity_threshold: values.rag_similarity_threshold,
+      rag_endpoint: isQdrant ? (values.rag_endpoint?.trim() || null) : null,
+      rag_collection: isQdrant ? (values.rag_collection?.trim() || null) : null,
+      rag_api_key: ragApiKey ?? null,
+      embedding_provider: values.rag_enabled ? values.embedding_provider : null,
+      embedding_model: values.rag_enabled ? (values.embedding_model?.trim() || null) : null,
+      embedding_endpoint: values.embedding_endpoint?.trim() || null,
+      embedding_api_key: embeddingApiKey ?? null,
     });
   };
 
@@ -283,6 +321,7 @@ export default function AiConfigEditPage() {
               <Input className="mono" maxLength={255} autoComplete="off" placeholder="production" />
             </Form.Item>
           </div>
+          <RagFormSection form={form} />
           <div
             style={{
               display: 'flex',
@@ -318,6 +357,7 @@ export default function AiConfigEditPage() {
             </Button>
           </div>
         </Form>
+        <KnowledgeDocumentsSection configId={cfg.id} ragEnabled={cfg.rag_enabled} />
       </div>
     </div>
   );

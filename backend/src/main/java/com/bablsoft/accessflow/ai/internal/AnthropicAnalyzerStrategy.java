@@ -39,11 +39,14 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
     private final AiResponseParser responseParser;
     private final SystemPromptSource promptSource;
     private final SqlGenerationResponseParser sqlGenerationParser;
+    private final RagRetriever ragRetriever;
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
                                     UUID aiConfigId) {
-        var userPrompt = promptRenderer.render(promptSource.template(), sql, dbType, schemaContext, language);
+        var ragContext = ragRetriever.retrieve(sql);
+        var userPrompt = promptRenderer.render(promptSource.template(), sql, dbType, schemaContext,
+                ragContext, language);
         var prompt = new Prompt(List.of(
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
                 new UserMessage(userPrompt)));
@@ -85,7 +88,8 @@ class AnthropicAnalyzerStrategy implements AiAnalyzerStrategy {
     @Override
     public GeneratedSqlResult generateSql(String prompt, DbType dbType, String schemaContext,
                                           String language, UUID aiConfigId) {
-        var userPrompt = promptRenderer.renderGeneration(prompt, dbType, schemaContext, language);
+        var ragContext = ragRetriever.retrieve(prompt);
+        var userPrompt = promptRenderer.renderGeneration(prompt, dbType, schemaContext, ragContext, language);
         log.debug("Calling Anthropic via Spring AI for SQL generation: prompt_chars={}", userPrompt.length());
         var call = ChatModelInvoker.invoke(chatModel, SQL_GENERATION_PREAMBLE, userPrompt, "Anthropic");
         return sqlGenerationParser.parse(call.text(), AiProviderType.ANTHROPIC, call.model(),

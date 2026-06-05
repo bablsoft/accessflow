@@ -65,6 +65,8 @@ export type AiProvider =
   | 'OPENAI_COMPATIBLE'
   | 'HUGGING_FACE';
 
+export type RagStoreType = 'PGVECTOR' | 'QDRANT';
+
 export interface User {
   id: string;
   email: string;
@@ -190,6 +192,17 @@ export interface AiConfig {
   system_prompt_template: string | null;
   langfuse_prompt_name: string | null;
   langfuse_prompt_label: string | null;
+  rag_enabled: boolean;
+  rag_store_type: RagStoreType | null;
+  rag_top_k: number;
+  rag_similarity_threshold: number;
+  rag_endpoint: string | null;
+  rag_collection: string | null;
+  rag_api_key: string | null;
+  embedding_provider: AiProvider | null;
+  embedding_model: string | null;
+  embedding_endpoint: string | null;
+  embedding_api_key: string | null;
   in_use_count: number;
   created_at: string;
   updated_at: string;
@@ -207,6 +220,17 @@ export interface CreateAiConfigInput {
   system_prompt_template?: string | null;
   langfuse_prompt_name?: string | null;
   langfuse_prompt_label?: string | null;
+  rag_enabled?: boolean;
+  rag_store_type?: RagStoreType | null;
+  rag_top_k?: number;
+  rag_similarity_threshold?: number;
+  rag_endpoint?: string | null;
+  rag_collection?: string | null;
+  rag_api_key?: string | null;
+  embedding_provider?: AiProvider | null;
+  embedding_model?: string | null;
+  embedding_endpoint?: string | null;
+  embedding_api_key?: string | null;
 }
 
 export interface UpdateAiConfigInput {
@@ -221,11 +245,28 @@ export interface UpdateAiConfigInput {
   system_prompt_template?: string | null;
   langfuse_prompt_name?: string | null;
   langfuse_prompt_label?: string | null;
+  rag_enabled?: boolean;
+  rag_store_type?: RagStoreType | null;
+  rag_top_k?: number;
+  rag_similarity_threshold?: number;
+  rag_endpoint?: string | null;
+  rag_collection?: string | null;
+  rag_api_key?: string | null;
+  embedding_provider?: AiProvider | null;
+  embedding_model?: string | null;
+  embedding_endpoint?: string | null;
+  embedding_api_key?: string | null;
 }
 
 export interface TestAiConfigResult {
   status: 'OK' | 'ERROR';
   detail: string;
+}
+
+export interface RagTestResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
+  embedding_dimensions: number | null;
 }
 
 export interface DefaultAiPromptResult {
@@ -235,6 +276,23 @@ export interface DefaultAiPromptResult {
 export interface AiConfigInUseError {
   error: 'AI_CONFIG_IN_USE';
   boundDatasources: Array<{ id: string; name: string }>;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  ai_config_id: string;
+  title: string;
+  char_count: number;
+  chunk_count: number;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateKnowledgeDocumentInput {
+  title: string;
+  content: string;
 }
 
 export interface SamlConfig {

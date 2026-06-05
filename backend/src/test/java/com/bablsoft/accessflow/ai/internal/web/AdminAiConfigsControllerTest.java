@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal.web;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
+import com.bablsoft.accessflow.ai.api.KnowledgeBaseService;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -35,6 +36,7 @@ class AdminAiConfigsControllerTest {
 
     private AiConfigService aiConfigService;
     private AiAnalyzerStrategy aiAnalyzerStrategy;
+    private KnowledgeBaseService knowledgeBaseService;
     private AuditLogService auditLogService;
     private AdminAiConfigsController controller;
 
@@ -51,8 +53,10 @@ class AdminAiConfigsControllerTest {
     void setUp() {
         aiConfigService = mock(AiConfigService.class);
         aiAnalyzerStrategy = mock(AiAnalyzerStrategy.class);
+        knowledgeBaseService = mock(KnowledgeBaseService.class);
         auditLogService = mock(AuditLogService.class);
-        controller = new AdminAiConfigsController(aiConfigService, aiAnalyzerStrategy, auditLogService);
+        controller = new AdminAiConfigsController(aiConfigService, aiAnalyzerStrategy,
+                knowledgeBaseService, auditLogService);
         // The controller calls ServletUriComponentsBuilder.fromCurrentRequest in `create`; bind
         // a fake request to the current thread so URI building works.
         var request = new MockHttpServletRequest();
@@ -224,7 +228,8 @@ class AdminAiConfigsControllerTest {
     private AiConfigView viewWith(String name, AiProviderType provider, String model,
                                   boolean apiKeyMasked, String systemPromptTemplate) {
         return new AiConfigView(configId, organizationId, name, provider, model,
-                null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, null, null, 0,
+                null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, null, null,
+                false, null, 4, 0.5, null, null, false, null, null, null, false, 0,
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00Z"));
     }

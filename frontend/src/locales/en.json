@@ -1109,7 +1109,51 @@
       },
       "field_langfuse_prompt_name": "Langfuse prompt name",
       "field_langfuse_prompt_label": "Langfuse prompt label",
-      "langfuse_prompt_help": "Optional. When set and Langfuse prompt management is enabled, the analyzer fetches this prompt from Langfuse instead of the system prompt above."
+      "langfuse_prompt_help": "Optional. When set and Langfuse prompt management is enabled, the analyzer fetches this prompt from Langfuse instead of the system prompt above.",
+      "rag": {
+        "section_title": "RAG knowledge base",
+        "section_help": "Retrieve organization-specific knowledge and inject it into AI analysis and SQL generation.",
+        "enabled": "Enable RAG",
+        "field_store_type": "Vector store",
+        "field_top_k": "Top-K results",
+        "field_threshold": "Similarity threshold",
+        "field_endpoint": "Vector store endpoint",
+        "field_collection": "Collection name",
+        "field_api_key": "Vector store API key",
+        "embedding_section": "Embeddings",
+        "field_embedding_provider": "Embedding provider",
+        "field_embedding_model": "Embedding model",
+        "field_embedding_endpoint": "Embedding endpoint",
+        "field_embedding_api_key": "Embedding API key",
+        "store_type_required": "A vector store is required when RAG is enabled",
+        "embedding_provider_required": "An embedding provider is required",
+        "embedding_model_required": "An embedding model is required",
+        "endpoint_required": "An endpoint is required for an external vector store",
+        "collection_required": "A collection name is required for an external vector store",
+        "top_k_range": "Top-K must be between 1 and 20",
+        "threshold_range": "Similarity threshold must be between 0 and 1",
+        "test_button": "Test RAG connection",
+        "test_ok": "RAG connection OK",
+        "test_failed": "RAG test failed: {{detail}}",
+        "documents_title": "Knowledge documents",
+        "documents_help": "Documents are chunked, embedded and stored for retrieval. Add them after saving the configuration.",
+        "documents_empty": "No knowledge documents yet",
+        "documents_save_first": "Save the configuration before adding knowledge documents.",
+        "add_document": "Add document",
+        "document_title": "Title",
+        "document_content": "Content",
+        "document_chars": "Characters",
+        "document_chunks": "Chunks",
+        "document_status": "Status",
+        "document_created": "Created",
+        "document_actions": "Actions",
+        "document_delete": "Delete",
+        "document_delete_confirm": "Delete this knowledge document?",
+        "document_title_required": "Title is required",
+        "document_content_required": "Content is required",
+        "document_added": "Knowledge document added",
+        "document_deleted": "Knowledge document deleted"
+      }
     },
     "notifications": {
       "title": "Notification channels",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "Variable",
       "LITERAL": "Literal"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "In-app (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

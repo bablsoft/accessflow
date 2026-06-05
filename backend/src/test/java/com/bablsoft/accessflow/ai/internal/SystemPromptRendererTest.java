@@ -162,7 +162,7 @@ class SystemPromptRendererTest {
     void rendersCustomTemplateSubstitutingAllNamedPlaceholders() {
         var template = "RULES. db={{db_type}} schema={{schema_context}} sql={{sql}} lang={{language}}";
 
-        var prompt = renderer.render(template, "SELECT 1", DbType.POSTGRESQL, "public.users(id int)", "en");
+        var prompt = renderer.render(template, "SELECT 1", DbType.POSTGRESQL, "public.users(id int)", null, "en");
 
         assertThat(prompt).isEqualTo("RULES. db=POSTGRESQL schema=public.users(id int) sql=SELECT 1 lang=English");
     }
@@ -170,15 +170,15 @@ class SystemPromptRendererTest {
     @Test
     void customTemplateFallsBackToSchemaPlaceholderWhenSchemaBlank() {
         var prompt = renderer.render("schema={{schema_context}} sql={{sql}}", "SELECT 1",
-                DbType.MYSQL, "   ", "en");
+                DbType.MYSQL, "   ", null, "en");
 
         assertThat(prompt).contains("schema=(no schema introspection available)");
     }
 
     @Test
     void blankCustomTemplateFallsBackToDefault() {
-        var fromBlank = renderer.render("   ", "SELECT 1", DbType.POSTGRESQL, null, "en");
-        var fromNull = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, "en");
+        var fromBlank = renderer.render("   ", "SELECT 1", DbType.POSTGRESQL, null, null, "en");
+        var fromNull = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, null, "en");
 
         assertThat(fromBlank).isEqualTo(fromNull);
         assertThat(fromBlank).contains("database security and performance expert");
@@ -191,7 +191,7 @@ class SystemPromptRendererTest {
         // that literal must survive verbatim and must NOT be turned into the language name.
         var sql = "SELECT '{{language}}'";
 
-        var prompt = renderer.render("sql={{sql}} lang={{language}}", sql, DbType.POSTGRESQL, null, "es");
+        var prompt = renderer.render("sql={{sql}} lang={{language}}", sql, DbType.POSTGRESQL, null, null, "es");
 
         assertThat(prompt).isEqualTo("sql=SELECT '{{language}}' lang=Español");
     }
@@ -208,7 +208,7 @@ class SystemPromptRendererTest {
     @Test
     void renderGenerationSubstitutesAllPlaceholders() {
         var prompt = renderer.renderGeneration("orders for last 5 days", DbType.POSTGRESQL,
-                "public.orders(id int pk)", "en");
+                "public.orders(id int pk)", null, "en");
 
         assertThat(prompt).contains("Database type: POSTGRESQL");
         assertThat(prompt).contains("Schema context: public.orders(id int pk)");
@@ -221,16 +221,45 @@ class SystemPromptRendererTest {
 
     @Test
     void renderGenerationFallsBackForBlankSchema() {
-        var prompt = renderer.renderGeneration("x", DbType.MYSQL, "  ", "en");
+        var prompt = renderer.renderGeneration("x", DbType.MYSQL, "  ", null, "en");
 
         assertThat(prompt).contains("Schema context: (no schema introspection available)");
     }
 
     @Test
     void renderGenerationHandlesNullUserRequestAndUnknownLanguage() {
-        var prompt = renderer.renderGeneration(null, DbType.POSTGRESQL, null, "xx");
+        var prompt = renderer.renderGeneration(null, DbType.POSTGRESQL, null, null, "xx");
 
         assertThat(prompt).contains("Respond in: English");
         assertThat(prompt).doesNotContain("{{user_request}}");
+    }
+
+    @Test
+    void rendersRetrievedRagContextIntoToken() {
+        var prompt = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, "public.users(id int)",
+                "Customer PII lives in users.ssn; never SELECT it.", "en");
+
+        assertThat(prompt).contains("Knowledge base context");
+        assertThat(prompt).contains("Customer PII lives in users.ssn; never SELECT it.");
+        assertThat(prompt).doesNotContain("{{rag_context}}");
+    }
+
+    @Test
+    void substitutesRagFallbackWhenContextNullOrBlank() {
+        var fromNull = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, null, "en");
+        var fromBlank = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, "  ", "en");
+
+        assertThat(fromNull).contains("(no knowledge base context available)");
+        assertThat(fromBlank).contains("(no knowledge base context available)");
+    }
+
+    @Test
+    void renderGenerationRendersRagContext() {
+        var prompt = renderer.renderGeneration("orders for last 5 days", DbType.POSTGRESQL,
+                "public.orders(id int pk)", "Use created_at for date filters.", "en");
+
+        assertThat(prompt).contains("Knowledge base context");
+        assertThat(prompt).contains("Use created_at for date filters.");
+        assertThat(prompt).doesNotContain("{{rag_context}}");
     }
 }

@@ -8,9 +8,12 @@ import type {
   AuditLogFilters,
   AuditLogPage,
   CreateAiConfigInput,
+  CreateKnowledgeDocumentInput,
   CreateNotificationChannelInput,
   CreateUserInput,
   DefaultAiPromptResult,
+  KnowledgeDocument,
+  RagTestResult,
   LangfuseConfig,
   LangfuseConfigTestResult,
   NotificationChannel,
@@ -83,6 +86,7 @@ export const aiConfigKeys = {
   details: () => ['aiConfig', 'detail'] as const,
   detail: (id: string) => ['aiConfig', 'detail', id] as const,
   promptDefault: () => ['aiConfig', 'promptDefault'] as const,
+  knowledge: (id: string) => ['aiConfig', 'knowledge', id] as const,
 };
 
 export const samlConfigKeys = {
@@ -302,6 +306,33 @@ export async function testAiConfig(id: string): Promise<TestAiConfigResult> {
 export async function getDefaultAiPrompt(): Promise<DefaultAiPromptResult> {
   const { data } = await apiClient.get<DefaultAiPromptResult>(`${AI_CONFIGS_BASE}/prompt-default`);
   return data;
+}
+
+export async function testRag(id: string): Promise<RagTestResult> {
+  const { data } = await apiClient.post<RagTestResult>(`${AI_CONFIGS_BASE}/${id}/rag/test`);
+  return data;
+}
+
+export async function listKnowledgeDocuments(configId: string): Promise<KnowledgeDocument[]> {
+  const { data } = await apiClient.get<KnowledgeDocument[]>(
+    `${AI_CONFIGS_BASE}/${configId}/knowledge-documents`,
+  );
+  return data;
+}
+
+export async function createKnowledgeDocument(
+  configId: string,
+  input: CreateKnowledgeDocumentInput,
+): Promise<KnowledgeDocument> {
+  const { data } = await apiClient.post<KnowledgeDocument>(
+    `${AI_CONFIGS_BASE}/${configId}/knowledge-documents`,
+    input,
+  );
+  return data;
+}
+
+export async function deleteKnowledgeDocument(configId: string, documentId: string): Promise<void> {
+  await apiClient.delete(`${AI_CONFIGS_BASE}/${configId}/knowledge-documents/${documentId}`);
 }
 
 // ── SAML config (Enterprise only) ────────────────────────────────────────────

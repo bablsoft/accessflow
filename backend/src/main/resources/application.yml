@@ -5,6 +5,14 @@ spring:
   main:
     banner-mode: "off"
 
+  autoconfigure:
+    # RAG vector stores (pgvector / Qdrant) are built per ai_config row at runtime by
+    # SpringAiVectorStoreFactory — never as context beans. Exclude their starters' auto-configs
+    # so the context does not try to build a VectorStore from absent connection properties.
+    exclude:
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+      - org.springframework.ai.vectorstore.qdrant.autoconfigure.QdrantVectorStoreAutoConfiguration
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/accessflow}
     username: ${DB_USER:accessflow}
@@ -29,6 +37,10 @@ spring:
       # ${DB_USER}/${AUDIT_DB_USER} env vars wire these to the right values).
       app_role: ${DB_USER:accessflow}
       audit_role: ${AUDIT_DB_USER:accessflow_audit}
+      # Embedding dimension of the in-app RAG pgvector column (V69). Must match the
+      # embedding model's output dimension; set before the first migrate (it fixes the
+      # vector(N) column type). Mirrors accessflow.rag.pgvector-dimensions below.
+      rag_pgvector_dimensions: ${ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS:1536}
 
   threads:
     virtual:
@@ -101,6 +113,14 @@ logging:
 
 accessflow:
   encryption-key: ${ENCRYPTION_KEY:}
+  rag:
+    # In-app pgvector embedding dimension; must match the vector(N) column (Flyway placeholder
+    # rag_pgvector_dimensions above) and the embedding model's output dimension.
+    pgvector-dimensions: ${ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS:1536}
+    # Token chunk size used when splitting a knowledge document for embedding.
+    chunk-size: ${ACCESSFLOW_RAG_CHUNK_SIZE:800}
+    # Maximum character length of a single knowledge document accepted for ingestion.
+    max-document-chars: ${ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS:100000}
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
     access-token-expiry: ${ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY:PT15M}

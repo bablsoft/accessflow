@@ -7,6 +7,9 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
+import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
+import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
 import com.bablsoft.accessflow.ai.api.TextToSqlNotConfiguredException;
 import com.bablsoft.accessflow.ai.internal.BadAiAnalysisStatsQueryException;
@@ -94,6 +97,32 @@ class AiAnalysisExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 msg("error.ai_config.prompt_missing_sql_placeholder"));
         pd.setProperty("error", "AI_CONFIG_INVALID_PROMPT");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiConfigRagInvalidException.class)
+    ProblemDetail handleAiConfigRagInvalid(AiConfigRagInvalidException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
+        pd.setProperty("error", "RAG_CONFIG_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(KnowledgeDocumentNotFoundException.class)
+    ProblemDetail handleKnowledgeDocumentNotFound(KnowledgeDocumentNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.knowledge_document.not_found"));
+        pd.setProperty("error", "KNOWLEDGE_DOCUMENT_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(KnowledgeDocumentIngestException.class)
+    ProblemDetail handleKnowledgeDocumentIngest(KnowledgeDocumentIngestException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
+                msg("error.ai_config.rag.ingest_failed"));
+        pd.setProperty("error", "RAG_INGEST_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

@@ -2298,6 +2298,8 @@ Creates a new AI configuration.
 
 Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000]; `system_prompt_template` ≤ 20000 and — when non-blank — **must contain the `{{sql}}` placeholder** (else **400** `AI_CONFIG_INVALID_PROMPT`). Omit it (or send blank) to use the built-in default; fetch the default via `GET /admin/ai-configs/prompt-default`. `langfuse_prompt_name` and `langfuse_prompt_label` ≤ 255 each (both optional).
 
+**RAG fields (AF-336, all optional):** `rag_enabled` (boolean), `rag_store_type` (`PGVECTOR` | `QDRANT`), `rag_top_k` ∈ [1, 20], `rag_similarity_threshold` ∈ [0, 1], `rag_endpoint` ≤ 500, `rag_collection` ≤ 255, `rag_api_key` ≤ 4096, `embedding_provider` (`ai_provider`, **not** `ANTHROPIC`), `embedding_model` ≤ 100, `embedding_endpoint` ≤ 500, `embedding_api_key` ≤ 4096. When `rag_enabled = true` the resulting row must have a `rag_store_type`, an `embedding_provider` (≠ `ANTHROPIC`) and an `embedding_model`; `QDRANT` additionally requires `rag_endpoint` + `rag_collection`. A violation returns **400** `RAG_CONFIG_INVALID`. `rag_api_key` / `embedding_api_key` follow the same masking semantics as `api_key`; the keys are never returned (a stored key surfaces as `********`).
+
 `endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. `HUGGING_FACE` likewise reuses the OpenAI client and is keyless-capable; a blank `endpoint` defaults to the Hugging Face Inference Providers router (`https://router.huggingface.co/v1`), and a custom base URL targets a local / self-hosted TGI server or a Dedicated Inference Endpoint. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
 **Response 201:** Created configuration (same shape as GET). `Location` header points at the new resource.
@@ -2349,6 +2351,55 @@ Sends a synthetic prompt (`SELECT 1`, dialect = POSTGRESQL) through the named co
 ```json
 { "status": "ERROR", "detail": "<provider error message>" }
 ```
+
+#### POST /admin/ai-configs/{id}/rag/test
+
+Verifies the configuration's RAG embedding model and vector store are reachable: embeds a probe and runs a similarity search. For `PGVECTOR`, the detected embedding dimension is checked against the configured pgvector column dimension.
+
+**Response 200:**
+```json
+{ "status": "OK", "detail": "Embedding model and vector store are reachable", "embedding_dimensions": 1536 }
+```
+**Response 200 (failure):** `{ "status": "ERROR", "detail": "<message>", "embedding_dimensions": null }`
+**Response 400:** RAG is not enabled / fully configured for this configuration (`error: RAG_CONFIG_INVALID`).
+**Response 404:** Configuration not found in this organization.
+
+### RAG Knowledge Base (`/admin/ai-configs/{id}/knowledge-documents`) *(ADMIN only)*
+
+Manages the knowledge documents attached to a RAG-enabled AI configuration (AF-336). On ingestion a document is chunked, embedded with the config's embedding model, and upserted into the configured vector store.
+
+#### GET /admin/ai-configs/{id}/knowledge-documents
+
+Lists the documents for the configuration (raw `content` excluded).
+
+**Response 200:**
+```json
+[
+  { "id": "doc-uuid", "ai_config_id": "cfg-uuid", "title": "Data policy", "char_count": 412,
+    "chunk_count": 2, "status": "INDEXED", "error_message": null,
+    "created_at": "2026-06-05T10:00:00Z", "updated_at": "2026-06-05T10:00:00Z" }
+]
+```
+**Response 404:** Configuration not found in this organization.
+
+#### POST /admin/ai-configs/{id}/knowledge-documents
+
+Adds a document. Synchronous: the request chunks → embeds → stores before returning.
+
+**Request body:** `{ "title": "Data policy", "content": "Never expose customer PII columns ..." }`
+Validation: `title` non-blank ≤ 255; `content` non-blank ≤ 100,000 (and ≤ `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS`).
+
+**Response 201:** Created document (incl. `chunk_count`). Writes a `KNOWLEDGE_DOCUMENT_CREATED` audit row.
+**Response 400:** Validation error, or RAG not enabled on the config (`error: RAG_CONFIG_INVALID`).
+**Response 404:** Configuration not found.
+**Response 502:** Embedding provider or vector store unreachable (`error: RAG_INGEST_FAILED`).
+
+#### DELETE /admin/ai-configs/{id}/knowledge-documents/{documentId}
+
+Removes the document and its stored chunks.
+
+**Response 204:** Deleted (writes a `KNOWLEDGE_DOCUMENT_DELETED` audit row).
+**Response 404:** Configuration or document not found (`error: KNOWLEDGE_DOCUMENT_NOT_FOUND`).
 
 ### AI Analysis Statistics (`/admin/ai-analyses`) *(ADMIN only)*
 

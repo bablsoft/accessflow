@@ -1052,7 +1052,51 @@
       },
       "field_langfuse_prompt_name": "Langfuse-Prompt-Name",
       "field_langfuse_prompt_label": "Langfuse-Prompt-Label",
-      "langfuse_prompt_help": "Optional. Wenn gesetzt und die Langfuse-Prompt-Verwaltung aktiviert ist, lädt der Analyzer diesen Prompt aus Langfuse statt des obigen System-Prompts."
+      "langfuse_prompt_help": "Optional. Wenn gesetzt und die Langfuse-Prompt-Verwaltung aktiviert ist, lädt der Analyzer diesen Prompt aus Langfuse statt des obigen System-Prompts.",
+      "rag": {
+        "section_title": "RAG-Wissensdatenbank",
+        "section_help": "Rufen Sie organisationsspezifisches Wissen ab und fügen Sie es in die KI-Analyse und SQL-Generierung ein.",
+        "enabled": "RAG aktivieren",
+        "field_store_type": "Vektorspeicher",
+        "field_top_k": "Top-K-Ergebnisse",
+        "field_threshold": "Ähnlichkeitsschwellenwert",
+        "field_endpoint": "Vektorspeicher-Endpunkt",
+        "field_collection": "Sammlungsname",
+        "field_api_key": "Vektorspeicher-API-Schlüssel",
+        "embedding_section": "Embeddings",
+        "field_embedding_provider": "Embedding-Anbieter",
+        "field_embedding_model": "Embedding-Modell",
+        "field_embedding_endpoint": "Embedding-Endpunkt",
+        "field_embedding_api_key": "Embedding-API-Schlüssel",
+        "store_type_required": "Ein Vektorspeicher ist erforderlich, wenn RAG aktiviert ist",
+        "embedding_provider_required": "Ein Embedding-Anbieter ist erforderlich",
+        "embedding_model_required": "Ein Embedding-Modell ist erforderlich",
+        "endpoint_required": "Für einen externen Vektorspeicher ist ein Endpunkt erforderlich",
+        "collection_required": "Für einen externen Vektorspeicher ist ein Sammlungsname erforderlich",
+        "top_k_range": "Top-K muss zwischen 1 und 20 liegen",
+        "threshold_range": "Der Ähnlichkeitsschwellenwert muss zwischen 0 und 1 liegen",
+        "test_button": "RAG-Verbindung testen",
+        "test_ok": "RAG-Verbindung OK",
+        "test_failed": "RAG-Test fehlgeschlagen: {{detail}}",
+        "documents_title": "Wissensdokumente",
+        "documents_help": "Dokumente werden in Abschnitte unterteilt, eingebettet und zum Abruf gespeichert. Fügen Sie sie nach dem Speichern der Konfiguration hinzu.",
+        "documents_empty": "Noch keine Wissensdokumente",
+        "documents_save_first": "Speichern Sie die Konfiguration, bevor Sie Wissensdokumente hinzufügen.",
+        "add_document": "Dokument hinzufügen",
+        "document_title": "Titel",
+        "document_content": "Inhalt",
+        "document_chars": "Zeichen",
+        "document_chunks": "Abschnitte",
+        "document_status": "Status",
+        "document_created": "Erstellt",
+        "document_actions": "Aktionen",
+        "document_delete": "Löschen",
+        "document_delete_confirm": "Dieses Wissensdokument löschen?",
+        "document_title_required": "Titel ist erforderlich",
+        "document_content_required": "Inhalt ist erforderlich",
+        "document_added": "Wissensdokument hinzugefügt",
+        "document_deleted": "Wissensdokument gelöscht"
+      }
     },
     "notifications": {
       "title": "Benachrichtigungskanäle",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "Variable",
       "LITERAL": "Literal"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "Integriert (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

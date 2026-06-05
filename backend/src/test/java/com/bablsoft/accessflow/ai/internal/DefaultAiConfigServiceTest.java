@@ -5,11 +5,13 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.RagStoreType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
@@ -492,6 +494,153 @@ class DefaultAiConfigServiceTest {
         when(promptRenderer.defaultTemplate()).thenReturn(SystemPromptRenderer.DEFAULT_TEMPLATE);
 
         assertThat(service.defaultSystemPromptTemplate()).isEqualTo(SystemPromptRenderer.DEFAULT_TEMPLATE);
+    }
+
+    @Test
+    void createWithRagEnabledPersistsRagAndEmbeddingFields() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "RagCfg")).thenReturn(false);
+        when(encryptionService.encrypt("ek")).thenReturn("ENC(ek)");
+        var captor = ArgumentCaptor.forClass(AiConfigEntity.class);
+        when(repository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("RagCfg", AiProviderType.ANTHROPIC, "model", null, null,
+                null, null, null, null, null, null,
+                true, RagStoreType.PGVECTOR, 5, 0.6, null, null, null,
+                AiProviderType.OPENAI, "text-embedding-3-small", null, "ek");
+        var view = service.create(orgId, cmd);
+
+        var saved = captor.getValue();
+        assertThat(saved.isRagEnabled()).isTrue();
+        assertThat(saved.getRagStoreType()).isEqualTo(RagStoreType.PGVECTOR);
+        assertThat(saved.getRagTopK()).isEqualTo(5);
+        assertThat(saved.getRagSimilarityThreshold()).isEqualTo(0.6);
+        assertThat(saved.getEmbeddingProvider()).isEqualTo(AiProviderType.OPENAI);
+        assertThat(saved.getEmbeddingApiKeyEncrypted()).isEqualTo("ENC(ek)");
+        assertThat(view.ragEnabled()).isTrue();
+        assertThat(view.embeddingApiKeyMasked()).isTrue();
+    }
+
+    @Test
+    void createRagWithoutStoreTypeThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "R")).thenReturn(false);
+
+        var cmd = ragCommand(null, AiProviderType.OPENAI, "m", null, null);
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.store_type_required");
+    }
+
+    @Test
+    void createRagWithAnthropicEmbeddingProviderThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "R")).thenReturn(false);
+
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.ANTHROPIC, "m", null, null);
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.embedding_provider_invalid");
+    }
+
+    @Test
+    void createRagWithoutEmbeddingModelThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "R")).thenReturn(false);
+
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.OPENAI, null, null, null);
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.embedding_model_required");
+    }
+
+    @Test
+    void createRagQdrantWithoutEndpointThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "R")).thenReturn(false);
+
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.OPENAI, "m", null, null);
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.external_endpoint_required");
+    }
+
+    @Test
+    void createRagQdrantWithoutCollectionThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "R")).thenReturn(false);
+
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.OPENAI, "m", "http://q:6334", null);
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.external_collection_required");
+    }
+
+    @Test
+    void updateEnablingRagPublishesEventWithRagChanged() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
+                true, RagStoreType.PGVECTOR, 4, 0.5, null, null, null,
+                AiProviderType.OPENAI, "text-embedding-3-small", null, null);
+        service.update(configId, orgId, cmd);
+
+        var captor = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().ragChanged()).isTrue();
+    }
+
+    @Test
+    void updateRagQdrantEncryptsKeysAndAppliesConnection() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("rag-key")).thenReturn("ENC(rag)");
+        when(encryptionService.encrypt("embed-key")).thenReturn("ENC(embed)");
+        var captor = ArgumentCaptor.forClass(AiConfigEntity.class);
+        when(repository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
+                true, RagStoreType.QDRANT, 9, 0.8, "http://qdrant:6334", "kb", "rag-key",
+                AiProviderType.OPENAI, "text-embedding-3-small", "http://embed:1234", "embed-key");
+        service.update(configId, orgId, cmd);
+
+        var saved = captor.getValue();
+        assertThat(saved.getRagStoreType()).isEqualTo(RagStoreType.QDRANT);
+        assertThat(saved.getRagTopK()).isEqualTo(9);
+        assertThat(saved.getRagSimilarityThreshold()).isEqualTo(0.8);
+        assertThat(saved.getRagEndpoint()).isEqualTo("http://qdrant:6334");
+        assertThat(saved.getRagCollection()).isEqualTo("kb");
+        assertThat(saved.getRagApiKeyEncrypted()).isEqualTo("ENC(rag)");
+        assertThat(saved.getEmbeddingEndpoint()).isEqualTo("http://embed:1234");
+        assertThat(saved.getEmbeddingApiKeyEncrypted()).isEqualTo("ENC(embed)");
+    }
+
+    @Test
+    void updateRagMaskedKeysLeaveCiphertextUnchanged() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.OPENAI);
+        entity.setRagEnabled(true);
+        entity.setRagStoreType(RagStoreType.PGVECTOR);
+        entity.setEmbeddingProvider(AiProviderType.OPENAI);
+        entity.setEmbeddingModel("m");
+        entity.setRagApiKeyEncrypted("ENC(old-rag)");
+        entity.setEmbeddingApiKeyEncrypted("ENC(old-embed)");
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, UpdateAiConfigCommand.MASKED_API_KEY,
+                null, null, null, UpdateAiConfigCommand.MASKED_API_KEY);
+        service.update(configId, orgId, cmd);
+
+        assertThat(entity.getRagApiKeyEncrypted()).isEqualTo("ENC(old-rag)");
+        assertThat(entity.getEmbeddingApiKeyEncrypted()).isEqualTo("ENC(old-embed)");
+    }
+
+    private CreateAiConfigCommand ragCommand(RagStoreType storeType, AiProviderType embeddingProvider,
+                                             String embeddingModel, String ragEndpoint, String ragCollection) {
+        return new CreateAiConfigCommand("R", AiProviderType.ANTHROPIC, "model", null, null,
+                null, null, null, null, null, null,
+                true, storeType, 4, 0.5, ragEndpoint, ragCollection, null,
+                embeddingProvider, embeddingModel, null, null);
     }
 
     private static AiConfigEntity build(UUID id, UUID organizationId, String name,

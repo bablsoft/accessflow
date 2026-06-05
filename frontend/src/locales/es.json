@@ -1052,7 +1052,51 @@
       },
       "field_langfuse_prompt_name": "Nombre del prompt de Langfuse",
       "field_langfuse_prompt_label": "Etiqueta del prompt de Langfuse",
-      "langfuse_prompt_help": "Opcional. Cuando se define y la gestión de prompts de Langfuse está habilitada, el analizador obtiene este prompt de Langfuse en lugar del prompt del sistema anterior."
+      "langfuse_prompt_help": "Opcional. Cuando se define y la gestión de prompts de Langfuse está habilitada, el analizador obtiene este prompt de Langfuse en lugar del prompt del sistema anterior.",
+      "rag": {
+        "section_title": "Base de conocimiento RAG",
+        "section_help": "Recupera conocimiento específico de la organización e inyéctalo en el análisis de IA y la generación de SQL.",
+        "enabled": "Habilitar RAG",
+        "field_store_type": "Almacén de vectores",
+        "field_top_k": "Resultados Top-K",
+        "field_threshold": "Umbral de similitud",
+        "field_endpoint": "Endpoint del almacén de vectores",
+        "field_collection": "Nombre de la colección",
+        "field_api_key": "Clave de API del almacén de vectores",
+        "embedding_section": "Embeddings",
+        "field_embedding_provider": "Proveedor de embeddings",
+        "field_embedding_model": "Modelo de embeddings",
+        "field_embedding_endpoint": "Endpoint de embeddings",
+        "field_embedding_api_key": "Clave de API de embeddings",
+        "store_type_required": "Se requiere un almacén de vectores cuando RAG está habilitado",
+        "embedding_provider_required": "Se requiere un proveedor de embeddings",
+        "embedding_model_required": "Se requiere un modelo de embeddings",
+        "endpoint_required": "Se requiere un endpoint para un almacén de vectores externo",
+        "collection_required": "Se requiere un nombre de colección para un almacén de vectores externo",
+        "top_k_range": "Top-K debe estar entre 1 y 20",
+        "threshold_range": "El umbral de similitud debe estar entre 0 y 1",
+        "test_button": "Probar conexión RAG",
+        "test_ok": "Conexión RAG correcta",
+        "test_failed": "Prueba de RAG fallida: {{detail}}",
+        "documents_title": "Documentos de conocimiento",
+        "documents_help": "Los documentos se dividen, incrustan y almacenan para su recuperación. Agrégalos después de guardar la configuración.",
+        "documents_empty": "Aún no hay documentos de conocimiento",
+        "documents_save_first": "Guarda la configuración antes de agregar documentos de conocimiento.",
+        "add_document": "Agregar documento",
+        "document_title": "Título",
+        "document_content": "Contenido",
+        "document_chars": "Caracteres",
+        "document_chunks": "Fragmentos",
+        "document_status": "Estado",
+        "document_created": "Creado",
+        "document_actions": "Acciones",
+        "document_delete": "Eliminar",
+        "document_delete_confirm": "¿Eliminar este documento de conocimiento?",
+        "document_title_required": "El título es obligatorio",
+        "document_content_required": "El contenido es obligatorio",
+        "document_added": "Documento de conocimiento agregado",
+        "document_deleted": "Documento de conocimiento eliminado"
+      }
     },
     "notifications": {
       "title": "Canales de notificación",
@@ -1824,6 +1868,10 @@
     "row_security_value_type": {
       "VARIABLE": "Variable",
       "LITERAL": "Literal"
+    },
+    "rag_store_type": {
+      "PGVECTOR": "Integrado (pgvector)",
+      "QDRANT": "Qdrant"
     }
   },
   "access": {

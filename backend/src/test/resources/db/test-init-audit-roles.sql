@@ -29,3 +29,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 CREATE ROLE accessflow LOGIN PASSWORD 'accessflow';
 GRANT CONNECT ON DATABASE test TO accessflow;
 GRANT USAGE ON SCHEMA public TO accessflow;
+
+-- AF-336: the pgvector `vector` extension required by V69 (vector_store table). Provisioned
+-- here as the Testcontainer superuser, mirroring deploy/postgres-init/02-pgvector.sql in prod
+-- (the application DB role is not a superuser, so the extension is never created by Flyway).
+CREATE EXTENSION IF NOT EXISTS vector;
