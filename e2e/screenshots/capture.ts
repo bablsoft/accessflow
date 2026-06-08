@@ -1,11 +1,11 @@
 // Screenshot capture script for AccessFlow website docs.
 //
 // Drives the running e2e stack (http://localhost:5173 frontend,
-// http://localhost:8080 backend) and writes 46 PNGs into
-// ../website/images/docs/ — the 38 existing screens (re-captured against the
-// current build) plus 8 new v1.3 captures (light + dark each): the routing-policy
-// admin page (AF-379), the access-requests queue (AF-378), and the datasource
-// Masking (AF-381) + Row security (AF-380) settings tabs.
+// http://localhost:8080 backend) and writes the website docs PNGs into
+// ../website/images/docs/ — every existing screen (re-captured against the
+// current build) plus the v1.4 captures: the Langfuse config page (AF-333,
+// light + dark), the AI-config RAG knowledge-base section (AF-336, light +
+// dark), and the editor text-to-SQL bar (AF-335, light only).
 //
 // Run from the e2e/ directory after `npm run stack:up`:
 //   npx tsx screenshots/capture.ts
@@ -80,6 +80,7 @@ async function seedData() {
     name: `Sample Postgres (analytics) ${RUN_SUFFIX}`,
     aiAnalysisEnabled: true,
     aiConfigId: mockAi.id,
+    textToSqlEnabled: true,
     reviewPlanId: plan.id,
   });
   console.log(`[seed] datasource ${ds.id}`);
@@ -611,6 +612,82 @@ async function prepDatasourcesRowSecurity(page: Page, datasourceId: string) {
   await page.waitForTimeout(800);
 }
 
+async function prepLangfuseConfig(page: Page) {
+  // LangfuseConfigPage renders the editable form inline (Connection + Features
+  // sections, Save / Test connection buttons) — no Edit gate to click.
+  await gotoAndSettle(page, '/admin/langfuse');
+  await page
+    .getByRole('button', { name: /Test connection|Save/i })
+    .first()
+    .waitFor({ state: 'visible', timeout: 10_000 })
+    .catch(() => {});
+  await page.waitForTimeout(500);
+}
+
+async function prepAiConfigsRag(page: Page) {
+  await gotoAndSettle(page, '/admin/ai-configs/new');
+  // Step 1 (Provider): pick a tile to advance to the Connection step. Anthropic
+  // is unambiguous (the OpenAI tile's name collides with "Custom OpenAI-compatible").
+  const tile = page.getByRole('button', { name: /Anthropic/i }).first();
+  if (await tile.count()) await tile.click();
+  await page.waitForTimeout(400);
+  // Toggle "Enable RAG" — the only Switch on the Connection step — to reveal the
+  // vector-store + embedding fields.
+  const ragSwitch = page.getByRole('switch').first();
+  if (await ragSwitch.count()) {
+    await ragSwitch.click();
+    await page.waitForTimeout(300);
+  }
+  // Best-effort: pick the in-app vector store + an embedding provider so the
+  // selects render populated. Wrapped — a capture must not fail on a select.
+  try {
+    const storeSelect = page
+      .locator('.ant-form-item', { hasText: /Vector store/i })
+      .locator('.ant-select')
+      .first();
+    if (await storeSelect.count()) {
+      await storeSelect.click();
+      await page.locator('.ant-select-item-option').first().click();
+      await page.waitForTimeout(200);
+    }
+    const embedSelect = page
+      .locator('.ant-form-item', { hasText: /Embedding provider/i })
+      .locator('.ant-select')
+      .first();
+    if (await embedSelect.count()) {
+      await embedSelect.click();
+      const openai = page
+        .locator('.ant-select-item-option')
+        .filter({ hasText: /OpenAI/i })
+        .first();
+      if (await openai.count()) await openai.click();
+      else await page.locator('.ant-select-item-option').first().click();
+      await page.waitForTimeout(200);
+    }
+  } catch { /* selects are decorative for the shot — ignore interaction races */ }
+  // Bring the RAG section to the top of the viewport (it sits below a tall form).
+  const ragHeading = page.getByText(/RAG knowledge base/i).first();
+  if (await ragHeading.count()) {
+    await ragHeading.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  }
+  await page.waitForTimeout(500);
+}
+
+async function prepEditorTextToSql(page: Page) {
+  // Reuse the editor prep (selects the seeded datasource — which now has
+  // text_to_sql_enabled + a bound AI config — and types sample SQL). The
+  // "Describe your query" bar renders above the SQL pane for that datasource.
+  await prepEditor(page);
+  const nl = page.getByRole('textbox', { name: /Describe your query/i }).first();
+  if (await nl.count()) {
+    await nl.click();
+    await page.keyboard.type('orders placed in the last 5 days with their line-item totals', {
+      delay: 1,
+    });
+  }
+  await page.waitForTimeout(500);
+}
+
 // ----------------------- main flow -----------------------
 
 async function main() {
@@ -654,6 +731,8 @@ async function main() {
     { name: 'queries-list', prep: prepQueriesList, darkToo: false },
     { name: 'editor-schedule', prep: prepEditorSchedule, darkToo: false },
     { name: 'editor-query-templates', prep: prepEditorTemplates, darkToo: false },
+    // v1.4 end-user (AF-335 text-to-SQL)
+    { name: 'editor-text-to-sql', prep: prepEditorTextToSql, darkToo: false },
 
     // v1.1 admin
     { name: 'audit-log', prep: prepAuditLog, darkToo: true },
@@ -683,6 +762,10 @@ async function main() {
       prep: (p) => prepDatasourcesRowSecurity(p, seed.datasourceId),
       darkToo: true,
     },
+
+    // v1.4 admin (AF-333 Langfuse, AF-336 RAG knowledge base)
+    { name: 'langfuse-config', prep: prepLangfuseConfig, darkToo: true },
+    { name: 'ai-configs-rag', prep: prepAiConfigsRag, darkToo: true },
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },

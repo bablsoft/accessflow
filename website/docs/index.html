@@ -1022,6 +1022,15 @@ APPROVED → FAILED (execution error)</pre>
             never affects query workflow. Use the <em>Test connection</em> button to verify your
             credentials.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/langfuse-config-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/langfuse-config-dark.png"
+                   alt="The /admin/langfuse configuration page with the Connection section (Enabled toggle, Host URL, public and secret keys) and the Features section (Send analysis traces, Use Langfuse-managed prompts), plus Save and Test connection buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/langfuse</code> — per-org tracing + managed prompts; keys are stored encrypted, <em>Test connection</em> verifies them.</figcaption>
+          </figure>
           <p>
             <strong>RAG knowledge base.</strong> Each AI configuration can carry a
             retrieval-augmented-generation knowledge base. Toggle <em>Enable RAG</em> on the create
@@ -1037,6 +1046,15 @@ APPROVED → FAILED (execution error)</pre>
             <em>Test RAG connection</em> to verify the embedding model and vector store are reachable.
             Retrieval is best-effort — a store outage never blocks analysis.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/ai-configs-rag-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/ai-configs-rag-dark.png"
+                   alt="The AI configuration wizard Connection step with Enable RAG toggled on, revealing the vector store select (In-app pgvector), Top-K and similarity-threshold inputs, and the embedding provider and model fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-configs/new</code> → <em>Enable RAG</em>. Pick a vector store + embedding model; add knowledge documents on the edit page.</figcaption>
+          </figure>
           <div class="docs-callout info">
             <strong>pgvector requirement.</strong> The in-app store needs the PostgreSQL
             <code>vector</code> extension. The bundled Docker Compose / Helm deployments provision it
@@ -1332,6 +1350,26 @@ APPROVED → FAILED (execution error)</pre>
                    loading="lazy" width="1440" height="900" />
             </picture>
             <figcaption><code>/editor</code> — schema browser, SQL pane, justification, scheduled-execution row, and AI analysis side panel.</figcaption>
+          </figure>
+
+          <h3 id="flow-text-to-sql">Drafting SQL from natural language</h3>
+          <p>
+            When a datasource has <em>text-to-SQL</em> enabled and an AI configuration bound (see
+            <a href="#cfg-datasources">Datasources</a> → <em>Configuration</em>), the editor shows a
+            <strong>Describe your query</strong> bar above the SQL pane. Type a plain-language request
+            (e.g. "order numbers for the last 5 days"), click <em>Generate SQL</em>, and the draft is
+            written into the editor for you to review and edit. The generated query is never executed
+            directly — it still flows through the full AI analysis and review pipeline like any
+            hand-written submission.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/editor-text-to-sql-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/editor-text-to-sql-light.png"
+                   alt="The /editor page with the text-to-SQL bar above the SQL pane: a Describe your query textarea with a natural-language prompt and a Generate SQL button, and the generated SELECT statement rendered in the CodeMirror editor below."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Describe your query</em>. AI drafts the SQL; the draft still goes through the normal review pipeline.</figcaption>
           </figure>
 
           <h3 id="flow-templates">Query templates library</h3>
