@@ -118,6 +118,8 @@ export function buildTimelineStages(
       detail:
         query.status === 'EXECUTED' && query.duration_ms != null
           ? `${fmtNum(query.rows_affected)} rows · ${query.duration_ms}ms`
+          : query.status === 'FAILED'
+          ? query.error_message ?? null
           : null,
     });
   }

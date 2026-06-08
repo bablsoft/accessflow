@@ -348,6 +348,17 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Failed'),
     ).toBeVisible({ timeout: failureTimeout });
+
+    // AF-408: the execution-failure card surfaces the cause. "Error detail" is
+    // the card's label (queries.detail.execution_error_label) and is unique —
+    // it does not collide with the "Execution failed" toast or timeline label.
+    // The statement-timeout path persists the timeout message into error_message.
+    await expect(page.getByText('Error detail')).toBeVisible({
+      timeout: failureTimeout,
+    });
+    await expect(
+      page.getByText('The query could not be executed. The database returned:'),
+    ).toBeVisible();
   });
 });
 

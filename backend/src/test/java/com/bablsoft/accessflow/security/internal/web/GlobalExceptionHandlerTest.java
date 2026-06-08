@@ -255,7 +255,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void queryExecutionFailedReturns422WithSqlStateAndVendorCode() {
-        var ex = new QueryExecutionFailedException("relation missing", "42P01", 7,
+        var ex = new QueryExecutionFailedException("relation missing",
+                "ERROR: relation \"x\" does not exist", "42P01", 7,
                 new RuntimeException());
 
         var pd = handler.handleQueryExecutionFailed(ex);
@@ -268,7 +269,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void queryExecutionFailedWithoutSqlStateOmitsTheProperty() {
-        var ex = new QueryExecutionFailedException("oops", null, 0, new RuntimeException());
+        var ex = new QueryExecutionFailedException("oops", "oops detail", null, 0,
+                new RuntimeException());
 
         var pd = handler.handleQueryExecutionFailed(ex);
 

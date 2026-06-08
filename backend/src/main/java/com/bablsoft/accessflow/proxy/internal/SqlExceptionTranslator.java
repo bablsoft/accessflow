@@ -35,6 +35,7 @@ class SqlExceptionTranslator {
         }
         return new QueryExecutionFailedException(
                 messageSource.getMessage("error.query_execution_failed", null, locale),
+                ex.getMessage(),
                 ex.getSQLState(),
                 ex.getErrorCode(),
                 ex);

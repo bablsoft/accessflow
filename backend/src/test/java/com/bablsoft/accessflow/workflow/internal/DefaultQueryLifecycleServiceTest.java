@@ -462,6 +462,7 @@ class DefaultQueryLifecycleServiceTest {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         when(queryExecutor.execute(any())).thenThrow(new QueryExecutionFailedException(
+                "Query execution failed",
                 "relation \"does_not_exist\" does not exist", "42P01", 0,
                 new RuntimeException("cause")));
 
@@ -469,6 +470,13 @@ class DefaultQueryLifecycleServiceTest {
                 organizationId, false));
 
         assertThat(outcome.status()).isEqualTo(QueryStatus.FAILED);
+
+        // The verbatim driver detail — not the generic localized summary — is persisted so the
+        // detail page can surface the real cause (AF-408).
+        var execCaptor = ArgumentCaptor.forClass(RecordExecutionCommand.class);
+        verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
+        assertThat(execCaptor.getValue().errorMessage())
+                .isEqualTo("relation \"does_not_exist\" does not exist");
 
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
@@ -484,7 +492,8 @@ class DefaultQueryLifecycleServiceTest {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         when(queryExecutor.execute(any())).thenThrow(new QueryExecutionFailedException(
-                "driver returned no sql state", null, 0, new RuntimeException("cause")));
+                "Query execution failed", "driver returned no sql state", null, 0,
+                new RuntimeException("cause")));
 
         service.execute(new ExecuteQueryCommand(queryId, submitterId, organizationId, false));
 
