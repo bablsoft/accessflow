@@ -206,8 +206,13 @@ class DatasourceControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(200);
+        // Five first-class dialects (source=bundled) plus the ClickHouse connector
+        // (source=connector, code=CUSTOM) from the declarative connector catalog.
         assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
-                .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL");
+                .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM");
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.source=='connector')].connector_id").asArray()
+                .containsExactly("clickhouse");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.code=='POSTGRESQL')].driver_status").asArray()
                 .containsExactly("READY");

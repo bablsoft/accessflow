@@ -35,6 +35,9 @@ public record CreateDatasourceRequest(
         UUID aiConfigId,
         Boolean textToSqlEnabled,
         UUID customDriverId,
+        @Size(max = 64, message = "{validation.connector_id.length}")
+        @Pattern(regexp = "^[a-z0-9][a-z0-9-]*$", message = "{validation.connector_id.format}")
+        String connectorId,
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
                 message = "{validation.jdbc_url.format}") String jdbcUrlOverride,

@@ -28,6 +28,10 @@
         <jsqlparser.version>5.3</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
         <archiunit.version>1.4.2</archiunit.version>
+        <!-- Repo-root connector catalog (issue #334), bundled onto the classpath as connectors/**.
+             Local/CI builds run from backend/ so the default resolves to the sibling folder; the
+             Docker build copies connectors into the image and overrides this with -Dconnectors.dir. -->
+        <connectors.dir>${project.basedir}/../connectors</connectors.dir>
     </properties>
 
     <dependencyManagement>
@@ -316,6 +320,21 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- Bundle the declarative connector catalog (connectors/<id>/connector.json + logos)
+                 onto the classpath under connectors/**, where ConnectorCatalog loads it. -->
+            <resource>
+                <directory>${connectors.dir}</directory>
+                <targetPath>connectors</targetPath>
+                <excludes>
+                    <exclude>README.md</exclude>
+                    <exclude>schema/**</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

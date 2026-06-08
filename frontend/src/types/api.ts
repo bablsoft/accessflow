@@ -470,6 +470,7 @@ export interface Datasource {
   ai_config_id: string | null;
   text_to_sql_enabled: boolean;
   custom_driver_id: string | null;
+  connector_id: string | null;
   jdbc_url_override: string | null;
   read_replica_jdbc_url: string | null;
   read_replica_username: string | null;
@@ -501,6 +502,7 @@ export interface CreateDatasourceInput {
   ai_config_id?: string | null;
   text_to_sql_enabled?: boolean;
   custom_driver_id?: string | null;
+  connector_id?: string | null;
   jdbc_url_override?: string | null;
   read_replica_jdbc_url?: string | null;
   read_replica_username?: string | null;
@@ -545,7 +547,7 @@ export interface CreatePermissionInput {
 
 export type DriverStatus = 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
 
-export type DriverSource = 'bundled' | 'uploaded';
+export type DriverSource = 'bundled' | 'uploaded' | 'connector';
 
 export interface DatasourceTypeOption {
   code: DbType;
@@ -560,10 +562,33 @@ export interface DatasourceTypeOption {
   custom_driver_id: string | null;
   vendor_name: string | null;
   driver_class: string | null;
+  connector_id: string | null;
+  description: string | null;
+  documentation_url: string | null;
 }
 
 export interface DatasourceTypesResponse {
   types: DatasourceTypeOption[];
+}
+
+export interface Connector {
+  id: string;
+  db_type: DbType;
+  name: string;
+  icon_url: string;
+  vendor: string | null;
+  description: string | null;
+  documentation_url: string | null;
+  default_port: number;
+  default_ssl_mode: SslMode;
+  jdbc_url_template: string;
+  driver_class: string | null;
+  driver_status: DriverStatus;
+  bundled: boolean;
+}
+
+export interface ConnectorListResponse {
+  connectors: Connector[];
 }
 
 export interface CustomDriver {

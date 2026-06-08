@@ -16,6 +16,9 @@ const bundledTypes: DatasourceTypeOption[] = [
     bundled: true,
     source: 'bundled',
     custom_driver_id: null,
+    connector_id: null,
+    description: null,
+    documentation_url: null,
     vendor_name: null,
     driver_class: null,
   },
@@ -30,6 +33,9 @@ const bundledTypes: DatasourceTypeOption[] = [
     bundled: false,
     source: 'bundled',
     custom_driver_id: null,
+    connector_id: null,
+    description: null,
+    documentation_url: null,
     vendor_name: null,
     driver_class: null,
   },
@@ -44,6 +50,9 @@ const bundledTypes: DatasourceTypeOption[] = [
     bundled: false,
     source: 'bundled',
     custom_driver_id: null,
+    connector_id: null,
+    description: null,
+    documentation_url: null,
     vendor_name: null,
     driver_class: null,
   },
@@ -60,8 +69,29 @@ const uploadedDriver: DatasourceTypeOption = {
   bundled: false,
   source: 'uploaded',
   custom_driver_id: 'driver-1',
+  connector_id: null,
+  description: null,
+  documentation_url: null,
   vendor_name: 'Acme',
   driver_class: 'com.acme.JdbcDriver',
+};
+
+const connectorOption: DatasourceTypeOption = {
+  code: 'CUSTOM',
+  display_name: 'ClickHouse',
+  icon_url: '/db-icons/clickhouse.svg',
+  default_port: 8123,
+  default_ssl_mode: 'DISABLE',
+  jdbc_url_template: 'jdbc:ch://{host}:{port}/{database_name}',
+  driver_status: 'AVAILABLE',
+  bundled: false,
+  source: 'connector',
+  custom_driver_id: null,
+  connector_id: 'clickhouse',
+  description: 'Column-oriented OLAP database.',
+  documentation_url: 'https://clickhouse.com/docs',
+  vendor_name: 'ClickHouse, Inc.',
+  driver_class: 'com.clickhouse.jdbc.ClickHouseDriver',
 };
 
 function wrap(ui: React.ReactNode) {
@@ -183,5 +213,27 @@ describe('DatasourceTypeSelector', () => {
     const other = { ...uploadedDriver, custom_driver_id: 'driver-2' };
     expect(optionKey(uploadedDriver)).not.toEqual(optionKey(other));
     expect(optionKey(bundledTypes[0]!)).toBe('bundled:POSTGRESQL');
+  });
+
+  it('renders connector-source options in their own group and selects them', () => {
+    const onSelect = vi.fn();
+    render(
+      wrap(
+        <DatasourceTypeSelector
+          types={[...bundledTypes, connectorOption]}
+          selectedKey={null}
+          onSelect={onSelect}
+        />,
+      ),
+    );
+    expect(screen.getByRole('heading', { name: 'Connectors' })).toBeInTheDocument();
+    expect(screen.getByText('ClickHouse')).toBeInTheDocument();
+    expect(screen.getByText('Column-oriented OLAP database.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('ClickHouse'));
+    expect(onSelect).toHaveBeenCalledWith(connectorOption);
+  });
+
+  it('optionKey keys connector options by connector id', () => {
+    expect(optionKey(connectorOption)).toBe('connector:clickhouse');
   });
 });

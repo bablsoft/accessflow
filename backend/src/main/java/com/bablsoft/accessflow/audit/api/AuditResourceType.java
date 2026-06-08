@@ -29,7 +29,8 @@ public enum AuditResourceType {
     ACCESS_GRANT_REQUEST("access_grant_request"),
     MASKING_POLICY("masking_policy"),
     ROUTING_POLICY("routing_policy"),
-    ROW_SECURITY_POLICY("row_security_policy");
+    ROW_SECURITY_POLICY("row_security_policy"),
+    CONNECTOR("connector");
 
     private final String dbValue;
 

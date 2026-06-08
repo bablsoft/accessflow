@@ -86,6 +86,7 @@ public class DatasourceReconciler {
                     aiConfigId,
                     spec.textToSqlEnabled(),
                     null,
+                    null,
                     spec.jdbcUrlOverride(),
                     null,
                     null,

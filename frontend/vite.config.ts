@@ -52,6 +52,7 @@ export default defineConfig({
         'src/api/admin.ts',
         'src/api/auth.ts',
         'src/api/client.ts',
+        'src/api/connectors.ts',
         'src/api/datasourceHealth.ts',
         'src/api/datasources.ts',
         'src/api/maskingPolicies.ts',

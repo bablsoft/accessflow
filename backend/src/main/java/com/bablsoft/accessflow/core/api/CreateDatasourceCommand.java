@@ -21,6 +21,7 @@ public record CreateDatasourceCommand(
         UUID aiConfigId,
         Boolean textToSqlEnabled,
         UUID customDriverId,
+        String connectorId,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,
         String readReplicaUsername,

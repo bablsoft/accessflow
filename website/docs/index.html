@@ -194,6 +194,7 @@
             <a href="#cfg-roles">User roles &amp; RBAC</a>
             <a href="#cfg-groups">User groups</a>
             <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-connectors">Connectors</a>
             <a href="#cfg-drivers">Custom JDBC drivers</a>
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-routing-policies">Routing policies</a>
@@ -845,12 +846,28 @@
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
           </figure>
 
+          <h3 id="cfg-connectors">Connectors</h3>
+          <p>
+            The databases AccessFlow can proxy are described by a declarative <strong>connector
+            catalog</strong> — a curated set shipped with the product (PostgreSQL, MySQL, MariaDB,
+            Oracle, Microsoft SQL Server, and ClickHouse). Under <em>Admin → Connectors</em>
+            (<code>/admin/connectors</code>) an admin browses the catalog and <strong>installs</strong>
+            a database's JDBC driver with one click — AccessFlow downloads it, verifies its pinned
+            SHA-256, and caches it. Bundled connectors (PostgreSQL) show as <em>Installed</em>; the
+            rest show an <em>Install</em> action.
+          </p>
+          <ol>
+            <li><strong>Install.</strong> Click <em>Install</em> on a connector card. The driver is fetched from the configured Maven repository (<code>ACCESSFLOW_DRIVERS_REPOSITORY_URL</code>), SHA-256-verified, and cached to <code>ACCESSFLOW_DRIVER_CACHE</code>.</li>
+            <li><strong>Use it.</strong> Installed connectors appear in the datasource create wizard. The five core engines are first-class database types; additional engines (e.g. ClickHouse) are created as a <em>Custom</em> datasource backed by the connector — you fill in host / port / database and AccessFlow builds the JDBC URL from the connector's template.</li>
+            <li><strong>Air-gapped.</strong> Pre-seed the driver cache and set <code>ACCESSFLOW_DRIVERS_OFFLINE=true</code>; connectors whose JAR isn't cached then report <em>Unavailable</em>.</li>
+          </ol>
+
           <h3 id="cfg-drivers">Custom JDBC drivers</h3>
           <p>
-            AccessFlow ships with bundled drivers for PostgreSQL, MySQL, MariaDB, Oracle, and
-            Microsoft SQL Server. To target any other JDBC engine, upload its driver JAR under
+            For an engine not in the connector catalog, upload its driver JAR under
             <em>Admin → Custom JDBC drivers</em> — datasources can then bind to it by setting
-            <em>Database type</em> to <em>Custom</em> in the create wizard.
+            <em>Database type</em> to <em>Custom</em> in the create wizard. Connectors are the
+            curated catalog; uploads are the escape hatch for anything else.
           </p>
           <figure class="docs-figure">
             <picture>

@@ -17,6 +17,8 @@ AccessFlow is an open-source **database access governance platform**. It acts as
 | [09-deployment.md](./09-deployment.md) | Docker Compose, Helm chart, environment variables reference |
 | [11-development.md](./11-development.md) | Repo structure, local setup, testing strategy, coding standards |
 | [12-roadmap.md](./12-roadmap.md) | v1.0 → v2.1 milestone scope |
+| [13-mcp.md](./13-mcp.md) | Stateless MCP server, user API keys, exposed tools |
+| [14-connectors.md](./14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
 
 ## Tech Stack Summary
 

@@ -106,6 +106,7 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
                 entity.getAiConfigId(),
                 entity.isTextToSqlEnabled(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
+                entity.getConnectorId(),
                 entity.getJdbcUrlOverride(),
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),

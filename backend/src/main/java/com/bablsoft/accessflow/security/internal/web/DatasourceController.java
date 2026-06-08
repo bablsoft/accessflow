@@ -134,6 +134,7 @@ class DatasourceController {
                 request.aiConfigId(),
                 request.textToSqlEnabled(),
                 request.customDriverId(),
+                request.connectorId(),
                 request.jdbcUrlOverride(),
                 request.readReplicaJdbcUrl(),
                 request.readReplicaUsername(),

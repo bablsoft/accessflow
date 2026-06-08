@@ -23,6 +23,7 @@ import {
   KeyOutlined,
   UnlockOutlined,
   LineChartOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -80,6 +81,7 @@ export function Sidebar({
       label: t('nav.group_data'),
       items: [
         { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
+        { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, roles: ['ADMIN'] },
         { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
       ],
     },

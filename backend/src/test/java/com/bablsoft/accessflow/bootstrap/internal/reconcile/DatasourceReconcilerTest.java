@@ -169,6 +169,6 @@ class DatasourceReconcilerTest {
     private DatasourceView view(UUID id, String name) {
         return new DatasourceView(id, ORG_ID, name, DbType.POSTGRESQL, "host", 5432, "db", "user",
                 SslMode.DISABLE, 10, 100, false, true, null, false, null, false, null, null,
-                null, null, true, Instant.now());
+                null, null, null, true, Instant.now());
     }
 }

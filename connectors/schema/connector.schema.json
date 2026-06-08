@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://accessflow.dev/schema/connector.schema.json",
+  "title": "AccessFlow connector manifest",
+  "description": "Declarative descriptor for a database connector. One per connectors/<id>/connector.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "dbType",
+    "logo",
+    "defaultPort",
+    "defaultSslMode",
+    "jdbcUrlTemplate",
+    "driverClassName",
+    "bundled"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable slug; must equal the containing folder name."
+    },
+    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "dbType": {
+      "type": "string",
+      "enum": ["POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM"]
+    },
+    "vendor": { "type": "string", "maxLength": 100 },
+    "description": { "type": "string", "maxLength": 300 },
+    "documentationUrl": { "type": "string", "format": "uri" },
+    "logo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$",
+      "description": "Logo file name relative to the connector folder."
+    },
+    "defaultPort": { "type": "integer", "minimum": 0, "maximum": 65535 },
+    "defaultSslMode": {
+      "type": "string",
+      "enum": ["DISABLE", "REQUIRE", "VERIFY_CA", "VERIFY_FULL"]
+    },
+    "jdbcUrlTemplate": { "type": "string", "minLength": 1 },
+    "driverClassName": {
+      "type": "string",
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*(\\.[A-Za-z_$][A-Za-z0-9_$]*)+$"
+    },
+    "bundled": { "type": "boolean" },
+    "driver": {
+      "type": "object",
+      "description": "Download descriptor for the JDBC driver JAR. Required unless bundled=true.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["type", "groupId", "artifactId", "version", "sha256"],
+          "properties": {
+            "type": { "const": "maven" },
+            "groupId": { "type": "string", "minLength": 1 },
+            "artifactId": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "classifier": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["type", "url", "fileName", "sha256"],
+          "properties": {
+            "type": { "const": "url" },
+            "url": { "type": "string", "format": "uri" },
+            "fileName": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.jar$" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "bundled": { "const": false } } },
+      "then": { "required": ["driver"] }
+    }
+  ]
+}

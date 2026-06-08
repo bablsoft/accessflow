@@ -124,9 +124,13 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             throw new DatasourceNameAlreadyExistsException(command.name());
         }
         var customDriver = resolveCustomDriverForCreate(command);
-        validateDriverChoice(command.dbType(), command.customDriverId(), customDriver,
+        var connectorId = blankToNull(command.connectorId());
+        validateDriverChoice(command.dbType(), command.customDriverId(), customDriver, connectorId,
                 command.jdbcUrlOverride(), command.host(), command.port(), command.databaseName());
-        if (customDriver == null) {
+        if (connectorId != null) {
+            // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
+            driverCatalog.resolveConnector(connectorId);
+        } else if (customDriver == null) {
             // Fail-fast for bundled drivers (mirrors pre-#94 behaviour). Custom drivers are
             // probe-loaded at upload time, so we trust the catalog cache here.
             driverCatalog.resolve(command.dbType());
@@ -143,6 +147,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setPasswordEncrypted(encryptionService.encrypt(command.password()));
         entity.setSslMode(command.sslMode() != null ? command.sslMode() : SslMode.DISABLE);
         entity.setCustomDriver(customDriver);
+        entity.setConnectorId(connectorId);
         entity.setJdbcUrlOverride(command.jdbcUrlOverride());
         if (command.connectionPoolSize() != null) {
             entity.setConnectionPoolSize(command.connectionPoolSize());
@@ -244,6 +249,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         validateDriverChoice(entity.getDbType(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
                 entity.getCustomDriver(),
+                entity.getConnectorId(),
                 entity.getJdbcUrlOverride(),
                 entity.getHost(),
                 entity.getPort(),
@@ -285,6 +291,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getSslMode(),
                 entity.getConnectionPoolSize(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
+                entity.getConnectorId(),
                 entity.getJdbcUrlOverride(),
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),
@@ -293,7 +300,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     private record PoolFingerprint(String host, Integer port, String databaseName, String username,
                                    String passwordEncrypted, SslMode sslMode,
-                                   int connectionPoolSize, UUID customDriverId,
+                                   int connectionPoolSize, UUID customDriverId, String connectorId,
                                    String jdbcUrlOverride,
                                    String readReplicaJdbcUrl, String readReplicaUsername,
                                    String readReplicaPasswordEncrypted) {
@@ -531,6 +538,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getAiConfigId(),
                 entity.isTextToSqlEnabled(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
+                entity.getConnectorId(),
                 entity.getJdbcUrlOverride(),
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),
@@ -549,46 +557,58 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     /**
-     * Enforces the connection-shape invariants that the JPA constraints can't:
+     * Enforces the connection-shape invariants that the JPA constraints can't. A
+     * {@link DbType#CUSTOM} datasource takes exactly one of two shapes:
      * <ul>
-     *   <li>{@link DbType#CUSTOM} requires both {@code customDriverId} and a non-blank
-     *       {@code jdbcUrlOverride}; host/port/databaseName must be absent.</li>
-     *   <li>For bundled {@link DbType}s, host/port/databaseName are required and
+     *   <li><b>Connector-backed</b> ({@code connectorId} set): host/port/databaseName are
+     *       required (the proxy builds the JDBC URL from the connector's template) and
      *       {@code jdbcUrlOverride} must be absent.</li>
-     *   <li>If a custom driver is referenced, its {@code target_db_type} must equal the
-     *       datasource's {@code db_type} or be {@code CUSTOM}.</li>
+     *   <li><b>Uploaded-driver</b> ({@code customDriverId} set): a non-blank
+     *       {@code jdbcUrlOverride} is required and host/port/databaseName must be absent.</li>
      * </ul>
+     * For the bundled dialects, host/port/databaseName are required and neither
+     * {@code jdbcUrlOverride} nor {@code connectorId} is allowed. If a custom driver is
+     * referenced, its {@code target_db_type} must equal the datasource's {@code db_type} or be
+     * {@code CUSTOM}.
      */
     private void validateDriverChoice(DbType dbType, java.util.UUID customDriverId,
-                                      CustomJdbcDriverEntity customDriver, String jdbcUrlOverride,
-                                      String host, Integer port, String databaseName) {
+                                      CustomJdbcDriverEntity customDriver, String connectorId,
+                                      String jdbcUrlOverride, String host, Integer port,
+                                      String databaseName) {
         boolean hasOverride = jdbcUrlOverride != null && !jdbcUrlOverride.isBlank();
+        boolean hasConnector = connectorId != null && !connectorId.isBlank();
+        boolean hasHostPortDb = host != null || port != null
+                || (databaseName != null && !databaseName.isBlank());
         if (dbType == DbType.CUSTOM) {
-            if (customDriverId == null) {
+            if (hasConnector && customDriverId != null) {
                 throw new IllegalDatasourcePermissionException(
-                        "CUSTOM datasources require a custom_driver_id");
+                        "CUSTOM datasources take exactly one of connector_id or custom_driver_id");
             }
-            if (!hasOverride) {
+            if (hasConnector) {
+                requireHostPortDb(dbType, host, port, databaseName);
+                if (hasOverride) {
+                    throw new IllegalDatasourcePermissionException(
+                            "jdbc_url_override is not allowed when connector_id is set");
+                }
+            } else if (customDriverId != null) {
+                if (!hasOverride) {
+                    throw new IllegalDatasourcePermissionException(
+                            "CUSTOM datasources require a jdbc_url_override");
+                }
+                if (hasHostPortDb) {
+                    throw new IllegalDatasourcePermissionException(
+                            "CUSTOM datasources must not set host/port/database_name");
+                }
+            } else {
                 throw new IllegalDatasourcePermissionException(
-                        "CUSTOM datasources require a jdbc_url_override");
-            }
-            if (host != null || port != null || (databaseName != null && !databaseName.isBlank())) {
-                throw new IllegalDatasourcePermissionException(
-                        "CUSTOM datasources must not set host/port/database_name");
+                        "CUSTOM datasources require a connector_id or custom_driver_id");
             }
         } else {
-            if (host == null || host.isBlank()) {
+            if (hasConnector) {
                 throw new IllegalDatasourcePermissionException(
-                        "Datasource host is required for bundled db_type " + dbType);
+                        "connector_id is only allowed when db_type is CUSTOM");
             }
-            if (port == null) {
-                throw new IllegalDatasourcePermissionException(
-                        "Datasource port is required for bundled db_type " + dbType);
-            }
-            if (databaseName == null || databaseName.isBlank()) {
-                throw new IllegalDatasourcePermissionException(
-                        "Datasource database_name is required for bundled db_type " + dbType);
-            }
+            requireHostPortDb(dbType, host, port, databaseName);
             if (hasOverride) {
                 throw new IllegalDatasourcePermissionException(
                         "jdbc_url_override is only allowed when db_type is CUSTOM");
@@ -600,6 +620,25 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                     "Custom driver target_db_type " + customDriver.getTargetDbType()
                             + " does not match datasource db_type " + dbType);
         }
+    }
+
+    private void requireHostPortDb(DbType dbType, String host, Integer port, String databaseName) {
+        if (host == null || host.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource host is required for db_type " + dbType);
+        }
+        if (port == null) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource port is required for db_type " + dbType);
+        }
+        if (databaseName == null || databaseName.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource database_name is required for db_type " + dbType);
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     private DatasourcePermissionView toPermissionView(DatasourceUserPermissionEntity entity) {

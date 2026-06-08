@@ -284,7 +284,7 @@
           <div class="arch-row">
             <div class="arch-cell accent" style="min-width: 460px;">
               <span class="label">CUSTOMER DATABASES (PROXIED)</span>
-              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC</span>
+              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom JDBC</span>
             </div>
           </div>
         </div>
@@ -322,7 +322,7 @@
             </div>
             <h3>Full SQL proxy</h3>
             <p>Every statement is parsed with JSqlParser, classified as SELECT / DML / DDL, validated against schema and table allow-lists at the AST level, then routed through your review policy before it touches the database. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed SQL so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered.</p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · custom JDBC · read-replica routing · dynamic masking · row-level security</span>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · connector catalog · custom JDBC · read-replica routing · dynamic masking · row-level security</span>
           </div>
 
           <div class="feat">
@@ -768,7 +768,7 @@
             <dl>
               <dt>Internal DB</dt><dd>PostgreSQL 18</dd>
               <dt>Cache</dt><dd>Redis 8</dd>
-              <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL</dd>
+              <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · connector catalog</dd>
               <dt>AI backends</dt><dd>Anthropic · OpenAI · Ollama · OpenAI-compat. · Hugging Face</dd>
               <dt>License</dt><dd style="color: var(--accent);">Apache 2.0</dd>
             </dl>
@@ -870,6 +870,7 @@
             <span class="ver">v2.0</span>
             <h4>Beyond SQL &amp; governance</h4>
             <ul>
+              <li>Declarative connector catalog</li>
               <li>MongoDB query governance</li>
               <li>Redis access governance</li>
               <li>REST API governance</li>
