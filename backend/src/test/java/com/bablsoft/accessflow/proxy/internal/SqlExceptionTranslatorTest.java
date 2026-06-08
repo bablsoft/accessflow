@@ -77,6 +77,7 @@ class SqlExceptionTranslatorTest {
 
         assertThat(translated).isInstanceOf(QueryExecutionFailedException.class);
         var failed = (QueryExecutionFailedException) translated;
+        assertThat(failed.detail()).isEqualTo("relation does not exist");
         assertThat(failed.sqlState()).isEqualTo("42P01");
         assertThat(failed.vendorCode()).isEqualTo(7);
         assertThat(failed.getCause()).isSameAs(ex);
@@ -89,6 +90,8 @@ class SqlExceptionTranslatorTest {
         var translated = translator().translate(ex, timeout, Locale.ENGLISH);
 
         assertThat(translated).isInstanceOf(QueryExecutionFailedException.class);
-        assertThat(((QueryExecutionFailedException) translated).sqlState()).isNull();
+        var failed = (QueryExecutionFailedException) translated;
+        assertThat(failed.detail()).isEqualTo("oops");
+        assertThat(failed.sqlState()).isNull();
     }
 }

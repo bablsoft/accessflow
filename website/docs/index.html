@@ -1482,6 +1482,16 @@ APPROVED → FAILED (execution error)</pre>
             whitespace collapsed, keywords upper-cased), so cosmetic reformatting still pairs the
             runs. The first execution of a query simply shows no prior run to compare against.
           </p>
+
+          <h3 id="flow-failure">Seeing why a query failed</h3>
+          <p>
+            When an approved query fails at execution, the detail page no longer shows only a red
+            <em>Failed</em> badge. An execution-result card surfaces the verbatim database error —
+            for example <code>ERROR: invalid input value for enum query_status: "PENDING"</code> —
+            alongside how long the attempt ran, and the same cause is echoed in the approval
+            timeline. The submitter, reviewers, and admins who can read the query see the real
+            reason, so a failed run can be debugged without digging through server logs.
+          </p>
         </section>
 
         <!-- 5. Further reading -->

@@ -222,10 +222,12 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         var completedAt = Instant.now();
         var durationMs = (int) java.time.Duration.between(startedAt, completedAt).toMillis();
         log.warn("Query execution failed for {}: {}", query.id(), ex.getMessage(), ex);
+        // Prefer the verbatim driver message (the cause) over the generic localized summary so
+        // the submitter/reviewer can see the actual database error on the detail page.
+        var failureMessage = resolveFailureDetail(ex);
         queryRequestStateService.recordExecutionOutcome(new RecordExecutionCommand(
-                query.id(), QueryStatus.FAILED, null, durationMs, ex.getMessage(),
+                query.id(), QueryStatus.FAILED, null, durationMs, failureMessage,
                 startedAt, completedAt, null, null));
-        var failureMessage = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
         var failureMetadata = new HashMap<String, Object>();
         failureMetadata.put("error", failureMessage);
         if (ex instanceof QueryExecutionFailedException qef && qef.sqlState() != null) {
@@ -240,6 +242,14 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         eventPublisher.publishEvent(new QueryExecutedEvent(
                 query.id(), null, durationMs, QueryStatus.FAILED));
         return new ExecutionOutcome(query.id(), QueryStatus.FAILED, null, durationMs);
+    }
+
+    private static String resolveFailureDetail(RuntimeException ex) {
+        if (ex instanceof QueryExecutionFailedException qef
+                && qef.detail() != null && !qef.detail().isBlank()) {
+            return qef.detail();
+        }
+        return ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
     }
 
     private QueryRequestSnapshot loadOrThrow(UUID queryRequestId, UUID organizationId) {

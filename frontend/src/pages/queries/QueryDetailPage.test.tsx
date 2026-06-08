@@ -583,3 +583,60 @@ describe('QueryDetailPage — query diff card (AF-361)', () => {
     expect(getQueryDiffMock).not.toHaveBeenCalled();
   });
 });
+
+function failedExecutionQuery(): QueryDetail {
+  const q = executedQuery();
+  q.status = 'FAILED';
+  q.rows_affected = null;
+  q.duration_ms = 42;
+  q.previous_run_id = null;
+  q.error_message =
+    'ERROR: invalid input value for enum query_status: "PENDING"';
+  return q;
+}
+
+describe('QueryDetailPage — execution failure surface (AF-408)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    getQueryDiffMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders the execution-failure card with the database error cause when FAILED', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(failedExecutionQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Error detail')).toBeInTheDocument();
+    // The cause renders in the failure card and again in the timeline stage detail.
+    expect(
+      screen.getAllByText(
+        'ERROR: invalid input value for enum query_status: "PENDING"',
+      ).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(
+        'The query could not be executed. The database returned:',
+      ),
+    ).toBeInTheDocument();
+    // The success-only diff/results cards never mount for a failed run.
+    expect(screen.queryByText('Compare to previous run')).toBeNull();
+  });
+
+  it('renders the fallback line when FAILED but no error_message was captured', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = failedExecutionQuery();
+    q.error_message = null;
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(
+      await screen.findByText('No error detail was captured.'),
+    ).toBeInTheDocument();
+  });
+});

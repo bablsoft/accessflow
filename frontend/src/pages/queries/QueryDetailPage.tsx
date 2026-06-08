@@ -478,6 +478,55 @@ export function QueryDetailPage() {
             </Card>
           )}
 
+          {query.status === 'FAILED' && (
+            <Card
+              title={t('queries.detail.card_execution')}
+              icon={<ExclamationCircleOutlined style={{ color: 'var(--risk-crit)' }} />}
+            >
+              <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                <div style={{ marginBottom: 12 }}>
+                  {t('queries.detail.execution_failed_body')}
+                </div>
+                <div
+                  style={{
+                    background: 'var(--bg-sunken)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px',
+                    marginBottom: 12,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                  }}
+                >
+                  <div className="muted" style={{ marginBottom: 6 }}>
+                    {t('queries.detail.execution_error_label')}
+                  </div>
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {query.error_message?.trim()
+                      ? query.error_message
+                      : t('queries.detail.execution_no_error')}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 16,
+                  }}
+                >
+                  <Stat
+                    label={t('queries.detail.stat_duration')}
+                    value={query.duration_ms != null ? `${query.duration_ms} ms` : '—'}
+                  />
+                  <Stat
+                    label={t('queries.detail.stat_completed')}
+                    value={timeAgo(query.updated_at)}
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
+
           {query.status === 'EXECUTED' && <QueryDiffCard query={query} />}
 
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (

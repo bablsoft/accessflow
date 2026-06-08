@@ -210,6 +210,30 @@ describe('buildTimelineStages — Scheduled run stage', () => {
   });
 });
 
+describe('buildTimelineStages — execution failure detail (AF-408)', () => {
+  it('surfaces error_message as the detail of the Execution failed stage', () => {
+    const q = makeQuery({
+      status: 'FAILED',
+      error_message:
+        'ERROR: invalid input value for enum query_status: "PENDING"',
+    });
+    const stages = buildTimelineStages(q, false, t);
+    const exec = stages.find((s) => s.label === 'Execution failed');
+    expect(exec).toBeDefined();
+    expect(exec!.failed).toBe(true);
+    expect(exec!.detail).toBe(
+      'ERROR: invalid input value for enum query_status: "PENDING"',
+    );
+  });
+
+  it('leaves the Execution failed stage detail null when no error_message', () => {
+    const q = makeQuery({ status: 'FAILED', error_message: null });
+    const stages = buildTimelineStages(q, false, t);
+    const exec = stages.find((s) => s.label === 'Execution failed');
+    expect(exec!.detail).toBeNull();
+  });
+});
+
 describe('buildTimelineStages — AI skipped path', () => {
   it('renders a skipped AI stage when aiSkipped=true', () => {
     const q = makeQuery({ status: 'PENDING_REVIEW' });
