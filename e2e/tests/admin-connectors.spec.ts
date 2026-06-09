@@ -61,31 +61,60 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
   test('3) installing a connector issues the install request and surfaces a result', async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    // The connector catalog + install endpoint are stubbed at the network layer for THIS test
+    // only (tests 1 and 2 above exercise the real backend). Two reasons: (a) the backend driver
+    // cache is shared across the whole e2e suite, so a connector installed by an earlier spec —
+    // or by a Playwright retry of this very test — would leave no Install button to click; and
+    // (b) a real install downloads a JDBC JAR from Maven Central, coupling the test to egress and
+    // to an 11 MB download. Stubbing keeps the install-wiring assertion deterministic and
+    // idempotent while still driving the real page, mutation, and toast.
+    const clickhouse = {
+      id: 'clickhouse',
+      db_type: 'CUSTOM',
+      name: 'ClickHouse',
+      icon_url: '/db-icons/clickhouse.svg',
+      vendor: 'ClickHouse, Inc.',
+      description: 'Column-oriented OLAP database.',
+      documentation_url: null,
+      default_port: 8123,
+      default_ssl_mode: 'DISABLE',
+      jdbc_url_template: 'jdbc:ch://{host}:{port}/{database_name}',
+      driver_class: 'com.clickhouse.jdbc.ClickHouseDriver',
+      driver_status: 'AVAILABLE',
+      bundled: false,
+    };
+
+    await page.route('**/api/v1/datasources/connectors', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ connectors: [clickhouse] }),
+        });
+      } else {
+        await route.fallback();
+      }
+    });
+
+    let installRequested = false;
+    await page.route('**/api/v1/datasources/connectors/clickhouse/install', async (route) => {
+      installRequested = true;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...clickhouse, driver_status: 'READY' }),
+      });
+    });
+
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/connectors');
-    await waitForConnectorsReady(page);
 
-    // Find the ClickHouse card's Install button. The card stacks the name and
-    // an Install button; scope the button lookup to the catalog grid.
-    const installButton = page
-      .getByRole('button', { name: /install/i })
-      .first();
+    const installButton = page.getByRole('button', { name: /install/i });
     await expect(installButton).toBeVisible();
-
-    const installResponse = page.waitForResponse(
-      (r) =>
-        r.request().method() === 'POST' &&
-        /\/api\/v1\/datasources\/connectors\/[a-z0-9-]+\/install$/.test(r.url()),
-      { timeout: 75_000 },
-    );
     await installButton.click();
-    const response = await installResponse;
-    // Request was accepted by the backend (200 installed, or 422 when the
-    // driver JAR cannot be downloaded in this environment).
-    expect([200, 422]).toContain(response.status());
 
-    // Either outcome surfaces an Ant Design message toast.
-    await expect(page.locator('.ant-message-notice').first()).toBeVisible({ timeout: 10_000 });
+    // The install mutation fired the POST and its onSuccess showed the success toast.
+    await expect(page.getByText('Installed ClickHouse')).toBeVisible({ timeout: 10_000 });
+    expect(installRequested).toBe(true);
   });
 });
