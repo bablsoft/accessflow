@@ -102,14 +102,18 @@ export default function DatasourceCreateWizardPage() {
     [connectionForm],
   );
 
-  const dynamicMode = selectedType?.code === 'CUSTOM';
+  // CUSTOM via a connector uses host/port/database (URL built from the connector template);
+  // only an uploaded/bare CUSTOM driver needs the free-form JDBC URL field.
+  const dynamicMode =
+    selectedType?.code === 'CUSTOM' && selectedType?.source !== 'connector';
 
   const persistConnection = useMutation({
     mutationFn: async (values: ConnectionFormValues) => {
       if (!selectedType) {
         throw new Error('No datasource type selected');
       }
-      const isDynamic = selectedType.code === 'CUSTOM';
+      const isDynamic =
+        selectedType.code === 'CUSTOM' && selectedType.source !== 'connector';
       if (createdDatasource) {
         const input: UpdateDatasourceInput = {
           name: values.name,
@@ -135,6 +139,7 @@ export default function DatasourceCreateWizardPage() {
         ai_analysis_enabled: false,
         ai_config_id: null,
         custom_driver_id: selectedType.custom_driver_id ?? null,
+        connector_id: selectedType.connector_id ?? null,
       };
       if (isDynamic) {
         input.jdbc_url_override = values.jdbc_url;

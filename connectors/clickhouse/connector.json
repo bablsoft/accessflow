@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "clickhouse",
+  "name": "ClickHouse",
+  "dbType": "CUSTOM",
+  "vendor": "ClickHouse, Inc.",
+  "description": "Column-oriented OLAP database for real-time analytics over large datasets.",
+  "documentationUrl": "https://clickhouse.com/docs/integrations/java",
+  "logo": "logo.svg",
+  "defaultPort": 8123,
+  "defaultSslMode": "DISABLE",
+  "jdbcUrlTemplate": "jdbc:ch://{host}:{port}/{database_name}",
+  "driverClassName": "com.clickhouse.jdbc.ClickHouseDriver",
+  "bundled": false,
+  "driver": {
+    "type": "maven",
+    "groupId": "com.clickhouse",
+    "artifactId": "clickhouse-jdbc",
+    "version": "0.9.0",
+    "classifier": "all",
+    "sha256": "aad21a6b9d357d35d846d0c05b97cba6ed93cf9c6530c928ff38e423a26b6157"
+  }
+}

@@ -15,9 +15,13 @@ interface DatasourceTypeSelectorProps {
 }
 
 export function optionKey(option: DatasourceTypeOption): string {
-  return option.source === 'uploaded' && option.custom_driver_id
-    ? `uploaded:${option.custom_driver_id}`
-    : `bundled:${option.code}`;
+  if (option.source === 'uploaded' && option.custom_driver_id) {
+    return `uploaded:${option.custom_driver_id}`;
+  }
+  if (option.source === 'connector' && option.connector_id) {
+    return `connector:${option.connector_id}`;
+  }
+  return `bundled:${option.code}`;
 }
 
 export function DatasourceTypeSelector({
@@ -29,12 +33,14 @@ export function DatasourceTypeSelector({
 
   const grouped = useMemo(() => {
     const bundled: DatasourceTypeOption[] = [];
+    const connectors: DatasourceTypeOption[] = [];
     const uploaded: DatasourceTypeOption[] = [];
     for (const option of types) {
       if (option.source === 'uploaded') uploaded.push(option);
+      else if (option.source === 'connector') connectors.push(option);
       else bundled.push(option);
     }
-    return { bundled, uploaded };
+    return { bundled, connectors, uploaded };
   }, [types]);
 
   return (
@@ -47,6 +53,15 @@ export function DatasourceTypeSelector({
         selectedKey={selectedKey}
         onSelect={onSelect}
       />
+      {grouped.connectors.length > 0 && (
+        <TypeGroup
+          title={t('datasources.create.source_connector')}
+          options={grouped.connectors}
+          selectedKey={selectedKey}
+          onSelect={onSelect}
+          helpText={t('datasources.create.source_connector_help')}
+        />
+      )}
       <TypeGroup
         title={t('datasources.create.source_uploaded')}
         options={grouped.uploaded}
@@ -111,6 +126,7 @@ function TypeGroup({
             const key = optionKey(option);
             const selected = selectedKey === key;
             const isUploaded = option.source === 'uploaded';
+            const isConnector = option.source === 'connector';
             const descriptionKey = `datasources.create.type_description.${option.code.toLowerCase()}`;
             return (
               <button
@@ -158,7 +174,9 @@ function TypeGroup({
                   {isUploaded
                     ? `${t('datasources.create.uploaded_vendor_label')}: ${option.vendor_name ?? '—'} · `
                       + `${t('datasources.create.uploaded_class_label')}: ${option.driver_class ?? '—'}`
-                    : t(descriptionKey)}
+                    : isConnector
+                      ? option.description ?? option.vendor_name ?? option.display_name
+                      : t(descriptionKey)}
                 </div>
                 <div>
                   <DriverStatusBadge

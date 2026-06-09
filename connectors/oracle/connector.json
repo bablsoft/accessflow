@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "oracle",
+  "name": "Oracle Database",
+  "dbType": "ORACLE",
+  "vendor": "Oracle Corporation",
+  "description": "Enterprise multi-model database management system.",
+  "documentationUrl": "https://www.oracle.com/database/technologies/appdev/jdbc.html",
+  "logo": "logo.svg",
+  "defaultPort": 1521,
+  "defaultSslMode": "REQUIRE",
+  "jdbcUrlTemplate": "jdbc:oracle:thin:@//{host}:{port}/{database_name}",
+  "driverClassName": "oracle.jdbc.OracleDriver",
+  "bundled": false,
+  "driver": {
+    "type": "maven",
+    "groupId": "com.oracle.database.jdbc",
+    "artifactId": "ojdbc11",
+    "version": "23.8.0.25.04",
+    "sha256": "756663c916f64e94659c197768f5c7a29706bc0fd4274dfdf88f474885516d06"
+  }
+}

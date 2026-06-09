@@ -87,7 +87,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
 | `name` | VARCHAR(255) — human-readable label; **UNIQUE per organization** (case-insensitive at the service layer) |
-| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` \| `MARIADB` \| `ORACLE` \| `MSSQL` \| `CUSTOM` — `CUSTOM` is paired with `custom_driver_id` + `jdbc_url_override` for free-form dynamic datasources |
+| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` \| `MARIADB` \| `ORACLE` \| `MSSQL` \| `CUSTOM` — `CUSTOM` is paired with either `connector_id` (a catalog connector such as ClickHouse) or `custom_driver_id` + `jdbc_url_override` (an uploaded driver). See [14-connectors.md](./14-connectors.md). |
 | `host` | VARCHAR(255) — nullable; required for bundled `db_type`s, absent when `db_type=CUSTOM` |
 | `port` | INTEGER — nullable; same rule as `host` |
 | `database_name` | VARCHAR(255) — nullable; same rule as `host` |
@@ -102,8 +102,9 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `ai_analysis_enabled` | BOOLEAN DEFAULT true |
 | `ai_config_id` | FK → `ai_config(id)` NULL, ON DELETE SET NULL — which AI configuration runs analysis (and text-to-SQL generation) for this datasource. Required (and enforced by the service layer) when `ai_analysis_enabled = true` **or** `text_to_sql_enabled = true`. |
 | `text_to_sql_enabled` | BOOLEAN DEFAULT false — when true, users may generate a SQL draft from a natural-language prompt via `POST /api/v1/queries/generate-sql` (AF-335). Reuses `ai_config_id`; independent of `ai_analysis_enabled`. The generated SQL is only a draft — it is still submitted through the normal pipeline, so all governance applies. |
-| `custom_driver_id` | FK → `custom_jdbc_driver(id)` NULL, ON DELETE RESTRICT — when set, the proxy uses the uploaded driver's per-driver classloader instead of the bundled registry entry. Required when `db_type=CUSTOM`. |
-| `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; required when `db_type=CUSTOM` (and rejected for any bundled `db_type`). |
+| `custom_driver_id` | FK → `custom_jdbc_driver(id)` NULL, ON DELETE RESTRICT — when set, the proxy uses the uploaded driver's per-driver classloader instead of a catalog connector. A `CUSTOM` datasource sets exactly one of `custom_driver_id` or `connector_id`. |
+| `connector_id` | VARCHAR(64) NULL — references a catalog connector by its manifest id (e.g. `clickhouse`; see [14-connectors.md](./14-connectors.md)). Set for a `CUSTOM` datasource backed by an installed connector: the proxy loads the connector's cached driver into a per-connector classloader and builds the JDBC URL from the connector's template + host/port/database. Null for the five dialects and for uploaded-driver datasources. Only allowed when `db_type=CUSTOM`. |
+| `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; used by an uploaded-driver `CUSTOM` datasource (required there, rejected for any bundled `db_type` and for connector-backed datasources, which build their URL from the connector template). |
 | `read_replica_jdbc_url` | TEXT NULL — when set, SELECT queries are routed to a sibling HikariCP pool built from this URL. INSERT/UPDATE/DELETE/DDL always hit the primary. Reuses the primary's driver class. |
 | `read_replica_username` | VARCHAR(255) NULL — username for the replica pool. When `NULL` the primary `username` is reused. |
 | `read_replica_password_encrypted` | TEXT NULL — AES-256-GCM encrypted; same key (`ENCRYPTION_KEY`) as `password_encrypted`. When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity. |

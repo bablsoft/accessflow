@@ -262,6 +262,25 @@ export function customDriverErrorMessage(err: unknown): string {
   return i18n.t('errors.custom_driver_generic');
 }
 
+export function connectorErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'CONNECTOR_NOT_FOUND') {
+      return i18n.t('errors.connector_not_found');
+    }
+    if (code === 'DATASOURCE_DRIVER_UNAVAILABLE') {
+      return body?.detail ?? i18n.t('errors.connector_install_failed');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.connector_generic');
+}
+
 export function queryCancelErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

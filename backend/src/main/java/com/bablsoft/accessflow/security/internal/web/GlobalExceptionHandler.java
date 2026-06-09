@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.ConnectorNotFoundException;
 import com.bablsoft.accessflow.core.api.CustomDriverChecksumMismatchException;
 import com.bablsoft.accessflow.core.api.CustomDriverDuplicateException;
 import com.bablsoft.accessflow.core.api.CustomDriverInUseException;
@@ -471,6 +472,16 @@ class GlobalExceptionHandler {
         pd.setProperty("error", "CUSTOM_DRIVER_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("driverId", ex.driverId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ConnectorNotFoundException.class)
+    ProblemDetail handleConnectorNotFound(ConnectorNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.connector.not_found"));
+        pd.setProperty("error", "CONNECTOR_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("connectorId", ex.connectorId());
         return pd;
     }
 

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "mssql",
+  "name": "Microsoft SQL Server",
+  "dbType": "MSSQL",
+  "vendor": "Microsoft Corporation",
+  "description": "Microsoft's enterprise relational database engine.",
+  "documentationUrl": "https://learn.microsoft.com/en-us/sql/connect/jdbc/",
+  "logo": "logo.svg",
+  "defaultPort": 1433,
+  "defaultSslMode": "REQUIRE",
+  "jdbcUrlTemplate": "jdbc:sqlserver://{host}:{port};databaseName={database_name}",
+  "driverClassName": "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+  "bundled": false,
+  "driver": {
+    "type": "maven",
+    "groupId": "com.microsoft.sqlserver",
+    "artifactId": "mssql-jdbc",
+    "version": "12.10.0.jre11",
+    "sha256": "8b80e2a3d254c26f66d479bc51d2d235f054eeb6e8394260c129bbd7fc7394a7"
+  }
+}

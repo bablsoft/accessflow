@@ -33,6 +33,7 @@ public record DatasourceConnectionDescriptor(
         UUID aiConfigId,
         boolean textToSqlEnabled,
         UUID customDriverId,
+        String connectorId,
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,
         String readReplicaUsername,

@@ -19,7 +19,10 @@ public record DatasourceTypeResponse(
         String source,
         UUID customDriverId,
         String vendorName,
-        String driverClass) {
+        String driverClass,
+        String connectorId,
+        String description,
+        String documentationUrl) {
 
     public static DatasourceTypeResponse from(DriverTypeInfo info) {
         return new DatasourceTypeResponse(
@@ -34,6 +37,9 @@ public record DatasourceTypeResponse(
                 info.source(),
                 info.customDriverId(),
                 info.vendorName(),
-                info.driverClass());
+                info.driverClass(),
+                info.connectorId(),
+                info.description(),
+                info.documentationUrl());
     }
 }

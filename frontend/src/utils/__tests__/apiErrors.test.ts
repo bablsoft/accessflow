@@ -4,6 +4,7 @@ import {
   adminErrorMessage,
   apiErrorTraceId,
   authErrorMessage,
+  connectorErrorMessage,
   customDriverErrorMessage,
   datasourceCreateErrorMessage,
   datasourceGrantErrorMessage,
@@ -520,5 +521,34 @@ describe('resetPasswordErrorMessage', () => {
   it('returns a generic fallback for unknown values', () => {
     expect(resetPasswordErrorMessage(undefined))
       .toBe('Could not reset your password. Please try again.');
+  });
+});
+
+describe('connectorErrorMessage', () => {
+  it('maps CONNECTOR_NOT_FOUND', () => {
+    expect(connectorErrorMessage(buildAxiosError(404, { error: 'CONNECTOR_NOT_FOUND' })))
+      .toBe('Connector not found.');
+  });
+
+  it('uses the detail for DATASOURCE_DRIVER_UNAVAILABLE', () => {
+    expect(
+      connectorErrorMessage(
+        buildAxiosError(422, { error: 'DATASOURCE_DRIVER_UNAVAILABLE', detail: 'offline' }),
+      ),
+    ).toBe('offline');
+  });
+
+  it('falls back to the install message when detail is absent', () => {
+    expect(connectorErrorMessage(buildAxiosError(422, { error: 'DATASOURCE_DRIVER_UNAVAILABLE' })))
+      .toBe('Could not install the connector driver. Check connectivity and try again.');
+  });
+
+  it('falls back to the problem title for unknown codes', () => {
+    expect(connectorErrorMessage(buildAxiosError(500, { title: 'Boom' }))).toBe('Boom');
+  });
+
+  it('returns a generic fallback for non-axios values', () => {
+    expect(connectorErrorMessage(undefined))
+      .toBe('Something went wrong with the connector. Please try again.');
   });
 });

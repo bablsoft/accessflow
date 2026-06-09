@@ -22,7 +22,7 @@
   <a href="docs/">Design Docs</a>
 </p>
 
-AccessFlow sits as a full SQL proxy in front of your relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be added by uploading its driver JAR. Every query a user submits is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
+AccessFlow sits as a full SQL proxy in front of your relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box via a declarative **connector catalog** (additional engines such as ClickHouse install with one click), and any other JDBC-compatible engine can be added by uploading its driver JAR. Every query a user submits is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
 
 ---
 
@@ -84,6 +84,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Slack approve/reject** — a configured Slack app adds **Approve** / **Reject** buttons to review-request messages; the decision runs through the same self-approval and RBAC guards as the REST API (HMAC-verified Interactive Components).
 - **Identity & SSO** — JWT access tokens (15 min) + HttpOnly refresh cookies, optional SAML 2.0 SSO, OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab plus a generic `OIDC` provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel), password reset and user-invitation flows.
 - **MCP server** — built-in Spring AI MCP server exposes a stateless tool surface so external AI agents can submit queries through the same review pipeline.
+- **Connector catalog** — supported databases are described declaratively in a repo-root `connectors/` folder (one manifest + logo per connector), not hardcoded. Admins browse the **Connectors** marketplace and install a database's JDBC driver with one click (downloaded + SHA-256-verified + cached); engines beyond the built-in five (e.g. ClickHouse) install the same way. The catalog ships in the image and is also published as a release artifact.
 - **Deploy anywhere** — `docker compose up` for local and small environments; Helm chart for Kubernetes production.
 
 ---
@@ -111,7 +112,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | Backend framework | Spring Boot 4, Spring Modulith 2, Spring Security, Spring Data JPA, Spring AI 2.0 |
 | Internal database | PostgreSQL 18 |
 | Migrations | Flyway |
-| Target databases | PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server (bundled drivers) — plus any JDBC-compatible engine via an admin-uploaded custom driver JAR |
+| Target databases | PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, ClickHouse via the declarative connector catalog (one-click driver install) — plus any JDBC-compatible engine via an admin-uploaded custom driver JAR |
 | Frontend | React 19, Vite 8, TypeScript 6, Ant Design 6, CodeMirror 6 |
 | Server state | TanStack Query 5 |
 | Client state | Zustand 5 |
@@ -223,6 +224,7 @@ accessflow/
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
+├── connectors/       # Declarative connector catalog (one connector.json + logo per database)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)
 ├── docs/             # Authoritative design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)

@@ -444,6 +444,14 @@ After the first release lands, enable GitHub Pages once in **Repo Settings → P
 (Source = "Deploy from a branch" → `gh-pages` / root). All subsequent releases just need a
 tag — no further manual steps.
 
+The same release also publishes the **connector catalog** (issue #334) to `gh-pages` under
+`connectors/`: a versioned `connectors-bundle-<version>.tar.gz` and a stable `connectors-index.json`
+(served at `https://<owner>.github.io/accessflow/connectors/`). GitHub Release asset uploads are
+intentionally not used — they are blocked by the repo's immutable-releases policy. The catalog is
+also bundled inside the backend image, so this artifact is a convenience, not a runtime
+requirement. Installed connectors persist via the driver-cache volume (`ACCESSFLOW_DRIVER_CACHE` /
+the Helm `driverCache.persistence` PVC). See [14-connectors.md](./14-connectors.md).
+
 ### Kubernetes Secrets Setup
 
 The chart auto-generates the encryption key, JWT private key, and PostgreSQL

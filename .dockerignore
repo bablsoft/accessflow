@@ -1,0 +1,28 @@
+# Repo-root .dockerignore — governs the backend image build whose context is the repo root
+# (see backend/Dockerfile). Only backend/ and connectors/ are needed; exclude everything else so
+# the build context stays small.
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+
+# Other areas not needed by the backend image
+frontend/
+e2e/
+website/
+docs/
+charts/
+deploy/
+docker-compose*.yml
+
+# Build output and caches
+**/target/
+**/node_modules/
+*.log
+
+# Backend bits not needed in the image
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/docker-compose-dev.yml
+backend/Dockerfile
+backend/.dockerignore

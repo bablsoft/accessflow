@@ -82,7 +82,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db.example.com", 5432, "appdb", "svc", "plaintext-pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null,
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
                 null, null, null);
         var result = service.create(command);
 
@@ -105,7 +105,7 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.create(new CreateDatasourceCommand(orgId, "Prod",
                 DbType.POSTGRESQL, "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, null, null, null, null, null)))
+                null, null, null, null, null, false, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
         verify(datasourceRepository, never()).save(any());
         verify(driverCatalog, never()).resolve(any());
@@ -124,7 +124,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null,
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
                 null, null, null);
         service.create(command);
 
@@ -143,7 +143,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.MYSQL,
                 "db.example.com", 3306, "appdb", "svc", "pw",
-                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null,
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
                 null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -556,7 +556,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, true, null, null, null, null, null, null, null);
+                null, null, null, null, null, true, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(MissingAiConfigForDatasourceException.class);
@@ -577,7 +577,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, true, aiConfigId, null, null, null, null, null, null);
+                null, null, null, null, null, true, aiConfigId, null, null, null, null, null, null, null);
         var view = service.create(command);
 
         assertThat(view.aiConfigId()).isEqualTo(aiConfigId);
@@ -610,7 +610,7 @@ class DatasourceAdminServiceImplTest {
         // ai_analysis disabled, but text-to-SQL enabled with no bound config -> rejected.
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, true, null, null, null, null, null);
+                null, null, null, null, null, false, null, true, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
                 .isInstanceOf(MissingAiConfigForDatasourceException.class);
@@ -631,7 +631,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, aiConfigId, true, null, null, null, null, null);
+                null, null, null, null, null, false, aiConfigId, true, null, null, null, null, null, null);
         var view = service.create(command);
 
         assertThat(view.textToSqlEnabled()).isTrue();
@@ -684,7 +684,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, customDriverId,
+                null, null, null, null, null, false, null, null, customDriverId, null,
                 "jdbc:snowflake://acme.snowflakecomputing.com/?db=PROD",
                 null, null, null);
 
@@ -707,7 +707,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, null,
+                null, null, null, null, null, false, null, null, null, null,
                 "jdbc:snowflake://acme.snowflakecomputing.com/", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -728,7 +728,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 null, null, null, "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, customDriverId, null,
+                null, null, null, null, null, false, null, null, customDriverId, null, null,
                 null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -749,7 +749,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Snowflake", DbType.CUSTOM,
                 "host.example.com", 1234, null, "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, customDriverId,
+                null, null, null, null, null, false, null, null, customDriverId, null,
                 "jdbc:snowflake://x/", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -764,7 +764,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Bundled", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, null,
+                null, null, null, null, null, false, null, null, null, null,
                 "jdbc:postgresql://h:5432/db", null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -786,7 +786,7 @@ class DatasourceAdminServiceImplTest {
         // PostgreSQL datasource binding to an Oracle-target uploaded driver — refused.
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, customDriverId, null,
+                null, null, null, null, null, false, null, null, customDriverId, null, null,
                 null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -804,7 +804,7 @@ class DatasourceAdminServiceImplTest {
 
         var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
                 "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
-                null, null, null, null, null, false, null, null, customDriverId, null,
+                null, null, null, null, null, false, null, null, customDriverId, null, null,
                 null, null, null);
 
         assertThatThrownBy(() -> service.create(command))
@@ -905,5 +905,83 @@ class DatasourceAdminServiceImplTest {
         entity.setJarSizeBytes(1024);
         entity.setStoragePath("custom/x.jar");
         return entity;
+    }
+
+    @Test
+    void createConnectorDatasourceResolvesConnectorAndPersists() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Analytics"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.CUSTOM,
+                "ch.example.com", 8123, "analytics", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null, null, "clickhouse", null,
+                null, null, null);
+
+        var view = service.create(command);
+
+        assertThat(view.dbType()).isEqualTo(DbType.CUSTOM);
+        assertThat(view.connectorId()).isEqualTo("clickhouse");
+        assertThat(view.host()).isEqualTo("ch.example.com");
+        verify(driverCatalog).resolveConnector("clickhouse");
+        verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void createConnectorDatasourceRejectsBothConnectorAndCustomDriver() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var customDriverId = UUID.randomUUID();
+        var customDriverEntity = sampleCustomDriverEntity(customDriverId, org, DbType.CUSTOM);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Analytics"))
+                .thenReturn(false);
+        when(customJdbcDriverRepository.findByIdAndOrganization_Id(customDriverId, orgId))
+                .thenReturn(Optional.of(customDriverEntity));
+
+        var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.CUSTOM,
+                "ch.example.com", 8123, "analytics", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null, customDriverId, "clickhouse",
+                null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("exactly one");
+    }
+
+    @Test
+    void createConnectorDatasourceRequiresHostPortDatabase() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Analytics"))
+                .thenReturn(false);
+
+        var command = new CreateDatasourceCommand(orgId, "Analytics", DbType.CUSTOM,
+                null, 8123, "analytics", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null, null, "clickhouse", null,
+                null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("host is required");
+    }
+
+    @Test
+    void createBundledDatasourceWithConnectorIdIsRejected() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "h", 5432, "db", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null, null, "clickhouse", null,
+                null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("connector_id is only allowed");
     }
 }

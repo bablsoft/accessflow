@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "postgresql",
+  "name": "PostgreSQL",
+  "dbType": "POSTGRESQL",
+  "vendor": "PostgreSQL Global Development Group",
+  "description": "Open-source object-relational database. Bundled with AccessFlow — no install required.",
+  "documentationUrl": "https://jdbc.postgresql.org/",
+  "logo": "logo.svg",
+  "defaultPort": 5432,
+  "defaultSslMode": "VERIFY_FULL",
+  "jdbcUrlTemplate": "jdbc:postgresql://{host}:{port}/{database_name}",
+  "driverClassName": "org.postgresql.Driver",
+  "bundled": true
+}

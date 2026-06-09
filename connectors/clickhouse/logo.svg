@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="ClickHouse">
+  <rect width="128" height="128" rx="14" fill="#FAFF69"/>
+  <g fill="#161616">
+    <rect x="20" y="24" width="16" height="80"/>
+    <rect x="44" y="24" width="16" height="80"/>
+    <rect x="68" y="24" width="16" height="80"/>
+    <rect x="92" y="56" width="16" height="48"/>
+  </g>
+  <rect x="92" y="24" width="16" height="22" fill="#FF3C38"/>
+</svg>

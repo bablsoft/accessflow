@@ -144,6 +144,8 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
 | `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
 | `DELETE` | `/datasources/drivers/{id}` | ADMIN | Delete an uploaded driver |
+| `GET` | `/datasources/connectors` | ADMIN | List the connector catalog with install status |
+| `POST` | `/datasources/connectors/{id}/install` | ADMIN | Download + verify + cache a connector's JDBC driver |
 
 ### GET /datasources/types — Response 200
 
@@ -752,6 +754,52 @@ Single driver object. **Response 404:** `CUSTOM_DRIVER_NOT_FOUND` if not in call
 **Response 204:** Driver removed (entity, JAR file, and any cached classloader).
 **Response 404:** `CUSTOM_DRIVER_NOT_FOUND`.
 **Response 409:** Driver is still referenced by one or more datasources. `error: CUSTOM_DRIVER_IN_USE`. Body includes `referencedBy: [datasource_id, …]`.
+
+---
+
+## Connector Endpoints
+
+Admin-only. Connectors are the curated, declarative driver catalog (see
+[14-connectors.md](./14-connectors.md)) — distinct from the org-scoped uploaded-driver endpoints
+above. A datasource references a `CUSTOM`-dialect connector via `connector_id`.
+
+### GET /datasources/connectors — Response 200
+
+```json
+{
+  "connectors": [
+    {
+      "id": "clickhouse",
+      "db_type": "CUSTOM",
+      "name": "ClickHouse",
+      "icon_url": "/db-icons/clickhouse.svg",
+      "vendor": "ClickHouse, Inc.",
+      "description": "Column-oriented OLAP database for real-time analytics.",
+      "documentation_url": "https://clickhouse.com/docs/integrations/java",
+      "default_port": 8123,
+      "default_ssl_mode": "DISABLE",
+      "jdbc_url_template": "jdbc:ch://{host}:{port}/{database_name}",
+      "driver_class": "com.clickhouse.jdbc.ClickHouseDriver",
+      "driver_status": "AVAILABLE",
+      "bundled": false
+    }
+  ]
+}
+```
+
+`driver_status` is `READY` (bundled or JAR cached), `AVAILABLE` (downloadable), or `UNAVAILABLE`
+(offline and not cached).
+
+### POST /datasources/connectors/{id}/install
+
+Downloads + SHA-256-verifies + caches the connector's driver JAR (bundled connectors are a no-op).
+Synchronous.
+
+**Response 200:** the connector's refreshed catalog row (same shape as above; `driver_status` now
+`READY`).
+**Response 403:** Caller is not an ADMIN. `error: FORBIDDEN`.
+**Response 404:** Unknown connector id. `error: CONNECTOR_NOT_FOUND`. Body includes `connectorId`.
+**Response 422:** Driver download or checksum verification failed. `error: DATASOURCE_DRIVER_UNAVAILABLE`.
 
 ---
 

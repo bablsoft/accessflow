@@ -80,7 +80,7 @@ class DefaultTextToSqlServiceTest {
     private DatasourceConnectionDescriptor descriptor(boolean textToSqlEnabled, UUID boundAiConfigId) {
         return new DatasourceConnectionDescriptor(datasourceId, organizationId, DbType.POSTGRESQL, "h",
                 5432, "db", "u", "ENC(p)", SslMode.DISABLE, 5, 1000, true, boundAiConfigId,
-                textToSqlEnabled, null, null, null, null, null, true);
+                textToSqlEnabled, null, null, null, null, null, null, true);
     }
 
     private DatabaseSchemaView schemaView() {

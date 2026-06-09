@@ -300,17 +300,26 @@ Out of scope for the executor itself (tracked separately): persistent storage of
 
 Customer-database JDBC drivers are **not** bundled in the Spring Boot fat JAR. They are resolved per `DbType` on demand the first time a datasource of that type is used (via `POST /datasources` or its first `POST /datasources/{id}/test`). Only `org.postgresql:postgresql` ships baked in — used for AccessFlow's own internal database.
 
-**Driver registry.** A static, in-process allowlist keyed by `DbType` maps to `{groupId, artifactId, version, sha256}`. Initial entries:
+**Connector catalog.** The supported databases are described declaratively by the repo-root
+[`connectors/`](../connectors/) folder (one `connector.json` manifest per connector), bundled onto
+the classpath and loaded at startup by `proxy/internal/driver/ConnectorCatalog` — this replaced the
+formerly-hardcoded `DriverRegistry`. Each manifest maps a connector to `{dbType, displayName, logo,
+defaultPort, defaultSslMode, jdbcUrlTemplate, driverClassName}` plus a `driver` descriptor (Maven
+coordinates or a direct URL + pinned SHA-256). The five dialect connectors map to first-class
+`DbType` values; additional engines (e.g. ClickHouse) carry `dbType=CUSTOM`. Built-in connectors:
 
-| DbType | Maven coordinates | Notes |
-|--------|-------------------|-------|
-| `POSTGRESQL` | `org.postgresql:postgresql` | Already on classpath; no resolution needed |
-| `MYSQL` | `com.mysql:mysql-connector-j` | |
-| `MARIADB` | `org.mariadb.jdbc:mariadb-java-client` | |
-| `ORACLE` | `com.oracle.database.jdbc:ojdbc11` | Oracle license terms apply |
-| `MSSQL` | `com.microsoft.sqlserver:mssql-jdbc` | |
+| Connector | DbType | Maven coordinates | Notes |
+|-----------|--------|-------------------|-------|
+| `postgresql` | `POSTGRESQL` | `org.postgresql:postgresql` | Bundled; already on classpath |
+| `mysql` | `MYSQL` | `com.mysql:mysql-connector-j` | |
+| `mariadb` | `MARIADB` | `org.mariadb.jdbc:mariadb-java-client` | |
+| `oracle` | `ORACLE` | `com.oracle.database.jdbc:ojdbc11` | Oracle license terms apply |
+| `mssql` | `MSSQL` | `com.microsoft.sqlserver:mssql-jdbc` | |
+| `clickhouse` | `CUSTOM` | `com.clickhouse:clickhouse-jdbc:all` | New engine via the CUSTOM lane |
 
-Versions are pinned in the registry; SHA-256 checksums are verified after every download. The API will not accept arbitrary GAVs from callers — only registry entries are resolvable.
+Versions and SHA-256 checksums are pinned in the manifests and verified after every download. The
+API will not accept arbitrary GAVs from callers — only catalog connectors are resolvable. See
+[14-connectors.md](./14-connectors.md) for the manifest format and the install marketplace.
 
 **Resolution flow.** On first datasource of a given `db_type`:
 1. Check local cache directory `${ACCESSFLOW_DRIVER_CACHE:-/var/lib/accessflow/drivers}` for a JAR matching `{artifactId}-{version}.jar`.
@@ -353,12 +362,14 @@ The same primitive backs **two consumption patterns**:
 2. **Dynamic datasource** — when `target_db_type=CUSTOM`, the upload backs a `db_type=CUSTOM`
    datasource with a free-form `jdbc_url_override`. No `host`/`port`/`database_name` is stored.
 
-**Per-driver classloader.** `DefaultDriverCatalogService` caches resolved drivers in two maps:
-`Map<DbType, ResolvedDriver>` for bundled entries, and `Map<UUID, ResolvedDriver>` keyed by
-`custom_jdbc_driver.id` for uploads. Each uploaded driver becomes its own
-`URLClassLoader` named `accessflow-jdbc-custom-{driverId}`. This guarantees that two datasources
-referencing different uploads — even if both target ORACLE — load disjoint copies of
-`oracle.jdbc.OracleDriver` and cannot interfere via static state.
+**Per-driver classloader.** `DefaultDriverCatalogService` caches resolved drivers in three maps:
+`Map<DbType, ResolvedDriver>` for the dialect connectors, `Map<String, ResolvedDriver>` keyed by
+connector id for `CUSTOM`-dialect catalog connectors (classloader `accessflow-jdbc-connector-{id}`),
+and `Map<UUID, ResolvedDriver>` keyed by `custom_jdbc_driver.id` for uploads (classloader
+`accessflow-jdbc-custom-{driverId}`). `DatasourcePoolFactory` picks the lane by descriptor:
+`custom_driver_id` → uploaded, else `connector_id` → catalog connector, else `db_type` → dialect.
+Each driver gets its own `URLClassLoader`, so two datasources referencing different drivers — even
+if both target ORACLE — load disjoint copies and cannot interfere via static state.
 
 **Upload validation flow** (`DefaultCustomJdbcDriverService.register`):
 1. Look up `(organization_id, expected_sha256)` to reject duplicates with `CUSTOM_DRIVER_DUPLICATE`.

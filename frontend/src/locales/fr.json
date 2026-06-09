@@ -60,7 +60,8 @@
     "request_access": "Demander l'accès",
     "access_requests": "Demandes d'accès",
     "routing_policies": "Politiques de routage",
-    "langfuse": "Langfuse"
+    "langfuse": "Langfuse",
+    "connectors": "Connecteurs"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -306,7 +307,10 @@
     "routing_policy_not_found": "Politique de routage introuvable.",
     "routing_policy_priority_conflict": "Une autre politique de routage utilise déjà cette priorité.",
     "routing_policy_invalid": "La politique de routage est invalide.",
-    "routing_policy_generic": "Impossible d'enregistrer la politique de routage. Veuillez réessayer."
+    "routing_policy_generic": "Impossible d'enregistrer la politique de routage. Veuillez réessayer.",
+    "connector_not_found": "Connecteur introuvable.",
+    "connector_install_failed": "Impossible d'installer le pilote du connecteur. Vérifiez la connectivité et réessayez.",
+    "connector_generic": "Une erreur s'est produite avec le connecteur. Veuillez réessayer."
   },
   "editor": {
     "text_to_sql": {
@@ -655,7 +659,9 @@
       "save_error": "Échec de la création de la source",
       "types_loading": "Chargement des types de base…",
       "types_error_title": "Impossible de charger les types de base",
-      "types_error_body": "Le endpoint /datasources/types n'a pas répondu. Recharge la page ou vérifie les logs du backend."
+      "types_error_body": "Le endpoint /datasources/types n'a pas répondu. Recharge la page ou vérifie les logs du backend.",
+      "source_connector": "Connecteurs",
+      "source_connector_help": "Pilotes préconfigurés installés depuis le catalogue de connecteurs."
     },
     "settings": {
       "label_text_to_sql_enabled": "Activer le texte vers SQL",
@@ -1942,5 +1948,18 @@
       "status": "Statut",
       "expires": "Expire"
     }
+  },
+  "connectors": {
+    "title": "Connecteurs",
+    "subtitle": "Parcourez le catalogue de connecteurs de bases de données et installez les pilotes à la demande.",
+    "search_placeholder": "Rechercher des connecteurs",
+    "load_error": "Impossible de charger les connecteurs",
+    "empty_title": "Aucun connecteur trouvé",
+    "empty_description": "Aucun connecteur ne correspond à votre recherche.",
+    "install": "Installer",
+    "installed": "Installé",
+    "unavailable": "Indisponible",
+    "install_success": "{{name}} installé",
+    "docs_link": "Documentation"
   }
 }

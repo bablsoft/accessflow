@@ -60,7 +60,8 @@
     "request_access": "Request access",
     "access_requests": "Access requests",
     "routing_policies": "Routing policies",
-    "langfuse": "Langfuse"
+    "langfuse": "Langfuse",
+    "connectors": "Connectors"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -306,7 +307,10 @@
     "routing_policy_not_found": "Routing policy not found.",
     "routing_policy_priority_conflict": "Another routing policy already uses this priority.",
     "routing_policy_invalid": "The routing policy is invalid.",
-    "routing_policy_generic": "Could not save the routing policy. Please try again."
+    "routing_policy_generic": "Could not save the routing policy. Please try again.",
+    "connector_not_found": "Connector not found.",
+    "connector_install_failed": "Could not install the connector driver. Check connectivity and try again.",
+    "connector_generic": "Something went wrong with the connector. Please try again."
   },
   "editor": {
     "text_to_sql": {
@@ -655,7 +659,9 @@
       "save_error": "Failed to create datasource",
       "types_loading": "Loading database types…",
       "types_error_title": "Could not load database types",
-      "types_error_body": "The /datasources/types endpoint did not respond. Refresh the page or check your backend logs."
+      "types_error_body": "The /datasources/types endpoint did not respond. Refresh the page or check your backend logs.",
+      "source_connector": "Connectors",
+      "source_connector_help": "Pre-packaged drivers installed from the connector catalog."
     },
     "settings": {
       "back_button": "Back",
@@ -1942,5 +1948,18 @@
       "status": "Status",
       "expires": "Expires"
     }
+  },
+  "connectors": {
+    "title": "Connectors",
+    "subtitle": "Browse the database connector catalog and install drivers on demand.",
+    "search_placeholder": "Search connectors",
+    "load_error": "Could not load connectors",
+    "empty_title": "No connectors found",
+    "empty_description": "No connectors match your search.",
+    "install": "Install",
+    "installed": "Installed",
+    "unavailable": "Unavailable",
+    "install_success": "Installed {{name}}",
+    "docs_link": "Documentation"
   }
 }

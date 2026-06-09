@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "mysql",
+  "name": "MySQL",
+  "dbType": "MYSQL",
+  "vendor": "Oracle Corporation",
+  "description": "The world's most popular open-source relational database.",
+  "documentationUrl": "https://dev.mysql.com/doc/connector-j/en/",
+  "logo": "logo.svg",
+  "defaultPort": 3306,
+  "defaultSslMode": "REQUIRE",
+  "jdbcUrlTemplate": "jdbc:mysql://{host}:{port}/{database_name}",
+  "driverClassName": "com.mysql.cj.jdbc.Driver",
+  "bundled": false,
+  "driver": {
+    "type": "maven",
+    "groupId": "com.mysql",
+    "artifactId": "mysql-connector-j",
+    "version": "9.7.0",
+    "sha256": "0353648eaa1c91e0f4020c959abf756bc866ffd583df22ae6b6f6e0cbd43eb44"
+  }
+}

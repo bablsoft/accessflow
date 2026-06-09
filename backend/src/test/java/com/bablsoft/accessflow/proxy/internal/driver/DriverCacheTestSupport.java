@@ -21,14 +21,14 @@ public final class DriverCacheTestSupport {
 
     /**
      * Create a temp cache dir, copy the {@code mysql-connector-j} JAR from the test
-     * classpath into it under the registry-pinned filename, and return the cache path.
+     * classpath into it under the catalog-pinned filename, and return the cache path.
      */
     public static Path prepareCacheWithMysql() {
         try {
             var dir = Files.createTempDirectory("accessflow-driver-cache-");
-            var entry = DriverRegistry.require(DbType.MYSQL);
+            var manifest = new ConnectorCatalog().requireByDbType(DbType.MYSQL);
             var source = locateClasspathJar("com.mysql.cj.jdbc.Driver");
-            Files.copy(source, dir.resolve(entry.jarFileName()),
+            Files.copy(source, dir.resolve(manifest.jarFileName()),
                     StandardCopyOption.REPLACE_EXISTING);
             return dir;
         } catch (IOException e) {

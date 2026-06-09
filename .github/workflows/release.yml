@@ -90,7 +90,10 @@ jobs:
       - name: Build & push backend image
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          # Context is the repo root so the connector catalog (./connectors) is
+          # bundled into the jar; the Dockerfile lives under backend/.
+          context: .
+          file: ./backend/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -154,6 +157,32 @@ jobs:
           helm dependency update charts/accessflow
           helm package charts/accessflow --destination .cr-release-packages
 
+      # Connector catalog artifacts (issue #334). Published to gh-pages alongside
+      # the Helm chart — GitHub Release asset uploads are blocked by the repo's
+      # immutable-releases policy (see the chart publish step below), so the
+      # bundle + index ride the same mechanism that already works.
+      - name: Build connectors artifacts
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          mkdir -p .connectors-artifacts
+          tar czf ".connectors-artifacts/connectors-bundle-${VERSION}.tar.gz" connectors
+          node --input-type=module - "$VERSION" > ".connectors-artifacts/connectors-index.json" <<'NODE'
+          import { readdirSync, readFileSync } from 'node:fs';
+          import path from 'node:path';
+          const version = process.argv[2];
+          const root = 'connectors';
+          const connectors = readdirSync(root, { withFileTypes: true })
+            .filter((d) => d.isDirectory() && d.name !== 'schema')
+            .map((d) => JSON.parse(readFileSync(path.join(root, d.name, 'connector.json'), 'utf8')))
+            .map((m) => ({
+              id: m.id, name: m.name, dbType: m.dbType, vendor: m.vendor ?? null,
+              bundled: m.bundled,
+              driver: m.driver ? { type: m.driver.type, sha256: m.driver.sha256 } : null,
+            }));
+          process.stdout.write(JSON.stringify({ version, connectors }, null, 2) + '\n');
+          NODE
+
       # We publish the chart to gh-pages directly (chart-releaser-action couples
       # this with a GitHub release asset upload, which fails under the repo's
       # immutable-releases policy). Plain `helm repo index` + `git push` is
@@ -166,6 +195,11 @@ jobs:
           git fetch origin gh-pages
           git worktree add /tmp/gh-pages origin/gh-pages
           cp .cr-release-packages/*.tgz /tmp/gh-pages/
+          # Connector catalog artifacts (issue #334): versioned bundle + a
+          # stable index.json overwritten each release.
+          mkdir -p /tmp/gh-pages/connectors
+          cp .connectors-artifacts/connectors-bundle-*.tar.gz /tmp/gh-pages/connectors/
+          cp .connectors-artifacts/connectors-index.json /tmp/gh-pages/connectors/connectors-index.json
           if [ -f /tmp/gh-pages/index.yaml ]; then
             helm repo index /tmp/gh-pages --url "https://${REPO_OWNER}.github.io/accessflow" --merge /tmp/gh-pages/index.yaml
           else

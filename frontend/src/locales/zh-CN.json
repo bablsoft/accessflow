@@ -60,7 +60,8 @@
     "request_access": "申请访问",
     "access_requests": "访问申请",
     "routing_policies": "路由策略",
-    "langfuse": "Langfuse"
+    "langfuse": "Langfuse",
+    "connectors": "连接器"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -306,7 +307,10 @@
     "routing_policy_not_found": "未找到路由策略。",
     "routing_policy_priority_conflict": "另一个路由策略已使用此优先级。",
     "routing_policy_invalid": "路由策略无效。",
-    "routing_policy_generic": "无法保存路由策略。请重试。"
+    "routing_policy_generic": "无法保存路由策略。请重试。",
+    "connector_not_found": "未找到连接器。",
+    "connector_install_failed": "无法安装连接器驱动。请检查网络连接并重试。",
+    "connector_generic": "连接器出现错误。请重试。"
   },
   "editor": {
     "text_to_sql": {
@@ -655,7 +659,9 @@
       "save_error": "创建数据源失败",
       "types_loading": "正在加载数据库类型…",
       "types_error_title": "无法加载数据库类型",
-      "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。"
+      "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。",
+      "source_connector": "连接器",
+      "source_connector_help": "从连接器目录安装的预置驱动。"
     },
     "settings": {
       "label_text_to_sql_enabled": "启用文本转 SQL",
@@ -1942,5 +1948,18 @@
       "status": "状态",
       "expires": "过期时间"
     }
+  },
+  "connectors": {
+    "title": "连接器",
+    "subtitle": "浏览数据库连接器目录并按需安装驱动。",
+    "search_placeholder": "搜索连接器",
+    "load_error": "无法加载连接器",
+    "empty_title": "未找到连接器",
+    "empty_description": "没有与搜索匹配的连接器。",
+    "install": "安装",
+    "installed": "已安装",
+    "unavailable": "不可用",
+    "install_success": "已安装 {{name}}",
+    "docs_link": "文档"
   }
 }

@@ -60,7 +60,8 @@
     "request_access": "Zugriff anfragen",
     "access_requests": "Zugriffsanfragen",
     "routing_policies": "Routing-Richtlinien",
-    "langfuse": "Langfuse"
+    "langfuse": "Langfuse",
+    "connectors": "Konnektoren"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -306,7 +307,10 @@
     "routing_policy_not_found": "Routing-Richtlinie nicht gefunden.",
     "routing_policy_priority_conflict": "Eine andere Routing-Richtlinie verwendet diese Priorität bereits.",
     "routing_policy_invalid": "Die Routing-Richtlinie ist ungültig.",
-    "routing_policy_generic": "Die Routing-Richtlinie konnte nicht gespeichert werden. Bitte erneut versuchen."
+    "routing_policy_generic": "Die Routing-Richtlinie konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "connector_not_found": "Konnektor nicht gefunden.",
+    "connector_install_failed": "Der Konnektortreiber konnte nicht installiert werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
+    "connector_generic": "Beim Konnektor ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut."
   },
   "editor": {
     "text_to_sql": {
@@ -655,7 +659,9 @@
       "save_error": "Datenquelle konnte nicht erstellt werden",
       "types_loading": "Datenbanktypen werden geladen…",
       "types_error_title": "Datenbanktypen konnten nicht geladen werden",
-      "types_error_body": "Der /datasources/types-Endpoint hat nicht geantwortet. Lade die Seite neu oder prüfe die Backend-Logs."
+      "types_error_body": "Der /datasources/types-Endpoint hat nicht geantwortet. Lade die Seite neu oder prüfe die Backend-Logs.",
+      "source_connector": "Konnektoren",
+      "source_connector_help": "Vorkonfigurierte Treiber, die aus dem Konnektorkatalog installiert werden."
     },
     "settings": {
       "label_text_to_sql_enabled": "Text-zu-SQL aktivieren",
@@ -1942,5 +1948,18 @@
       "status": "Status",
       "expires": "Läuft ab"
     }
+  },
+  "connectors": {
+    "title": "Konnektoren",
+    "subtitle": "Durchsuchen Sie den Datenbank-Konnektorkatalog und installieren Sie Treiber bei Bedarf.",
+    "search_placeholder": "Konnektoren suchen",
+    "load_error": "Konnektoren konnten nicht geladen werden",
+    "empty_title": "Keine Konnektoren gefunden",
+    "empty_description": "Keine Konnektoren entsprechen Ihrer Suche.",
+    "install": "Installieren",
+    "installed": "Installiert",
+    "unavailable": "Nicht verfügbar",
+    "install_success": "{{name}} installiert",
+    "docs_link": "Dokumentation"
   }
 }

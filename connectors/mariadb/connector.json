@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "mariadb",
+  "name": "MariaDB",
+  "dbType": "MARIADB",
+  "vendor": "MariaDB Foundation",
+  "description": "Community-developed, MySQL-compatible relational database.",
+  "documentationUrl": "https://mariadb.com/kb/en/about-mariadb-connector-j/",
+  "logo": "logo.svg",
+  "defaultPort": 3306,
+  "defaultSslMode": "REQUIRE",
+  "jdbcUrlTemplate": "jdbc:mariadb://{host}:{port}/{database_name}",
+  "driverClassName": "org.mariadb.jdbc.Driver",
+  "bundled": false,
+  "driver": {
+    "type": "maven",
+    "groupId": "org.mariadb.jdbc",
+    "artifactId": "mariadb-java-client",
+    "version": "3.5.3",
+    "sha256": "85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706"
+  }
+}

@@ -55,8 +55,9 @@ services:
 
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      # Repo root so backend/Dockerfile can bundle ./connectors into the jar.
+      context: ..
+      dockerfile: backend/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy

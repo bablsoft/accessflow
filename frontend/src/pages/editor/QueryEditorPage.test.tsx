@@ -88,6 +88,7 @@ const baseDatasource: Datasource = {
   ai_config_id: 'aic-1',
   text_to_sql_enabled: false,
   custom_driver_id: null,
+  connector_id: null,
   jdbc_url_override: null,
   read_replica_jdbc_url: null,
   read_replica_username: null,

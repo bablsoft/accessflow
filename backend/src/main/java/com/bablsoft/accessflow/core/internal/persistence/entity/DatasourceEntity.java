@@ -96,6 +96,9 @@ public class DatasourceEntity {
     @Column(name = "jdbc_url_override", columnDefinition = "TEXT")
     private String jdbcUrlOverride;
 
+    @Column(name = "connector_id", length = 64)
+    private String connectorId;
+
     @Column(name = "read_replica_jdbc_url", columnDefinition = "TEXT")
     private String readReplicaJdbcUrl;
 

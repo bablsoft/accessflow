@@ -60,7 +60,8 @@
     "request_access": "Solicitar acceso",
     "access_requests": "Solicitudes de acceso",
     "routing_policies": "Políticas de enrutamiento",
-    "langfuse": "Langfuse"
+    "langfuse": "Langfuse",
+    "connectors": "Conectores"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -306,7 +307,10 @@
     "routing_policy_not_found": "Política de enrutamiento no encontrada.",
     "routing_policy_priority_conflict": "Otra política de enrutamiento ya usa esta prioridad.",
     "routing_policy_invalid": "La política de enrutamiento no es válida.",
-    "routing_policy_generic": "No se pudo guardar la política de enrutamiento. Inténtalo de nuevo."
+    "routing_policy_generic": "No se pudo guardar la política de enrutamiento. Inténtalo de nuevo.",
+    "connector_not_found": "Conector no encontrado.",
+    "connector_install_failed": "No se pudo instalar el controlador del conector. Comprueba la conectividad e inténtalo de nuevo.",
+    "connector_generic": "Algo salió mal con el conector. Inténtalo de nuevo."
   },
   "editor": {
     "text_to_sql": {
@@ -655,7 +659,9 @@
       "save_error": "No se pudo crear la fuente de datos",
       "types_loading": "Cargando tipos de base de datos…",
       "types_error_title": "No se pudieron cargar los tipos de base de datos",
-      "types_error_body": "El endpoint /datasources/types no respondió. Recarga la página o revisa los registros del backend."
+      "types_error_body": "El endpoint /datasources/types no respondió. Recarga la página o revisa los registros del backend.",
+      "source_connector": "Conectores",
+      "source_connector_help": "Controladores preconfigurados instalados desde el catálogo de conectores."
     },
     "settings": {
       "label_text_to_sql_enabled": "Habilitar texto a SQL",
@@ -1942,5 +1948,18 @@
       "status": "Estado",
       "expires": "Caduca"
     }
+  },
+  "connectors": {
+    "title": "Conectores",
+    "subtitle": "Explora el catálogo de conectores de bases de datos e instala controladores cuando los necesites.",
+    "search_placeholder": "Buscar conectores",
+    "load_error": "No se pudieron cargar los conectores",
+    "empty_title": "No se encontraron conectores",
+    "empty_description": "Ningún conector coincide con tu búsqueda.",
+    "install": "Instalar",
+    "installed": "Instalado",
+    "unavailable": "No disponible",
+    "install_success": "{{name}} instalado",
+    "docs_link": "Documentación"
   }
 }

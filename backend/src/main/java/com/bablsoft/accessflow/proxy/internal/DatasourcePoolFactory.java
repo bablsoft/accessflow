@@ -104,6 +104,9 @@ class DatasourcePoolFactory {
                     .orElseThrow(() -> new CustomDriverNotFoundException(descriptor.customDriverId()));
             return driverCatalog.resolveCustom(customDescriptor);
         }
+        if (descriptor.connectorId() != null && !descriptor.connectorId().isBlank()) {
+            return driverCatalog.resolveConnector(descriptor.connectorId());
+        }
         return driverCatalog.resolve(descriptor.dbType());
     }
 
@@ -112,6 +115,16 @@ class DatasourcePoolFactory {
             return descriptor.jdbcUrlOverride();
         }
         Integer port = descriptor.port();
+        // Connector-backed CUSTOM datasources build their URL from the connector's manifest
+        // template (host/port/database substitution) — the dialect-aware coordinates factory
+        // doesn't know the connector's template, so the catalog service builds it.
+        if (descriptor.connectorId() != null && !descriptor.connectorId().isBlank()) {
+            return driverCatalog.connectorJdbcUrl(
+                    descriptor.connectorId(),
+                    descriptor.host(),
+                    port != null ? port : 0,
+                    descriptor.databaseName());
+        }
         return coordinatesFactory.from(
                 descriptor.dbType(),
                 descriptor.host(),

@@ -51,6 +51,7 @@ const GroupDetailPage = lazy(() =>
 );
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
+const ConnectorsPage = lazy(() => import('@/pages/admin/connectors/ConnectorsPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -291,6 +292,16 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <CustomDriversPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/connectors"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <ConnectorsPage />
                 </Suspense>
               </AuthGuard>
             }
