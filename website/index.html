@@ -111,6 +111,7 @@
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="#features">Features</a>
+        <a href="#connectors">Connectors</a>
         <a href="#how">How it works</a>
         <a href="#install">Install</a>
         <a href="#roadmap">Roadmap</a>
@@ -124,6 +125,7 @@
         </summary>
         <nav class="nav-mobile-panel" aria-label="Mobile primary">
           <a href="#features">Features</a>
+          <a href="#connectors">Connectors</a>
           <a href="#how">How it works</a>
           <a href="#install">Install</a>
           <a href="#roadmap">Roadmap</a>
@@ -371,6 +373,62 @@
             <h3>Cloud-native deploy</h3>
             <p>One <span class="mono">docker compose up</span> for local and small environments. Helm 3 chart for Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas.</p>
             <span class="tag">Docker · Helm · Kubernetes · Modulith</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Connectors -->
+    <section class="connectors scroll-pad" id="connectors">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Connectors</span>
+          <h2>A growing catalog of database connectors.</h2>
+          <p>Supported databases are described by a declarative <strong>connector catalog</strong> — one manifest and logo per database, versioned in the repo and bundled with every release. Admins browse the catalog and install a database's JDBC driver in one click; the download is SHA-256-verified and cached. Engines beyond the built-in five install the same way, and anything else can be added by uploading a custom JDBC driver. <a href="docs/#cfg-connectors">Read the connector docs →</a></p>
+        </div>
+        <div class="conn-grid">
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/postgresql.svg" alt="PostgreSQL" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">PostgreSQL</span>
+            <span class="conn-tag">Bundled</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/mysql.svg" alt="MySQL" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">MySQL</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/mariadb.svg" alt="MariaDB" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">MariaDB</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/oracle.svg" alt="Oracle Database" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">Oracle</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/mssql.svg" alt="Microsoft SQL Server" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">SQL Server</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/clickhouse.svg" alt="ClickHouse" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">ClickHouse</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card conn-card-custom">
+            <span class="conn-logo conn-logo-plus" aria-hidden="true">+</span>
+            <span class="conn-name">Custom JDBC</span>
+            <span class="conn-tag">Upload any driver</span>
           </div>
 
         </div>

@@ -662,6 +662,60 @@ section + section { border-top: 1px solid var(--line); }
   text-transform: uppercase;
 }
 
+/* Connectors catalog */
+.conn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.conn-card {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.conn-card:hover { border-color: var(--line-strong); background: var(--bg-2); }
+
+.conn-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius);
+  background: var(--tint-2);
+  display: grid;
+  place-items: center;
+}
+.conn-logo img { width: 40px; height: 40px; object-fit: contain; }
+
+.conn-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.conn-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.conn-card-custom { border-style: dashed; }
+.conn-logo-plus {
+  font-family: var(--mono);
+  font-size: 28px;
+  line-height: 1;
+  color: var(--accent);
+}
+
 /* how it works */
 
 .flow-grid {

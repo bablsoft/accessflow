@@ -856,6 +856,22 @@
             SHA-256, and caches it. Bundled connectors (PostgreSQL) show as <em>Installed</em>; the
             rest show an <em>Install</em> action.
           </p>
+          <p><strong>Built-in connectors:</strong></p>
+          <ul>
+            <li><strong>PostgreSQL</strong> — bundled (ships in the image, no download).</li>
+            <li><strong>MySQL</strong> — <code>com.mysql:mysql-connector-j</code> · 1-click install.</li>
+            <li><strong>MariaDB</strong> — <code>org.mariadb.jdbc:mariadb-java-client</code> · 1-click install.</li>
+            <li><strong>Oracle Database</strong> — <code>com.oracle.database.jdbc:ojdbc11</code> · 1-click install.</li>
+            <li><strong>Microsoft SQL Server</strong> — <code>com.microsoft.sqlserver:mssql-jdbc</code> · 1-click install.</li>
+            <li><strong>ClickHouse</strong> — <code>com.clickhouse:clickhouse-jdbc</code> · 1-click install (a CUSTOM-dialect connector, the first engine beyond the built-in five).</li>
+          </ul>
+          <p>
+            Adding a database is a data change, not a code change — each connector is a small
+            <code>connector.json</code> manifest (name, db type, logo, driver coordinates + pinned
+            SHA-256) under the repo's <code>connectors/</code> folder, bundled into the image and
+            published as a release artifact. See the
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md">connectors design doc</a>.
+          </p>
           <ol>
             <li><strong>Install.</strong> Click <em>Install</em> on a connector card. The driver is fetched from the configured Maven repository (<code>ACCESSFLOW_DRIVERS_REPOSITORY_URL</code>), SHA-256-verified, and cached to <code>ACCESSFLOW_DRIVER_CACHE</code>.</li>
             <li><strong>Use it.</strong> Installed connectors appear in the datasource create wizard. The five core engines are first-class database types; additional engines (e.g. ClickHouse) are created as a <em>Custom</em> datasource backed by the connector — you fill in host / port / database and AccessFlow builds the JDBC URL from the connector's template.</li>
