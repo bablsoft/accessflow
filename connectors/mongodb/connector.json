@@ -5,10 +5,16 @@
   "dbType": "MONGODB",
   "category": "DOCUMENT",
   "vendor": "MongoDB, Inc.",
-  "description": "The most popular open-source NoSQL document database. Bundled with AccessFlow — no install required.",
+  "description": "The most popular open-source NoSQL document database. The AccessFlow MongoDB engine installs on demand.",
   "documentationUrl": "https://www.mongodb.com/docs/drivers/java/sync/current/",
   "logo": "logo.svg",
   "defaultPort": 27017,
   "defaultSslMode": "REQUIRE",
-  "bundled": true
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-mongodb-1.0.0-all.jar",
+    "fileName": "accessflow-engine-mongodb-1.0.0-all.jar",
+    "sha256": "8d75f3a5f35d32581c65415fad2b076e58494b1c685350c3723bb3c5fa3d0419"
+  }
 }

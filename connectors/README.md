@@ -2,8 +2,10 @@
 
 A **connector** is a declarative descriptor for a database AccessFlow can proxy. It tells the
 application everything it needs to present the database in the UI and to download + load the right
-JDBC driver: the display name, logo, default port, SSL mode, JDBC-URL template, the driver class,
-and where to fetch the driver JAR (Maven coordinates or a direct URL) plus its pinned SHA-256.
+artifact — a **JDBC driver JAR** for `RELATIONAL` connectors, a **`QueryEngine` engine-plugin JAR**
+for `DOCUMENT` (NoSQL) connectors (AF-414): the display name, logo, default port, SSL mode, JDBC-URL
+template, the driver class, and where to fetch the JAR (Maven coordinates or a direct URL) plus its
+pinned SHA-256.
 
 This folder is the **single source of truth** for the connector catalog. It replaces the previously
 hardcoded `DriverRegistry` in the backend. At build time it is bundled into the backend image (on the
@@ -38,17 +40,18 @@ Summary:
 | `schemaVersion` | yes | Always `1`. |
 | `id` | yes | Slug, `^[a-z0-9][a-z0-9-]*$`, equals folder name. |
 | `name` | yes | Display name. |
-| `dbType` | yes | One of `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`. New engines beyond the built-in five use `CUSTOM`. |
+| `dbType` | yes | One of `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`. New SQL engines beyond the built-in five use `CUSTOM`. |
+| `category` | no | `RELATIONAL` (default) or `DOCUMENT` (NoSQL); groups the SQL vs NoSQL marketplace sections. |
 | `vendor` | no | Shown on the catalog card. |
 | `description` | no | One-line blurb on the card. |
 | `documentationUrl` | no | Linked from the card. |
 | `logo` | yes | File name within the connector folder. |
 | `defaultPort` | yes | Pre-filled in the datasource wizard. `0` for URL-only engines. |
 | `defaultSslMode` | yes | `SslMode` value. |
-| `jdbcUrlTemplate` | yes | Uses `{host}`, `{port}`, `{database_name}` placeholders. |
-| `driverClassName` | yes | The JDBC `java.sql.Driver` implementation FQCN. |
+| `jdbcUrlTemplate` | RELATIONAL only | Uses `{host}`, `{port}`, `{database_name}` placeholders. Omitted for `DOCUMENT`. |
+| `driverClassName` | RELATIONAL only | The JDBC `java.sql.Driver` implementation FQCN. Omitted for `DOCUMENT`. |
 | `bundled` | yes | `true` only for PostgreSQL (driver is on the application classpath). |
-| `driver` | unless bundled | Download descriptor — `maven` or `url` (below). |
+| `driver` | unless bundled | Download descriptor — `maven` or `url` (below). For `DOCUMENT` connectors this pins the engine-plugin JAR (e.g. `accessflow-engine-mongodb-<v>-all.jar` built from [`engines/mongodb/`](../engines/mongodb/)), discovered via `ServiceLoader` against the `core.api.QueryEngine` SPI — the provider's `engineId()` must equal the connector `id`. |
 
 ### `driver` — Maven coordinate
 
@@ -82,9 +85,11 @@ from `ACCESSFLOW_DRIVERS_REPOSITORY_URL` (default `https://repo1.maven.org/maven
 
 1. `mkdir connectors/<id>` and add `connector.json` + `logo.svg`.
 2. Copy the logo to `frontend/public/db-icons/<id>.svg`.
-3. Pick the right `dbType`: one of the five built-in dialects, or `CUSTOM` for anything else.
-4. Compute the driver JAR's SHA-256 (`shasum -a 256 <jar>`) and pin it. Pin a self-contained JAR
-   (use the shaded/`all` classifier when one exists).
+3. Pick the right `dbType`: one of the five built-in dialects, `CUSTOM` for another SQL engine, or
+   a first-class NoSQL `dbType` + `category: "DOCUMENT"` for an engine plugin.
+4. Compute the JAR's SHA-256 (`shasum -a 256 <jar>`) and pin it. Pin a self-contained JAR
+   (use the shaded/`all` classifier when one exists). Engine plugins build reproducibly, so the
+   pin is stable — CI's `engines` job fails on drift (see `engines/mongodb/README.md`).
 5. Validate against the schema and confirm the folder name equals `id`. CI runs this check.
 6. For `CUSTOM` connectors, the datasource wizard builds the JDBC URL from `jdbcUrlTemplate` and
    stores the connector id on the datasource (`connector_id`); the proxy loads the driver into a
