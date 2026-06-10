@@ -183,4 +183,55 @@ class MongoQueryParserTest {
         assertThatThrownBy(() -> parser.parse("db.users.find({}).hint({ x: 1 })"))
                 .isInstanceOf(InvalidSqlException.class);
     }
+
+    @Test
+    void rejectsCreateCollectionWithChainedMethod() {
+        assertThatThrownBy(() -> parser.parse("db.createCollection('x').find({})"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void rejectsMissingOperationAfterCollection() {
+        assertThatThrownBy(() -> parser.parse("db.users"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void rejectsJsonCommandWithoutKnownOperationKey() {
+        assertThatThrownBy(() -> parser.parse("{ \"explain\": \"users\" }"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void rejectsModifierOnNonReadOperation() {
+        assertThatThrownBy(() -> parser.parse("db.users.deleteOne({ id: 1 }).limit(5)"))
+                .isInstanceOf(InvalidSqlException.class);
+    }
+
+    @Test
+    void parsesJsonAggregateAndCountAndDistinctAndCreate() {
+        assertThat(parser.parseCommand("{ \"aggregate\": \"u\", \"pipeline\": [{ \"$count\": \"n\" }] }")
+                .operation()).isEqualTo(MongoOperation.AGGREGATE);
+        assertThat(parser.parseCommand("{ \"count\": \"u\", \"query\": { \"a\": 1 } }").operation())
+                .isEqualTo(MongoOperation.COUNT_DOCUMENTS);
+        assertThat(parser.parseCommand("{ \"distinct\": \"u\", \"key\": \"team\" }").operation())
+                .isEqualTo(MongoOperation.DISTINCT);
+        assertThat(parser.parseCommand("{ \"create\": \"events\" }").operation())
+                .isEqualTo(MongoOperation.CREATE_COLLECTION);
+        assertThat(parser.parseCommand("{ \"drop\": \"events\" }").operation())
+                .isEqualTo(MongoOperation.DROP_COLLECTION);
+        assertThat(parser.parseCommand(
+                "{ \"createIndexes\": \"u\", \"indexes\": [{ \"key\": { \"a\": 1 }, \"name\": \"a_idx\" }] }")
+                .operation()).isEqualTo(MongoOperation.CREATE_INDEX);
+    }
+
+    @Test
+    void parsesShellReplaceOneAndFindOneAndUpdateAndDropIndex() {
+        assertThat(parser.parseCommand("db.u.replaceOne({ a: 1 }, { a: 2 })").operation())
+                .isEqualTo(MongoOperation.REPLACE_ONE);
+        assertThat(parser.parseCommand("db.u.findOneAndUpdate({ a: 1 }, { $set: { b: 2 } })")
+                .operation()).isEqualTo(MongoOperation.FIND_ONE_AND_UPDATE);
+        assertThat(parser.parseCommand("db.u.dropIndex('a_idx')").operation())
+                .isEqualTo(MongoOperation.DROP_INDEX);
+    }
 }

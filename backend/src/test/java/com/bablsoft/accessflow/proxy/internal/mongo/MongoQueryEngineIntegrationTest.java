@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class MongoQueryEngineIntegrationTest {
 
@@ -135,6 +136,66 @@ class MongoQueryEngineIntegrationTest {
         assertThat(((UpdateExecutionResult) run("db.people.createIndex({ email: 1 })"))
                 .rowsAffected()).isZero();
         assertThat(((UpdateExecutionResult) run("db.t2.drop()")).rowsAffected()).isZero();
+    }
+
+    @Test
+    void ddlCreateNamedIndexThenDropIt() {
+        assertThat(((UpdateExecutionResult) run("db.people.createIndex({ name: 1 }, { name: 'name_idx' })"))
+                .rowsAffected()).isZero();
+        assertThat(((UpdateExecutionResult) run("db.people.dropIndex('name_idx')"))
+                .rowsAffected()).isZero();
+    }
+
+    @Test
+    void replaceOneAndFindOneAndUpdateReportCounts() {
+        assertThat(((UpdateExecutionResult) run(
+                "db.people.replaceOne({ name: 'Bo' }, { name: 'Bo', team: 'eng', salary: 95 })"))
+                .rowsAffected()).isEqualTo(1);
+        assertThat(((UpdateExecutionResult) run(
+                "db.people.findOneAndUpdate({ name: 'Ada' }, { $set: { salary: 110 } })"))
+                .rowsAffected()).isEqualTo(1);
+        assertThat(((UpdateExecutionResult) run(
+                "db.people.findOneAndUpdate({ name: 'Nobody' }, { $set: { x: 1 } })"))
+                .rowsAffected()).isZero();
+    }
+
+    @Test
+    void findHonoursSortSkipAndProjection() {
+        var result = (SelectExecutionResult) run(
+                "db.people.find({}, { name: 1, _id: 0 }).sort({ salary: -1 }).skip(1)");
+        assertThat(result.columns()).extracting("name").containsExactly("name");
+        assertThat(result.rowCount()).isEqualTo(2);
+    }
+
+    @Test
+    void evictClosesCachedClient() {
+        run("db.people.find({})"); // opens + caches a client
+        clientManager.evict(descriptor.id()); // close branch
+        clientManager.evict(descriptor.id()); // no-op branch (already gone)
+        // A subsequent query transparently reopens the client.
+        assertThat(((SelectExecutionResult) run("db.people.find({})")).rowCount()).isEqualTo(3);
+    }
+
+    @Test
+    void connectionProbeFailsForUnreachableHost() {
+        var probe = new MongoConnectionProbe(encryption, factory);
+        assertThatThrownBy(() -> probe.test(unreachableDescriptor()))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
+    }
+
+    @Test
+    void schemaIntrospectionFailsForUnreachableHost() {
+        var introspector = new MongoSchemaIntrospector(encryption, factory);
+        assertThatThrownBy(() -> introspector.introspect(unreachableDescriptor()))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
+    }
+
+    private DatasourceConnectionDescriptor unreachableDescriptor() {
+        // Override URI with a tiny server-selection timeout so the failure is fast.
+        return new DatasourceConnectionDescriptor(UUID.randomUUID(), UUID.randomUUID(),
+                DbType.MONGODB, null, null, "db", null, "", SslMode.DISABLE, 10, 1000, true, null,
+                false, null, null, "mongodb://127.0.0.1:1/db?serverSelectionTimeoutMS=300", null,
+                null, null, true);
     }
 
     @Test
