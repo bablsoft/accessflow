@@ -11,19 +11,8 @@ import { datasourceKeys } from '@/api/datasources';
 import { connectorErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { dbTypeLabel } from '@/utils/enumLabels';
-import type { Connector, ConnectorCategory, DbType } from '@/types/api';
-
-const DB_TYPE_COLOR: Record<DbType, string> = {
-  POSTGRESQL: 'blue',
-  MYSQL: 'orange',
-  MARIADB: 'gold',
-  ORACLE: 'red',
-  MSSQL: 'cyan',
-  CUSTOM: 'purple',
-  MONGODB: 'green',
-};
-
-const CATEGORY_ORDER: ConnectorCategory[] = ['RELATIONAL', 'DOCUMENT'];
+import { DB_TYPE_COLOR } from '@/utils/engineModes';
+import type { Connector } from '@/types/api';
 
 export default function ConnectorsPage() {
   const { t } = useTranslation();
@@ -61,16 +50,22 @@ export default function ConnectorsPage() {
     );
   }, [listQuery.data, search]);
 
+  // SQL vs NoSQL umbrellas: RELATIONAL is the SQL family; every other category
+  // (DOCUMENT, KEY_VALUE, WIDE_COLUMN, SEARCH, GRAPH) groups under NoSQL.
   const groups = useMemo(
     () =>
-      CATEGORY_ORDER.map((category) => ({
-        category,
-        label:
-          category === 'DOCUMENT'
-            ? t('connectors.category_document')
-            : t('connectors.category_relational'),
-        items: filtered.filter((c) => c.category === category),
-      })).filter((g) => g.items.length > 0),
+      [
+        {
+          category: 'sql',
+          label: t('connectors.category_relational'),
+          items: filtered.filter((c) => c.category === 'RELATIONAL'),
+        },
+        {
+          category: 'nosql',
+          label: t('connectors.category_nosql'),
+          items: filtered.filter((c) => c.category !== 'RELATIONAL'),
+        },
+      ].filter((g) => g.items.length > 0),
     [filtered, t],
   );
 

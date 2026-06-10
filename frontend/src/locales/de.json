@@ -1969,6 +1969,6 @@
     "install_success": "{{name}} installiert",
     "docs_link": "Dokumentation",
     "category_relational": "SQL",
-    "category_document": "NoSQL"
+    "category_nosql": "NoSQL"
   }
 }

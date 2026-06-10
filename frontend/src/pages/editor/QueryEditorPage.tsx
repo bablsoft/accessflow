@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
-import { SqlEditor, type MongoSyntax } from '@/components/editor/SqlEditor';
+import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { TextToSqlBar } from '@/components/editor/TextToSqlBar';
 import { SchemaTree } from '@/components/editor/SchemaTree';
@@ -26,6 +26,7 @@ import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
 import { formatSql } from '@/utils/sqlFormat';
+import { activeSyntax, engineMode } from '@/utils/engineModes';
 import type { QueryTemplate } from '@/types/api';
 import './editor.css';
 
@@ -45,7 +46,7 @@ export function QueryEditorPage() {
   const dsId = selectedDsId ?? datasources[0]?.id ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState('');
-  const [mongoSyntax, setMongoSyntax] = useState<MongoSyntax>('shell');
+  const [syntax, setSyntax] = useState<string | undefined>(undefined);
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -113,9 +114,11 @@ export function QueryEditorPage() {
     );
   }
 
-  const isMongo = ds.db_type === 'MONGODB';
+  const mode = engineMode(ds.db_type);
+  // Falls back to the mode's default when the stored value is stale (datasource switch).
+  const effectiveSyntax = activeSyntax(mode, syntax).value;
   const aiSupported = ds.ai_analysis_enabled && !!ds.ai_config_id;
-  const textToSqlSupported = !isMongo && ds.text_to_sql_enabled && !!ds.ai_config_id;
+  const textToSqlSupported = mode.supportsTextToSql && ds.text_to_sql_enabled && !!ds.ai_config_id;
   const sqlNonEmpty = sql.trim().length > 0;
   const hasFreshAnalysis = !!analyzeMutation.data;
   const canAnalyze = aiSupported && sqlNonEmpty && !analyzeMutation.isPending;
@@ -201,18 +204,16 @@ export function QueryEditorPage() {
             {analysis && !analyzing ? (
               <RiskPill level={analysis.risk_level} score={analysis.risk_score} size="sm" />
             ) : null}
-            {isMongo ? (
-              <Segmented<MongoSyntax>
+            {mode.syntaxes.length > 1 && (
+              <Segmented<string>
                 size="small"
-                value={mongoSyntax}
-                onChange={setMongoSyntax}
+                value={effectiveSyntax}
+                onChange={setSyntax}
                 aria-label={t('editor.syntax_label')}
-                options={[
-                  { label: t('editor.syntax_shell'), value: 'shell' },
-                  { label: t('editor.syntax_json'), value: 'json' },
-                ]}
+                options={mode.syntaxes.map((s) => ({ label: t(s.labelKey), value: s.value }))}
               />
-            ) : (
+            )}
+            {mode.canFormat && (
               <Button
                 size="small"
                 icon={<ThunderboltOutlined />}
@@ -232,7 +233,7 @@ export function QueryEditorPage() {
               onChange={handleSqlChange}
               schema={schema}
               dbType={ds.db_type}
-              mongoSyntax={mongoSyntax}
+              syntax={effectiveSyntax}
               issues={analysis?.issues}
               height={300}
             />

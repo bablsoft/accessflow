@@ -28,6 +28,7 @@ import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { routingActionLabel } from '@/utils/enumLabels';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
+import { engineMode } from '@/utils/engineModes';
 import { cancelQuery, executeQuery, getQuery, queryKeys, reanalyzeQuery } from '@/api/queries';
 import {
   approveQuery,
@@ -532,7 +533,10 @@ export function QueryDetailPage() {
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (
             <Card title={t('queries.detail.card_results')} icon={<FileTextOutlined />}>
               <div style={{ padding: 14 }}>
-                <QueryResultsTable queryId={query.id} />
+                <QueryResultsTable
+                  queryId={query.id}
+                  defaultView={engineMode(query.db_type).defaultResultView}
+                />
               </div>
             </Card>
           )}
