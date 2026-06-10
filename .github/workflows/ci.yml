@@ -22,6 +22,7 @@ jobs:
       helm: ${{ steps.filter.outputs.helm }}
       e2e: ${{ steps.filter.outputs.e2e }}
       connectors: ${{ steps.filter.outputs.connectors }}
+      engines: ${{ steps.filter.outputs.engines }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -40,6 +41,13 @@ jobs:
               - '.github/workflows/ci.yml'
             connectors:
               - 'connectors/**'
+              - '.github/workflows/ci.yml'
+            # backend/** is included because the plugin compiles against the backend's core.api —
+            # an SPI change can break the plugin or shift its reproducible-build sha pin.
+            engines:
+              - 'engines/**'
+              - 'backend/**'
+              - 'connectors/mongodb/**'
               - '.github/workflows/ci.yml'
             e2e:
               - 'e2e/**'
@@ -305,13 +313,70 @@ jobs:
       - name: Validate connector manifests
         run: node .github/scripts/validate-connectors.mjs
 
+  engines:
+    name: Engine plugins
+    needs: changes
+    if: needs.changes.outputs.engines == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: "25"
+          distribution: "temurin"
+
+      - name: Cache Maven packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-engines-${{ hashFiles('backend/pom.xml', 'engines/mongodb/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-engines-
+            ${{ runner.os }}-maven-
+
+      - name: Install backend plain jar (plugin compiles against core.api)
+        run: mvn -B -f backend/pom.xml install -DskipTests
+
+      - name: Build and test the MongoDB engine plugin
+        run: mvn -B -f engines/mongodb/pom.xml clean verify
+
+      - name: Verify connector manifest sha256 pin matches the built jar
+        # The plugin build is reproducible (project.build.outputTimestamp), so the shaded jar's
+        # sha256 must equal the pin in connectors/mongodb/connector.json. Drift means the engine
+        # (or a core.api type it compiles against) changed without bumping the plugin version and
+        # re-pinning — see engines/mongodb/README.md.
+        run: |
+          set -euo pipefail
+          BUILT=$(sha256sum engines/mongodb/target/accessflow-engine-mongodb-*-all.jar | cut -d' ' -f1)
+          PINNED=$(node -p "require('./connectors/mongodb/connector.json').driver.sha256")
+          echo "built:  $BUILT"
+          echo "pinned: $PINNED"
+          if [ "$BUILT" != "$PINNED" ]; then
+            echo "::error::MongoDB engine plugin sha256 pin drift — bump the plugin version and re-pin (engines/mongodb/README.md)"
+            exit 1
+          fi
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: |
+            engines/mongodb/target/surefire-reports/TEST-*.xml
+            engines/mongodb/target/failsafe-reports/TEST-*.xml
+          check_name: Engine Plugin Test Results
+          comment_mode: always
+
   # Single required status check for branch protection. This job always runs
   # and succeeds when each upstream job either passed or was correctly skipped
   # (its path filter did not match). Configure branch protection to require
   # only this check ("CI / CI Gate") — never the individual area jobs.
   gate:
     name: CI Gate
-    needs: [changes, backend, frontend, helm, e2e, connectors]
+    needs: [changes, backend, frontend, helm, e2e, connectors, engines]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -323,6 +388,7 @@ jobs:
           HELM_RESULT: ${{ needs.helm.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           CONNECTORS_RESULT: ${{ needs.connectors.result }}
+          ENGINES_RESULT: ${{ needs.engines.result }}
         run: |
           set -euo pipefail
           if [[ "$CHANGES_RESULT" != "success" ]]; then
@@ -330,7 +396,7 @@ jobs:
             exit 1
           fi
           status=0
-          for area in backend frontend helm e2e connectors; do
+          for area in backend frontend helm e2e connectors engines; do
             var="$(echo "$area" | tr '[:lower:]' '[:upper:]')_RESULT"
             result="${!var}"
             case "$result" in
