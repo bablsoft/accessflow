@@ -49,8 +49,9 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
     await expect(postgresCard).toBeVisible();
     // ClickHouse is a CUSTOM-dialect connector → installable.
     await expect(page.getByText('ClickHouse', { exact: true })).toBeVisible();
-    // MongoDB is the bundled NoSQL connector.
-    await expect(page.getByText('MongoDB', { exact: true })).toBeVisible();
+    // MongoDB is the bundled NoSQL connector (its name + the green db-type tag both
+    // read "MongoDB", so scope to the first match).
+    await expect(page.getByText('MongoDB', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Installed').first()).toBeVisible();
   });
 
