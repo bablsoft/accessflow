@@ -446,11 +446,14 @@ tag — no further manual steps.
 
 The same release also publishes the **connector catalog** (issue #334) to `gh-pages` under
 `connectors/`: a versioned `connectors-bundle-<version>.tar.gz` and a stable `connectors-index.json`
-(served at `https://<owner>.github.io/accessflow/connectors/`). GitHub Release asset uploads are
+(served at `https://<owner>.github.io/accessflow/connectors/`), plus the **MongoDB engine plugin**
+(issue #414) under `engines/` — `accessflow-engine-mongodb-<pluginVersion>-all.jar`, the artifact
+the MongoDB connector manifest points fresh installs at. GitHub Release asset uploads are
 intentionally not used — they are blocked by the repo's immutable-releases policy. The catalog is
-also bundled inside the backend image, so this artifact is a convenience, not a runtime
-requirement. Installed connectors persist via the driver-cache volume (`ACCESSFLOW_DRIVER_CACHE` /
-the Helm `driverCache.persistence` PVC). See [14-connectors.md](./14-connectors.md).
+also bundled inside the backend image, so the bundle is a convenience; the engine-plugin JAR is the
+download source for `db_type=MONGODB` installs. Installed connectors persist via the driver-cache
+volume (`ACCESSFLOW_DRIVER_CACHE` / the Helm `driverCache.persistence` PVC). See
+[14-connectors.md](./14-connectors.md).
 
 ### Kubernetes Secrets Setup
 
@@ -879,9 +882,9 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
-| `ACCESSFLOW_DRIVER_CACHE` | Optional | `${user.home}/.accessflow/drivers` | Filesystem path for cached customer-DB driver JARs. Set to a system path (e.g. `/var/lib/accessflow/drivers`) and mount as a persistent volume in production. |
+| `ACCESSFLOW_DRIVER_CACHE` | Optional | `${user.home}/.accessflow/drivers` | Filesystem path for cached customer-DB driver JARs **and** NoSQL engine-plugin JARs (e.g. the MongoDB engine, AF-414). Set to a system path (e.g. `/var/lib/accessflow/drivers`) and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Optional | `https://repo1.maven.org/maven2` | Maven repository base URL for on-demand driver downloads. Override for internal Nexus / Artifactory mirrors. |
-| `ACCESSFLOW_DRIVERS_OFFLINE` | Optional | `false` | When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
+| `ACCESSFLOW_DRIVERS_OFFLINE` | Optional | `false` | When `true`, disables network resolution and serves only from the cache (JDBC drivers and engine plugins alike). Required for air-gapped installs — pre-seed the cache, including `accessflow-engine-mongodb-<v>-all.jar` if MongoDB datasources are used (see [14-connectors.md → Persistence and air-gap](./14-connectors.md#persistence-and-air-gap)). |
 
 #### Workflow & Notifications
 

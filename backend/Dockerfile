@@ -9,7 +9,7 @@ RUN mvn -B -q -DskipTests dependency:go-offline
 COPY backend/src src
 COPY connectors /workspace/connectors
 RUN mvn -B -DskipTests -Dconnectors.dir=/workspace/connectors package && \
-    mv target/*.jar target/app.jar
+    mv target/*-exec.jar target/app.jar
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

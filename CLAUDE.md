@@ -6,7 +6,7 @@ This file is the authoritative guide for AI agents implementing AccessFlow. Read
 
 ## Project at a Glance
 
-AccessFlow is an open-source **database access governance platform**. It acts as a full query proxy between users and customer databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box (any other JDBC-compatible engine can be added by uploading its driver JAR, `db_type=CUSTOM`), plus the NoSQL document engine **MongoDB** (`db_type=MONGODB`, a bundled native — not JDBC — connector) — enforcing configurable review and approval workflows before any query executes. The connector catalog separates **SQL** (relational) from **NoSQL** (document) families via a `category` field. Core capabilities: AI-powered query analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications. **MongoDB engine** (see `docs/05-backend.md` → "MongoDB engine"): native `mongodb-driver-sync`, a MongoDB query parser (shell `db.coll.find({…})` and JSON-command forms) dispatched via `proxy.api.QueryParser` instead of JSqlParser, `$match`-injection row-level security + post-fetch field masking at parity with the SQL path, and collection-sampling schema introspection.
+AccessFlow is an open-source **database access governance platform**. It acts as a full query proxy between users and customer databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box (any other JDBC-compatible engine can be added by uploading its driver JAR, `db_type=CUSTOM`), plus the NoSQL document engine **MongoDB** (`db_type=MONGODB`, a native — not JDBC — connector whose engine plugin is resolved on demand through the connector catalog, AF-414) — enforcing configurable review and approval workflows before any query executes. The connector catalog separates **SQL** (relational) from **NoSQL** (document) families via a `category` field. Core capabilities: AI-powered query analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications. **MongoDB engine** (see `docs/05-backend.md` → "MongoDB engine"): shipped as the `engines/mongodb/` **engine plugin** — a separate Maven project producing a shaded JAR (bundling `mongodb-driver-sync`) that implements the `core.api.QueryEngine` SPI, is downloaded + SHA-256-verified through the connector catalog like a JDBC driver, and is discovered via `ServiceLoader`. It provides a MongoDB query parser (shell `db.coll.find({…})` and JSON-command forms) dispatched via `proxy.api.QueryParser` instead of JSqlParser, `$match`-injection row-level security + post-fetch field masking at parity with the SQL path, and collection-sampling schema introspection. The plugin has its own version line pinned (URL + sha256) in `connectors/mongodb/connector.json`; its build is reproducible and CI fails on pin drift — bump the plugin version and re-pin in the same PR when the engine (or a `core.api` type it compiles against) changes (`engines/mongodb/README.md`).
 
 AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab; a generic `OIDC` provider type covers other IdPs — Keycloak, Auth0, Okta, Authentik, Zitadel — with admin-editable endpoint URLs persisted on the `oauth2_config` row).
 
@@ -28,6 +28,7 @@ AccessFlow ships as a single open-source product under Apache 2.0. Authenticatio
 ```
 accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
+├── engines/          # Engine plugins — engines/mongodb/ (standalone Maven project, shaded JAR)
 ├── frontend/         # React / Vite / TypeScript SPA (to be created)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (+ .setup.yml and .sso.yml variants)
 ├── charts/           # Helm charts — currently charts/accessflow/
@@ -58,7 +59,7 @@ The root [`docker-compose.yml`](docker-compose.yml) is intentionally a **zero-co
 
 #### Spring Modulith Structure
 
-The project is a **single Maven module** with **Spring Modulith** enforcing logical module boundaries via package conventions. Do **not** split into Maven sub-modules.
+The project is a **single Maven module** with **Spring Modulith** enforcing logical module boundaries via package conventions. Do **not** split into Maven sub-modules. (The `engines/*` plugin projects are deliberately **outside** the application: standalone Maven projects that compile against the backend's plain JAR — the backend's `spring-boot-maven-plugin` uses `<classifier>exec</classifier>` so `mvn install` publishes the plain classes; the runnable fat jar is `*-exec.jar`.)
 
 **Root package:** `com.bablsoft.accessflow`
 
@@ -781,7 +782,8 @@ Branch names must match the pattern above. Commit messages should be imperative 
 - `backend` — Java 25 (Temurin) + Maven `verify -Pcoverage` with JaCoCo gate and JUnit reporter. Runs only when `backend/**` (or `.github/workflows/ci.yml`) changed.
 - `frontend` — Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. Runs only when `frontend/**` (or the workflow file) changed.
 - `helm` — `helm dependency update` + `helm lint charts/accessflow` + `helm template` (default, external-services, and bootstrap-fixture variants). Runs only when `charts/**` (or the workflow file) changed.
-- `gate` — always runs, `needs: [changes, backend, frontend, helm]` with `if: always()`. Succeeds when each area job is either `success` or `skipped`; fails when any area job's `result` is anything else. **This is the only check name to configure as required in GitHub branch protection** — never the individual area jobs (those report `skipped` and would block PRs that don't touch their path).
+- `engines` — installs the backend plain jar, builds `engines/mongodb` (unit + Testcontainers tests), and fails when the shaded JAR's SHA-256 drifts from the pin in `connectors/mongodb/connector.json`. Runs when `engines/**`, `backend/**`, or `connectors/mongodb/**` (or the workflow file) changed.
+- `gate` — always runs, `needs: [changes, backend, frontend, helm, e2e, connectors, engines]` with `if: always()`. Succeeds when each area job is either `success` or `skipped`; fails when any area job's `result` is anything else. **This is the only check name to configure as required in GitHub branch protection** — never the individual area jobs (those report `skipped` and would block PRs that don't touch their path).
 
 Skipped area jobs cost no runner time. Re-running just one area is a "Re-run failed jobs" click on the failing area; the gate re-runs automatically.
 
@@ -790,7 +792,8 @@ Skipped area jobs cost no runner time. Re-running just one area is a "Re-run fai
 2. Creates a **detached** commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and pushes only the tag — `main` is never modified, so `main` always reflects `1.0.0-SNAPSHOT`. Checking out the tag shows pom.xml / package.json at the bumped version.
 3. Builds and pushes multi-arch (`linux/amd64`, `linux/arm64`) Docker images to GHCR: `ghcr.io/<owner>/accessflow-backend:{version,latest}` and `…-frontend:{version,latest}`. The frontend image gets `APP_VERSION` as a build-arg → `VITE_APP_VERSION` → `__APP_VERSION__` in the bundle.
 4. Publishes a GitHub Release (`softprops/action-gh-release@v2`) with `generate_release_notes: true`.
-5. Repackages the Helm chart at `charts/accessflow/`: overwrites `Chart.yaml#version` and `appVersion` with the release semver via `yq`, runs `helm dependency update`, and `helm/chart-releaser-action@v1.7.0` pushes the packaged `.tgz` plus the updated `index.yaml` to the `gh-pages` branch (helm repo URL: `https://<owner>.github.io/accessflow`). Enable GitHub Pages once in **Repo Settings → Pages → Source = `gh-pages`** after the first release.
+5. Builds the `engines/mongodb` plugin (its version line is independent — never bumped by `versions:set`), verifies its reproducible SHA-256 against the manifest pin (drift fails the release), and publishes `accessflow-engine-mongodb-<pluginVersion>-all.jar` to `gh-pages` under `engines/`.
+6. Repackages the Helm chart at `charts/accessflow/`: overwrites `Chart.yaml#version` and `appVersion` with the release semver via `yq`, runs `helm dependency update`, and `helm/chart-releaser-action@v1.7.0` pushes the packaged `.tgz` plus the updated `index.yaml` to the `gh-pages` branch (helm repo URL: `https://<owner>.github.io/accessflow`). Enable GitHub Pages once in **Repo Settings → Pages → Source = `gh-pages`** after the first release.
 
 Helm chart rules:
 - The chart lives at `charts/accessflow/`. Chart `version` and `appVersion` track the app version 1:1 — never bump them independently; the release workflow overwrites both at release time, so the values committed to `main` (`0.1.0`) are placeholders.

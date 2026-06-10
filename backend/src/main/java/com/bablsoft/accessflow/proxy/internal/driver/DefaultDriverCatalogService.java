@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.core.api.CustomDriverStorageService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
-import com.bablsoft.accessflow.core.api.DriverStatus;
 import com.bablsoft.accessflow.core.api.DriverTypeInfo;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -17,26 +16,14 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.sql.Driver;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -62,31 +49,25 @@ import java.util.concurrent.ConcurrentHashMap;
 class DefaultDriverCatalogService implements DriverCatalogService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultDriverCatalogService.class);
-    private static final Duration DOWNLOAD_TIMEOUT = Duration.ofSeconds(60);
     private static final String CUSTOM_DRIVER_DISPLAY_NAME_FORMAT = "%s (custom %s)";
     private static final SslMode CUSTOM_DEFAULT_SSL = SslMode.DISABLE;
     private static final int CUSTOM_DEFAULT_PORT = 0;
 
-    private final DriverProperties properties;
     private final MessageSource messageSource;
     private final CustomDriverStorageService customDriverStorage;
     private final ConnectorCatalog catalog;
-    private final HttpClient httpClient;
+    private final DriverJarCache jarCache;
     private final Map<DbType, ResolvedDriver> bundledCache = new ConcurrentHashMap<>();
     private final Map<String, ResolvedDriver> connectorCache = new ConcurrentHashMap<>();
     private final Map<UUID, ResolvedDriver> customCache = new ConcurrentHashMap<>();
 
-    DefaultDriverCatalogService(DriverProperties properties, MessageSource messageSource,
+    DefaultDriverCatalogService(MessageSource messageSource,
                                 CustomDriverStorageService customDriverStorage,
-                                ConnectorCatalog catalog) {
-        this.properties = properties;
+                                ConnectorCatalog catalog, DriverJarCache jarCache) {
         this.messageSource = messageSource;
         this.customDriverStorage = customDriverStorage;
         this.catalog = catalog;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+        this.jarCache = jarCache;
     }
 
     @Override
@@ -122,7 +103,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
         var manifest = catalog.byId(connectorId)
                 .orElseThrow(() -> new ConnectorNotFoundException(connectorId));
         if (!manifest.bundled()) {
-            ensureCachedJar(manifest);
+            jarCache.ensureCachedJar(manifest);
         }
         return toConnectorMarketplaceTypeInfo(manifest);
     }
@@ -243,7 +224,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.defaultPort(),
                 manifest.defaultSslMode(),
                 manifest.jdbcUrlTemplate(),
-                status(manifest),
+                jarCache.status(manifest),
                 manifest.bundled(),
                 manifest.category());
     }
@@ -257,7 +238,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.defaultPort(),
                 manifest.defaultSslMode(),
                 manifest.jdbcUrlTemplate(),
-                status(manifest),
+                jarCache.status(manifest),
                 manifest.bundled(),
                 manifest.vendor(),
                 manifest.driverClassName(),
@@ -275,7 +256,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.defaultPort(),
                 manifest.defaultSslMode(),
                 manifest.jdbcUrlTemplate(),
-                status(manifest),
+                jarCache.status(manifest),
                 manifest.bundled(),
                 manifest.vendor(),
                 manifest.driverClassName(),
@@ -314,16 +295,6 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 descriptor.id(), descriptor.vendorName(), descriptor.driverClass());
     }
 
-    private DriverStatus status(ConnectorManifest manifest) {
-        if (manifest.bundled() || cachedJar(manifest).map(Files::isRegularFile).orElse(false)) {
-            return DriverStatus.READY;
-        }
-        if (properties.offline()) {
-            return DriverStatus.UNAVAILABLE;
-        }
-        return cacheDirWritable() ? DriverStatus.AVAILABLE : DriverStatus.UNAVAILABLE;
-    }
-
     private void verifyCustomChecksum(CustomDriverDescriptor descriptor, Path jarPath) {
         if (!Files.isRegularFile(jarPath)) {
             throw new DriverResolutionException(
@@ -331,7 +302,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                     DriverResolutionException.Reason.UNAVAILABLE,
                     msg("error.custom_driver.jar_missing", descriptor.jarFilename()));
         }
-        var actual = sha256(jarPath);
+        var actual = DriverJarCache.sha256(jarPath);
         if (!actual.equalsIgnoreCase(descriptor.jarSha256())) {
             throw new DriverResolutionException(
                     descriptor.targetDbType(),
@@ -357,7 +328,7 @@ class DefaultDriverCatalogService implements DriverCatalogService {
     }
 
     private ResolvedDriver resolveExternal(ConnectorManifest manifest, String loaderName) {
-        var jarPath = ensureCachedJar(manifest);
+        var jarPath = jarCache.ensureCachedJar(manifest);
         try {
             var url = jarPath.toUri().toURL();
             var loader = new URLClassLoader(loaderName, new URL[]{url}, getClass().getClassLoader());
@@ -371,136 +342,6 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                     msg("error.datasource_driver_unavailable.unavailable", manifest.dbType().name()),
                     e);
         }
-    }
-
-    private Path ensureCachedJar(ConnectorManifest manifest) {
-        var jarPath = properties.cacheDir().resolve(manifest.jarFileName());
-        if (Files.isRegularFile(jarPath)) {
-            verifyChecksum(manifest, jarPath);
-            return jarPath;
-        }
-        if (properties.offline()) {
-            throw new DriverResolutionException(
-                    manifest.dbType(),
-                    DriverResolutionException.Reason.OFFLINE_CACHE_MISS,
-                    msg("error.datasource_driver_unavailable.offline_cache_miss",
-                            manifest.dbType().name(), manifest.jarFileName()));
-        }
-        ensureCacheDir(manifest);
-        downloadJar(manifest, jarPath);
-        verifyChecksum(manifest, jarPath);
-        return jarPath;
-    }
-
-    private void ensureCacheDir(ConnectorManifest manifest) {
-        try {
-            Files.createDirectories(properties.cacheDir());
-        } catch (IOException e) {
-            throw new DriverResolutionException(
-                    manifest.dbType(),
-                    DriverResolutionException.Reason.CACHE_NOT_WRITABLE,
-                    msg("error.datasource_driver_unavailable.cache_not_writable",
-                            manifest.dbType().name(), properties.cacheDir().toString()),
-                    e);
-        }
-    }
-
-    private void downloadJar(ConnectorManifest manifest, Path jarPath) {
-        var sourceUrl = manifest.sourceUrl(properties.repositoryUrl());
-        var tempPath = jarPath.resolveSibling(manifest.jarFileName() + ".part");
-        try {
-            log.info("Resolving JDBC driver for connector {} from {}", manifest.id(), sourceUrl);
-            var request = HttpRequest.newBuilder(URI.create(sourceUrl))
-                    .timeout(DOWNLOAD_TIMEOUT)
-                    .GET()
-                    .build();
-            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != HttpURLConnection.HTTP_OK) {
-                throw new DriverResolutionException(
-                        manifest.dbType(),
-                        DriverResolutionException.Reason.DOWNLOAD_FAILED,
-                        msg("error.datasource_driver_unavailable.download_failed",
-                                manifest.dbType().name(), response.statusCode(), sourceUrl));
-            }
-            try (InputStream in = response.body()) {
-                Files.copy(in, tempPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-            Files.move(tempPath, jarPath, StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException | InterruptedException e) {
-            try {
-                Files.deleteIfExists(tempPath);
-            } catch (IOException ignored) {
-                // best-effort
-            }
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            throw new DriverResolutionException(
-                    manifest.dbType(),
-                    DriverResolutionException.Reason.DOWNLOAD_FAILED,
-                    msg("error.datasource_driver_unavailable.download_failed",
-                            manifest.dbType().name(), -1, sourceUrl),
-                    e);
-        }
-    }
-
-    private void verifyChecksum(ConnectorManifest manifest, Path jarPath) {
-        var actual = sha256(jarPath, manifest);
-        if (!actual.equalsIgnoreCase(manifest.sha256())) {
-            try {
-                Files.deleteIfExists(jarPath);
-            } catch (IOException ignored) {
-                // best-effort
-            }
-            throw new DriverResolutionException(
-                    manifest.dbType(),
-                    DriverResolutionException.Reason.CHECKSUM_MISMATCH,
-                    msg("error.datasource_driver_unavailable.checksum_mismatch",
-                            manifest.dbType().name(), manifest.sha256(), actual));
-        }
-    }
-
-    private String sha256(Path jarPath, ConnectorManifest manifest) {
-        try {
-            return sha256(jarPath);
-        } catch (RuntimeException e) {
-            throw new DriverResolutionException(
-                    manifest.dbType(),
-                    DriverResolutionException.Reason.UNAVAILABLE,
-                    msg("error.datasource_driver_unavailable.unavailable", manifest.dbType().name()),
-                    e);
-        }
-    }
-
-    private static String sha256(Path jarPath) {
-        try (var in = Files.newInputStream(jarPath)) {
-            var digest = MessageDigest.getInstance("SHA-256");
-            var buffer = new byte[8192];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                digest.update(buffer, 0, read);
-            }
-            return HexFormat.of().formatHex(digest.digest());
-        } catch (NoSuchAlgorithmException | IOException e) {
-            throw new IllegalStateException("Failed to compute SHA-256 of " + jarPath, e);
-        }
-    }
-
-    private Optional<Path> cachedJar(ConnectorManifest manifest) {
-        if (manifest.bundled()) {
-            return Optional.empty();
-        }
-        return Optional.of(properties.cacheDir().resolve(manifest.jarFileName()));
-    }
-
-    private boolean cacheDirWritable() {
-        var dir = properties.cacheDir();
-        if (Files.isDirectory(dir)) {
-            return Files.isWritable(dir);
-        }
-        var parent = dir.getParent();
-        return parent != null && Files.isDirectory(parent) && Files.isWritable(parent);
     }
 
     private String msg(String key, Object... args) {

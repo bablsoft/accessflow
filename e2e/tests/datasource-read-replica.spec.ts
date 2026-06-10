@@ -83,7 +83,8 @@ test.describe.serial('datasource settings — read replica card', () => {
       page.getByRole('button', { name: 'Test replica' }).click(),
     ]);
     expect(testResponse.ok()).toBeTruthy();
-    await expect(page.getByText(/Replica connected ·/)).toBeVisible({ timeout: 10_000 });
+    // .first(): on a fast response the inline alert and the success toast are visible at once.
+    await expect(page.getByText(/Replica connected ·/).first()).toBeVisible({ timeout: 10_000 });
 
     // Save changes — the PUT body should include the replica fields.
     const [saveResponse] = await Promise.all([

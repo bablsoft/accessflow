@@ -206,7 +206,7 @@ class DatasourceControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(200);
-        // Five first-class SQL dialects + MongoDB (bundled native engine) plus the ClickHouse
+        // Five first-class SQL dialects + MongoDB (on-demand native engine plugin) plus the ClickHouse
         // connector (source=connector, code=CUSTOM) from the declarative connector catalog.
         assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
                 .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL",

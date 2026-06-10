@@ -22,7 +22,7 @@
   <a href="docs/">Design Docs</a>
 </p>
 
-AccessFlow sits as a full query proxy in front of your databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box via a declarative **connector catalog** (additional engines such as ClickHouse install with one click), any other JDBC-compatible engine can be added by uploading its driver JAR, and the NoSQL document engine **MongoDB** ships as a bundled native connector. The catalog separates **SQL** (relational) from **NoSQL** (document) families. Every query a user submits — SQL, or a MongoDB shell / JSON command — is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
+AccessFlow sits as a full query proxy in front of your databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box via a declarative **connector catalog** (additional engines such as ClickHouse install with one click), any other JDBC-compatible engine can be added by uploading its driver JAR, and the NoSQL document engine **MongoDB** installs the same way through an on-demand native engine plugin. The catalog separates **SQL** (relational) from **NoSQL** (document) families. Every query a user submits — SQL, or a MongoDB shell / JSON command — is parsed, classified, optionally analyzed by AI, and routed through a configurable human-approval workflow before it ever reaches live data. Every request, decision, and execution is captured in a tamper-evident metadata audit log. Authentication is JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab). AccessFlow ships as a single open-source product under Apache 2.0 and is designed to run entirely inside your own infrastructure.
 
 ---
 
@@ -84,7 +84,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Slack approve/reject** — a configured Slack app adds **Approve** / **Reject** buttons to review-request messages; the decision runs through the same self-approval and RBAC guards as the REST API (HMAC-verified Interactive Components).
 - **Identity & SSO** — JWT access tokens (15 min) + HttpOnly refresh cookies, optional SAML 2.0 SSO, OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab plus a generic `OIDC` provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel), password reset and user-invitation flows.
 - **MCP server** — built-in Spring AI MCP server exposes a stateless tool surface so external AI agents can submit queries through the same review pipeline.
-- **Connector catalog** — supported databases are described declaratively in a repo-root `connectors/` folder (one manifest + logo per connector), not hardcoded. Each connector carries a `category` (SQL `RELATIONAL` vs NoSQL `DOCUMENT`) and the marketplace groups them accordingly. Admins browse the **Connectors** marketplace and install a relational database's JDBC driver with one click (downloaded + SHA-256-verified + cached); engines beyond the built-in five (e.g. ClickHouse) install the same way. **MongoDB** is a bundled native (non-JDBC) document connector — no driver download. The catalog ships in the image and is also published as a release artifact.
+- **Connector catalog** — supported databases are described declaratively in a repo-root `connectors/` folder (one manifest + logo per connector), not hardcoded. Each connector carries a `category` (SQL `RELATIONAL` vs NoSQL `DOCUMENT`) and the marketplace groups them accordingly. Admins browse the **Connectors** marketplace and install a relational database's JDBC driver with one click (downloaded + SHA-256-verified + cached); engines beyond the built-in five (e.g. ClickHouse) install the same way. **MongoDB** is a native (non-JDBC) document connector whose engine ships as an on-demand **plugin JAR** (`engines/mongodb/`), downloaded + verified through the same catalog pipeline. The catalog ships in the image and is also published as a release artifact.
 - **MongoDB (NoSQL)** — a first-class document connector. Users write MongoDB queries in either the familiar shell form (`db.users.find({ age: { $gt: 21 } })`) or a JSON command document, selectable in the editor; results render in both a JSON document view and a flattened table view. The same governance applies — AI risk analysis, human approval, row-level security (`$match` injection), and field masking.
 - **Deploy anywhere** — `docker compose up` for local and small environments; Helm chart for Kubernetes production.
 
@@ -94,7 +94,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 
 AccessFlow is a single Spring Boot 4 application organized as Spring Modulith modules — six logical subsystems share one process, one Postgres, and one Redis but communicate strictly through events and exposed API packages:
 
-- **Proxy** — parses, validates, and executes queries against customer databases: SQL via per-datasource HikariCP pools, MongoDB via a per-datasource native `MongoClient` (`proxy.internal.mongo`).
+- **Proxy** — parses, validates, and executes queries against customer databases: SQL via per-datasource HikariCP pools, MongoDB via the on-demand engine plugin (`engines/mongodb/`, a per-datasource native `MongoClient` behind the `core.api.QueryEngine` SPI).
 - **Workflow** — review-plan state machine, approval chains, scheduled timeout auto-reject.
 - **AI Analyzer** — Spring AI–backed adapters resolved per organization from the `ai_config` row.
 - **Notifications** — async dispatcher fanning events to Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and outbound webhooks.
@@ -113,7 +113,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | Backend framework | Spring Boot 4, Spring Modulith 2, Spring Security, Spring Data JPA, Spring AI 2.0 |
 | Internal database | PostgreSQL 18 |
 | Migrations | Flyway |
-| Target databases | **SQL:** PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, ClickHouse via the declarative connector catalog (one-click driver install) — plus any JDBC-compatible engine via an admin-uploaded custom driver JAR. **NoSQL:** MongoDB (bundled native connector) |
+| Target databases | **SQL:** PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, ClickHouse via the declarative connector catalog (one-click driver install) — plus any JDBC-compatible engine via an admin-uploaded custom driver JAR. **NoSQL:** MongoDB (native engine plugin, installed on demand) |
 | Frontend | React 19, Vite 8, TypeScript 6, Ant Design 6, CodeMirror 6 |
 | Server state | TanStack Query 5 |
 | Client state | Zustand 5 |
@@ -224,6 +224,7 @@ accessflow/
 │   │   ├── audit/            # INSERT-only, HMAC-chained audit log
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
+├── engines/          # On-demand engine plugins — engines/mongodb/ (shaded QueryEngine SPI jar)
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
 ├── connectors/       # Declarative connector catalog (one connector.json + logo per database)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)

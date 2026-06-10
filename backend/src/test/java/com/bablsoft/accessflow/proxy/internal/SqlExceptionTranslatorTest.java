@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
-import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
+import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

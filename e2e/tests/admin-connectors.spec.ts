@@ -23,11 +23,12 @@ async function waitForConnectorsReady(page: Page): Promise<void> {
   );
 }
 
-// AF-334 + AF-411 cover the connector marketplace at /admin/connectors:
+// AF-334 + AF-411 + AF-414 cover the connector marketplace at /admin/connectors:
 //   1. Browse — the declarative connector catalog renders, grouped into SQL and
 //      NoSQL sections (the bundled PostgreSQL connector shows "Installed";
 //      ClickHouse — a CUSTOM-dialect connector — shows an Install button;
-//      MongoDB appears as a bundled NoSQL connector, "Installed").
+//      MongoDB appears as an installable NoSQL connector — since AF-414 its
+//      engine ships as an on-demand plugin JAR, not bundled in the image).
 //   2. Search — filtering by name narrows the grid.
 //   3. Install — clicking Install issues POST /connectors/{id}/install and the
 //      UI surfaces the result. The actual driver download needs egress to
@@ -49,9 +50,18 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
     await expect(postgresCard).toBeVisible();
     // ClickHouse is a CUSTOM-dialect connector → installable.
     await expect(page.getByText('ClickHouse', { exact: true })).toBeVisible();
-    // MongoDB is the bundled NoSQL connector (its name + the green db-type tag both
-    // read "MongoDB", so scope to the first match).
+    // MongoDB is the NoSQL engine-plugin connector (AF-414): not bundled, resolved on demand
+    // like a JDBC driver (its name + the green db-type tag both read "MongoDB", so scope to
+    // the first match). On a fresh stack its card shows an Install button, not "Installed".
     await expect(page.getByText('MongoDB', { exact: true }).first()).toBeVisible();
+    // The deepest div containing both the MongoDB name and an Install button is the card root
+    // (the cards are plain divs — no test ids), so `.last()` scopes to MongoDB's own card.
+    const mongoCard = page
+      .locator('div')
+      .filter({ has: page.getByText('MongoDB', { exact: true }) })
+      .filter({ has: page.getByRole('button', { name: /install/i }) })
+      .last();
+    await expect(mongoCard.getByRole('button', { name: /install/i })).toBeVisible();
     await expect(page.getByText('Installed').first()).toBeVisible();
   });
 

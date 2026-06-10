@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal;
 
-import com.bablsoft.accessflow.proxy.api.QueryExecutionException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.core.api.QueryExecutionException;
+import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
+import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;

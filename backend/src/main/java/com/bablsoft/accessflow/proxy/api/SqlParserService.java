@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.proxy.api;
 
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
+
 /**
  * Parses user-submitted SQL with JSqlParser and classifies it by {@link
  * com.bablsoft.accessflow.core.api.QueryType}. This is the first defence layer of the proxy

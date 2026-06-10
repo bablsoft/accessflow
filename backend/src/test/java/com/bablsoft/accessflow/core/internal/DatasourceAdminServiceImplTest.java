@@ -59,6 +59,7 @@ class DatasourceAdminServiceImplTest {
     @Mock CredentialEncryptionService encryptionService;
     @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
     @Mock com.bablsoft.accessflow.core.api.DriverCatalogService driverCatalog;
+    @Mock com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock org.springframework.context.MessageSource messageSource;
     @InjectMocks DatasourceAdminServiceImpl service;
@@ -520,6 +521,79 @@ class DatasourceAdminServiceImplTest {
 
         assertThatThrownBy(() -> service.getForAdmin(datasourceId, orgId))
                 .isInstanceOf(DatasourceNotFoundException.class);
+    }
+
+    @Test
+    void createMongoDatasourceResolvesEnginePluginBeforePersisting() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Docs"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Docs", DbType.MONGODB,
+                "mongo.example.com", 27017, "appdb", "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
+                null, null, null);
+        service.create(command);
+
+        var inOrder = inOrder(engineCatalog, datasourceRepository);
+        inOrder.verify(engineCatalog).engineFor(DbType.MONGODB);
+        inOrder.verify(datasourceRepository).save(any(DatasourceEntity.class));
+        verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void createMongoDatasourcePropagatesEngineResolutionFailureAndDoesNotPersist() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Docs"))
+                .thenReturn(false);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenThrow(new DriverResolutionException(
+                DbType.MONGODB, DriverResolutionException.Reason.OFFLINE_CACHE_MISS, "offline"));
+
+        var command = new CreateDatasourceCommand(orgId, "Docs", DbType.MONGODB,
+                "mongo.example.com", 27017, "appdb", "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
+                null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(DriverResolutionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void testMongoDatasourceDelegatesToEngineFromCatalog() {
+        var entity = buildDatasource(datasourceId, orgId, "Docs");
+        entity.setDbType(DbType.MONGODB);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var engine = org.mockito.Mockito.mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var expected = new com.bablsoft.accessflow.core.api.ConnectionTestResult(true, 5, "ok");
+        when(engine.testConnection(any())).thenReturn(expected);
+
+        var result = service.test(datasourceId, orgId);
+
+        assertThat(result).isSameAs(expected);
+        verify(engine).testConnection(any());
+        verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void introspectMongoDatasourceDelegatesToEngineFromCatalog() {
+        var entity = buildDatasource(datasourceId, orgId, "Docs");
+        entity.setDbType(DbType.MONGODB);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var engine = org.mockito.Mockito.mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var schema = new com.bablsoft.accessflow.core.api.DatabaseSchemaView(java.util.List.of());
+        when(engine.introspectSchema(any())).thenReturn(schema);
+
+        var result = service.introspectSchema(datasourceId, orgId, UUID.randomUUID(), true);
+
+        assertThat(result).isSameAs(schema);
+        verify(driverCatalog, never()).resolve(any());
     }
 
     private DatasourceEntity buildDatasource(UUID id, UUID organizationId, String name) {

@@ -10,7 +10,7 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import lombok.RequiredArgsConstructor;

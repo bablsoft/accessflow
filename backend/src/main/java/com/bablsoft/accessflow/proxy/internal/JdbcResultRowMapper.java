@@ -1,9 +1,10 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnMasker;
 import com.bablsoft.accessflow.core.api.DbType;
-import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
-import com.bablsoft.accessflow.proxy.api.ResultColumn;
-import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.ResultColumn;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

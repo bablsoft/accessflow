@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
-import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.JSQLParserException;

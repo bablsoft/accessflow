@@ -8,8 +8,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
-import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;

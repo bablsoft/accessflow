@@ -19,10 +19,10 @@ import com.bablsoft.accessflow.core.api.DatasourceReviewerNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceReviewerAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
+import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -372,6 +372,218 @@ class GlobalExceptionHandlerTest {
 
         assertThat(pd.getStatus()).isEqualTo(422);
         assertThat(pd.getProperties()).containsEntry("error", "ILLEGAL_DATASOURCE_REVIEWER");
+    }
+
+    @Test
+    void unrewritableRowSecurityReturns422() {
+        var pd = handler.handleUnrewritableRowSecurity(
+                new com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException("cte"));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "ROW_SECURITY_UNREWRITABLE");
+        assertThat(pd.getDetail()).isEqualTo("cte");
+    }
+
+    @Test
+    void illegalQueryStatusTransitionReturns409WithActualAndExpected() {
+        var pd = handler.handleIllegalQueryStatusTransition(
+                new com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException(
+                        UUID.randomUUID(),
+                        com.bablsoft.accessflow.core.api.QueryStatus.PENDING_AI,
+                        com.bablsoft.accessflow.core.api.QueryStatus.APPROVED));
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties()).containsEntry("error", "ILLEGAL_STATUS_TRANSITION")
+                .containsEntry("actual", "PENDING_AI")
+                .containsEntry("expected", "APPROVED");
+    }
+
+    @Test
+    void unsupportedLanguageReturns400WithLanguageProperty() {
+        var pd = handler.handleUnsupportedLanguage(
+                new com.bablsoft.accessflow.core.api.UnsupportedLanguageException("xx"));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getProperties()).containsEntry("error", "UNSUPPORTED_LANGUAGE")
+                .containsEntry("language", "xx");
+    }
+
+    @Test
+    void unsupportedLanguageWithNullCodeOmitsLanguageProperty() {
+        var pd = handler.handleUnsupportedLanguage(
+                new com.bablsoft.accessflow.core.api.UnsupportedLanguageException(null));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getProperties()).doesNotContainKey("language");
+    }
+
+    @Test
+    void languageNotInAllowedListReturns400WithLanguageProperty() {
+        var pd = handler.handleLanguageNotInAllowedList(
+                new com.bablsoft.accessflow.core.api.LanguageNotInAllowedListException("fr"));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getProperties()).containsEntry("error", "LANGUAGE_NOT_IN_ALLOWED_LIST")
+                .containsEntry("language", "fr");
+    }
+
+    @Test
+    void languageNotInAllowedListWithNullCodeOmitsLanguageProperty() {
+        var pd = handler.handleLanguageNotInAllowedList(
+                new com.bablsoft.accessflow.core.api.LanguageNotInAllowedListException(null));
+
+        assertThat(pd.getProperties()).doesNotContainKey("language");
+    }
+
+    @Test
+    void illegalLocalizationConfigReturns400() {
+        var pd = handler.handleIllegalLocalizationConfig(
+                new com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException("empty"));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getProperties()).containsEntry("error", "ILLEGAL_LOCALIZATION_CONFIG");
+        assertThat(pd.getDetail()).isEqualTo("empty");
+    }
+
+    @Test
+    void customDriverTooLargeReturns413WithMaxBytes() {
+        var pd = handler.handleCustomDriverTooLarge(
+                new com.bablsoft.accessflow.core.api.CustomDriverTooLargeException(100, 50));
+
+        assertThat(pd.getStatus()).isEqualTo(413);
+        assertThat(pd.getProperties()).containsEntry("error", "CUSTOM_DRIVER_TOO_LARGE")
+                .containsEntry("maxBytes", 50L);
+    }
+
+    @Test
+    void customDriverInvalidJarReturns422WithDriverClass() {
+        var pd = handler.handleCustomDriverInvalidJar(
+                new com.bablsoft.accessflow.core.api.CustomDriverInvalidJarException(
+                        "com.acme.Driver", "not a driver"));
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "CUSTOM_DRIVER_INVALID_JAR")
+                .containsEntry("driverClass", "com.acme.Driver");
+    }
+
+    @Test
+    void systemSmtpNotConfiguredReturns422() {
+        var pd = handler.handleSystemSmtpNotConfigured(
+                new com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "SYSTEM_SMTP_NOT_CONFIGURED");
+    }
+
+    @Test
+    void systemSmtpDeliveryReturns502() {
+        var pd = handler.handleSystemSmtpDelivery(
+                new com.bablsoft.accessflow.core.api.SystemSmtpDeliveryException(
+                        "smtp down", new RuntimeException("io")));
+
+        assertThat(pd.getStatus()).isEqualTo(502);
+        assertThat(pd.getProperties()).containsEntry("error", "SYSTEM_SMTP_DELIVERY_FAILED");
+    }
+
+    @Test
+    void systemSmtpNotConfiguredForInviteReturns422() {
+        var pd = handler.handleSystemSmtpNotConfiguredForInvite(
+                new com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE");
+    }
+
+    @Test
+    void invitationNotFoundReturns404() {
+        var pd = handler.handleInvitationNotFound(
+                new com.bablsoft.accessflow.security.api.InvitationNotFoundException());
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "INVITATION_NOT_FOUND");
+    }
+
+    @Test
+    void invitationExpiredReturns422() {
+        var pd = handler.handleInvitationExpired(
+                new com.bablsoft.accessflow.security.api.InvitationExpiredException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "INVITATION_EXPIRED");
+    }
+
+    @Test
+    void invitationAlreadyAcceptedReturns422() {
+        var pd = handler.handleInvitationAlreadyAccepted(
+                new com.bablsoft.accessflow.security.api.InvitationAlreadyAcceptedException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "INVITATION_ALREADY_ACCEPTED");
+    }
+
+    @Test
+    void invitationRevokedReturns422() {
+        var pd = handler.handleInvitationRevoked(
+                new com.bablsoft.accessflow.security.api.InvitationRevokedException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "INVITATION_REVOKED");
+    }
+
+    @Test
+    void duplicatePendingInvitationReturns409() {
+        var pd = handler.handleDuplicatePendingInvitation(
+                new com.bablsoft.accessflow.security.api.DuplicatePendingInvitationException());
+
+        assertThat(pd.getStatus()).isEqualTo(409);
+        assertThat(pd.getProperties()).containsEntry("error", "DUPLICATE_PENDING_INVITATION");
+    }
+
+    @Test
+    void passwordResetNotFoundReturns404() {
+        var pd = handler.handlePasswordResetNotFound(
+                new com.bablsoft.accessflow.security.api.PasswordResetTokenNotFoundException());
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "PASSWORD_RESET_NOT_FOUND");
+    }
+
+    @Test
+    void passwordResetExpiredReturns422() {
+        var pd = handler.handlePasswordResetExpired(
+                new com.bablsoft.accessflow.security.api.PasswordResetTokenExpiredException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "PASSWORD_RESET_EXPIRED");
+    }
+
+    @Test
+    void passwordResetAlreadyUsedReturns422() {
+        var pd = handler.handlePasswordResetAlreadyUsed(
+                new com.bablsoft.accessflow.security.api.PasswordResetTokenAlreadyUsedException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "PASSWORD_RESET_ALREADY_USED");
+    }
+
+    @Test
+    void passwordResetRevokedReturns422() {
+        var pd = handler.handlePasswordResetRevoked(
+                new com.bablsoft.accessflow.security.api.PasswordResetTokenRevokedException());
+
+        assertThat(pd.getStatus()).isEqualTo(422);
+        assertThat(pd.getProperties()).containsEntry("error", "PASSWORD_RESET_REVOKED");
+    }
+
+    @Test
+    void noResourceFoundReturns404() {
+        var pd = handler.handleNoResourceFound(
+                new org.springframework.web.servlet.resource.NoResourceFoundException(
+                        org.springframework.http.HttpMethod.GET, "/nope", "/nope"));
+
+        assertThat(pd.getStatus()).isEqualTo(404);
+        assertThat(pd.getProperties()).containsEntry("error", "NOT_FOUND");
     }
 
     private static org.springframework.core.MethodParameter stubMethodParameter() throws Exception {

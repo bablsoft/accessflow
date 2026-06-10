@@ -854,9 +854,10 @@
             <strong>category</strong> that separates the <strong>SQL</strong> (relational) family from
             the <strong>NoSQL</strong> (document) family, and the <em>Admin → Connectors</em>
             (<code>/admin/connectors</code>) marketplace groups them accordingly. An admin browses the
-            catalog and <strong>installs</strong> a relational database's JDBC driver with one click —
-            AccessFlow downloads it, verifies its pinned SHA-256, and caches it. Bundled connectors
-            (PostgreSQL, MongoDB) show as <em>Installed</em>; the rest show an <em>Install</em> action.
+            catalog and <strong>installs</strong> a database's driver — a JDBC driver JAR for SQL engines, a
+            native engine-plugin JAR for NoSQL engines — with one click: AccessFlow downloads it,
+            verifies its pinned SHA-256, and caches it. The bundled PostgreSQL connector shows as
+            <em>Installed</em>; every other connector (including MongoDB) shows an <em>Install</em> action.
           </p>
           <p><strong>Built-in connectors — SQL:</strong></p>
           <ul>
@@ -869,7 +870,7 @@
           </ul>
           <p><strong>Built-in connectors — NoSQL:</strong></p>
           <ul>
-            <li><strong>MongoDB</strong> — bundled native <code>org.mongodb:mongodb-driver-sync</code> (no download; not JDBC). Users write queries in the mongo shell form (<code>db.users.find({ … })</code>) or a JSON command document, chosen in the editor; results show in both a JSON document view and a flattened table. AI risk analysis, human approval, row-level security (<code>$match</code> injection), and field masking all apply. Configure it with the standard host/port/database/username/password/SSL fields.</li>
+            <li><strong>MongoDB</strong> — native engine plugin (not JDBC) · 1-click install; the engine downloads on demand like a JDBC driver and is cached in the same driver-cache directory (pre-seed it for air-gapped installs). Users write queries in the mongo shell form (<code>db.users.find({ … })</code>) or a JSON command document, chosen in the editor; results show in both a JSON document view and a flattened table. AI risk analysis, human approval, row-level security (<code>$match</code> injection), and field masking all apply. Configure it with the standard host/port/database/username/password/SSL fields.</li>
           </ul>
           <p>
             Adding a database is a data change, not a code change — each connector is a small

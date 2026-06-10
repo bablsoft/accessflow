@@ -223,7 +223,7 @@ field is present on the `GET /datasources/connectors` response.
 
 | Value | Meaning |
 |-------|---------|
-| `bundled` | Entry from the connector catalog mapping to a first-class `DbType` (the five SQL dialects + the bundled native `MONGODB` engine). `custom_driver_id` is `null`. |
+| `bundled` | Entry from the connector catalog mapping to a first-class `DbType` (the five SQL dialects + the native `MONGODB` engine, whose plugin is resolved on demand — AF-414). `custom_driver_id` is `null`. |
 | `uploaded` | Admin-uploaded driver for the caller's organization. `custom_driver_id` is the `custom_jdbc_driver.id`; `code` mirrors `target_db_type` (or `CUSTOM` for free-form datasources). |
 
 `driver_status` values:
