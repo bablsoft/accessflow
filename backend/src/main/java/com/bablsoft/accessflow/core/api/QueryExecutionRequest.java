@@ -1,6 +1,5 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
-import com.bablsoft.accessflow.core.api.QueryType;
 
 import java.time.Duration;
 import java.util.List;

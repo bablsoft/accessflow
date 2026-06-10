@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
 public final class QueryExecutionFailedException extends QueryExecutionException {
 

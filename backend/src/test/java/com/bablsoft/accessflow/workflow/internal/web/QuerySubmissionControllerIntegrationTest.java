@@ -9,7 +9,7 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEnti
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.QuerySubmissionResult;

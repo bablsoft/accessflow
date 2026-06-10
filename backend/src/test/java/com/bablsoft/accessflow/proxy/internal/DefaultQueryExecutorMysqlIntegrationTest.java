@@ -12,10 +12,10 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPerm
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
-import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
-import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;

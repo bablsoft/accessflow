@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
-import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import org.bson.Document;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;

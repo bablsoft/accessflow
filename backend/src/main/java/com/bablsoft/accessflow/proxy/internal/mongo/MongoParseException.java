@@ -3,7 +3,7 @@ package com.bablsoft.accessflow.proxy.internal.mongo;
 /**
  * Internal signal that a MongoDB query could not be parsed/validated. Carries an i18n message key
  * and arguments; {@link MongoQueryParser} resolves it against the {@code MessageSource} and rethrows
- * as a {@link com.bablsoft.accessflow.proxy.api.InvalidSqlException} (HTTP 422), matching the SQL
+ * as a {@link com.bablsoft.accessflow.core.api.InvalidSqlException} (HTTP 422), matching the SQL
  * engine's behaviour for unparseable input.
  */
 final class MongoParseException extends RuntimeException {

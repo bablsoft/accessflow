@@ -1,9 +1,9 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
-import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
-import com.bablsoft.accessflow.proxy.api.UnrewritableRowSecurityException;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.expression.Alias;

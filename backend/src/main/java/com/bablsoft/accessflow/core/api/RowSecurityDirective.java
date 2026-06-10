@@ -1,6 +1,5 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
-import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 
 import java.util.List;
 import java.util.Objects;

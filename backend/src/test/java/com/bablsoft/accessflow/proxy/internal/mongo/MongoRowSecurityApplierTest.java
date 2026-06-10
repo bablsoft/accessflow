@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
-import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
-import com.bablsoft.accessflow.proxy.api.UnrewritableRowSecurityException;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.StaticMessageSource;

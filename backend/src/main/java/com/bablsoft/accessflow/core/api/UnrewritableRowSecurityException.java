@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
 /**
  * Raised when a query references a row-security-policied table in a structural position the proxy

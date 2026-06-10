@@ -1,6 +1,5 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
-import com.bablsoft.accessflow.core.api.MaskingStrategy;
 
 import java.util.Map;
 import java.util.Objects;

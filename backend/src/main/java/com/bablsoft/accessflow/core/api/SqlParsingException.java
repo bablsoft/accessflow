@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
 public sealed class SqlParsingException extends RuntimeException
         permits InvalidSqlException {

@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.proxy.api;
 
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 /**
  * Engine-aware query validator. Dispatches a submitted query string to the parser for the

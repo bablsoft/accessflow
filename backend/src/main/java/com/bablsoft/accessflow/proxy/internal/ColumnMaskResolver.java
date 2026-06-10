@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
-import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;

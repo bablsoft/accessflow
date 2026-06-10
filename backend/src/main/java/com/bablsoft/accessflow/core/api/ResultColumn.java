@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.proxy.api;
+package com.bablsoft.accessflow.core.api;
 
 public record ResultColumn(String name, int jdbcType, String typeName, boolean restricted) {
 

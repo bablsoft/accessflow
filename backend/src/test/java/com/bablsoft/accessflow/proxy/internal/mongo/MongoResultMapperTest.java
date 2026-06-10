@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
-import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import org.bson.Document;
 import org.bson.types.Decimal128;
 import org.bson.types.ObjectId;

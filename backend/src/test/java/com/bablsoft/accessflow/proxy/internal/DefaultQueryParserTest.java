@@ -2,7 +2,7 @@ package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.SqlParseResult;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.internal.mongo.MongoQueryParser;
 import org.junit.jupiter.api.Test;

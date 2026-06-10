@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
-import com.bablsoft.accessflow.proxy.api.QueryExecutionException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.core.api.QueryExecutionException;
+import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
+import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import com.mongodb.MongoException;
 import com.mongodb.MongoExecutionTimeoutException;
 import com.mongodb.MongoServerException;

@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.StaticMessageSource;
 

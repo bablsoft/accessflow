@@ -1,6 +1,5 @@
-package com.bablsoft.accessflow.proxy.internal;
+package com.bablsoft.accessflow.core.api;
 
-import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -13,13 +13,13 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationReposi
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
+import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
-import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
-import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
-import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;

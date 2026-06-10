@@ -1,10 +1,10 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
-import com.bablsoft.accessflow.proxy.api.ColumnMaskDirective;
-import com.bablsoft.accessflow.proxy.api.ResultColumn;
-import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
-import com.bablsoft.accessflow.proxy.internal.ColumnMasker;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.ResultColumn;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.ColumnMasker;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bson.types.Decimal128;

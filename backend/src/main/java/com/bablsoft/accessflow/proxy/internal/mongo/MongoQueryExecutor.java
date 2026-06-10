@@ -1,9 +1,9 @@
 package com.bablsoft.accessflow.proxy.internal.mongo;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
-import com.bablsoft.accessflow.proxy.api.QueryExecutionResult;
-import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
