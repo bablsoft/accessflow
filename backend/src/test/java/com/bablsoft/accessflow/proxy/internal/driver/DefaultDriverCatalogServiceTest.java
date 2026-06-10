@@ -52,14 +52,14 @@ class DefaultDriverCatalogServiceTest {
 
     private DefaultDriverCatalogService service(boolean offline) {
         var props = new DriverProperties(cacheDir, "https://example.com/maven2", offline);
-        return new DefaultDriverCatalogService(props, messageSource,
-                new CustomDriverStorage(props), catalog);
+        return new DefaultDriverCatalogService(messageSource,
+                new CustomDriverStorage(props), catalog, new DriverJarCache(props, messageSource));
     }
 
     private DefaultDriverCatalogService serviceWithRepo(String repositoryUrl) {
         var props = new DriverProperties(cacheDir, repositoryUrl, false);
-        return new DefaultDriverCatalogService(props, messageSource,
-                new CustomDriverStorage(props), catalog);
+        return new DefaultDriverCatalogService(messageSource,
+                new CustomDriverStorage(props), catalog, new DriverJarCache(props, messageSource));
     }
 
     // ── custom uploaded-driver resolution ────────────────────────────────────
@@ -161,7 +161,8 @@ class DefaultDriverCatalogServiceTest {
     void listReturnsDialectsAsBundledAndCustomConnectorsAsConnectorSource() {
         var rows = service(false).list();
 
-        // 5 SQL dialects + MongoDB (a bundled native engine) are surfaced with source "bundled".
+        // 5 SQL dialects + MongoDB (an on-demand native engine, AF-414) are surfaced with
+        // source "bundled" (= first-class catalog rows, as opposed to connector/uploaded rows).
         assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(6);
         var connectorRows = rows.stream().filter(r -> "connector".equals(r.source())).toList();
         assertThat(connectorRows).hasSize(1);
@@ -209,13 +210,29 @@ class DefaultDriverCatalogServiceTest {
     void externalDriversReportedAsNotBundled() {
         var infos = service(false).list();
 
-        // PostgreSQL and MongoDB are the bundled engines; every other dialect's driver is external.
+        // PostgreSQL is the only bundled engine; every other dialect's driver — and the MongoDB
+        // engine plugin (AF-414) — is resolved on demand.
         assertThat(infos)
-                .filteredOn(t -> t.code() != DbType.POSTGRESQL && t.code() != DbType.MONGODB)
+                .filteredOn(t -> t.code() != DbType.POSTGRESQL)
                 .extracting(DriverTypeInfo::bundled)
                 .containsOnly(false);
         assertThat(infos).extracting(DriverTypeInfo::code)
                 .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL, DbType.MONGODB);
+    }
+
+    @Test
+    void mongodbEnginePluginReportedAsAvailableWhenCacheMissOnline() {
+        var info = service(false).list().stream()
+                .filter(t -> t.code() == DbType.MONGODB).findFirst().orElseThrow();
+        assertThat(info.bundled()).isFalse();
+        assertThat(info.driverStatus()).isEqualTo(DriverStatus.AVAILABLE);
+    }
+
+    @Test
+    void mongodbEnginePluginReportedAsUnavailableWhenOfflineAndCacheMiss() {
+        var info = service(true).list().stream()
+                .filter(t -> t.code() == DbType.MONGODB).findFirst().orElseThrow();
+        assertThat(info.driverStatus()).isEqualTo(DriverStatus.UNAVAILABLE);
     }
 
     @Test
@@ -255,8 +272,8 @@ class DefaultDriverCatalogServiceTest {
         var bogus = cacheDir.resolve("not-a-dir");
         Files.write(bogus, new byte[]{0x00});
         var props = new DriverProperties(bogus.resolve("nested"), "https://example.com/maven2", false);
-        var service = new DefaultDriverCatalogService(props, messageSource,
-                new CustomDriverStorage(props), catalog);
+        var service = new DefaultDriverCatalogService(messageSource,
+                new CustomDriverStorage(props), catalog, new DriverJarCache(props, messageSource));
 
         assertThatThrownBy(() -> service.resolve(DbType.MYSQL))
                 .isInstanceOf(DriverResolutionException.class)

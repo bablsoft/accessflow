@@ -72,6 +72,9 @@ class DefaultQueryExecutorTest {
     private final AtomicLong nanos = new AtomicLong();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-05T12:00:00Z"), ZoneOffset.UTC);
 
+    private final com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog =
+            mock(com.bablsoft.accessflow.core.api.QueryEngineCatalog.class);
+
     private DefaultQueryExecutor executor;
     private DataSource dataSource;
     private Connection connection;
@@ -91,8 +94,7 @@ class DefaultQueryExecutorTest {
                 messageSource);
         executor = new DefaultQueryExecutor(router, lookupService, properties,
                 rowMapper, translator, new RowSecurityRewriter(messageSource),
-                mock(com.bablsoft.accessflow.proxy.internal.mongo.MongoQueryExecutor.class),
-                clock, messageSource);
+                engineCatalog, clock, messageSource);
     }
 
     @Test
@@ -345,6 +347,30 @@ class DefaultQueryExecutorTest {
 
         verify(statement).setObject(eq(1), eq("EU"));
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void mongoDatasourceDispatchesToEngineFromCatalogWithEffectiveLimits() {
+        var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
+        var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var expected = new UpdateExecutionResult(1, Duration.ZERO, java.util.Set.of());
+        when(engine.execute(org.mockito.ArgumentMatchers.any())).thenReturn(expected);
+
+        var request = new QueryExecutionRequest(datasourceId, "db.users.find({})",
+                QueryType.SELECT, null, null);
+        var result = executor.execute(request);
+
+        assertThat(result).isSameAs(expected);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest.class);
+        verify(engine).execute(captor.capture());
+        assertThat(captor.getValue().descriptor()).isSameAs(mongoDescriptor);
+        assertThat(captor.getValue().effectiveMaxRows()).isEqualTo(2_000);
+        assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
     }
 
     private DatasourceConnectionDescriptor descriptor(int maxRows) {

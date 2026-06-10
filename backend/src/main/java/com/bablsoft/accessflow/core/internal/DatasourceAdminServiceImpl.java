@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
+import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
@@ -80,8 +81,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final CredentialEncryptionService encryptionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final DriverCatalogService driverCatalog;
-    private final com.bablsoft.accessflow.core.internal.mongo.MongoConnectionProbe mongoConnectionProbe;
-    private final com.bablsoft.accessflow.core.internal.mongo.MongoSchemaIntrospector mongoSchemaIntrospector;
+    private final QueryEngineCatalog engineCatalog;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -132,10 +132,13 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (connectorId != null) {
             // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
             driverCatalog.resolveConnector(connectorId);
-        } else if (customDriver == null && command.dbType() != DbType.MONGODB) {
+        } else if (command.dbType() == DbType.MONGODB) {
+            // Fail-fast for the non-JDBC engine: resolves (downloading if needed) the MongoDB
+            // engine plugin through the connector catalog, at parity with the JDBC lanes.
+            engineCatalog.engineFor(DbType.MONGODB);
+        } else if (customDriver == null) {
             // Fail-fast for bundled drivers (mirrors pre-#94 behaviour). Custom drivers are
-            // probe-loaded at upload time, so we trust the catalog cache here. MONGODB is a native
-            // (non-JDBC) engine resolved by the proxy MongoClientManager — it has no JDBC driver.
+            // probe-loaded at upload time, so we trust the catalog cache here.
             driverCatalog.resolve(command.dbType());
         }
         var entity = new DatasourceEntity();
@@ -352,7 +355,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     public ConnectionTestResult test(UUID id, UUID organizationId) {
         var entity = loadInOrganization(id, organizationId);
         if (entity.getDbType() == DbType.MONGODB) {
-            return mongoConnectionProbe.test(DatasourceDescriptorMapper.from(entity));
+            return engineCatalog.engineFor(DbType.MONGODB)
+                    .testConnection(DatasourceDescriptorMapper.from(entity));
         }
         var resolved = resolveDriver(entity);
         var url = buildJdbcUrl(entity);
@@ -451,7 +455,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     private DatabaseSchemaView introspect(UUID id, DatasourceEntity entity) {
         if (entity.getDbType() == DbType.MONGODB) {
-            return mongoSchemaIntrospector.introspect(DatasourceDescriptorMapper.from(entity));
+            return engineCatalog.engineFor(DbType.MONGODB)
+                    .introspectSchema(DatasourceDescriptorMapper.from(entity));
         }
         var resolved = resolveDriver(entity);
         var url = buildJdbcUrl(entity);

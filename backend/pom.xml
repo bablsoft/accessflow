@@ -123,16 +123,11 @@
         </dependency>
 
         <!--
-          MongoDB (NoSQL) connector (issue #411). The native synchronous driver is bundled into
-          the image — unlike the JDBC dialects above it cannot be resolved on demand from a Maven
-          mirror, and it is needed at compile time for the proxy's MongoDB engine
-          (com.bablsoft.accessflow.proxy.internal.mongo). Version managed by the Spring Boot 4
-          parent BOM (the same version that backs spring-boot-starter-data-mongodb).
+          The MongoDB (NoSQL) engine is NOT bundled (issue #414): it lives in the
+          engines/mongodb plugin (a shaded JAR bundling mongodb-driver-sync) resolved on demand
+          through the connector catalog and discovered via ServiceLoader against the
+          core.api.QueryEngine SPI. The host has no compile dependency on the MongoDB driver.
         -->
-        <dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongodb-driver-sync</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>dev.samstevens.totp</groupId>
@@ -324,11 +319,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-mongodb</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>${archiunit.version}</version>
@@ -357,6 +347,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <!--
+                      Attach the repackaged boot JAR under the "exec" classifier so the PLAIN jar
+                      stays the main artifact: `mvn install` then publishes the plain classes for
+                      the engines/* plugin builds to compile against (provided scope) — see
+                      engines/mongodb (issue #414). The runnable fat jar is *-exec.jar.
+                    -->
+                    <classifier>exec</classifier>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

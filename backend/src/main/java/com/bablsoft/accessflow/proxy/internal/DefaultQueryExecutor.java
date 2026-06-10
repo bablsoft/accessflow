@@ -5,12 +5,13 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
+import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
-import com.bablsoft.accessflow.proxy.internal.mongo.MongoQueryExecutor;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final JdbcResultRowMapper rowMapper;
     private final SqlExceptionTranslator sqlExceptionTranslator;
     private final RowSecurityRewriter rowSecurityRewriter;
-    private final MongoQueryExecutor mongoQueryExecutor;
+    private final QueryEngineCatalog engineCatalog;
     private final Clock clock;
     private final MessageSource messageSource;
 
@@ -59,7 +60,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 : execProps.statementTimeout();
 
         if (descriptor.dbType() == DbType.MONGODB) {
-            return mongoQueryExecutor.execute(request, descriptor, effectiveMaxRows, effectiveTimeout);
+            return engineCatalog.engineFor(DbType.MONGODB).execute(new QueryEngineExecutionRequest(
+                    request, descriptor, effectiveMaxRows, effectiveTimeout));
         }
 
         Instant start = clock.instant();
