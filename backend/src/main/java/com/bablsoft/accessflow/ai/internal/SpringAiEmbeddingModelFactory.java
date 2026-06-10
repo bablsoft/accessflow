@@ -47,7 +47,7 @@ class SpringAiEmbeddingModelFactory implements EmbeddingModelFactory {
         var options = OllamaEmbeddingOptions.builder().model(model).build();
         return OllamaEmbeddingModel.builder()
                 .ollamaApi(api)
-                .defaultOptions(options)
+                .options(options)
                 .build();
     }
 }

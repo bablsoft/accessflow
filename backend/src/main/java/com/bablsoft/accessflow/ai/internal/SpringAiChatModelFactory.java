@@ -58,7 +58,7 @@ class SpringAiChatModelFactory implements ChatModelFactory {
                 .build();
         return OllamaChatModel.builder()
                 .ollamaApi(api)
-                .defaultOptions(options)
+                .options(options)
                 .build();
     }
 }
