@@ -26,45 +26,45 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Default {@link QueryEngineCatalog}: resolves non-JDBC query engines (AF-414) the same way
  * {@link DefaultDriverCatalogService} resolves JDBC drivers. The engine's connector manifest
- * ({@code category=DOCUMENT}, {@code bundled=false}) pins a shaded plugin JAR by URL/Maven
- * coordinates + SHA-256; {@link DriverJarCache} downloads and verifies it into the shared driver
- * cache; the JAR is loaded into an isolated child {@link URLClassLoader}; and the
+ * (any non-RELATIONAL {@code category}, {@code bundled=false}) pins a shaded plugin JAR by
+ * URL/Maven coordinates + SHA-256; {@link DriverJarCache} downloads and verifies it into the
+ * shared driver cache; the JAR is loaded into an isolated child {@link URLClassLoader}; and the
  * {@link QueryEngine} implementation is discovered via {@link ServiceLoader}, matched by
  * {@link QueryEngine#engineId()} against the connector id. The engine is initialized once with a
- * {@link QueryEngineContext} (host message resolution, credential decryption, tuning config, the
- * UTC clock) and cached for the application lifetime — like JDBC connector classloaders, engine
- * classloaders are never unloaded.
+ * {@link QueryEngineContext} (host message resolution, credential decryption, the per-engine
+ * tuning config from {@code accessflow.proxy.engines.<id>.*}, the UTC clock) and cached for the
+ * application lifetime — like JDBC connector classloaders, engine classloaders are never
+ * unloaded.
  */
 @Service
 class DefaultQueryEngineCatalog implements QueryEngineCatalog {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultQueryEngineCatalog.class);
-    private static final String MONGODB_CONNECTOR_ID = "mongodb";
 
     private final ConnectorCatalog catalog;
     private final DriverJarCache jarCache;
     private final MessageSource messageSource;
     private final CredentialEncryptionService encryptionService;
-    private final MongoEngineProperties mongoEngineProperties;
+    private final EngineConfigProperties engineConfigProperties;
     private final Clock clock;
     private final Map<String, QueryEngine> engines = new ConcurrentHashMap<>();
 
     DefaultQueryEngineCatalog(ConnectorCatalog catalog, DriverJarCache jarCache,
                               MessageSource messageSource,
                               CredentialEncryptionService encryptionService,
-                              MongoEngineProperties mongoEngineProperties, Clock clock) {
+                              EngineConfigProperties engineConfigProperties, Clock clock) {
         this.catalog = catalog;
         this.jarCache = jarCache;
         this.messageSource = messageSource;
         this.encryptionService = encryptionService;
-        this.mongoEngineProperties = mongoEngineProperties;
+        this.engineConfigProperties = engineConfigProperties;
         this.clock = clock;
     }
 
     @Override
     public QueryEngine engineFor(DbType dbType) {
         var manifest = catalog.byDbType(dbType)
-                .filter(ConnectorManifest::isDocument)
+                .filter(ConnectorManifest::requiresEngine)
                 .orElseThrow(() -> new DriverResolutionException(
                         dbType,
                         DriverResolutionException.Reason.UNAVAILABLE,
@@ -85,6 +85,13 @@ class DefaultQueryEngineCatalog implements QueryEngineCatalog {
             log.info("Loaded query engine {} ({})", manifest.id(), engine.getClass().getName());
             return engine;
         }
+    }
+
+    @Override
+    public boolean isEngineManaged(DbType dbType) {
+        return catalog.byDbType(dbType)
+                .map(ConnectorManifest::requiresEngine)
+                .orElse(false);
     }
 
     @Override
@@ -145,9 +152,7 @@ class DefaultQueryEngineCatalog implements QueryEngineCatalog {
     }
 
     private Map<String, String> engineConfig(String engineId) {
-        return MONGODB_CONNECTOR_ID.equals(engineId)
-                ? mongoEngineProperties.toEngineConfig()
-                : Map.of();
+        return engineConfigProperties.forEngine(engineId);
     }
 
     private String msg(String key, Object... args) {

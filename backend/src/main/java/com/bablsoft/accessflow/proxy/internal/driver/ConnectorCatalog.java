@@ -131,10 +131,10 @@ class ConnectorCatalog {
         require(m.name() != null && !m.name().isBlank(), "connector " + m.id() + " name is blank");
         require(m.dbType() != null, "connector " + m.id() + " dbType is null");
         require(m.defaultSslMode() != null, "connector " + m.id() + " defaultSslMode is null");
-        // Document (NoSQL) connectors connect through a native driver, not JDBC — they carry no
-        // jdbcUrlTemplate or driverClassName. The JDBC fields are required only for relational
-        // connectors.
-        if (!m.isDocument()) {
+        // Engine-managed (non-RELATIONAL) connectors connect through a native engine plugin, not
+        // JDBC — they carry no jdbcUrlTemplate or driverClassName. The JDBC fields are required
+        // only for relational connectors.
+        if (!m.requiresEngine()) {
             require(m.jdbcUrlTemplate() != null && !m.jdbcUrlTemplate().isBlank(),
                     "connector " + m.id() + " jdbcUrlTemplate is blank");
             require(m.driverClassName() != null && !m.driverClassName().isBlank(),

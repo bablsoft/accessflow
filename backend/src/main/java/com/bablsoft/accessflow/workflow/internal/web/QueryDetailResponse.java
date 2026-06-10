@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -18,6 +19,7 @@ import java.util.UUID;
 public record QueryDetailResponse(
         UUID id,
         QueryListItem.DatasourceRef datasource,
+        DbType dbType,
         QueryListItem.SubmitterRef submittedBy,
         String sqlText,
         QueryType queryType,
@@ -44,6 +46,7 @@ public record QueryDetailResponse(
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
+                view.dbType(),
                 new QueryListItem.SubmitterRef(view.submittedByUserId(),
                         view.submittedByEmail(), view.submittedByDisplayName()),
                 view.sqlText(),

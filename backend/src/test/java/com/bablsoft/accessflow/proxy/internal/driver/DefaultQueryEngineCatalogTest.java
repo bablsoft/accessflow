@@ -16,11 +16,11 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.jar.JarEntry;
@@ -62,7 +62,10 @@ class DefaultQueryEngineCatalogTest {
         var properties = new DriverProperties(cacheDir, "https://example.com/maven2", offline);
         return new DefaultQueryEngineCatalog(connectorCatalog,
                 new DriverJarCache(properties, messageSource), messageSource, encryptionService,
-                new MongoEngineProperties(Duration.ofSeconds(3), Duration.ofSeconds(7), 25), clock);
+                new EngineConfigProperties(Map.of("mongodb", Map.of(
+                        "connect-timeout", "PT3S",
+                        "server-selection-timeout", "PT7S",
+                        "max-pool-size", "25"))), clock);
     }
 
     private void registerManifest(String sha256) {
@@ -187,6 +190,32 @@ class DefaultQueryEngineCatalogTest {
                 .isInstanceOf(DriverResolutionException.class)
                 .satisfies(ex -> assertThat(((DriverResolutionException) ex).reason())
                         .isEqualTo(DriverResolutionException.Reason.UNAVAILABLE));
+    }
+
+    @Test
+    void isEngineManagedIsTrueForNonRelationalManifestWithoutLoadingThePlugin() {
+        // Manifest pins a jar that is NOT in the (offline) cache — a download attempt would throw.
+        registerManifest("a".repeat(64));
+
+        assertThat(catalog(true).isEngineManaged(DbType.MONGODB)).isTrue();
+    }
+
+    @Test
+    void isEngineManagedIsFalseForRelationalManifest() {
+        var relational = new ConnectorManifest(1, "postgresql", "PostgreSQL", DbType.POSTGRESQL,
+                ConnectorCategory.RELATIONAL, null, null, null, "logo.svg", 5432, SslMode.DISABLE,
+                "jdbc:postgresql://{host}:{port}/{database_name}", "org.postgresql.Driver", true,
+                null);
+        when(connectorCatalog.byDbType(DbType.POSTGRESQL)).thenReturn(Optional.of(relational));
+
+        assertThat(catalog(true).isEngineManaged(DbType.POSTGRESQL)).isFalse();
+    }
+
+    @Test
+    void isEngineManagedIsFalseWhenNoManifestClaimsTheDbType() {
+        when(connectorCatalog.byDbType(DbType.CUSTOM)).thenReturn(Optional.empty());
+
+        assertThat(catalog(true).isEngineManaged(DbType.CUSTOM)).isFalse();
     }
 
     @Test

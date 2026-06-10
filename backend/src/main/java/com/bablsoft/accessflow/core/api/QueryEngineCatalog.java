@@ -22,6 +22,13 @@ public interface QueryEngineCatalog {
     QueryEngine engineFor(DbType dbType);
 
     /**
+     * True when {@code dbType}'s connector manifest declares a non-RELATIONAL category, i.e.
+     * queries against it are parsed and executed by an engine plugin rather than the JDBC/SQL
+     * path. Metadata-only — never downloads or loads a plugin.
+     */
+    boolean isEngineManaged(DbType dbType);
+
+    /**
      * Notify already-loaded engines that a datasource's connection config changed or the
      * datasource was deactivated. Never triggers a plugin download.
      */

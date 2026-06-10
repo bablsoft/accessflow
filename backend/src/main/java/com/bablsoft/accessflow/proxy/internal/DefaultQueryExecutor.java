@@ -59,9 +59,10 @@ class DefaultQueryExecutor implements QueryExecutor {
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
 
-        if (descriptor.dbType() == DbType.MONGODB) {
-            return engineCatalog.engineFor(DbType.MONGODB).execute(new QueryEngineExecutionRequest(
-                    request, descriptor, effectiveMaxRows, effectiveTimeout));
+        if (engineCatalog.isEngineManaged(descriptor.dbType())) {
+            return engineCatalog.engineFor(descriptor.dbType())
+                    .execute(new QueryEngineExecutionRequest(
+                            request, descriptor, effectiveMaxRows, effectiveTimeout));
         }
 
         Instant start = clock.instant();

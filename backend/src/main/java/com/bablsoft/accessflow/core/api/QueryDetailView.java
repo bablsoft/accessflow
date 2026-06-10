@@ -12,6 +12,7 @@ public record QueryDetailView(
         UUID id,
         UUID datasourceId,
         String datasourceName,
+        DbType dbType,
         UUID organizationId,
         UUID submittedByUserId,
         String submittedByEmail,

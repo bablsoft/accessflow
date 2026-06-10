@@ -29,8 +29,8 @@
     },
     "category": {
       "type": "string",
-      "enum": ["RELATIONAL", "DOCUMENT"],
-      "description": "SQL (RELATIONAL) vs NoSQL (DOCUMENT) family. Defaults to RELATIONAL when absent. DOCUMENT connectors are native (non-JDBC) and omit jdbcUrlTemplate/driverClassName."
+      "enum": ["RELATIONAL", "DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"],
+      "description": "Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value is part of the NoSQL umbrella — engine-managed connectors that are native (non-JDBC) and omit jdbcUrlTemplate/driverClassName. Defaults to RELATIONAL when absent."
     },
     "vendor": { "type": "string", "maxLength": 100 },
     "description": { "type": "string", "maxLength": 300 },
@@ -86,8 +86,13 @@
       "then": { "required": ["driver"] }
     },
     {
-      "comment": "JDBC fields are required for relational (SQL) connectors and forbidden for document (NoSQL) ones, which connect through a native driver.",
-      "if": { "properties": { "category": { "const": "DOCUMENT" } }, "required": ["category"] },
+      "comment": "JDBC fields are required for relational (SQL) connectors and forbidden for engine-managed (non-RELATIONAL, NoSQL) ones, which connect through a native engine plugin.",
+      "if": {
+        "properties": {
+          "category": { "enum": ["DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"] }
+        },
+        "required": ["category"]
+      },
       "then": {},
       "else": { "required": ["jdbcUrlTemplate", "driverClassName"] }
     }

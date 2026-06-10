@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -278,7 +279,7 @@ class QueryReadControllerIntegrationTest {
     void getReturnsDetailForSubmitter() {
         var qid = UUID.randomUUID();
         var dsId = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, dsId, "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, dsId, "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", null, 0L, 12, null,
@@ -308,7 +309,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void getReturns404WhenNonAdminCallerIsNotSubmitter() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 admin.getId(), admin.getEmail(), admin.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
                 null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
@@ -327,7 +328,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void getReturnsDetailForAdminEvenIfNotSubmitter() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI, "x", null,
                 null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
@@ -347,7 +348,7 @@ class QueryReadControllerIntegrationTest {
         // role matrix in docs/07-security.md they have "View all query
         // history" and must not be denied with QUERY_REQUEST_NOT_FOUND.
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW, "x", null,
                 null, null, null, null, null, null, List.of(), null, Instant.now(), Instant.now());
@@ -607,7 +608,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void resultsReturnsSlicedRows() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT id,name FROM users", QueryType.SELECT, QueryStatus.EXECUTED,
                 "x", null, 3L, 12, null, null, null, null,
@@ -638,7 +639,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void resultsReturns404WhenNoStoredResults() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "x", null, null, null, null, null, null, null,
@@ -657,7 +658,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void resultsReturns422WhenQueryIsNotSelect() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
                 "x", null, 1L, 5, null, null, null, null,
@@ -680,12 +681,14 @@ class QueryReadControllerIntegrationTest {
     void diffReturnsDeltasAgainstLinkedPreviousRun() {
         var previousId = UUID.randomUUID();
         var currentId = UUID.randomUUID();
-        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", org.getId(),
+        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "rerun", null, 10L, 30, null, previousId,
                 null, null, List.of(), null, Instant.now(), Instant.now());
-        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", org.getId(),
+        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "first run", null, 8L, 50, null, null,
@@ -718,7 +721,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void diffReturns404WhenNoPreviousRunIsLinked() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "first run", null, 1L, 5, null, null,
@@ -741,12 +744,14 @@ class QueryReadControllerIntegrationTest {
     void diffReturnsNullRowCountDeltaWhenEitherRunIsNotSelect() {
         var previousId = UUID.randomUUID();
         var currentId = UUID.randomUUID();
-        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", org.getId(),
+        var current = new QueryDetailView(currentId, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
                 "rerun", null, 3L, 12, null, previousId,
                 null, null, List.of(), null, Instant.now(), Instant.now());
-        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", org.getId(),
+        var previous = new QueryDetailView(previousId, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(),
                 analyst.getId(), analyst.getEmail(), analyst.getDisplayName(),
                 "UPDATE x SET y=1", QueryType.UPDATE, QueryStatus.EXECUTED,
                 "first run", null, 1L, 20, null, null,
@@ -769,7 +774,7 @@ class QueryReadControllerIntegrationTest {
     @Test
     void diffReturns404WhenNonAdminCallerIsNotSubmitter() {
         var qid = UUID.randomUUID();
-        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", org.getId(),
+        var detail = new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL, org.getId(),
                 admin.getId(), admin.getEmail(), admin.getDisplayName(),
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "x", null, 1L, 5, null, UUID.randomUUID(),

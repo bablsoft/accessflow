@@ -356,6 +356,7 @@ class DefaultQueryExecutorTest {
                 false, null, false, null, null, null, null, null, null, true);
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
         var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
         when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
         var expected = new UpdateExecutionResult(1, Duration.ZERO, java.util.Set.of());
         when(engine.execute(org.mockito.ArgumentMatchers.any())).thenReturn(expected);

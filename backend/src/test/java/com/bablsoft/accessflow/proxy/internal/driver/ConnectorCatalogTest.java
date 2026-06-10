@@ -64,8 +64,9 @@ class ConnectorCatalogTest {
                 assertThat(manifest.driver()).isNull();
             } else {
                 assertThat(manifest.sha256()).matches("[0-9a-f]{64}");
-                if (manifest.isDocument()) {
-                    // DOCUMENT connectors pin an engine-plugin jar (AF-414), not a JDBC driver.
+                if (manifest.requiresEngine()) {
+                    // Engine-managed (non-RELATIONAL) connectors pin an engine-plugin jar
+                    // (AF-414), not a JDBC driver.
                     assertThat(manifest.jdbcUrlTemplate()).isNull();
                 } else {
                     assertThat(manifest.jdbcUrlTemplate()).contains("{host}").contains("{port}");
