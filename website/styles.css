@@ -299,6 +299,7 @@ section + section { border-top: 1px solid var(--line); }
   top: 44px;
   right: 0;
   min-width: 220px;
+  max-width: calc(100vw - 32px);
   background: var(--bg-1);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -563,6 +564,9 @@ section + section { border-top: 1px solid var(--line); }
 .arch-cell .label { display: block; color: var(--fg-mute); font-size: 10px; letter-spacing: 0.1em; margin-bottom: 4px; }
 .arch-cell .value { color: var(--fg); }
 .arch-cell.accent .value { color: var(--accent); }
+
+.arch-cell-md { min-width: 360px; }
+.arch-cell-lg { min-width: 460px; }
 
 .arch-conn {
   width: 1px;
@@ -1315,6 +1319,21 @@ footer {
   .hero-meta { gap: 16px; }
   .review-row { grid-template-columns: 1fr auto; gap: 8px; }
   .review-row .id, .review-row .who { display: none; }
+  /* long identifiers wrap instead of pushing the page wide */
+  .docs-section li > code,
+  .docs-section p > code { white-space: normal; overflow-wrap: anywhere; }
+  /* roomier tap targets on touch screens */
+  .docs-toc a { padding: 10px 12px; }
+  .copy-btn { padding: 8px 12px; font-size: 12px; }
+  .copy-btn svg { width: 14px; height: 14px; }
+}
+
+@media (max-width: 640px) {
+  /* stacked, full-width architecture cells — no horizontal scroll on phones */
+  .arch-cell,
+  .arch-cell-md,
+  .arch-cell-lg { min-width: 0; width: 100%; }
+  .arch-row { width: 100%; }
 }
 
 /* util */
@@ -1324,6 +1343,9 @@ footer {
   margin: 32px 0;
 }
 .scroll-pad { scroll-margin-top: 80px; }
+
+/* never let media push the page wider than the viewport on small screens */
+img, table, pre { max-width: 100%; }
 
 /* Docs page
    ---------------------------------------------------------------- */

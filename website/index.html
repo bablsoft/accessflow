@@ -185,7 +185,7 @@
           </h1>
           <p class="hero-sub">
             AccessFlow is an open-source SQL proxy that sits between your team and your databases.
-            Every query is parsed, classified, optionally AI-reviewed, and routed through a configurable
+            Every query is checked, sorted by type, optionally AI-reviewed, and routed through a configurable
             human-approval workflow before it touches production — with a tamper-evident metadata audit
             trail of every decision.
           </p>
@@ -236,9 +236,10 @@
           <span class="eyebrow">Architecture</span>
           <h2>One proxy. Every query. Zero shared credentials.</h2>
           <p>
-            AccessFlow is the sole path between users and production databases. Customer-database
-            credentials never leave the proxy — users authenticate to AccessFlow, the proxy holds the
-            real JDBC connection pools and opens connections only after a query is approved.
+            Nobody gets the database password — not even your own team. AccessFlow sits in the middle
+            and is the only thing that ever connects to the real database, and only after a query is
+            approved. Users sign in to AccessFlow, never to the database; behind the scenes the proxy
+            holds the real database connection pools and opens connections on their behalf.
           </p>
         </div>
 
@@ -251,7 +252,7 @@
           </div>
           <div class="arch-conn" aria-hidden="true"></div>
           <div class="arch-row">
-            <div class="arch-cell accent" style="min-width: 360px;">
+            <div class="arch-cell accent arch-cell-md">
               <span class="label">API GATEWAY</span>
               <span class="value">REST + WebSocket gateway · JWT · modular service</span>
             </div>
@@ -277,16 +278,16 @@
           </div>
           <div class="arch-conn" aria-hidden="true"></div>
           <div class="arch-row">
-            <div class="arch-cell" style="min-width: 360px;">
+            <div class="arch-cell arch-cell-md">
               <span class="label">INTERNAL STATE</span>
               <span class="value">PostgreSQL · Redis</span>
             </div>
           </div>
           <div class="arch-conn" aria-hidden="true"></div>
           <div class="arch-row">
-            <div class="arch-cell accent" style="min-width: 460px;">
+            <div class="arch-cell accent arch-cell-lg">
               <span class="label">CUSTOMER DATABASES (PROXIED)</span>
-              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom JDBC · MongoDB</span>
+              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB</span>
             </div>
           </div>
         </div>
@@ -314,7 +315,7 @@
         <div class="section-head">
           <span class="eyebrow">Capabilities</span>
           <h2>The middle ground between blanket access and a DBA ticket queue.</h2>
-          <p>Composable subsystems, configurable per datasource, observable end-to-end. Deployable inside your own infrastructure with no telemetry leaving the box.</p>
+          <p>Turn each capability on where you need it, tune it per database, and see everything that happens. Runs entirely inside your own infrastructure — nothing leaves the box.</p>
         </div>
         <div class="feat-grid">
 
@@ -323,8 +324,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
             </div>
             <h3>Full query proxy — SQL and NoSQL</h3>
-            <p>Every statement is parsed with JSqlParser, classified as SELECT / DML / DDL, validated against schema and table allow-lists at the AST level, then routed through your review policy before it touches the database. <strong>MongoDB</strong> gets the same treatment through a native engine — shell (<span class="mono">db.coll.find({…})</span>) or JSON-command queries are parsed, classified, and governed identically, with row-level security applied as <span class="mono">$match</span> stages and field masking on returned documents; results render as both a JSON document view and a flattened table. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed query so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered.</p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · connector catalog · custom JDBC · read-replica routing · dynamic masking · row-level security</span>
+            <p>Every query is inspected before it ever reaches the database. Each statement is parsed, classified as SELECT / DML / DDL, and validated against schema and table allow-lists at the query-structure level, then routed through your review policy before it touches the database. <strong>MongoDB</strong> gets the same treatment through a native engine — shell (<span class="mono">db.coll.find({…})</span>) or JSON-command queries are parsed, classified, and governed identically, with row-level security applied as <span class="mono">$match</span> stages and field masking on returned documents; results render as both a JSON document view and a flattened table. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed query so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered.</p>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · connector catalog · custom drivers · read-replica routing · dynamic masking · row-level security</span>
           </div>
 
           <div class="feat">
@@ -335,7 +336,7 @@
               </svg>
             </div>
             <h3>AI query analysis</h3>
-            <p>Pluggable per-organization analyzer — Anthropic, OpenAI, Ollama, any OpenAI-compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …), or Hugging Face (hosted Inference Providers router or a local / self-hosted TGI server). Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human ever sees it. Tailor the analyzer's behaviour with an <strong>editable system prompt per configuration</strong> — override the built-in template or leave it blank to use the default. Opt in per datasource to <strong>text-to-SQL</strong> — users describe what they want in plain language and the AI drafts a schema-grounded query into the editor (restricted columns are never referenced); the draft still flows through risk analysis and human review. Attach a per-configuration <strong>RAG knowledge base</strong> — knowledge documents are embedded and the most relevant chunks are retrieved into the prompt so analysis reflects your house rules (pluggable vector store: in-app pgvector or external Qdrant). Optional <strong>Langfuse integration</strong> adds LLM tracing of every analysis and runtime prompt management. An admin <span class="mono">/admin/ai-analyses</span> dashboard charts average risk over time, top issue categories, and most active submitters.</p>
+            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. The analyzer is pluggable per organization — Anthropic, OpenAI, Ollama, any OpenAI-compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …), or Hugging Face (hosted Inference Providers router or a local / self-hosted TGI server). Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human ever sees it. Tailor the analyzer's behaviour with an <strong>editable system prompt per configuration</strong> — override the built-in template or leave it blank to use the default. Opt in per datasource to <strong>text-to-SQL</strong> — users describe what they want in plain language and the AI drafts a schema-grounded query into the editor (restricted columns are never referenced); the draft still flows through risk analysis and human review. Attach a per-configuration <strong>RAG knowledge base</strong> — knowledge documents are embedded and the most relevant chunks are retrieved into the prompt so analysis reflects your house rules (pluggable vector store: in-app pgvector or external Qdrant). Optional <strong>Langfuse integration</strong> adds LLM tracing of every analysis and runtime prompt management. An admin <span class="mono">/admin/ai-analyses</span> dashboard charts average risk over time, top issue categories, and most active submitters.</p>
             <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Text-to-SQL · RAG · Langfuse · History dashboard</span>
           </div>
 
@@ -344,7 +345,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
             <h3>Configurable review workflows</h3>
-            <p>Per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Bulk approve, reject, or request changes on whole batches from <span class="mono">/reviews</span> so high-volume queues clear in one action. Scope reviewers to specific datasources by user or by <strong>group</strong> so each team only sees its own queue. Layer on <strong>policy-as-code routing</strong> — ordered rules that, right after AI analysis, auto-approve, auto-reject, require N approvals, or escalate a query based on its type, referenced tables, AI risk, requester role or group, and time-of-day; first match by priority wins, anything unmatched falls through to the review plan. Users can also raise a <strong>just-in-time access request</strong> — temporary, scoped read/write/DDL access for a set duration that runs through the same approval engine, is granted as a time-boxed permission, and is auto-revoked on expiry. Reviewers are paged via Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or HMAC-signed webhooks — and with a Slack app connected they can <strong>approve or reject directly from the Slack message</strong>, with the same self-approval and role checks as the UI.</p>
+            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Bulk approve, reject, or request changes on whole batches from <span class="mono">/reviews</span> so high-volume queues clear in one action. Scope reviewers to specific datasources by user or by <strong>group</strong> so each team only sees its own queue. Layer on <strong>policy-as-code routing</strong> — ordered rules that, right after AI analysis, auto-approve, auto-reject, require N approvals, or escalate a query based on its type, referenced tables, AI risk, requester role or group, and time-of-day; first match by priority wins, anything unmatched falls through to the review plan. Users can also raise a <strong>just-in-time access request</strong> — temporary, scoped read/write/DDL access for a set duration that runs through the same approval engine, is granted as a time-boxed permission, and is auto-revoked on expiry. Reviewers are paged via Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or HMAC-signed webhooks — and with a Slack app connected they can <strong>approve or reject directly from the Slack message</strong>, with the same self-approval and role checks as the UI.</p>
             <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Bulk decisions · Slack approve/reject · Email · Slack · Discord · Telegram · Teams · PagerDuty · Webhooks</span>
           </div>
 
@@ -353,7 +354,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>Workforce-ready auth</h3>
-            <p>JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping and per-IdP group mapping that auto-syncs AccessFlow group memberships on every login. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab, plus a generic OIDC provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel) — plus optional TOTP 2FA.</p>
+            <p>Sign in with the accounts your company already uses. JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping and per-IdP group mapping that auto-syncs AccessFlow group memberships on every login. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab, plus a generic OIDC provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel) — plus optional TOTP 2FA.</p>
             <span class="tag">JWT · SAML · OAuth · IdP group sync · TOTP</span>
           </div>
 
@@ -362,7 +363,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <h3>Tamper-evident audit</h3>
-            <p>Append-only metadata audit log chained with HMAC-SHA256. INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored.</p>
+            <p>Every decision is recorded in a log that can't be quietly edited after the fact. The append-only metadata audit log is chained with HMAC-SHA256, and INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored.</p>
             <span class="tag">HMAC-SHA256 chain</span>
           </div>
 
@@ -371,8 +372,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
             </div>
             <h3>Cloud-native deploy</h3>
-            <p>One <span class="mono">docker compose up</span> for local and small environments. Helm 3 chart for Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas.</p>
-            <span class="tag">Docker · Helm · Kubernetes · Modulith</span>
+            <p>Run it on a laptop with one command, or on Kubernetes for production. One <span class="mono">docker compose up</span> covers local and small environments; a Helm 3 chart covers Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas.</p>
+            <span class="tag">Docker · Helm · Kubernetes</span>
           </div>
 
         </div>
@@ -385,7 +386,7 @@
         <div class="section-head">
           <span class="eyebrow">Connectors</span>
           <h2>A growing catalog of SQL and NoSQL connectors.</h2>
-          <p>Supported databases are described by a declarative <strong>connector catalog</strong> — one manifest and logo per database, versioned in the repo and bundled with every release. Each connector carries a <strong>category</strong> that separates the <strong>SQL</strong> (relational) family from the <strong>NoSQL</strong> (document) family. Admins browse the catalog and install a relational database's JDBC driver in one click; the download is SHA-256-verified and cached. Engines beyond the built-in five install the same way, anything else can be added by uploading a custom JDBC driver, and <strong>MongoDB</strong> installs the same way too — its native engine ships as an on-demand plugin JAR resolved through the catalog. <a href="docs/#cfg-connectors">Read the connector docs →</a></p>
+          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL) and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and MongoDB's native engine is resolved on demand the same way. <a href="docs/#cfg-connectors">Read the connector docs →</a></p>
         </div>
         <p class="eyebrow" style="margin-top:8px">SQL</p>
         <div class="conn-grid">
@@ -393,7 +394,7 @@
           <div class="conn-card">
             <span class="conn-logo"><img src="db-icons/postgresql.svg" alt="PostgreSQL" width="40" height="40" loading="lazy" /></span>
             <span class="conn-name">PostgreSQL</span>
-            <span class="conn-tag">Bundled</span>
+            <span class="conn-tag">Built in</span>
           </div>
 
           <div class="conn-card">
@@ -428,7 +429,7 @@
 
           <div class="conn-card conn-card-custom">
             <span class="conn-logo conn-logo-plus" aria-hidden="true">+</span>
-            <span class="conn-name">Custom JDBC</span>
+            <span class="conn-name">Custom driver</span>
             <span class="conn-tag">Upload any driver</span>
           </div>
 
@@ -452,7 +453,7 @@
         <div class="section-head">
           <span class="eyebrow">Request flow</span>
           <h2>From keystroke to commit, observable at every step.</h2>
-          <p>A single state machine drives every query through classification, review, and execution. Each transition is auditable, cancellable, and replayable.</p>
+          <p>Every query follows the same predictable path — submitted, reviewed, run — and each step is recorded. A single state machine drives that flow through classification, review, and execution, and every transition is auditable, cancellable, and replayable.</p>
         </div>
 
         <div class="flow-grid">
@@ -482,7 +483,7 @@
               <div class="flow-num">04</div>
               <div>
                 <h4>Proxy executes</h4>
-                <p>AccessFlow opens a JDBC connection from the per-datasource HikariCP pool, executes, captures metadata.</p>
+                <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
@@ -619,8 +620,8 @@
                   <span style="margin-left: auto;" class="mono"><span style="color: var(--accent);">● live</span> · streaming via /ws</span>
                 </div>
                 <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
-                  <div style="color: var(--fg-mute);">↳ proxy → <span style="color: var(--fg);">jdbc:postgresql://prod-orders.db.internal:5432</span></div>
-                  <div style="color: var(--fg-mute);">↳ pool <span style="color: var(--info);">hikari-prod-orders</span> · borrowed conn #7 of 20</div>
+                  <div style="color: var(--fg-mute);">↳ proxy → <span style="color: var(--fg);">postgresql://prod-orders.db.internal:5432</span></div>
+                  <div style="color: var(--fg-mute);">↳ pool <span style="color: var(--info);">pool-prod-orders</span> · borrowed conn #7 of 20</div>
                   <div style="color: var(--fg-mute);">↳ setMaxRows = 10000 (datasource cap)</div>
                   <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
                   <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
@@ -877,7 +878,7 @@
             <span class="ver">v1.0</span>
             <h4>Core platform</h4>
             <ul>
-              <li>SQL proxy · 5 DBs + custom JDBC</li>
+              <li>SQL proxy · 5 DBs + custom drivers</li>
               <li>AI review · risk + index hints</li>
               <li>Multi-stage approval workflows</li>
               <li>JWT · SAML · OAuth · TOTP 2FA</li>
@@ -889,7 +890,7 @@
             <span class="ver">v1.1</span>
             <h4>Productivity</h4>
             <ul>
-              <li>Dynamic JDBC driver loading</li>
+              <li>Dynamic driver loading</li>
               <li>Datasource creation wizard</li>
               <li>Query scheduling</li>
               <li>Bulk approval UI</li>
@@ -943,7 +944,7 @@
               <li>MongoDB query governance</li>
               <li>Redis access governance</li>
               <li>REST API governance</li>
-              <li>Custom analyzer plugin SPI</li>
+              <li>Custom analyzer plugins</li>
               <li>Column-level permissions</li>
               <li>Native wire-protocol gateway</li>
               <li>Behavioral anomaly detection</li>
@@ -970,7 +971,7 @@
         <div class="section-head">
           <span class="eyebrow">Documentation</span>
           <h2>Thirteen chapters. Read them in any order.</h2>
-          <p>Every subsystem is documented — architecture diagrams, schemas, payload examples, deployment recipes, and security model. Open source in the same repo.</p>
+          <p>Every subsystem is documented — architecture diagrams, schemas, payload examples, deployment recipes, and security model. Open source in the same repo. New here? The <a href="docs/">run &amp; configure guide</a> walks you through installing AccessFlow and setting it up step by step.</p>
         </div>
         <div class="docs-grid">
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/01-overview.md" class="doc-card">
@@ -996,7 +997,7 @@
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md" class="doc-card">
             <span class="doc-num">05</span>
             <h4>Backend</h4>
-            <p>Modulith layout, proxy engine, workflow state machine.</p>
+            <p>Modular backend, proxy engine, workflow state machine.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md" class="doc-card">
             <span class="doc-num">06</span>
