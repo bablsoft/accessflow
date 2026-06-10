@@ -328,6 +328,9 @@
     "submit_button": "提交审核",
     "submitting_button": "提交中",
     "format_button": "格式化",
+    "syntax_label": "查询语法",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "理由",
     "justification_required_note": "· 审核所必需",
     "justification_placeholder": "您为什么要运行此查询？",
@@ -502,6 +505,9 @@
       "on_execute_success": "查询已执行",
       "on_execute_error": "执行失败",
       "card_results": "结果",
+      "view_label": "结果视图",
+      "view_table": "表格",
+      "view_json": "JSON",
       "results_unavailable": "结果尚不可用",
       "results_truncated": "已返回 {{count}} 行（被数据源 max_rows 截断）",
       "column_masked_tooltip": "该列因访问策略被屏蔽",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "自定义"
+      "CUSTOM": "自定义",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "禁用",
@@ -1960,6 +1967,8 @@
     "installed": "已安装",
     "unavailable": "不可用",
     "install_success": "已安装 {{name}}",
-    "docs_link": "文档"
+    "docs_link": "文档",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }

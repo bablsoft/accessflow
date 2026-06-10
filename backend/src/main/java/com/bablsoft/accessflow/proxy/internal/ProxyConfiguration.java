@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.proxy.internal.driver.DriverProperties;
+import com.bablsoft.accessflow.proxy.internal.mongo.ProxyMongoProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
@@ -11,7 +12,7 @@ import java.time.Clock;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({ProxyPoolProperties.class, DriverProperties.class,
-        ProxyHealthProperties.class})
+        ProxyHealthProperties.class, ProxyMongoProperties.class})
 class ProxyConfiguration {
 
     /** Spring cache holding per-{@code (organizationId, datasourceId)} health snapshots. */

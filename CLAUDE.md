@@ -6,7 +6,7 @@ This file is the authoritative guide for AI agents implementing AccessFlow. Read
 
 ## Project at a Glance
 
-AccessFlow is an open-source **database access governance platform**. It acts as a full SQL proxy between users and customer databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be added by uploading its driver JAR (`db_type=CUSTOM`) — enforcing configurable review and approval workflows before any query executes. Core capabilities: AI-powered SQL analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications.
+AccessFlow is an open-source **database access governance platform**. It acts as a full query proxy between users and customer databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box (any other JDBC-compatible engine can be added by uploading its driver JAR, `db_type=CUSTOM`), plus the NoSQL document engine **MongoDB** (`db_type=MONGODB`, a bundled native — not JDBC — connector) — enforcing configurable review and approval workflows before any query executes. The connector catalog separates **SQL** (relational) from **NoSQL** (document) families via a `category` field. Core capabilities: AI-powered query analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications. **MongoDB engine** (see `docs/05-backend.md` → "MongoDB engine"): native `mongodb-driver-sync`, a MongoDB query parser (shell `db.coll.find({…})` and JSON-command forms) dispatched via `proxy.api.QueryParser` instead of JSqlParser, `$match`-injection row-level security + post-fetch field masking at parity with the SQL path, and collection-sampling schema introspection.
 
 AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab; a generic `OIDC` provider type covers other IdPs — Keycloak, Auth0, Okta, Authentik, Zitadel — with admin-editable endpoint URLs persisted on the `oauth2_config` row).
 
@@ -238,7 +238,10 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
-| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | ISO-8601 duration. Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll (default `PT30S`). |
+| `ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-MongoDB-datasource `MongoClient` (default `PT10S`). MongoDB-only; the relational pools use the `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` HikariCP knob. |
+| `ACCESSFLOW_PROXY_MONGO_SERVER_SELECTION_TIMEOUT` | ISO-8601 duration. MongoDB server-selection timeout (default `PT10S`). |
+| `ACCESSFLOW_PROXY_MONGO_MAX_POOL_SIZE` | Max connections in the native MongoDB driver's internal pool (default `10`). |
+| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | ISO-8601 duration. Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll (default `PT30S`). MongoDB datasources report query stats but no JDBC pool counters. |
 | `ACCESSFLOW_PUBLIC_BASE_URL` | Public base URL embedded in notification email links and webhook payloads (default `http://localhost:5173`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | ISO-8601 duration before the first webhook retry (default `PT30S`). |
 | `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
@@ -459,7 +462,8 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | @ant-design/charts | 2.x | Admin dashboard charts (AI analyses history) |
 | @xyflow/react | 12.x | ER diagram on `DatasourceSettingsPage` |
 | dagre | 0.8.x | Auto-layout for the ER diagram graph |
-| CodeMirror + @codemirror/lang-sql | 6.x | SQL editor |
+| CodeMirror + @codemirror/lang-sql | 6.x | SQL editor (PostgreSQL/MySQL dialects) |
+| @codemirror/lang-javascript + @codemirror/lang-json | 6.x | MongoDB query highlighting — shell (JS) and JSON-command modes |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |

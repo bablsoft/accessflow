@@ -23,10 +23,11 @@ async function waitForConnectorsReady(page: Page): Promise<void> {
   );
 }
 
-// AF-334 covers the connector marketplace at /admin/connectors:
-//   1. Browse — the declarative connector catalog renders (the bundled
-//      PostgreSQL connector shows "Installed"; ClickHouse — a CUSTOM-dialect
-//      connector — shows an Install button).
+// AF-334 + AF-411 cover the connector marketplace at /admin/connectors:
+//   1. Browse — the declarative connector catalog renders, grouped into SQL and
+//      NoSQL sections (the bundled PostgreSQL connector shows "Installed";
+//      ClickHouse — a CUSTOM-dialect connector — shows an Install button;
+//      MongoDB appears as a bundled NoSQL connector, "Installed").
 //   2. Search — filtering by name narrows the grid.
 //   3. Install — clicking Install issues POST /connectors/{id}/install and the
 //      UI surfaces the result. The actual driver download needs egress to
@@ -34,17 +35,23 @@ async function waitForConnectorsReady(page: Page): Promise<void> {
 //      toast appears (success when reachable, an error toast otherwise) rather
 //      than coupling to network availability.
 test.describe.serial('/admin/connectors — connector catalog', () => {
-  test('1) browse the connector catalog', async ({ page }) => {
+  test('1) browse the connector catalog grouped by SQL and NoSQL', async ({ page }) => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/connectors');
     await waitForConnectorsReady(page);
 
     await expect(page.getByRole('heading', { name: 'Connectors' })).toBeVisible();
+    // SQL and NoSQL category sections both render.
+    await expect(page.getByRole('heading', { name: 'SQL', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'NoSQL', exact: true })).toBeVisible();
     // PostgreSQL is bundled → READY → rendered as "Installed", no install button.
     const postgresCard = page.getByText('PostgreSQL', { exact: true }).first();
     await expect(postgresCard).toBeVisible();
     // ClickHouse is a CUSTOM-dialect connector → installable.
     await expect(page.getByText('ClickHouse', { exact: true })).toBeVisible();
+    // MongoDB is the bundled NoSQL connector (its name + the green db-type tag both
+    // read "MongoDB", so scope to the first match).
+    await expect(page.getByText('MongoDB', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Installed').first()).toBeVisible();
   });
 
@@ -71,6 +78,7 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
     const clickhouse = {
       id: 'clickhouse',
       db_type: 'CUSTOM',
+      category: 'RELATIONAL',
       name: 'ClickHouse',
       icon_url: '/db-icons/clickhouse.svg',
       vendor: 'ClickHouse, Inc.',

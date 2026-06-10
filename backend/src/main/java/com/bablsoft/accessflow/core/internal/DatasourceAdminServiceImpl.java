@@ -80,6 +80,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final CredentialEncryptionService encryptionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final DriverCatalogService driverCatalog;
+    private final com.bablsoft.accessflow.core.internal.mongo.MongoConnectionProbe mongoConnectionProbe;
+    private final com.bablsoft.accessflow.core.internal.mongo.MongoSchemaIntrospector mongoSchemaIntrospector;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -130,9 +132,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (connectorId != null) {
             // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
             driverCatalog.resolveConnector(connectorId);
-        } else if (customDriver == null) {
+        } else if (customDriver == null && command.dbType() != DbType.MONGODB) {
             // Fail-fast for bundled drivers (mirrors pre-#94 behaviour). Custom drivers are
-            // probe-loaded at upload time, so we trust the catalog cache here.
+            // probe-loaded at upload time, so we trust the catalog cache here. MONGODB is a native
+            // (non-JDBC) engine resolved by the proxy MongoClientManager — it has no JDBC driver.
             driverCatalog.resolve(command.dbType());
         }
         var entity = new DatasourceEntity();
@@ -348,6 +351,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional(readOnly = true)
     public ConnectionTestResult test(UUID id, UUID organizationId) {
         var entity = loadInOrganization(id, organizationId);
+        if (entity.getDbType() == DbType.MONGODB) {
+            return mongoConnectionProbe.test(DatasourceDescriptorMapper.from(entity));
+        }
         var resolved = resolveDriver(entity);
         var url = buildJdbcUrl(entity);
         var props = jdbcProperties(entity);
@@ -444,6 +450,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     private DatabaseSchemaView introspect(UUID id, DatasourceEntity entity) {
+        if (entity.getDbType() == DbType.MONGODB) {
+            return mongoSchemaIntrospector.introspect(DatasourceDescriptorMapper.from(entity));
+        }
         var resolved = resolveDriver(entity);
         var url = buildJdbcUrl(entity);
         var props = jdbcProperties(entity);

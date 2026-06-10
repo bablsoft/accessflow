@@ -7,6 +7,7 @@ import type { DatasourceTypeOption } from '@/types/api';
 const bundledTypes: DatasourceTypeOption[] = [
   {
     code: 'POSTGRESQL',
+    category: 'RELATIONAL',
     display_name: 'PostgreSQL',
     icon_url: '/db-icons/postgresql.svg',
     default_port: 5432,
@@ -24,6 +25,7 @@ const bundledTypes: DatasourceTypeOption[] = [
   },
   {
     code: 'MYSQL',
+    category: 'RELATIONAL',
     display_name: 'MySQL',
     icon_url: '/db-icons/mysql.svg',
     default_port: 3306,
@@ -41,6 +43,7 @@ const bundledTypes: DatasourceTypeOption[] = [
   },
   {
     code: 'ORACLE',
+    category: 'RELATIONAL',
     display_name: 'Oracle Database',
     icon_url: '/db-icons/oracle.svg',
     default_port: 1521,
@@ -60,6 +63,7 @@ const bundledTypes: DatasourceTypeOption[] = [
 
 const uploadedDriver: DatasourceTypeOption = {
   code: 'CUSTOM',
+  category: 'RELATIONAL',
   display_name: 'Acme (custom snowflake.jar)',
   icon_url: '/db-icons/custom.svg',
   default_port: 0,
@@ -78,6 +82,7 @@ const uploadedDriver: DatasourceTypeOption = {
 
 const connectorOption: DatasourceTypeOption = {
   code: 'CUSTOM',
+  category: 'RELATIONAL',
   display_name: 'ClickHouse',
   icon_url: '/db-icons/clickhouse.svg',
   default_port: 8123,

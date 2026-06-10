@@ -13,16 +13,16 @@ import java.util.Map;
  * never touches the database. Returns {@code null} for a {@code null} input (a NULL cell stays
  * NULL). The output is what gets serialized and persisted — the unmasked value is never retained.
  */
-final class ColumnMasker {
+public final class ColumnMasker {
 
-    static final String FULL_MASK = "***";
+    public static final String FULL_MASK = "***";
     static final int DEFAULT_VISIBLE_SUFFIX = 4;
     static final char MASK_CHAR = '*';
 
     private ColumnMasker() {
     }
 
-    static String apply(MaskingStrategy strategy, String raw, Map<String, String> params) {
+    public static String apply(MaskingStrategy strategy, String raw, Map<String, String> params) {
         if (raw == null) {
             return null;
         }

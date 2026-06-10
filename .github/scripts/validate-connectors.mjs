@@ -10,7 +10,8 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd(), 'connectors');
-const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM'];
+const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB'];
+const CATEGORIES = ['RELATIONAL', 'DOCUMENT'];
 const SSL_MODES = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
 const SHA256 = /^[0-9a-f]{64}$/;
 const ID = /^[a-z0-9][a-z0-9-]*$/;
@@ -45,10 +46,14 @@ for (const folder of entries) {
   if (m.id !== folder) fail(folder, `id "${m.id}" does not match folder "${folder}"`);
   if (!m.name) fail(folder, 'name is required');
   if (!DB_TYPES.includes(m.dbType)) fail(folder, `dbType "${m.dbType}" is invalid`);
+  if (m.category != null && !CATEGORIES.includes(m.category)) fail(folder, `category "${m.category}" is invalid`);
   if (!SSL_MODES.includes(m.defaultSslMode)) fail(folder, `defaultSslMode "${m.defaultSslMode}" is invalid`);
   if (typeof m.defaultPort !== 'number') fail(folder, 'defaultPort must be a number');
-  if (!m.jdbcUrlTemplate) fail(folder, 'jdbcUrlTemplate is required');
-  if (!m.driverClassName) fail(folder, 'driverClassName is required');
+  // Document (NoSQL) connectors are native, not JDBC — jdbcUrlTemplate/driverClassName are required
+  // only for the default RELATIONAL category.
+  const isDocument = m.category === 'DOCUMENT';
+  if (!isDocument && !m.jdbcUrlTemplate) fail(folder, 'jdbcUrlTemplate is required');
+  if (!isDocument && !m.driverClassName) fail(folder, 'driverClassName is required');
   if (typeof m.bundled !== 'boolean') fail(folder, 'bundled must be a boolean');
   if (!m.logo) {
     fail(folder, 'logo is required');

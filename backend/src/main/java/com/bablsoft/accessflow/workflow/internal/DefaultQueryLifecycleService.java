@@ -6,7 +6,10 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
+import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
@@ -22,9 +25,9 @@ import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.RowSecurityDirective;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
-import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
@@ -60,7 +63,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final QueryRequestStateService queryRequestStateService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryExecutor queryExecutor;
-    private final SqlParserService sqlParserService;
+    private final QueryParser queryParser;
+    private final DatasourceLookupService datasourceLookupService;
     private final SqlCanonicalizer sqlCanonicalizer;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
@@ -154,7 +158,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .map(p -> new RowSecurityDirective(p.policyId(), p.tableRef(), p.columnName(),
                             p.operator(), p.values()))
                     .toList();
-            var parsed = sqlParserService.parse(query.sqlText());
+            var dbType = datasourceLookupService.findById(query.datasourceId())
+                    .map(DatasourceConnectionDescriptor::dbType)
+                    .orElse(DbType.POSTGRESQL);
+            var parsed = queryParser.parse(query.sqlText(), dbType);
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
                     restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),

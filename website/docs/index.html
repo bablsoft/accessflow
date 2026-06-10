@@ -238,9 +238,10 @@
         <section id="getting-started" class="docs-section">
           <h2>Read this first</h2>
           <p>
-            AccessFlow is a self-hosted SQL proxy. Your team connects to AccessFlow instead of
-            directly to PostgreSQL, MySQL, MariaDB, Oracle, or Microsoft SQL Server (or any other
-            JDBC-compatible engine, via an admin-uploaded driver). Every statement is parsed,
+            AccessFlow is a self-hosted query proxy. Your team connects to AccessFlow instead of
+            directly to PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server (or any other
+            JDBC-compatible engine, via an admin-uploaded driver), or the NoSQL document engine
+            MongoDB. Every statement is parsed,
             classified, optionally AI-reviewed, and routed through a configurable human-approval
             workflow before it touches the database. Customer-database credentials never leave the
             proxy.
@@ -849,14 +850,15 @@
           <h3 id="cfg-connectors">Connectors</h3>
           <p>
             The databases AccessFlow can proxy are described by a declarative <strong>connector
-            catalog</strong> — a curated set shipped with the product (PostgreSQL, MySQL, MariaDB,
-            Oracle, Microsoft SQL Server, and ClickHouse). Under <em>Admin → Connectors</em>
-            (<code>/admin/connectors</code>) an admin browses the catalog and <strong>installs</strong>
-            a database's JDBC driver with one click — AccessFlow downloads it, verifies its pinned
-            SHA-256, and caches it. Bundled connectors (PostgreSQL) show as <em>Installed</em>; the
-            rest show an <em>Install</em> action.
+            catalog</strong> — a curated set shipped with the product. Each connector has a
+            <strong>category</strong> that separates the <strong>SQL</strong> (relational) family from
+            the <strong>NoSQL</strong> (document) family, and the <em>Admin → Connectors</em>
+            (<code>/admin/connectors</code>) marketplace groups them accordingly. An admin browses the
+            catalog and <strong>installs</strong> a relational database's JDBC driver with one click —
+            AccessFlow downloads it, verifies its pinned SHA-256, and caches it. Bundled connectors
+            (PostgreSQL, MongoDB) show as <em>Installed</em>; the rest show an <em>Install</em> action.
           </p>
-          <p><strong>Built-in connectors:</strong></p>
+          <p><strong>Built-in connectors — SQL:</strong></p>
           <ul>
             <li><strong>PostgreSQL</strong> — bundled (ships in the image, no download).</li>
             <li><strong>MySQL</strong> — <code>com.mysql:mysql-connector-j</code> · 1-click install.</li>
@@ -864,6 +866,10 @@
             <li><strong>Oracle Database</strong> — <code>com.oracle.database.jdbc:ojdbc11</code> · 1-click install.</li>
             <li><strong>Microsoft SQL Server</strong> — <code>com.microsoft.sqlserver:mssql-jdbc</code> · 1-click install.</li>
             <li><strong>ClickHouse</strong> — <code>com.clickhouse:clickhouse-jdbc</code> · 1-click install (a CUSTOM-dialect connector, the first engine beyond the built-in five).</li>
+          </ul>
+          <p><strong>Built-in connectors — NoSQL:</strong></p>
+          <ul>
+            <li><strong>MongoDB</strong> — bundled native <code>org.mongodb:mongodb-driver-sync</code> (no download; not JDBC). Users write queries in the mongo shell form (<code>db.users.find({ … })</code>) or a JSON command document, chosen in the editor; results show in both a JSON document view and a flattened table. AI risk analysis, human approval, row-level security (<code>$match</code> injection), and field masking all apply. Configure it with the standard host/port/database/username/password/SSL fields.</li>
           </ul>
           <p>
             Adding a database is a data change, not a code change — each connector is a small

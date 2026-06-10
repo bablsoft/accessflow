@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.ConnectorCategory;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverStatus;
 import com.bablsoft.accessflow.core.api.DriverTypeInfo;
@@ -16,11 +17,13 @@ class DatasourceTypeResponseTest {
     void mapsAllFieldsFromDriverTypeInfo() {
         var info = DriverTypeInfo.bundled(DbType.POSTGRESQL, "PostgreSQL", "/db-icons/postgresql.svg",
                 5432, SslMode.VERIFY_FULL,
-                "jdbc:postgresql://{host}:{port}/{database_name}", DriverStatus.READY, true);
+                "jdbc:postgresql://{host}:{port}/{database_name}", DriverStatus.READY, true,
+                ConnectorCategory.RELATIONAL);
 
         var response = DatasourceTypeResponse.from(info);
 
         assertThat(response.code()).isEqualTo(DbType.POSTGRESQL);
+        assertThat(response.category()).isEqualTo(ConnectorCategory.RELATIONAL);
         assertThat(response.displayName()).isEqualTo("PostgreSQL");
         assertThat(response.iconUrl()).isEqualTo("/db-icons/postgresql.svg");
         assertThat(response.defaultPort()).isEqualTo(5432);
@@ -37,7 +40,7 @@ class DatasourceTypeResponseTest {
     void mapsBundledFalseForExternalDrivers() {
         var info = DriverTypeInfo.bundled(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
-                DriverStatus.AVAILABLE, false);
+                DriverStatus.AVAILABLE, false, ConnectorCategory.RELATIONAL);
 
         var response = DatasourceTypeResponse.from(info);
 
@@ -49,10 +52,10 @@ class DatasourceTypeResponseTest {
     void typesResponseWrapsListInCanonicalOrder() {
         var infoA = DriverTypeInfo.bundled(DbType.MYSQL, "MySQL", "/db-icons/mysql.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mysql://{host}:{port}/{database_name}",
-                DriverStatus.AVAILABLE, false);
+                DriverStatus.AVAILABLE, false, ConnectorCategory.RELATIONAL);
         var infoB = DriverTypeInfo.bundled(DbType.MARIADB, "MariaDB", "/db-icons/mariadb.svg", 3306,
                 SslMode.REQUIRE, "jdbc:mariadb://{host}:{port}/{database_name}",
-                DriverStatus.UNAVAILABLE, false);
+                DriverStatus.UNAVAILABLE, false, ConnectorCategory.RELATIONAL);
 
         var response = DatasourceTypesResponse.from(List.of(infoA, infoB));
 

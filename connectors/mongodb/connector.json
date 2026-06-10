@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "mongodb",
+  "name": "MongoDB",
+  "dbType": "MONGODB",
+  "category": "DOCUMENT",
+  "vendor": "MongoDB, Inc.",
+  "description": "The most popular open-source NoSQL document database. Bundled with AccessFlow — no install required.",
+  "documentationUrl": "https://www.mongodb.com/docs/drivers/java/sync/current/",
+  "logo": "logo.svg",
+  "defaultPort": 27017,
+  "defaultSslMode": "REQUIRE",
+  "bundled": true
+}

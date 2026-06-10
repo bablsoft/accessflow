@@ -87,7 +87,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
 | `name` | VARCHAR(255) — human-readable label; **UNIQUE per organization** (case-insensitive at the service layer) |
-| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` \| `MARIADB` \| `ORACLE` \| `MSSQL` \| `CUSTOM` — `CUSTOM` is paired with either `connector_id` (a catalog connector such as ClickHouse) or `custom_driver_id` + `jdbc_url_override` (an uploaded driver). See [14-connectors.md](./14-connectors.md). |
+| `db_type` | ENUM: `POSTGRESQL` \| `MYSQL` \| `MARIADB` \| `ORACLE` \| `MSSQL` \| `CUSTOM` \| `MONGODB` — `CUSTOM` is paired with either `connector_id` (a catalog connector such as ClickHouse) or `custom_driver_id` + `jdbc_url_override` (an uploaded driver). `MONGODB` is the NoSQL document engine: a bundled native (non-JDBC) connector that uses the standard `host`/`port`/`database_name`/`username`/`password`/`ssl_mode` fields (no `connector_id`, no `jdbc_url_override`). See [14-connectors.md](./14-connectors.md) and [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine). Added by migration `V71`. |
 | `host` | VARCHAR(255) — nullable; required for bundled `db_type`s, absent when `db_type=CUSTOM` |
 | `port` | INTEGER — nullable; same rule as `host` |
 | `database_name` | VARCHAR(255) — nullable; same rule as `host` |

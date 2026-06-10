@@ -24,6 +24,7 @@ import ConnectorsPage from './ConnectorsPage';
 const postgres: Connector = {
   id: 'postgresql',
   db_type: 'POSTGRESQL',
+  category: 'RELATIONAL',
   name: 'PostgreSQL',
   icon_url: '/db-icons/postgresql.svg',
   vendor: 'PGDG',
@@ -40,6 +41,7 @@ const postgres: Connector = {
 const clickhouse: Connector = {
   id: 'clickhouse',
   db_type: 'CUSTOM',
+  category: 'RELATIONAL',
   name: 'ClickHouse',
   icon_url: '/db-icons/clickhouse.svg',
   vendor: 'ClickHouse, Inc.',

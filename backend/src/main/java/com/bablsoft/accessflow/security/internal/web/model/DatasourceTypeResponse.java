@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.ConnectorCategory;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverStatus;
 import com.bablsoft.accessflow.core.api.DriverTypeInfo;
@@ -9,6 +10,7 @@ import java.util.UUID;
 
 public record DatasourceTypeResponse(
         DbType code,
+        ConnectorCategory category,
         String displayName,
         String iconUrl,
         int defaultPort,
@@ -27,6 +29,7 @@ public record DatasourceTypeResponse(
     public static DatasourceTypeResponse from(DriverTypeInfo info) {
         return new DatasourceTypeResponse(
                 info.code(),
+                info.category(),
                 info.displayName(),
                 info.iconUrl(),
                 info.defaultPort(),

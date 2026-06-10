@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.proxy.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
+import com.bablsoft.accessflow.proxy.internal.mongo.MongoQueryExecutor;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final JdbcResultRowMapper rowMapper;
     private final SqlExceptionTranslator sqlExceptionTranslator;
     private final RowSecurityRewriter rowSecurityRewriter;
+    private final MongoQueryExecutor mongoQueryExecutor;
     private final Clock clock;
     private final MessageSource messageSource;
 
@@ -55,6 +57,10 @@ class DefaultQueryExecutor implements QueryExecutor {
         Duration effectiveTimeout = request.statementTimeoutOverride() != null
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
+
+        if (descriptor.dbType() == DbType.MONGODB) {
+            return mongoQueryExecutor.execute(request, descriptor, effectiveMaxRows, effectiveTimeout);
+        }
 
         Instant start = clock.instant();
         if (request.transactional()) {

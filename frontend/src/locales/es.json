@@ -328,6 +328,9 @@
     "submit_button": "Enviar para revisión",
     "submitting_button": "Enviando",
     "format_button": "Formatear",
+    "syntax_label": "Sintaxis de consulta",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "Justificación",
     "justification_required_note": "· obligatoria para revisión",
     "justification_placeholder": "¿Por qué ejecutas esta consulta?",
@@ -502,6 +505,9 @@
       "on_execute_success": "Consulta ejecutada",
       "on_execute_error": "Error al ejecutar",
       "card_results": "Resultados",
+      "view_label": "Vista de resultados",
+      "view_table": "Tabla",
+      "view_json": "JSON",
       "results_unavailable": "Resultados aún no disponibles",
       "results_truncated": "{{count}} filas devueltas (truncadas por max_rows de la fuente)",
       "column_masked_tooltip": "Columna enmascarada por la política de acceso",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "Personalizado"
+      "CUSTOM": "Personalizado",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "Deshabilitar",
@@ -1960,6 +1967,8 @@
     "installed": "Instalado",
     "unavailable": "No disponible",
     "install_success": "{{name}} instalado",
-    "docs_link": "Documentación"
+    "docs_link": "Documentación",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }

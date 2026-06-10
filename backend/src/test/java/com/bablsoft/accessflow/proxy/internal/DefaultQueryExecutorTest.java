@@ -90,7 +90,9 @@ class DefaultQueryExecutorTest {
         var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
                 messageSource);
         executor = new DefaultQueryExecutor(router, lookupService, properties,
-                rowMapper, translator, new RowSecurityRewriter(messageSource), clock, messageSource);
+                rowMapper, translator, new RowSecurityRewriter(messageSource),
+                mock(com.bablsoft.accessflow.proxy.internal.mongo.MongoQueryExecutor.class),
+                clock, messageSource);
     }
 
     @Test

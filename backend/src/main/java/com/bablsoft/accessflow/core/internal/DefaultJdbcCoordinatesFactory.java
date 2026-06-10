@@ -35,6 +35,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     + ";databaseName=" + databaseName + mssqlSslSuffix(sslMode);
             case CUSTOM -> throw new IllegalStateException(
                     "CUSTOM db_type uses jdbc_url_override; build URL via DatasourceEntity, not here");
+            case MONGODB -> throw new IllegalStateException(
+                    "MONGODB is not JDBC-backed; connect via the proxy MongoClientManager, not here");
         };
     }
 
@@ -87,6 +89,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
             case MSSQL -> "com.microsoft.sqlserver.jdbc.SQLServerDriver";
             case CUSTOM -> throw new IllegalStateException(
                     "CUSTOM db_type uses an uploaded driver class; resolve via CustomJdbcDriverService");
+            case MONGODB -> throw new IllegalStateException(
+                    "MONGODB is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }

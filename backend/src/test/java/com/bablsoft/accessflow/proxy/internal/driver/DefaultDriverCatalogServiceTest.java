@@ -161,7 +161,8 @@ class DefaultDriverCatalogServiceTest {
     void listReturnsDialectsAsBundledAndCustomConnectorsAsConnectorSource() {
         var rows = service(false).list();
 
-        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(5);
+        // 5 SQL dialects + MongoDB (a bundled native engine) are surfaced with source "bundled".
+        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(6);
         var connectorRows = rows.stream().filter(r -> "connector".equals(r.source())).toList();
         assertThat(connectorRows).hasSize(1);
         assertThat(connectorRows.get(0).code()).isEqualTo(DbType.CUSTOM);
@@ -192,7 +193,7 @@ class DefaultDriverCatalogServiceTest {
         var rows = service(false).list(java.util.UUID.randomUUID(), null);
 
         assertThat(rows.stream().filter(r -> "uploaded".equals(r.source()))).isEmpty();
-        assertThat(rows).hasSize(6); // 5 dialects + clickhouse
+        assertThat(rows).hasSize(7); // 5 SQL dialects + mongodb + clickhouse
     }
 
     @Test
@@ -208,12 +209,13 @@ class DefaultDriverCatalogServiceTest {
     void externalDriversReportedAsNotBundled() {
         var infos = service(false).list();
 
+        // PostgreSQL and MongoDB are the bundled engines; every other dialect's driver is external.
         assertThat(infos)
-                .filteredOn(t -> t.code() != DbType.POSTGRESQL)
+                .filteredOn(t -> t.code() != DbType.POSTGRESQL && t.code() != DbType.MONGODB)
                 .extracting(DriverTypeInfo::bundled)
                 .containsOnly(false);
         assertThat(infos).extracting(DriverTypeInfo::code)
-                .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL);
+                .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL, DbType.MONGODB);
     }
 
     @Test

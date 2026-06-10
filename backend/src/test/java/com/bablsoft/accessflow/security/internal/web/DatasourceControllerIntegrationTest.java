@@ -206,10 +206,14 @@ class DatasourceControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(200);
-        // Five first-class dialects (source=bundled) plus the ClickHouse connector
-        // (source=connector, code=CUSTOM) from the declarative connector catalog.
+        // Five first-class SQL dialects + MongoDB (bundled native engine) plus the ClickHouse
+        // connector (source=connector, code=CUSTOM) from the declarative connector catalog.
         assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
-                .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM");
+                .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL",
+                        "CUSTOM", "MONGODB");
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.code=='MONGODB')].category").asArray()
+                .containsExactly("DOCUMENT");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.source=='connector')].connector_id").asArray()
                 .containsExactly("clickhouse");

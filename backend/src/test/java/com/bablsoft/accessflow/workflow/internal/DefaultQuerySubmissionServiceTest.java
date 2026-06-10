@@ -14,7 +14,7 @@ import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.SqlParseResult;
-import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,7 +44,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DefaultQuerySubmissionServiceTest {
 
-    @Mock SqlParserService sqlParserService;
+    @Mock QueryParser queryParser;
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock QueryRequestPersistenceService queryRequestPersistenceService;
@@ -97,6 +97,7 @@ class DefaultQuerySubmissionServiceTest {
 
     @Test
     void rejectsQueryTypeOther() {
+        stubActiveDatasourceForUser();
         stubParse("BEGIN", QueryType.OTHER);
 
         assertThatThrownBy(() -> service.submit(input("BEGIN", false)))
@@ -108,7 +109,6 @@ class DefaultQuerySubmissionServiceTest {
 
     @Test
     void rejectsInactiveDatasource() {
-        stubParse("SELECT 1", QueryType.SELECT);
         when(datasourceAdminService.getForUser(datasourceId, organizationId, userId))
                 .thenReturn(datasourceView(false));
 
@@ -166,7 +166,8 @@ class DefaultQuerySubmissionServiceTest {
 
     @Test
     void parserFailurePropagates() {
-        when(sqlParserService.parse("garbage"))
+        stubActiveDatasourceForUser();
+        when(queryParser.parse(eq("garbage"), any()))
                 .thenThrow(new InvalidSqlException("cannot parse"));
 
         assertThatThrownBy(() -> service.submit(input("garbage", false)))
@@ -313,7 +314,7 @@ class DefaultQuerySubmissionServiceTest {
     void transactionalBatchUnionOfTablesIsChecked() {
         String sql = "BEGIN; INSERT INTO public.a (id) VALUES (1); "
                 + "UPDATE secrets.b SET x=1 WHERE y=2; COMMIT;";
-        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(
+        when(queryParser.parse(eq(sql), any())).thenReturn(new SqlParseResult(
                 QueryType.INSERT, true,
                 List.of("INSERT INTO public.a (id) VALUES (1)",
                         "UPDATE secrets.b SET x = 1 WHERE y = 2"),
@@ -389,7 +390,7 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     private void stubParse(String sql, QueryType type, Set<String> referencedTables) {
-        when(sqlParserService.parse(sql)).thenReturn(
+        when(queryParser.parse(eq(sql), any())).thenReturn(
                 new SqlParseResult(type, false, List.of(sql), referencedTables));
     }
 

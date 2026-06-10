@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
+import com.bablsoft.accessflow.core.api.ConnectorCategory;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.proxy.internal.driver.ConnectorManifest.DriverArtifact;
@@ -43,21 +44,48 @@ class ConnectorManifestTest {
     @Test
     void bundledManifestExposesIconAndNullDriverFields() {
         var manifest = new ConnectorManifest(1, "postgresql", "PostgreSQL", DbType.POSTGRESQL,
-                "PGDG", "desc", "https://jdbc.postgresql.org/", "logo.svg", 5432,
-                SslMode.VERIFY_FULL, "jdbc:postgresql://{host}:{port}/{database_name}",
+                ConnectorCategory.RELATIONAL, "PGDG", "desc", "https://jdbc.postgresql.org/",
+                "logo.svg", 5432, SslMode.VERIFY_FULL,
+                "jdbc:postgresql://{host}:{port}/{database_name}",
                 "org.postgresql.Driver", true, null);
 
         assertThat(manifest.iconUrl()).isEqualTo("/db-icons/postgresql.svg");
         assertThat(manifest.jarFileName()).isNull();
         assertThat(manifest.sourceUrl(REPO)).isNull();
         assertThat(manifest.sha256()).isNull();
+        assertThat(manifest.isDocument()).isFalse();
+    }
+
+    @Test
+    void nullCategoryDefaultsToRelational() {
+        var manifest = new ConnectorManifest(1, "postgresql", "PostgreSQL", DbType.POSTGRESQL,
+                null, "PGDG", "desc", "https://jdbc.postgresql.org/", "logo.svg", 5432,
+                SslMode.VERIFY_FULL, "jdbc:postgresql://{host}:{port}/{database_name}",
+                "org.postgresql.Driver", true, null);
+
+        assertThat(manifest.category()).isEqualTo(ConnectorCategory.RELATIONAL);
+        assertThat(manifest.isDocument()).isFalse();
+    }
+
+    @Test
+    void documentManifestHasNoJdbcFields() {
+        var manifest = new ConnectorManifest(1, "mongodb", "MongoDB", DbType.MONGODB,
+                ConnectorCategory.DOCUMENT, "MongoDB, Inc.", "desc",
+                "https://www.mongodb.com/docs/", "logo.svg", 27017, SslMode.REQUIRE,
+                null, null, true, null);
+
+        assertThat(manifest.isDocument()).isTrue();
+        assertThat(manifest.jdbcUrlTemplate()).isNull();
+        assertThat(manifest.driverClassName()).isNull();
+        assertThat(manifest.iconUrl()).isEqualTo("/db-icons/mongodb.svg");
     }
 
     @Test
     void externalManifestDelegatesToDriverArtifact() {
         var driver = new DriverArtifact("maven", "com.mysql", "mysql-connector-j",
                 "9.7.0", null, null, null, "d".repeat(64));
-        var manifest = new ConnectorManifest(1, "mysql", "MySQL", DbType.MYSQL, "Oracle", null,
+        var manifest = new ConnectorManifest(1, "mysql", "MySQL", DbType.MYSQL,
+                ConnectorCategory.RELATIONAL, "Oracle", null,
                 null, "logo.svg", 3306, SslMode.REQUIRE,
                 "jdbc:mysql://{host}:{port}/{database_name}", "com.mysql.cj.jdbc.Driver",
                 false, driver);

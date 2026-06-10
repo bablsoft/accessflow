@@ -23,6 +23,7 @@ const DB_TYPE_COLOR: Record<DbType, string> = {
   ORACLE: 'red',
   MSSQL: 'cyan',
   CUSTOM: 'purple',
+  MONGODB: 'green',
 };
 
 export default function CustomDriversPage() {

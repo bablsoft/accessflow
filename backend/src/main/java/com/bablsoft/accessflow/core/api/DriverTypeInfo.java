@@ -33,15 +33,22 @@ public record DriverTypeInfo(
         String driverClass,
         String connectorId,
         String description,
-        String documentationUrl) {
+        String documentationUrl,
+        ConnectorCategory category) {
+
+    public DriverTypeInfo {
+        if (category == null) {
+            category = ConnectorCategory.RELATIONAL;
+        }
+    }
 
     public static DriverTypeInfo bundled(DbType code, String displayName, String iconUrl,
                                          int defaultPort, SslMode defaultSslMode,
                                          String jdbcUrlTemplate, DriverStatus driverStatus,
-                                         boolean nativeBundle) {
+                                         boolean nativeBundle, ConnectorCategory category) {
         return new DriverTypeInfo(code, displayName, iconUrl, defaultPort, defaultSslMode,
                 jdbcUrlTemplate, driverStatus, nativeBundle, "bundled", null, null, null,
-                null, null, null);
+                null, null, null, category);
     }
 
     public static DriverTypeInfo uploaded(DbType code, String displayName, String iconUrl,
@@ -50,16 +57,17 @@ public record DriverTypeInfo(
                                           String vendorName, String driverClass) {
         return new DriverTypeInfo(code, displayName, iconUrl, defaultPort, defaultSslMode,
                 jdbcUrlTemplate, DriverStatus.READY, false, "uploaded", customDriverId,
-                vendorName, driverClass, null, null, null);
+                vendorName, driverClass, null, null, null, ConnectorCategory.RELATIONAL);
     }
 
     public static DriverTypeInfo connector(DbType code, String connectorId, String displayName,
                                            String iconUrl, int defaultPort, SslMode defaultSslMode,
                                            String jdbcUrlTemplate, DriverStatus driverStatus,
                                            boolean bundled, String vendorName, String driverClass,
-                                           String description, String documentationUrl) {
+                                           String description, String documentationUrl,
+                                           ConnectorCategory category) {
         return new DriverTypeInfo(code, displayName, iconUrl, defaultPort, defaultSslMode,
                 jdbcUrlTemplate, driverStatus, bundled, "connector", null, vendorName, driverClass,
-                connectorId, description, documentationUrl);
+                connectorId, description, documentationUrl, category);
     }
 }

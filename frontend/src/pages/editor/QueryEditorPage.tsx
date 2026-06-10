@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Button, DatePicker, Input, Tooltip } from 'antd';
+import { App, Button, DatePicker, Input, Segmented, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   ThunderboltOutlined,
@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
-import { SqlEditor } from '@/components/editor/SqlEditor';
+import { SqlEditor, type MongoSyntax } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { TextToSqlBar } from '@/components/editor/TextToSqlBar';
 import { SchemaTree } from '@/components/editor/SchemaTree';
@@ -45,6 +45,7 @@ export function QueryEditorPage() {
   const dsId = selectedDsId ?? datasources[0]?.id ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState('');
+  const [mongoSyntax, setMongoSyntax] = useState<MongoSyntax>('shell');
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -112,8 +113,9 @@ export function QueryEditorPage() {
     );
   }
 
+  const isMongo = ds.db_type === 'MONGODB';
   const aiSupported = ds.ai_analysis_enabled && !!ds.ai_config_id;
-  const textToSqlSupported = ds.text_to_sql_enabled && !!ds.ai_config_id;
+  const textToSqlSupported = !isMongo && ds.text_to_sql_enabled && !!ds.ai_config_id;
   const sqlNonEmpty = sql.trim().length > 0;
   const hasFreshAnalysis = !!analyzeMutation.data;
   const canAnalyze = aiSupported && sqlNonEmpty && !analyzeMutation.isPending;
@@ -199,13 +201,27 @@ export function QueryEditorPage() {
             {analysis && !analyzing ? (
               <RiskPill level={analysis.risk_level} score={analysis.risk_score} size="sm" />
             ) : null}
-            <Button
-              size="small"
-              icon={<ThunderboltOutlined />}
-              onClick={() => handleSqlChange(formatSql(sql, ds.db_type))}
-            >
-              {t('editor.format_button')} <span className="kbd" style={{ marginLeft: 4 }}>⌘⇧F</span>
-            </Button>
+            {isMongo ? (
+              <Segmented<MongoSyntax>
+                size="small"
+                value={mongoSyntax}
+                onChange={setMongoSyntax}
+                aria-label={t('editor.syntax_label')}
+                options={[
+                  { label: t('editor.syntax_shell'), value: 'shell' },
+                  { label: t('editor.syntax_json'), value: 'json' },
+                ]}
+              />
+            ) : (
+              <Button
+                size="small"
+                icon={<ThunderboltOutlined />}
+                onClick={() => handleSqlChange(formatSql(sql, ds.db_type))}
+              >
+                {t('editor.format_button')}{' '}
+                <span className="kbd" style={{ marginLeft: 4 }}>⌘⇧F</span>
+              </Button>
+            )}
           </div>
           <div className="af-editor-body">
             {textToSqlSupported && (
@@ -216,6 +232,7 @@ export function QueryEditorPage() {
               onChange={handleSqlChange}
               schema={schema}
               dbType={ds.db_type}
+              mongoSyntax={mongoSyntax}
               issues={analysis?.issues}
               height={300}
             />

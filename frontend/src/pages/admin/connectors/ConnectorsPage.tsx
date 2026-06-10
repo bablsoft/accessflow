@@ -11,7 +11,7 @@ import { datasourceKeys } from '@/api/datasources';
 import { connectorErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { dbTypeLabel } from '@/utils/enumLabels';
-import type { Connector, DbType } from '@/types/api';
+import type { Connector, ConnectorCategory, DbType } from '@/types/api';
 
 const DB_TYPE_COLOR: Record<DbType, string> = {
   POSTGRESQL: 'blue',
@@ -20,7 +20,10 @@ const DB_TYPE_COLOR: Record<DbType, string> = {
   ORACLE: 'red',
   MSSQL: 'cyan',
   CUSTOM: 'purple',
+  MONGODB: 'green',
 };
+
+const CATEGORY_ORDER: ConnectorCategory[] = ['RELATIONAL', 'DOCUMENT'];
 
 export default function ConnectorsPage() {
   const { t } = useTranslation();
@@ -58,6 +61,19 @@ export default function ConnectorsPage() {
     );
   }, [listQuery.data, search]);
 
+  const groups = useMemo(
+    () =>
+      CATEGORY_ORDER.map((category) => ({
+        category,
+        label:
+          category === 'DOCUMENT'
+            ? t('connectors.category_document')
+            : t('connectors.category_relational'),
+        items: filtered.filter((c) => c.category === category),
+      })).filter((g) => g.items.length > 0),
+    [filtered, t],
+  );
+
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader title={t('connectors.title')} subtitle={t('connectors.subtitle')} />
@@ -76,22 +92,29 @@ export default function ConnectorsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState title={t('connectors.empty_title')} description={t('connectors.empty_description')} />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-            gap: 16,
-          }}
-        >
-          {filtered.map((connector) => (
-            <ConnectorCard
-              key={connector.id}
-              connector={connector}
-              installing={installingId === connector.id}
-              onInstall={() => installMutation.mutate(connector.id)}
-            />
-          ))}
-        </div>
+        groups.map((group) => (
+          <section key={group.category} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              {group.label}
+            </Typography.Title>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                gap: 16,
+              }}
+            >
+              {group.items.map((connector) => (
+                <ConnectorCard
+                  key={connector.id}
+                  connector={connector}
+                  installing={installingId === connector.id}
+                  onInstall={() => installMutation.mutate(connector.id)}
+                />
+              ))}
+            </div>
+          </section>
+        ))
       )}
     </div>
   );
