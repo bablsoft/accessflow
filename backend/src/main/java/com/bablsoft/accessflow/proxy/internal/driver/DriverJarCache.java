@@ -111,12 +111,18 @@ class DriverJarCache {
     }
 
     private boolean cacheDirWritable() {
-        var dir = properties.cacheDir();
-        if (Files.isDirectory(dir)) {
-            return Files.isWritable(dir);
+        // Walk up to the nearest existing ancestor — mirroring what Files.createDirectories will
+        // do on install. A fresh container whose default cache dir is several missing levels deep
+        // (e.g. ~/.accessflow/drivers) is still writable as long as that ancestor is.
+        for (var p = properties.cacheDir().toAbsolutePath(); p != null; p = p.getParent()) {
+            if (Files.isDirectory(p)) {
+                return Files.isWritable(p);
+            }
+            if (Files.exists(p)) {
+                return false; // a non-directory ancestor blocks directory creation
+            }
         }
-        var parent = dir.getParent();
-        return parent != null && Files.isDirectory(parent) && Files.isWritable(parent);
+        return false;
     }
 
     private void ensureCacheDir(ConnectorManifest manifest) {

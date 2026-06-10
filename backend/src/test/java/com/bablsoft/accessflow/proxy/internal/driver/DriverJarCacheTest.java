@@ -163,6 +163,17 @@ class DriverJarCacheTest {
     }
 
     @Test
+    void statusIsAvailableWhenCacheDirIsSeveralMissingLevelsUnderAWritableAncestor() {
+        // Mirrors a fresh container: ~/.accessflow/drivers does not exist yet, but installing
+        // can create it — the status must be AVAILABLE, not UNAVAILABLE.
+        var cache = new DriverJarCache(
+                new DriverProperties(cacheDir.resolve("a").resolve("b").resolve("c"),
+                        "https://example.com", false),
+                messageSource);
+        assertThat(cache.status(manifest("a".repeat(64)))).isEqualTo(DriverStatus.AVAILABLE);
+    }
+
+    @Test
     void statusIsUnavailableWhenCacheDirNotWritable() throws IOException {
         var bogus = cacheDir.resolve("not-a-dir");
         Files.write(bogus, new byte[]{0});
