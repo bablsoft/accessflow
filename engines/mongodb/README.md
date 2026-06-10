@@ -41,11 +41,16 @@ shaded JAR's hash changes. The loop is:
 
 ## Host ↔ plugin contract
 
+The full engine-author guide is [`docs/15-engine-sdk.md`](../../docs/15-engine-sdk.md). The
+MongoDB specifics:
+
 - The host hands capabilities to `MongoQueryEngine.initialize(QueryEngineContext)`: message
   resolution (`EngineMessages`, backed by the host `MessageSource` — the `error.mongo.*` keys live
   in the host's `messages.properties`), credential decryption (`CredentialDecryptor`), the tuning
-  config map (from `ACCESSFLOW_PROXY_MONGO_*` via the host's `MongoEngineProperties`: keys
-  `connect-timeout`, `server-selection-timeout`, `max-pool-size`), and the host UTC clock.
+  config map (from `accessflow.proxy.engines.mongodb.*` via the host's generic
+  `EngineConfigProperties`, AF-418: keys `connect-timeout`, `server-selection-timeout`,
+  `max-pool-size`; the legacy `ACCESSFLOW_PROXY_MONGO_*` env vars keep working as aliases), and the
+  host UTC clock.
 - The plugin must stay free of Spring, Lombok, and host-internal types; it may use only the
   backend's `core.api` surface plus its own shaded dependencies.
 - Exceptions cross the boundary as the concrete `core.api` types (`InvalidSqlException`,

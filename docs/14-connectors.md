@@ -18,7 +18,7 @@ A **connector** is pre-defined driver metadata that an admin installs with one c
 **Connectors** marketplace (`/admin/connectors`): the display name, logo, default port/SSL, JDBC-URL
 template, the driver class, and where to fetch the artifact JAR (Maven coordinates or a direct URL)
 plus its pinned SHA-256. The artifact is a JDBC driver JAR for `RELATIONAL` connectors and a shaded
-**engine-plugin JAR** for `DOCUMENT` (NoSQL) connectors — both ride the same pipeline. Installing a
+**engine-plugin JAR** for non-RELATIONAL (NoSQL) connectors — both ride the same pipeline. Installing a
 connector downloads, SHA-256-verifies, and caches the JAR. "Installed" is **derived** from JAR
 cache presence (no separate table): a connector is `READY` when bundled or its JAR is cached,
 `AVAILABLE` when downloadable, `UNAVAILABLE` when offline and not cached.
@@ -47,17 +47,22 @@ connectors/
 The authoritative contract is [`connectors/schema/connector.schema.json`](../connectors/schema/connector.schema.json).
 Fields: `schemaVersion` (=1), `id` (slug, == folder), `name`, `dbType` (one of `POSTGRESQL`,
 `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`), `category` (`RELATIONAL` (default) for
-SQL engines, `DOCUMENT` for NoSQL), `vendor`, `description`, `documentationUrl`,
+SQL engines; `DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, or `GRAPH` for the NoSQL family —
+AF-418), `vendor`, `description`, `documentationUrl`,
 `logo`, `defaultPort`, `defaultSslMode`, `jdbcUrlTemplate` (`{host}`/`{port}`/`{database_name}`),
 `driverClassName`, `bundled`, and a `driver` object (required unless `bundled`).
 
-`category` separates the **SQL** vs **NoSQL** sections in the connector marketplace and on the
-website. For `category=DOCUMENT` connectors (MongoDB), `jdbcUrlTemplate` and `driverClassName` are
-**omitted** — they connect through a native driver, not JDBC — and the schema makes those two fields
-required only when `category` is `RELATIONAL`. A `DOCUMENT` connector's `driver` artifact is not a
-JDBC driver but an **engine-plugin JAR**: a shaded implementation of the `core.api.QueryEngine` SPI,
-discovered via `java.util.ServiceLoader` from the downloaded JAR (the provider's `engineId()` must
-equal the connector `id`). See [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine).
+`category` drives the **SQL** vs **NoSQL** umbrella grouping in the connector marketplace and on
+the website: `RELATIONAL` is the SQL family; every other value (`DOCUMENT`, `KEY_VALUE`,
+`WIDE_COLUMN`, `SEARCH`, `GRAPH`) groups under NoSQL. For non-RELATIONAL connectors (e.g. MongoDB,
+`category=DOCUMENT`), `jdbcUrlTemplate` and `driverClassName` are **omitted** — they connect through
+a native engine, not JDBC — and the schema makes those two fields required only when `category` is
+`RELATIONAL`. A non-RELATIONAL connector's `driver` artifact is not a JDBC driver but an
+**engine-plugin JAR**: a shaded implementation of the `core.api.QueryEngine` SPI, discovered via
+`java.util.ServiceLoader` from the downloaded JAR (the provider's `engineId()` must equal the
+connector `id`, which must equal the `engines/<id>/` folder name). The engine-author guide is
+[15-engine-sdk.md](./15-engine-sdk.md); see also
+[05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine).
 
 `driver` is one of:
 
