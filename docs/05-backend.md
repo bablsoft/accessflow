@@ -317,6 +317,8 @@ Each operation maps onto the existing `QueryType` (find/aggregate/count/distinct
 
 **AI / text-to-query.** Risk analysis works unchanged — the analyzer is `DbType`-generic (the type is a prompt label) and `SystemPromptRenderer.describeSchema` is engine-agnostic. Text-to-SQL is SQL-specific and is **not** surfaced for MongoDB datasources in this release; text-to-MongoDB-query is a planned follow-up.
 
+**Driver packaging.** Unlike the JDBC drivers (downloaded on demand into isolated classloaders — possible because JDBC has a JDK-level SPI, `java.sql.*`, that the proxy compiles against), MongoDB has no JDK SPI, so the engine code imports `com.mongodb.*`/`org.bson.*` at compile time and the driver (~2.5 MB) is **bundled** in the image. This is acceptable for a single NoSQL engine; an on-demand **engine-plugin SDK** (a `QueryEngine` SPI over the engine-neutral DTOs above, with each engine shipped as a self-contained shaded plugin JAR resolved through the connector catalog like a JDBC driver) is a planned follow-up before a second NoSQL engine is added — see [issue #414](https://github.com/bablsoft/accessflow/issues/414).
+
 ### Dynamic JDBC Driver Loading
 
 Customer-database JDBC drivers are **not** bundled in the Spring Boot fat JAR. They are resolved per `DbType` on demand the first time a datasource of that type is used (via `POST /datasources` or its first `POST /datasources/{id}/test`). Only `org.postgresql:postgresql` ships baked in — used for AccessFlow's own internal database.
