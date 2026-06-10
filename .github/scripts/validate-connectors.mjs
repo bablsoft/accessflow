@@ -11,7 +11,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd(), 'connectors');
 const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB'];
-const CATEGORIES = ['RELATIONAL', 'DOCUMENT'];
+const CATEGORIES = ['RELATIONAL', 'DOCUMENT', 'KEY_VALUE', 'WIDE_COLUMN', 'SEARCH', 'GRAPH'];
 const SSL_MODES = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
 const SHA256 = /^[0-9a-f]{64}$/;
 const ID = /^[a-z0-9][a-z0-9-]*$/;
@@ -49,11 +49,11 @@ for (const folder of entries) {
   if (m.category != null && !CATEGORIES.includes(m.category)) fail(folder, `category "${m.category}" is invalid`);
   if (!SSL_MODES.includes(m.defaultSslMode)) fail(folder, `defaultSslMode "${m.defaultSslMode}" is invalid`);
   if (typeof m.defaultPort !== 'number') fail(folder, 'defaultPort must be a number');
-  // Document (NoSQL) connectors are native, not JDBC — jdbcUrlTemplate/driverClassName are required
-  // only for the default RELATIONAL category.
-  const isDocument = m.category === 'DOCUMENT';
-  if (!isDocument && !m.jdbcUrlTemplate) fail(folder, 'jdbcUrlTemplate is required');
-  if (!isDocument && !m.driverClassName) fail(folder, 'driverClassName is required');
+  // Engine-managed (non-RELATIONAL, i.e. NoSQL) connectors are native, not JDBC —
+  // jdbcUrlTemplate/driverClassName are required only for the default RELATIONAL category.
+  const isEngineManaged = m.category != null && m.category !== 'RELATIONAL';
+  if (!isEngineManaged && !m.jdbcUrlTemplate) fail(folder, 'jdbcUrlTemplate is required');
+  if (!isEngineManaged && !m.driverClassName) fail(folder, 'driverClassName is required');
   if (typeof m.bundled !== 'boolean') fail(folder, 'bundled must be a boolean');
   if (!m.logo) {
     fail(folder, 'logo is required');

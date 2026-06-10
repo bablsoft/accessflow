@@ -42,12 +42,14 @@ jobs:
             connectors:
               - 'connectors/**'
               - '.github/workflows/ci.yml'
-            # backend/** is included because the plugin compiles against the backend's core.api —
-            # an SPI change can break the plugin or shift its reproducible-build sha pin.
+            # backend/** is included because the plugins compile against the backend's core.api —
+            # an SPI change can break a plugin or shift its reproducible-build sha pin.
+            # connectors/** is included because each engine's version + sha are pinned in its
+            # connectors/<id>/connector.json manifest.
             engines:
               - 'engines/**'
               - 'backend/**'
-              - 'connectors/mongodb/**'
+              - 'connectors/**'
               - '.github/workflows/ci.yml'
             e2e:
               - 'e2e/**'
@@ -333,40 +335,38 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-engines-${{ hashFiles('backend/pom.xml', 'engines/mongodb/pom.xml') }}
+          key: ${{ runner.os }}-maven-engines-${{ hashFiles('backend/pom.xml', 'engines/*/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-engines-
             ${{ runner.os }}-maven-
 
-      - name: Install backend plain jar (plugin compiles against core.api)
+      - name: Install backend plain jar (plugins compile against core.api)
         run: mvn -B -f backend/pom.xml install -DskipTests
 
-      - name: Build and test the MongoDB engine plugin
-        run: mvn -B -f engines/mongodb/pom.xml clean verify
-
-      - name: Verify connector manifest sha256 pin matches the built jar
-        # The plugin build is reproducible (project.build.outputTimestamp), so the shaded jar's
-        # sha256 must equal the pin in connectors/mongodb/connector.json. Drift means the engine
-        # (or a core.api type it compiles against) changed without bumping the plugin version and
-        # re-pinning — see engines/mongodb/README.md.
+      - name: Build and test every engine plugin
+        # Discovery loop over engines/* (issue #418): a new engine plugin needs zero edits here.
         run: |
           set -euo pipefail
-          BUILT=$(sha256sum engines/mongodb/target/accessflow-engine-mongodb-*-all.jar | cut -d' ' -f1)
-          PINNED=$(node -p "require('./connectors/mongodb/connector.json').driver.sha256")
-          echo "built:  $BUILT"
-          echo "pinned: $PINNED"
-          if [ "$BUILT" != "$PINNED" ]; then
-            echo "::error::MongoDB engine plugin sha256 pin drift — bump the plugin version and re-pin (engines/mongodb/README.md)"
-            exit 1
-          fi
+          for d in engines/*/; do
+            echo "::group::${d}"
+            mvn -B -f "${d}pom.xml" clean verify
+            echo "::endgroup::"
+          done
+
+      - name: Verify connector manifest sha256 pins match the built jars
+        # Each plugin build is reproducible (project.build.outputTimestamp), so its shaded jar's
+        # sha256 must equal the pin in connectors/<id>/connector.json (id = engines/<id> basename).
+        # Drift means the engine (or a core.api type it compiles against) changed without bumping
+        # the plugin version and re-pinning — see docs/15-engine-sdk.md.
+        run: node .github/scripts/check-engine-pins.mjs
 
       - name: Publish test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: |
-            engines/mongodb/target/surefire-reports/TEST-*.xml
-            engines/mongodb/target/failsafe-reports/TEST-*.xml
+            engines/*/target/surefire-reports/TEST-*.xml
+            engines/*/target/failsafe-reports/TEST-*.xml
           check_name: Engine Plugin Test Results
           comment_mode: always
 
