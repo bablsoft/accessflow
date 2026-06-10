@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.proxy.internal.driver.ConnectorManifest.DriverArtifact;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,7 +55,7 @@ class ConnectorManifestTest {
         assertThat(manifest.jarFileName()).isNull();
         assertThat(manifest.sourceUrl(REPO)).isNull();
         assertThat(manifest.sha256()).isNull();
-        assertThat(manifest.isDocument()).isFalse();
+        assertThat(manifest.requiresEngine()).isFalse();
     }
 
     @Test
@@ -64,17 +66,18 @@ class ConnectorManifestTest {
                 "org.postgresql.Driver", true, null);
 
         assertThat(manifest.category()).isEqualTo(ConnectorCategory.RELATIONAL);
-        assertThat(manifest.isDocument()).isFalse();
+        assertThat(manifest.requiresEngine()).isFalse();
     }
 
-    @Test
-    void documentManifestHasNoJdbcFields() {
+    @ParameterizedTest
+    @EnumSource(value = ConnectorCategory.class, names = "RELATIONAL", mode = EnumSource.Mode.EXCLUDE)
+    void everyNonRelationalCategoryRequiresEngineAndHasNoJdbcFields(ConnectorCategory category) {
         var manifest = new ConnectorManifest(1, "mongodb", "MongoDB", DbType.MONGODB,
-                ConnectorCategory.DOCUMENT, "MongoDB, Inc.", "desc",
+                category, "MongoDB, Inc.", "desc",
                 "https://www.mongodb.com/docs/", "logo.svg", 27017, SslMode.REQUIRE,
                 null, null, true, null);
 
-        assertThat(manifest.isDocument()).isTrue();
+        assertThat(manifest.requiresEngine()).isTrue();
         assertThat(manifest.jdbcUrlTemplate()).isNull();
         assertThat(manifest.driverClassName()).isNull();
         assertThat(manifest.iconUrl()).isEqualTo("/db-icons/mongodb.svg");

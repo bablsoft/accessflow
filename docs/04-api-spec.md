@@ -214,10 +214,12 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 }
 ```
 
-`category` is `RELATIONAL` (SQL engines) or `DOCUMENT` (NoSQL — MongoDB); the connector marketplace
-and the create wizard group types by it. For `DOCUMENT` types, `jdbc_url_template` is `null` (the
-engine is native, not JDBC) and `bundled` is `true` (no driver to install). The same `category`
-field is present on the `GET /datasources/connectors` response.
+`category` is `RELATIONAL` for the SQL family, or one of the NoSQL umbrella values `DOCUMENT`
+(MongoDB), `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, `GRAPH` (AF-418); the connector marketplace and
+the create wizard group types into SQL (`RELATIONAL`) and NoSQL (everything else) sections by it.
+For non-`RELATIONAL` types, `jdbc_url_template` is `null` (the engine is native, not JDBC) and
+`bundled` is `true` (no driver to install). The same `category` field is present on the
+`GET /datasources/connectors` response.
 
 `source` values:
 
@@ -937,6 +939,7 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 {
   "id": "uuid",
   "datasource": { "id": "uuid", "name": "Production PostgreSQL" },
+  "db_type": "POSTGRESQL",
   "submitted_by": { "id": "uuid", "email": "alice@company.com", "display_name": "Alice" },
   "sql_text": "UPDATE orders SET status = 'shipped' WHERE id = 123",
   "query_type": "UPDATE",

@@ -533,6 +533,7 @@ class DatasourceAdminServiceImplTest {
         when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
         when(datasourceRepository.save(any(DatasourceEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
 
         var command = new CreateDatasourceCommand(orgId, "Docs", DbType.MONGODB,
                 "mongo.example.com", 27017, "appdb", "svc", "pw",
@@ -550,6 +551,7 @@ class DatasourceAdminServiceImplTest {
     void createMongoDatasourcePropagatesEngineResolutionFailureAndDoesNotPersist() {
         when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Docs"))
                 .thenReturn(false);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
         when(engineCatalog.engineFor(DbType.MONGODB)).thenThrow(new DriverResolutionException(
                 DbType.MONGODB, DriverResolutionException.Reason.OFFLINE_CACHE_MISS, "offline"));
 
@@ -569,6 +571,7 @@ class DatasourceAdminServiceImplTest {
         entity.setDbType(DbType.MONGODB);
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
         var engine = org.mockito.Mockito.mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
         when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
         var expected = new com.bablsoft.accessflow.core.api.ConnectionTestResult(true, 5, "ok");
         when(engine.testConnection(any())).thenReturn(expected);
@@ -586,6 +589,7 @@ class DatasourceAdminServiceImplTest {
         entity.setDbType(DbType.MONGODB);
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
         var engine = org.mockito.Mockito.mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
         when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
         var schema = new com.bablsoft.accessflow.core.api.DatabaseSchemaView(java.util.List.of());
         when(engine.introspectSchema(any())).thenReturn(schema);

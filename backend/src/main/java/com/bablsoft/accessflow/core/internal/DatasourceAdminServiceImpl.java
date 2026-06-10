@@ -132,10 +132,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (connectorId != null) {
             // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
             driverCatalog.resolveConnector(connectorId);
-        } else if (command.dbType() == DbType.MONGODB) {
-            // Fail-fast for the non-JDBC engine: resolves (downloading if needed) the MongoDB
-            // engine plugin through the connector catalog, at parity with the JDBC lanes.
-            engineCatalog.engineFor(DbType.MONGODB);
+        } else if (engineCatalog.isEngineManaged(command.dbType())) {
+            // Fail-fast for non-JDBC engines: resolves (downloading if needed) the engine
+            // plugin through the connector catalog, at parity with the JDBC lanes.
+            engineCatalog.engineFor(command.dbType());
         } else if (customDriver == null) {
             // Fail-fast for bundled drivers (mirrors pre-#94 behaviour). Custom drivers are
             // probe-loaded at upload time, so we trust the catalog cache here.
@@ -354,8 +354,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional(readOnly = true)
     public ConnectionTestResult test(UUID id, UUID organizationId) {
         var entity = loadInOrganization(id, organizationId);
-        if (entity.getDbType() == DbType.MONGODB) {
-            return engineCatalog.engineFor(DbType.MONGODB)
+        if (engineCatalog.isEngineManaged(entity.getDbType())) {
+            return engineCatalog.engineFor(entity.getDbType())
                     .testConnection(DatasourceDescriptorMapper.from(entity));
         }
         var resolved = resolveDriver(entity);
@@ -454,8 +454,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     private DatabaseSchemaView introspect(UUID id, DatasourceEntity entity) {
-        if (entity.getDbType() == DbType.MONGODB) {
-            return engineCatalog.engineFor(DbType.MONGODB)
+        if (engineCatalog.isEngineManaged(entity.getDbType())) {
+            return engineCatalog.engineFor(entity.getDbType())
                     .introspectSchema(DatasourceDescriptorMapper.from(entity));
         }
         var resolved = resolveDriver(entity);

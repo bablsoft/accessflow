@@ -38,29 +38,27 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # Engine plugins (issue #414) are built BEFORE the Maven version bump: the plugin has its
-      # own version line (never touched by versions:set) and compiles against the backend
-      # version its pom declares. The build is reproducible, so the shaded jar must match the
-      # sha256 pinned in the connector manifest — drift fails the release.
+      # Engine plugins (issues #414/#418) are built BEFORE the Maven version bump: each plugin has
+      # its own version line (never touched by versions:set) and compiles against the backend
+      # version its pom declares. Builds are reproducible, so each shaded jar must match the
+      # sha256 pinned in its connectors/<id>/connector.json manifest — drift fails the release.
+      # Discovery loop over engines/*: a new engine plugin needs zero edits here.
       - name: Install backend plain jar (engine plugins compile against core.api)
         run: mvn -B -f backend/pom.xml install -DskipTests
 
-      - name: Build MongoDB engine plugin
-        run: mvn -B -f engines/mongodb/pom.xml -DskipTests clean package
-
-      - name: Verify engine plugin sha256 pin
+      - name: Build engine plugins
         run: |
           set -euo pipefail
-          BUILT=$(sha256sum engines/mongodb/target/accessflow-engine-mongodb-*-all.jar | cut -d' ' -f1)
-          PINNED=$(node -p "require('./connectors/mongodb/connector.json').driver.sha256")
-          echo "built:  $BUILT"
-          echo "pinned: $PINNED"
-          if [ "$BUILT" != "$PINNED" ]; then
-            echo "::error::MongoDB engine plugin sha256 pin drift — bump the plugin version and re-pin before releasing (engines/mongodb/README.md)"
-            exit 1
-          fi
+          for d in engines/*/; do
+            mvn -B -f "${d}pom.xml" -DskipTests clean package
+          done
+
+      - name: Verify engine plugin sha256 pins
+        run: |
+          set -euo pipefail
+          node .github/scripts/check-engine-pins.mjs
           mkdir -p .engines-artifacts
-          cp engines/mongodb/target/accessflow-engine-mongodb-*-all.jar .engines-artifacts/
+          cp engines/*/target/*-all.jar .engines-artifacts/
 
       - name: Bump Maven version
         working-directory: backend
@@ -224,11 +222,11 @@ jobs:
           mkdir -p /tmp/gh-pages/connectors
           cp .connectors-artifacts/connectors-bundle-*.tar.gz /tmp/gh-pages/connectors/
           cp .connectors-artifacts/connectors-index.json /tmp/gh-pages/connectors/connectors-index.json
-          # Engine plugin jars (issue #414): the MongoDB connector manifest points fresh
-          # installs at this URL. Idempotent — the reproducible build re-uploads
-          # byte-identical content when the plugin version didn't change.
+          # Engine plugin jars (issues #414/#418): each engine's connector manifest points
+          # fresh installs at this URL. Idempotent — the reproducible builds re-upload
+          # byte-identical content when a plugin version didn't change.
           mkdir -p /tmp/gh-pages/engines
-          cp .engines-artifacts/accessflow-engine-mongodb-*-all.jar /tmp/gh-pages/engines/
+          cp .engines-artifacts/*-all.jar /tmp/gh-pages/engines/
           if [ -f /tmp/gh-pages/index.yaml ]; then
             helm repo index /tmp/gh-pages --url "https://${REPO_OWNER}.github.io/accessflow" --merge /tmp/gh-pages/index.yaml
           else

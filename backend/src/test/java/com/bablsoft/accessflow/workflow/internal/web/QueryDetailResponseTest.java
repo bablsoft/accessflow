@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -39,7 +40,7 @@ class QueryDetailResponseTest {
                 Instant.parse("2026-05-01T10:00:20Z"));
         var scheduledFor = Instant.parse("2026-05-02T08:00:00Z");
         var priorRunId = UUID.randomUUID();
-        var view = new QueryDetailView(queryId, dsId, "Prod PG", orgId,
+        var view = new QueryDetailView(queryId, dsId, "Prod PG", DbType.POSTGRESQL, orgId,
                 submitterId, "alice@example.com", "Alice",
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", ai, 5L, 99, null,
@@ -63,6 +64,7 @@ class QueryDetailResponseTest {
         assertThat(decisionOut.stage()).isEqualTo(1);
         assertThat(decisionOut.decidedAt()).isEqualTo(Instant.parse("2026-05-01T10:00:20Z"));
         assertThat(response.datasource()).isEqualTo(new QueryListItem.DatasourceRef(dsId, "Prod PG"));
+        assertThat(response.dbType()).isEqualTo(DbType.POSTGRESQL);
         assertThat(response.submittedBy())
                 .isEqualTo(new QueryListItem.SubmitterRef(submitterId, "alice@example.com", "Alice"));
         assertThat(response.sqlText()).isEqualTo("SELECT 1");
@@ -104,7 +106,7 @@ class QueryDetailResponseTest {
                 "[]", false, null,
                 AiProviderType.ANTHROPIC, "unknown", 0, 0,
                 true, "provider unavailable");
-        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
                 "x", ai, null, null, null, null,
@@ -121,7 +123,7 @@ class QueryDetailResponseTest {
 
     @Test
     void aiAnalysisDetailIsNullWhenViewHasNoAnalysis() {
-        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI,
                 "x", null, null, null, null, null,
@@ -165,7 +167,7 @@ class QueryDetailResponseTest {
     }
 
     private QueryDetailView minimalView() {
-        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.REJECTED,
                 "x", null, null, null, null, null,
@@ -182,7 +184,7 @@ class QueryDetailResponseTest {
                 null, false, null,
                 AiProviderType.OPENAI, "gpt-4o", 0, 0,
                 false, null);
-        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
                 "x", ai, null, null, null, null,

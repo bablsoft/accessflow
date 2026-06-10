@@ -9,8 +9,17 @@ export type OAuth2Provider =
   | 'GITHUB_ENTERPRISE'
   | 'GITLAB_ENTERPRISE';
 export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM' | 'MONGODB';
-/** SQL (RELATIONAL) vs NoSQL (DOCUMENT) connector family. */
-export type ConnectorCategory = 'RELATIONAL' | 'DOCUMENT';
+/**
+ * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
+ * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.
+ */
+export type ConnectorCategory =
+  | 'RELATIONAL'
+  | 'DOCUMENT'
+  | 'KEY_VALUE'
+  | 'WIDE_COLUMN'
+  | 'SEARCH'
+  | 'GRAPH';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
 export type QueryStatus =
@@ -920,6 +929,7 @@ export interface ReviewDecisionDetail {
 export interface QueryDetail {
   id: string;
   datasource: DatasourceRef;
+  db_type: DbType;
   submitted_by: UserRef;
   sql_text: string;
   query_type: QueryType;

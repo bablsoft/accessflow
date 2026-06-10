@@ -195,6 +195,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getId(),
                 entity.getDatasource().getId(),
                 entity.getDatasource().getName(),
+                entity.getDatasource().getDbType(),
                 entity.getDatasource().getOrganization().getId(),
                 entity.getSubmittedBy().getId(),
                 entity.getSubmittedBy().getEmail(),

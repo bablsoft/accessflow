@@ -1969,6 +1969,6 @@
     "install_success": "{{name}} տեղադրվեց",
     "docs_link": "Փաստաթղթեր",
     "category_relational": "SQL",
-    "category_document": "NoSQL"
+    "category_nosql": "NoSQL"
   }
 }

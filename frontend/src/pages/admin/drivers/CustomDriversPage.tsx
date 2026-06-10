@@ -13,18 +13,9 @@ import {
 } from '@/api/customDrivers';
 import { customDriverErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { DB_TYPE_COLOR } from '@/utils/engineModes';
 import type { CustomDriver, DbType } from '@/types/api';
 import { CustomDriverUploadModal } from './CustomDriverUploadModal';
-
-const DB_TYPE_COLOR: Record<DbType, string> = {
-  POSTGRESQL: 'blue',
-  MYSQL: 'orange',
-  MARIADB: 'gold',
-  ORACLE: 'red',
-  MSSQL: 'cyan',
-  CUSTOM: 'purple',
-  MONGODB: 'green',
-};
 
 export default function CustomDriversPage() {
   const { t } = useTranslation();

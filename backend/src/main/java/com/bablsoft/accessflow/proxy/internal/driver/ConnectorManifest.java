@@ -38,9 +38,12 @@ record ConnectorManifest(
         }
     }
 
-    /** True for native (non-JDBC) engines such as MongoDB, which carry no JDBC URL/driver class. */
-    boolean isDocument() {
-        return category == ConnectorCategory.DOCUMENT;
+    /**
+     * True for engine-managed connectors — any non-{@link ConnectorCategory#RELATIONAL} category.
+     * These connect through a native (non-JDBC) engine plugin and carry no JDBC URL/driver class.
+     */
+    boolean requiresEngine() {
+        return category != ConnectorCategory.RELATIONAL;
     }
 
     /** Served logo path; the frontend serves it statically from {@code public/db-icons}. */

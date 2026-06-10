@@ -1969,6 +1969,6 @@
     "install_success": "已安装 {{name}}",
     "docs_link": "文档",
     "category_relational": "SQL",
-    "category_document": "NoSQL"
+    "category_nosql": "NoSQL"
   }
 }

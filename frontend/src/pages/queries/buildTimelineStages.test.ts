@@ -32,6 +32,7 @@ function makeQuery(overrides: Partial<QueryDetail>): QueryDetail {
   return {
     id: 'q1',
     datasource: { id: 'ds1', name: 'Prod PG' },
+    db_type: 'POSTGRESQL',
     submitted_by: { id: 'u1', email: 'sub@example.com', display_name: 'Sub' },
     sql_text: 'SELECT 1',
     query_type: 'SELECT',

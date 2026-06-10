@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -261,6 +262,7 @@ class DefaultQueryRequestLookupServiceTest {
         var detail = service.findDetailById(queryId, orgId).orElseThrow();
 
         assertThat(detail.id()).isEqualTo(queryId);
+        assertThat(detail.dbType()).isEqualTo(DbType.POSTGRESQL);
         assertThat(detail.organizationId()).isEqualTo(orgId);
         assertThat(detail.status()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(detail.rowsAffected()).isEqualTo(5L);
@@ -557,6 +559,7 @@ class DefaultQueryRequestLookupServiceTest {
         var datasource = new DatasourceEntity();
         datasource.setId(datasourceId);
         datasource.setName("ds");
+        datasource.setDbType(DbType.POSTGRESQL);
         datasource.setOrganization(organization);
 
         var submitter = new UserEntity();

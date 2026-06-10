@@ -62,7 +62,9 @@ vi.mock('@/api/reviews', () => ({
 }));
 
 vi.mock('@/components/queries/QueryResultsTable', () => ({
-  QueryResultsTable: () => <div data-testid="results-table-stub" />,
+  QueryResultsTable: ({ defaultView }: { defaultView?: string }) => (
+    <div data-testid="results-table-stub" data-view={defaultView} />
+  ),
 }));
 
 const { QueryDetailPage } = await import('./QueryDetailPage');
@@ -71,6 +73,7 @@ function failedQuery(): QueryDetail {
   return {
     id: 'q-1',
     datasource: { id: 'ds-1', name: 'Prod PG' },
+    db_type: 'POSTGRESQL',
     submitted_by: { id: 'u-submitter', email: 's@example.com', display_name: 'Submitter' },
     sql_text: 'SELECT 1',
     query_type: 'SELECT',
@@ -638,5 +641,41 @@ describe('QueryDetailPage — execution failure surface (AF-408)', () => {
     expect(
       await screen.findByText('No error detail was captured.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('QueryDetailPage — results view default by engine mode (AF-418)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    getQueryDiffMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('passes the table default view for SQL engines', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(executedQuery());
+    getQueryDiffMock.mockRejectedValue(buildAxiosError(404, {}));
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('results-table-stub')).toHaveAttribute(
+      'data-view',
+      'table',
+    );
+  });
+
+  it('passes the JSON default view for MongoDB queries', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = executedQuery();
+    q.db_type = 'MONGODB';
+    getQueryMock.mockResolvedValue(q);
+    getQueryDiffMock.mockRejectedValue(buildAxiosError(404, {}));
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('results-table-stub')).toHaveAttribute(
+      'data-view',
+      'json',
+    );
   });
 });

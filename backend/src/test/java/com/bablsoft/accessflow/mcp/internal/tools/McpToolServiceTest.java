@@ -215,7 +215,8 @@ class McpToolServiceTest {
     }
 
     private QueryDetailView newQueryDetail(UUID submitter, QueryStatus status, QueryType type) {
-        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "prod", orgId,
+        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "prod", DbType.POSTGRESQL,
+                orgId,
                 submitter, "u@e.c", "User",
                 "SELECT 1", type, status, "demo",
                 null, 0L, 12, null, null,

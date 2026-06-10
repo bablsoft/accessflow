@@ -40,6 +40,7 @@ class DefaultQueryParserTest {
     void routesMongoToEngineFromCatalog() {
         var mongoResult = new SqlParseResult(QueryType.SELECT, false,
                 List.of("db.users.find({})"), Set.of("users"), false, false);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
         when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
         when(engine.parse("db.users.find({})")).thenReturn(mongoResult);
 

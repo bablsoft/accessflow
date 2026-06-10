@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 
 /**
  * Engine-aware {@link QueryParser} that routes a submitted query to the parser for its
- * {@link DbType}: {@link DbType#MONGODB} to the MongoDB engine plugin resolved from the
- * {@link QueryEngineCatalog}, every relational dialect to the existing JSqlParser-backed
- * {@link SqlParserService}.
+ * {@link DbType}: engine-managed types (non-RELATIONAL connector category) to the engine plugin
+ * resolved from the {@link QueryEngineCatalog}, every relational dialect to the existing
+ * JSqlParser-backed {@link SqlParserService}.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ class DefaultQueryParser implements QueryParser {
 
     @Override
     public SqlParseResult parse(String query, DbType dbType) {
-        return dbType == DbType.MONGODB
+        return engineCatalog.isEngineManaged(dbType)
                 ? engineCatalog.engineFor(dbType).parse(query)
                 : sqlParserService.parse(query);
     }

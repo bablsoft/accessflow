@@ -19,6 +19,7 @@ AccessFlow is an open-source **database access governance platform**. It acts as
 | [12-roadmap.md](./12-roadmap.md) | v1.0 → v2.1 milestone scope |
 | [13-mcp.md](./13-mcp.md) | Stateless MCP server, user API keys, exposed tools |
 | [14-connectors.md](./14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
+| [15-engine-sdk.md](./15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines, host↔plugin contract, add-an-engine checklist |
 
 ## Tech Stack Summary
 
