@@ -25,11 +25,17 @@ public final class FakeQueryEngine implements QueryEngine {
     static volatile String engineId = "mongodb";
     static final List<QueryEngineContext> initializations = new ArrayList<>();
     static final List<UUID> evictions = new ArrayList<>();
+    /** When set, {@link #initialize} blocks until the latch opens (for concurrency tests). */
+    static volatile java.util.concurrent.CountDownLatch initGate;
+    /** When set, {@link #evictDatasource} throws it (for evict-fan-out error handling tests). */
+    static volatile RuntimeException evictFailure;
 
     static void reset(String id) {
         engineId = id;
         initializations.clear();
         evictions.clear();
+        initGate = null;
+        evictFailure = null;
     }
 
     public FakeQueryEngine() {
@@ -42,6 +48,15 @@ public final class FakeQueryEngine implements QueryEngine {
 
     @Override
     public void initialize(QueryEngineContext context) {
+        var gate = initGate;
+        if (gate != null) {
+            try {
+                gate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(e);
+            }
+        }
         initializations.add(context);
     }
 
@@ -67,6 +82,10 @@ public final class FakeQueryEngine implements QueryEngine {
 
     @Override
     public void evictDatasource(UUID datasourceId) {
+        var failure = evictFailure;
+        if (failure != null) {
+            throw failure;
+        }
         evictions.add(datasourceId);
     }
 }

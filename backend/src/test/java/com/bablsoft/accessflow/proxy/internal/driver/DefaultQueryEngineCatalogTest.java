@@ -203,6 +203,85 @@ class DefaultQueryEngineCatalogTest {
         assertThat(FakeQueryEngine.evictions).containsExactly(datasourceId);
     }
 
+    @Test
+    void evictDatasourceSwallowsEngineFailures() throws IOException {
+        registerManifest(seedFixtureJar());
+        var catalog = catalog(true);
+        catalog.engineFor(DbType.MONGODB);
+        FakeQueryEngine.evictFailure = new IllegalStateException("client close failed");
+
+        catalog.evictDatasource(UUID.randomUUID()); // must not propagate
+
+        assertThat(FakeQueryEngine.evictions).isEmpty();
+    }
+
+    @Test
+    void brokenServiceRegistrationWrapsServiceConfigurationErrorAsUnavailable()
+            throws IOException {
+        var jar = cacheDir.resolve("fake-plugin.jar");
+        try (var out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry(SERVICE_FILE));
+            out.write("com.example.DoesNotExist\n".getBytes());
+            out.closeEntry();
+        }
+        registerManifest(sha256(jar));
+
+        assertThatThrownBy(() -> catalog(true).engineFor(DbType.MONGODB))
+                .isInstanceOf(DriverResolutionException.class)
+                .satisfies(ex -> {
+                    assertThat(((DriverResolutionException) ex).reason())
+                            .isEqualTo(DriverResolutionException.Reason.UNAVAILABLE);
+                    assertThat(ex.getCause()).isInstanceOf(java.util.ServiceConfigurationError.class);
+                });
+    }
+
+    @Test
+    void nonMongoEngineGetsEmptyConfigAndDefaultShutdownIsANoOp() throws IOException {
+        FakeQueryEngine.reset("fakedb");
+        var jar = cacheDir.resolve("fake-plugin.jar");
+        try (var out = new JarOutputStream(Files.newOutputStream(jar))) {
+            out.putNextEntry(new JarEntry(SERVICE_FILE));
+            out.write((FakeQueryEngine.class.getName() + "\n").getBytes());
+            out.closeEntry();
+        }
+        var manifest = new ConnectorManifest(1, "fakedb", "FakeDB", DbType.MONGODB,
+                ConnectorCategory.DOCUMENT, null, null, null, "logo.svg", 1234, SslMode.DISABLE,
+                null, null, false,
+                new ConnectorManifest.DriverArtifact("url", null, null, null, null,
+                        "https://example.invalid/fake-plugin.jar", "fake-plugin.jar", sha256(jar)));
+        when(connectorCatalog.byDbType(DbType.MONGODB)).thenReturn(Optional.of(manifest));
+
+        var engine = catalog(true).engineFor(DbType.MONGODB);
+
+        assertThat(FakeQueryEngine.initializations.get(0).config()).isEmpty();
+        engine.shutdown(); // QueryEngine.shutdown() default body — must be a safe no-op
+    }
+
+    @Test
+    void concurrentEngineForInitializesExactlyOnce() throws Exception {
+        registerManifest(seedFixtureJar());
+        var catalog = catalog(true);
+        var gate = new java.util.concurrent.CountDownLatch(1);
+        FakeQueryEngine.initGate = gate;
+
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit(() -> catalog.engineFor(DbType.MONGODB));
+            // Let the first thread enter load+initialize (blocked on the gate), then race a
+            // second resolution into the synchronized block.
+            Thread.sleep(150);
+            var second = executor.submit(() -> catalog.engineFor(DbType.MONGODB));
+            Thread.sleep(150);
+            gate.countDown();
+
+            assertThat(second.get(5, java.util.concurrent.TimeUnit.SECONDS))
+                    .isSameAs(first.get(5, java.util.concurrent.TimeUnit.SECONDS));
+            assertThat(FakeQueryEngine.initializations).hasSize(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private static String sha256(Path file) throws IOException {
         try {
             return HexFormat.of().formatHex(
