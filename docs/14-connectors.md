@@ -44,9 +44,15 @@ connectors/
 
 The authoritative contract is [`connectors/schema/connector.schema.json`](../connectors/schema/connector.schema.json).
 Fields: `schemaVersion` (=1), `id` (slug, == folder), `name`, `dbType` (one of `POSTGRESQL`,
-`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`), `vendor`, `description`, `documentationUrl`,
+`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`), `category` (`RELATIONAL` (default) for
+SQL engines, `DOCUMENT` for NoSQL), `vendor`, `description`, `documentationUrl`,
 `logo`, `defaultPort`, `defaultSslMode`, `jdbcUrlTemplate` (`{host}`/`{port}`/`{database_name}`),
 `driverClassName`, `bundled`, and a `driver` object (required unless `bundled`).
+
+`category` separates the **SQL** vs **NoSQL** sections in the connector marketplace and on the
+website. For `category=DOCUMENT` connectors (MongoDB), `jdbcUrlTemplate` and `driverClassName` are
+**omitted** — they connect through a native driver, not JDBC — and the schema makes those two fields
+required only when `category` is `RELATIONAL`.
 
 `driver` is one of:
 
@@ -68,29 +74,39 @@ for the authoring guide.
 
 ## Built-in connectors
 
-| id | dbType | bundled | Driver |
-|---|---|---|---|
-| `postgresql` | POSTGRESQL | yes | on the application classpath |
-| `mysql` | MYSQL | no | `com.mysql:mysql-connector-j` |
-| `mariadb` | MARIADB | no | `org.mariadb.jdbc:mariadb-java-client` |
-| `oracle` | ORACLE | no | `com.oracle.database.jdbc:ojdbc11` |
-| `mssql` | MSSQL | no | `com.microsoft.sqlserver:mssql-jdbc` |
-| `clickhouse` | CUSTOM | no | `com.clickhouse:clickhouse-jdbc:all` |
+| id | dbType | category | bundled | Driver |
+|---|---|---|---|---|
+| `postgresql` | POSTGRESQL | RELATIONAL | yes | on the application classpath |
+| `mysql` | MYSQL | RELATIONAL | no | `com.mysql:mysql-connector-j` |
+| `mariadb` | MARIADB | RELATIONAL | no | `org.mariadb.jdbc:mariadb-java-client` |
+| `oracle` | ORACLE | RELATIONAL | no | `com.oracle.database.jdbc:ojdbc11` |
+| `mssql` | MSSQL | RELATIONAL | no | `com.microsoft.sqlserver:mssql-jdbc` |
+| `clickhouse` | CUSTOM | RELATIONAL | no | `com.clickhouse:clickhouse-jdbc:all` |
+| `mongodb` | MONGODB | DOCUMENT | yes | bundled `org.mongodb:mongodb-driver-sync` (native, not JDBC) |
 
-The first five map to first-class `DbType` dialects (dialect-aware SQL parsing, SSL handling).
-ClickHouse is a **new engine** beyond the built-in five: it carries `dbType=CUSTOM` and is
-resolved through a per-connector classloader. A datasource for it stores `connector_id` and the
-proxy builds the JDBC URL from the connector's `jdbcUrlTemplate` + host/port/database (so the user
-fills host/port/database, not a raw JDBC URL).
+The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
+handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
+and is resolved through a per-connector classloader. A datasource for it stores `connector_id` and
+the proxy builds the JDBC URL from the connector's `jdbcUrlTemplate` + host/port/database.
+
+**MongoDB** is the NoSQL document connector. It is `bundled` (the native driver ships in the image,
+so there is no driver download/install — `install` is a no-op that reports `READY`) and carries no
+JDBC URL/driver class. The proxy never resolves a JDBC driver for it; instead the
+`proxy.internal.mongo.MongoClientManager` opens a per-datasource `MongoClient` from the standard
+host/port/database/credentials/SSL fields. See [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine).
 
 ## Resolution at query time
 
-`proxy/internal/DatasourcePoolFactory` resolves the driver for a datasource in three lanes:
+For relational datasources, `proxy/internal/DatasourcePoolFactory` resolves the JDBC driver in three
+lanes:
 
 1. `custom_driver_id` set → admin-uploaded JAR (`resolveCustom`, per-upload classloader).
 2. `connector_id` set → catalog connector (`resolveConnector`, per-connector classloader); the
    JDBC URL is built from the connector template.
-3. otherwise → one of the five dialects (`resolve(dbType)`).
+3. otherwise → one of the five relational dialects (`resolve(dbType)`).
+
+For `db_type=MONGODB` there is no driver resolution: `DefaultQueryExecutor` dispatches to
+`MongoQueryExecutor`, which obtains a cached `MongoClient` from `MongoClientManager`.
 
 ## Endpoints
 

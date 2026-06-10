@@ -8,7 +8,9 @@ export type OAuth2Provider =
   | 'OIDC'
   | 'GITHUB_ENTERPRISE'
   | 'GITLAB_ENTERPRISE';
-export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM';
+export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM' | 'MONGODB';
+/** SQL (RELATIONAL) vs NoSQL (DOCUMENT) connector family. */
+export type ConnectorCategory = 'RELATIONAL' | 'DOCUMENT';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
 export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
 export type QueryStatus =
@@ -551,6 +553,7 @@ export type DriverSource = 'bundled' | 'uploaded' | 'connector';
 
 export interface DatasourceTypeOption {
   code: DbType;
+  category: ConnectorCategory;
   display_name: string;
   icon_url: string;
   default_port: number;
@@ -574,6 +577,7 @@ export interface DatasourceTypesResponse {
 export interface Connector {
   id: string;
   db_type: DbType;
+  category: ConnectorCategory;
   name: string;
   icon_url: string;
   vendor: string | null;

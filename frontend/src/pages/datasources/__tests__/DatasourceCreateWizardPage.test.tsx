@@ -80,6 +80,7 @@ const typesResponse: DatasourceTypesResponse = {
   types: [
     {
       code: 'POSTGRESQL',
+      category: 'RELATIONAL',
       display_name: 'PostgreSQL',
       icon_url: '/db-icons/postgresql.svg',
       default_port: 5432,

@@ -244,7 +244,8 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.defaultSslMode(),
                 manifest.jdbcUrlTemplate(),
                 status(manifest),
-                manifest.bundled());
+                manifest.bundled(),
+                manifest.category());
     }
 
     private DriverTypeInfo toConnectorWizardTypeInfo(ConnectorManifest manifest) {
@@ -261,7 +262,8 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.vendor(),
                 manifest.driverClassName(),
                 manifest.description(),
-                manifest.documentationUrl());
+                manifest.documentationUrl(),
+                manifest.category());
     }
 
     private DriverTypeInfo toConnectorMarketplaceTypeInfo(ConnectorManifest manifest) {
@@ -278,7 +280,8 @@ class DefaultDriverCatalogService implements DriverCatalogService {
                 manifest.vendor(),
                 manifest.driverClassName(),
                 manifest.description(),
-                manifest.documentationUrl());
+                manifest.documentationUrl(),
+                manifest.category());
     }
 
     private DriverTypeInfo toUploadedTypeInfo(CustomDriverDescriptor descriptor) {

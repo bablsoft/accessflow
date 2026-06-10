@@ -328,6 +328,9 @@
     "submit_button": "Submit for review",
     "submitting_button": "Submitting",
     "format_button": "Format",
+    "syntax_label": "Query syntax",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "Justification",
     "justification_required_note": "· required for review",
     "justification_placeholder": "Why are you running this query?",
@@ -502,6 +505,9 @@
       "on_execute_success": "Query executed",
       "on_execute_error": "Execution failed",
       "card_results": "Results",
+      "view_label": "Result view",
+      "view_table": "Table",
+      "view_json": "JSON",
       "results_unavailable": "Results not available yet",
       "results_truncated": "{{count}} rows returned (truncated by datasource max_rows)",
       "column_masked_tooltip": "Column masked by access policy",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "Custom"
+      "CUSTOM": "Custom",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "Disable",
@@ -1960,6 +1967,8 @@
     "installed": "Installed",
     "unavailable": "Unavailable",
     "install_success": "Installed {{name}}",
-    "docs_link": "Documentation"
+    "docs_link": "Documentation",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }

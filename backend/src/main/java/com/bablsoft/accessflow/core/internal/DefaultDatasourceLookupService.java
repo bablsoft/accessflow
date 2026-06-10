@@ -90,27 +90,6 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
     }
 
     private static DatasourceConnectionDescriptor toDescriptor(DatasourceEntity entity) {
-        return new DatasourceConnectionDescriptor(
-                entity.getId(),
-                entity.getOrganization().getId(),
-                entity.getDbType(),
-                entity.getHost(),
-                entity.getPort(),
-                entity.getDatabaseName(),
-                entity.getUsername(),
-                entity.getPasswordEncrypted(),
-                entity.getSslMode(),
-                entity.getConnectionPoolSize(),
-                entity.getMaxRowsPerQuery(),
-                entity.isAiAnalysisEnabled(),
-                entity.getAiConfigId(),
-                entity.isTextToSqlEnabled(),
-                entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
-                entity.getConnectorId(),
-                entity.getJdbcUrlOverride(),
-                entity.getReadReplicaJdbcUrl(),
-                entity.getReadReplicaUsername(),
-                entity.getReadReplicaPasswordEncrypted(),
-                entity.isActive());
+        return DatasourceDescriptorMapper.from(entity);
     }
 }

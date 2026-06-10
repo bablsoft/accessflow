@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
+import com.bablsoft.accessflow.core.api.ConnectorCategory;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 
@@ -18,6 +19,7 @@ record ConnectorManifest(
         String id,
         String name,
         DbType dbType,
+        ConnectorCategory category,
         String vendor,
         String description,
         String documentationUrl,
@@ -28,6 +30,18 @@ record ConnectorManifest(
         String driverClassName,
         boolean bundled,
         DriverArtifact driver) {
+
+    /** A manifest that omits {@code category} defaults to {@link ConnectorCategory#RELATIONAL}. */
+    ConnectorManifest {
+        if (category == null) {
+            category = ConnectorCategory.RELATIONAL;
+        }
+    }
+
+    /** True for native (non-JDBC) engines such as MongoDB, which carry no JDBC URL/driver class. */
+    boolean isDocument() {
+        return category == ConnectorCategory.DOCUMENT;
+    }
 
     /** Served logo path; the frontend serves it statically from {@code public/db-icons}. */
     String iconUrl() {

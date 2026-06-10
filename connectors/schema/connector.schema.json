@@ -13,8 +13,6 @@
     "logo",
     "defaultPort",
     "defaultSslMode",
-    "jdbcUrlTemplate",
-    "driverClassName",
     "bundled"
   ],
   "properties": {
@@ -27,7 +25,12 @@
     "name": { "type": "string", "minLength": 1, "maxLength": 60 },
     "dbType": {
       "type": "string",
-      "enum": ["POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM"]
+      "enum": ["POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM", "MONGODB"]
+    },
+    "category": {
+      "type": "string",
+      "enum": ["RELATIONAL", "DOCUMENT"],
+      "description": "SQL (RELATIONAL) vs NoSQL (DOCUMENT) family. Defaults to RELATIONAL when absent. DOCUMENT connectors are native (non-JDBC) and omit jdbcUrlTemplate/driverClassName."
     },
     "vendor": { "type": "string", "maxLength": 100 },
     "description": { "type": "string", "maxLength": 300 },
@@ -81,6 +84,12 @@
     {
       "if": { "properties": { "bundled": { "const": false } } },
       "then": { "required": ["driver"] }
+    },
+    {
+      "comment": "JDBC fields are required for relational (SQL) connectors and forbidden for document (NoSQL) ones, which connect through a native driver.",
+      "if": { "properties": { "category": { "const": "DOCUMENT" } }, "required": ["category"] },
+      "then": {},
+      "else": { "required": ["jdbcUrlTemplate", "driverClassName"] }
     }
   ]
 }

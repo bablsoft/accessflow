@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
+import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
@@ -30,8 +31,8 @@ import com.bablsoft.accessflow.proxy.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.proxy.api.ResultColumn;
 import com.bablsoft.accessflow.proxy.api.SelectExecutionResult;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.SqlParseResult;
-import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.proxy.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecuteQueryCommand;
@@ -78,7 +79,8 @@ class DefaultQueryLifecycleServiceTest {
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QueryExecutor queryExecutor;
-    @Mock SqlParserService sqlParserService;
+    @Mock QueryParser queryParser;
+    @Mock DatasourceLookupService datasourceLookupService;
     @Mock SqlCanonicalizer sqlCanonicalizer;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock MaskingPolicyResolutionService maskingPolicyResolutionService;
@@ -104,7 +106,8 @@ class DefaultQueryLifecycleServiceTest {
                 queryRequestStateService,
                 queryResultPersistenceService,
                 queryExecutor,
-                sqlParserService,
+                queryParser,
+                datasourceLookupService,
                 sqlCanonicalizer,
                 permissionLookupService,
                 maskingPolicyResolutionService,
@@ -115,7 +118,7 @@ class DefaultQueryLifecycleServiceTest {
                 new ObjectMapper(),
                 messageSource,
                 eventPublisher);
-        when(sqlParserService.parse(anyString())).thenAnswer(inv -> {
+        when(queryParser.parse(anyString(), any())).thenAnswer(inv -> {
             String sql = inv.getArgument(0);
             return new SqlParseResult(QueryType.SELECT, sql);
         });
@@ -650,7 +653,7 @@ class DefaultQueryLifecycleServiceTest {
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT, dueAt)));
         when(permissionLookupService.findFor(submitterId, datasourceId))
                 .thenReturn(Optional.empty());
-        when(sqlParserService.parse(anyString()))
+        when(queryParser.parse(anyString(), any()))
                 .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT 1"));
         when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
                 List.of(new ResultColumn("c", 4, "int4")),

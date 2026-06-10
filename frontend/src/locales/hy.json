@@ -328,6 +328,9 @@
     "submit_button": "Ներկայացնել վերանայման",
     "submitting_button": "Ներկայացվում է",
     "format_button": "Ձևավորել",
+    "syntax_label": "Հարցման շարահյուսություն",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "Հիմնավորում",
     "justification_required_note": "· պարտադիր է վերանայման համար",
     "justification_placeholder": "Ինչու եք կատարում այս հարցումը։",
@@ -502,6 +505,9 @@
       "on_execute_success": "Հարցումը կատարված է",
       "on_execute_error": "Կատարման սխալ",
       "card_results": "Արդյունքներ",
+      "view_label": "Արդյունքների տեսք",
+      "view_table": "Աղյուսակ",
+      "view_json": "JSON",
       "results_unavailable": "Արդյունքները դեռ հասանելի չեն",
       "results_truncated": "Վերադարձված է {{count}} տող (կտրված է աղբյուրի max_rows-ով)",
       "column_masked_tooltip": "Սյունակը դիմակավորված է մուտքի քաղաքականությամբ",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "Հատուկ"
+      "CUSTOM": "Հատուկ",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",
@@ -1960,6 +1967,8 @@
     "installed": "Տեղադրված է",
     "unavailable": "Անհասանելի",
     "install_success": "{{name}} տեղադրվեց",
-    "docs_link": "Փաստաթղթեր"
+    "docs_link": "Փաստաթղթեր",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }

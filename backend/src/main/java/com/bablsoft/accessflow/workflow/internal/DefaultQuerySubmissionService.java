@@ -11,7 +11,7 @@ import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.InvalidSqlException;
-import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -36,7 +36,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultQuerySubmissionService.class);
 
-    private final SqlParserService sqlParserService;
+    private final QueryParser queryParser;
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final QueryRequestPersistenceService queryRequestPersistenceService;
@@ -54,13 +54,13 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
     @Override
     @Transactional
     public QuerySubmissionResult submit(SubmissionInput input) {
-        var parsed = sqlParserService.parse(input.sql());
-        if (parsed.type() == QueryType.OTHER) {
-            throw new InvalidSqlException(msg("error.query_type_not_supported"));
-        }
         var datasource = resolveDatasource(input);
         if (!datasource.active()) {
             throw new DatasourceUnavailableException(msg("error.datasource_unavailable_inactive"));
+        }
+        var parsed = queryParser.parse(input.sql(), datasource.dbType());
+        if (parsed.type() == QueryType.OTHER) {
+            throw new InvalidSqlException(msg("error.query_type_not_supported"));
         }
         if (!input.isAdmin()) {
             verifyPermission(input.submitterUserId(), datasource.id(), parsed.type(),

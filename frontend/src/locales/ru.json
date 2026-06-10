@@ -328,6 +328,9 @@
     "submit_button": "Отправить на проверку",
     "submitting_button": "Отправка",
     "format_button": "Форматировать",
+    "syntax_label": "Синтаксис запроса",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "Обоснование",
     "justification_required_note": "· требуется для проверки",
     "justification_placeholder": "Зачем вы выполняете этот запрос?",
@@ -502,6 +505,9 @@
       "on_execute_success": "Запрос выполнен",
       "on_execute_error": "Ошибка выполнения",
       "card_results": "Результаты",
+      "view_label": "Вид результатов",
+      "view_table": "Таблица",
+      "view_json": "JSON",
       "results_unavailable": "Результаты пока недоступны",
       "results_truncated": "Возвращено {{count}} строк (обрезано по max_rows источника)",
       "column_masked_tooltip": "Столбец замаскирован политикой доступа",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "Пользовательский"
+      "CUSTOM": "Пользовательский",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",
@@ -1960,6 +1967,8 @@
     "installed": "Установлен",
     "unavailable": "Недоступен",
     "install_success": "{{name}} установлен",
-    "docs_link": "Документация"
+    "docs_link": "Документация",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }

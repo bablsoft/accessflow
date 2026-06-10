@@ -3,6 +3,8 @@ import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, gutter, GutterMarker, lineNumbers } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { sql, PostgreSQL, MySQL, type SQLConfig } from '@codemirror/lang-sql';
+import { javascript } from '@codemirror/lang-javascript';
+import { json } from '@codemirror/lang-json';
 import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
@@ -73,11 +75,16 @@ class IssueMarker extends GutterMarker {
   }
 }
 
+/** For MongoDB datasources, which surface syntax the editor highlights. */
+export type MongoSyntax = 'shell' | 'json';
+
 interface SqlEditorProps {
   value: string;
   onChange: (next: string) => void;
   schema?: DatasourceSchema;
   dbType?: DbType;
+  /** MongoDB only: 'shell' highlights as JavaScript, 'json' as JSON. Ignored for SQL engines. */
+  mongoSyntax?: MongoSyntax;
   readOnly?: boolean;
   height?: number;
   issues?: AiIssue[];
@@ -88,6 +95,7 @@ export function SqlEditor({
   onChange,
   schema,
   dbType = 'POSTGRESQL',
+  mongoSyntax = 'shell',
   readOnly,
   height = 280,
   issues = [],
@@ -115,6 +123,13 @@ export function SqlEditor({
       lineMarkerChange: () => true,
     });
 
+    const languageExtension =
+      dbType === 'MONGODB'
+        ? mongoSyntax === 'json'
+          ? json()
+          : javascript()
+        : sql({ dialect: dbType === 'POSTGRESQL' ? PostgreSQL : MySQL, schema: sqlSchema });
+
     const exts: Extension[] = [
       lineNumbers(),
       issueGutter,
@@ -124,7 +139,7 @@ export function SqlEditor({
       closeBrackets(),
       autocompletion(),
       highlightSelectionMatches(),
-      sql({ dialect: dbType === 'POSTGRESQL' ? PostgreSQL : MySQL, schema: sqlSchema }),
+      languageExtension,
       syntaxHighlighting(accessflowHighlight),
       editorTheme,
       keymap.of([
@@ -137,6 +152,8 @@ export function SqlEditor({
         {
           key: 'Mod-Shift-f',
           run: (view) => {
+            // SQL formatting only; MongoDB queries are not reformatted here.
+            if (dbType === 'MONGODB') return false;
             const formatted = formatSql(view.state.doc.toString(), dbType);
             view.dispatch({
               changes: { from: 0, to: view.state.doc.length, insert: formatted },
@@ -161,10 +178,10 @@ export function SqlEditor({
       view.destroy();
       viewRef.current = null;
     };
-    // We intentionally rebuild only when schema/dbType/readOnly change; value
+    // We intentionally rebuild only when schema/dbType/syntax/readOnly change; value
     // is reconciled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, dbType, readOnly, JSON.stringify(issues)]);
+  }, [schema, dbType, mongoSyntax, readOnly, JSON.stringify(issues)]);
 
   // Sync external value changes (e.g. format)
   useEffect(() => {

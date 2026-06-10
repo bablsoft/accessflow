@@ -154,6 +154,7 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
   "types": [
     {
       "code": "POSTGRESQL",
+      "category": "RELATIONAL",
       "display_name": "PostgreSQL",
       "icon_url": "/db-icons/postgresql.svg",
       "default_port": 5432,
@@ -164,6 +165,21 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
       "source": "bundled",
       "custom_driver_id": null,
       "vendor_name": null,
+      "driver_class": null
+    },
+    {
+      "code": "MONGODB",
+      "category": "DOCUMENT",
+      "display_name": "MongoDB",
+      "icon_url": "/db-icons/mongodb.svg",
+      "default_port": 27017,
+      "default_ssl_mode": "REQUIRE",
+      "jdbc_url_template": null,
+      "driver_status": "READY",
+      "bundled": true,
+      "source": "bundled",
+      "custom_driver_id": null,
+      "vendor_name": "MongoDB, Inc.",
       "driver_class": null
     },
     {
@@ -198,11 +214,16 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 }
 ```
 
+`category` is `RELATIONAL` (SQL engines) or `DOCUMENT` (NoSQL — MongoDB); the connector marketplace
+and the create wizard group types by it. For `DOCUMENT` types, `jdbc_url_template` is `null` (the
+engine is native, not JDBC) and `bundled` is `true` (no driver to install). The same `category`
+field is present on the `GET /datasources/connectors` response.
+
 `source` values:
 
 | Value | Meaning |
 |-------|---------|
-| `bundled` | Entry from the static driver registry. `code` is one of the bundled `DbType` values; `custom_driver_id` is `null`. |
+| `bundled` | Entry from the connector catalog mapping to a first-class `DbType` (the five SQL dialects + the bundled native `MONGODB` engine). `custom_driver_id` is `null`. |
 | `uploaded` | Admin-uploaded driver for the caller's organization. `custom_driver_id` is the `custom_jdbc_driver.id`; `code` mirrors `target_db_type` (or `CUSTOM` for free-form datasources). |
 
 `driver_status` values:
@@ -827,6 +848,8 @@ Synchronous.
   "scheduled_for": "2026-06-01T03:00:00Z"
 }
 ```
+
+The `sql` field carries the query text for **every** engine. For a `MONGODB` datasource it holds a MongoDB query in either the shell form (`db.users.find({ age: { $gt: 21 } })`) or a JSON command document (`{ "find": "users", "filter": { … } }`); the backend auto-detects the form. The same field powers `POST /queries/analyze` (MongoDB risk analysis works unchanged); `POST /queries/generate-sql` (text-to-SQL) is not offered for MongoDB datasources. Results for a MongoDB query are served by the standard `GET /queries/{id}/results` payload (columns = the union of top-level document fields; nested values preserved) — the frontend renders that same payload as either a flattened table or reconstructed JSON documents.
 
 `scheduled_for` is optional. When supplied it must be a valid ISO-8601 timestamp strictly in the future (enforced by `@Future` Bean Validation — invalid values produce HTTP 400). When set, the query still goes through the normal AI / review flow; the difference comes after approval: instead of waiting for a manual `POST /queries/{id}/execute`, the backend's `ScheduledQueryRunJob` (cluster-locked via ShedLock) picks the row up at `scheduled_for ≤ now()` and triggers execution as a system-initiated action — the submitter is recorded as the audit actor and the audit metadata carries `"trigger": "scheduled"`. While the query is `APPROVED` with a future `scheduled_for`, the submitter may cancel it via `POST /queries/{id}/cancel` (transitions to `CANCELLED`).
 

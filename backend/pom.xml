@@ -122,6 +122,18 @@
             <version>${jsqlparser.version}</version>
         </dependency>
 
+        <!--
+          MongoDB (NoSQL) connector (issue #411). The native synchronous driver is bundled into
+          the image — unlike the JDBC dialects above it cannot be resolved on demand from a Maven
+          mirror, and it is needed at compile time for the proxy's MongoDB engine
+          (com.bablsoft.accessflow.proxy.internal.mongo). Version managed by the Spring Boot 4
+          parent BOM (the same version that backs spring-boot-starter-data-mongodb).
+        -->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>dev.samstevens.totp</groupId>
             <artifactId>totp</artifactId>
@@ -309,6 +321,11 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mongodb</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -328,6 +328,9 @@
     "submit_button": "Zur Prüfung einreichen",
     "submitting_button": "Wird eingereicht",
     "format_button": "Formatieren",
+    "syntax_label": "Abfragesyntax",
+    "syntax_shell": "Shell",
+    "syntax_json": "JSON",
     "justification_label": "Begründung",
     "justification_required_note": "· erforderlich für die Prüfung",
     "justification_placeholder": "Warum führst du diese Abfrage aus?",
@@ -502,6 +505,9 @@
       "on_execute_success": "Abfrage ausgeführt",
       "on_execute_error": "Ausführung fehlgeschlagen",
       "card_results": "Ergebnisse",
+      "view_label": "Ergebnisansicht",
+      "view_table": "Tabelle",
+      "view_json": "JSON",
       "results_unavailable": "Ergebnisse noch nicht verfügbar",
       "results_truncated": "{{count}} Zeilen zurückgegeben (durch max_rows der Datenquelle gekürzt)",
       "column_masked_tooltip": "Spalte durch Zugriffsrichtlinie maskiert",
@@ -1770,7 +1776,8 @@
       "MARIADB": "MariaDB",
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
-      "CUSTOM": "Benutzerdefiniert"
+      "CUSTOM": "Benutzerdefiniert",
+      "MONGODB": "MongoDB"
     },
     "ssl_mode": {
       "DISABLE": "Deaktiviert",
@@ -1960,6 +1967,8 @@
     "installed": "Installiert",
     "unavailable": "Nicht verfügbar",
     "install_success": "{{name}} installiert",
-    "docs_link": "Dokumentation"
+    "docs_link": "Dokumentation",
+    "category_relational": "SQL",
+    "category_document": "NoSQL"
   }
 }
