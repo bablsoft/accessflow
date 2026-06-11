@@ -12,7 +12,7 @@
       (connectors/couchbase/connector.json) pins this version + the SHA-256 of the shaded JAR;
       bump BOTH together whenever the engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow Couchbase Query Engine</name>
@@ -32,7 +32,7 @@
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <couchbase-client.version>3.12.0</couchbase-client.version>
         <jackson.version>3.2.0</jackson.version>
-        <spring-boot-dependencies.version>4.0.6</spring-boot-dependencies.version>
+        <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
     <dependencyManagement>
