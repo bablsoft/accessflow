@@ -21,7 +21,7 @@ export interface EngineMode {
   /** Available editor syntaxes; [0] is the default. More than one renders a toggle. */
   syntaxes: EditorSyntaxOption[];
   /** CodeMirror SQL dialect; only meaningful when the active language is 'sql'. */
-  sqlDialect?: 'postgresql' | 'mysql';
+  sqlDialect?: 'postgresql' | 'mysql' | 'n1ql';
   /** Whether the SQL formatter (toolbar button + Cmd/Ctrl+Shift+F) applies. */
   canFormat: boolean;
   /** Whether the text-to-SQL bar may be offered (still gated by datasource settings). */
@@ -39,6 +39,7 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   MSSQL: 'cyan',
   CUSTOM: 'purple',
   MONGODB: 'green',
+  COUCHBASE: 'volcano',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -56,6 +57,16 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     canFormat: false,
     supportsTextToSql: false,
     defaultResultView: 'json',
+  },
+  // SQL++ (N1QL) is SQL-shaped: SQL highlighting (CodeMirror has no N1QL dialect; StandardSQL
+  // covers the keyword set), sql-formatter's native n1ql dialect, and tabular results by
+  // default — the JSON document view stays one click away for nested documents.
+  COUCHBASE: {
+    syntaxes: [{ value: 'sqlpp', labelKey: 'editor.syntax_sqlpp', language: 'sql' }],
+    sqlDialect: 'n1ql',
+    canFormat: true,
+    supportsTextToSql: true,
+    defaultResultView: 'table',
   },
 };
 

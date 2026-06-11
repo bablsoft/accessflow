@@ -331,6 +331,7 @@
     "syntax_label": "Sintaxis de consulta",
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
+    "syntax_sqlpp": "SQL++",
     "justification_label": "Justificación",
     "justification_required_note": "· obligatoria para revisión",
     "justification_placeholder": "¿Por qué ejecutas esta consulta?",
@@ -1777,7 +1778,8 @@
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Personalizado",
-      "MONGODB": "MongoDB"
+      "MONGODB": "MongoDB",
+      "COUCHBASE": "Couchbase"
     },
     "ssl_mode": {
       "DISABLE": "Deshabilitar",

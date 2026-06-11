@@ -331,6 +331,7 @@
     "syntax_label": "Query syntax",
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
+    "syntax_sqlpp": "SQL++",
     "justification_label": "Justification",
     "justification_required_note": "· required for review",
     "justification_placeholder": "Why are you running this query?",
@@ -1777,7 +1778,8 @@
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Custom",
-      "MONGODB": "MongoDB"
+      "MONGODB": "MongoDB",
+      "COUCHBASE": "Couchbase"
     },
     "ssl_mode": {
       "DISABLE": "Disable",

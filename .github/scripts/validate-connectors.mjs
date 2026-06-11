@@ -10,7 +10,7 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd(), 'connectors');
-const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB'];
+const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB', 'COUCHBASE'];
 const CATEGORIES = ['RELATIONAL', 'DOCUMENT', 'KEY_VALUE', 'WIDE_COLUMN', 'SEARCH', 'GRAPH'];
 const SSL_MODES = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
 const SHA256 = /^[0-9a-f]{64}$/;

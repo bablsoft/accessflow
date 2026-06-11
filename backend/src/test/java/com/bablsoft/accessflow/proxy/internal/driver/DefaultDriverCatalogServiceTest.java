@@ -161,9 +161,10 @@ class DefaultDriverCatalogServiceTest {
     void listReturnsDialectsAsBundledAndCustomConnectorsAsConnectorSource() {
         var rows = service(false).list();
 
-        // 5 SQL dialects + MongoDB (an on-demand native engine, AF-414) are surfaced with
-        // source "bundled" (= first-class catalog rows, as opposed to connector/uploaded rows).
-        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(6);
+        // 5 SQL dialects + MongoDB and Couchbase (on-demand native engines, AF-414/AF-412) are
+        // surfaced with source "bundled" (= first-class catalog rows, as opposed to
+        // connector/uploaded rows).
+        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(7);
         var connectorRows = rows.stream().filter(r -> "connector".equals(r.source())).toList();
         assertThat(connectorRows).hasSize(1);
         assertThat(connectorRows.get(0).code()).isEqualTo(DbType.CUSTOM);
@@ -194,7 +195,7 @@ class DefaultDriverCatalogServiceTest {
         var rows = service(false).list(java.util.UUID.randomUUID(), null);
 
         assertThat(rows.stream().filter(r -> "uploaded".equals(r.source()))).isEmpty();
-        assertThat(rows).hasSize(7); // 5 SQL dialects + mongodb + clickhouse
+        assertThat(rows).hasSize(8); // 5 SQL dialects + mongodb + couchbase + clickhouse
     }
 
     @Test
@@ -210,14 +211,15 @@ class DefaultDriverCatalogServiceTest {
     void externalDriversReportedAsNotBundled() {
         var infos = service(false).list();
 
-        // PostgreSQL is the only bundled engine; every other dialect's driver — and the MongoDB
-        // engine plugin (AF-414) — is resolved on demand.
+        // PostgreSQL is the only bundled engine; every other dialect's driver — and the MongoDB /
+        // Couchbase engine plugins (AF-414 / AF-412) — is resolved on demand.
         assertThat(infos)
                 .filteredOn(t -> t.code() != DbType.POSTGRESQL)
                 .extracting(DriverTypeInfo::bundled)
                 .containsOnly(false);
         assertThat(infos).extracting(DriverTypeInfo::code)
-                .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL, DbType.MONGODB);
+                .contains(DbType.MYSQL, DbType.MARIADB, DbType.ORACLE, DbType.MSSQL,
+                        DbType.MONGODB, DbType.COUCHBASE);
     }
 
     @Test

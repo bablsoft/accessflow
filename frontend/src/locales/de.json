@@ -331,6 +331,7 @@
     "syntax_label": "Abfragesyntax",
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
+    "syntax_sqlpp": "SQL++",
     "justification_label": "Begründung",
     "justification_required_note": "· erforderlich für die Prüfung",
     "justification_placeholder": "Warum führst du diese Abfrage aus?",
@@ -1777,7 +1778,8 @@
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Benutzerdefiniert",
-      "MONGODB": "MongoDB"
+      "MONGODB": "MongoDB",
+      "COUCHBASE": "Couchbase"
     },
     "ssl_mode": {
       "DISABLE": "Deaktiviert",

@@ -7,10 +7,12 @@ import com.bablsoft.accessflow.core.api.SqlParseResult;
 /**
  * Engine-aware query validator. Dispatches a submitted query string to the parser for the
  * datasource's {@link DbType}: relational dialects are parsed with JSqlParser (the existing
- * {@link SqlParserService}); {@link DbType#MONGODB} is parsed with the MongoDB query parser. Both
+ * {@link SqlParserService}); engine-managed types (e.g. {@link DbType#MONGODB},
+ * {@link DbType#COUCHBASE}) are parsed by their engine plugin. Both
  * return the engine-neutral {@link SqlParseResult} so the workflow layer treats every engine
  * uniformly (query type for the permission model, {@code referencedTables} as the allow-list keys —
- * collection names for MongoDB — and {@code transactional}/{@code statements} for execution).
+ * collection/keyspace names for the NoSQL engines — and {@code transactional}/{@code statements}
+ * for execution).
  *
  * @throws InvalidSqlException if the query is null, blank, multi-statement, references an
  *         unsupported operation, or is otherwise unparseable for the engine.

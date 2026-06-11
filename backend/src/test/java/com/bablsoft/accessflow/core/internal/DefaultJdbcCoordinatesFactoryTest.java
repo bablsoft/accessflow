@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.SslMode;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DefaultJdbcCoordinatesFactoryTest {
 
@@ -111,5 +112,13 @@ class DefaultJdbcCoordinatesFactoryTest {
         var coords = factory.from(DbType.MSSQL, "h", 1433, "db", "u", SslMode.VERIFY_FULL);
         assertThat(coords.url())
                 .endsWith(";encrypt=true;trustServerCertificate=false");
+    }
+
+    @Test
+    void couchbaseIsNotJdbcBacked() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.COUCHBASE, "h", 11210, "bucket", "u", SslMode.DISABLE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("COUCHBASE");
     }
 }

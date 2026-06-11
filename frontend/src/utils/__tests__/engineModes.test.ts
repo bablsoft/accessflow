@@ -10,6 +10,7 @@ const ALL_DB_TYPES: DbType[] = [
   'MSSQL',
   'CUSTOM',
   'MONGODB',
+  'COUCHBASE',
 ];
 
 describe('engineMode', () => {
@@ -31,6 +32,18 @@ describe('engineMode', () => {
     expect(mode.supportsTextToSql).toBe(false);
     expect(mode.defaultResultView).toBe('json');
     expect(mode.sqlDialect).toBeUndefined();
+  });
+
+  it('returns the Couchbase SQL++ mode: SQL highlighting, n1ql formatting, table results', () => {
+    const mode = engineMode('COUCHBASE');
+
+    expect(mode.syntaxes).toEqual([
+      { value: 'sqlpp', labelKey: 'editor.syntax_sqlpp', language: 'sql' },
+    ]);
+    expect(mode.sqlDialect).toBe('n1ql');
+    expect(mode.canFormat).toBe(true);
+    expect(mode.supportsTextToSql).toBe(true);
+    expect(mode.defaultResultView).toBe('table');
   });
 
   it('falls back to the SQL mode for relational and unknown db types', () => {

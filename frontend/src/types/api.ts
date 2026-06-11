@@ -8,7 +8,15 @@ export type OAuth2Provider =
   | 'OIDC'
   | 'GITHUB_ENTERPRISE'
   | 'GITLAB_ENTERPRISE';
-export type DbType = 'POSTGRESQL' | 'MYSQL' | 'MARIADB' | 'ORACLE' | 'MSSQL' | 'CUSTOM' | 'MONGODB';
+export type DbType =
+  | 'POSTGRESQL'
+  | 'MYSQL'
+  | 'MARIADB'
+  | 'ORACLE'
+  | 'MSSQL'
+  | 'CUSTOM'
+  | 'MONGODB'
+  | 'COUCHBASE';
 /**
  * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
  * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.

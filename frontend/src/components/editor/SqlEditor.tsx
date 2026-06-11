@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap, gutter, GutterMarker, lineNumbers } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { sql, PostgreSQL, MySQL, type SQLConfig } from '@codemirror/lang-sql';
+import { sql, PostgreSQL, MySQL, StandardSQL, type SQLConfig } from '@codemirror/lang-sql';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
 import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
@@ -133,7 +133,13 @@ export function SqlEditor({
         : language === 'javascript'
           ? javascript()
           : sql({
-              dialect: mode.sqlDialect === 'postgresql' ? PostgreSQL : MySQL,
+              // CodeMirror has no N1QL dialect; StandardSQL covers the SQL++ keyword set.
+              dialect:
+                mode.sqlDialect === 'postgresql'
+                  ? PostgreSQL
+                  : mode.sqlDialect === 'n1ql'
+                    ? StandardSQL
+                    : MySQL,
               schema: sqlSchema,
             });
 

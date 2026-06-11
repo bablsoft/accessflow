@@ -62,6 +62,14 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
       .filter({ has: page.getByRole('button', { name: /install/i }) })
       .last();
     await expect(mongoCard.getByRole('button', { name: /install/i })).toBeVisible();
+    // Couchbase is the second NoSQL engine-plugin connector (AF-412) — same on-demand model.
+    await expect(page.getByText('Couchbase', { exact: true }).first()).toBeVisible();
+    const couchbaseCard = page
+      .locator('div')
+      .filter({ has: page.getByText('Couchbase', { exact: true }) })
+      .filter({ has: page.getByRole('button', { name: /install/i }) })
+      .last();
+    await expect(couchbaseCard.getByRole('button', { name: /install/i })).toBeVisible();
     await expect(page.getByText('Installed').first()).toBeVisible();
   });
 

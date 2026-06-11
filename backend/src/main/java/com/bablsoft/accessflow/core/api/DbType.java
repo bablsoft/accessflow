@@ -20,5 +20,13 @@ public enum DbType {
      * aggregate / insert / update / delete / DDL commands instead of SQL. See
      * {@code docs/05-backend.md} → "MongoDB engine" and {@code docs/14-connectors.md}.
      */
-    MONGODB
+    MONGODB,
+    /**
+     * Couchbase — a NoSQL document engine queried with SQL++ (N1QL). Not JDBC-backed: the proxy
+     * connects via the native Couchbase Java SDK ({@code Cluster}), validates queries with a
+     * SQL++ classifier rather than JSqlParser, and resolves the engine plugin on demand through
+     * the connector catalog. See {@code docs/05-backend.md} → "Couchbase engine" and
+     * {@code docs/14-connectors.md}.
+     */
+    COUCHBASE
 }
