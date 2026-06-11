@@ -37,6 +37,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "CUSTOM db_type uses jdbc_url_override; build URL via DatasourceEntity, not here");
             case MONGODB -> throw new IllegalStateException(
                     "MONGODB is not JDBC-backed; connect via the proxy MongoClientManager, not here");
+            case COUCHBASE -> throw new IllegalStateException(
+                    "COUCHBASE is not JDBC-backed; connect via the couchbase engine plugin, not here");
         };
     }
 
@@ -91,6 +93,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "CUSTOM db_type uses an uploaded driver class; resolve via CustomJdbcDriverService");
             case MONGODB -> throw new IllegalStateException(
                     "MONGODB is not JDBC-backed; it has no JDBC driver class");
+            case COUCHBASE -> throw new IllegalStateException(
+                    "COUCHBASE is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }
