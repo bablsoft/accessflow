@@ -4,7 +4,7 @@
   <groupId>com.bablsoft.accessflow</groupId>
   <artifactId>accessflow-engine-mongodb</artifactId>
   <name>AccessFlow MongoDB Query Engine</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>On-demand MongoDB engine plugin for AccessFlow (issue AF-414). Implements the
         core.api.QueryEngine SPI and ships as a self-contained shaded JAR (bundling
         mongodb-driver-sync and a relocated Jackson) resolved through the connector catalog and
@@ -129,7 +129,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>2.0.17</version>
+      <version>2.0.18</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -161,7 +161,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>5.20.0</version>
+      <version>5.23.0</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -189,7 +189,7 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>2.0.17</version>
+      <version>2.0.18</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -218,7 +218,7 @@
     <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
     <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
     <jackson.version>3.2.0</jackson.version>
-    <spring-boot-dependencies.version>4.0.6</spring-boot-dependencies.version>
+    <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     <micrometer.version>1.17.0</micrometer.version>
   </properties>
 </project>

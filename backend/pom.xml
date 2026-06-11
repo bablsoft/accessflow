@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.6</version>
+        <version>4.1.0</version>
         <relativePath/>
     </parent>
 
@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <spring-modulith.version>2.0.6</spring-modulith.version>
+        <spring-modulith.version>2.1.0</spring-modulith.version>
         <spring-ai.version>2.0.0-RC2</spring-ai.version>
         <shedlock.version>7.7.0</shedlock.version>
         <slack.sdk.version>1.49.0</slack.sdk.version>
@@ -54,14 +54,6 @@
     </dependencyManagement>
 
     <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
         <!--
           OpenSAML 5 artefacts (transitive dependency of spring-security-saml2-service-provider)
           are not mirrored on Maven Central. Shibboleth publishes them here.
@@ -201,7 +193,7 @@
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
         </dependency>
         <!--
-            Spring AI 2.0.0-M7 split the MCP server autoconfig into per-transport (webmvc/webflux)
+            Spring AI 2.0.0-RC2 splits the MCP server autoconfig into per-transport (webmvc/webflux)
             artifacts plus a shared "common" artifact that owns McpServerStdioDisabledCondition and
             the stateless/streamable autoconfigs. The starter POM doesn't depend on the common
             artifact transitively (https://github.com/spring-projects/spring-ai/issues — manifests as
