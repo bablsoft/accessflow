@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "couchbase",
+  "name": "Couchbase",
+  "dbType": "COUCHBASE",
+  "category": "DOCUMENT",
+  "vendor": "Couchbase, Inc.",
+  "description": "Distributed NoSQL document database queried with SQL++ (N1QL). The AccessFlow Couchbase engine installs on demand; TLS deployments bootstrap on port 11207 (couchbases://).",
+  "documentationUrl": "https://docs.couchbase.com/java-sdk/current/hello-world/start-using-sdk.html",
+  "logo": "logo.svg",
+  "defaultPort": 11210,
+  "defaultSslMode": "DISABLE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-couchbase-1.0.0-all.jar",
+    "fileName": "accessflow-engine-couchbase-1.0.0-all.jar",
+    "sha256": "b23f37f11c04ec743ea807ded8a192d36365d702b31d1e5390230f6cce0656c6"
+  }
+}
