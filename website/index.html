@@ -199,7 +199,7 @@
             </a>
           </div>
           <div class="hero-meta">
-            <span><b>PostgreSQL</b> · <b>MySQL</b> · <b>MariaDB</b> · <b>Oracle</b> · <b>MSSQL</b> · <b>MongoDB</b></span>
+            <span><b>PostgreSQL</b> · <b>MySQL</b> · <b>MariaDB</b> · <b>Oracle</b> · <b>MSSQL</b> · <b>MongoDB</b> · <b>Couchbase</b></span>
             <span>Self-hosted · <b>SAML</b> · <b>OAuth</b> · <b>TOTP</b></span>
             <span>Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face</span>
           </div>
@@ -287,7 +287,7 @@
           <div class="arch-row">
             <div class="arch-cell accent arch-cell-lg">
               <span class="label">CUSTOMER DATABASES (PROXIED)</span>
-              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB</span>
+              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB · Couchbase</span>
             </div>
           </div>
         </div>
@@ -324,8 +324,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
             </div>
             <h3>Full query proxy — SQL and NoSQL</h3>
-            <p>Every query is inspected before it ever reaches the database. Each statement is parsed, classified as SELECT / DML / DDL, and validated against schema and table allow-lists at the query-structure level, then routed through your review policy before it touches the database. <strong>MongoDB</strong> gets the same treatment through a native engine — shell (<span class="mono">db.coll.find({…})</span>) or JSON-command queries are parsed, classified, and governed identically, with row-level security applied as <span class="mono">$match</span> stages and field masking on returned documents; results render as both a JSON document view and a flattened table. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed query so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered.</p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · connector catalog · custom drivers · read-replica routing · dynamic masking · row-level security</span>
+            <p>Every query is inspected before it ever reaches the database. Each statement is parsed, classified as SELECT / DML / DDL, and validated against schema and table allow-lists at the query-structure level, then routed through your review policy before it touches the database. <strong>MongoDB</strong> gets the same treatment through a native engine — shell (<span class="mono">db.coll.find({…})</span>) or JSON-command queries are parsed, classified, and governed identically, with row-level security applied as <span class="mono">$match</span> stages and field masking on returned documents; results render as both a JSON document view and a flattened table. <strong>Couchbase</strong> joins the NoSQL line-up with SQL++ (N1QL): statements are classified like SQL, dangerous constructs (<span class="mono">CURL()</span>, JavaScript UDFs, <span class="mono">system:*</span> keyspaces) are rejected up front, and row-level security is ANDed into the WHERE clause with parameter binding — never string concatenation. Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed query so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered.</p>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · connector catalog · custom drivers · read-replica routing · dynamic masking · row-level security</span>
           </div>
 
           <div class="feat">
@@ -386,7 +386,7 @@
         <div class="section-head">
           <span class="eyebrow">Connectors</span>
           <h2>A growing catalog of SQL and NoSQL connectors.</h2>
-          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL) and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and MongoDB's native engine is resolved on demand the same way. <a href="docs/#cfg-connectors">Read the connector docs →</a></p>
+          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL) and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and the MongoDB and Couchbase native engines are resolved on demand the same way. <a href="docs/#cfg-connectors">Read the connector docs →</a></p>
         </div>
         <p class="eyebrow" style="margin-top:8px">SQL</p>
         <div class="conn-grid">
@@ -440,6 +440,12 @@
           <div class="conn-card">
             <span class="conn-logo"><img src="db-icons/mongodb.svg" alt="MongoDB" width="40" height="40" loading="lazy" /></span>
             <span class="conn-name">MongoDB</span>
+            <span class="conn-tag">1-click install</span>
+          </div>
+
+          <div class="conn-card">
+            <span class="conn-logo"><img src="db-icons/couchbase.svg" alt="Couchbase" width="40" height="40" loading="lazy" /></span>
+            <span class="conn-name">Couchbase</span>
             <span class="conn-tag">1-click install</span>
           </div>
 
@@ -942,6 +948,7 @@
             <ul>
               <li>Declarative connector catalog</li>
               <li>MongoDB query governance</li>
+              <li>Couchbase (SQL++) query governance</li>
               <li>Redis access governance</li>
               <li>REST API governance</li>
               <li>Custom analyzer plugins</li>

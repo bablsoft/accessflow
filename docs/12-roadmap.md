@@ -132,6 +132,7 @@
 **Theme:** Beyond relational databases — plus native client access and continuous governance.
 
 - **MongoDB support** — query governance for MongoDB (find, update, delete, aggregation pipeline review)
+- **Couchbase support** — SQL++ (N1QL) query governance through the second on-demand engine plugin (AF-412): classification onto the standard approval workflow, WHERE-splice row-level security, field masking, and scope/collection introspection
 - **Redis read-access governance** — audit and optionally require review for Redis GET/SCAN/keys operations
 - **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback

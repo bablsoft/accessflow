@@ -95,6 +95,7 @@ for the authoring guide.
 | `mssql` | MSSQL | RELATIONAL | no | `com.microsoft.sqlserver:mssql-jdbc` |
 | `clickhouse` | CUSTOM | RELATIONAL | no | `com.clickhouse:clickhouse-jdbc:all` |
 | `mongodb` | MONGODB | DOCUMENT | no | `accessflow-engine-mongodb-<v>-all.jar` engine plugin (native, not JDBC) |
+| `couchbase` | COUCHBASE | DOCUMENT | no | `accessflow-engine-couchbase-<v>-all.jar` engine plugin (native, not JDBC) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -110,6 +111,18 @@ plugin build is reproducible and CI fails when the built JAR's SHA-256 drifts fr
 (bump the plugin version and re-pin — see [`engines/mongodb/README.md`](../engines/mongodb/README.md)).
 See [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine).
 
+**Couchbase** is the second NoSQL document connector (AF-412), delivered the same way: the shaded
+plugin JAR built from [`engines/couchbase/`](../engines/couchbase/) (own version line, reproducible
+build, URL + SHA-256 pin in the manifest, published to `gh-pages` under `engines/` on release). It
+speaks **SQL++ (N1QL)**. The datasource's `database_name` is the **bucket**; every statement runs
+through the bucket's default-scope query context, so a bare `FROM users` resolves to
+`<bucket>._default.users` and carries `users` in `referencedTables` (matching a collection-level
+grant), while a fully-qualified `bucket.scope.collection` path is carried verbatim (matching an
+exact-path grant, or an `allowedSchemas` entry on the bucket segment). Connections use
+`couchbase://` (plain, KV port 11210 — the manifest default) or `couchbases://` (TLS, port 11207);
+set the matching port or a verbatim URL override. See
+[05-backend.md → Couchbase engine](./05-backend.md#couchbase-engine).
+
 ## Resolution at query time
 
 For relational datasources, `proxy/internal/DatasourcePoolFactory` resolves the JDBC driver in three
@@ -120,7 +133,8 @@ lanes:
    JDBC URL is built from the connector template.
 3. otherwise → one of the five relational dialects (`resolve(dbType)`).
 
-For `db_type=MONGODB`, `DefaultQueryExecutor` / `DefaultQueryParser` / the admin connection-test
+For engine-managed types (`db_type=MONGODB`, `db_type=COUCHBASE`), `DefaultQueryExecutor` /
+`DefaultQueryParser` / the admin connection-test
 and introspection paths resolve the engine from `core.api.QueryEngineCatalog`
 (`proxy/internal/driver/DefaultQueryEngineCatalog`): the connector's plugin JAR is ensured in the
 shared driver cache, loaded into an isolated classloader, and the `QueryEngine` is discovered via
