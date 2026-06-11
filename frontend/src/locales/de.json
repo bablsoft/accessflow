@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "RAG-Wissensdatenbank",
         "section_help": "Rufen Sie organisationsspezifisches Wissen ab und fügen Sie es in die KI-Analyse und SQL-Generierung ein.",
+        "pgvector_unavailable_warning": "Der integrierte pgvector-Speicher ist in dieser Bereitstellung nicht verfügbar",
+        "pgvector_unavailable_help": "Wählen Sie Qdrant oder installieren Sie die PostgreSQL-Erweiterung „vector“, um den integrierten Speicher zu nutzen.",
         "enabled": "RAG aktivieren",
         "field_store_type": "Vektorspeicher",
         "field_top_k": "Top-K-Ergebnisse",

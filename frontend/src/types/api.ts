@@ -288,6 +288,10 @@ export interface RagTestResult {
   embedding_dimensions: number | null;
 }
 
+export interface RagCapabilities {
+  pgvector_available: boolean;
+}
+
 export interface DefaultAiPromptResult {
   template: string;
 }

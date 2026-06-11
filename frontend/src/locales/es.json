@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "Base de conocimiento RAG",
         "section_help": "Recupera conocimiento específico de la organización e inyéctalo en el análisis de IA y la generación de SQL.",
+        "pgvector_unavailable_warning": "El almacenamiento pgvector integrado no está disponible en esta implementación",
+        "pgvector_unavailable_help": "Selecciona Qdrant o instala la extensión vector de PostgreSQL para usar el almacenamiento integrado.",
         "enabled": "Habilitar RAG",
         "field_store_type": "Almacén de vectores",
         "field_top_k": "Resultados Top-K",

@@ -846,6 +846,8 @@ Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, kno
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
+| `ACCESSFLOW_RAG_PGVECTOR_ENABLED` | Optional | `true` | When `false`, the deployment opts out of the in-app pgvector store entirely: no extension provisioning is attempted, the `vector_store` migration (V69) is skipped, and PGVECTOR RAG is disabled. External Qdrant RAG is unaffected. The application always starts regardless of this flag. |
+| `ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION` | Optional | `true` | Best-effort `CREATE EXTENSION IF NOT EXISTS vector` before migrating, so a DB role that may create extensions needs no separate superuser init step. Set `false` to leave provisioning to the operator (an already-installed extension is still detected and used). |
 | `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | Optional | `1536` | Embedding dimension of the in-app pgvector `vector_store` column. **Set before the first migration** — it fixes the `vector(N)` column type (Flyway V69 placeholder). Must match the embedding model's output dimension (e.g. 1536 for OpenAI `text-embedding-3-small`, 768 for Ollama `nomic-embed-text`). |
 | `ACCESSFLOW_RAG_CHUNK_SIZE` | Optional | `800` | Token chunk size used when splitting a knowledge document for embedding. |
 | `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS` | Optional | `100000` | Maximum character length of a single knowledge document accepted for ingestion. |
@@ -856,9 +858,14 @@ The in-app `PGVECTOR` store needs the PostgreSQL `vector` extension. Because `ve
 
 - **Docker Compose** — the Postgres image is `pgvector/pgvector:pg18` and [`deploy/postgres-init/02-pgvector.sql`](../deploy/postgres-init/02-pgvector.sql) (`CREATE EXTENSION IF NOT EXISTS vector;`) runs once on first volume init (mounted into `/docker-entrypoint-initdb.d`).
 - **Helm** — the backend's `audit-role-provisioner` initContainer runs `CREATE EXTENSION IF NOT EXISTS vector;` as the postgres admin before Flyway. The bundled bitnami/postgresql image ships pgvector.
-- **External / managed Postgres** — install the `vector` extension on the AccessFlow database yourself before the backend boots.
+- **External / managed Postgres** — install the `vector` extension on the AccessFlow database yourself before the backend boots, or rely on auto-provisioning if the AccessFlow DB role may create extensions.
 
 The extension exists regardless of whether any org actually enables RAG (the empty `vector_store` table is negligible overhead). The external `QDRANT` backend needs no Postgres extension — vectors live in Qdrant.
+
+**Graceful degradation when pgvector is unavailable.** The application no longer fails to start when the `vector` extension is missing (AF-336). At startup, before Flyway runs, a migration strategy best-effort runs `CREATE EXTENSION IF NOT EXISTS vector` (unless `ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION=false`) and then detects whether the type is usable:
+
+- **Available** → migrations run normally; the `vector_store` table is additionally created if it is missing (self-healing the case where pgvector is installed only *after* a degraded first boot).
+- **Unavailable** (or `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`) → V69 is recorded as applied without executing it, `knowledge_document` is created by the idempotent `V73` migration, the `vector_store` table is omitted, and the in-app PGVECTOR store is disabled. A `WARN` is logged, `GET /admin/ai-configs/rag/capabilities` reports `pgvector_available: false`, the admin UI shows a banner on the RAG settings, and PGVECTOR ingestion / connection tests return `400 RAG_CONFIG_INVALID`. External Qdrant RAG continues to work. Install the extension (or use a pgvector-enabled image) and restart to enable PGVECTOR.
 
 #### Customer-DB Proxy (HikariCP + Execution)
 

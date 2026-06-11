@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.KnowledgeDocumentEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.KnowledgeDocumentRepository;
+import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ class DefaultKnowledgeBaseService implements KnowledgeBaseService {
     private final AiConfigRepository aiConfigRepository;
     private final RagComponentsFactory ragComponentsFactory;
     private final RagProperties ragProperties;
+    private final PgVectorAvailability pgVectorAvailability;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,6 +56,7 @@ class DefaultKnowledgeBaseService implements KnowledgeBaseService {
     public KnowledgeDocumentView create(UUID aiConfigId, UUID organizationId,
                                         CreateKnowledgeDocumentCommand command) {
         var config = requireRagEnabledConfig(aiConfigId, organizationId);
+        requirePgVectorAvailable(config);
         var title = command.title() == null ? null : command.title().trim();
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException("Knowledge document title is required");
@@ -106,6 +109,7 @@ class DefaultKnowledgeBaseService implements KnowledgeBaseService {
     @Transactional(readOnly = true)
     public RagConnectionTestResult testConnection(UUID aiConfigId, UUID organizationId) {
         var config = requireRagEnabledConfig(aiConfigId, organizationId);
+        requirePgVectorAvailable(config);
         try {
             var embeddingModel = ragComponentsFactory.embeddingModel(config);
             var probe = embeddingModel.embed(PROBE_TEXT);
@@ -155,9 +159,18 @@ class DefaultKnowledgeBaseService implements KnowledgeBaseService {
         return splitter.apply(List.of(document));
     }
 
-    private static boolean isRagBuildable(AiConfigEntity config) {
-        return config.isRagEnabled() && config.getRagStoreType() != null
-                && config.getEmbeddingProvider() != null;
+    private boolean isRagBuildable(AiConfigEntity config) {
+        if (!config.isRagEnabled() || config.getRagStoreType() == null
+                || config.getEmbeddingProvider() == null) {
+            return false;
+        }
+        return config.getRagStoreType() != RagStoreType.PGVECTOR || pgVectorAvailability.isAvailable();
+    }
+
+    private void requirePgVectorAvailable(AiConfigEntity config) {
+        if (config.getRagStoreType() == RagStoreType.PGVECTOR && !pgVectorAvailability.isAvailable()) {
+            throw new AiConfigRagInvalidException("error.ai_config.rag.pgvector_unavailable");
+        }
     }
 
     private AiConfigEntity requireConfig(UUID aiConfigId, UUID organizationId) {

@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.internal.config.RagProperties;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.PgVectorAvailability;
+import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ class RagComponentsFactory {
     private final VectorStoreFactory vectorStoreFactory;
     private final CredentialEncryptionService encryptionService;
     private final RagProperties ragProperties;
+    private final PgVectorAvailability pgVectorAvailability;
 
     int pgvectorDimensions() {
         return ragProperties.pgvectorDimensions();
@@ -55,6 +58,11 @@ class RagComponentsFactory {
     RagRetriever retriever(AiConfigEntity entity) {
         if (!entity.isRagEnabled() || entity.getRagStoreType() == null
                 || entity.getEmbeddingProvider() == null) {
+            return RagRetriever.DISABLED;
+        }
+        if (entity.getRagStoreType() == RagStoreType.PGVECTOR && !pgVectorAvailability.isAvailable()) {
+            log.warn("RAG retriever disabled for ai_config={}: PGVECTOR store selected but pgvector "
+                    + "is unavailable on this deployment", entity.getId());
             return RagRetriever.DISABLED;
         }
         try {

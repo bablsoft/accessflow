@@ -14,6 +14,7 @@ import type {
   DefaultAiPromptResult,
   KnowledgeDocument,
   RagTestResult,
+  RagCapabilities,
   LangfuseConfig,
   LangfuseConfigTestResult,
   NotificationChannel,
@@ -87,6 +88,7 @@ export const aiConfigKeys = {
   detail: (id: string) => ['aiConfig', 'detail', id] as const,
   promptDefault: () => ['aiConfig', 'promptDefault'] as const,
   knowledge: (id: string) => ['aiConfig', 'knowledge', id] as const,
+  ragCapabilities: () => ['aiConfig', 'ragCapabilities'] as const,
 };
 
 export const samlConfigKeys = {
@@ -310,6 +312,11 @@ export async function getDefaultAiPrompt(): Promise<DefaultAiPromptResult> {
 
 export async function testRag(id: string): Promise<RagTestResult> {
   const { data } = await apiClient.post<RagTestResult>(`${AI_CONFIGS_BASE}/${id}/rag/test`);
+  return data;
+}
+
+export async function getRagCapabilities(): Promise<RagCapabilities> {
+  const { data } = await apiClient.get<RagCapabilities>(`${AI_CONFIGS_BASE}/rag/capabilities`);
   return data;
 }
 

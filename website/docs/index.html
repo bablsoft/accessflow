@@ -1102,7 +1102,12 @@ APPROVED → FAILED (execution error)</pre>
             automatically (a superuser init step); for external / managed PostgreSQL, install the
             <code>vector</code> extension on the AccessFlow database before starting the backend, and
             set <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (default 1536) to match your embedding
-            model's output dimension <em>before the first migration</em>.
+            model's output dimension <em>before the first migration</em>. If the extension is missing,
+            AccessFlow still starts — the in-app store is disabled (a banner appears on the RAG
+            settings) and external Qdrant remains available. Set
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED=false</code> to opt out explicitly, or
+            <code>ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION=false</code> to disable the best-effort
+            <code>CREATE EXTENSION</code> attempt at startup.
           </div>
           <div class="docs-callout info">
             <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
