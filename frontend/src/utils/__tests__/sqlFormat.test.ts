@@ -27,4 +27,10 @@ describe('formatSql', () => {
     const out = formatSql('select 1');
     expect(out).toContain('SELECT');
   });
+
+  it('formats Couchbase SQL++ through the n1ql dialect, keeping backtick identifiers', () => {
+    const out = formatSql('select name from `users` where age > 21', 'COUCHBASE');
+    expect(out).toContain('SELECT');
+    expect(out).toContain('`users`');
+  });
 });

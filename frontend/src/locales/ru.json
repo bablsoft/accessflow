@@ -331,6 +331,7 @@
     "syntax_label": "Синтаксис запроса",
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
+    "syntax_sqlpp": "SQL++",
     "justification_label": "Обоснование",
     "justification_required_note": "· требуется для проверки",
     "justification_placeholder": "Зачем вы выполняете этот запрос?",
@@ -1777,7 +1778,8 @@
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Пользовательский",
-      "MONGODB": "MongoDB"
+      "MONGODB": "MongoDB",
+      "COUCHBASE": "Couchbase"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",

@@ -331,6 +331,7 @@
     "syntax_label": "Syntaxe de requête",
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
+    "syntax_sqlpp": "SQL++",
     "justification_label": "Justification",
     "justification_required_note": "· requise pour la revue",
     "justification_placeholder": "Pourquoi exécutes-tu cette requête ?",
@@ -1777,7 +1778,8 @@
       "ORACLE": "Oracle",
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Personnalisé",
-      "MONGODB": "MongoDB"
+      "MONGODB": "MongoDB",
+      "COUCHBASE": "Couchbase"
     },
     "ssl_mode": {
       "DISABLE": "Désactiver",
