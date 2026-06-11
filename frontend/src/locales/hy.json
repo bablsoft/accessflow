@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "RAG գիտելիքների բազա",
         "section_help": "Ստացեք կազմակերպությանը հատուկ գիտելիքներ և ներդրեք դրանք AI վերլուծության և SQL գեներացման մեջ։",
+        "pgvector_unavailable_warning": "Ներկառուցված pgvector պահեստն այս տեղադրման մեջ հասանելի չէ",
+        "pgvector_unavailable_help": "Ընտրեք Qdrant կամ տեղադրեք PostgreSQL-ի vector ընդլայնումը՝ ներկառուցված պահեստն օգտագործելու համար։",
         "enabled": "Միացնել RAG-ը",
         "field_store_type": "Վեկտորային պահեստ",
         "field_top_k": "Top-K արդյունքներ",

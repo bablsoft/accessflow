@@ -114,6 +114,15 @@ logging:
 accessflow:
   encryption-key: ${ENCRYPTION_KEY:}
   rag:
+    pgvector:
+      # When false, the deployment opts out of the in-app pgvector store entirely: no extension
+      # provisioning is attempted, the vector_store migration (V69) is skipped, and PGVECTOR RAG is
+      # disabled. External Qdrant RAG is unaffected. The app always starts regardless of this flag.
+      enabled: ${ACCESSFLOW_RAG_PGVECTOR_ENABLED:true}
+      # Best-effort 'CREATE EXTENSION IF NOT EXISTS vector' before migrating, so a DB role that may
+      # create extensions needs no separate superuser init step. Set false to leave provisioning to
+      # the operator (an already-installed extension is still detected and used).
+      auto-provision: ${ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION:true}
     # In-app pgvector embedding dimension; must match the vector(N) column (Flyway placeholder
     # rag_pgvector_dimensions above) and the embedding model's output dimension.
     pgvector-dimensions: ${ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS:1536}

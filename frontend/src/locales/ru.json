@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "База знаний RAG",
         "section_help": "Извлекайте знания, специфичные для организации, и добавляйте их в анализ ИИ и генерацию SQL.",
+        "pgvector_unavailable_warning": "Встроенное хранилище pgvector недоступно в этой инсталляции",
+        "pgvector_unavailable_help": "Выберите Qdrant или установите расширение vector для PostgreSQL, чтобы использовать встроенное хранилище.",
         "enabled": "Включить RAG",
         "field_store_type": "Векторное хранилище",
         "field_top_k": "Результаты Top-K",

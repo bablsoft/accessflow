@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "RAG 知识库",
         "section_help": "检索组织特定的知识，并将其注入 AI 分析和 SQL 生成。",
+        "pgvector_unavailable_warning": "此部署不支持内置 pgvector 存储",
+        "pgvector_unavailable_help": "请选择 Qdrant 或安装 PostgreSQL 的 vector 扩展以使用内置存储。",
         "enabled": "启用 RAG",
         "field_store_type": "向量存储",
         "field_top_k": "Top-K 结果",

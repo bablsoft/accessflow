@@ -1072,6 +1072,8 @@
       "rag": {
         "section_title": "Base de connaissances RAG",
         "section_help": "Récupérez les connaissances propres à l'organisation et injectez-les dans l'analyse IA et la génération SQL.",
+        "pgvector_unavailable_warning": "Le stockage pgvector intégré n'est pas disponible sur ce déploiement",
+        "pgvector_unavailable_help": "Sélectionnez Qdrant ou installez l'extension vector de PostgreSQL pour utiliser le stockage intégré.",
         "enabled": "Activer le RAG",
         "field_store_type": "Magasin de vecteurs",
         "field_top_k": "Résultats Top-K",

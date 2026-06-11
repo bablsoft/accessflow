@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.ai.internal.config.RagProperties;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +28,7 @@ class RagComponentsFactoryTest {
     @Mock EmbeddingModelFactory embeddingModelFactory;
     @Mock VectorStoreFactory vectorStoreFactory;
     @Mock CredentialEncryptionService encryptionService;
+    @Mock PgVectorAvailability pgVectorAvailability;
     @Mock EmbeddingModel embeddingModel;
     @Mock VectorStore vectorStore;
 
@@ -33,7 +36,7 @@ class RagComponentsFactoryTest {
 
     private RagComponentsFactory factory() {
         return new RagComponentsFactory(embeddingModelFactory, vectorStoreFactory, encryptionService,
-                properties);
+                properties, pgVectorAvailability);
     }
 
     private AiConfigEntity ragEntity() {
@@ -111,6 +114,7 @@ class RagComponentsFactoryTest {
     @Test
     void retrieverIsDisabledWhenBuildFails() {
         var entity = ragEntity();
+        when(pgVectorAvailability.isAvailable()).thenReturn(true);
         when(embeddingModelFactory.create(any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
 
@@ -118,8 +122,32 @@ class RagComponentsFactoryTest {
     }
 
     @Test
+    void retrieverIsDisabledWhenPgVectorStoreUnavailable() {
+        var entity = ragEntity();
+        when(pgVectorAvailability.isAvailable()).thenReturn(false);
+
+        assertThat(factory().retriever(entity)).isEqualTo(RagRetriever.DISABLED);
+        verifyNoInteractions(embeddingModelFactory, vectorStoreFactory);
+    }
+
+    @Test
+    void retrieverBuildsForQdrantEvenWhenPgVectorUnavailable() {
+        var entity = ragEntity();
+        entity.setRagStoreType(RagStoreType.QDRANT);
+        entity.setRagEndpoint("localhost:6334");
+        entity.setRagCollection("kb");
+        when(embeddingModelFactory.create(any(), any(), any(), any())).thenReturn(embeddingModel);
+        when(vectorStoreFactory.create(eq(RagStoreType.QDRANT), eq(embeddingModel), eq(1536),
+                any(), any(), any())).thenReturn(vectorStore);
+
+        assertThat(factory().retriever(entity)).isInstanceOf(DefaultRagRetriever.class);
+        verifyNoInteractions(pgVectorAvailability);
+    }
+
+    @Test
     void retrieverBuildsDefaultRagRetrieverWhenConfigured() {
         var entity = ragEntity();
+        when(pgVectorAvailability.isAvailable()).thenReturn(true);
         when(embeddingModelFactory.create(any(), any(), any(), any())).thenReturn(embeddingModel);
         when(vectorStoreFactory.create(eq(RagStoreType.PGVECTOR), eq(embeddingModel), eq(1536),
                 any(), any(), any())).thenReturn(vectorStore);

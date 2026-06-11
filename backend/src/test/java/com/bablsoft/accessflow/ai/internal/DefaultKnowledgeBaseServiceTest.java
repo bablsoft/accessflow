@@ -11,7 +11,9 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.KnowledgeDocumentE
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.KnowledgeDocumentRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -28,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,14 +45,20 @@ class DefaultKnowledgeBaseServiceTest {
     @Mock KnowledgeDocumentRepository documentRepository;
     @Mock AiConfigRepository aiConfigRepository;
     @Mock RagComponentsFactory ragComponentsFactory;
+    @Mock PgVectorAvailability pgVectorAvailability;
     @Mock EmbeddingModel embeddingModel;
     @Mock VectorStore vectorStore;
 
     private final RagProperties properties = new RagProperties(1536, 800, 100);
 
+    @BeforeEach
+    void pgVectorAvailableByDefault() {
+        lenient().when(pgVectorAvailability.isAvailable()).thenReturn(true);
+    }
+
     private DefaultKnowledgeBaseService service() {
         return new DefaultKnowledgeBaseService(documentRepository, aiConfigRepository,
-                ragComponentsFactory, properties);
+                ragComponentsFactory, properties, pgVectorAvailability);
     }
 
     private AiConfigEntity ragConfig(boolean ragEnabled) {
@@ -262,5 +271,43 @@ class DefaultKnowledgeBaseServiceTest {
 
         assertThatThrownBy(() -> service().testConnection(CONFIG_ID, ORG_ID))
                 .isInstanceOf(AiConfigRagInvalidException.class);
+    }
+
+    @Test
+    void createThrowsWhenPgVectorUnavailable() {
+        when(aiConfigRepository.findByIdAndOrganizationId(CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(ragConfig(true)));
+        when(pgVectorAvailability.isAvailable()).thenReturn(false);
+
+        assertThatThrownBy(() -> service().create(CONFIG_ID, ORG_ID,
+                new CreateKnowledgeDocumentCommand("title", "content")))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .hasMessage("error.ai_config.rag.pgvector_unavailable");
+        verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void testConnectionThrowsWhenPgVectorUnavailable() {
+        when(aiConfigRepository.findByIdAndOrganizationId(CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(ragConfig(true)));
+        when(pgVectorAvailability.isAvailable()).thenReturn(false);
+
+        assertThatThrownBy(() -> service().testConnection(CONFIG_ID, ORG_ID))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .hasMessage("error.ai_config.rag.pgvector_unavailable");
+    }
+
+    @Test
+    void deleteSkipsVectorDeleteWhenPgVectorUnavailable() {
+        when(aiConfigRepository.findByIdAndOrganizationId(CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(ragConfig(true)));
+        when(documentRepository.findByIdAndAiConfigIdAndOrganizationId(DOC_ID, CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(docEntity()));
+        when(pgVectorAvailability.isAvailable()).thenReturn(false);
+
+        service().delete(DOC_ID, CONFIG_ID, ORG_ID);
+
+        verify(ragComponentsFactory, never()).vectorStore(any(), any());
+        verify(documentRepository).delete(any());
     }
 }

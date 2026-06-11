@@ -2437,8 +2437,17 @@ Verifies the configuration's RAG embedding model and vector store are reachable:
 { "status": "OK", "detail": "Embedding model and vector store are reachable", "embedding_dimensions": 1536 }
 ```
 **Response 200 (failure):** `{ "status": "ERROR", "detail": "<message>", "embedding_dimensions": null }`
-**Response 400:** RAG is not enabled / fully configured for this configuration (`error: RAG_CONFIG_INVALID`).
+**Response 400:** RAG is not enabled / fully configured, or the store is `PGVECTOR` and the in-app pgvector store is unavailable on this deployment (`error: RAG_CONFIG_INVALID`).
 **Response 404:** Configuration not found in this organization.
+
+#### GET /admin/ai-configs/rag/capabilities
+
+Reports deployment-level RAG capabilities so the admin UI can warn when the in-app pgvector store is unavailable (the `vector` extension is not installed, or `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`) and steer admins toward an external Qdrant store. When unavailable, PGVECTOR ingestion / connection tests return `400 RAG_CONFIG_INVALID`.
+
+**Response 200:**
+```json
+{ "pgvector_available": true }
+```
 
 ### RAG Knowledge Base (`/admin/ai-configs/{id}/knowledge-documents`) *(ADMIN only)*
 

@@ -1,6 +1,8 @@
-import { Form, Input, InputNumber, Select, Switch } from 'antd';
+import { Alert, Form, Input, InputNumber, Select, Switch } from 'antd';
 import type { FormInstance } from 'antd';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { aiConfigKeys, getRagCapabilities } from '@/api/admin';
 import {
   EMBEDDING_PROVIDERS,
   RAG_STORE_TYPES,
@@ -30,6 +32,15 @@ export function RagFormSection({ form }: { form: FormInstance }) {
     embeddingProvider === 'OLLAMA' ||
     embeddingProvider === 'OPENAI_COMPATIBLE' ||
     embeddingProvider === 'HUGGING_FACE';
+  const { data: capabilities } = useQuery({
+    queryKey: aiConfigKeys.ragCapabilities(),
+    queryFn: getRagCapabilities,
+  });
+  // Assume available while loading so the warning does not flash before the answer arrives.
+  const pgvectorAvailable = capabilities?.pgvector_available ?? true;
+  const storeTypeOptions = enumOptions(RAG_STORE_TYPES, ragStoreTypeLabel, t).map((option) =>
+    option.value === 'PGVECTOR' && !pgvectorAvailable ? { ...option, disabled: true } : option,
+  );
 
   return (
     <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
@@ -46,6 +57,15 @@ export function RagFormSection({ form }: { form: FormInstance }) {
       </Form.Item>
       {enabled && (
         <>
+          {!pgvectorAvailable && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={t('admin.ai_configs.rag.pgvector_unavailable_warning')}
+              description={t('admin.ai_configs.rag.pgvector_unavailable_help')}
+            />
+          )}
           <div style={GRID_TWO}>
             <Form.Item
               name="rag_store_type"
@@ -53,7 +73,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
               rules={[{ required: true, message: t('admin.ai_configs.rag.store_type_required') }]}
             >
               <Select
-                options={enumOptions(RAG_STORE_TYPES, ragStoreTypeLabel, t)}
+                options={storeTypeOptions}
                 placeholder={t('admin.ai_configs.rag.field_store_type')}
               />
             </Form.Item>

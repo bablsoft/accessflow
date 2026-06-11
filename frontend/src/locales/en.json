@@ -1129,6 +1129,8 @@
       "rag": {
         "section_title": "RAG knowledge base",
         "section_help": "Retrieve organization-specific knowledge and inject it into AI analysis and SQL generation.",
+        "pgvector_unavailable_warning": "In-app pgvector storage is unavailable on this deployment",
+        "pgvector_unavailable_help": "Select Qdrant or install the PostgreSQL vector extension to use in-app storage.",
         "enabled": "Enable RAG",
         "field_store_type": "Vector store",
         "field_top_k": "Top-K results",
