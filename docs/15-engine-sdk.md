@@ -1,12 +1,14 @@
 # 15 — Engine-Plugin SDK
 
-How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB and
-Couchbase today; Redis, Cassandra, Elasticsearch, Neo4j tomorrow — that plugs into AccessFlow as
+How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
+and Redis today; Cassandra, Elasticsearch, Neo4j tomorrow — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)
 (AF-412) is the first engine built purely against this SDK — and the SQL-shaped counterexample
-(SQL++ classifier + WHERE-splice row security instead of `$match` injection).
+(SQL++ classifier + WHERE-splice row security instead of `$match` injection);
+[`engines/redis/`](../engines/redis/) (AF-419) is the `KEY_VALUE` reference — a command allow-list,
+key-prefix `referencedTables`, and fail-closed row security where row predicates have no meaning.
 
 Related chapters: [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine) (how the host
 dispatches to engines), [14-connectors.md](./14-connectors.md) (the connector catalog the plugin is

@@ -16,7 +16,8 @@ export type DbType =
   | 'MSSQL'
   | 'CUSTOM'
   | 'MONGODB'
-  | 'COUCHBASE';
+  | 'COUCHBASE'
+  | 'REDIS';
 /**
  * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
  * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.

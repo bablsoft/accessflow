@@ -28,5 +28,13 @@ public enum DbType {
      * the connector catalog. See {@code docs/05-backend.md} → "Couchbase engine" and
      * {@code docs/14-connectors.md}.
      */
-    COUCHBASE
+    COUCHBASE,
+    /**
+     * Redis — a NoSQL key-value store. Not JDBC-backed: the proxy connects via the native Jedis
+     * driver, validates queries with a Redis command parser rather than JSqlParser, and executes
+     * redis-cli commands (GET / HGETALL / SCAN / SET / DEL / …) instead of SQL. Resolved on demand
+     * through the connector catalog as an engine plugin. See {@code docs/05-backend.md} →
+     * "Redis engine" and {@code docs/14-connectors.md}.
+     */
+    REDIS
 }

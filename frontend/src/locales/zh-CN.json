@@ -332,6 +332,7 @@
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
+    "syntax_redis": "Redis CLI",
     "justification_label": "理由",
     "justification_required_note": "· 审核所必需",
     "justification_placeholder": "您为什么要运行此查询？",
@@ -1781,7 +1782,8 @@
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "自定义",
       "MONGODB": "MongoDB",
-      "COUCHBASE": "Couchbase"
+      "COUCHBASE": "Couchbase",
+      "REDIS": "Redis"
     },
     "ssl_mode": {
       "DISABLE": "禁用",

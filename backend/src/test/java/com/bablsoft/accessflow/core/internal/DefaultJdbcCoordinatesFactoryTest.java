@@ -121,4 +121,12 @@ class DefaultJdbcCoordinatesFactoryTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("COUCHBASE");
     }
+
+    @Test
+    void redisIsNotJdbcBacked() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.REDIS, "h", 6379, "0", "u", SslMode.DISABLE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("REDIS");
+    }
 }

@@ -332,6 +332,7 @@
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
+    "syntax_redis": "Redis CLI",
     "justification_label": "Justification",
     "justification_required_note": "· required for review",
     "justification_placeholder": "Why are you running this query?",
@@ -1781,7 +1782,8 @@
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Custom",
       "MONGODB": "MongoDB",
-      "COUCHBASE": "Couchbase"
+      "COUCHBASE": "Couchbase",
+      "REDIS": "Redis"
     },
     "ssl_mode": {
       "DISABLE": "Disable",

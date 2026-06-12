@@ -9,6 +9,7 @@ const ICON_BY_DB_TYPE: Record<DbType, string> = {
   CUSTOM: '/db-icons/custom.svg',
   MONGODB: '/db-icons/mongodb.svg',
   COUCHBASE: '/db-icons/couchbase.svg',
+  REDIS: '/db-icons/redis.svg',
 };
 
 const FALLBACK_ICON = '/db-icons/generic.svg';

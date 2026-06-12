@@ -39,6 +39,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "MONGODB is not JDBC-backed; connect via the proxy MongoClientManager, not here");
             case COUCHBASE -> throw new IllegalStateException(
                     "COUCHBASE is not JDBC-backed; connect via the couchbase engine plugin, not here");
+            case REDIS -> throw new IllegalStateException(
+                    "REDIS is not JDBC-backed; connect via the redis engine plugin, not here");
         };
     }
 
@@ -95,6 +97,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "MONGODB is not JDBC-backed; it has no JDBC driver class");
             case COUCHBASE -> throw new IllegalStateException(
                     "COUCHBASE is not JDBC-backed; it has no JDBC driver class");
+            case REDIS -> throw new IllegalStateException(
+                    "REDIS is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }

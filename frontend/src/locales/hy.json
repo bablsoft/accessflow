@@ -332,6 +332,7 @@
     "syntax_shell": "Shell",
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
+    "syntax_redis": "Redis CLI",
     "justification_label": "Հիմնավորում",
     "justification_required_note": "· պարտադիր է վերանայման համար",
     "justification_placeholder": "Ինչու եք կատարում այս հարցումը։",
@@ -1781,7 +1782,8 @@
       "MSSQL": "Microsoft SQL Server",
       "CUSTOM": "Հատուկ",
       "MONGODB": "MongoDB",
-      "COUCHBASE": "Couchbase"
+      "COUCHBASE": "Couchbase",
+      "REDIS": "Redis"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",
