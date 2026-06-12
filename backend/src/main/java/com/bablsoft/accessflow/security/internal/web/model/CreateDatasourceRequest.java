@@ -45,5 +45,6 @@ public record CreateDatasourceRequest(
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
                 message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
         @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
-        @Size(max = 4096) String readReplicaPassword
+        @Size(max = 4096) String readReplicaPassword,
+        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter
 ) {}

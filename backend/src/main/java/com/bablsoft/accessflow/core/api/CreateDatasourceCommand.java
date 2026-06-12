@@ -25,5 +25,22 @@ public record CreateDatasourceCommand(
         String jdbcUrlOverride,
         String readReplicaJdbcUrl,
         String readReplicaUsername,
-        String readReplicaPassword
-) {}
+        String readReplicaPassword,
+        String localDatacenter
+) {
+    /** Backward-compatible constructor for non-Cassandra dialects (no {@code localDatacenter}). */
+    public CreateDatasourceCommand(
+            UUID organizationId, String name, DbType dbType, String host, Integer port,
+            String databaseName, String username, String password, SslMode sslMode,
+            Integer connectionPoolSize, Integer maxRowsPerQuery, Boolean requireReviewReads,
+            Boolean requireReviewWrites, UUID reviewPlanId, Boolean aiAnalysisEnabled,
+            UUID aiConfigId, Boolean textToSqlEnabled, UUID customDriverId, String connectorId,
+            String jdbcUrlOverride, String readReplicaJdbcUrl, String readReplicaUsername,
+            String readReplicaPassword) {
+        this(organizationId, name, dbType, host, port, databaseName, username, password, sslMode,
+                connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
+                reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
+                connectorId, jdbcUrlOverride, readReplicaJdbcUrl, readReplicaUsername,
+                readReplicaPassword, null);
+    }
+}

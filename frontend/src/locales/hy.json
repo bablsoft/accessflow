@@ -333,6 +333,7 @@
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
+    "syntax_cql": "CQL",
     "justification_label": "Հիմնավորում",
     "justification_required_note": "· պարտադիր է վերանայման համար",
     "justification_placeholder": "Ինչու եք կատարում այս հարցումը։",
@@ -645,6 +646,8 @@
       "field_host": "Հոստ",
       "field_port": "Պորտ",
       "field_database": "Տվյալների բազայի անվանումը",
+      "field_local_datacenter": "Տեղական տվյալների կենտրոն",
+      "field_local_datacenter_help": "Cassandra / ScyllaDB բեռնաբաշխման տվյալների կենտրոնը (օր.՝ datacenter1) — պարտադիր է դրայվերի համար։",
       "field_username": "Օգտանուն",
       "field_password": "Գաղտնաբառ",
       "field_ssl_mode": "SSL ռեժիմ",
@@ -1783,7 +1786,9 @@
       "CUSTOM": "Հատուկ",
       "MONGODB": "MongoDB",
       "COUCHBASE": "Couchbase",
-      "REDIS": "Redis"
+      "REDIS": "Redis",
+      "CASSANDRA": "Apache Cassandra",
+      "SCYLLADB": "ScyllaDB"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",

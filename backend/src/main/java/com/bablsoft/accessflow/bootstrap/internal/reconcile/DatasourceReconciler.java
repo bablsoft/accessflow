@@ -90,7 +90,8 @@ public class DatasourceReconciler {
                     spec.jdbcUrlOverride(),
                     null,
                     null,
-                    null));
+                    null,
+                    spec.localDatacenter()));
             log.info("Bootstrap: created datasource '{}' (id={})", spec.name(), created.id());
             stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.DATASOURCE,
                     created.id(), specFingerprint,
@@ -136,7 +137,8 @@ public class DatasourceReconciler {
                         null,
                         null,
                         null,
-                        Boolean.TRUE));
+                        Boolean.TRUE,
+                        spec.localDatacenter()));
         log.info("Bootstrap: updated datasource '{}' (id={})", spec.name(), updated.id());
         stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.DATASOURCE,
                 updated.id(), specFingerprint,
@@ -201,6 +203,7 @@ public class DatasourceReconciler {
         map.put("ai_config_id", aiConfigId == null ? null : aiConfigId.toString());
         map.put("text_to_sql_enabled", spec.textToSqlEnabled());
         map.put("jdbc_url_override", spec.jdbcUrlOverride());
+        map.put("local_datacenter", spec.localDatacenter());
         return map;
     }
 
@@ -222,6 +225,7 @@ public class DatasourceReconciler {
         map.put("ai_config_id", view.aiConfigId() == null ? null : view.aiConfigId().toString());
         map.put("text_to_sql_enabled", view.textToSqlEnabled());
         map.put("jdbc_url_override", view.jdbcUrlOverride());
+        map.put("local_datacenter", view.localDatacenter());
         return map;
     }
 }

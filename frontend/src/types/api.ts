@@ -17,7 +17,9 @@ export type DbType =
   | 'CUSTOM'
   | 'MONGODB'
   | 'COUCHBASE'
-  | 'REDIS';
+  | 'REDIS'
+  | 'CASSANDRA'
+  | 'SCYLLADB';
 /**
  * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
  * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.
@@ -498,6 +500,7 @@ export interface Datasource {
   jdbc_url_override: string | null;
   read_replica_jdbc_url: string | null;
   read_replica_username: string | null;
+  local_datacenter: string | null;
   active: boolean;
   created_at: string;
 }
@@ -531,6 +534,7 @@ export interface CreateDatasourceInput {
   read_replica_jdbc_url?: string | null;
   read_replica_username?: string | null;
   read_replica_password?: string | null;
+  local_datacenter?: string | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -554,6 +558,7 @@ export interface UpdateDatasourceInput {
   read_replica_jdbc_url?: string | null;
   read_replica_username?: string | null;
   read_replica_password?: string | null;
+  local_datacenter?: string | null;
   active?: boolean;
 }
 

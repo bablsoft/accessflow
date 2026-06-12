@@ -888,7 +888,11 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 | `ACCESSFLOW_PROXY_ENGINES_REDIS_CONNECT_TIMEOUT` | Optional | `PT5S` | Connect timeout for the per-Redis-datasource native Jedis client (Redis-only; relational pools use `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT`). Generic AF-418 lane — no legacy alias |
 | `ACCESSFLOW_PROXY_ENGINES_REDIS_SOCKET_TIMEOUT` | Optional | `PT5S` | Socket-read timeout for Redis commands; bounds per-command latency (the key-value engine has no per-query statement timeout) |
 | `ACCESSFLOW_PROXY_ENGINES_REDIS_MAX_POOL_SIZE` | Optional | `10` | Max connections in the native Jedis pool for a Redis datasource |
-| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | Optional | `PT30S` | Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll. MongoDB and Redis datasources report query stats but no JDBC pool counters |
+| `ACCESSFLOW_PROXY_ENGINES_CASSANDRA_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-Cassandra-datasource native `CqlSession` (Cassandra-only; relational pools use `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT`). Generic AF-418 lane — no legacy alias |
+| `ACCESSFLOW_PROXY_ENGINES_CASSANDRA_REQUEST_TIMEOUT` | Optional | `PT10S` | Default CQL request timeout for Cassandra datasources; the host overrides it per statement with the computed statement timeout |
+| `ACCESSFLOW_PROXY_ENGINES_SCYLLADB_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-ScyllaDB-datasource native `CqlSession` (ScyllaDB-only; separate config lane from Cassandra, same defaults). Generic AF-418 lane — no legacy alias |
+| `ACCESSFLOW_PROXY_ENGINES_SCYLLADB_REQUEST_TIMEOUT` | Optional | `PT10S` | Default CQL request timeout for ScyllaDB datasources; the host overrides it per statement with the computed statement timeout |
+| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | Optional | `PT30S` | Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll. MongoDB, Redis, Cassandra, and ScyllaDB datasources report query stats but no JDBC pool counters |
 
 > **Read-replica routing** (added in v1.2 — see [docs/05-backend.md → "Read-replica routing"](05-backend.md#read-replica-routing)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above; there are no replica-specific env vars. Configure replicas per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with `read_replica_jdbc_url`/`read_replica_username`/`read_replica_password`.
 
@@ -898,7 +902,7 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_DRIVER_CACHE` | Optional | `${user.home}/.accessflow/drivers` | Filesystem path for cached customer-DB driver JARs **and** NoSQL engine-plugin JARs (e.g. the MongoDB engine, AF-414). Set to a system path (e.g. `/var/lib/accessflow/drivers`) and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Optional | `https://repo1.maven.org/maven2` | Maven repository base URL for on-demand driver downloads. Override for internal Nexus / Artifactory mirrors. |
-| `ACCESSFLOW_DRIVERS_OFFLINE` | Optional | `false` | When `true`, disables network resolution and serves only from the cache (JDBC drivers and engine plugins alike). Required for air-gapped installs — pre-seed the cache, including `accessflow-engine-mongodb-<v>-all.jar` if MongoDB datasources are used (see [14-connectors.md → Persistence and air-gap](./14-connectors.md#persistence-and-air-gap)). |
+| `ACCESSFLOW_DRIVERS_OFFLINE` | Optional | `false` | When `true`, disables network resolution and serves only from the cache (JDBC drivers and engine plugins alike). Required for air-gapped installs — pre-seed the cache, including `accessflow-engine-mongodb-<v>-all.jar` if MongoDB datasources are used and `accessflow-engine-cassandra-<v>-all.jar` if Cassandra or ScyllaDB datasources are used (the same JAR serves both); see [14-connectors.md → Persistence and air-gap](./14-connectors.md#persistence-and-air-gap). |
 
 #### Workflow & Notifications
 

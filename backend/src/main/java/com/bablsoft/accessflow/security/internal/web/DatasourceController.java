@@ -138,7 +138,8 @@ class DatasourceController {
                 request.jdbcUrlOverride(),
                 request.readReplicaJdbcUrl(),
                 request.readReplicaUsername(),
-                request.readReplicaPassword());
+                request.readReplicaPassword(),
+                request.localDatacenter());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -194,7 +195,8 @@ class DatasourceController {
                 request.readReplicaJdbcUrl(),
                 request.readReplicaUsername(),
                 request.readReplicaPassword(),
-                request.active());
+                request.active(),
+                request.localDatacenter());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
                 auditContext, Map.of("name", updated.name()));

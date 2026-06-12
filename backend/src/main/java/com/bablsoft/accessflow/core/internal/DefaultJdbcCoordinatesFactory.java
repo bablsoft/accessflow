@@ -41,6 +41,10 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "COUCHBASE is not JDBC-backed; connect via the couchbase engine plugin, not here");
             case REDIS -> throw new IllegalStateException(
                     "REDIS is not JDBC-backed; connect via the redis engine plugin, not here");
+            case CASSANDRA -> throw new IllegalStateException(
+                    "CASSANDRA is not JDBC-backed; connect via the cassandra engine plugin, not here");
+            case SCYLLADB -> throw new IllegalStateException(
+                    "SCYLLADB is not JDBC-backed; connect via the cassandra engine plugin, not here");
         };
     }
 
@@ -99,6 +103,10 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "COUCHBASE is not JDBC-backed; it has no JDBC driver class");
             case REDIS -> throw new IllegalStateException(
                     "REDIS is not JDBC-backed; it has no JDBC driver class");
+            case CASSANDRA -> throw new IllegalStateException(
+                    "CASSANDRA is not JDBC-backed; it has no JDBC driver class");
+            case SCYLLADB -> throw new IllegalStateException(
+                    "SCYLLADB is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }

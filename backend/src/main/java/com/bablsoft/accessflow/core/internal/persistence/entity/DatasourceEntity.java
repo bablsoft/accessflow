@@ -109,6 +109,9 @@ public class DatasourceEntity {
     @Column(name = "read_replica_password_encrypted", columnDefinition = "TEXT")
     private String readReplicaPasswordEncrypted;
 
+    @Column(name = "local_datacenter", length = 255)
+    private String localDatacenter;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

@@ -41,6 +41,8 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   MONGODB: 'green',
   COUCHBASE: 'volcano',
   REDIS: 'red',
+  CASSANDRA: 'geekblue',
+  SCYLLADB: 'lime',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -73,6 +75,22 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
   // redis-cli token shape), no formatter, no text-to-SQL, tabular results by default.
   REDIS: {
     syntaxes: [{ value: 'cli', labelKey: 'editor.syntax_redis', language: 'javascript' }],
+    canFormat: false,
+    supportsTextToSql: false,
+    defaultResultView: 'table',
+  },
+  // CQL is SQL-shaped: SQL highlighting (CodeMirror has no CQL dialect; StandardSQL covers the
+  // keyword set). No formatter or text-to-SQL — neither is CQL-aware (USING TTL, IF NOT EXISTS,
+  // collection literals) — and tabular results by default.
+  CASSANDRA: {
+    syntaxes: [{ value: 'cql', labelKey: 'editor.syntax_cql', language: 'sql' }],
+    canFormat: false,
+    supportsTextToSql: false,
+    defaultResultView: 'table',
+  },
+  // ScyllaDB is CQL-compatible — identical editor behaviour to Cassandra.
+  SCYLLADB: {
+    syntaxes: [{ value: 'cql', labelKey: 'editor.syntax_cql', language: 'sql' }],
     canFormat: false,
     supportsTextToSql: false,
     defaultResultView: 'table',

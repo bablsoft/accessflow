@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "scylladb",
+  "name": "ScyllaDB",
+  "dbType": "SCYLLADB",
+  "category": "WIDE_COLUMN",
+  "vendor": "ScyllaDB, Inc.",
+  "description": "CQL-compatible wide-column store, served by the very same AccessFlow Cassandra engine plugin. Installs on demand; row security only filters on partition/clustering key columns.",
+  "documentationUrl": "https://docs.scylladb.com/",
+  "logo": "logo.svg",
+  "defaultPort": 9042,
+  "defaultSslMode": "DISABLE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-cassandra-1.0.0-all.jar",
+    "fileName": "accessflow-engine-cassandra-1.0.0-all.jar",
+    "sha256": "ceaa7b99f9c87f86b75ba341b480a77d8950bdca317ad0643c2747c1a8bb4816"
+  }
+}

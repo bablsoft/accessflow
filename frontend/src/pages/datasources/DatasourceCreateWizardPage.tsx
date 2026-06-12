@@ -40,6 +40,7 @@ interface ConnectionFormValues {
   port: number;
   database_name: string;
   jdbc_url: string;
+  local_datacenter: string;
   username: string;
   password: string;
   ssl_mode: SslMode;
@@ -114,6 +115,8 @@ export default function DatasourceCreateWizardPage() {
       }
       const isDynamic =
         selectedType.code === 'CUSTOM' && selectedType.source !== 'connector';
+      const isCqlEngine =
+        selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
       if (createdDatasource) {
         const input: UpdateDatasourceInput = {
           name: values.name,
@@ -127,6 +130,9 @@ export default function DatasourceCreateWizardPage() {
           input.host = values.host;
           input.port = values.port;
           input.database_name = values.database_name;
+        }
+        if (isCqlEngine) {
+          input.local_datacenter = values.local_datacenter;
         }
         return updateDatasource(createdDatasource.id, input);
       }
@@ -147,6 +153,9 @@ export default function DatasourceCreateWizardPage() {
         input.host = values.host;
         input.port = values.port;
         input.database_name = values.database_name;
+      }
+      if (isCqlEngine) {
+        input.local_datacenter = values.local_datacenter;
       }
       return createDatasource(input);
     },
@@ -348,6 +357,16 @@ export default function DatasourceCreateWizardPage() {
                   <Input placeholder="appdb" />
                 </Form.Item>
               </>
+            )}
+            {(selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB') && (
+              <Form.Item
+                label={t('datasources.create.field_local_datacenter')}
+                name="local_datacenter"
+                extra={t('datasources.create.field_local_datacenter_help')}
+                rules={[{ required: true }, { max: 255 }]}
+              >
+                <Input placeholder="datacenter1" />
+              </Form.Item>
             )}
             <Form.Item
               label={t('datasources.create.field_username')}

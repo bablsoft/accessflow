@@ -155,6 +155,48 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void createCassandraWithoutLocalDatacenterThrows() {
+        var command = new CreateDatasourceCommand(orgId, "Cass", DbType.CASSANDRA, "node1", 9042,
+                "app", "svc", "pw", SslMode.DISABLE, null, null, null, null, null, false, null,
+                null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createCassandraWithLocalDatacenterSucceedsAndSurfacesIt() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(engineCatalog.isEngineManaged(DbType.CASSANDRA)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Cass", DbType.CASSANDRA, "node1", 9042,
+                "app", "svc", "pw", SslMode.DISABLE, null, null, null, null, null, false, null,
+                null, null, null, null, null, null, null, "dc1");
+        var result = service.create(command);
+
+        assertThat(result.localDatacenter()).isEqualTo("dc1");
+        verify(engineCatalog).engineFor(DbType.CASSANDRA);
+    }
+
+    @Test
+    void updateCassandraClearingLocalDatacenterThrows() {
+        var entity = buildDatasource(datasourceId, orgId, "Cass");
+        entity.setDbType(DbType.CASSANDRA);
+        entity.setLocalDatacenter("dc1");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        var command = new UpdateDatasourceCommand(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, "  ");
+        assertThatThrownBy(() -> service.update(datasourceId, orgId, command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+    }
+
+    @Test
     void updateAppliesNonNullFieldsAndReencryptsPassword() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));

@@ -92,6 +92,7 @@ const baseDatasource: Datasource = {
   jdbc_url_override: null,
   read_replica_jdbc_url: null,
   read_replica_username: null,
+  local_datacenter: null,
   active: true,
   created_at: '2026-05-01T00:00:00Z',
 };

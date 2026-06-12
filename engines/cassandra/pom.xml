@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bablsoft.accessflow</groupId>
+    <artifactId>accessflow-engine-cassandra</artifactId>
+    <!--
+      The plugin has its OWN version line, independent of the application release version
+      (release.yml never runs versions:set here). The connector manifests
+      (connectors/cassandra/connector.json AND connectors/scylladb/connector.json — both back this
+      one JAR) pin this version + the SHA-256 of the shaded JAR; bump them together whenever the
+      engine (or a core.api type it compiles against) changes.
+    -->
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>AccessFlow Cassandra Query Engine</name>
+    <description>
+        On-demand Cassandra / ScyllaDB engine plugin for AccessFlow (issue AF-421). Implements the
+        core.api.QueryEngine SPI for CQL and ships as a self-contained shaded JAR (bundling the
+        DataStax Java driver with a relocated Netty, Typesafe Config and HdrHistogram) resolved
+        through the connector catalog and discovered via ServiceLoader. The same JAR registers two
+        providers — engineId "cassandra" and "scylladb" — so it backs both connectors.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Reproducible build: the shaded JAR's SHA-256 is pinned in the connector manifest. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+        <!-- The backend version whose core.api SPI this plugin compiles against. -->
+        <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
+        <cassandra-driver.version>4.19.3</cassandra-driver.version>
+        <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Test-stack version alignment only (JUnit/AssertJ/Mockito/Testcontainers/slf4j) -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--
+          The host SPI + engine-neutral DTOs (core.api). Provided: at runtime these classes come
+          from the application classloader (the plugin's URLClassLoader parent), so they must NOT
+          be shaded into the plugin JAR. Build the backend first: mvn -f ../../backend/pom.xml
+          install -DskipTests (the backend installs its plain JAR; the boot JAR is *-exec.jar).
+        -->
+        <dependency>
+            <groupId>com.bablsoft.accessflow</groupId>
+            <artifactId>accessflow</artifactId>
+            <version>${accessflow.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Shaded into the plugin JAR. Pulls native-protocol, java-driver-shaded-guava, Netty,
+             Typesafe Config and HdrHistogram. Netty (host carries its own via Lettuce), HdrHistogram
+             (host carries its own via Micrometer) and Typesafe Config are relocated; the
+             com.datastax.oss.driver API the engine compiles against stays un-relocated. -->
+        <dependency>
+            <groupId>org.apache.cassandra</groupId>
+            <artifactId>java-driver-core</artifactId>
+            <version>${cassandra-driver.version}</version>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-cassandra</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- No artifactSet/includes: the catalog classloader does no transitive
+                                 resolution, so everything the engine needs at runtime (every
+                                 compile/runtime-scope transitive of the driver) must be inside this
+                                 one JAR. The two provided deps (accessflow core.api + slf4j-api) are
+                                 excluded by scope — they resolve from the host classloader. -->
+                            <relocations>
+                                <relocation>
+                                    <pattern>io.netty</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.cassandra.shaded.io.netty</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.typesafe.config</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.cassandra.shaded.com.typesafe.config</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.HdrHistogram</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.cassandra.shaded.org.HdrHistogram</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.reactivestreams</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.cassandra.shaded.org.reactivestreams</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- The DataStax driver loads its defaults from reference.conf via
+                                     Typesafe Config; merging is mandatory or CqlSession.builder()
+                                     fails to resolve the driver config. -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.14</version>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

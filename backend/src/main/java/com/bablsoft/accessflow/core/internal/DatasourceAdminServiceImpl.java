@@ -155,6 +155,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCustomDriver(customDriver);
         entity.setConnectorId(connectorId);
         entity.setJdbcUrlOverride(command.jdbcUrlOverride());
+        entity.setLocalDatacenter(blankToNull(command.localDatacenter()));
+        requireLocalDatacenterForEngine(command.dbType(), entity.getLocalDatacenter());
         if (command.connectionPoolSize() != null) {
             entity.setConnectionPoolSize(command.connectionPoolSize());
         }
@@ -252,6 +254,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             entity.setJdbcUrlOverride(command.jdbcUrlOverride().isBlank()
                     ? null : command.jdbcUrlOverride());
         }
+        if (command.localDatacenter() != null) {
+            entity.setLocalDatacenter(blankToNull(command.localDatacenter()));
+        }
+        requireLocalDatacenterForEngine(entity.getDbType(), entity.getLocalDatacenter());
         validateDriverChoice(entity.getDbType(),
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
                 entity.getCustomDriver(),
@@ -301,7 +307,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getJdbcUrlOverride(),
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),
-                entity.getReadReplicaPasswordEncrypted());
+                entity.getReadReplicaPasswordEncrypted(),
+                entity.getLocalDatacenter());
     }
 
     private record PoolFingerprint(String host, Integer port, String databaseName, String username,
@@ -309,7 +316,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                                    int connectionPoolSize, UUID customDriverId, String connectorId,
                                    String jdbcUrlOverride,
                                    String readReplicaJdbcUrl, String readReplicaUsername,
-                                   String readReplicaPasswordEncrypted) {
+                                   String readReplicaPasswordEncrypted, String localDatacenter) {
     }
 
     /**
@@ -557,7 +564,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),
                 entity.isActive(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                entity.getLocalDatacenter());
     }
 
     private CustomJdbcDriverEntity resolveCustomDriverForCreate(CreateDatasourceCommand command) {
@@ -648,6 +656,19 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (databaseName == null || databaseName.isBlank()) {
             throw new IllegalDatasourcePermissionException(
                     "Datasource database_name is required for db_type " + dbType);
+        }
+    }
+
+    /**
+     * Cassandra / ScyllaDB datasources require a {@code local_datacenter} for the driver's
+     * load-balancing policy ({@code withLocalDatacenter(...)}). The column is nullable for every
+     * other dialect; this cross-field rule can't be expressed with a Bean Validation annotation.
+     */
+    private void requireLocalDatacenterForEngine(DbType dbType, String localDatacenter) {
+        if ((dbType == DbType.CASSANDRA || dbType == DbType.SCYLLADB)
+                && (localDatacenter == null || localDatacenter.isBlank())) {
+            throw new IllegalDatasourcePermissionException(
+                    "local_datacenter is required for db_type " + dbType);
         }
     }
 
