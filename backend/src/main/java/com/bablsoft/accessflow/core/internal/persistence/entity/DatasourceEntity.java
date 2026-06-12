@@ -112,6 +112,10 @@ public class DatasourceEntity {
     @Column(name = "local_datacenter", length = 255)
     private String localDatacenter;
 
+    @JsonIgnore
+    @Column(name = "api_key_encrypted", columnDefinition = "TEXT")
+    private String apiKeyEncrypted;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

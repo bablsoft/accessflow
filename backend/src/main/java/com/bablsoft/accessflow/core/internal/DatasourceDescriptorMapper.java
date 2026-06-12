@@ -36,6 +36,7 @@ final class DatasourceDescriptorMapper {
                 entity.getReadReplicaUsername(),
                 entity.getReadReplicaPasswordEncrypted(),
                 entity.isActive(),
-                entity.getLocalDatacenter());
+                entity.getLocalDatacenter(),
+                entity.getApiKeyEncrypted());
     }
 }

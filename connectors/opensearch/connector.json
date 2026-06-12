@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "opensearch",
+  "name": "OpenSearch",
+  "dbType": "OPENSEARCH",
+  "category": "SEARCH",
+  "vendor": "OpenSearch Software Foundation",
+  "description": "Search engine wire-compatible with Elasticsearch, served by the very same AccessFlow Elasticsearch engine plugin. Installs on demand; row security injects bool.filter clauses on keyword fields and scripting is rejected.",
+  "documentationUrl": "https://opensearch.org/docs/latest/",
+  "logo": "logo.svg",
+  "defaultPort": 9200,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-elasticsearch-1.0.0-all.jar",
+    "fileName": "accessflow-engine-elasticsearch-1.0.0-all.jar",
+    "sha256": "52cc3c9de224869d53fdb0e1d5ea22696f546a973a79f596db8b73310e41c0a0"
+  }
+}

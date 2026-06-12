@@ -12,6 +12,8 @@ const ICON_BY_DB_TYPE: Record<DbType, string> = {
   REDIS: '/db-icons/redis.svg',
   CASSANDRA: '/db-icons/cassandra.svg',
   SCYLLADB: '/db-icons/scylladb.svg',
+  ELASTICSEARCH: '/db-icons/elasticsearch.svg',
+  OPENSEARCH: '/db-icons/opensearch.svg',
 };
 
 const FALLBACK_ICON = '/db-icons/generic.svg';

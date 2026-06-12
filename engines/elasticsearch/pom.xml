@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bablsoft.accessflow</groupId>
+    <artifactId>accessflow-engine-elasticsearch</artifactId>
+    <!--
+      The plugin has its OWN version line, independent of the application release version
+      (release.yml never runs versions:set here). The connector manifests
+      (connectors/elasticsearch/connector.json AND connectors/opensearch/connector.json — both back
+      this one JAR) pin this version + the SHA-256 of the shaded JAR; bump them together whenever the
+      engine (or a core.api type it compiles against) changes.
+    -->
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>AccessFlow Elasticsearch Query Engine</name>
+    <description>
+        On-demand Elasticsearch / OpenSearch engine plugin for AccessFlow (issue AF-420). Implements
+        the core.api.QueryEngine SPI over the low-level REST client and ships as a self-contained
+        shaded JAR (bundling the Elasticsearch and OpenSearch low-level REST clients and a relocated
+        Apache HttpComponents / Jackson) resolved through the connector catalog and discovered via
+        ServiceLoader. The same JAR registers two providers — engineId "elasticsearch" and
+        "opensearch" — so it backs both connectors.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Reproducible build: the shaded JAR's SHA-256 is pinned in the connector manifest. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+        <!-- The backend version whose core.api SPI this plugin compiles against. -->
+        <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
+        <elasticsearch-rest-client.version>9.4.2</elasticsearch-rest-client.version>
+        <opensearch-rest-client.version>3.7.0</opensearch-rest-client.version>
+        <jackson.version>3.2.0</jackson.version>
+        <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Test-stack version alignment only (JUnit/AssertJ/Mockito/Testcontainers/slf4j) -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--
+          The host SPI + engine-neutral DTOs (core.api). Provided: at runtime these classes come
+          from the application classloader (the plugin's URLClassLoader parent), so they must NOT
+          be shaded into the plugin JAR. Build the backend first: mvn -f ../../backend/pom.xml
+          install -DskipTests (the backend installs its plain JAR; the boot JAR is *-exec.jar).
+        -->
+        <dependency>
+            <groupId>com.bablsoft.accessflow</groupId>
+            <artifactId>accessflow</artifactId>
+            <version>${accessflow.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Shaded into the plugin JAR. Both low-level REST clients pull Apache HttpComponents 4
+             (httpasyncclient / httpcore / httpcore-nio / httpclient / commons-codec /
+             commons-logging) — one shared copy after mediation; those host-shared libs (plus
+             Jackson) are relocated. The org.elasticsearch.client / org.opensearch.client driver
+             namespaces stay un-relocated (the host carries neither). -->
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>elasticsearch-rest-client</artifactId>
+            <version>${elasticsearch-rest-client.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.opensearch.client</groupId>
+            <artifactId>opensearch-rest-client</artifactId>
+            <version>${opensearch-rest-client.version}</version>
+        </dependency>
+        <!-- Strict JSON parse / tree manipulation for the query envelope, RLS injection and result
+             mapping; relocated under the plugin namespace so it can never clash with the host's
+             own tools.jackson. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Elasticsearch single-node Testcontainers module; OpenSearch has no module, so its IT
+             uses the generic GenericContainer (org.testcontainers:testcontainers). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-elasticsearch</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- Explicit include set: the catalog classloader does no transitive
+                                 resolution, so everything the engine needs at runtime (both
+                                 low-level REST clients and their HttpComponents stacks + Jackson)
+                                 must be inside this one JAR. Pinning the list keeps Netty and the
+                                 host's provided libraries (which leak transitively through the
+                                 provided accessflow dependency) OUT of the plugin JAR. -->
+                            <artifactSet>
+                                <includes>
+                                    <include>com.bablsoft.accessflow:accessflow-engine-elasticsearch</include>
+                                    <include>org.elasticsearch.client:elasticsearch-rest-client</include>
+                                    <include>org.apache.httpcomponents:*</include>
+                                    <include>commons-codec:commons-codec</include>
+                                    <include>commons-logging:commons-logging</include>
+                                    <include>org.opensearch.client:opensearch-rest-client</include>
+                                    <include>org.apache.httpcomponents.client5:*</include>
+                                    <include>org.apache.httpcomponents.core5:*</include>
+                                    <include>io.projectreactor:reactor-core</include>
+                                    <include>org.reactivestreams:reactive-streams</include>
+                                    <include>tools.jackson.core:*</include>
+                                    <include>com.fasterxml.jackson.core:jackson-annotations</include>
+                                </includes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>tools.jackson</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.tools.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.http</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.org.apache.http</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <!-- HttpComponents 5 (the OpenSearch 3.x low-level client); the
+                                         Elasticsearch 9.x client uses HttpComponents 4 above. -->
+                                    <pattern>org.apache.hc</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.org.apache.hc</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.commons.logging</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.org.apache.commons.logging</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.apache.commons.codec</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.org.apache.commons.codec</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <!-- Reactor + reactive-streams ride in via httpcore5-reactive
+                                         (an OpenSearch client transitive); relocate so they can
+                                         never clash with the host's own Reactor. -->
+                                    <pattern>reactor</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.reactor</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.reactivestreams</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.elasticsearch.shaded.org.reactivestreams</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.14</version>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

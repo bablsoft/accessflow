@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, App, Button, Form, Input, InputNumber, Select, Switch } from 'antd';
+import { Alert, App, Button, Form, Input, InputNumber, Radio, Select, Switch } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -34,6 +34,8 @@ import {
 import { JdbcUrlPreview } from '@/components/datasources/JdbcUrlPreview';
 import { ConnectionTester } from '@/components/datasources/ConnectionTester';
 
+type AuthMethod = 'basic' | 'api_key';
+
 interface ConnectionFormValues {
   name: string;
   host: string;
@@ -41,10 +43,14 @@ interface ConnectionFormValues {
   database_name: string;
   jdbc_url: string;
   local_datacenter: string;
+  auth_method: AuthMethod;
+  api_key: string;
   username: string;
   password: string;
   ssl_mode: SslMode;
 }
+
+const SEARCH_ENGINES = ['ELASTICSEARCH', 'OPENSEARCH'];
 
 interface SettingsFormValues {
   connection_pool_size: number;
@@ -117,11 +123,17 @@ export default function DatasourceCreateWizardPage() {
         selectedType.code === 'CUSTOM' && selectedType.source !== 'connector';
       const isCqlEngine =
         selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
+      const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
+      const useApiKey = isSearchEngine && values.auth_method === 'api_key';
+      // API-key auth replaces basic creds; send blank username/password (the backend keeps the
+      // NOT NULL columns satisfied) and the encrypted-at-rest API key.
+      const username = useApiKey ? '' : values.username;
+      const password = useApiKey ? '' : values.password;
       if (createdDatasource) {
         const input: UpdateDatasourceInput = {
           name: values.name,
-          username: values.username,
-          password: values.password,
+          username,
+          password,
           ssl_mode: values.ssl_mode,
         };
         if (isDynamic) {
@@ -134,13 +146,16 @@ export default function DatasourceCreateWizardPage() {
         if (isCqlEngine) {
           input.local_datacenter = values.local_datacenter;
         }
+        if (isSearchEngine) {
+          input.api_key = useApiKey ? values.api_key : '';
+        }
         return updateDatasource(createdDatasource.id, input);
       }
       const input: CreateDatasourceInput = {
         name: values.name,
         db_type: selectedType.code,
-        username: values.username,
-        password: values.password,
+        username,
+        password,
         ssl_mode: values.ssl_mode,
         ai_analysis_enabled: false,
         ai_config_id: null,
@@ -156,6 +171,9 @@ export default function DatasourceCreateWizardPage() {
       }
       if (isCqlEngine) {
         input.local_datacenter = values.local_datacenter;
+      }
+      if (useApiKey) {
+        input.api_key = values.api_key;
       }
       return createDatasource(input);
     },
@@ -299,6 +317,10 @@ export default function DatasourceCreateWizardPage() {
       );
     }
     if (currentStep === 'connection' && selectedType) {
+      const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
+      const authMethod: AuthMethod =
+        (connectionValues?.auth_method as AuthMethod | undefined) ?? 'basic';
+      const showBasicCreds = !isSearchEngine || authMethod === 'basic';
       return (
         <Form<ConnectionFormValues>
           form={connectionForm}
@@ -308,6 +330,7 @@ export default function DatasourceCreateWizardPage() {
           initialValues={{
             port: selectedType.default_port,
             ssl_mode: selectedType.default_ssl_mode,
+            auth_method: 'basic',
           }}
         >
           {dynamicMode && (
@@ -352,9 +375,9 @@ export default function DatasourceCreateWizardPage() {
                 <Form.Item
                   label={t('datasources.create.field_database')}
                   name="database_name"
-                  rules={[{ required: true }, { max: 255 }]}
+                  rules={isSearchEngine ? [{ max: 255 }] : [{ required: true }, { max: 255 }]}
                 >
-                  <Input placeholder="appdb" />
+                  <Input placeholder={isSearchEngine ? 'logs-*' : 'appdb'} />
                 </Form.Item>
               </>
             )}
@@ -368,20 +391,54 @@ export default function DatasourceCreateWizardPage() {
                 <Input placeholder="datacenter1" />
               </Form.Item>
             )}
-            <Form.Item
-              label={t('datasources.create.field_username')}
-              name="username"
-              rules={[{ required: true }, { max: 255 }]}
-            >
-              <Input placeholder="accessflow_svc" />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.create.field_password')}
-              name="password"
-              rules={[{ required: true }, { max: 4096 }]}
-            >
-              <Input.Password />
-            </Form.Item>
+            {isSearchEngine && (
+              <Form.Item label={t('datasources.create.field_auth_method')} name="auth_method">
+                <Radio.Group
+                  optionType="button"
+                  options={[
+                    {
+                      value: 'basic',
+                      label: t('datasources.create.field_auth_method_basic'),
+                    },
+                    {
+                      value: 'api_key',
+                      label: t('datasources.create.field_auth_method_api_key'),
+                    },
+                  ]}
+                />
+              </Form.Item>
+            )}
+            {showBasicCreds && (
+              <>
+                <Form.Item
+                  label={t('datasources.create.field_username')}
+                  name="username"
+                  rules={[{ required: true }, { max: 255 }]}
+                >
+                  <Input placeholder="accessflow_svc" />
+                </Form.Item>
+                <Form.Item
+                  label={t('datasources.create.field_password')}
+                  name="password"
+                  rules={[{ required: true }, { max: 4096 }]}
+                >
+                  <Input.Password />
+                </Form.Item>
+              </>
+            )}
+            {isSearchEngine && authMethod === 'api_key' && (
+              <Form.Item
+                label={t('datasources.create.field_api_key')}
+                name="api_key"
+                extra={t('datasources.create.field_api_key_help')}
+                rules={[
+                  { required: true, message: t('datasources.create.field_api_key_required') },
+                  { max: 4096 },
+                ]}
+              >
+                <Input.Password />
+              </Form.Item>
+            )}
             <Form.Item
               label={t('datasources.create.field_ssl_mode')}
               name="ssl_mode"

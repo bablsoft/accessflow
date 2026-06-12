@@ -334,6 +334,7 @@
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
+    "syntax_query_dsl": "Query DSL",
     "justification_label": "Обоснование",
     "justification_required_note": "· требуется для проверки",
     "justification_placeholder": "Зачем вы выполняете этот запрос?",
@@ -648,6 +649,12 @@
       "field_database": "Имя базы",
       "field_local_datacenter": "Локальный ЦОД",
       "field_local_datacenter_help": "ЦОД балансировки нагрузки Cassandra / ScyllaDB (например, datacenter1) — требуется драйверу.",
+      "field_auth_method": "Аутентификация",
+      "field_auth_method_basic": "Имя пользователя и пароль",
+      "field_auth_method_api_key": "Ключ API",
+      "field_api_key": "Ключ API",
+      "field_api_key_help": "Ключ API Elasticsearch / OpenSearch, отправляется как Authorization: ApiKey. Хранится в зашифрованном виде.",
+      "field_api_key_required": "Ключ API обязателен",
       "field_username": "Имя пользователя",
       "field_password": "Пароль",
       "field_ssl_mode": "Режим SSL",
@@ -1788,7 +1795,9 @@
       "COUCHBASE": "Couchbase",
       "REDIS": "Redis",
       "CASSANDRA": "Apache Cassandra",
-      "SCYLLADB": "ScyllaDB"
+      "SCYLLADB": "ScyllaDB",
+      "ELASTICSEARCH": "Elasticsearch",
+      "OPENSEARCH": "OpenSearch"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",

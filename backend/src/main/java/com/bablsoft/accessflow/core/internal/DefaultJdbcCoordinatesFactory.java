@@ -45,6 +45,10 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "CASSANDRA is not JDBC-backed; connect via the cassandra engine plugin, not here");
             case SCYLLADB -> throw new IllegalStateException(
                     "SCYLLADB is not JDBC-backed; connect via the cassandra engine plugin, not here");
+            case ELASTICSEARCH -> throw new IllegalStateException(
+                    "ELASTICSEARCH is not JDBC-backed; connect via the elasticsearch engine plugin, not here");
+            case OPENSEARCH -> throw new IllegalStateException(
+                    "OPENSEARCH is not JDBC-backed; connect via the elasticsearch engine plugin, not here");
         };
     }
 
@@ -107,6 +111,10 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "CASSANDRA is not JDBC-backed; it has no JDBC driver class");
             case SCYLLADB -> throw new IllegalStateException(
                     "SCYLLADB is not JDBC-backed; it has no JDBC driver class");
+            case ELASTICSEARCH -> throw new IllegalStateException(
+                    "ELASTICSEARCH is not JDBC-backed; it has no JDBC driver class");
+            case OPENSEARCH -> throw new IllegalStateException(
+                    "OPENSEARCH is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }

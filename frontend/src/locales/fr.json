@@ -334,6 +334,7 @@
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
+    "syntax_query_dsl": "Query DSL",
     "justification_label": "Justification",
     "justification_required_note": "· requise pour la revue",
     "justification_placeholder": "Pourquoi exécutes-tu cette requête ?",
@@ -648,6 +649,12 @@
       "field_database": "Nom de la base de données",
       "field_local_datacenter": "Centre de données local",
       "field_local_datacenter_help": "Centre de données d'équilibrage de charge Cassandra / ScyllaDB (p. ex. datacenter1) — requis par le pilote.",
+      "field_auth_method": "Authentification",
+      "field_auth_method_basic": "Nom d'utilisateur et mot de passe",
+      "field_auth_method_api_key": "Clé d'API",
+      "field_api_key": "Clé d'API",
+      "field_api_key_help": "Clé d'API Elasticsearch / OpenSearch, envoyée comme Authorization: ApiKey. Chiffrée au repos.",
+      "field_api_key_required": "La clé d'API est obligatoire",
       "field_username": "Nom d'utilisateur",
       "field_password": "Mot de passe",
       "field_ssl_mode": "Mode SSL",
@@ -1788,7 +1795,9 @@
       "COUCHBASE": "Couchbase",
       "REDIS": "Redis",
       "CASSANDRA": "Apache Cassandra",
-      "SCYLLADB": "ScyllaDB"
+      "SCYLLADB": "ScyllaDB",
+      "ELASTICSEARCH": "Elasticsearch",
+      "OPENSEARCH": "OpenSearch"
     },
     "ssl_mode": {
       "DISABLE": "Désactiver",

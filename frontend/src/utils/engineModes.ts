@@ -43,6 +43,8 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   REDIS: 'red',
   CASSANDRA: 'geekblue',
   SCYLLADB: 'lime',
+  ELASTICSEARCH: 'magenta',
+  OPENSEARCH: 'cyan',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -94,6 +96,21 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     canFormat: false,
     supportsTextToSql: false,
     defaultResultView: 'table',
+  },
+  // Elasticsearch uses a JSON query envelope (the Query DSL): JSON highlighting, no formatter or
+  // text-to-SQL, and the JSON document view by default (hits flatten to a table one click away).
+  ELASTICSEARCH: {
+    syntaxes: [{ value: 'query_dsl', labelKey: 'editor.syntax_query_dsl', language: 'json' }],
+    canFormat: false,
+    supportsTextToSql: false,
+    defaultResultView: 'json',
+  },
+  // OpenSearch is wire-compatible with Elasticsearch — identical editor behaviour.
+  OPENSEARCH: {
+    syntaxes: [{ value: 'query_dsl', labelKey: 'editor.syntax_query_dsl', language: 'json' }],
+    canFormat: false,
+    supportsTextToSql: false,
+    defaultResultView: 'json',
   },
 };
 

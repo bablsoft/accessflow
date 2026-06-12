@@ -46,7 +46,7 @@ connectors/
 
 The authoritative contract is [`connectors/schema/connector.schema.json`](../connectors/schema/connector.schema.json).
 Fields: `schemaVersion` (=1), `id` (slug, == folder), `name`, `dbType` (one of `POSTGRESQL`,
-`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`, `COUCHBASE`, `REDIS`, `CASSANDRA`, `SCYLLADB`), `category` (`RELATIONAL` (default) for
+`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`, `COUCHBASE`, `REDIS`, `CASSANDRA`, `SCYLLADB`, `ELASTICSEARCH`, `OPENSEARCH`), `category` (`RELATIONAL` (default) for
 SQL engines; `DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, or `GRAPH` for the NoSQL family —
 AF-418), `vendor`, `description`, `documentationUrl`,
 `logo`, `defaultPort`, `defaultSslMode`, `jdbcUrlTemplate` (`{host}`/`{port}`/`{database_name}`),
@@ -99,6 +99,8 @@ for the authoring guide.
 | `redis` | REDIS | KEY_VALUE | no | `accessflow-engine-redis-<v>-all.jar` engine plugin (native, not JDBC) |
 | `cassandra` | CASSANDRA | WIDE_COLUMN | no | `accessflow-engine-cassandra-<v>-all.jar` engine plugin (native, not JDBC) |
 | `scylladb` | SCYLLADB | WIDE_COLUMN | no | the **same** `accessflow-engine-cassandra-<v>-all.jar` (second `QueryEngine` provider) |
+| `elasticsearch` | ELASTICSEARCH | SEARCH | no | `accessflow-engine-elasticsearch-<v>-all.jar` engine plugin (native, not JDBC) |
+| `opensearch` | OPENSEARCH | SEARCH | no | the **same** `accessflow-engine-elasticsearch-<v>-all.jar` (second `QueryEngine` provider) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`

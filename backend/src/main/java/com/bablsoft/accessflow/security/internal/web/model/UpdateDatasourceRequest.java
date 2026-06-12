@@ -39,5 +39,7 @@ public record UpdateDatasourceRequest(
         @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
         @Size(max = 4096) String readReplicaPassword,
         Boolean active,
-        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter
+        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter,
+        // API key for the search engines (Elasticsearch / OpenSearch); a blank value clears it.
+        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey
 ) {}
