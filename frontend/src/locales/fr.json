@@ -335,6 +335,7 @@
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
+    "syntax_partiql": "PartiQL",
     "justification_label": "Justification",
     "justification_required_note": "· requise pour la revue",
     "justification_placeholder": "Pourquoi exécutes-tu cette requête ?",
@@ -649,6 +650,12 @@
       "field_database": "Nom de la base de données",
       "field_local_datacenter": "Centre de données local",
       "field_local_datacenter_help": "Centre de données d'équilibrage de charge Cassandra / ScyllaDB (p. ex. datacenter1) — requis par le pilote.",
+      "field_region": "Région AWS",
+      "field_region_help": "Région DynamoDB (p. ex. us-east-1) — utilisée pour signer les requêtes.",
+      "field_dynamodb_endpoint": "Point de terminaison personnalisé",
+      "field_dynamodb_endpoint_help": "Point de terminaison DynamoDB Local / VPC facultatif (p. ex. http://localhost:8000). Laisser vide pour AWS.",
+      "field_access_key_id": "ID de clé d'accès",
+      "field_secret_access_key": "Clé d'accès secrète",
       "field_auth_method": "Authentification",
       "field_auth_method_basic": "Nom d'utilisateur et mot de passe",
       "field_auth_method_api_key": "Clé d'API",
@@ -1797,7 +1804,8 @@
       "CASSANDRA": "Apache Cassandra",
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
-      "OPENSEARCH": "OpenSearch"
+      "OPENSEARCH": "OpenSearch",
+      "DYNAMODB": "Amazon DynamoDB"
     },
     "ssl_mode": {
       "DISABLE": "Désactiver",

@@ -335,6 +335,7 @@
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
+    "syntax_partiql": "PartiQL",
     "justification_label": "Justification",
     "justification_required_note": "· required for review",
     "justification_placeholder": "Why are you running this query?",
@@ -647,6 +648,12 @@
       "field_database": "Database name",
       "field_local_datacenter": "Local datacenter",
       "field_local_datacenter_help": "Cassandra / ScyllaDB load-balancing datacenter (e.g. datacenter1) — required for the driver.",
+      "field_region": "AWS region",
+      "field_region_help": "DynamoDB region (e.g. us-east-1) — used for request signing.",
+      "field_dynamodb_endpoint": "Custom endpoint",
+      "field_dynamodb_endpoint_help": "Optional DynamoDB Local / VPC endpoint (e.g. http://localhost:8000). Leave blank for AWS.",
+      "field_access_key_id": "Access key ID",
+      "field_secret_access_key": "Secret access key",
       "field_auth_method": "Authentication",
       "field_auth_method_basic": "Username & password",
       "field_auth_method_api_key": "API key",
@@ -1797,7 +1804,8 @@
       "CASSANDRA": "Apache Cassandra",
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
-      "OPENSEARCH": "OpenSearch"
+      "OPENSEARCH": "OpenSearch",
+      "DYNAMODB": "Amazon DynamoDB"
     },
     "ssl_mode": {
       "DISABLE": "Disable",

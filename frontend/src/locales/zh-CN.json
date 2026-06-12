@@ -335,6 +335,7 @@
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
+    "syntax_partiql": "PartiQL",
     "justification_label": "理由",
     "justification_required_note": "· 审核所必需",
     "justification_placeholder": "您为什么要运行此查询？",
@@ -649,6 +650,12 @@
       "field_database": "数据库名称",
       "field_local_datacenter": "本地数据中心",
       "field_local_datacenter_help": "Cassandra / ScyllaDB 负载均衡数据中心（例如 datacenter1）— 驱动程序必需。",
+      "field_region": "AWS 区域",
+      "field_region_help": "DynamoDB 区域（例如 us-east-1）— 用于请求签名。",
+      "field_dynamodb_endpoint": "自定义端点",
+      "field_dynamodb_endpoint_help": "可选的 DynamoDB Local / VPC 端点（例如 http://localhost:8000）。AWS 留空。",
+      "field_access_key_id": "访问密钥 ID",
+      "field_secret_access_key": "私有访问密钥",
       "field_auth_method": "身份验证",
       "field_auth_method_basic": "用户名和密码",
       "field_auth_method_api_key": "API 密钥",
@@ -1797,7 +1804,8 @@
       "CASSANDRA": "Apache Cassandra",
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
-      "OPENSEARCH": "OpenSearch"
+      "OPENSEARCH": "OpenSearch",
+      "DYNAMODB": "Amazon DynamoDB"
     },
     "ssl_mode": {
       "DISABLE": "禁用",

@@ -636,6 +636,16 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 throw new IllegalDatasourcePermissionException(
                         "CUSTOM datasources require a connector_id or custom_driver_id");
             }
+        } else if (isDynamoDb(dbType)) {
+            // DynamoDB's "connection" is cloud credentials + region, not host/port: database_name
+            // is the AWS region (required for SDK request signing), and jdbc_url_override is an
+            // optional custom endpoint (DynamoDB Local / VPC). Host/port are unused, and the
+            // override IS allowed (unlike every other non-CUSTOM dialect).
+            if (hasConnector) {
+                throw new IllegalDatasourcePermissionException(
+                        "connector_id is only allowed when db_type is CUSTOM");
+            }
+            requireRegion(dbType, databaseName);
         } else {
             if (hasConnector) {
                 throw new IllegalDatasourcePermissionException(
@@ -653,6 +663,23 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                     "Custom driver target_db_type " + customDriver.getTargetDbType()
                             + " does not match datasource db_type " + dbType);
         }
+    }
+
+    /**
+     * DynamoDB carries the AWS region in {@code database_name} (the SDK needs it for request
+     * signing even against a custom endpoint). Host/port are unused; the optional custom endpoint
+     * lives in {@code jdbc_url_override}. This cross-field rule can't be expressed with a Bean
+     * Validation annotation, so it lives here (mirroring {@link #requireHostPortDb}).
+     */
+    private void requireRegion(DbType dbType, String databaseName) {
+        if (databaseName == null || databaseName.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource database_name (AWS region) is required for db_type " + dbType);
+        }
+    }
+
+    private static boolean isDynamoDb(DbType dbType) {
+        return dbType == DbType.DYNAMODB;
     }
 
     private void requireHostPortDb(DbType dbType, String host, Integer port, String databaseName) {

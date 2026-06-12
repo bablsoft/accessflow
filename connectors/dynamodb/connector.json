@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "dynamodb",
+  "name": "Amazon DynamoDB",
+  "dbType": "DYNAMODB",
+  "category": "KEY_VALUE",
+  "vendor": "Amazon Web Services",
+  "description": "Serverless NoSQL key-value store queried with PartiQL. The AccessFlow DynamoDB engine installs on demand; its connection is cloud credentials + region, and row security splices predicates into the PartiQL WHERE clause (transactions are rejected).",
+  "documentationUrl": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.html",
+  "logo": "logo.svg",
+  "defaultPort": 8000,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-dynamodb-1.0.0-all.jar",
+    "fileName": "accessflow-engine-dynamodb-1.0.0-all.jar",
+    "sha256": "9a99d9d2a62ea6294c394547f82dbc5b7fda90851bbfde012ef88c11cd1dcc79"
+  }
+}

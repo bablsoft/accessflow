@@ -207,18 +207,21 @@ class DatasourceControllerIntegrationTest {
 
         assertThat(result).hasStatus(200);
         // Five first-class SQL dialects + MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
-        // Elasticsearch, and OpenSearch (on-demand native engine plugins) plus the ClickHouse
-        // connector (source=connector, code=CUSTOM) from the declarative connector catalog.
+        // Elasticsearch, OpenSearch, and DynamoDB (on-demand native engine plugins) plus the
+        // ClickHouse connector (source=connector, code=CUSTOM) from the declarative connector catalog.
         assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
                 .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL",
                         "CUSTOM", "MONGODB", "COUCHBASE", "REDIS", "CASSANDRA", "SCYLLADB",
-                        "ELASTICSEARCH", "OPENSEARCH");
+                        "ELASTICSEARCH", "OPENSEARCH", "DYNAMODB");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.code=='MONGODB')].category").asArray()
                 .containsExactly("DOCUMENT");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.code=='COUCHBASE')].category").asArray()
                 .containsExactly("DOCUMENT");
+        assertThat(result).bodyJson()
+                .extractingPath("$.types[?(@.code=='DYNAMODB')].category").asArray()
+                .containsExactly("KEY_VALUE");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.source=='connector')].connector_id").asArray()
                 .containsExactly("clickhouse");

@@ -73,5 +73,18 @@ public enum DbType {
      * {@link #ELASTICSEARCH}. See {@code docs/05-backend.md} → "Elasticsearch engine" and
      * {@code docs/14-connectors.md}.
      */
-    OPENSEARCH
+    OPENSEARCH,
+    /**
+     * Amazon DynamoDB — a NoSQL key-value store queried with PartiQL. Not JDBC-backed: the proxy
+     * connects via the native AWS SDK for Java v2 ({@code DynamoDbClient}) with the url-connection
+     * HTTP client, validates PartiQL statements (and JSON table-management commands) with a PartiQL
+     * classifier rather than JSqlParser, and resolves the engine plugin on demand through the
+     * connector catalog. Its "connection" is cloud credentials, not host/port:
+     * {@code database_name} = AWS region, {@code username} = access key id,
+     * {@code password_encrypted} = secret access key, and {@code jdbc_url_override} = an optional
+     * custom endpoint (DynamoDB Local / VPC). Row security splices predicates into the PartiQL WHERE
+     * clause (parameter-bound; fail-closed on shapes that cannot be filtered). See
+     * {@code docs/05-backend.md} → "DynamoDB engine" and {@code docs/14-connectors.md}.
+     */
+    DYNAMODB
 }

@@ -1,7 +1,7 @@
 # 15 — Engine-Plugin SDK
 
 How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
-Redis, Cassandra/ScyllaDB, and Elasticsearch/OpenSearch today; Neo4j tomorrow — that plugs into AccessFlow as
+Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, and Amazon DynamoDB today; Neo4j tomorrow — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)
@@ -16,6 +16,10 @@ of **one JAR backing two connectors**: it registers two `QueryEngine` providers 
 `cassandra` and `scylladb`), so the same shaded JAR serves both the `cassandra` and `scylladb`
 connectors (ScyllaDB being CQL-compatible). A new `DbType` is needed per connector because the
 catalog allows one connector per non-`CUSTOM` dialect, but the engine code is shared.
+[`engines/dynamodb/`](../engines/dynamodb/) (AF-422) is the `KEY_VALUE` PartiQL reference — and the
+example of an engine whose **connection is cloud credentials + region rather than host/port**
+(`database_name`=region, `username`/`password`=access key/secret, `jdbc_url_override`=optional
+endpoint), exercising the SDK's flexibility beyond the host/port assumption.
 
 Related chapters: [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine) (how the host
 dispatches to engines), [14-connectors.md](./14-connectors.md) (the connector catalog the plugin is

@@ -49,6 +49,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "ELASTICSEARCH is not JDBC-backed; connect via the elasticsearch engine plugin, not here");
             case OPENSEARCH -> throw new IllegalStateException(
                     "OPENSEARCH is not JDBC-backed; connect via the elasticsearch engine plugin, not here");
+            case DYNAMODB -> throw new IllegalStateException(
+                    "DYNAMODB is not JDBC-backed; connect via the dynamodb engine plugin, not here");
         };
     }
 
@@ -115,6 +117,8 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "ELASTICSEARCH is not JDBC-backed; it has no JDBC driver class");
             case OPENSEARCH -> throw new IllegalStateException(
                     "OPENSEARCH is not JDBC-backed; it has no JDBC driver class");
+            case DYNAMODB -> throw new IllegalStateException(
+                    "DYNAMODB is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }
