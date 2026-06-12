@@ -161,10 +161,11 @@ class DefaultDriverCatalogServiceTest {
     void listReturnsDialectsAsBundledAndCustomConnectorsAsConnectorSource() {
         var rows = service(false).list();
 
-        // 5 SQL dialects + MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, and
-        // OpenSearch (on-demand native engines, AF-414/AF-412/AF-419/AF-421/AF-420) are surfaced
-        // with source "bundled" (= first-class catalog rows, as opposed to connector/uploaded rows).
-        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(12);
+        // 5 SQL dialects + MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch,
+        // OpenSearch, and DynamoDB (on-demand native engines, AF-414/AF-412/AF-419/AF-421/AF-420/
+        // AF-422) are surfaced with source "bundled" (= first-class catalog rows, as opposed to
+        // connector/uploaded rows).
+        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(13);
         var connectorRows = rows.stream().filter(r -> "connector".equals(r.source())).toList();
         assertThat(connectorRows).hasSize(1);
         assertThat(connectorRows.get(0).code()).isEqualTo(DbType.CUSTOM);
@@ -195,7 +196,7 @@ class DefaultDriverCatalogServiceTest {
         var rows = service(false).list(java.util.UUID.randomUUID(), null);
 
         assertThat(rows.stream().filter(r -> "uploaded".equals(r.source()))).isEmpty();
-        assertThat(rows).hasSize(13); // 5 SQL dialects + mongodb + couchbase + redis + cassandra + scylladb + elasticsearch + opensearch + clickhouse
+        assertThat(rows).hasSize(14); // 5 SQL dialects + mongodb + couchbase + redis + cassandra + scylladb + elasticsearch + opensearch + dynamodb + clickhouse
     }
 
     @Test

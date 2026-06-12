@@ -45,6 +45,7 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   SCYLLADB: 'lime',
   ELASTICSEARCH: 'magenta',
   OPENSEARCH: 'cyan',
+  DYNAMODB: 'gold',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -111,6 +112,17 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     canFormat: false,
     supportsTextToSql: false,
     defaultResultView: 'json',
+  },
+  // PartiQL is SQL-shaped: SQL highlighting (CodeMirror has no PartiQL dialect; StandardSQL covers
+  // the keyword set), sql-formatter, and tabular results by default — the JSON document view stays
+  // one click away for nested item attributes. Table-management commands are JSON, but the editor
+  // mode is keyed to the dominant PartiQL surface.
+  DYNAMODB: {
+    syntaxes: [{ value: 'partiql', labelKey: 'editor.syntax_partiql', language: 'sql' }],
+    sqlDialect: 'postgresql',
+    canFormat: true,
+    supportsTextToSql: true,
+    defaultResultView: 'table',
   },
 };
 

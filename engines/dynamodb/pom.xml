@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bablsoft.accessflow</groupId>
+    <artifactId>accessflow-engine-dynamodb</artifactId>
+    <!--
+      The plugin has its OWN version line, independent of the application release version
+      (release.yml never runs versions:set here). The connector manifest
+      (connectors/dynamodb/connector.json) pins this version + the SHA-256 of the shaded JAR; bump
+      them together whenever the engine (or a core.api type it compiles against) changes.
+    -->
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>AccessFlow DynamoDB Query Engine</name>
+    <description>
+        On-demand Amazon DynamoDB engine plugin for AccessFlow (issue AF-422). Implements the
+        core.api.QueryEngine SPI for PartiQL and ships as a self-contained shaded JAR (bundling the
+        AWS SDK for Java v2 DynamoDB client with the url-connection HTTP client — no Netty — and a
+        relocated reactive-streams) resolved through the connector catalog and discovered via
+        ServiceLoader. DynamoDB's "connection" is cloud credentials + region rather than host/port.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Reproducible build: the shaded JAR's SHA-256 is pinned in the connector manifest. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+        <!-- The backend version whose core.api SPI this plugin compiles against. -->
+        <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
+        <aws-sdk.version>2.46.9</aws-sdk.version>
+        <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Import the AWS SDK BOM FIRST so the dynamodb / url-connection-client / transitive
+                 module versions all align on ${aws-sdk.version} (BOM-ordering caution). -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Test-stack version alignment only (JUnit/AssertJ/Mockito/Testcontainers/slf4j) -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--
+          The host SPI + engine-neutral DTOs (core.api). Provided: at runtime these classes come
+          from the application classloader (the plugin's URLClassLoader parent), so they must NOT
+          be shaded into the plugin JAR. Build the backend first: mvn -f ../../backend/pom.xml
+          install -DskipTests (the backend installs its plain JAR; the boot JAR is *-exec.jar).
+        -->
+        <dependency>
+            <groupId>com.bablsoft.accessflow</groupId>
+            <artifactId>accessflow</artifactId>
+            <version>${accessflow.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Shaded into the plugin JAR. The DynamoDB service client pulls the AWS SDK core, regions,
+             auth, and its own relocated Jackson (software.amazon.awssdk.thirdparty). We exclude the
+             two default HTTP clients (Netty async + Apache sync) and add url-connection-client so the
+             plugin stays Netty-free and smaller; the engine explicitly builds the client with the
+             url-connection HTTP client. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>dynamodb</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- Whitelist exactly what the engine needs at runtime: the AWS SDK,
+                                 its eventstream codec, and reactive-streams (relocated below). The
+                                 engine uses the url-connection HTTP client, so the SDK's default
+                                 sync/async clients (apache5-client, netty-nio-client) and their
+                                 transitives are excluded — that keeps the JAR small and Netty-free.
+                                 This whitelist also prevents the host's provided Spring/Netty tree
+                                 (dragged transitively through the provided accessflow dep, where a
+                                 few leaves resolve to runtime scope) from leaking into the JAR; at
+                                 runtime those come from the host classloader. The two provided deps
+                                 (accessflow core.api + slf4j-api) resolve from the host too. -->
+                            <artifactSet>
+                                <includes>
+                                    <include>software.amazon.awssdk:*</include>
+                                    <include>software.amazon.eventstream:*</include>
+                                    <include>org.reactivestreams:*</include>
+                                </includes>
+                                <excludes>
+                                    <exclude>software.amazon.awssdk:apache5-client</exclude>
+                                    <exclude>software.amazon.awssdk:netty-nio-client</exclude>
+                                    <exclude>software.amazon.awssdk:apache-client</exclude>
+                                </excludes>
+                            </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.reactivestreams</pattern>
+                                    <shadedPattern>com.bablsoft.accessflow.engine.dynamodb.shaded.org.reactivestreams</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.14</version>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

@@ -197,6 +197,38 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void createDynamoDbWithoutRegionThrows() {
+        // DynamoDB requires database_name (the AWS region); host/port are unused.
+        var command = new CreateDatasourceCommand(orgId, "Dyn", DbType.DYNAMODB, null, null,
+                null, "AKIA", "secret", SslMode.DISABLE, null, null, null, null, null, false, null,
+                null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createDynamoDbWithRegionAndCustomEndpointSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("secret")).thenReturn("ENC(secret)");
+        when(engineCatalog.isEngineManaged(DbType.DYNAMODB)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // No host/port; region in database_name and the custom endpoint in jdbc_url_override —
+        // which is allowed for DynamoDB even though it is forbidden for every other non-CUSTOM type.
+        var command = new CreateDatasourceCommand(orgId, "Dyn", DbType.DYNAMODB, null, null,
+                "us-east-1", "AKIA", "secret", SslMode.DISABLE, null, null, null, null, null, false,
+                null, null, null, null, "http://localhost:8000", null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("us-east-1");
+        verify(engineCatalog).engineFor(DbType.DYNAMODB);
+    }
+
+    @Test
     void updateAppliesNonNullFieldsAndReencryptsPassword() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));

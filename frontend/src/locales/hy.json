@@ -335,6 +335,7 @@
     "syntax_redis": "Redis CLI",
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
+    "syntax_partiql": "PartiQL",
     "justification_label": "Հիմնավորում",
     "justification_required_note": "· պարտադիր է վերանայման համար",
     "justification_placeholder": "Ինչու եք կատարում այս հարցումը։",
@@ -649,6 +650,12 @@
       "field_database": "Տվյալների բազայի անվանումը",
       "field_local_datacenter": "Տեղական տվյալների կենտրոն",
       "field_local_datacenter_help": "Cassandra / ScyllaDB բեռնաբաշխման տվյալների կենտրոնը (օր.՝ datacenter1) — պարտադիր է դրայվերի համար։",
+      "field_region": "AWS տարածաշրջան",
+      "field_region_help": "DynamoDB տարածաշրջան (օր.՝ us-east-1) — օգտագործվում է հարցումները ստորագրելու համար։",
+      "field_dynamodb_endpoint": "Հատուկ վերջնակետ",
+      "field_dynamodb_endpoint_help": "Կամընտիր DynamoDB Local / VPC վերջնակետ (օր.՝ http://localhost:8000)։ AWS-ի համար թողեք դատարկ։",
+      "field_access_key_id": "Մուտքի բանալու ID",
+      "field_secret_access_key": "Գաղտնի մուտքի բանալի",
       "field_auth_method": "Նույնականացում",
       "field_auth_method_basic": "Օգտանուն և գաղտնաբառ",
       "field_auth_method_api_key": "API բանալի",
@@ -1797,7 +1804,8 @@
       "CASSANDRA": "Apache Cassandra",
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
-      "OPENSEARCH": "OpenSearch"
+      "OPENSEARCH": "OpenSearch",
+      "DYNAMODB": "Amazon DynamoDB"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",

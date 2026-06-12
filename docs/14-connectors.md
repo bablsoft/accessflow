@@ -101,6 +101,7 @@ for the authoring guide.
 | `scylladb` | SCYLLADB | WIDE_COLUMN | no | the **same** `accessflow-engine-cassandra-<v>-all.jar` (second `QueryEngine` provider) |
 | `elasticsearch` | ELASTICSEARCH | SEARCH | no | `accessflow-engine-elasticsearch-<v>-all.jar` engine plugin (native, not JDBC) |
 | `opensearch` | OPENSEARCH | SEARCH | no | the **same** `accessflow-engine-elasticsearch-<v>-all.jar` (second `QueryEngine` provider) |
+| `dynamodb` | DYNAMODB | KEY_VALUE | no | `accessflow-engine-dynamodb-<v>-all.jar` engine plugin (native, not JDBC) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -161,6 +162,21 @@ two `QueryEngine` providers (`engineId` `cassandra` and `scylladb`), and both
 `connectors/cassandra/connector.json` and `connectors/scylladb/connector.json` pin the same URL +
 SHA-256. It exists as a separate connector + `DbType.SCYLLADB` only because the catalog allows one
 connector per non-`CUSTOM` dialect; behaviour is identical to Cassandra.
+
+**Amazon DynamoDB** is the NoSQL **key-value** connector (AF-422, `category=KEY_VALUE`), delivered the
+same way: the shaded plugin JAR built from [`engines/dynamodb/`](../engines/dynamodb/) (own version
+line, reproducible build, URL + SHA-256 pin in the manifest, published to `gh-pages` under `engines/`
+on release), bundling the native [AWS SDK for Java v2](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html)
+DynamoDB client over the url-connection HTTP client (no Netty). Users submit **PartiQL**;
+SELECT/INSERT/UPDATE/DELETE classify onto the standard `QueryType` model, and table management
+arrives as a JSON command document (`CreateTable`/`DeleteTable`/`UpdateTable` → DDL), while
+transaction/batch statements are rejected with 422. It is the first engine whose **connection is
+cloud credentials + region, not host/port**: `database_name` is the AWS region, `username` the access
+key id, `password_encrypted` the secret access key, and `jdbc_url_override` an optional custom endpoint
+(DynamoDB Local / VPC). Row-security predicates are spliced into the PartiQL WHERE clause (positional
+`?` parameters; any attribute, since DynamoDB filters via Scan), with INSERT-into-policied and deny-all
+failing closed. Field masking applies post-fetch, recursively by dot-path. Default port 8000 (DynamoDB
+Local; AWS uses the SDK regional endpoint). See [05-backend.md → DynamoDB engine](./05-backend.md#dynamodb-engine).
 
 ## Resolution at query time
 

@@ -42,6 +42,7 @@ interface ConnectionFormValues {
   port: number;
   database_name: string;
   jdbc_url: string;
+  dynamodb_endpoint: string;
   local_datacenter: string;
   auth_method: AuthMethod;
   api_key: string;
@@ -123,6 +124,7 @@ export default function DatasourceCreateWizardPage() {
         selectedType.code === 'CUSTOM' && selectedType.source !== 'connector';
       const isCqlEngine =
         selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
+      const isDynamoDb = selectedType.code === 'DYNAMODB';
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
       const useApiKey = isSearchEngine && values.auth_method === 'api_key';
       // API-key auth replaces basic creds; send blank username/password (the backend keeps the
@@ -138,6 +140,11 @@ export default function DatasourceCreateWizardPage() {
         };
         if (isDynamic) {
           input.jdbc_url_override = values.jdbc_url;
+        } else if (isDynamoDb) {
+          // Cloud-credentials model: database_name is the AWS region; the optional custom endpoint
+          // (DynamoDB Local / VPC) rides on jdbc_url_override. Host/port are unused.
+          input.database_name = values.database_name;
+          input.jdbc_url_override = values.dynamodb_endpoint || '';
         } else {
           input.host = values.host;
           input.port = values.port;
@@ -164,6 +171,13 @@ export default function DatasourceCreateWizardPage() {
       };
       if (isDynamic) {
         input.jdbc_url_override = values.jdbc_url;
+      } else if (isDynamoDb) {
+        // Cloud-credentials model: database_name is the AWS region; the optional custom endpoint
+        // (DynamoDB Local / VPC) rides on jdbc_url_override. Host/port are unused.
+        input.database_name = values.database_name;
+        if (values.dynamodb_endpoint) {
+          input.jdbc_url_override = values.dynamodb_endpoint;
+        }
       } else {
         input.host = values.host;
         input.port = values.port;
@@ -318,6 +332,7 @@ export default function DatasourceCreateWizardPage() {
     }
     if (currentStep === 'connection' && selectedType) {
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
+      const isDynamoDb = selectedType.code === 'DYNAMODB';
       const authMethod: AuthMethod =
         (connectionValues?.auth_method as AuthMethod | undefined) ?? 'basic';
       const showBasicCreds = !isSearchEngine || authMethod === 'basic';
@@ -356,7 +371,7 @@ export default function DatasourceCreateWizardPage() {
             >
               <Input autoFocus placeholder={t('datasources.create.field_name_placeholder')} />
             </Form.Item>
-            {!dynamicMode && (
+            {!dynamicMode && !isDynamoDb && (
               <>
                 <Form.Item
                   label={t('datasources.create.field_host')}
@@ -372,14 +387,31 @@ export default function DatasourceCreateWizardPage() {
                 >
                   <InputNumber style={{ width: '100%' }} />
                 </Form.Item>
-                <Form.Item
-                  label={t('datasources.create.field_database')}
-                  name="database_name"
-                  rules={isSearchEngine ? [{ max: 255 }] : [{ required: true }, { max: 255 }]}
-                >
-                  <Input placeholder={isSearchEngine ? 'logs-*' : 'appdb'} />
-                </Form.Item>
               </>
+            )}
+            {!dynamicMode && (
+              <Form.Item
+                label={
+                  isDynamoDb
+                    ? t('datasources.create.field_region')
+                    : t('datasources.create.field_database')
+                }
+                name="database_name"
+                extra={isDynamoDb ? t('datasources.create.field_region_help') : undefined}
+                rules={isSearchEngine ? [{ max: 255 }] : [{ required: true }, { max: 255 }]}
+              >
+                <Input placeholder={isDynamoDb ? 'us-east-1' : isSearchEngine ? 'logs-*' : 'appdb'} />
+              </Form.Item>
+            )}
+            {isDynamoDb && (
+              <Form.Item
+                label={t('datasources.create.field_dynamodb_endpoint')}
+                name="dynamodb_endpoint"
+                extra={t('datasources.create.field_dynamodb_endpoint_help')}
+                rules={[{ max: 2048 }]}
+              >
+                <Input placeholder="http://localhost:8000" />
+              </Form.Item>
             )}
             {(selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB') && (
               <Form.Item
@@ -411,14 +443,22 @@ export default function DatasourceCreateWizardPage() {
             {showBasicCreds && (
               <>
                 <Form.Item
-                  label={t('datasources.create.field_username')}
+                  label={
+                    isDynamoDb
+                      ? t('datasources.create.field_access_key_id')
+                      : t('datasources.create.field_username')
+                  }
                   name="username"
                   rules={[{ required: true }, { max: 255 }]}
                 >
-                  <Input placeholder="accessflow_svc" />
+                  <Input placeholder={isDynamoDb ? 'AKIA…' : 'accessflow_svc'} />
                 </Form.Item>
                 <Form.Item
-                  label={t('datasources.create.field_password')}
+                  label={
+                    isDynamoDb
+                      ? t('datasources.create.field_secret_access_key')
+                      : t('datasources.create.field_password')
+                  }
                   name="password"
                   rules={[{ required: true }, { max: 4096 }]}
                 >
