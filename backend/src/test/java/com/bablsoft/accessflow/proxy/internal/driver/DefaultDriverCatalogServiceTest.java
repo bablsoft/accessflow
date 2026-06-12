@@ -161,10 +161,10 @@ class DefaultDriverCatalogServiceTest {
     void listReturnsDialectsAsBundledAndCustomConnectorsAsConnectorSource() {
         var rows = service(false).list();
 
-        // 5 SQL dialects + MongoDB and Couchbase (on-demand native engines, AF-414/AF-412) are
-        // surfaced with source "bundled" (= first-class catalog rows, as opposed to
-        // connector/uploaded rows).
-        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(7);
+        // 5 SQL dialects + MongoDB, Couchbase, and Redis (on-demand native engines,
+        // AF-414/AF-412/AF-419) are surfaced with source "bundled" (= first-class catalog rows,
+        // as opposed to connector/uploaded rows).
+        assertThat(rows.stream().filter(r -> "bundled".equals(r.source()))).hasSize(8);
         var connectorRows = rows.stream().filter(r -> "connector".equals(r.source())).toList();
         assertThat(connectorRows).hasSize(1);
         assertThat(connectorRows.get(0).code()).isEqualTo(DbType.CUSTOM);
@@ -195,7 +195,7 @@ class DefaultDriverCatalogServiceTest {
         var rows = service(false).list(java.util.UUID.randomUUID(), null);
 
         assertThat(rows.stream().filter(r -> "uploaded".equals(r.source()))).isEmpty();
-        assertThat(rows).hasSize(8); // 5 SQL dialects + mongodb + couchbase + clickhouse
+        assertThat(rows).hasSize(9); // 5 SQL dialects + mongodb + couchbase + redis + clickhouse
     }
 
     @Test

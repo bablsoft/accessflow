@@ -40,6 +40,7 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   CUSTOM: 'purple',
   MONGODB: 'green',
   COUCHBASE: 'volcano',
+  REDIS: 'red',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -66,6 +67,14 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     sqlDialect: 'n1ql',
     canFormat: true,
     supportsTextToSql: true,
+    defaultResultView: 'table',
+  },
+  // Redis is a command language, not SQL: shell-style highlighting (JavaScript covers the
+  // redis-cli token shape), no formatter, no text-to-SQL, tabular results by default.
+  REDIS: {
+    syntaxes: [{ value: 'cli', labelKey: 'editor.syntax_redis', language: 'javascript' }],
+    canFormat: false,
+    supportsTextToSql: false,
     defaultResultView: 'table',
   },
 };

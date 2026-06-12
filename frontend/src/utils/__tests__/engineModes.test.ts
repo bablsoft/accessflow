@@ -11,6 +11,7 @@ const ALL_DB_TYPES: DbType[] = [
   'CUSTOM',
   'MONGODB',
   'COUCHBASE',
+  'REDIS',
 ];
 
 describe('engineMode', () => {
@@ -43,6 +44,18 @@ describe('engineMode', () => {
     expect(mode.sqlDialect).toBe('n1ql');
     expect(mode.canFormat).toBe(true);
     expect(mode.supportsTextToSql).toBe(true);
+    expect(mode.defaultResultView).toBe('table');
+  });
+
+  it('returns the Redis mode: shell highlighting, no formatter, table results', () => {
+    const mode = engineMode('REDIS');
+
+    expect(mode.syntaxes).toEqual([
+      { value: 'cli', labelKey: 'editor.syntax_redis', language: 'javascript' },
+    ]);
+    expect(mode.sqlDialect).toBeUndefined();
+    expect(mode.canFormat).toBe(false);
+    expect(mode.supportsTextToSql).toBe(false);
     expect(mode.defaultResultView).toBe('table');
   });
 

@@ -46,7 +46,7 @@ connectors/
 
 The authoritative contract is [`connectors/schema/connector.schema.json`](../connectors/schema/connector.schema.json).
 Fields: `schemaVersion` (=1), `id` (slug, == folder), `name`, `dbType` (one of `POSTGRESQL`,
-`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`), `category` (`RELATIONAL` (default) for
+`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`, `COUCHBASE`, `REDIS`), `category` (`RELATIONAL` (default) for
 SQL engines; `DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, or `GRAPH` for the NoSQL family —
 AF-418), `vendor`, `description`, `documentationUrl`,
 `logo`, `defaultPort`, `defaultSslMode`, `jdbcUrlTemplate` (`{host}`/`{port}`/`{database_name}`),
@@ -96,6 +96,7 @@ for the authoring guide.
 | `clickhouse` | CUSTOM | RELATIONAL | no | `com.clickhouse:clickhouse-jdbc:all` |
 | `mongodb` | MONGODB | DOCUMENT | no | `accessflow-engine-mongodb-<v>-all.jar` engine plugin (native, not JDBC) |
 | `couchbase` | COUCHBASE | DOCUMENT | no | `accessflow-engine-couchbase-<v>-all.jar` engine plugin (native, not JDBC) |
+| `redis` | REDIS | KEY_VALUE | no | `accessflow-engine-redis-<v>-all.jar` engine plugin (native, not JDBC) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -123,6 +124,20 @@ exact-path grant, or an `allowedSchemas` entry on the bucket segment). Connectio
 set the matching port or a verbatim URL override. See
 [05-backend.md → Couchbase engine](./05-backend.md#couchbase-engine).
 
+**Redis** is the NoSQL **key-value** connector (AF-419, `category=KEY_VALUE`), delivered the same
+way: the shaded plugin JAR built from [`engines/redis/`](../engines/redis/) (own version line,
+reproducible build, URL + SHA-256 pin in the manifest, published to `gh-pages` under `engines/` on
+release), bundling the native [Jedis](https://github.com/redis/jedis) driver. Users submit redis-cli
+commands (`GET user:42`, `HGETALL session:abc`, `SCAN 0 MATCH orders:* COUNT 100`) that classify
+onto the standard `QueryType` model; server-side scripting and blast-radius commands
+(`EVAL`/`SCRIPT`/`FUNCTION`, `CONFIG`, `FLUSHALL`, `SHUTDOWN`, …) are rejected at submission with
+422. `referencedTables` carries the key **prefix** (`orders:*` → `orders`), so allow-lists and
+permissions target a key namespace. Row-security policies on a Redis datasource **fail closed**
+(row predicates have no key-value meaning); field masking applies to returned hash fields / values.
+The datasource's `database_name` is the numeric DB index (default `0`); connections use `redis://`
+(plain, port 6379 — the manifest default) or `rediss://` (TLS). See
+[05-backend.md → Redis engine](./05-backend.md#redis-engine).
+
 ## Resolution at query time
 
 For relational datasources, `proxy/internal/DatasourcePoolFactory` resolves the JDBC driver in three
@@ -133,7 +148,7 @@ lanes:
    JDBC URL is built from the connector template.
 3. otherwise → one of the five relational dialects (`resolve(dbType)`).
 
-For engine-managed types (`db_type=MONGODB`, `db_type=COUCHBASE`), `DefaultQueryExecutor` /
+For engine-managed types (`db_type=MONGODB`, `db_type=COUCHBASE`, `db_type=REDIS`), `DefaultQueryExecutor` /
 `DefaultQueryParser` / the admin connection-test
 and introspection paths resolve the engine from `core.api.QueryEngineCatalog`
 (`proxy/internal/driver/DefaultQueryEngineCatalog`): the connector's plugin JAR is ensured in the

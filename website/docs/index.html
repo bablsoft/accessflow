@@ -240,8 +240,8 @@
           <p>
             AccessFlow is a self-hosted query proxy. Your team connects to AccessFlow instead of
             directly to PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server (or any other
-            JDBC-compatible engine, via an admin-uploaded driver), or the NoSQL document engines
-            MongoDB and Couchbase. Every statement is parsed,
+            JDBC-compatible engine, via an admin-uploaded driver), the NoSQL document engines
+            MongoDB and Couchbase, or the NoSQL key-value engine Redis. Every statement is parsed,
             classified, optionally AI-reviewed, and routed through a configurable human-approval
             workflow before it touches the database. Customer-database credentials never leave the
             proxy.
@@ -857,7 +857,7 @@
             catalog and <strong>installs</strong> a database's driver — a JDBC driver JAR for SQL engines, a
             native engine-plugin JAR for NoSQL engines — with one click: AccessFlow downloads it,
             verifies its pinned SHA-256, and caches it. The bundled PostgreSQL connector shows as
-            <em>Installed</em>; every other connector (including MongoDB and Couchbase) shows an <em>Install</em> action.
+            <em>Installed</em>; every other connector (including MongoDB, Couchbase, and Redis) shows an <em>Install</em> action.
           </p>
           <p><strong>Built-in connectors — SQL:</strong></p>
           <ul>
@@ -872,6 +872,7 @@
           <ul>
             <li><strong>MongoDB</strong> — native engine plugin (not JDBC) · 1-click install; the engine downloads on demand like a JDBC driver and is cached in the same driver-cache directory (pre-seed it for air-gapped installs). Users write queries in the mongo shell form (<code>db.users.find({ … })</code>) or a JSON command document, chosen in the editor; results show in both a JSON document view and a flattened table. AI risk analysis, human approval, row-level security (<code>$match</code> injection), and field masking all apply. Configure it with the standard host/port/database/username/password/SSL fields.</li>
           <li><strong>Couchbase</strong> — native engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users write <strong>SQL++ (N1QL)</strong> statements with SQL-style highlighting and formatting in the editor; results show in both a table and a JSON document view. AI risk analysis, human approval, row-level security (predicates ANDed into the WHERE clause with parameter binding; unrewritable shapes rejected), and field masking all apply; <code>CURL()</code>, JavaScript UDFs, and <code>system:*</code> keyspaces are rejected up front. The <em>database</em> field holds the <strong>bucket</strong>; plain connections bootstrap on port 11210 (<code>couchbase://</code>), TLS on 11207 (<code>couchbases://</code>) — pick the matching port or use a connection-string override.</li>
+          <li><strong>Redis</strong> — native key-value engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users submit redis-cli commands (<code>GET user:42</code>, <code>HGETALL session:abc</code>, <code>SCAN 0 MATCH orders:* COUNT 100</code>, <code>SET</code>, <code>DEL</code>) classified onto the same approval workflow; server-side scripting and blast-radius commands (<code>EVAL</code>, <code>CONFIG</code>, <code>FLUSHALL</code>, <code>SHUTDOWN</code>) are rejected at submission. Field masking applies to returned hash fields / values; row-security policies on a Redis datasource <strong>fail closed</strong> (row predicates have no key-value meaning). The <em>database</em> field holds the numeric DB index (default <code>0</code>); plain connections use port 6379 (<code>redis://</code>), TLS uses <code>rediss://</code>.</li>
           </ul>
           <p>
             Adding a database is a data change, not a code change — each connector is a small
