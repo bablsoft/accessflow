@@ -31,7 +31,8 @@ public record DatasourceResponse(
         String readReplicaJdbcUrl,
         String readReplicaUsername,
         boolean active,
-        Instant createdAt
+        Instant createdAt,
+        String localDatacenter
 ) {
     public static DatasourceResponse from(DatasourceView view) {
         return new DatasourceResponse(
@@ -58,6 +59,7 @@ public record DatasourceResponse(
                 view.readReplicaJdbcUrl(),
                 view.readReplicaUsername(),
                 view.active(),
-                view.createdAt());
+                view.createdAt(),
+                view.localDatacenter());
     }
 }

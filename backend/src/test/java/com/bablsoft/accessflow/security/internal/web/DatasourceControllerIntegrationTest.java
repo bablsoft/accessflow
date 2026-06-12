@@ -211,7 +211,7 @@ class DatasourceControllerIntegrationTest {
         // declarative connector catalog.
         assertThat(result).bodyJson().extractingPath("$.types[*].code").asArray()
                 .containsExactlyInAnyOrder("POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL",
-                        "CUSTOM", "MONGODB", "COUCHBASE", "REDIS");
+                        "CUSTOM", "MONGODB", "COUCHBASE", "REDIS", "CASSANDRA", "SCYLLADB");
         assertThat(result).bodyJson()
                 .extractingPath("$.types[?(@.code=='MONGODB')].category").asArray()
                 .containsExactly("DOCUMENT");

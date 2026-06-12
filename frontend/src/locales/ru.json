@@ -333,6 +333,7 @@
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
+    "syntax_cql": "CQL",
     "justification_label": "Обоснование",
     "justification_required_note": "· требуется для проверки",
     "justification_placeholder": "Зачем вы выполняете этот запрос?",
@@ -645,6 +646,8 @@
       "field_host": "Хост",
       "field_port": "Порт",
       "field_database": "Имя базы",
+      "field_local_datacenter": "Локальный ЦОД",
+      "field_local_datacenter_help": "ЦОД балансировки нагрузки Cassandra / ScyllaDB (например, datacenter1) — требуется драйверу.",
       "field_username": "Имя пользователя",
       "field_password": "Пароль",
       "field_ssl_mode": "Режим SSL",
@@ -1783,7 +1786,9 @@
       "CUSTOM": "Пользовательский",
       "MONGODB": "MongoDB",
       "COUCHBASE": "Couchbase",
-      "REDIS": "Redis"
+      "REDIS": "Redis",
+      "CASSANDRA": "Apache Cassandra",
+      "SCYLLADB": "ScyllaDB"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",

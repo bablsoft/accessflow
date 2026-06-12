@@ -36,5 +36,22 @@ public enum DbType {
      * through the connector catalog as an engine plugin. See {@code docs/05-backend.md} →
      * "Redis engine" and {@code docs/14-connectors.md}.
      */
-    REDIS
+    REDIS,
+    /**
+     * Apache Cassandra — a NoSQL wide-column store queried with CQL. Not JDBC-backed: the proxy
+     * connects via the native DataStax Java driver ({@code CqlSession}), validates queries with a
+     * CQL classifier rather than JSqlParser, and resolves the engine plugin on demand through the
+     * connector catalog. Row security only splices predicates on partition/clustering key columns
+     * (fail-closed otherwise — no {@code ALLOW FILTERING}). See {@code docs/05-backend.md} →
+     * "Cassandra engine" and {@code docs/14-connectors.md}.
+     */
+    CASSANDRA,
+    /**
+     * ScyllaDB — a CQL-compatible wide-column store. Served by the very same Cassandra engine plugin
+     * JAR (which registers a second {@code QueryEngine} provider with {@code engineId="scylladb"});
+     * it needs its own {@code DbType} only because the connector catalog allows one connector per
+     * non-{@code CUSTOM} dialect. Behaviour is identical to {@link #CASSANDRA}. See
+     * {@code docs/05-backend.md} → "Cassandra engine" and {@code docs/14-connectors.md}.
+     */
+    SCYLLADB
 }

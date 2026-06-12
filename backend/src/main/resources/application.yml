@@ -166,6 +166,12 @@ accessflow:
         connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_REDIS_CONNECT_TIMEOUT:PT5S}
         socket-timeout: ${ACCESSFLOW_PROXY_ENGINES_REDIS_SOCKET_TIMEOUT:PT5S}
         max-pool-size: ${ACCESSFLOW_PROXY_ENGINES_REDIS_MAX_POOL_SIZE:10}
+      cassandra:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_CASSANDRA_CONNECT_TIMEOUT:PT10S}
+        request-timeout: ${ACCESSFLOW_PROXY_ENGINES_CASSANDRA_REQUEST_TIMEOUT:PT10S}
+      scylladb:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_SCYLLADB_CONNECT_TIMEOUT:PT10S}
+        request-timeout: ${ACCESSFLOW_PROXY_ENGINES_SCYLLADB_REQUEST_TIMEOUT:PT10S}
   drivers:
     cache-dir: ${ACCESSFLOW_DRIVER_CACHE:${user.home}/.accessflow/drivers}
     repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}

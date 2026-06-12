@@ -333,6 +333,7 @@
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
+    "syntax_cql": "CQL",
     "justification_label": "Justification",
     "justification_required_note": "· required for review",
     "justification_placeholder": "Why are you running this query?",
@@ -643,6 +644,8 @@
       "field_host": "Host",
       "field_port": "Port",
       "field_database": "Database name",
+      "field_local_datacenter": "Local datacenter",
+      "field_local_datacenter_help": "Cassandra / ScyllaDB load-balancing datacenter (e.g. datacenter1) — required for the driver.",
       "field_username": "Username",
       "field_password": "Password",
       "field_ssl_mode": "SSL mode",
@@ -1783,7 +1786,9 @@
       "CUSTOM": "Custom",
       "MONGODB": "MongoDB",
       "COUCHBASE": "Couchbase",
-      "REDIS": "Redis"
+      "REDIS": "Redis",
+      "CASSANDRA": "Apache Cassandra",
+      "SCYLLADB": "ScyllaDB"
     },
     "ssl_mode": {
       "DISABLE": "Disable",

@@ -46,7 +46,7 @@ connectors/
 
 The authoritative contract is [`connectors/schema/connector.schema.json`](../connectors/schema/connector.schema.json).
 Fields: `schemaVersion` (=1), `id` (slug, == folder), `name`, `dbType` (one of `POSTGRESQL`,
-`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`, `COUCHBASE`, `REDIS`), `category` (`RELATIONAL` (default) for
+`MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`, `CUSTOM`, `MONGODB`, `COUCHBASE`, `REDIS`, `CASSANDRA`, `SCYLLADB`), `category` (`RELATIONAL` (default) for
 SQL engines; `DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, or `GRAPH` for the NoSQL family —
 AF-418), `vendor`, `description`, `documentationUrl`,
 `logo`, `defaultPort`, `defaultSslMode`, `jdbcUrlTemplate` (`{host}`/`{port}`/`{database_name}`),
@@ -97,6 +97,8 @@ for the authoring guide.
 | `mongodb` | MONGODB | DOCUMENT | no | `accessflow-engine-mongodb-<v>-all.jar` engine plugin (native, not JDBC) |
 | `couchbase` | COUCHBASE | DOCUMENT | no | `accessflow-engine-couchbase-<v>-all.jar` engine plugin (native, not JDBC) |
 | `redis` | REDIS | KEY_VALUE | no | `accessflow-engine-redis-<v>-all.jar` engine plugin (native, not JDBC) |
+| `cassandra` | CASSANDRA | WIDE_COLUMN | no | `accessflow-engine-cassandra-<v>-all.jar` engine plugin (native, not JDBC) |
+| `scylladb` | SCYLLADB | WIDE_COLUMN | no | the **same** `accessflow-engine-cassandra-<v>-all.jar` (second `QueryEngine` provider) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -137,6 +139,26 @@ permissions target a key namespace. Row-security policies on a Redis datasource 
 The datasource's `database_name` is the numeric DB index (default `0`); connections use `redis://`
 (plain, port 6379 — the manifest default) or `rediss://` (TLS). See
 [05-backend.md → Redis engine](./05-backend.md#redis-engine).
+
+**Cassandra** is the NoSQL **wide-column** connector (AF-421, `category=WIDE_COLUMN`), delivered the
+same way: the shaded plugin JAR built from [`engines/cassandra/`](../engines/cassandra/) (own version
+line, reproducible build, URL + SHA-256 pin in the manifest, published to `gh-pages` under `engines/`
+on release), bundling the native [DataStax Java driver](https://github.com/apache/cassandra-java-driver)
+(with a relocated Netty / Typesafe Config / HdrHistogram). Users submit **CQL**; SELECT/INSERT/UPDATE/
+DELETE and `CREATE`/`ALTER`/`DROP` of a table/keyspace/index/type/materialized view + `TRUNCATE`
+classify onto the standard `QueryType` model, while `BEGIN … BATCH` and `CREATE`/`DROP FUNCTION`/
+`AGGREGATE` (server-side code) are rejected with distinct 422s. The datasource's `database_name` is
+the **keyspace**; an extra **`local_datacenter`** field (the driver's load-balancing datacenter) is
+required. Row-security predicates are spliced into the WHERE clause **only** on partition/clustering
+key columns with the operators CQL can filter (`=, IN, <, <=, >, >=`); anything else **fails closed**
+rather than injecting `ALLOW FILTERING`. Default port 9042. See
+[05-backend.md → Cassandra engine](./05-backend.md#cassandra-engine).
+
+**ScyllaDB** is CQL-compatible and reuses the **very same** Cassandra plugin JAR — the JAR registers
+two `QueryEngine` providers (`engineId` `cassandra` and `scylladb`), and both
+`connectors/cassandra/connector.json` and `connectors/scylladb/connector.json` pin the same URL +
+SHA-256. It exists as a separate connector + `DbType.SCYLLADB` only because the catalog allows one
+connector per non-`CUSTOM` dialect; behaviour is identical to Cassandra.
 
 ## Resolution at query time
 

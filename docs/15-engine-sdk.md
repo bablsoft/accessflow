@@ -1,14 +1,21 @@
 # 15 — Engine-Plugin SDK
 
 How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
-and Redis today; Cassandra, Elasticsearch, Neo4j tomorrow — that plugs into AccessFlow as
+Redis, and Cassandra/ScyllaDB today; Elasticsearch, Neo4j tomorrow — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)
 (AF-412) is the first engine built purely against this SDK — and the SQL-shaped counterexample
 (SQL++ classifier + WHERE-splice row security instead of `$match` injection);
 [`engines/redis/`](../engines/redis/) (AF-419) is the `KEY_VALUE` reference — a command allow-list,
-key-prefix `referencedTables`, and fail-closed row security where row predicates have no meaning.
+key-prefix `referencedTables`, and fail-closed row security where row predicates have no meaning;
+[`engines/cassandra/`](../engines/cassandra/) (AF-421) is the `WIDE_COLUMN` reference — a CQL
+classifier with **key-aware** WHERE-splice row security (only partition/clustering-key predicates
+are spliced; non-key columns fail closed rather than injecting `ALLOW FILTERING`), and the example
+of **one JAR backing two connectors**: it registers two `QueryEngine` providers (`engineId`
+`cassandra` and `scylladb`), so the same shaded JAR serves both the `cassandra` and `scylladb`
+connectors (ScyllaDB being CQL-compatible). A new `DbType` is needed per connector because the
+catalog allows one connector per non-`CUSTOM` dialect, but the engine code is shared.
 
 Related chapters: [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine) (how the host
 dispatches to engines), [14-connectors.md](./14-connectors.md) (the connector catalog the plugin is

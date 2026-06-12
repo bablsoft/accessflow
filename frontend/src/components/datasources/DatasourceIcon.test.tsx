@@ -31,8 +31,8 @@ describe('DatasourceIcon', () => {
 
   it('falls back to generic.svg for an unknown DbType', () => {
     // Cast through unknown so the test covers the runtime fallback even though
-    // TypeScript narrows DbType to the supported five values at compile time.
-    const unknownDbType = 'CASSANDRA' as unknown as 'POSTGRESQL';
+    // TypeScript narrows DbType to the supported values at compile time.
+    const unknownDbType = 'NOTADB' as unknown as 'POSTGRESQL';
     const { container } = render(<DatasourceIcon dbType={unknownDbType} />);
     const img = container.querySelector('img');
     expect(img!.getAttribute('src')).toBe('/db-icons/generic.svg');

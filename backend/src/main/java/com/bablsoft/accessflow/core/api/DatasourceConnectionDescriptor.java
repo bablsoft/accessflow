@@ -16,6 +16,9 @@ import java.util.UUID;
  * the proxy engine routes {@link QueryType#SELECT} queries to a sibling HikariCP pool built from
  * the replica JDBC URL and credentials; non-SELECT queries always hit the primary regardless.
  * Reuses the same driver class as the primary.
+ *
+ * <p>{@code localDatacenter} is the Cassandra/ScyllaDB driver's load-balancing datacenter name
+ * (the {@code withLocalDatacenter(...)} value). It is {@code null} for every other dialect.
  */
 public record DatasourceConnectionDescriptor(
         UUID id,
@@ -38,7 +41,40 @@ public record DatasourceConnectionDescriptor(
         String readReplicaJdbcUrl,
         String readReplicaUsername,
         String readReplicaPasswordEncrypted,
-        boolean active) {
+        boolean active,
+        String localDatacenter) {
+
+    /**
+     * Backward-compatible constructor for the dialects that have no {@code localDatacenter} (every
+     * engine except Cassandra / ScyllaDB); delegates to the canonical constructor with {@code null}.
+     */
+    public DatasourceConnectionDescriptor(
+            UUID id,
+            UUID organizationId,
+            DbType dbType,
+            String host,
+            Integer port,
+            String databaseName,
+            String username,
+            String passwordEncrypted,
+            SslMode sslMode,
+            int connectionPoolSize,
+            int maxRowsPerQuery,
+            boolean aiAnalysisEnabled,
+            UUID aiConfigId,
+            boolean textToSqlEnabled,
+            UUID customDriverId,
+            String connectorId,
+            String jdbcUrlOverride,
+            String readReplicaJdbcUrl,
+            String readReplicaUsername,
+            String readReplicaPasswordEncrypted,
+            boolean active) {
+        this(id, organizationId, dbType, host, port, databaseName, username, passwordEncrypted,
+                sslMode, connectionPoolSize, maxRowsPerQuery, aiAnalysisEnabled, aiConfigId,
+                textToSqlEnabled, customDriverId, connectorId, jdbcUrlOverride, readReplicaJdbcUrl,
+                readReplicaUsername, readReplicaPasswordEncrypted, active, null);
+    }
 
     public boolean hasReadReplica() {
         return readReplicaJdbcUrl != null && !readReplicaJdbcUrl.isBlank();

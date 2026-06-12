@@ -333,6 +333,7 @@
     "syntax_json": "JSON",
     "syntax_sqlpp": "SQL++",
     "syntax_redis": "Redis CLI",
+    "syntax_cql": "CQL",
     "justification_label": "理由",
     "justification_required_note": "· 审核所必需",
     "justification_placeholder": "您为什么要运行此查询？",
@@ -645,6 +646,8 @@
       "field_host": "主机",
       "field_port": "端口",
       "field_database": "数据库名称",
+      "field_local_datacenter": "本地数据中心",
+      "field_local_datacenter_help": "Cassandra / ScyllaDB 负载均衡数据中心（例如 datacenter1）— 驱动程序必需。",
       "field_username": "用户名",
       "field_password": "密码",
       "field_ssl_mode": "SSL 模式",
@@ -1783,7 +1786,9 @@
       "CUSTOM": "自定义",
       "MONGODB": "MongoDB",
       "COUCHBASE": "Couchbase",
-      "REDIS": "Redis"
+      "REDIS": "Redis",
+      "CASSANDRA": "Apache Cassandra",
+      "SCYLLADB": "ScyllaDB"
     },
     "ssl_mode": {
       "DISABLE": "禁用",

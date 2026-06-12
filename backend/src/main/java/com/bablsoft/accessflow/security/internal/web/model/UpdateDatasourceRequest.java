@@ -38,5 +38,6 @@ public record UpdateDatasourceRequest(
                 message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
         @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
         @Size(max = 4096) String readReplicaPassword,
-        Boolean active
+        Boolean active,
+        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter
 ) {}

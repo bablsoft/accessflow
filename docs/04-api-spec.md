@@ -260,6 +260,7 @@ Bundled supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. Th
       "database_name": "app_prod",
       "username": "accessflow_svc",
       "ssl_mode": "VERIFY_FULL",
+      "local_datacenter": null,
       "connection_pool_size": 10,
       "max_rows_per_query": 1000,
       "require_review_reads": false,
@@ -291,6 +292,7 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "username": "accessflow_svc",
   "password": "service_account_password",
   "ssl_mode": "VERIFY_FULL",
+  "local_datacenter": null,
   "connection_pool_size": 10,
   "max_rows_per_query": 1000,
   "require_review_reads": false,
@@ -304,6 +306,8 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "read_replica_password": null
 }
 ```
+
+`local_datacenter` is the Cassandra/ScyllaDB driver's load-balancing datacenter (the `withLocalDatacenter(...)` value). It is **required when `db_type` is `CASSANDRA` or `SCYLLADB`** and is null/unused for every other dialect.
 
 When `read_replica_jdbc_url` is set, SELECT queries are routed to the replica pool while INSERT/UPDATE/DELETE/DDL always hit the primary. The replica reuses the primary's JDBC driver class — it must be the same engine. `read_replica_username` and `read_replica_password` are optional; when omitted, the primary's username/password is reused. `read_replica_password` is AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password.
 
@@ -351,6 +355,7 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   "host": "new-db.company.com",
   "port": 5432,
   "password": "new-service-account-password",
+  "local_datacenter": null,
   "connection_pool_size": 25,
   "read_replica_jdbc_url": "jdbc:postgresql://replica.company.com:5432/app_prod",
   "read_replica_username": "ro_svc",

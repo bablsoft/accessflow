@@ -20,6 +20,9 @@ public record DatasourceSpec(
         Boolean aiAnalysisEnabled,
         String aiConfigName,
         Boolean textToSqlEnabled,
-        String jdbcUrlOverride
+        String jdbcUrlOverride,
+        String localDatacenter
 ) {
+    // Single canonical constructor only: this record is bound by Spring Boot
+    // @ConfigurationProperties constructor binding, which requires exactly one constructor.
 }

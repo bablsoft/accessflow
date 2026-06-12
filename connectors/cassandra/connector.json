@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "cassandra",
+  "name": "Apache Cassandra",
+  "dbType": "CASSANDRA",
+  "category": "WIDE_COLUMN",
+  "vendor": "The Apache Software Foundation",
+  "description": "Distributed NoSQL wide-column store queried with CQL. The AccessFlow Cassandra engine installs on demand; row security only filters on partition/clustering key columns.",
+  "documentationUrl": "https://cassandra.apache.org/doc/latest/",
+  "logo": "logo.svg",
+  "defaultPort": 9042,
+  "defaultSslMode": "DISABLE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-cassandra-1.0.0-all.jar",
+    "fileName": "accessflow-engine-cassandra-1.0.0-all.jar",
+    "sha256": "ceaa7b99f9c87f86b75ba341b480a77d8950bdca317ad0643c2747c1a8bb4816"
+  }
+}
