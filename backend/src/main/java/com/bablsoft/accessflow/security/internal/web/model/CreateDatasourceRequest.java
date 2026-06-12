@@ -19,9 +19,10 @@ public record CreateDatasourceRequest(
         @Min(value = 1, message = "{validation.port.range}")
         @Max(value = 65535, message = "{validation.port.range}") Integer port,
         @Size(max = 255, message = "{validation.display_name.max}") String databaseName,
-        @NotBlank(message = "{validation.username.required}")
+        // username / password are optional: the search engines (Elasticsearch / OpenSearch) may
+        // authenticate with an API key instead. The service enforces "basic creds or api key" per
+        // db_type (validateCredentials), the cross-field rule Bean Validation can't express.
         @Size(max = 255, message = "{validation.display_name.max}") String username,
-        @NotBlank(message = "{validation.datasource_password.required}")
         @Size(max = 4096) String password,
         @NotNull(message = "{validation.ssl_mode.required}") SslMode sslMode,
         @Min(value = 1, message = "{validation.pool_size.range}")
@@ -46,5 +47,7 @@ public record CreateDatasourceRequest(
                 message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
         @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
         @Size(max = 4096) String readReplicaPassword,
-        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter
+        @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter,
+        // API key for the search engines (Elasticsearch / OpenSearch); encrypted before persistence.
+        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey
 ) {}

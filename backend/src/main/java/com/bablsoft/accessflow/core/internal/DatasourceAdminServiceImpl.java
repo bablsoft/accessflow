@@ -129,6 +129,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         var connectorId = blankToNull(command.connectorId());
         validateDriverChoice(command.dbType(), command.customDriverId(), customDriver, connectorId,
                 command.jdbcUrlOverride(), command.host(), command.port(), command.databaseName());
+        var apiKey = blankToNull(command.apiKey());
+        validateCredentials(command.dbType(), command.username(), command.password(), apiKey);
         if (connectorId != null) {
             // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
             driverCatalog.resolveConnector(connectorId);
@@ -149,8 +151,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setHost(command.host());
         entity.setPort(command.port());
         entity.setDatabaseName(command.databaseName());
-        entity.setUsername(command.username());
-        entity.setPasswordEncrypted(encryptionService.encrypt(command.password()));
+        entity.setUsername(command.username() != null ? command.username() : "");
+        entity.setPasswordEncrypted(encryptionService.encrypt(
+                command.password() != null ? command.password() : ""));
+        entity.setApiKeyEncrypted(apiKey != null ? encryptionService.encrypt(apiKey) : null);
         entity.setSslMode(command.sslMode() != null ? command.sslMode() : SslMode.DISABLE);
         entity.setCustomDriver(customDriver);
         entity.setConnectorId(connectorId);
@@ -218,6 +222,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
         if (command.password() != null) {
             entity.setPasswordEncrypted(encryptionService.encrypt(command.password()));
+        }
+        if (command.apiKey() != null) {
+            // A blank API key clears it (revert to basic auth); a non-blank one is re-encrypted.
+            entity.setApiKeyEncrypted(command.apiKey().isBlank()
+                    ? null : encryptionService.encrypt(command.apiKey()));
         }
         if (command.sslMode() != null) {
             entity.setSslMode(command.sslMode());
@@ -308,7 +317,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getReadReplicaJdbcUrl(),
                 entity.getReadReplicaUsername(),
                 entity.getReadReplicaPasswordEncrypted(),
-                entity.getLocalDatacenter());
+                entity.getLocalDatacenter(),
+                entity.getApiKeyEncrypted());
     }
 
     private record PoolFingerprint(String host, Integer port, String databaseName, String username,
@@ -316,7 +326,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                                    int connectionPoolSize, UUID customDriverId, String connectorId,
                                    String jdbcUrlOverride,
                                    String readReplicaJdbcUrl, String readReplicaUsername,
-                                   String readReplicaPasswordEncrypted, String localDatacenter) {
+                                   String readReplicaPasswordEncrypted, String localDatacenter,
+                                   String apiKeyEncrypted) {
     }
 
     /**
@@ -653,10 +664,48 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             throw new IllegalDatasourcePermissionException(
                     "Datasource port is required for db_type " + dbType);
         }
-        if (databaseName == null || databaseName.isBlank()) {
+        // Elasticsearch / OpenSearch have no "database" — the index is named in the query; the
+        // optional database_name only scopes introspection. Every other dialect requires it.
+        if (!isSearchEngine(dbType) && (databaseName == null || databaseName.isBlank())) {
             throw new IllegalDatasourcePermissionException(
                     "Datasource database_name is required for db_type " + dbType);
         }
+    }
+
+    /**
+     * The search engines (Elasticsearch / OpenSearch) authenticate with either HTTP basic
+     * (username + password) or an API key. Every other dialect requires username + password and
+     * must not carry an API key. This cross-field rule can't be expressed with Bean Validation
+     * annotations, so it lives here (mirroring {@link #requireLocalDatacenterForEngine}).
+     */
+    private void validateCredentials(DbType dbType, String username, String password,
+                                     String apiKey) {
+        boolean hasBasic = username != null && !username.isBlank()
+                && password != null && !password.isBlank();
+        boolean hasApiKey = apiKey != null && !apiKey.isBlank();
+        if (isSearchEngine(dbType)) {
+            if (!hasBasic && !hasApiKey) {
+                throw new IllegalDatasourcePermissionException(
+                        "db_type " + dbType + " requires either username + password or an api_key");
+            }
+        } else {
+            if (hasApiKey) {
+                throw new IllegalDatasourcePermissionException(
+                        "api_key is only allowed for Elasticsearch / OpenSearch datasources");
+            }
+            if (username == null || username.isBlank()) {
+                throw new IllegalDatasourcePermissionException(
+                        "Datasource username is required for db_type " + dbType);
+            }
+            if (password == null || password.isBlank()) {
+                throw new IllegalDatasourcePermissionException(
+                        "Datasource password is required for db_type " + dbType);
+            }
+        }
+    }
+
+    private static boolean isSearchEngine(DbType dbType) {
+        return dbType == DbType.ELASTICSEARCH || dbType == DbType.OPENSEARCH;
     }
 
     /**

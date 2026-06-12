@@ -19,6 +19,11 @@ import java.util.UUID;
  *
  * <p>{@code localDatacenter} is the Cassandra/ScyllaDB driver's load-balancing datacenter name
  * (the {@code withLocalDatacenter(...)} value). It is {@code null} for every other dialect.
+ *
+ * <p>{@code apiKeyEncrypted} is the optional encrypted API key for the search engines
+ * (Elasticsearch / OpenSearch): when present the engine authenticates with
+ * {@code Authorization: ApiKey <decrypted>} instead of HTTP basic. {@code null} for every other
+ * dialect and for basic-auth search datasources.
  */
 public record DatasourceConnectionDescriptor(
         UUID id,
@@ -42,11 +47,46 @@ public record DatasourceConnectionDescriptor(
         String readReplicaUsername,
         String readReplicaPasswordEncrypted,
         boolean active,
-        String localDatacenter) {
+        String localDatacenter,
+        String apiKeyEncrypted) {
 
     /**
-     * Backward-compatible constructor for the dialects that have no {@code localDatacenter} (every
-     * engine except Cassandra / ScyllaDB); delegates to the canonical constructor with {@code null}.
+     * Backward-compatible constructor for the dialects that have no {@code apiKeyEncrypted} (every
+     * engine except Elasticsearch / OpenSearch); delegates to the canonical constructor with
+     * {@code null}.
+     */
+    public DatasourceConnectionDescriptor(
+            UUID id,
+            UUID organizationId,
+            DbType dbType,
+            String host,
+            Integer port,
+            String databaseName,
+            String username,
+            String passwordEncrypted,
+            SslMode sslMode,
+            int connectionPoolSize,
+            int maxRowsPerQuery,
+            boolean aiAnalysisEnabled,
+            UUID aiConfigId,
+            boolean textToSqlEnabled,
+            UUID customDriverId,
+            String connectorId,
+            String jdbcUrlOverride,
+            String readReplicaJdbcUrl,
+            String readReplicaUsername,
+            String readReplicaPasswordEncrypted,
+            boolean active,
+            String localDatacenter) {
+        this(id, organizationId, dbType, host, port, databaseName, username, passwordEncrypted,
+                sslMode, connectionPoolSize, maxRowsPerQuery, aiAnalysisEnabled, aiConfigId,
+                textToSqlEnabled, customDriverId, connectorId, jdbcUrlOverride, readReplicaJdbcUrl,
+                readReplicaUsername, readReplicaPasswordEncrypted, active, localDatacenter, null);
+    }
+
+    /**
+     * Backward-compatible constructor for the dialects that have neither {@code localDatacenter} nor
+     * {@code apiKeyEncrypted}; delegates to the canonical constructor with {@code null} for both.
      */
     public DatasourceConnectionDescriptor(
             UUID id,
@@ -73,7 +113,7 @@ public record DatasourceConnectionDescriptor(
         this(id, organizationId, dbType, host, port, databaseName, username, passwordEncrypted,
                 sslMode, connectionPoolSize, maxRowsPerQuery, aiAnalysisEnabled, aiConfigId,
                 textToSqlEnabled, customDriverId, connectorId, jdbcUrlOverride, readReplicaJdbcUrl,
-                readReplicaUsername, readReplicaPasswordEncrypted, active, null);
+                readReplicaUsername, readReplicaPasswordEncrypted, active, null, null);
     }
 
     public boolean hasReadReplica() {

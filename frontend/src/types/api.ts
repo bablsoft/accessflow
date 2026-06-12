@@ -19,7 +19,9 @@ export type DbType =
   | 'COUCHBASE'
   | 'REDIS'
   | 'CASSANDRA'
-  | 'SCYLLADB';
+  | 'SCYLLADB'
+  | 'ELASTICSEARCH'
+  | 'OPENSEARCH';
 /**
  * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
  * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.
@@ -535,6 +537,7 @@ export interface CreateDatasourceInput {
   read_replica_username?: string | null;
   read_replica_password?: string | null;
   local_datacenter?: string | null;
+  api_key?: string | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -559,6 +562,7 @@ export interface UpdateDatasourceInput {
   read_replica_username?: string | null;
   read_replica_password?: string | null;
   local_datacenter?: string | null;
+  api_key?: string | null;
   active?: boolean;
 }
 

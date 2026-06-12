@@ -172,6 +172,12 @@ accessflow:
       scylladb:
         connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_SCYLLADB_CONNECT_TIMEOUT:PT10S}
         request-timeout: ${ACCESSFLOW_PROXY_ENGINES_SCYLLADB_REQUEST_TIMEOUT:PT10S}
+      elasticsearch:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_CONNECT_TIMEOUT:PT10S}
+        socket-timeout: ${ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_SOCKET_TIMEOUT:PT30S}
+      opensearch:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_CONNECT_TIMEOUT:PT10S}
+        socket-timeout: ${ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_SOCKET_TIMEOUT:PT30S}
   drivers:
     cache-dir: ${ACCESSFLOW_DRIVER_CACHE:${user.home}/.accessflow/drivers}
     repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}

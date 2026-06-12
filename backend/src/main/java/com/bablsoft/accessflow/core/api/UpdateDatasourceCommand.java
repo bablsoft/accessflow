@@ -24,8 +24,25 @@ public record UpdateDatasourceCommand(
         String readReplicaUsername,
         String readReplicaPassword,
         Boolean active,
-        String localDatacenter
+        String localDatacenter,
+        String apiKey
 ) {
+    /** Backward-compatible constructor for the dialects with no {@code apiKey} (everything but the search engines). */
+    public UpdateDatasourceCommand(
+            String name, String host, Integer port, String databaseName, String username,
+            String password, SslMode sslMode, Integer connectionPoolSize, Integer maxRowsPerQuery,
+            Boolean requireReviewReads, Boolean requireReviewWrites, UUID reviewPlanId,
+            Boolean aiAnalysisEnabled, UUID aiConfigId, Boolean textToSqlEnabled,
+            Boolean clearAiConfig, String jdbcUrlOverride, String readReplicaJdbcUrl,
+            String readReplicaUsername, String readReplicaPassword, Boolean active,
+            String localDatacenter) {
+        this(name, host, port, databaseName, username, password, sslMode, connectionPoolSize,
+                maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
+                aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
+                readReplicaJdbcUrl, readReplicaUsername, readReplicaPassword, active,
+                localDatacenter, null);
+    }
+
     /** Backward-compatible constructor for non-Cassandra dialects (no {@code localDatacenter}). */
     public UpdateDatasourceCommand(
             String name, String host, Integer port, String databaseName, String username,
@@ -37,6 +54,6 @@ public record UpdateDatasourceCommand(
         this(name, host, port, databaseName, username, password, sslMode, connectionPoolSize,
                 maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
                 aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
-                readReplicaJdbcUrl, readReplicaUsername, readReplicaPassword, active, null);
+                readReplicaJdbcUrl, readReplicaUsername, readReplicaPassword, active, null, null);
     }
 }

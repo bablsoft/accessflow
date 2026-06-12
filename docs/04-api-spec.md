@@ -293,6 +293,7 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "password": "service_account_password",
   "ssl_mode": "VERIFY_FULL",
   "local_datacenter": null,
+  "api_key": null,
   "connection_pool_size": 10,
   "max_rows_per_query": 1000,
   "require_review_reads": false,
@@ -308,6 +309,8 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
 ```
 
 `local_datacenter` is the Cassandra/ScyllaDB driver's load-balancing datacenter (the `withLocalDatacenter(...)` value). It is **required when `db_type` is `CASSANDRA` or `SCYLLADB`** and is null/unused for every other dialect.
+
+`api_key` (≤ 4096, AES-256-GCM encrypted, never returned) is the search-engine alternative to basic auth: for `db_type` `ELASTICSEARCH` / `OPENSEARCH` the request must carry **either** `username` + `password` **or** `api_key` (sent to the cluster as `Authorization: ApiKey`); supplying it is rejected for every other dialect. For these search datasources `database_name` is optional (it only scopes introspection — the index is named in the query). On update, sending a blank `api_key` clears it (reverting to basic auth). Null/unused for every non-search dialect.
 
 When `read_replica_jdbc_url` is set, SELECT queries are routed to the replica pool while INSERT/UPDATE/DELETE/DDL always hit the primary. The replica reuses the primary's JDBC driver class — it must be the same engine. `read_replica_username` and `read_replica_password` are optional; when omitted, the primary's username/password is reused. `read_replica_password` is AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password.
 

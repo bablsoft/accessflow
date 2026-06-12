@@ -1,7 +1,7 @@
 # 15 — Engine-Plugin SDK
 
 How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
-Redis, and Cassandra/ScyllaDB today; Elasticsearch, Neo4j tomorrow — that plugs into AccessFlow as
+Redis, Cassandra/ScyllaDB, and Elasticsearch/OpenSearch today; Neo4j tomorrow — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)

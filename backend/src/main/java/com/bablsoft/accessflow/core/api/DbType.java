@@ -53,5 +53,25 @@ public enum DbType {
      * non-{@code CUSTOM} dialect. Behaviour is identical to {@link #CASSANDRA}. See
      * {@code docs/05-backend.md} → "Cassandra engine" and {@code docs/14-connectors.md}.
      */
-    SCYLLADB
+    SCYLLADB,
+    /**
+     * Elasticsearch — a NoSQL search engine. Not JDBC-backed: the proxy connects via the native
+     * low-level REST client, validates an AccessFlow JSON query envelope rather than JSqlParser, and
+     * executes search / count / index / bulk / update_by_query / delete_by_query / index-management
+     * requests instead of SQL. Row security is injected as {@code bool.filter} clauses (keyword
+     * fields only); server-side scripting and cluster APIs are rejected. Resolved on demand through
+     * the connector catalog as an engine plugin. See {@code docs/05-backend.md} →
+     * "Elasticsearch engine" and {@code docs/14-connectors.md}.
+     */
+    ELASTICSEARCH,
+    /**
+     * OpenSearch — a search engine wire-compatible with Elasticsearch for the governed operations.
+     * Served by the very same Elasticsearch engine plugin JAR (which registers a second
+     * {@code QueryEngine} provider with {@code engineId="opensearch"}, differing only in the
+     * low-level REST client used); it needs its own {@code DbType} only because the connector catalog
+     * allows one connector per non-{@code CUSTOM} dialect. Behaviour is identical to
+     * {@link #ELASTICSEARCH}. See {@code docs/05-backend.md} → "Elasticsearch engine" and
+     * {@code docs/14-connectors.md}.
+     */
+    OPENSEARCH
 }
