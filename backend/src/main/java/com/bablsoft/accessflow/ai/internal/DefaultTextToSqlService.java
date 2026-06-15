@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
+import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
@@ -11,8 +12,11 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
+import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +45,7 @@ class DefaultTextToSqlService implements TextToSqlService {
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final LocalizationConfigService localizationConfigService;
+    private final QueryParser queryParser;
 
     @Override
     public GeneratedSqlResult generateSql(UUID datasourceId, String prompt, UUID userId,
@@ -60,8 +65,27 @@ class DefaultTextToSqlService implements TextToSqlService {
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
         var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
-        return strategy.generateSql(prompt, descriptor.dbType(), schemaContext,
+        var dbType = descriptor.dbType();
+        var generated = strategy.generateSql(prompt, dbType, schemaContext,
                 resolveLanguage(organizationId), aiConfigId);
+        var result = generated.withSyntax(promptRenderer.syntaxFor(dbType, generated.sql()));
+        validateDraft(result.sql(), dbType);
+        return result;
+    }
+
+    /**
+     * Parse the generated draft through the engine-aware {@link QueryParser} so an unparseable draft
+     * fails closed as {@code AI_RESPONSE_INVALID} (HTTP 422) before it reaches the editor — the draft
+     * is still re-validated on submit through {@code POST /api/v1/queries}. No execution, no
+     * persistence. Engine-resolution / provider errors are not parse failures and propagate as-is.
+     */
+    private void validateDraft(String sql, DbType dbType) {
+        try {
+            queryParser.parse(sql, dbType);
+        } catch (InvalidSqlException e) {
+            throw new AiAnalysisParseException(
+                    "Generated query did not parse for " + dbType + ": " + e.getMessage(), e);
+        }
     }
 
     private void verifySameOrg(UUID aiConfigId, UUID datasourceOrgId) {

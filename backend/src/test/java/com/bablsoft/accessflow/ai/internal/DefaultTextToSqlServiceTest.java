@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
+import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
@@ -15,9 +16,11 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigView;
 import com.bablsoft.accessflow.core.api.SslMode;
+import com.bablsoft.accessflow.proxy.api.QueryParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +49,7 @@ class DefaultTextToSqlServiceTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock LocalizationConfigService localizationConfigService;
+    @Mock QueryParser queryParser;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
 
@@ -60,7 +64,7 @@ class DefaultTextToSqlServiceTest {
     void setUp() {
         service = new DefaultTextToSqlService(strategy, aiConfigRepository, promptRenderer,
                 datasourceLookupService, datasourceAdminService, permissionLookupService,
-                localizationConfigService);
+                localizationConfigService, queryParser);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -78,7 +82,12 @@ class DefaultTextToSqlServiceTest {
     }
 
     private DatasourceConnectionDescriptor descriptor(boolean textToSqlEnabled, UUID boundAiConfigId) {
-        return new DatasourceConnectionDescriptor(datasourceId, organizationId, DbType.POSTGRESQL, "h",
+        return descriptor(textToSqlEnabled, boundAiConfigId, DbType.POSTGRESQL);
+    }
+
+    private DatasourceConnectionDescriptor descriptor(boolean textToSqlEnabled, UUID boundAiConfigId,
+                                                      DbType dbType) {
+        return new DatasourceConnectionDescriptor(datasourceId, organizationId, dbType, "h",
                 5432, "db", "u", "ENC(p)", SslMode.DISABLE, 5, 1000, true, boundAiConfigId,
                 textToSqlEnabled, null, null, null, null, null, null, true);
     }
@@ -126,6 +135,39 @@ class DefaultTextToSqlServiceTest {
         service.generateSql(datasourceId, "recent orders", userId, organizationId, false);
 
         assertThat(ctx.getValue()).contains("created_at timestamptz not null *RESTRICTED*");
+    }
+
+    @Test
+    void generateSqlForNoSqlEngineAttachesSyntaxAndValidatesDraft() {
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(descriptor(true, aiConfigId, DbType.MONGODB)));
+        when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
+                .thenReturn(schemaView());
+        var mongoDraft = new GeneratedSqlResult("db.orders.find({})", AiProviderType.ANTHROPIC, "model-x", 30, 12);
+        when(strategy.generateSql(any(), eq(DbType.MONGODB), any(), eq("en"), eq(aiConfigId)))
+                .thenReturn(mongoDraft);
+
+        var result = service.generateSql(datasourceId, "recent orders", userId, organizationId, false);
+
+        assertThat(result.sql()).isEqualTo("db.orders.find({})");
+        assertThat(result.syntax()).isEqualTo("shell");
+        verify(queryParser).parse("db.orders.find({})", DbType.MONGODB);
+    }
+
+    @Test
+    void generateSqlRejectsUnparseableDraftAsParseException() {
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(descriptor(true, aiConfigId, DbType.MONGODB)));
+        when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
+                .thenReturn(schemaView());
+        when(strategy.generateSql(any(), eq(DbType.MONGODB), any(), eq("en"), eq(aiConfigId)))
+                .thenReturn(new GeneratedSqlResult("db.orders.wat(", AiProviderType.ANTHROPIC, "model-x", 30, 12));
+        org.mockito.Mockito.doThrow(new InvalidSqlException("unparseable"))
+                .when(queryParser).parse(any(), eq(DbType.MONGODB));
+
+        assertThatThrownBy(() -> service.generateSql(datasourceId, "x", userId, organizationId, false))
+                .isInstanceOf(AiAnalysisParseException.class)
+                .hasMessageContaining("did not parse");
     }
 
     @Test

@@ -262,4 +262,82 @@ class SystemPromptRendererTest {
         assertThat(prompt).contains("Use created_at for date filters.");
         assertThat(prompt).doesNotContain("{{rag_context}}");
     }
+
+    @Test
+    void renderGenerationUsesSqlProfileForRelationalEngines() {
+        var prompt = renderer.renderGeneration("x", DbType.POSTGRESQL, null, null, "en");
+
+        assertThat(prompt).contains("Target query language: SQL");
+        assertThat(prompt).contains("Use dialect-appropriate syntax");
+        assertThat(prompt).doesNotContain("{{target_language}}");
+        assertThat(prompt).doesNotContain("{{target_guidance}}");
+    }
+
+    @Test
+    void renderGenerationIsMongoAware() {
+        var prompt = renderer.renderGeneration("recent users", DbType.MONGODB, null, null, "en");
+
+        assertThat(prompt).contains("the MongoDB query language");
+        assertThat(prompt).contains("db.collection.find");
+        assertThat(prompt).contains("$where");
+        assertThat(prompt).doesNotContain("Use dialect-appropriate syntax");
+        // The JSON envelope key stays "sql" regardless of engine (wire compatibility).
+        assertThat(prompt).contains("\"sql\":");
+    }
+
+    @Test
+    void renderGenerationIsRedisAware() {
+        var prompt = renderer.renderGeneration("x", DbType.REDIS, null, null, "en");
+
+        assertThat(prompt).contains("redis-cli");
+        assertThat(prompt).contains("EVAL");
+    }
+
+    @Test
+    void renderGenerationIsCqlAwareForCassandraAndScylla() {
+        for (var dbType : new DbType[]{DbType.CASSANDRA, DbType.SCYLLADB}) {
+            var prompt = renderer.renderGeneration("x", dbType, null, null, "en");
+
+            assertThat(prompt).contains("Target query language: CQL");
+            assertThat(prompt).contains("ALLOW FILTERING");
+        }
+    }
+
+    @Test
+    void renderGenerationIsQueryDslAwareForElasticsearchAndOpenSearch() {
+        for (var dbType : new DbType[]{DbType.ELASTICSEARCH, DbType.OPENSEARCH}) {
+            var prompt = renderer.renderGeneration("x", dbType, null, null, "en");
+
+            assertThat(prompt).contains("Query DSL");
+            assertThat(prompt).contains("script_fields");
+        }
+    }
+
+    @Test
+    void renderGenerationIsCypherAwareForNeo4j() {
+        var prompt = renderer.renderGeneration("x", DbType.NEO4J, null, null, "en");
+
+        assertThat(prompt).contains("Target query language: Cypher");
+        assertThat(prompt).contains("LOAD CSV");
+    }
+
+    @Test
+    void syntaxForReturnsEngineSyntaxId() {
+        assertThat(renderer.syntaxFor(DbType.POSTGRESQL, "SELECT 1")).isEqualTo("sql");
+        assertThat(renderer.syntaxFor(DbType.COUCHBASE, "SELECT 1")).isEqualTo("sqlpp");
+        assertThat(renderer.syntaxFor(DbType.DYNAMODB, "SELECT 1")).isEqualTo("partiql");
+        assertThat(renderer.syntaxFor(DbType.REDIS, "GET k")).isEqualTo("cli");
+        assertThat(renderer.syntaxFor(DbType.CASSANDRA, "SELECT 1")).isEqualTo("cql");
+        assertThat(renderer.syntaxFor(DbType.SCYLLADB, "SELECT 1")).isEqualTo("cql");
+        assertThat(renderer.syntaxFor(DbType.ELASTICSEARCH, "{}")).isEqualTo("query_dsl");
+        assertThat(renderer.syntaxFor(DbType.OPENSEARCH, "{}")).isEqualTo("query_dsl");
+        assertThat(renderer.syntaxFor(DbType.NEO4J, "MATCH (n) RETURN n")).isEqualTo("cypher");
+    }
+
+    @Test
+    void syntaxForDetectsMongoShellVsJsonCommand() {
+        assertThat(renderer.syntaxFor(DbType.MONGODB, "db.users.find({})")).isEqualTo("shell");
+        assertThat(renderer.syntaxFor(DbType.MONGODB, "  { \"find\": \"users\" }")).isEqualTo("json");
+        assertThat(renderer.syntaxFor(DbType.MONGODB, null)).isEqualTo("shell");
+    }
 }

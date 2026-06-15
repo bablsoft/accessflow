@@ -62,7 +62,7 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
       { value: 'json', labelKey: 'editor.syntax_json', language: 'json' },
     ],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'json',
   },
   // SQL++ (N1QL) is SQL-shaped: SQL highlighting (CodeMirror has no N1QL dialect; StandardSQL
@@ -76,42 +76,44 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     defaultResultView: 'table',
   },
   // Redis is a command language, not SQL: shell-style highlighting (JavaScript covers the
-  // redis-cli token shape), no formatter, no text-to-SQL, tabular results by default.
+  // redis-cli token shape), no formatter, tabular results by default. Text-to-query drafts
+  // redis-cli commands (AF-439).
   REDIS: {
     syntaxes: [{ value: 'cli', labelKey: 'editor.syntax_redis', language: 'javascript' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'table',
   },
   // CQL is SQL-shaped: SQL highlighting (CodeMirror has no CQL dialect; StandardSQL covers the
-  // keyword set). No formatter or text-to-SQL — neither is CQL-aware (USING TTL, IF NOT EXISTS,
-  // collection literals) — and tabular results by default.
+  // keyword set). No formatter — it is not CQL-aware (USING TTL, IF NOT EXISTS, collection
+  // literals) — and tabular results by default. Text-to-query drafts CQL (AF-439).
   CASSANDRA: {
     syntaxes: [{ value: 'cql', labelKey: 'editor.syntax_cql', language: 'sql' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'table',
   },
   // ScyllaDB is CQL-compatible — identical editor behaviour to Cassandra.
   SCYLLADB: {
     syntaxes: [{ value: 'cql', labelKey: 'editor.syntax_cql', language: 'sql' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'table',
   },
-  // Elasticsearch uses a JSON query envelope (the Query DSL): JSON highlighting, no formatter or
-  // text-to-SQL, and the JSON document view by default (hits flatten to a table one click away).
+  // Elasticsearch uses a JSON query envelope (the Query DSL): JSON highlighting, no formatter, and
+  // the JSON document view by default (hits flatten to a table one click away). Text-to-query
+  // drafts a Query DSL envelope (AF-439).
   ELASTICSEARCH: {
     syntaxes: [{ value: 'query_dsl', labelKey: 'editor.syntax_query_dsl', language: 'json' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'json',
   },
   // OpenSearch is wire-compatible with Elasticsearch — identical editor behaviour.
   OPENSEARCH: {
     syntaxes: [{ value: 'query_dsl', labelKey: 'editor.syntax_query_dsl', language: 'json' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'json',
   },
   // PartiQL is SQL-shaped: SQL highlighting (CodeMirror has no PartiQL dialect; StandardSQL covers
@@ -127,12 +129,13 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
   },
   // Cypher is clause-based and graph-shaped. CodeMirror has no Cypher pack in the stack yet
   // (follow-up), so JavaScript highlighting covers the closest token shape ({}, strings, $params,
-  // backtick idents). No formatter or text-to-SQL — neither is Cypher-aware — and the JSON view by
-  // default since nodes/relationships/paths are graph structures (a flattened table is one click away).
+  // backtick idents). No formatter — it is not Cypher-aware — and the JSON view by default since
+  // nodes/relationships/paths are graph structures (a flattened table is one click away).
+  // Text-to-query drafts Cypher (AF-439).
   NEO4J: {
     syntaxes: [{ value: 'cypher', labelKey: 'editor.syntax_cypher', language: 'javascript' }],
     canFormat: false,
-    supportsTextToSql: false,
+    supportsTextToSql: true,
     defaultResultView: 'json',
   },
 };

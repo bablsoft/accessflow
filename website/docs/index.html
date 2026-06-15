@@ -813,7 +813,7 @@
             <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships built-in; other drivers download on first use and are verified against a pinned SHA-256 checksum). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
             <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response.</li>
             <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
-            <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-SQL</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-SQL on, users can draft a query from a natural-language prompt in the editor (the draft still flows through the normal review pipeline). Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
+            <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-query</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-query on, users can draft a query from a natural-language prompt in the editor — in the engine's native query language (SQL or a NoSQL query) — and the draft still flows through the normal review pipeline. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
           </ol>
           <p>
             <strong>Read-replica routing (optional).</strong> On the datasource settings page,
@@ -1141,7 +1141,7 @@ APPROVED → FAILED (execution error)</pre>
             configure a dedicated <em>Embedding provider</em> + <em>model</em> (OpenAI, Ollama,
             OpenAI-compatible, or Hugging Face; Anthropic has no embeddings API). Then add
             <em>Knowledge documents</em> (data-governance policies, naming conventions, schema notes)
-            on the edit page; each is chunked, embedded, and stored. At analysis and text-to-SQL time
+            on the edit page; each is chunked, embedded, and stored. At analysis and text-to-query time
             the most relevant chunks are retrieved (tune <em>Top-K</em> and <em>Similarity
             threshold</em>) and injected into the prompt, so the AI follows your house rules. Use
             <em>Test RAG connection</em> to verify the embedding model and vector store are reachable.
@@ -1458,24 +1458,26 @@ APPROVED → FAILED (execution error)</pre>
             <figcaption><code>/editor</code> — schema browser, SQL pane, justification, scheduled-execution row, and AI analysis side panel.</figcaption>
           </figure>
 
-          <h3 id="flow-text-to-sql">Drafting SQL from natural language</h3>
+          <h3 id="flow-text-to-sql">Drafting queries from natural language</h3>
           <p>
-            When a datasource has <em>text-to-SQL</em> enabled and an AI configuration bound (see
+            When a datasource has <em>text-to-query</em> enabled and an AI configuration bound (see
             <a href="#cfg-datasources">Datasources</a> → <em>Configuration</em>), the editor shows a
-            <strong>Describe your query</strong> bar above the SQL pane. Type a plain-language request
-            (e.g. "order numbers for the last 5 days"), click <em>Generate SQL</em>, and the draft is
-            written into the editor for you to review and edit. The generated query is never executed
-            directly — it still flows through the full AI analysis and review pipeline like any
-            hand-written submission.
+            <strong>Describe your query</strong> bar above the query pane. Type a plain-language request
+            (e.g. "order numbers for the last 5 days"), click <em>Generate query</em>, and the draft is
+            written into the editor for you to review and edit — in the datasource engine's native query
+            language (SQL for relational engines, plus MongoDB shell/JSON, Cypher, CQL, the Elasticsearch
+            Query DSL, redis-cli, SQL++, and PartiQL for the NoSQL engines; the editor mounts the matching
+            syntax automatically). The generated query is never executed directly — it still flows through
+            the full AI analysis and review pipeline like any hand-written submission.
           </p>
           <figure class="docs-figure">
             <picture>
               <source srcset="../images/docs/editor-text-to-sql-light.png" media="(prefers-color-scheme: light)" />
               <img src="../images/docs/editor-text-to-sql-light.png"
-                   alt="The /editor page with the text-to-SQL bar above the SQL pane: a Describe your query textarea with a natural-language prompt and a Generate SQL button, and the generated SELECT statement rendered in the CodeMirror editor below."
+                   alt="The /editor page with the text-to-query bar above the query pane: a Describe your query textarea with a natural-language prompt and a Generate query button, and the generated SELECT statement rendered in the CodeMirror editor below."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/editor</code> → <em>Describe your query</em>. AI drafts the SQL; the draft still goes through the normal review pipeline.</figcaption>
+            <figcaption><code>/editor</code> → <em>Describe your query</em>. AI drafts the query; the draft still goes through the normal review pipeline.</figcaption>
           </figure>
 
           <h3 id="flow-templates">Query templates library</h3>

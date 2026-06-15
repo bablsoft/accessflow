@@ -120,7 +120,7 @@ class TextToSqlControllerIntegrationTest {
         when(textToSqlService.generateSql(eq(dsId), eq("orders for last 5 days"),
                 eq(analyst.getId()), any(UUID.class), anyBoolean()))
                 .thenReturn(new GeneratedSqlResult("SELECT order_number FROM orders",
-                        AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 30, 12));
+                        AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 30, 12).withSyntax("sql"));
 
         var response = generate(dsId, "orders for last 5 days");
 
@@ -129,6 +129,7 @@ class TextToSqlControllerIntegrationTest {
                 .isEqualTo("SELECT order_number FROM orders");
         assertThat(response).bodyJson().extractingPath("$.ai_provider").asString().isEqualTo("ANTHROPIC");
         assertThat(response).bodyJson().extractingPath("$.prompt_tokens").asNumber().isEqualTo(30);
+        assertThat(response).bodyJson().extractingPath("$.syntax").asString().isEqualTo("sql");
     }
 
     @Test

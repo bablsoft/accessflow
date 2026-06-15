@@ -8,7 +8,8 @@ public record GeneratedSqlResponse(
         AiProviderType aiProvider,
         String aiModel,
         int promptTokens,
-        int completionTokens) {
+        int completionTokens,
+        String syntax) {
 
     public static GeneratedSqlResponse from(GeneratedSqlResult result) {
         return new GeneratedSqlResponse(
@@ -16,6 +17,7 @@ public record GeneratedSqlResponse(
                 result.aiProvider(),
                 result.aiModel(),
                 result.promptTokens(),
-                result.completionTokens());
+                result.completionTokens(),
+                result.syntax());
     }
 }

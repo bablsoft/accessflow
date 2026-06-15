@@ -7,7 +7,7 @@ import { generateSql } from '@/api/queries';
 
 interface TextToSqlBarProps {
   datasourceId: string;
-  onGenerated: (sql: string) => void;
+  onGenerated: (sql: string, syntax?: string) => void;
 }
 
 export function TextToSqlBar({ datasourceId, onGenerated }: TextToSqlBarProps) {
@@ -18,7 +18,7 @@ export function TextToSqlBar({ datasourceId, onGenerated }: TextToSqlBarProps) {
   const mutation = useMutation({
     mutationFn: () => generateSql({ datasource_id: datasourceId, prompt: prompt.trim() }),
     onSuccess: (res) => {
-      onGenerated(res.sql);
+      onGenerated(res.sql, res.syntax);
       message.success(t('editor.text_to_sql.success'));
     },
     onError: () => {

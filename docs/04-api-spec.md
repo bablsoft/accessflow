@@ -846,7 +846,7 @@ Synchronous.
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
-| `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft SQL statement (text-to-SQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
+| `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft query in the datasource engine's native language (text-to-query; SQL, MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
 
 ### POST /queries — Request Body
 
@@ -859,7 +859,7 @@ Synchronous.
 }
 ```
 
-The `sql` field carries the query text for **every** engine. For a `MONGODB` datasource it holds a MongoDB query in either the shell form (`db.users.find({ age: { $gt: 21 } })`) or a JSON command document (`{ "find": "users", "filter": { … } }`); the backend auto-detects the form. For a `COUCHBASE` datasource it holds a single SQL++ (N1QL) statement (`SELECT name FROM users WHERE age > 21`). The same field powers `POST /queries/analyze` (risk analysis works unchanged for both); `POST /queries/generate-sql` (text-to-SQL) is not offered for MongoDB datasources but **is** for Couchbase (SQL++ is SQL-shaped). Results for both engines are served by the standard `GET /queries/{id}/results` payload (columns = the union of top-level document fields; nested values preserved) — the frontend renders that same payload as either a flattened table or reconstructed JSON documents.
+The `sql` field carries the query text for **every** engine. For a `MONGODB` datasource it holds a MongoDB query in either the shell form (`db.users.find({ age: { $gt: 21 } })`) or a JSON command document (`{ "find": "users", "filter": { … } }`); the backend auto-detects the form. For a `COUCHBASE` datasource it holds a single SQL++ (N1QL) statement (`SELECT name FROM users WHERE age > 21`). The same field powers `POST /queries/analyze` (risk analysis works unchanged for both); `POST /queries/generate-sql` (text-to-query, AF-439) is offered for **every** engine — for MongoDB it drafts a shell/JSON query, for Couchbase a SQL++ statement. Results for both engines are served by the standard `GET /queries/{id}/results` payload (columns = the union of top-level document fields; nested values preserved) — the frontend renders that same payload as either a flattened table or reconstructed JSON documents.
 
 `scheduled_for` is optional. When supplied it must be a valid ISO-8601 timestamp strictly in the future (enforced by `@Future` Bean Validation — invalid values produce HTTP 400). When set, the query still goes through the normal AI / review flow; the difference comes after approval: instead of waiting for a manual `POST /queries/{id}/execute`, the backend's `ScheduledQueryRunJob` (cluster-locked via ShedLock) picks the row up at `scheduled_for ≤ now()` and triggers execution as a system-initiated action — the submitter is recorded as the audit actor and the audit metadata carries `"trigger": "scheduled"`. While the query is `APPROVED` with a future `scheduled_for`, the submitter may cancel it via `POST /queries/{id}/cancel` (transitions to `CANCELLED`).
 
@@ -1117,11 +1117,13 @@ Each delta is `current - previous`. A positive value means the new run returned 
 
 ### POST /queries/generate-sql — Request Body
 
-Natural-language → SQL generation (AF-335). Requires the datasource to have `text_to_sql_enabled = true`
-and a bound `ai_config_id` (the same AI configuration used for risk analysis). The returned `sql` is a
-**draft** — nothing is persisted or executed. The user reviews/edits it and submits it through
-`POST /api/v1/queries`, where JSqlParser validation, permission checks, AI risk analysis and human
-review still apply.
+Natural-language → query generation (AF-335, AF-439). Applies to **every** engine, not just SQL:
+the draft is produced in the datasource engine's native query language (SQL, SQL++, PartiQL, MongoDB
+shell/JSON, CQL, Elasticsearch Query DSL, redis-cli, Cypher). Requires the datasource to have
+`text_to_sql_enabled = true` and a bound `ai_config_id` (the same AI configuration used for risk
+analysis). The returned `sql` is a **draft** — nothing is persisted or executed. The user reviews/edits
+it and submits it through `POST /api/v1/queries`, where engine validation (JSqlParser for SQL, the
+engine plugin's parser for NoSQL), permission checks, AI risk analysis and human review still apply.
 
 ```json
 {
@@ -1139,15 +1141,21 @@ review still apply.
   "ai_provider": "ANTHROPIC",
   "ai_model": "claude-sonnet-4-20250514",
   "prompt_tokens": 320,
-  "completion_tokens": 28
+  "completion_tokens": 28,
+  "syntax": "sql"
 }
 ```
+
+`syntax` is the editor syntax id for the draft, matching the frontend `engineModes` ids
+(`sql` / `shell` / `json` / `cli` / `cql` / `query_dsl` / `cypher` / `sqlpp` / `partiql`) — the editor
+mounts the matching CodeMirror mode for the inserted draft. For a `MONGODB` datasource it is `shell`
+for a `db.coll.find({…})` draft or `json` for a JSON command document.
 
 **Errors:**
 - `400 VALIDATION_ERROR` — blank/oversized prompt or missing `datasource_id`.
 - `400 TEXT_TO_SQL_NOT_CONFIGURED` — no `ai_config` is bound to the datasource.
 - `409 TEXT_TO_SQL_DISABLED` — the datasource has `text_to_sql_enabled = false`.
-- `422 AI_RESPONSE_INVALID` — the provider returned no usable SQL.
+- `422 AI_RESPONSE_INVALID` — the provider returned no usable query, or the draft did not parse for the engine.
 - `503 AI_PROVIDER_UNAVAILABLE` — the provider call failed.
 
 ---

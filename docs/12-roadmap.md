@@ -134,6 +134,7 @@
 - **MongoDB support** — query governance for MongoDB (find, update, delete, aggregation pipeline review)
 - **Couchbase support** — SQL++ (N1QL) query governance through the second on-demand engine plugin (AF-412): classification onto the standard approval workflow, WHERE-splice row-level security, field masking, and scope/collection introspection
 - **Redis read-access governance** — audit and optionally require review for Redis GET/SCAN/keys operations
+- **Text-to-query for NoSQL** — extend text-to-SQL (AF-335) to every NoSQL engine via an engine-language-aware generation prompt: a natural-language prompt drafts the engine's native query (MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli), still submitted through the full review pipeline (AF-439)
 - **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
 - **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results

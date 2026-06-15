@@ -878,6 +878,8 @@ export interface GeneratedSql {
   ai_model: string;
   prompt_tokens: number;
   completion_tokens: number;
+  /** Editor syntax id for the draft (matches engineModes ids: sql/shell/json/cli/cql/…). */
+  syntax: string;
 }
 
 export interface QueryRequest {

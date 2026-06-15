@@ -226,7 +226,17 @@ export function QueryEditorPage() {
           </div>
           <div className="af-editor-body">
             {textToSqlSupported && (
-              <TextToSqlBar datasourceId={ds.id} onGenerated={handleSqlChange} />
+              <TextToSqlBar
+                datasourceId={ds.id}
+                onGenerated={(next, generatedSyntax) => {
+                  // Switch the editor to the draft's syntax (e.g. MongoDB shell vs JSON) when the
+                  // backend hint names one valid for this engine; the CodeMirror mode follows.
+                  if (generatedSyntax && mode.syntaxes.some((s) => s.value === generatedSyntax)) {
+                    setSyntax(generatedSyntax);
+                  }
+                  handleSqlChange(next);
+                }}
+              />
             )}
             <SqlEditor
               value={sql}
