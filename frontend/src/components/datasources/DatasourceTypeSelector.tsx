@@ -170,13 +170,16 @@ function TypeGroup({
                     </div>
                   </div>
                 </div>
-                <div className="muted" style={{ fontSize: 12, lineHeight: 1.4 }}>
+                <div
+                  className="muted"
+                  style={{ fontSize: 12, lineHeight: 1.4, overflowWrap: 'anywhere' }}
+                >
                   {isUploaded
                     ? `${t('datasources.create.uploaded_vendor_label')}: ${option.vendor_name ?? '—'} · `
                       + `${t('datasources.create.uploaded_class_label')}: ${option.driver_class ?? '—'}`
                     : isConnector
                       ? option.description ?? option.vendor_name ?? option.display_name
-                      : t(descriptionKey)}
+                      : t(descriptionKey, { defaultValue: option.description ?? option.display_name })}
                 </div>
                 <div>
                   <DriverStatusBadge
