@@ -1178,8 +1178,9 @@ Releases are published to **GitHub Container Registry** at
 [`ghcr.io/bablsoft/accessflow-backend`](https://github.com/bablsoft/accessflow/pkgs/container/accessflow-backend)
 and
 [`ghcr.io/bablsoft/accessflow-frontend`](https://github.com/bablsoft/accessflow/pkgs/container/accessflow-frontend),
-tagged with the semver release version (e.g. `1.2.3`) and `latest`. Both images are
-multi-arch (`linux/amd64`, `linux/arm64`).
+tagged with the semver release version (e.g. `1.2.3`) and a moving tag — `latest` for a
+stable release, `beta` for a pre-release (see [Installing a pre-release / beta build](#installing-a-pre-release--beta-build)).
+Both images are multi-arch (`linux/amd64`, `linux/arm64`).
 
 ### Cutting a release
 
@@ -1192,9 +1193,60 @@ Maintainers run the **Release** workflow from the Actions tab
 2. Creates a detached commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and
    pushes only the tag — `main` is never modified, so `main` always reflects
    `1.0.0-SNAPSHOT` for the next development cycle.
-3. Builds and pushes the two Docker images under both `:X.Y.Z` and `:latest`.
+3. Builds and pushes the two Docker images under `:X.Y.Z` plus a moving tag
+   (`:latest` for a GA release, `:beta` for a pre-release).
 4. Publishes a **GitHub Release** with auto-generated changelog notes (PRs and
-   commits between the previous tag and this one).
+   commits between the previous tag and this one), flagged pre-release when the
+   version carries a `-suffix`.
+
+### Installing a pre-release / beta build
+
+Maintainers cut a beta by running the same **Release** workflow with a pre-release
+semver — append a `-suffix`, e.g. `1.2.0-beta.1` or `1.0.0-rc.1`. The workflow
+auto-detects the `-` and publishes the images under `:1.2.0-beta.1` **and** a moving
+`:beta` tag, **without** touching `:latest`. The GitHub Release is flagged "Pre-release"
+and the beta chart is added to the Helm index but excluded from default resolution. This
+keeps every production consumer — `docker compose up`, a plain `helm install` — on the
+last stable release until you opt in.
+
+**Docker Compose.** The demo [`docker-compose.yml`](../docker-compose.yml) pins `:latest`.
+To test a beta, drop a `docker-compose.override.yml` next to it (Compose merges it
+automatically) pinning the moving `beta` tag or an exact build:
+
+```yaml
+# docker-compose.override.yml — internal beta testing only
+services:
+  backend:
+    image: ghcr.io/bablsoft/accessflow-backend:beta    # or :1.2.0-beta.1
+  frontend:
+    image: ghcr.io/bablsoft/accessflow-frontend:beta   # or :1.2.0-beta.1
+```
+
+Then `docker compose pull && docker compose up -d`. Delete the override file to return to
+the stable `:latest` images.
+
+**Helm.** Helm excludes pre-release chart versions from default resolution, so you must
+opt in with `--devel` and pin the exact version:
+
+```bash
+helm repo update
+helm search repo accessflow/accessflow --devel --versions   # lists betas too
+helm install accessflow accessflow/accessflow \
+  --version 1.2.0-beta.1 --devel \
+  --namespace accessflow --create-namespace
+```
+
+Alternatively, install the stable chart but override just the image tags to the moving
+`beta` tag — useful when the chart templates haven't changed between GA and the beta:
+
+```bash
+helm install accessflow accessflow/accessflow \
+  --set image.backend.tag=beta --set image.frontend.tag=beta \
+  --namespace accessflow --create-namespace
+```
+
+> Betas are for internal testing only — no upgrade-path guarantees between a beta and the
+> GA it precedes. Treat their databases as disposable.
 
 ### Version surfacing
 
