@@ -195,15 +195,25 @@ frontend:
     initialDelaySeconds: 2
     periodSeconds: 10
 
-# --- Driver cache persistence (custom JDBC drivers downloaded on demand).
-# Match the env var ACCESSFLOW_DRIVER_CACHE (see CLAUDE.md → Configuration).
+# --- Driver cache (JDBC drivers + NoSQL engine plugins downloaded on demand).
+# Bound to ACCESSFLOW_DRIVER_CACHE (see CLAUDE.md → Configuration). A volume is
+# ALWAYS mounted at `persistence.mountPath`: a PVC when `persistence.enabled`, else
+# an ephemeral emptyDir. This is required — the default ~/.accessflow/drivers is not
+# writable under runAsUser 1000, which leaves every non-bundled connector UNAVAILABLE.
 driverCache:
   persistence:
+    # When true, the cache survives pod restarts (drivers downloaded once). When
+    # false, an emptyDir is used instead — connectors still work out of the box but
+    # re-download on restart. Enable for production to avoid repeated downloads.
     enabled: false
     size: 5Gi
     storageClass: ""
     accessMode: ReadWriteOnce
     mountPath: /var/lib/accessflow/drivers
+  # Ephemeral cache tuning, used only when `persistence.enabled` is false.
+  emptyDir:
+    # Optional sizeLimit for the emptyDir (e.g. "1Gi"). Empty string = no limit.
+    sizeLimit: ""
 
 # --- Ingress
 #

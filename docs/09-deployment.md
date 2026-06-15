@@ -397,7 +397,11 @@ autoscaling:
     maxReplicas: 6
     targetCPUUtilizationPercentage: 70
 
-# Custom JDBC driver cache persistence (matches ACCESSFLOW_DRIVER_CACHE)
+# Driver / engine-plugin cache (matches ACCESSFLOW_DRIVER_CACHE). A writable volume is
+# ALWAYS mounted at mountPath — a PVC when persistence.enabled, else an ephemeral
+# emptyDir — because the default ~/.accessflow/drivers is not writable under
+# runAsUser 1000, which would leave every non-bundled connector UNAVAILABLE. Enable
+# persistence in production so drivers download once instead of on every restart.
 driverCache:
   persistence:
     enabled: false
@@ -405,6 +409,8 @@ driverCache:
     storageClass: ""
     accessMode: ReadWriteOnce
     mountPath: /var/lib/accessflow/drivers
+  emptyDir:
+    sizeLimit: ""   # optional cap (e.g. "1Gi") for the ephemeral cache
 
 # SAML 2.0 SSO (optional)
 saml:
@@ -451,9 +457,10 @@ The same release also publishes the **connector catalog** (issue #334) to `gh-pa
 the MongoDB connector manifest points fresh installs at. GitHub Release asset uploads are
 intentionally not used — they are blocked by the repo's immutable-releases policy. The catalog is
 also bundled inside the backend image, so the bundle is a convenience; the engine-plugin JAR is the
-download source for `db_type=MONGODB` installs. Installed connectors persist via the driver-cache
-volume (`ACCESSFLOW_DRIVER_CACHE` / the Helm `driverCache.persistence` PVC). See
-[14-connectors.md](./14-connectors.md).
+download source for `db_type=MONGODB` installs. Downloaded drivers land in the driver-cache
+volume (`ACCESSFLOW_DRIVER_CACHE`), which the Helm chart **always** mounts — a durable PVC when
+`driverCache.persistence.enabled`, otherwise an ephemeral `emptyDir` that re-downloads on restart.
+See [14-connectors.md](./14-connectors.md).
 
 ### Kubernetes Secrets Setup
 

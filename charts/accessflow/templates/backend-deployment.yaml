@@ -175,11 +175,9 @@ spec:
                   key: {{ default "value" .Values.config.auditHmac.key }}
             {{- end }}
             {{- include "accessflow.bootstrap.envSecrets" . | nindent 12 }}
-          {{- if .Values.driverCache.persistence.enabled }}
           volumeMounts:
             - name: driver-cache
               mountPath: {{ .Values.driverCache.persistence.mountPath }}
-          {{- end }}
           startupProbe:
             httpGet:
               path: /actuator/health
@@ -202,12 +200,18 @@ spec:
             failureThreshold: {{ .Values.backend.readinessProbe.failureThreshold }}
           resources:
             {{- toYaml .Values.resources.backend | nindent 12 }}
-      {{- if .Values.driverCache.persistence.enabled }}
       volumes:
         - name: driver-cache
+          {{- if .Values.driverCache.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "accessflow.backend.fullname" . }}-driver-cache
-      {{- end }}
+          {{- else if .Values.driverCache.emptyDir.sizeLimit }}
+          # Ephemeral cache — on-demand drivers/engine plugins re-download on restart.
+          emptyDir:
+            sizeLimit: {{ .Values.driverCache.emptyDir.sizeLimit }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with (default .Values.nodeSelector .Values.backend.nodeSelector) }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -180,7 +180,8 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `resources.backend.*` / `resources.frontend.*` | see `values.yaml` | Pod-level requests / limits. |
 | `autoscaling.backend.enabled` | `false` | Horizontal Pod Autoscaler for backend (CPU-based). Off by default so `replicaCount.backend` is the single source of truth on first install. |
 | `podDisruptionBudget.backend.enabled` | `false` | PDB protecting backend during rolling updates. Off by default — enable on production deployments running ≥ 2 replicas. |
-| `driverCache.persistence.enabled` | `false` | Mount a PVC at the backend's custom-driver cache path. |
+| `driverCache.persistence.enabled` | `false` | Use a **durable PVC** for the on-demand driver / engine-plugin cache. When `false`, an ephemeral `emptyDir` is mounted at the same path instead — so connectors work out of the box either way; the PVC just avoids re-downloading on restart. A writable cache volume is **always** mounted (the default `~/.accessflow/drivers` is not writable under `runAsUser: 1000`, which would leave every non-bundled connector `UNAVAILABLE`). |
+| `driverCache.emptyDir.sizeLimit` | `""` | Optional `sizeLimit` for the ephemeral cache (e.g. `1Gi`), used only when `persistence.enabled=false`. Empty = no limit. |
 
 ## Upgrade
 

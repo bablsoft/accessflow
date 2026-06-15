@@ -13,9 +13,11 @@ data:
   CORS_ALLOWED_ORIGIN: {{ .Values.config.corsAllowedOrigin | quote }}
   ACCESSFLOW_PUBLIC_BASE_URL: {{ .Values.config.publicBaseUrl | quote }}
   ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL: {{ include "accessflow.oauth2.callbackUrl" . | quote }}
-  {{- if .Values.driverCache.persistence.enabled }}
+  # Always point the driver cache at the mounted volume — a PVC when persistence is
+  # enabled, otherwise an ephemeral emptyDir (see backend-deployment.yaml). The default
+  # home (~/.accessflow/drivers) is not writable under runAsUser 1000, which would leave
+  # every on-demand connector UNAVAILABLE.
   ACCESSFLOW_DRIVER_CACHE: {{ .Values.driverCache.persistence.mountPath | quote }}
-  {{- end }}
   {{- range $key, $value := .Values.backend.env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}
