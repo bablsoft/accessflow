@@ -519,6 +519,57 @@
             For full coding standards, test commands, and the dev loop, see
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md">docs/11-development.md</a>.
           </p>
+
+          <h3 id="run-beta">Beta / pre-release channel</h3>
+          <p>
+            Pre-release builds are cut for internal testing ahead of a stable release. They are
+            published with a <code>-beta.N</code> / <code>-rc.N</code> version tag and a moving
+            <code>:beta</code> Docker tag — <strong>never</strong> <code>:latest</code> — so a beta
+            never disturbs production: a plain <code>docker compose up</code> or
+            <code>helm install</code> stays on the last stable release until you opt in.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Internal testing only.</strong> Betas carry no upgrade-path guarantees toward
+            the GA they precede. Treat their databases as disposable.
+          </div>
+          <p><strong>Docker Compose</strong> — drop a <code>docker-compose.override.yml</code> next
+            to the demo file (Compose merges it automatically), then
+            <code>docker compose pull &amp;&amp; docker compose up -d</code>:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">docker-compose.override.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">services</span>:
+  backend:
+    image: ghcr.io/bablsoft/accessflow-backend:beta    <span class="c-com"># or :1.2.0-beta.1</span>
+  frontend:
+    image: ghcr.io/bablsoft/accessflow-frontend:beta   <span class="c-com"># or :1.2.0-beta.1</span>
+</pre>
+          </div>
+          <p><strong>Helm</strong> — pre-release chart versions are hidden from default resolution,
+            so opt in with <code>--devel</code> and pin the exact version:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">helm</span> repo update
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --version 1.2.0-beta.1 --devel \
+  --namespace accessflow --create-namespace
+</pre>
+          </div>
+          <p>
+            See <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#installing-a-pre-release--beta-build">docs/09-deployment.md
+            → Installing a pre-release / beta build</a> for the full consumer guide.
+          </p>
         </section>
 
         <!-- 3. First-time setup -->

@@ -321,11 +321,21 @@ Triggered manually from the Actions tab. The maintainer provides a semver `versi
 4. **Bumps the frontend version** in `frontend/package.json` via `npm version ${INPUT} --no-git-tag-version`.
 5. **Detaches HEAD**, commits the two bumps as `chore(release): v${VERSION}`, and pushes the commit *as a tag* (`git push origin HEAD:refs/tags/v${VERSION}`) — `main` is **never modified**. Checking out the tag shows pom.xml / package.json at the bumped version; checking out `main` keeps the SNAPSHOT.
 6. Builds and pushes **multi-arch** (`linux/amd64`, `linux/arm64`) Docker images via `docker/build-push-action@v6`:
-   - `ghcr.io/<owner>/accessflow-backend:${VERSION}` + `:latest`
-   - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + `:latest`
-   The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
-7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true`. The workflow resolves the previous semver tag (`git tag -l 'v*' --sort=-v:refname`, filtered to strict `vX.Y.Z[-suffix]`) and passes it as `previous_tag` so the changelog covers PRs merged since that tag — or every PR, when no prior tag exists (first release).
+   - `ghcr.io/<owner>/accessflow-backend:${VERSION}` + the moving tag
+   - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + the moving tag
+   The moving tag is computed by the `Classify release` step — `latest` for a GA `X.Y.Z`, `beta` for a `-suffix` pre-release — so a beta never moves `:latest`. The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
+7. **Publishes a GitHub Release** via `softprops/action-gh-release@v2` with `generate_release_notes: true` and `prerelease:` set from the classify step (a `-suffix` version gets the "Pre-release" badge and is never marked "Latest"). The workflow resolves the previous semver tag (`git tag -l 'v*' --sort=-v:refname`, filtered to strict `vX.Y.Z[-suffix]`) and passes it as `previous_tag` so the changelog covers PRs merged since that tag — or every PR, when no prior tag exists (first release).
 8. **Publishes the Helm chart** — rewrites `charts/accessflow/Chart.yaml` so `version` and `appVersion` both equal `${VERSION}`, runs `helm dependency update`, then `helm/chart-releaser-action@v1.7.0` packages the chart and pushes the `.tgz` plus updated `index.yaml` to the `gh-pages` branch (served at `https://<owner>.github.io/accessflow`). GitHub Pages must be enabled once in **Repo Settings → Pages → Source = `gh-pages`** before the chart repo is reachable; after that, every release adds a new version automatically.
+
+### Pre-release (beta) builds
+
+To cut a beta for internal testing, trigger **Release** with a pre-release semver — append a `-suffix` such as `1.2.0-beta.1`, `1.2.0-beta.2`, or `1.0.0-rc.1`. The workflow auto-detects the `-` (no extra input, no separate workflow) and a beta run differs from a GA run in exactly three ways:
+
+- The moving Docker tag is **`:beta`**, not `:latest` — so `:latest`, `docker compose up`, and the GA Helm chart all stay on the last stable release. Testers pull `ghcr.io/<owner>/accessflow-{backend,frontend}:beta` (newest beta) or pin the exact `:1.2.0-beta.1`.
+- The **GitHub Release is flagged pre-release** (badge shown, never "Latest").
+- The **stable connectors index** (`gh-pages` `connectors/connectors-index.json`) is left pointed at the last GA; only the versioned connectors bundle and the reproducible engine jars upload.
+
+Everything else is identical: the version is bumped, a detached `vX.Y.Z-beta.N` tag is pushed, `main` stays at SNAPSHOT, and the beta chart is added to the Helm index (Helm excludes pre-release versions from default resolution, so it surfaces only with `--devel`). Betas **bypass** the `prep-gh-release` skill's GA gates (all-roadmap-items-closed, screenshot refresh, etc.) — trigger the Release workflow directly from the Actions tab. See [docs/09-deployment.md → "Installing a pre-release / beta build"](09-deployment.md) for the consumer side.
 
 ### Version surfacing
 
