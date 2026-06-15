@@ -646,6 +646,20 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                         "connector_id is only allowed when db_type is CUSTOM");
             }
             requireRegion(dbType, databaseName);
+        } else if (dbType == DbType.NEO4J) {
+            // Neo4j connects over Bolt: the proxy builds a bolt:// / neo4j:// URI from host/port +
+            // SSL mode, OR the admin supplies a full URI verbatim via jdbc_url_override (Aura /
+            // clustered routing, e.g. neo4j+s://). database_name selects the Neo4j database and is
+            // always required; host/port are required only when no override is given. Unlike every
+            // other non-CUSTOM dialect, the override IS allowed (like DynamoDB).
+            if (hasConnector) {
+                throw new IllegalDatasourcePermissionException(
+                        "connector_id is only allowed when db_type is CUSTOM");
+            }
+            requireDatabaseName(dbType, databaseName);
+            if (!hasOverride) {
+                requireHostPort(dbType, host, port);
+            }
         } else {
             if (hasConnector) {
                 throw new IllegalDatasourcePermissionException(
@@ -680,6 +694,29 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     private static boolean isDynamoDb(DbType dbType) {
         return dbType == DbType.DYNAMODB;
+    }
+
+    /**
+     * Neo4j requires a {@code database_name} (the Bolt session's target database) regardless of
+     * whether the connection is host/port or a {@code jdbc_url_override} URI — the Bolt URI carries
+     * no database. This cross-field rule can't be expressed with a Bean Validation annotation.
+     */
+    private void requireDatabaseName(DbType dbType, String databaseName) {
+        if (databaseName == null || databaseName.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource database_name is required for db_type " + dbType);
+        }
+    }
+
+    private void requireHostPort(DbType dbType, String host, Integer port) {
+        if (host == null || host.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource host is required for db_type " + dbType);
+        }
+        if (port == null) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource port is required for db_type " + dbType);
+        }
     }
 
     private void requireHostPortDb(DbType dbType, String host, Integer port, String databaseName) {

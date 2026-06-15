@@ -102,6 +102,7 @@ for the authoring guide.
 | `elasticsearch` | ELASTICSEARCH | SEARCH | no | `accessflow-engine-elasticsearch-<v>-all.jar` engine plugin (native, not JDBC) |
 | `opensearch` | OPENSEARCH | SEARCH | no | the **same** `accessflow-engine-elasticsearch-<v>-all.jar` (second `QueryEngine` provider) |
 | `dynamodb` | DYNAMODB | KEY_VALUE | no | `accessflow-engine-dynamodb-<v>-all.jar` engine plugin (native, not JDBC) |
+| `neo4j` | NEO4J | GRAPH | no | `accessflow-engine-neo4j-<v>-all.jar` engine plugin (native, not JDBC) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -177,6 +178,21 @@ key id, `password_encrypted` the secret access key, and `jdbc_url_override` an o
 `?` parameters; any attribute, since DynamoDB filters via Scan), with INSERT-into-policied and deny-all
 failing closed. Field masking applies post-fetch, recursively by dot-path. Default port 8000 (DynamoDB
 Local; AWS uses the SDK regional endpoint). See [05-backend.md → DynamoDB engine](./05-backend.md#dynamodb-engine).
+
+**Neo4j** is the NoSQL **graph** connector (AF-423, `category=GRAPH`), delivered the same way: the
+shaded plugin JAR built from [`engines/neo4j/`](../engines/neo4j/) (own version line, reproducible
+build, URL + SHA-256 pin in the manifest, published to `gh-pages` under `engines/` on release),
+bundling the native [Neo4j Java driver](https://neo4j.com/docs/java-manual/current/) and its
+Bolt-connection stack with a relocated Netty / Project Reactor / reactive-streams. Users submit
+**Cypher** over Bolt; the query type is the strongest write clause present (DELETE/REMOVE → DELETE,
+CREATE/MERGE → INSERT, SET → UPDATE, else a `MATCH … RETURN` / `SHOW` read → SELECT), with
+index/constraint/database/role schema commands → DDL. `LOAD CSV`, procedure calls outside a small
+read-only allow-list, and multi-statement input are rejected with 422. Connection is host/port +
+`database_name` (the Neo4j database) with the SSL mode encoded in the Bolt scheme, **or** a full
+`bolt://` / `neo4j+s://` URI in `jdbc_url_override` (Aura / clustered routing). Row-security
+predicates are ANDed onto each `MATCH`'s `WHERE` (Cypher named parameters; node-label policies),
+failing closed on anonymous / write shapes; field masking applies post-fetch, label-aware and
+recursive. Default port 7687 (Bolt). See [05-backend.md → Neo4j engine](./05-backend.md#neo4j-engine).
 
 ## Resolution at query time
 

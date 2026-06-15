@@ -896,6 +896,8 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 | `ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_SOCKET_TIMEOUT` | Optional | `PT30S` | Socket-read timeout for Elasticsearch requests; bounds per-request latency |
 | `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-OpenSearch-datasource low-level REST client (served by the same Elasticsearch plugin; separate config lane, same defaults) |
 | `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_SOCKET_TIMEOUT` | Optional | `PT30S` | Socket-read timeout for OpenSearch requests |
+| `ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-Neo4j-datasource native Bolt driver |
+| `ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE` | Optional | `100` | Max connections in the native Neo4j driver's internal Bolt connection pool for a datasource |
 | `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | Optional | `PT30S` | Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll. MongoDB, Redis, Cassandra, and ScyllaDB datasources report query stats but no JDBC pool counters |
 
 > **Read-replica routing** (added in v1.2 — see [docs/05-backend.md → "Read-replica routing"](05-backend.md#read-replica-routing)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above; there are no replica-specific env vars. Configure replicas per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with `read_replica_jdbc_url`/`read_replica_username`/`read_replica_password`.

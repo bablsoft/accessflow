@@ -15,6 +15,7 @@ const ICON_BY_DB_TYPE: Record<DbType, string> = {
   ELASTICSEARCH: '/db-icons/elasticsearch.svg',
   OPENSEARCH: '/db-icons/opensearch.svg',
   DYNAMODB: '/db-icons/dynamodb.svg',
+  NEO4J: '/db-icons/neo4j.svg',
 };
 
 const FALLBACK_ICON = '/db-icons/generic.svg';

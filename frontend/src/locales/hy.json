@@ -336,6 +336,7 @@
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
     "syntax_partiql": "PartiQL",
+    "syntax_cypher": "Cypher",
     "justification_label": "Հիմնավորում",
     "justification_required_note": "· պարտադիր է վերանայման համար",
     "justification_placeholder": "Ինչու եք կատարում այս հարցումը։",
@@ -654,6 +655,8 @@
       "field_region_help": "DynamoDB տարածաշրջան (օր.՝ us-east-1) — օգտագործվում է հարցումները ստորագրելու համար։",
       "field_dynamodb_endpoint": "Հատուկ վերջնակետ",
       "field_dynamodb_endpoint_help": "Կամընտիր DynamoDB Local / VPC վերջնակետ (օր.՝ http://localhost:8000)։ AWS-ի համար թողեք դատարկ։",
+      "field_neo4j_bolt_uri": "Bolt կապի URI (առաջադեմ)",
+      "field_neo4j_bolt_uri_help": "Ընտրովի ամբողջական bolt:// / neo4j+s:// URI Neo4j Aura-ի կամ կլաստերային երթուղավորման համար (օր.՝ neo4j+s://xxxx.databases.neo4j.io)։ Սահմանվելու դեպքում այն գերակայում է host/port-ին։",
       "field_access_key_id": "Մուտքի բանալու ID",
       "field_secret_access_key": "Գաղտնի մուտքի բանալի",
       "field_auth_method": "Նույնականացում",
@@ -1805,7 +1808,8 @@
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
-      "DYNAMODB": "Amazon DynamoDB"
+      "DYNAMODB": "Amazon DynamoDB",
+      "NEO4J": "Neo4j"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",

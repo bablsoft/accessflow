@@ -336,6 +336,7 @@
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
     "syntax_partiql": "PartiQL",
+    "syntax_cypher": "Cypher",
     "justification_label": "Обоснование",
     "justification_required_note": "· требуется для проверки",
     "justification_placeholder": "Зачем вы выполняете этот запрос?",
@@ -654,6 +655,8 @@
       "field_region_help": "Регион DynamoDB (например, us-east-1) — используется для подписи запросов.",
       "field_dynamodb_endpoint": "Пользовательская конечная точка",
       "field_dynamodb_endpoint_help": "Необязательная конечная точка DynamoDB Local / VPC (например, http://localhost:8000). Оставьте пустым для AWS.",
+      "field_neo4j_bolt_uri": "URI подключения Bolt (расширенно)",
+      "field_neo4j_bolt_uri_help": "Необязательный полный URI bolt:// / neo4j+s:// для Neo4j Aura или кластерной маршрутизации (например, neo4j+s://xxxx.databases.neo4j.io). Если указан, переопределяет хост/порт.",
       "field_access_key_id": "Идентификатор ключа доступа",
       "field_secret_access_key": "Секретный ключ доступа",
       "field_auth_method": "Аутентификация",
@@ -1805,7 +1808,8 @@
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
-      "DYNAMODB": "Amazon DynamoDB"
+      "DYNAMODB": "Amazon DynamoDB",
+      "NEO4J": "Neo4j"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",

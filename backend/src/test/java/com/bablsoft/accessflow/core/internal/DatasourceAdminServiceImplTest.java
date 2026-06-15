@@ -229,6 +229,68 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void createNeo4jWithoutDatabaseNameThrows() {
+        // Neo4j always requires database_name (the Bolt session's target database).
+        var command = new CreateDatasourceCommand(orgId, "Graph", DbType.NEO4J, "graph.example.com",
+                7687, null, "neo4j", "pw", SslMode.REQUIRE, null, null, null, null, null, false,
+                null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createNeo4jWithoutHostAndWithoutOverrideThrows() {
+        // No host/port and no bolt URI override — nothing to connect to.
+        var command = new CreateDatasourceCommand(orgId, "Graph", DbType.NEO4J, null, null,
+                "neo4j", "neo4j", "pw", SslMode.REQUIRE, null, null, null, null, null, false,
+                null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createNeo4jWithHostPortAndDatabaseSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(engineCatalog.isEngineManaged(DbType.NEO4J)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Graph", DbType.NEO4J, "graph.example.com",
+                7687, "neo4j", "neo4j", "pw", SslMode.REQUIRE, null, null, null, null, null, false,
+                null, null, null, null, null, null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("neo4j");
+        verify(engineCatalog).engineFor(DbType.NEO4J);
+    }
+
+    @Test
+    void createNeo4jWithBoltUriOverrideAndDatabaseSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(engineCatalog.isEngineManaged(DbType.NEO4J)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // No host/port; a full neo4j+s:// routing URI in jdbc_url_override — allowed for Neo4j
+        // (like DynamoDB) even though it is forbidden for every other non-CUSTOM type.
+        var command = new CreateDatasourceCommand(orgId, "Aura", DbType.NEO4J, null, null,
+                "neo4j", "neo4j", "pw", SslMode.VERIFY_FULL, null, null, null, null, null, false,
+                null, null, null, null, "neo4j+s://abc.databases.neo4j.io", null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("neo4j");
+        verify(engineCatalog).engineFor(DbType.NEO4J);
+    }
+
+    @Test
     void updateAppliesNonNullFieldsAndReencryptsPassword() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));

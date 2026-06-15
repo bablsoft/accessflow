@@ -129,4 +129,12 @@ class DefaultJdbcCoordinatesFactoryTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("REDIS");
     }
+
+    @Test
+    void neo4jIsNotJdbcBacked() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.NEO4J, "h", 7687, "neo4j", "u", SslMode.DISABLE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("NEO4J");
+    }
 }

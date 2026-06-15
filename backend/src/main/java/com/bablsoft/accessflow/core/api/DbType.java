@@ -86,5 +86,18 @@ public enum DbType {
      * clause (parameter-bound; fail-closed on shapes that cannot be filtered). See
      * {@code docs/05-backend.md} → "DynamoDB engine" and {@code docs/14-connectors.md}.
      */
-    DYNAMODB
+    DYNAMODB,
+    /**
+     * Neo4j — a NoSQL graph engine queried with Cypher. Not JDBC-backed: the proxy connects via the
+     * native Neo4j Java driver ({@code org.neo4j.driver.Driver}) over the Bolt protocol, validates
+     * Cypher statements with a Cypher classifier rather than JSqlParser, and resolves the engine
+     * plugin on demand through the connector catalog. The connection is a {@code bolt://} /
+     * {@code neo4j://} URI built from host/port + SSL mode (or supplied verbatim via
+     * {@code jdbc_url_override} for Aura / clustered routing), with {@code database_name} selecting
+     * the Neo4j database. Row security ANDs property predicates onto each {@code MATCH} whose label
+     * matches the policy (parameter-bound; fail-closed on shapes that cannot be rewritten);
+     * procedure calls outside a read-only allow-list and {@code LOAD CSV} are rejected. See
+     * {@code docs/05-backend.md} → "Neo4j engine" and {@code docs/14-connectors.md}.
+     */
+    NEO4J
 }

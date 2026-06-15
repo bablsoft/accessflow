@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "neo4j",
+  "name": "Neo4j",
+  "dbType": "NEO4J",
+  "category": "GRAPH",
+  "vendor": "Neo4j, Inc.",
+  "description": "Property graph database queried with Cypher over the Bolt protocol. The AccessFlow Neo4j engine installs on demand; row security ANDs property predicates onto each MATCH whose label matches the policy, procedure calls outside a read-only allow-list and LOAD CSV are rejected.",
+  "documentationUrl": "https://neo4j.com/docs/cypher-manual/current/",
+  "logo": "logo.svg",
+  "defaultPort": 7687,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-neo4j-1.0.0-all.jar",
+    "fileName": "accessflow-engine-neo4j-1.0.0-all.jar",
+    "sha256": "74f8746ab141de90bc2c1d9a7bab372cebfd17adaaa21f8ece288d6c8853c1c6"
+  }
+}
