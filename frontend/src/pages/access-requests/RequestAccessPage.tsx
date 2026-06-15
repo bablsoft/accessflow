@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Select, Skeleton, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -78,6 +78,31 @@ export function RequestAccessPage() {
     queryKey: accessRequestKeys.mine({ size: 50 }),
     queryFn: () => listMyAccessRequests({ size: 50 }),
   });
+
+  // The single most relevant request to surface above the form: the newest one
+  // that is still pending approval or an approved grant that hasn't expired yet.
+  const activeRequest = useMemo(() => {
+    const items = mine.data?.content ?? [];
+    return (
+      [...items]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .find(
+          (r) =>
+            r.status === 'PENDING' ||
+            (r.status === 'APPROVED' && (remainingTtlMs(r.expires_at) ?? 0) > 0),
+        ) ?? null
+    );
+  }, [mine.data]);
+
+  // Keep the highlighted TTL countdown fresh while an active grant is shown,
+  // without re-fetching: a 1-minute tick re-renders the compact remaining time.
+  const [, forceTick] = useState(0);
+  const hasActiveTtl = activeRequest?.status === 'APPROVED';
+  useEffect(() => {
+    if (!hasActiveTtl) return;
+    const id = setInterval(() => forceTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, [hasActiveTtl]);
 
   const invalidateMine = () =>
     void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
@@ -171,6 +196,44 @@ export function RequestAccessPage() {
       <PageHeader title={t('access.request.title')} subtitle={t('access.request.subtitle')} />
 
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
+        {activeRequest && (
+          <Card
+            title={t('access.request.active_title')}
+            style={{ marginBottom: 24, maxWidth: 640, borderLeft: '3px solid var(--accent)' }}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 600 }}>
+                  {activeRequest.datasource_name ?? activeRequest.datasource_id}
+                </span>
+                <AccessStatusPill status={activeRequest.status} size="sm" />
+              </div>
+              {capabilityTags(activeRequest)}
+              {activeRequest.status === 'APPROVED' ? (
+                <div>{expiresCell(activeRequest)}</div>
+              ) : (
+                <span className="muted">{t('access.request.awaiting_approval')}</span>
+              )}
+            </Space>
+          </Card>
+        )}
+
+        <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
+        {mine.isLoading ? (
+          <Skeleton active />
+        ) : (mine.data?.content.length ?? 0) === 0 ? (
+          <EmptyState title={t('access.request.empty')} />
+        ) : (
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={mine.data?.content ?? []}
+            pagination={false}
+            size="middle"
+          />
+        )}
+
+        <h2 style={{ fontSize: 16, margin: '32px 0 12px' }}>{t('access.request.new_heading')}</h2>
         <Card style={{ marginBottom: 24, maxWidth: 640 }}>
           <Form<RequestFormValues>
             form={form}
@@ -261,21 +324,6 @@ export function RequestAccessPage() {
             </Button>
           </Form>
         </Card>
-
-        <h2 style={{ fontSize: 16, margin: '0 0 12px' }}>{t('access.request.my_requests')}</h2>
-        {mine.isLoading ? (
-          <Skeleton active />
-        ) : (mine.data?.content.length ?? 0) === 0 ? (
-          <EmptyState title={t('access.request.empty')} />
-        ) : (
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={mine.data?.content ?? []}
-            pagination={false}
-            size="middle"
-          />
-        )}
       </div>
     </div>
   );
