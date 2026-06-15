@@ -315,12 +315,12 @@
   "editor": {
     "text_to_sql": {
       "label": "Describe your query",
-      "hint": "· AI writes the SQL",
+      "hint": "· AI writes the query",
       "placeholder": "e.g. order numbers for the last 5 days",
-      "generate_button": "Generate SQL",
+      "generate_button": "Generate query",
       "generating": "Generating",
-      "success": "SQL generated — review it before submitting",
-      "error": "Could not generate SQL from your description"
+      "success": "Query generated — review it before submitting",
+      "error": "Could not generate a query from your description"
     },
     "title": "SQL editor",
     "subtitle": "Submit a query for AI and human review.",

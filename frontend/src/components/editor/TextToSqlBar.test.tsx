@@ -25,18 +25,19 @@ describe('TextToSqlBar', () => {
     generateSqlMock.mockReset();
   });
 
-  it('disables generate until a prompt is entered, then emits the generated SQL', async () => {
+  it('disables generate until a prompt is entered, then emits the draft and its syntax', async () => {
     generateSqlMock.mockResolvedValue({
-      sql: 'SELECT 1',
+      sql: 'db.orders.find({})',
       ai_provider: 'ANTHROPIC',
       ai_model: 'm',
       prompt_tokens: 1,
       completion_tokens: 1,
+      syntax: 'shell',
     });
     const onGenerated = vi.fn();
     render(wrap(<TextToSqlBar datasourceId="ds-1" onGenerated={onGenerated} />));
 
-    const button = screen.getByRole('button', { name: /Generate SQL/i });
+    const button = screen.getByRole('button', { name: /Generate query/i });
     expect(button).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText('Describe your query'), {
@@ -46,14 +47,14 @@ describe('TextToSqlBar', () => {
 
     fireEvent.click(button);
 
-    await waitFor(() => expect(onGenerated).toHaveBeenCalledWith('SELECT 1'));
+    await waitFor(() => expect(onGenerated).toHaveBeenCalledWith('db.orders.find({})', 'shell'));
     expect(generateSqlMock).toHaveBeenCalledWith({
       datasource_id: 'ds-1',
       prompt: 'orders last 5 days',
     });
   });
 
-  it('does not emit SQL when generation fails', async () => {
+  it('does not emit a draft when generation fails', async () => {
     generateSqlMock.mockRejectedValue(new Error('boom'));
     const onGenerated = vi.fn();
     render(wrap(<TextToSqlBar datasourceId="ds-1" onGenerated={onGenerated} />));
@@ -61,7 +62,7 @@ describe('TextToSqlBar', () => {
     fireEvent.change(screen.getByLabelText('Describe your query'), {
       target: { value: 'x' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Generate SQL/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Generate query/i }));
 
     await waitFor(() => expect(generateSqlMock).toHaveBeenCalled());
     expect(onGenerated).not.toHaveBeenCalled();

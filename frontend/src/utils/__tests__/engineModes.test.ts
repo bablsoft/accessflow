@@ -12,6 +12,12 @@ const ALL_DB_TYPES: DbType[] = [
   'MONGODB',
   'COUCHBASE',
   'REDIS',
+  'CASSANDRA',
+  'SCYLLADB',
+  'ELASTICSEARCH',
+  'OPENSEARCH',
+  'DYNAMODB',
+  'NEO4J',
 ];
 
 describe('engineMode', () => {
@@ -30,7 +36,7 @@ describe('engineMode', () => {
       language: 'json',
     });
     expect(mode.canFormat).toBe(false);
-    expect(mode.supportsTextToSql).toBe(false);
+    expect(mode.supportsTextToSql).toBe(true);
     expect(mode.defaultResultView).toBe('json');
     expect(mode.sqlDialect).toBeUndefined();
   });
@@ -55,7 +61,7 @@ describe('engineMode', () => {
     ]);
     expect(mode.sqlDialect).toBeUndefined();
     expect(mode.canFormat).toBe(false);
-    expect(mode.supportsTextToSql).toBe(false);
+    expect(mode.supportsTextToSql).toBe(true);
     expect(mode.defaultResultView).toBe('table');
   });
 
@@ -92,6 +98,15 @@ describe('activeSyntax', () => {
     expect(activeSyntax(mongo, undefined).value).toBe('shell');
     const sql = engineMode('POSTGRESQL');
     expect(activeSyntax(sql, 'shell').value).toBe('sql');
+  });
+});
+
+describe('supportsTextToSql', () => {
+  // AF-439: text-to-query now supported for every shipped engine (NoSQL un-gated).
+  it('is enabled for all relational and NoSQL engines', () => {
+    for (const dbType of ALL_DB_TYPES) {
+      expect(engineMode(dbType).supportsTextToSql, dbType).toBe(true);
+    }
   });
 });
 

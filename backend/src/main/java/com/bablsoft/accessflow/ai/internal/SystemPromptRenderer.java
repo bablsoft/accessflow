@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -62,40 +63,119 @@ class SystemPromptRenderer {
 
     private static final String NO_RAG_CONTEXT = "(no knowledge base context available)";
 
+    /** The token naming the engine's target query language (e.g. SQL, Cypher, CQL). */
+    static final String TARGET_LANGUAGE_PLACEHOLDER = "{{target_language}}";
+
+    /** The token holding engine-specific generation guidance (read-only bias + banned shapes). */
+    static final String TARGET_GUIDANCE_PLACEHOLDER = "{{target_guidance}}";
+
     /**
-     * Built-in natural-language → SQL generation prompt. The generated SQL is a draft the user
+     * Built-in natural-language → query generation prompt (AF-335, AF-439). Engine-language aware:
+     * {@link #TARGET_LANGUAGE_PLACEHOLDER} and {@link #TARGET_GUIDANCE_PLACEHOLDER} are substituted
+     * per {@link DbType} so the model drafts the engine's native query string (SQL, Mongo shell/JSON,
+     * Cypher, CQL, Elasticsearch Query DSL, redis-cli, …). The generated query is a draft the user
      * reviews and submits through the normal pipeline, so the model is steered toward safe,
-     * schema-grounded, read-oriented statements.
+     * schema-grounded, read-oriented statements. The JSON envelope key stays {@code "sql"} for wire
+     * compatibility — its value is now one runnable statement in the target query language.
      */
-    static final String DEFAULT_SQL_GENERATION_TEMPLATE = """
-            You are an expert SQL author. Translate the user's natural-language request into a single
-            valid SQL statement for the target database, and respond ONLY with a JSON object matching
-            this exact schema. Do not include any text outside the JSON.
+    static final String DEFAULT_QUERY_GENERATION_TEMPLATE = """
+            You are an expert query author. Translate the user's natural-language request into a single
+            runnable statement in the target query language ({{target_language}}) for the database, and
+            respond ONLY with a JSON object matching this exact schema. Do not include any text outside
+            the JSON.
 
             Schema:
             {
-              "sql": <string — one runnable SQL statement, no trailing semicolon required>
+              "sql": <string — one runnable statement in {{target_language}}, no trailing semicolon required>
             }
 
             Rules:
-            - Produce exactly ONE statement. Prefer a read-only SELECT unless the request clearly asks
-              to modify data.
-            - Use ONLY tables and columns present in the schema context below. Never invent names.
-            - Never reference any column marked *RESTRICTED* in the schema context — those are
-              sensitive and masked at the proxy layer.
-            - Use dialect-appropriate syntax for the given database type (date/time functions,
-              identifier quoting, LIMIT/TOP, etc.).
-            - If the request is ambiguous, choose the most reasonable interpretation and still return
-              a single statement.
+            - Produce exactly ONE statement. Prefer a read-only operation unless the request clearly
+              asks to modify data.
+            - Use ONLY the tables/collections/indices/keyspaces/labels and their fields present in the
+              schema context below (for this engine those map to {{target_language}}'s domain objects).
+              Never invent names.
+            - Never reference any field marked *RESTRICTED* in the schema context — those are sensitive
+              and masked at the proxy layer.
+            {{target_guidance}}
+            - If the request is ambiguous, choose the most reasonable interpretation and still return a
+              single statement.
 
             Database type: {{db_type}}
+            Target query language: {{target_language}}
             Schema context: {{schema_context}}
             Knowledge base context (authoritative organization-specific guidance retrieved for this request — prefer it over general assumptions when it applies):
             {{rag_context}}
-            Respond in: {{language}} for any string values you may include; keep SQL keywords in English.
+            Respond in: {{language}} for any string values you may include; keep query keywords and identifiers as {{target_language}} requires.
             User request:
             {{user_request}}
             """;
+
+    /**
+     * Per-engine generation profile (AF-439): the display name woven into the prompt, the editor
+     * {@code syntax} id returned to the frontend ({@code engineModes} ids), and the engine-specific
+     * guidance bullet (read-only bias + the banned shapes that engine rejects). Engines not listed
+     * (the relational dialects + {@code CUSTOM}) fall back to {@link #SQL_PROFILE}.
+     */
+    private record QueryLanguageProfile(String displayName, String syntaxId, String guidance) {
+    }
+
+    private static final QueryLanguageProfile SQL_PROFILE = new QueryLanguageProfile(
+            "SQL", "sql",
+            "- Use dialect-appropriate syntax for the target database (date/time functions, identifier"
+                    + " quoting, LIMIT/TOP, etc.).");
+
+    private static final Map<DbType, QueryLanguageProfile> PROFILES = Map.ofEntries(
+            Map.entry(DbType.COUCHBASE, new QueryLanguageProfile(
+                    "Couchbase SQL++ (N1QL)", "sqlpp",
+                    "- Use Couchbase SQL++ (N1QL). Do not use CURL(), JavaScript UDFs, the system:"
+                            + " catalogs, or multiple statements.")),
+            Map.entry(DbType.DYNAMODB, new QueryLanguageProfile(
+                    "DynamoDB PartiQL", "partiql",
+                    "- Use Amazon DynamoDB PartiQL with positional ? parameters. Do not use EXECUTE"
+                            + " TRANSACTION or batch / multi-statement input.")),
+            Map.entry(DbType.MONGODB, new QueryLanguageProfile(
+                    "the MongoDB query language", "shell",
+                    "- Emit a MongoDB shell command such as db.collection.find({...}) or"
+                            + " db.collection.aggregate([...]) (the JSON command-document form is also"
+                            + " accepted). Never use $where, $function, mapReduce, or other server-side"
+                            + " JavaScript.")),
+            Map.entry(DbType.REDIS, new QueryLanguageProfile(
+                    "the Redis command language (redis-cli)", "cli",
+                    "- Emit redis-cli commands from the read-oriented allow-list (GET, MGET, HGETALL,"
+                            + " SCAN, LRANGE, …). Never use server-side scripting (EVAL/EVALSHA/FUNCTION),"
+                            + " FLUSHALL/FLUSHDB, blocking, pub/sub, or transaction / multi-command"
+                            + " forms.")),
+            Map.entry(DbType.CASSANDRA, cqlProfile()),
+            Map.entry(DbType.SCYLLADB, cqlProfile()),
+            Map.entry(DbType.ELASTICSEARCH, searchProfile()),
+            Map.entry(DbType.OPENSEARCH, searchProfile()),
+            Map.entry(DbType.NEO4J, new QueryLanguageProfile(
+                    "Cypher", "cypher",
+                    "- Use Cypher: MATCH … WHERE … RETURN with named $params for values. Never use LOAD"
+                            + " CSV or CALL outside the read-only procedure allow-list (db.labels,"
+                            + " db.schema.*, …).")));
+
+    private static QueryLanguageProfile cqlProfile() {
+        return new QueryLanguageProfile(
+                "CQL", "cql",
+                "- Use CQL. Filter only on partition and clustering key columns with =, IN, <, <=, >,"
+                        + " >= — never rely on ALLOW FILTERING. Do not use BEGIN … BATCH or CREATE/DROP"
+                        + " FUNCTION/AGGREGATE.");
+    }
+
+    private static QueryLanguageProfile searchProfile() {
+        return new QueryLanguageProfile(
+                "the Elasticsearch Query DSL", "query_dsl",
+                "- Emit a JSON Query DSL envelope whose first key names the operation, e.g."
+                        + " { \"search\": \"<index>\", \"query\": { … } }. Never use script,"
+                        + " script_fields, runtime_mappings, Painless, or cluster / system-index"
+                        + " targets.");
+    }
+
+    private static QueryLanguageProfile profileFor(DbType dbType) {
+        return dbType == null ? SQL_PROFILE : PROFILES.getOrDefault(dbType, SQL_PROFILE);
+    }
 
     String defaultTemplate() {
         return DEFAULT_TEMPLATE;
@@ -137,12 +217,32 @@ class SystemPromptRenderer {
         var displayName = SupportedLanguage.fromCode(language)
                 .map(SupportedLanguage::displayName)
                 .orElse(SupportedLanguage.EN.displayName());
-        return DEFAULT_SQL_GENERATION_TEMPLATE
-                .replace("{{db_type}}", dbType.name())
+        var profile = profileFor(dbType);
+        // {{user_request}} is replaced last so request text that happens to contain another token
+        // string is never re-substituted.
+        return DEFAULT_QUERY_GENERATION_TEMPLATE
+                .replace(TARGET_LANGUAGE_PLACEHOLDER, profile.displayName())
+                .replace(TARGET_GUIDANCE_PLACEHOLDER, profile.guidance())
+                .replace("{{db_type}}", dbType == null ? "" : dbType.name())
                 .replace("{{schema_context}}", schemaText)
                 .replace(RAG_CONTEXT_PLACEHOLDER, ragText(ragContext))
                 .replace("{{language}}", displayName)
                 .replace(USER_REQUEST_PLACEHOLDER, userRequest == null ? "" : userRequest);
+    }
+
+    /**
+     * The editor {@code syntax} id (matching the frontend {@code engineModes} ids) for a draft
+     * generated against {@code dbType}. Deterministic per engine, except MongoDB which has two
+     * editor syntaxes — a draft starting with {@code {} is the JSON command form ({@code json}),
+     * otherwise the shell form ({@code shell}).
+     */
+    String syntaxFor(DbType dbType, String generatedQuery) {
+        var profile = profileFor(dbType);
+        if (dbType == DbType.MONGODB && generatedQuery != null
+                && generatedQuery.stripLeading().startsWith("{")) {
+            return "json";
+        }
+        return profile.syntaxId();
     }
 
     private static String ragText(String ragContext) {
