@@ -336,6 +336,7 @@
     "syntax_cql": "CQL",
     "syntax_query_dsl": "Query DSL",
     "syntax_partiql": "PartiQL",
+    "syntax_cypher": "Cypher",
     "justification_label": "Justificación",
     "justification_required_note": "· obligatoria para revisión",
     "justification_placeholder": "¿Por qué ejecutas esta consulta?",
@@ -654,6 +655,8 @@
       "field_region_help": "Región de DynamoDB (p. ej. us-east-1): se usa para firmar las solicitudes.",
       "field_dynamodb_endpoint": "Endpoint personalizado",
       "field_dynamodb_endpoint_help": "Endpoint opcional de DynamoDB Local / VPC (p. ej. http://localhost:8000). Déjalo en blanco para AWS.",
+      "field_neo4j_bolt_uri": "URI de conexión Bolt (avanzado)",
+      "field_neo4j_bolt_uri_help": "URI bolt:// / neo4j+s:// completa opcional para Neo4j Aura o enrutamiento en clúster (p. ej. neo4j+s://xxxx.databases.neo4j.io). Si se establece, anula host/puerto.",
       "field_access_key_id": "ID de clave de acceso",
       "field_secret_access_key": "Clave de acceso secreta",
       "field_auth_method": "Autenticación",
@@ -1805,7 +1808,8 @@
       "SCYLLADB": "ScyllaDB",
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
-      "DYNAMODB": "Amazon DynamoDB"
+      "DYNAMODB": "Amazon DynamoDB",
+      "NEO4J": "Neo4j"
     },
     "ssl_mode": {
       "DISABLE": "Deshabilitar",

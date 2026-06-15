@@ -1,7 +1,7 @@
 # 15 — Engine-Plugin SDK
 
 How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
-Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, and Amazon DynamoDB today; Neo4j tomorrow — that plugs into AccessFlow as
+Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, Amazon DynamoDB, and Neo4j today — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)
@@ -20,6 +20,11 @@ catalog allows one connector per non-`CUSTOM` dialect, but the engine code is sh
 example of an engine whose **connection is cloud credentials + region rather than host/port**
 (`database_name`=region, `username`/`password`=access key/secret, `jdbc_url_override`=optional
 endpoint), exercising the SDK's flexibility beyond the host/port assumption.
+[`engines/neo4j/`](../engines/neo4j/) (AF-423) is the `GRAPH` Cypher reference — the engine whose
+row-level security is **not** a SQL-style WHERE-after-FROM but a predicate ANDed onto each
+`MATCH`'s `WHERE` (scoped by the bound node variable of the policied label; fail-closed on anonymous
+or write shapes) — and the example of an engine that accepts **either** host/port **or** a full
+`bolt://` / `neo4j+s://` URI override.
 
 Related chapters: [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine) (how the host
 dispatches to engines), [14-connectors.md](./14-connectors.md) (the connector catalog the plugin is
@@ -176,4 +181,8 @@ Docs / website (same PR — CLAUDE.md sync rules):
 12. An e2e spec when the engine adds a user-visible flow worth covering (default is "add a spec").
 
 No changes required to: `DefaultQueryEngineCatalog`, `DefaultQueryParser`, `DefaultQueryExecutor`,
-`DatasourceAdminServiceImpl`, `.github/workflows/ci.yml`, or `.github/workflows/release.yml`.
+`.github/workflows/ci.yml`, or `.github/workflows/release.yml`. `DatasourceAdminServiceImpl` needs a
+small `validateDriverChoice` branch **only** when the engine's connection model deviates from the
+standard host/port/database/username/password shape — e.g. DynamoDB (cloud credentials + region) and
+Neo4j (host/port **or** a `bolt://` / `neo4j+s://` URI override); a standard host/port engine adds
+nothing there.

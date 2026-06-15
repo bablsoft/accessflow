@@ -43,6 +43,7 @@ interface ConnectionFormValues {
   database_name: string;
   jdbc_url: string;
   dynamodb_endpoint: string;
+  neo4j_bolt_uri: string;
   local_datacenter: string;
   auth_method: AuthMethod;
   api_key: string;
@@ -125,6 +126,7 @@ export default function DatasourceCreateWizardPage() {
       const isCqlEngine =
         selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
       const isDynamoDb = selectedType.code === 'DYNAMODB';
+      const isNeo4j = selectedType.code === 'NEO4J';
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
       const useApiKey = isSearchEngine && values.auth_method === 'api_key';
       // API-key auth replaces basic creds; send blank username/password (the backend keeps the
@@ -152,6 +154,10 @@ export default function DatasourceCreateWizardPage() {
         }
         if (isCqlEngine) {
           input.local_datacenter = values.local_datacenter;
+        }
+        if (isNeo4j) {
+          // Optional full bolt:// / neo4j+s:// URI (Aura / clustered routing) overrides host/port.
+          input.jdbc_url_override = values.neo4j_bolt_uri || '';
         }
         if (isSearchEngine) {
           input.api_key = useApiKey ? values.api_key : '';
@@ -185,6 +191,10 @@ export default function DatasourceCreateWizardPage() {
       }
       if (isCqlEngine) {
         input.local_datacenter = values.local_datacenter;
+      }
+      if (isNeo4j && values.neo4j_bolt_uri) {
+        // Optional full bolt:// / neo4j+s:// URI (Aura / clustered routing) overrides host/port.
+        input.jdbc_url_override = values.neo4j_bolt_uri;
       }
       if (useApiKey) {
         input.api_key = values.api_key;
@@ -333,6 +343,11 @@ export default function DatasourceCreateWizardPage() {
     if (currentStep === 'connection' && selectedType) {
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
       const isDynamoDb = selectedType.code === 'DYNAMODB';
+      const isNeo4j = selectedType.code === 'NEO4J';
+      // Neo4j may connect via host/port OR a full bolt URI override; host/port stop being required
+      // once the operator supplies a URI (Aura / clustered routing has no separate host/port).
+      const neo4jHasUri = isNeo4j && !!connectionValues?.neo4j_bolt_uri?.trim();
+      const hostPortRequired = !neo4jHasUri;
       const authMethod: AuthMethod =
         (connectionValues?.auth_method as AuthMethod | undefined) ?? 'basic';
       const showBasicCreds = !isSearchEngine || authMethod === 'basic';
@@ -376,14 +391,14 @@ export default function DatasourceCreateWizardPage() {
                 <Form.Item
                   label={t('datasources.create.field_host')}
                   name="host"
-                  rules={[{ required: true }, { max: 255 }]}
+                  rules={[{ required: hostPortRequired }, { max: 255 }]}
                 >
                   <Input placeholder="db.internal" />
                 </Form.Item>
                 <Form.Item
                   label={t('datasources.create.field_port')}
                   name="port"
-                  rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
+                  rules={[{ required: hostPortRequired, type: 'number', min: 1, max: 65535 }]}
                 >
                   <InputNumber style={{ width: '100%' }} />
                 </Form.Item>
@@ -411,6 +426,16 @@ export default function DatasourceCreateWizardPage() {
                 rules={[{ max: 2048 }]}
               >
                 <Input placeholder="http://localhost:8000" />
+              </Form.Item>
+            )}
+            {isNeo4j && (
+              <Form.Item
+                label={t('datasources.create.field_neo4j_bolt_uri')}
+                name="neo4j_bolt_uri"
+                extra={t('datasources.create.field_neo4j_bolt_uri_help')}
+                rules={[{ max: 2048 }]}
+              >
+                <Input placeholder="neo4j+s://xxxx.databases.neo4j.io" />
               </Form.Item>
             )}
             {(selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB') && (

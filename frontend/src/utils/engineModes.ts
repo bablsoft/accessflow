@@ -46,6 +46,7 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   ELASTICSEARCH: 'magenta',
   OPENSEARCH: 'cyan',
   DYNAMODB: 'gold',
+  NEO4J: 'geekblue',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {
@@ -123,6 +124,16 @@ const ENGINE_MODES: Partial<Record<DbType, EngineMode>> = {
     canFormat: true,
     supportsTextToSql: true,
     defaultResultView: 'table',
+  },
+  // Cypher is clause-based and graph-shaped. CodeMirror has no Cypher pack in the stack yet
+  // (follow-up), so JavaScript highlighting covers the closest token shape ({}, strings, $params,
+  // backtick idents). No formatter or text-to-SQL — neither is Cypher-aware — and the JSON view by
+  // default since nodes/relationships/paths are graph structures (a flattened table is one click away).
+  NEO4J: {
+    syntaxes: [{ value: 'cypher', labelKey: 'editor.syntax_cypher', language: 'javascript' }],
+    canFormat: false,
+    supportsTextToSql: false,
+    defaultResultView: 'json',
   },
 };
 

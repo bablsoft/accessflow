@@ -22,7 +22,8 @@ export type DbType =
   | 'SCYLLADB'
   | 'ELASTICSEARCH'
   | 'OPENSEARCH'
-  | 'DYNAMODB';
+  | 'DYNAMODB'
+  | 'NEO4J';
 /**
  * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
  * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.
