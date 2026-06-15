@@ -70,47 +70,66 @@ export default function ConnectorsPage() {
   );
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('connectors.title')} subtitle={t('connectors.subtitle')} />
-      <Input.Search
-        allowClear
-        placeholder={t('connectors.search_placeholder')}
-        aria-label={t('connectors.search_placeholder')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ maxWidth: 360 }}
-      />
-      {listQuery.isLoading ? (
-        <Skeleton active paragraph={{ rows: 6 }} />
-      ) : listQuery.isError ? (
-        <EmptyState title={t('connectors.load_error')} description={t('errors.connector_generic')} />
-      ) : filtered.length === 0 ? (
-        <EmptyState title={t('connectors.empty_title')} description={t('connectors.empty_description')} />
-      ) : (
-        groups.map((group) => (
-          <section key={group.category} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Typography.Title level={5} style={{ margin: 0 }}>
-              {group.label}
-            </Typography.Title>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
-                gap: 16,
-              }}
-            >
-              {group.items.map((connector) => (
-                <ConnectorCard
-                  key={connector.id}
-                  connector={connector}
-                  installing={installingId === connector.id}
-                  onInstall={() => installMutation.mutate(connector.id)}
-                />
-              ))}
-            </div>
-          </section>
-        ))
-      )}
+      <div
+        style={{
+          padding: '12px 28px',
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--bg-elev)',
+        }}
+      >
+        <Input.Search
+          allowClear
+          placeholder={t('connectors.search_placeholder')}
+          aria-label={t('connectors.search_placeholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ maxWidth: 360 }}
+        />
+      </div>
+      <div
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        {listQuery.isLoading ? (
+          <Skeleton active paragraph={{ rows: 6 }} />
+        ) : listQuery.isError ? (
+          <EmptyState title={t('connectors.load_error')} description={t('errors.connector_generic')} />
+        ) : filtered.length === 0 ? (
+          <EmptyState title={t('connectors.empty_title')} description={t('connectors.empty_description')} />
+        ) : (
+          groups.map((group) => (
+            <section key={group.category} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                {group.label}
+              </Typography.Title>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+                  gap: 16,
+                }}
+              >
+                {group.items.map((connector) => (
+                  <ConnectorCard
+                    key={connector.id}
+                    connector={connector}
+                    installing={installingId === connector.id}
+                    onInstall={() => installMutation.mutate(connector.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+      </div>
     </div>
   );
 }

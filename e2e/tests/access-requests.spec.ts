@@ -85,7 +85,7 @@ test.describe.serial('access requests (AF-378)', () => {
     await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, dsName);
     // "My requests" shows the new PENDING row.
-    await expect(page.getByText('Pending', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
     // 2. Admin approves it in the access-request queue.
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -97,8 +97,8 @@ test.describe.serial('access requests (AF-378)', () => {
     // 3. Back as the requester: the grant is materialised — APPROVED + a TTL chip.
     await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
-    await expect(page.getByText('Approved', { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/left$/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Approved', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/left$/).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('schema dropdown populates from the selected datasource (AF-389)', async ({ page }) => {
@@ -164,7 +164,7 @@ test.describe.serial('access requests — admin fallback with no review plan', (
     // 1. Requester submits against the plan-less datasource.
     await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, datasource!.name);
-    await expect(page.getByText('Pending', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
     // 2. Admin still finds it in the queue (the fallback) and approves it.
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -177,7 +177,7 @@ test.describe.serial('access requests — admin fallback with no review plan', (
     // 3. The grant materialised: requester's row flips to APPROVED with a TTL chip.
     await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
-    await expect(page.getByText('Approved', { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/left$/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Approved', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/left$/).first()).toBeVisible({ timeout: 15_000 });
   });
 });
