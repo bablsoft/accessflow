@@ -84,6 +84,10 @@ services:
       - e2e-network
 
   backend:
+    # Shared tag so CI builds the image once (buildx + gha cache) and every e2e
+    # stack reuses it via `up` (no --build). `build:` is kept so a local
+    # `docker compose ... up --build` still works.
+    image: accessflow-backend:e2e
     build:
       # Repo root so backend/Dockerfile can bundle ./connectors into the jar.
       context: ..
@@ -186,6 +190,8 @@ services:
       - e2e-network
 
   frontend:
+    # Shared tag so CI builds the image once and every e2e stack reuses it.
+    image: accessflow-frontend:e2e
     build:
       context: ../frontend
       dockerfile: Dockerfile

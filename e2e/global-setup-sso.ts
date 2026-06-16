@@ -13,10 +13,14 @@ import { dirname, resolve } from 'node:path';
 export default async function globalSetup(): Promise<void> {
   const here = dirname(fileURLToPath(import.meta.url));
   const composeFile = resolve(here, 'docker-compose.e2e.sso.yml');
-  console.log('[global-setup-sso] bringing up the SSO-variant stack...');
-  execFileSync(
-    'docker',
-    ['compose', '-f', composeFile, 'up', '--build', '-d', '--wait'],
-    { stdio: 'inherit' },
+  // CI pre-builds + tags the images (buildx + gha cache) and sets E2E_SKIP_BUILD
+  // so the stack reuses them; local runs leave it unset and build from source.
+  const skipBuild = !!process.env.E2E_SKIP_BUILD;
+  const args = ['compose', '-f', composeFile, 'up'];
+  if (!skipBuild) args.push('--build');
+  args.push('-d', '--wait');
+  console.log(
+    `[global-setup-sso] bringing up the SSO-variant stack${skipBuild ? ' (reusing pre-built images)' : ''}...`,
   );
+  execFileSync('docker', args, { stdio: 'inherit' });
 }

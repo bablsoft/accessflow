@@ -12,6 +12,13 @@ permissions:
   checks: write
   issues: write
 
+# Cancel an in-flight run when a newer commit lands on the same ref (PR branch or
+# main) — faster feedback and frees the runner pool. Keyed on ref so different
+# branches/PRs never cancel each other.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     name: Detect changes
@@ -220,10 +227,26 @@ jobs:
             > /tmp/rendered-bootstrap.yaml
 
   e2e:
-    name: E2E
+    name: E2E (${{ matrix.variant.name }})
     needs: changes
     if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      # The three stacks use distinct compose project names and non-overlapping
+      # ports (5173/8080, 5174/8081, 5175/8082/8085), so one leg per stack runs
+      # them on separate runners in parallel instead of sequentially in one job.
+      # fail-fast off so one variant failing doesn't cancel the others.
+      fail-fast: false
+      matrix:
+        variant:
+          - { name: main,  compose: docker-compose.e2e.yml,       test: "npm test" }
+          - { name: setup, compose: docker-compose.e2e.setup.yml, test: "npm run test:setup" }
+          - { name: sso,   compose: docker-compose.e2e.sso.yml,   test: "npm run test:sso" }
+    env:
+      # The setup/sso stacks are brought up by Playwright globalSetup; this tells
+      # it to reuse the images pre-built below instead of rebuilding. Harmless for
+      # the main leg (it brings its stack up explicitly, also without --build).
+      E2E_SKIP_BUILD: "1"
     defaults:
       run:
         working-directory: e2e
@@ -242,65 +265,78 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.pw.outputs.version }}
+
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+      - name: Install Playwright OS deps (cache hit)
+        # The cached dir holds only the browser binaries; the OS libraries
+        # (apt packages) live outside it and must still be installed.
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the two images once with a GitHub Actions layer cache so the
+      # dependency-resolution layers (mvn dependency:go-offline / npm install)
+      # are reused run-to-run. `load: true` puts the tagged image in the local
+      # daemon; the stack then starts with `up` (no --build) and reuses it.
+      - name: Build backend image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          tags: accessflow-backend:e2e
+          load: true
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,mode=max,scope=e2e-backend
+
+      - name: Build frontend image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          tags: accessflow-frontend:e2e
+          load: true
+          cache-from: type=gha,scope=e2e-frontend
+          cache-to: type=gha,mode=max,scope=e2e-frontend
+
       - name: Start the e2e stack
-        # `--wait` blocks until every service's healthcheck reports healthy
-        # (or fails fast). See e2e/docker-compose.e2e.yml for healthchecks.
-        run: docker compose -f docker-compose.e2e.yml up --build -d --wait
+        # Only the main variant brings its stack up here; the setup/sso variants
+        # are started by their Playwright globalSetup (which honours
+        # E2E_SKIP_BUILD). `--wait` blocks until every healthcheck is healthy.
+        if: matrix.variant.name == 'main'
+        run: docker compose -f ${{ matrix.variant.compose }} up -d --wait
 
       - name: Run Playwright tests
-        run: npm test
+        run: ${{ matrix.variant.test }}
 
-      - name: Dump main stack logs on failure
+      - name: Dump stack logs on failure
         if: failure()
-        run: docker compose -f docker-compose.e2e.yml logs --no-color
+        run: docker compose -f ${{ matrix.variant.compose }} logs --no-color
 
-      - name: Tear down main stack
+      - name: Tear down stack
+        # Belt-and-suspenders — the setup/sso globalTeardown also do this on success.
         if: always()
-        run: docker compose -f docker-compose.e2e.yml down -v
-
-      # The setup-wizard spec runs against a separate stack with no admin
-      # pre-seeded (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). Its
-      # globalSetup/Teardown in playwright.setup.config.ts bring
-      # docker-compose.e2e.setup.yml up/down on ports 5174/8081.
-      - name: Run setup-wizard spec
-        if: always()
-        run: npm run test:setup
-
-      - name: Dump setup-variant stack logs on failure
-        if: failure()
-        run: docker compose -f docker-compose.e2e.setup.yml logs --no-color
-
-      - name: Tear down setup-variant stack
-        # Belt-and-suspenders — globalTeardown handles this on success.
-        if: always()
-        run: docker compose -f docker-compose.e2e.setup.yml down -v || true
-
-      # The SAML SSO spec runs against a third stack that adds a
-      # kristophjunge/test-saml-idp (SimpleSAMLphp) container and bootstraps
-      # the saml_config row pointing at it. globalSetup/Teardown in
-      # playwright.sso.config.ts bring docker-compose.e2e.sso.yml up/down on
-      # ports 5175 / 8082 / 8085.
-      - name: Run SAML SSO spec
-        if: always()
-        run: npm run test:sso
-
-      - name: Dump SSO-variant stack logs on failure
-        if: failure()
-        run: docker compose -f docker-compose.e2e.sso.yml logs --no-color
-
-      - name: Tear down SSO-variant stack
-        # Belt-and-suspenders — globalTeardown handles this on success.
-        if: always()
-        run: docker compose -f docker-compose.e2e.sso.yml down -v || true
+        run: docker compose -f ${{ matrix.variant.compose }} down -v || true
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.variant.name }}
           path: e2e/playwright-report
           if-no-files-found: ignore
           retention-days: 7
@@ -316,10 +352,18 @@ jobs:
         run: node .github/scripts/validate-connectors.mjs
 
   engines:
-    name: Engine plugins
+    name: Engine plugin (${{ matrix.engine }})
     needs: changes
     if: needs.changes.outputs.engines == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      # One leg per plugin so they build + test on separate runners in parallel
+      # instead of in a sequential shell loop — wall-clock drops to the slowest
+      # single engine. fail-fast off so one engine failing doesn't cancel the rest.
+      # Adding a new engine means adding its id here (and to release.yml).
+      fail-fast: false
+      matrix:
+        engine: [mongodb, couchbase, redis, cassandra, elasticsearch, dynamodb, neo4j]
 
     steps:
       - name: Checkout code
@@ -343,32 +387,25 @@ jobs:
       - name: Install backend plain jar (plugins compile against core.api)
         run: mvn -B -f backend/pom.xml install -DskipTests
 
-      - name: Build and test every engine plugin
-        # Discovery loop over engines/* (issue #418): a new engine plugin needs zero edits here.
-        run: |
-          set -euo pipefail
-          for d in engines/*/; do
-            echo "::group::${d}"
-            mvn -B -f "${d}pom.xml" clean verify
-            echo "::endgroup::"
-          done
+      - name: Build and test the engine plugin
+        run: mvn -B -f engines/${{ matrix.engine }}/pom.xml clean verify
 
-      - name: Verify connector manifest sha256 pins match the built jars
-        # Each plugin build is reproducible (project.build.outputTimestamp), so its shaded jar's
-        # sha256 must equal the pin in connectors/<id>/connector.json (id = engines/<id> basename).
-        # Drift means the engine (or a core.api type it compiles against) changed without bumping
-        # the plugin version and re-pinning — see docs/15-engine-sdk.md.
-        run: node .github/scripts/check-engine-pins.mjs
+      - name: Verify connector manifest sha256 pin matches the built jar
+        # The build is reproducible (project.build.outputTimestamp), so the shaded jar's
+        # sha256 must equal the pin in connectors/${{ matrix.engine }}/connector.json.
+        # Drift means the engine (or a core.api type it compiles against) changed without
+        # bumping the plugin version and re-pinning — see docs/15-engine-sdk.md.
+        run: node .github/scripts/check-engine-pins.mjs ${{ matrix.engine }}
 
       - name: Publish test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: |
-            engines/*/target/surefire-reports/TEST-*.xml
-            engines/*/target/failsafe-reports/TEST-*.xml
-          check_name: Engine Plugin Test Results
-          comment_mode: always
+            engines/${{ matrix.engine }}/target/surefire-reports/TEST-*.xml
+            engines/${{ matrix.engine }}/target/failsafe-reports/TEST-*.xml
+          check_name: Engine ${{ matrix.engine }} Test Results
+          comment_mode: "off"
 
   # Single required status check for branch protection. This job always runs
   # and succeeds when each upstream job either passed or was correctly skipped
