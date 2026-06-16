@@ -15,13 +15,27 @@ const CONNECTORS = path.resolve(process.cwd(), 'connectors');
 const problems = [];
 const fail = (id, msg) => problems.push(`[${id}] ${msg}`);
 
-const engineDirs = readdirSync(ENGINES, { withFileTypes: true })
+// Optional positional args restrict the check to specific engine ids — used by the
+// CI engines matrix, where each leg builds only its own plugin. No args = check every
+// engine (the release workflow path, which builds them all).
+const only = new Set(process.argv.slice(2));
+
+let engineDirs = readdirSync(ENGINES, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => d.name);
 
 if (engineDirs.length === 0) {
   console.error('No engine plugin folders found under engines/');
   process.exit(1);
+}
+
+if (only.size > 0) {
+  const unknown = [...only].filter((id) => !engineDirs.includes(id));
+  if (unknown.length > 0) {
+    console.error(`Unknown engine id(s): ${unknown.join(', ')} — expected one of: ${engineDirs.join(', ')}`);
+    process.exit(1);
+  }
+  engineDirs = engineDirs.filter((id) => only.has(id));
 }
 
 for (const id of engineDirs) {
