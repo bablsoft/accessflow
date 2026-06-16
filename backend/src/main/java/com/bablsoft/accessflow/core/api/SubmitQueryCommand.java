@@ -10,5 +10,6 @@ public record SubmitQueryCommand(
         QueryType queryType,
         boolean transactional,
         String justification,
-        Instant scheduledFor) {
+        Instant scheduledFor,
+        SubmissionReason submissionReason) {
 }

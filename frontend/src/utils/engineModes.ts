@@ -156,3 +156,16 @@ export function engineMode(dbType?: DbType): EngineMode {
 export function activeSyntax(mode: EngineMode, syntax?: string): EditorSyntaxOption {
   return mode.syntaxes.find((s) => s.value === syntax) ?? mode.syntaxes[0] ?? SQL_SYNTAX;
 }
+
+/**
+ * Editor syntax id for a draft `query` against `dbType` — the frontend mirror of the backend
+ * `SystemPromptRenderer.syntaxFor`. MongoDB has two syntaxes, so a JSON-command draft (leading `{`)
+ * picks `json` and a shell draft picks `shell`; every other engine has a single mode, so its default
+ * is returned. Used when applying an AI optimization suggestion so the editor mounts the engine's
+ * native mode for that statement (works for the NoSQL engines, not just SQL).
+ */
+export function syntaxForQuery(dbType: DbType | undefined, query: string): string {
+  const mode = engineMode(dbType);
+  if (dbType === 'MONGODB' && query.trimStart().startsWith('{')) return 'json';
+  return mode.syntaxes[0]?.value ?? SQL_SYNTAX.value;
+}

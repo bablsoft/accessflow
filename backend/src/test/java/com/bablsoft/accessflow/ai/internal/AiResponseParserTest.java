@@ -2,6 +2,8 @@ package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
+import com.bablsoft.accessflow.ai.api.OptimizationType;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import org.junit.jupiter.api.Test;
@@ -219,5 +221,118 @@ class AiResponseParserTest {
                 .contains("\"category\":\"X\"")
                 .contains("\"message\":\"y\"")
                 .contains("\"suggestion\":\"z\"");
+    }
+
+    @Test
+    void parsesOptimizations() {
+        var json = """
+                {
+                  "risk_score": 60,
+                  "risk_level": "MEDIUM",
+                  "summary": "Missing index on a filtered column.",
+                  "issues": [],
+                  "missing_indexes_detected": true,
+                  "affects_row_estimate": null,
+                  "optimizations": [
+                    {
+                      "type": "INDEX",
+                      "title": "Add index on users(email)",
+                      "rationale": "The WHERE clause filters on email.",
+                      "sql": "CREATE INDEX idx_users_email ON users(email)"
+                    },
+                    {
+                      "type": "REWRITE",
+                      "title": "Select explicit columns",
+                      "rationale": "Avoid SELECT *.",
+                      "sql": "SELECT id, email FROM users"
+                    }
+                  ]
+                }
+                """;
+
+        var result = parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0);
+
+        assertThat(result.optimizations()).hasSize(2);
+        var first = result.optimizations().get(0);
+        assertThat(first.type()).isEqualTo(OptimizationType.INDEX);
+        assertThat(first.title()).isEqualTo("Add index on users(email)");
+        assertThat(first.rationale()).isEqualTo("The WHERE clause filters on email.");
+        assertThat(first.sql()).isEqualTo("CREATE INDEX idx_users_email ON users(email)");
+        assertThat(result.optimizations().get(1).type()).isEqualTo(OptimizationType.REWRITE);
+    }
+
+    @Test
+    void treatsMissingOptimizationsAsEmpty() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\","
+                + "\"issues\":[],\"missing_indexes_detected\":false,\"affects_row_estimate\":null}";
+
+        var result = parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0);
+
+        assertThat(result.optimizations()).isEmpty();
+    }
+
+    @Test
+    void treatsNullOptimizationsAsEmpty() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\",\"issues\":[],"
+                + "\"missing_indexes_detected\":false,\"affects_row_estimate\":null,\"optimizations\":null}";
+
+        var result = parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0);
+
+        assertThat(result.optimizations()).isEmpty();
+    }
+
+    @Test
+    void rejectsNonArrayOptimizations() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\",\"issues\":[],"
+                + "\"missing_indexes_detected\":false,\"affects_row_estimate\":null,\"optimizations\":\"none\"}";
+
+        assertThatThrownBy(() -> parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0))
+                .isInstanceOf(AiAnalysisParseException.class)
+                .hasMessageContaining("optimizations");
+    }
+
+    @Test
+    void rejectsOptimizationItemThatIsNotObject() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\",\"issues\":[],"
+                + "\"missing_indexes_detected\":false,\"affects_row_estimate\":null,"
+                + "\"optimizations\":[\"oops\"]}";
+
+        assertThatThrownBy(() -> parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0))
+                .isInstanceOf(AiAnalysisParseException.class)
+                .hasMessageContaining("optimizations[0]");
+    }
+
+    @Test
+    void rejectsInvalidOptimizationType() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\",\"issues\":[],"
+                + "\"missing_indexes_detected\":false,\"affects_row_estimate\":null,"
+                + "\"optimizations\":[{\"type\":\"BOGUS\",\"title\":\"t\",\"rationale\":\"r\",\"sql\":\"s\"}]}";
+
+        assertThatThrownBy(() -> parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0))
+                .isInstanceOf(AiAnalysisParseException.class)
+                .hasMessageContaining("INDEX|REWRITE");
+    }
+
+    @Test
+    void rejectsOptimizationMissingSql() {
+        var json = "{\"risk_score\":10,\"risk_level\":\"LOW\",\"summary\":\"x\",\"issues\":[],"
+                + "\"missing_indexes_detected\":false,\"affects_row_estimate\":null,"
+                + "\"optimizations\":[{\"type\":\"INDEX\",\"title\":\"t\",\"rationale\":\"r\"}]}";
+
+        assertThatThrownBy(() -> parser.parse(json, AiProviderType.ANTHROPIC, "m", 0, 0))
+                .isInstanceOf(AiAnalysisParseException.class)
+                .hasMessageContaining("sql");
+    }
+
+    @Test
+    void optimizationsAsJsonRoundTrips() {
+        var optimizations = List.of(new OptimizationSuggestion(
+                OptimizationType.INDEX, "Add index", "Speeds it up",
+                "CREATE INDEX idx ON t(c)"));
+        var json = parser.optimizationsAsJson(optimizations);
+        assertThat(json).contains("\"type\":\"INDEX\"")
+                .contains("\"title\":\"Add index\"")
+                .contains("\"rationale\":\"Speeds it up\"")
+                .contains("\"sql\":\"CREATE INDEX idx ON t(c)\"");
     }
 }

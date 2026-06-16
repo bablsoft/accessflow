@@ -26,8 +26,8 @@ import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
 import { formatSql } from '@/utils/sqlFormat';
-import { activeSyntax, engineMode } from '@/utils/engineModes';
-import type { QueryTemplate } from '@/types/api';
+import { activeSyntax, engineMode, syntaxForQuery } from '@/utils/engineModes';
+import type { QueryTemplate, SubmissionReason } from '@/types/api';
 import './editor.css';
 
 const EMPTY_SCHEMA = { schemas: [] };
@@ -49,6 +49,7 @@ export function QueryEditorPage() {
   const [syntax, setSyntax] = useState<string | undefined>(undefined);
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
+  const [submissionReason, setSubmissionReason] = useState<SubmissionReason>('USER_SUBMITTED');
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<QueryTemplate | null>(null);
@@ -67,9 +68,21 @@ export function QueryEditorPage() {
 
   const handleSqlChange = (next: string) => {
     setSql(next);
+    // A manual edit clears the "came from an AI suggestion" flag.
+    setSubmissionReason('USER_SUBMITTED');
     if (analyzeMutation.data || analyzeMutation.isError) {
       analyzeMutation.reset();
     }
+  };
+
+  const handleApplySuggestion = (suggestionSql: string) => {
+    // handleSqlChange resets the reason; set the AI flag after it. The user must re-analyze the
+    // applied draft before submitting (analysis was reset), and the flag survives that re-analysis.
+    handleSqlChange(suggestionSql);
+    setSubmissionReason('AI_SUGGESTION');
+    // Mount the editor in the engine's native mode for the applied draft (e.g. MongoDB shell vs
+    // JSON, CQL, Cypher, Query DSL …) so NoSQL suggestions render in the right syntax.
+    setSyntax(syntaxForQuery(ds?.db_type, suggestionSql));
   };
 
   const submitMutation = useMutation({
@@ -79,6 +92,7 @@ export function QueryEditorPage() {
         sql,
         justification,
         scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
+        submission_reason: submissionReason,
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
@@ -291,7 +305,12 @@ export function QueryEditorPage() {
             <ReviewPlanPreview ds={ds} />
           </div>
         </div>
-        <AiHintPanel analyzing={analyzing} analysis={analysis} aiEnabled={ds.ai_analysis_enabled} />
+        <AiHintPanel
+          analyzing={analyzing}
+          analysis={analysis}
+          aiEnabled={ds.ai_analysis_enabled}
+          onApplySuggestion={handleApplySuggestion}
+        />
       </div>
       <QueryTemplatesDrawer
         open={templatesOpen}

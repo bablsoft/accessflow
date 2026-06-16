@@ -437,7 +437,12 @@
     "metadata_model": "Modell",
     "metadata_est_rows": "gesch. Zeilen",
     "metadata_tokens": "Tokens ein/aus",
-    "issue_suggestion_label": "Vorschlag"
+    "issue_suggestion_label": "Vorschlag",
+    "optimizations_count_one": "{{count}} Optimierung",
+    "optimizations_count_other": "{{count}} Optimierungen",
+    "optimization_apply": "Als Entwurf übernehmen",
+    "optimization_rationale_label": "Warum",
+    "optimization_sql_label": "Vorgeschlagenes SQL"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "Automatisch entschieden durch Routing-Richtlinie ({{action}})",
       "matched_policy_body": "Richtlinie \"{{name}}\" — {{reason}}",
       "matched_policy_deleted": "(gelöschte Richtlinie)",
-      "matched_policy_no_reason": "keine Begründung angegeben"
+      "matched_policy_no_reason": "keine Begründung angegeben",
+      "optimizations_title": "Optimierungsvorschläge"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "Integriert (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "Index",
+      "REWRITE": "Umschreiben"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "Vom Benutzer eingereicht",
+      "AI_SUGGESTION": "KI-Vorschlag"
     }
   },
   "access": {

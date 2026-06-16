@@ -437,7 +437,12 @@
     "metadata_model": "model",
     "metadata_est_rows": "est. rows",
     "metadata_tokens": "tokens in/out",
-    "issue_suggestion_label": "Suggestion"
+    "issue_suggestion_label": "Suggestion",
+    "optimizations_count_one": "{{count}} optimization",
+    "optimizations_count_other": "{{count}} optimizations",
+    "optimization_apply": "Apply as draft",
+    "optimization_rationale_label": "Why",
+    "optimization_sql_label": "Suggested SQL"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "Auto-decided by routing policy ({{action}})",
       "matched_policy_body": "Policy \"{{name}}\" — {{reason}}",
       "matched_policy_deleted": "(deleted policy)",
-      "matched_policy_no_reason": "no reason given"
+      "matched_policy_no_reason": "no reason given",
+      "optimizations_title": "Optimization suggestions"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "In-app (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "Index",
+      "REWRITE": "Rewrite"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "User submitted",
+      "AI_SUGGESTION": "AI suggestion"
     }
   },
   "access": {

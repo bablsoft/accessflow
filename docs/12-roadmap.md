@@ -150,6 +150,7 @@
 **Theme:** Data classification, query suggestions, and compliance reporting.
 
 - **Data classification tagging** — mark columns as PII, PCI, PHI in the schema explorer; AI analysis uses tags to increase risk score automatically
+- **AI query-optimization & index recommendations** — the analyzer returns concrete, dialect-aware optimization suggestions (index DDL + query rewrites) alongside the risk verdict; each has a one-click "Apply as draft" that pre-fills the editor and routes the suggested statement through the normal review pipeline, audited as `submission_reason=AI_SUGGESTION` (AF-451)
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts
 - **Saved-query version history & diffing** — every template save records an immutable version; view a side-by-side Git-style diff between any two revisions and restore a prior one, with history preserved (AF-442)
 - **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence

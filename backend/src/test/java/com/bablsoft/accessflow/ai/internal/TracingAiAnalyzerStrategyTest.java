@@ -40,7 +40,7 @@ class TracingAiAnalyzerStrategyTest {
 
     private static AiAnalysisResult result() {
         return new AiAnalysisResult(10, RiskLevel.LOW, "ok", List.of(), false, null,
-                AiProviderType.OPENAI, "gpt-4o", 1, 1);
+                AiProviderType.OPENAI, "gpt-4o", 1, 1, List.of());
     }
 
     @Test

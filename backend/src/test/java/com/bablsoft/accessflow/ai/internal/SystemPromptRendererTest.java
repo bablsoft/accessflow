@@ -23,6 +23,21 @@ class SystemPromptRendererTest {
         assertThat(prompt).contains("\"risk_score\":");
         assertThat(prompt).contains("\"risk_level\":");
         assertThat(prompt).contains("Respond in: English");
+        assertThat(prompt).contains("\"optimizations\":");
+    }
+
+    @Test
+    void optimizationInstructionIsEngineNativeNotSqlOnly() {
+        // The optimization guidance must steer the model to the engine's native query language for
+        // NoSQL engines (AF-451), not assume SQL CREATE INDEX. Substituting {{db_type}} should keep
+        // the per-engine examples that make this work for MongoDB, Neo4j, DynamoDB, etc.
+        var prompt = renderer.render("db.users.find({})", DbType.MONGODB, null, "en");
+
+        assertThat(prompt).contains("Database type: MONGODB");
+        assertThat(prompt).contains("SAME query language as the analyzed query for this MONGODB engine");
+        assertThat(prompt).contains("db.collection.createIndex");
+        assertThat(prompt).contains("CREATE INDEX FOR (n:Label)");
+        assertThat(prompt).contains("Global Secondary Index");
     }
 
     @Test

@@ -34,6 +34,7 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
         entity.setRiskLevel(command.riskLevel());
         entity.setSummary(command.summary());
         entity.setIssues(command.issuesJson());
+        entity.setOptimizations(command.optimizationsJson());
         entity.setMissingIndexesDetected(command.missingIndexesDetected());
         entity.setAffectsRowEstimate(command.affectsRowEstimate());
         entity.setPromptTokens(command.promptTokens());

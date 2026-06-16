@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DB_TYPE_COLOR, activeSyntax, engineMode } from '../engineModes';
+import { DB_TYPE_COLOR, activeSyntax, engineMode, syntaxForQuery } from '../engineModes';
 import type { DbType } from '@/types/api';
 
 const ALL_DB_TYPES: DbType[] = [
@@ -115,5 +115,28 @@ describe('DB_TYPE_COLOR', () => {
     for (const dbType of ALL_DB_TYPES) {
       expect(DB_TYPE_COLOR[dbType], dbType).toBeTruthy();
     }
+  });
+});
+
+describe('syntaxForQuery (AF-451 — engine-native apply)', () => {
+  it('picks MongoDB shell vs JSON by the leading character', () => {
+    expect(syntaxForQuery('MONGODB', 'db.users.createIndex({ email: 1 })')).toBe('shell');
+    expect(syntaxForQuery('MONGODB', '  { "createIndexes": "users" }')).toBe('json');
+  });
+
+  it('returns each NoSQL engine’s single native syntax', () => {
+    expect(syntaxForQuery('CASSANDRA', 'CREATE INDEX ON users(email)')).toBe('cql');
+    expect(syntaxForQuery('SCYLLADB', 'CREATE INDEX ON users(email)')).toBe('cql');
+    expect(syntaxForQuery('NEO4J', 'CREATE INDEX FOR (u:User) ON (u.email)')).toBe('cypher');
+    expect(syntaxForQuery('ELASTICSEARCH', '{ "search": "logs" }')).toBe('query_dsl');
+    expect(syntaxForQuery('REDIS', 'GET user:1')).toBe('cli');
+    expect(syntaxForQuery('COUCHBASE', 'CREATE INDEX ix ON b(email)')).toBe('sqlpp');
+    expect(syntaxForQuery('DYNAMODB', 'SELECT * FROM t')).toBe('partiql');
+  });
+
+  it('returns sql for relational engines and the undefined fallback', () => {
+    expect(syntaxForQuery('POSTGRESQL', 'CREATE INDEX idx ON users(email)')).toBe('sql');
+    expect(syntaxForQuery('MYSQL', 'SELECT 1')).toBe('sql');
+    expect(syntaxForQuery(undefined, 'SELECT 1')).toBe('sql');
   });
 });

@@ -862,6 +862,18 @@ export interface AiIssue {
   line?: number;
 }
 
+export type OptimizationType = 'INDEX' | 'REWRITE';
+
+export interface OptimizationSuggestion {
+  type: OptimizationType;
+  title: string;
+  rationale: string;
+  /** A concrete, dialect-aware statement (index DDL or rewritten query) ready to apply as a draft. */
+  sql: string;
+}
+
+export type SubmissionReason = 'USER_SUBMITTED' | 'AI_SUGGESTION';
+
 export interface AiAnalysis {
   risk_level: RiskLevel;
   risk_score: number;
@@ -870,6 +882,7 @@ export interface AiAnalysis {
   affects_rows?: number;
   prompt_tokens?: number;
   completion_tokens?: number;
+  optimizations?: OptimizationSuggestion[];
 }
 
 export interface GeneratedSql {
@@ -933,6 +946,7 @@ export interface AiAnalysisDetail {
   risk_score: number;
   summary: string;
   issues: AiIssue[];
+  optimizations: OptimizationSuggestion[];
   missing_indexes_detected: boolean;
   affects_row_estimate: number | null;
   ai_provider: string;

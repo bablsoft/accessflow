@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerService;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
+import com.bablsoft.accessflow.ai.api.OptimizationType;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
@@ -114,7 +116,10 @@ class QueryAnalysisControllerIntegrationTest {
         var result = new AiAnalysisResult(85, RiskLevel.HIGH, "DELETE without WHERE",
                 List.of(new AiIssue(RiskLevel.HIGH, "DELETE_WITHOUT_WHERE",
                         "Deletes all rows", "Add a WHERE clause")),
-                false, null, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 100, 50);
+                false, null, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 100, 50,
+                List.of(new OptimizationSuggestion(OptimizationType.REWRITE,
+                        "Restrict the delete", "Avoid deleting every row",
+                        "DELETE FROM users WHERE id = 1")));
         when(aiAnalyzerService.analyzePreview(eq(dsId), eq("DELETE FROM users"),
                 eq(analyst.getId()), any(UUID.class), anyBoolean())).thenReturn(result);
 
@@ -134,6 +139,10 @@ class QueryAnalysisControllerIntegrationTest {
         assertThat(response).bodyJson().extractingPath("$.ai_provider").asString().isEqualTo("ANTHROPIC");
         assertThat(response).bodyJson().extractingPath("$.prompt_tokens").asNumber().isEqualTo(100);
         assertThat(response).bodyJson().extractingPath("$.completion_tokens").asNumber().isEqualTo(50);
+        assertThat(response).bodyJson().extractingPath("$.optimizations[0].type").asString()
+                .isEqualTo("REWRITE");
+        assertThat(response).bodyJson().extractingPath("$.optimizations[0].sql").asString()
+                .isEqualTo("DELETE FROM users WHERE id = 1");
     }
 
     @Test

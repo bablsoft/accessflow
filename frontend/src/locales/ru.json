@@ -437,7 +437,12 @@
     "metadata_model": "модель",
     "metadata_est_rows": "оценка строк",
     "metadata_tokens": "tokens вход/выход",
-    "issue_suggestion_label": "Рекомендация"
+    "issue_suggestion_label": "Рекомендация",
+    "optimizations_count_one": "{{count}} оптимизация",
+    "optimizations_count_other": "{{count}} оптимизаций",
+    "optimization_apply": "Применить как черновик",
+    "optimization_rationale_label": "Почему",
+    "optimization_sql_label": "Предлагаемый SQL"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "Решено автоматически политикой маршрутизации ({{action}})",
       "matched_policy_body": "Политика «{{name}}» — {{reason}}",
       "matched_policy_deleted": "(удалённая политика)",
-      "matched_policy_no_reason": "причина не указана"
+      "matched_policy_no_reason": "причина не указана",
+      "optimizations_title": "Предложения по оптимизации"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "Встроенный (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "Индекс",
+      "REWRITE": "Переписывание"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "Отправлено пользователем",
+      "AI_SUGGESTION": "Предложение ИИ"
     }
   },
   "access": {

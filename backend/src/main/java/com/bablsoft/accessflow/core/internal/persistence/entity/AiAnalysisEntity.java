@@ -59,6 +59,10 @@ public class AiAnalysisEntity {
     @Column(nullable = false, columnDefinition = "jsonb")
     private String issues = "[]";
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String optimizations = "[]";
+
     @Column(name = "missing_indexes_detected", nullable = false)
     private boolean missingIndexesDetected = false;
 

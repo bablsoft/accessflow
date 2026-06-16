@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
+import com.bablsoft.accessflow.ai.api.OptimizationType;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
@@ -115,7 +117,10 @@ class DefaultAiAnalyzerServiceTest {
     private AiAnalysisResult sampleResult() {
         return new AiAnalysisResult(85, RiskLevel.HIGH, "summary",
                 List.of(new AiIssue(RiskLevel.HIGH, "C", "m", "s")),
-                false, null, AiProviderType.ANTHROPIC, "model-x", 100, 50);
+                false, null, AiProviderType.ANTHROPIC, "model-x", 100, 50,
+                List.of(new OptimizationSuggestion(OptimizationType.INDEX,
+                        "Add index on users(email)", "Speeds up the lookup",
+                        "CREATE INDEX idx_users_email ON users(email)")));
     }
 
     @Test
@@ -206,6 +211,8 @@ class DefaultAiAnalyzerServiceTest {
         assertThat(cmd.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
         assertThat(cmd.aiModel()).isEqualTo("model-x");
         assertThat(cmd.riskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(cmd.optimizationsJson()).contains("\"type\":\"INDEX\"")
+                .contains("CREATE INDEX idx_users_email ON users(email)");
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
@@ -348,5 +355,6 @@ class DefaultAiAnalyzerServiceTest {
         verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), captor.capture());
         assertThat(captor.getValue().aiModel()).isEqualTo("unknown");
         assertThat(captor.getValue().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
+        assertThat(captor.getValue().optimizationsJson()).isEqualTo("[]");
     }
 }

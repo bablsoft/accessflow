@@ -39,7 +39,7 @@ class DefaultAiAnalysisPersistenceServiceTest {
 
         var command = new PersistAiAnalysisCommand(
                 AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 75, RiskLevel.HIGH,
-                "summary", "[{\"severity\":\"HIGH\"}]", false, 1000L, 120, 80,
+                "summary", "[{\"severity\":\"HIGH\"}]", "[{\"type\":\"INDEX\"}]", false, 1000L, 120, 80,
                 false, null);
 
         var id = service.persist(queryRequestId, command);
@@ -55,6 +55,7 @@ class DefaultAiAnalysisPersistenceServiceTest {
         assertThat(saved.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(saved.getSummary()).isEqualTo("summary");
         assertThat(saved.getIssues()).isEqualTo("[{\"severity\":\"HIGH\"}]");
+        assertThat(saved.getOptimizations()).isEqualTo("[{\"type\":\"INDEX\"}]");
         assertThat(saved.isMissingIndexesDetected()).isFalse();
         assertThat(saved.getAffectsRowEstimate()).isEqualTo(1000L);
         assertThat(saved.getPromptTokens()).isEqualTo(120);
@@ -75,7 +76,7 @@ class DefaultAiAnalysisPersistenceServiceTest {
 
         var command = new PersistAiAnalysisCommand(
                 AiProviderType.ANTHROPIC, "unknown", 100, RiskLevel.CRITICAL,
-                "AI analysis failed: provider unavailable", "[]", false, null, 0, 0,
+                "AI analysis failed: provider unavailable", "[]", "[]", false, null, 0, 0,
                 true, "provider unavailable");
 
         service.persist(queryRequestId, command);
@@ -133,7 +134,7 @@ class DefaultAiAnalysisPersistenceServiceTest {
         when(queryRequestRepository.findById(queryRequestId)).thenReturn(Optional.empty());
 
         var command = new PersistAiAnalysisCommand(
-                AiProviderType.ANTHROPIC, "model", 0, RiskLevel.LOW, "ok", "[]", false, null, 0, 0,
+                AiProviderType.ANTHROPIC, "model", 0, RiskLevel.LOW, "ok", "[]", "[]", false, null, 0, 0,
                 false, null);
 
         assertThatThrownBy(() -> service.persist(queryRequestId, command))

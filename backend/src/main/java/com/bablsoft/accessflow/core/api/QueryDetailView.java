@@ -39,6 +39,7 @@ public record QueryDetailView(
             int riskScore,
             String summary,
             String issuesJson,
+            String optimizationsJson,
             boolean missingIndexesDetected,
             Long affectsRowEstimate,
             AiProviderType aiProvider,

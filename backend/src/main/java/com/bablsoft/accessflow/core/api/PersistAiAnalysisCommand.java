@@ -7,6 +7,7 @@ public record PersistAiAnalysisCommand(
         RiskLevel riskLevel,
         String summary,
         String issuesJson,
+        String optimizationsJson,
         boolean missingIndexesDetected,
         Long affectsRowEstimate,
         int promptTokens,

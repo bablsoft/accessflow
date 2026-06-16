@@ -437,7 +437,12 @@
     "metadata_model": "模型",
     "metadata_est_rows": "预估行数",
     "metadata_tokens": "输入/输出 tokens",
-    "issue_suggestion_label": "建议"
+    "issue_suggestion_label": "建议",
+    "optimizations_count_one": "{{count}} 项优化",
+    "optimizations_count_other": "{{count}} 项优化",
+    "optimization_apply": "应用为草稿",
+    "optimization_rationale_label": "原因",
+    "optimization_sql_label": "建议的 SQL"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "由路由策略自动决定（{{action}}）",
       "matched_policy_body": "策略“{{name}}” — {{reason}}",
       "matched_policy_deleted": "（已删除的策略）",
-      "matched_policy_no_reason": "未提供原因"
+      "matched_policy_no_reason": "未提供原因",
+      "optimizations_title": "优化建议"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "内置 (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "索引",
+      "REWRITE": "重写"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "用户提交",
+      "AI_SUGGESTION": "AI 建议"
     }
   },
   "access": {

@@ -241,6 +241,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getRiskScore(),
                 entity.getSummary(),
                 entity.getIssues(),
+                entity.getOptimizations(),
                 entity.isMissingIndexesDetected(),
                 entity.getAffectsRowEstimate(),
                 entity.getAiProvider(),
