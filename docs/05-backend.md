@@ -896,7 +896,7 @@ identifies the specific `ai_config` row to use — resolved upstream from the da
 Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
 them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
 autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring AI 2.0
-(`spring-ai-bom:2.0.0-RC2` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`).
+(`spring-ai-bom:2.0.0` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`).
 `OpenAiAnalyzerStrategy` is reused for three providers (`OPENAI`, `OPENAI_COMPATIBLE`,
 `HUGGING_FACE`) since they share the OpenAI chat-completions wire format:
 
