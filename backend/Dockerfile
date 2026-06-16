@@ -5,10 +5,10 @@
 FROM maven:3-eclipse-temurin-25-alpine AS build
 WORKDIR /workspace
 COPY backend/pom.xml ./
-RUN mvn -B -q -DskipTests dependency:go-offline
+RUN mvn -B -q -DskipTests -Dmaven.test.skip=true dependency:go-offline
 COPY backend/src src
 COPY connectors /workspace/connectors
-RUN mvn -B -DskipTests -Dconnectors.dir=/workspace/connectors package && \
+RUN mvn -B -DskipTests -Dmaven.test.skip=true -Dconnectors.dir=/workspace/connectors package && \
     mv target/*-exec.jar target/app.jar
 
 FROM eclipse-temurin:25-jre-alpine
