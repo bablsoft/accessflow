@@ -107,6 +107,19 @@ const sampleAnalysis: AiAnalysis = {
   completion_tokens: 80,
 };
 
+const INDEX_DDL = 'CREATE INDEX idx_users_email ON users(email)';
+const analysisWithOptimization: AiAnalysis = {
+  ...sampleAnalysis,
+  optimizations: [
+    {
+      type: 'INDEX',
+      title: 'Add index on users(email)',
+      rationale: 'The WHERE clause filters on email.',
+      sql: INDEX_DDL,
+    },
+  ],
+};
+
 function page(content: Datasource[]): PaginatedResponse<Datasource> {
   return {
     content,
@@ -251,6 +264,95 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     });
 
     expect(findSubmitButton()).not.toBeDisabled();
+  });
+
+  it('applies an optimization suggestion into the editor and submits as AI_SUGGESTION', async () => {
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
+    analyzeOnlyMock.mockResolvedValue(analysisWithOptimization);
+    submitQueryMock.mockResolvedValue({
+      id: 'qr-100',
+      status: 'PENDING_AI',
+      ai_analysis: null,
+      review_plan: null,
+      estimated_review_completion: null,
+    });
+
+    render(wrap(<QueryEditorPage />));
+
+    await findAnalyzeButton();
+    const editor = screen.getByLabelText('sql-editor');
+    fireEvent.change(editor, { target: { value: 'select * from users where email = $1' } });
+
+    await act(async () => {
+      fireEvent.click(await findAnalyzeButton());
+    });
+    await waitFor(() => expect(findSubmitButton()).not.toBeDisabled());
+
+    // Expand the optimization card, then apply it.
+    fireEvent.click(screen.getByText('Add index on users(email)'));
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Apply as draft/i }));
+    });
+
+    // Editor is pre-filled with the suggestion; submit re-gates until re-analysis.
+    expect((editor as HTMLTextAreaElement).value).toBe(INDEX_DDL);
+    await waitFor(() => expect(findSubmitButton()).toBeDisabled());
+
+    // Re-analyze the applied draft, then submit.
+    await act(async () => {
+      fireEvent.click(await findAnalyzeButton());
+    });
+    await waitFor(() => expect(findSubmitButton()).not.toBeDisabled());
+    await act(async () => {
+      fireEvent.click(findSubmitButton());
+    });
+
+    await waitFor(() => expect(submitQueryMock).toHaveBeenCalled());
+    expect(submitQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sql: INDEX_DDL, submission_reason: 'AI_SUGGESTION' }),
+    );
+  });
+
+  it('resets the AI_SUGGESTION flag to USER_SUBMITTED after a manual edit', async () => {
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
+    analyzeOnlyMock.mockResolvedValue(analysisWithOptimization);
+    submitQueryMock.mockResolvedValue({
+      id: 'qr-101',
+      status: 'PENDING_AI',
+      ai_analysis: null,
+      review_plan: null,
+      estimated_review_completion: null,
+    });
+
+    render(wrap(<QueryEditorPage />));
+
+    await findAnalyzeButton();
+    const editor = screen.getByLabelText('sql-editor');
+    fireEvent.change(editor, { target: { value: 'select 1' } });
+    await act(async () => {
+      fireEvent.click(await findAnalyzeButton());
+    });
+    await waitFor(() => expect(findSubmitButton()).not.toBeDisabled());
+
+    fireEvent.click(screen.getByText('Add index on users(email)'));
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Apply as draft/i }));
+    });
+
+    // A manual edit after applying clears the AI origin.
+    fireEvent.change(editor, { target: { value: INDEX_DDL + ' -- tweaked' } });
+    await act(async () => {
+      fireEvent.click(await findAnalyzeButton());
+    });
+    await waitFor(() => expect(findSubmitButton()).not.toBeDisabled());
+    await act(async () => {
+      fireEvent.click(findSubmitButton());
+    });
+
+    await waitFor(() => expect(submitQueryMock).toHaveBeenCalled());
+    expect(submitQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ submission_reason: 'USER_SUBMITTED' }),
+    );
   });
 
   it('treats ai_config_id=null as "AI not supported" even when ai_analysis_enabled=true', async () => {

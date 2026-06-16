@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -13,9 +14,11 @@ import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.QuerySubmissionResult;
+import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
@@ -37,6 +40,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
@@ -124,6 +128,28 @@ class QuerySubmissionControllerIntegrationTest {
         assertThat(response).bodyJson().extractingPath("$.ai_analysis").isNull();
         assertThat(response).bodyJson().extractingPath("$.review_plan").isNull();
         assertThat(response).bodyJson().extractingPath("$.estimated_review_completion").isNull();
+
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().submissionReason()).isEqualTo(SubmissionReason.USER_SUBMITTED);
+    }
+
+    @Test
+    void submitWithAiSuggestionReasonPropagatesToService() {
+        when(querySubmissionService.submit(any()))
+                .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
+
+        var response = mvc.post().uri("/api/v1/queries")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(("{\"datasource_id\":\"%s\",\"sql\":\"CREATE INDEX idx ON users(email)\","
+                        + "\"submission_reason\":\"AI_SUGGESTION\"}").formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().submissionReason()).isEqualTo(SubmissionReason.AI_SUGGESTION);
     }
 
     @Test

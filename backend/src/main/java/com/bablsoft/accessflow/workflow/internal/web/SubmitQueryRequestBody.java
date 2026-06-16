@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,5 +14,6 @@ public record SubmitQueryRequestBody(
         @NotBlank(message = "{validation.sql.required}")
         @Size(max = 100_000, message = "{validation.sql.max}") String sql,
         @Size(max = 4000, message = "{validation.justification.max}") String justification,
-        @Future(message = "{validation.scheduled_for.future}") Instant scheduledFor) {
+        @Future(message = "{validation.scheduled_for.future}") Instant scheduledFor,
+        SubmissionReason submissionReason) {
 }

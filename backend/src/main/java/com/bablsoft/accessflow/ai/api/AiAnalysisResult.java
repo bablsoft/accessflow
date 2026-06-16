@@ -15,5 +15,6 @@ public record AiAnalysisResult(
         AiProviderType aiProvider,
         String aiModel,
         int promptTokens,
-        int completionTokens) {
+        int completionTokens,
+        List<OptimizationSuggestion> optimizations) {
 }

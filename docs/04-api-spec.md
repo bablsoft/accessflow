@@ -855,13 +855,16 @@ Synchronous.
   "datasource_id": "uuid",
   "sql": "UPDATE orders SET status = 'shipped' WHERE id = 123",
   "justification": "Customer support ticket #8821 — order stuck in processing",
-  "scheduled_for": "2026-06-01T03:00:00Z"
+  "scheduled_for": "2026-06-01T03:00:00Z",
+  "submission_reason": "USER_SUBMITTED"
 }
 ```
 
 The `sql` field carries the query text for **every** engine. For a `MONGODB` datasource it holds a MongoDB query in either the shell form (`db.users.find({ age: { $gt: 21 } })`) or a JSON command document (`{ "find": "users", "filter": { … } }`); the backend auto-detects the form. For a `COUCHBASE` datasource it holds a single SQL++ (N1QL) statement (`SELECT name FROM users WHERE age > 21`). The same field powers `POST /queries/analyze` (risk analysis works unchanged for both); `POST /queries/generate-sql` (text-to-query, AF-439) is offered for **every** engine — for MongoDB it drafts a shell/JSON query, for Couchbase a SQL++ statement. Results for both engines are served by the standard `GET /queries/{id}/results` payload (columns = the union of top-level document fields; nested values preserved) — the frontend renders that same payload as either a flattened table or reconstructed JSON documents.
 
 `scheduled_for` is optional. When supplied it must be a valid ISO-8601 timestamp strictly in the future (enforced by `@Future` Bean Validation — invalid values produce HTTP 400). When set, the query still goes through the normal AI / review flow; the difference comes after approval: instead of waiting for a manual `POST /queries/{id}/execute`, the backend's `ScheduledQueryRunJob` (cluster-locked via ShedLock) picks the row up at `scheduled_for ≤ now()` and triggers execution as a system-initiated action — the submitter is recorded as the audit actor and the audit metadata carries `"trigger": "scheduled"`. While the query is `APPROVED` with a future `scheduled_for`, the submitter may cancel it via `POST /queries/{id}/cancel` (transitions to `CANCELLED`).
+
+`submission_reason` is optional (default `USER_SUBMITTED`; the other value is `AI_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451). It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint.
 
 ### POST /queries — Response 202 Accepted
 
@@ -958,6 +961,7 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "risk_level": "MEDIUM",
     "summary": "Single-row UPDATE with indexed WHERE clause. No issues detected.",
     "issues": [],
+    "optimizations": [],
     "missing_indexes_detected": false,
     "affects_row_estimate": 1,
     "failed": false,
@@ -1111,9 +1115,19 @@ Each delta is `current - previous`. A positive value means the new run returned 
     }
   ],
   "missing_indexes_detected": false,
-  "affects_row_estimate": null
+  "affects_row_estimate": null,
+  "optimizations": [
+    {
+      "type": "REWRITE",
+      "title": "Select explicit columns instead of *",
+      "rationale": "Avoids returning sensitive columns and reduces payload size.",
+      "sql": "SELECT id, name, email FROM users LIMIT 1000"
+    }
+  ]
 }
 ```
+
+`optimizations` (AF-451) carries concrete, dialect-aware suggestions — `type` is `INDEX` (an index-definition statement) or `REWRITE` (an equivalent, more efficient query). Each `sql` is a ready-to-run statement the editor can load via the **"Apply as draft"** button; applying it pre-fills the editor and the user submits it through `POST /queries` with `submission_reason=AI_SUGGESTION`. The array is empty when the model finds no worthwhile optimization (and on older / custom analyzer prompts that omit the field). The same `optimizations` array appears on the persisted analysis in `GET /queries/{id}`.
 
 ### POST /queries/generate-sql — Request Body
 

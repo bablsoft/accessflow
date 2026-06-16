@@ -484,6 +484,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
 | `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
+| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
 | `execution_started_at` | TIMESTAMPTZ nullable |
@@ -530,6 +531,7 @@ Stores the result of an AI analysis run for a query request.
 | `risk_level` | ENUM: `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` |
 | `summary` | TEXT — short human-readable analysis summary |
 | `issues` | JSONB — array of `{ severity, category, message, suggestion }` |
+| `optimizations` | JSONB DEFAULT `'[]'` (AF-451) — array of `{ type (`INDEX`\|`REWRITE`), title, rationale, sql }`. Concrete, dialect-aware optimization suggestions; `sql` is a ready-to-run index DDL or rewritten query the editor can "Apply as draft". Empty array when none. |
 | `missing_indexes_detected` | BOOLEAN |
 | `affects_row_estimate` | BIGINT nullable — estimated rows impacted |
 | `prompt_tokens` | INTEGER |

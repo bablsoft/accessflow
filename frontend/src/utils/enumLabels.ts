@@ -9,6 +9,7 @@ import type {
   InvitationStatus,
   MaskingStrategy,
   OAuth2Provider,
+  OptimizationType,
   QueryStatus,
   QueryTemplateChangeType,
   QueryType,
@@ -20,6 +21,7 @@ import type {
   RowSecurityOperator,
   RowSecurityValueType,
   SslMode,
+  SubmissionReason,
   Weekday,
 } from '@/types/api';
 
@@ -43,6 +45,14 @@ export const queryTypeLabel = (t: TFunction, v: QueryType): string =>
 
 export const queryTemplateChangeLabel = (t: TFunction, v: QueryTemplateChangeType): string =>
   t(`enums.query_template_change_type.${v}` as const);
+
+export const OPTIMIZATION_TYPES: readonly OptimizationType[] = ['INDEX', 'REWRITE'] as const;
+
+export const optimizationTypeLabel = (t: TFunction, v: OptimizationType): string =>
+  t(`enums.optimization_type.${v}` as const);
+
+export const submissionReasonLabel = (t: TFunction, v: SubmissionReason): string =>
+  t(`enums.submission_reason.${v}` as const);
 
 export const riskLevelLabel = (t: TFunction, v: RiskLevel): string =>
   t(`enums.risk_level.${v}` as const);

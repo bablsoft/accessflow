@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
@@ -66,6 +67,9 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
             verifyPermission(input.submitterUserId(), datasource.id(), parsed.type(),
                     parsed.referencedTables());
         }
+        var submissionReason = input.submissionReason() != null
+                ? input.submissionReason()
+                : SubmissionReason.USER_SUBMITTED;
         var id = queryRequestPersistenceService.submit(new SubmitQueryCommand(
                 datasource.id(),
                 input.submitterUserId(),
@@ -73,7 +77,8 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
                 parsed.type(),
                 parsed.transactional(),
                 input.justification(),
-                input.scheduledFor()));
+                input.scheduledFor(),
+                submissionReason));
         eventPublisher.publishEvent(new QuerySubmittedEvent(id));
         return new QuerySubmissionResult(id, QueryStatus.PENDING_AI);
     }

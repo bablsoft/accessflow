@@ -10,6 +10,7 @@ import type {
   QueryResultsPage,
   QueryStatus,
   QueryType,
+  SubmissionReason,
   SubmitQueryResponse,
 } from '@/types/api';
 
@@ -20,6 +21,7 @@ export interface SubmitQueryInput {
   sql: string;
   justification: string;
   scheduled_for?: string | null;
+  submission_reason?: SubmissionReason;
 }
 
 export interface AnalyzeQueryInput {

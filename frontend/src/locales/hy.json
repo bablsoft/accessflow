@@ -437,7 +437,12 @@
     "metadata_model": "մոդել",
     "metadata_est_rows": "գնահ. տողեր",
     "metadata_tokens": "tokens մուտք/ելք",
-    "issue_suggestion_label": "Առաջարկ"
+    "issue_suggestion_label": "Առաջարկ",
+    "optimizations_count_one": "{{count}} օպտիմիզացում",
+    "optimizations_count_other": "{{count}} օպտիմիզացում",
+    "optimization_apply": "Կիրառել որպես սևագիր",
+    "optimization_rationale_label": "Ինչու",
+    "optimization_sql_label": "Առաջարկվող SQL"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "Ավտոմատ որոշվել է երթուղավորման քաղաքականությամբ ({{action}})",
       "matched_policy_body": "Քաղաքականություն «{{name}}» — {{reason}}",
       "matched_policy_deleted": "(ջնջված քաղաքականություն)",
-      "matched_policy_no_reason": "պատճառ նշված չէ"
+      "matched_policy_no_reason": "պատճառ նշված չէ",
+      "optimizations_title": "Օպտիմիզացման առաջարկներ"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "Ներկառուցված (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "Ինդեքս",
+      "REWRITE": "Վերաշարադրում"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "Ուղարկված օգտատիրոջ կողմից",
+      "AI_SUGGESTION": "ԱԲ-ի առաջարկ"
     }
   },
   "access": {

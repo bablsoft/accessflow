@@ -26,7 +26,7 @@ class QueryDetailResponseTest {
         var aiId = UUID.randomUUID();
         var ai = new QueryDetailView.AiAnalysisDetail(
                 aiId, RiskLevel.MEDIUM, 42, "summary",
-                "[{\"severity\":\"HIGH\"}]", true, 17L,
+                "[{\"severity\":\"HIGH\"}]", "[{\"type\":\"INDEX\"}]", true, 17L,
                 AiProviderType.ANTHROPIC, "claude-sonnet-4", 100, 50,
                 false, null);
         var reviewerId = UUID.randomUUID();
@@ -88,6 +88,7 @@ class QueryDetailResponseTest {
         assertThat(aiOut.riskScore()).isEqualTo(42);
         assertThat(aiOut.summary()).isEqualTo("summary");
         assertThat(aiOut.issues()).isEqualTo("[{\"severity\":\"HIGH\"}]");
+        assertThat(aiOut.optimizations()).isEqualTo("[{\"type\":\"INDEX\"}]");
         assertThat(aiOut.missingIndexesDetected()).isTrue();
         assertThat(aiOut.affectsRowEstimate()).isEqualTo(17L);
         assertThat(aiOut.aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
@@ -103,7 +104,7 @@ class QueryDetailResponseTest {
         var ai = new QueryDetailView.AiAnalysisDetail(
                 UUID.randomUUID(), RiskLevel.CRITICAL, 100,
                 "AI analysis failed: provider unavailable",
-                "[]", false, null,
+                "[]", "[]", false, null,
                 AiProviderType.ANTHROPIC, "unknown", 0, 0,
                 true, "provider unavailable");
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
@@ -181,7 +182,7 @@ class QueryDetailResponseTest {
     void aiAnalysisDetailFallsBackToEmptyArrayWhenIssuesJsonIsNull() {
         var ai = new QueryDetailView.AiAnalysisDetail(
                 UUID.randomUUID(), RiskLevel.LOW, 5, "ok",
-                null, false, null,
+                null, null, false, null,
                 AiProviderType.OPENAI, "gpt-4o", 0, 0,
                 false, null);
         var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
@@ -196,5 +197,6 @@ class QueryDetailResponseTest {
         var response = QueryDetailResponse.from(view);
 
         assertThat(response.aiAnalysis().issues()).isEqualTo("[]");
+        assertThat(response.aiAnalysis().optimizations()).isEqualTo("[]");
     }
 }

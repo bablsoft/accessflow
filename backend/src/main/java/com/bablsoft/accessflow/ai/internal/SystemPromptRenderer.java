@@ -38,10 +38,20 @@ class SystemPromptRenderer {
                 }
               ],
               "missing_indexes_detected": <boolean>,
-              "affects_row_estimate": <integer or null>
+              "affects_row_estimate": <integer or null>,
+              "optimizations": [
+                {
+                  "type": <"INDEX"|"REWRITE">,
+                  "title": <string — short imperative summary, e.g. "Add index on orders(customer_id)">,
+                  "rationale": <string — why it helps, referencing the query and schema>,
+                  "sql": <string — one concrete, runnable statement in the {{db_type}} dialect>
+                }
+              ]
             }
 
             Columns marked *RESTRICTED* in the schema context are sensitive and the values returned for them are masked at the proxy layer. If the SQL references any *RESTRICTED* column (in SELECT, WHERE, JOIN, ORDER BY, INSERT, UPDATE, or DELETE), add an issue with category="RESTRICTED_COLUMN_ACCESS" and severity="LOW" summarizing which restricted columns are touched. Do NOT raise the overall risk_level above MEDIUM solely for this reason — this is informational, not a blocker.
+
+            Optimization suggestions: when the query would benefit from an index or a rewrite, populate "optimizations". Every "sql" value MUST be a single statement in the SAME query language as the analyzed query for this {{db_type}} engine — NOT necessarily SQL. For type="INDEX", give the engine's native index-definition statement (SQL / SQL++ / CQL: CREATE INDEX …; Neo4j Cypher: CREATE INDEX FOR (n:Label) ON (n.prop); MongoDB: db.collection.createIndex({…}); DynamoDB: a Global Secondary Index definition; Elasticsearch: a mapping / field change) — for engines without secondary indexes (e.g. Redis) omit INDEX suggestions and prefer a REWRITE. For type="REWRITE", give a complete, runnable, more-efficient version of the query in that same language (e.g. replace SELECT * with the needed columns, add a sargable predicate, remove a redundant subquery; for Cassandra/CQL restrict to partition & clustering keys; for MongoDB add an indexable filter/projection; for Elasticsearch use filter context on keyword fields). Reference only objects present in the schema context; never invent names. Suggest at most 3, ordered by impact. If there is no worthwhile optimization, return "optimizations": [].
 
             Database type: {{db_type}}
             Schema context: {{schema_context}}

@@ -2,12 +2,14 @@ import { CheckOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { AiAnalysis } from '@/types/api';
 import { IssueCard } from './IssueCard';
+import { OptimizationCard } from './OptimizationCard';
 import { fmtNum } from '@/utils/dateFormat';
 
 interface AiHintPanelProps {
   analyzing: boolean;
   analysis: AiAnalysis | null;
   aiEnabled: boolean;
+  onApplySuggestion?: (sql: string) => void;
 }
 
 const riskBg = (level: AiAnalysis['risk_level']) => {
@@ -19,7 +21,12 @@ const riskBg = (level: AiAnalysis['risk_level']) => {
   }
 };
 
-export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps) {
+export function AiHintPanel({
+  analyzing,
+  analysis,
+  aiEnabled,
+  onApplySuggestion,
+}: AiHintPanelProps) {
   const { t } = useTranslation();
   return (
     <div
@@ -162,6 +169,28 @@ export function AiHintPanel({ analyzing, analysis, aiEnabled }: AiHintPanelProps
                 }}
               >
                 <CheckOutlined /> {t('ai_panel.no_issues')}
+              </div>
+            )}
+
+            {analysis.optimizations && analysis.optimizations.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div
+                  className="muted"
+                  style={{
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}
+                >
+                  {t('ai_panel.optimizations_count', { count: analysis.optimizations.length })}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {analysis.optimizations.map((opt, i) => (
+                    <OptimizationCard key={i} optimization={opt} onApply={onApplySuggestion} />
+                  ))}
+                </div>
               </div>
             )}
 

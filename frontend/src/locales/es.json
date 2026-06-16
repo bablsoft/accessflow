@@ -437,7 +437,12 @@
     "metadata_model": "modelo",
     "metadata_est_rows": "filas est.",
     "metadata_tokens": "tokens entrada/salida",
-    "issue_suggestion_label": "Sugerencia"
+    "issue_suggestion_label": "Sugerencia",
+    "optimizations_count_one": "{{count}} optimización",
+    "optimizations_count_other": "{{count}} optimizaciones",
+    "optimization_apply": "Aplicar como borrador",
+    "optimization_rationale_label": "Por qué",
+    "optimization_sql_label": "SQL sugerido"
   },
   "queries": {
     "list": {
@@ -544,7 +549,8 @@
       "matched_policy_title": "Decidido automáticamente por la política de enrutamiento ({{action}})",
       "matched_policy_body": "Política \"{{name}}\" — {{reason}}",
       "matched_policy_deleted": "(política eliminada)",
-      "matched_policy_no_reason": "sin motivo indicado"
+      "matched_policy_no_reason": "sin motivo indicado",
+      "optimizations_title": "Sugerencias de optimización"
     }
   },
   "reviews": {
@@ -1954,6 +1960,14 @@
     "rag_store_type": {
       "PGVECTOR": "Integrado (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "optimization_type": {
+      "INDEX": "Índice",
+      "REWRITE": "Reescritura"
+    },
+    "submission_reason": {
+      "USER_SUBMITTED": "Enviado por el usuario",
+      "AI_SUGGESTION": "Sugerencia de IA"
     }
   },
   "access": {

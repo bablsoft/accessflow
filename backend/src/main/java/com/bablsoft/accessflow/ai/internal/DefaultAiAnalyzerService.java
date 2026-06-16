@@ -117,9 +117,10 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             var result = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
                     resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
             var issuesJson = responseParser.issuesAsJson(result.issues());
+            var optimizationsJson = responseParser.optimizationsAsJson(result.optimizations());
             var command = new PersistAiAnalysisCommand(
                     result.aiProvider(), result.aiModel(), result.riskScore(), result.riskLevel(),
-                    result.summary(), issuesJson, result.missingIndexesDetected(),
+                    result.summary(), issuesJson, optimizationsJson, result.missingIndexesDetected(),
                     result.affectsRowEstimate(), result.promptTokens(), result.completionTokens(),
                     false, null);
             var analysisId = aiAnalysisPersistenceService.persist(queryRequestId, command);
@@ -161,7 +162,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         var fallback = resolveSentinelConfig(aiConfigId);
         var command = new PersistAiAnalysisCommand(
                 fallback.provider(), fallback.model(), 100, RiskLevel.CRITICAL,
-                "AI analysis failed: " + reason, "[]", false, null, 0, 0,
+                "AI analysis failed: " + reason, "[]", "[]", false, null, 0, 0,
                 true, reason);
         try {
             aiAnalysisPersistenceService.persist(queryRequestId, command);

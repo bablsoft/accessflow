@@ -44,7 +44,7 @@ class DefaultLangfuseTracerTest {
 
     private static AiAnalysisResult result() {
         return new AiAnalysisResult(42, RiskLevel.MEDIUM, "summary", List.of(), false, null,
-                AiProviderType.OPENAI, "gpt-4o", 100, 20);
+                AiProviderType.OPENAI, "gpt-4o", 100, 20, List.of());
     }
 
     private static LangfuseTraceContext successCtx() {

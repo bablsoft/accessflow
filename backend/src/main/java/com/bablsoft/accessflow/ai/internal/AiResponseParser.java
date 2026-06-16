@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
+import com.bablsoft.accessflow.ai.api.OptimizationType;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import org.springframework.stereotype.Component;
@@ -51,9 +53,10 @@ class AiResponseParser {
         Long affects = parseNullableLong(root, "affects_row_estimate");
 
         var issues = parseIssues(root.get("issues"));
+        var optimizations = parseOptimizations(root.get("optimizations"));
 
         return new AiAnalysisResult(riskScore, riskLevel, summary, issues, missingIndexes,
-                affects, provider, model, promptTokens, completionTokens);
+                affects, provider, model, promptTokens, completionTokens, optimizations);
     }
 
     String issuesAsJson(List<AiIssue> issues) {
@@ -61,6 +64,14 @@ class AiResponseParser {
             return objectMapper.writeValueAsString(issues);
         } catch (RuntimeException e) {
             throw new AiAnalysisParseException("Failed to serialize issues: " + e.getMessage(), e);
+        }
+    }
+
+    String optimizationsAsJson(List<OptimizationSuggestion> optimizations) {
+        try {
+            return objectMapper.writeValueAsString(optimizations);
+        } catch (RuntimeException e) {
+            throw new AiAnalysisParseException("Failed to serialize optimizations: " + e.getMessage(), e);
         }
     }
 
@@ -141,5 +152,39 @@ class AiResponseParser {
                     requireText(item, "suggestion")));
         }
         return out;
+    }
+
+    private static List<OptimizationSuggestion> parseOptimizations(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            throw new AiAnalysisParseException("Field 'optimizations' must be an array");
+        }
+        var out = new ArrayList<OptimizationSuggestion>();
+        for (int i = 0; i < node.size(); i++) {
+            var item = node.get(i);
+            if (!item.isObject()) {
+                throw new AiAnalysisParseException("optimizations[" + i + "] must be an object");
+            }
+            out.add(new OptimizationSuggestion(
+                    parseOptimizationType(item, "type"),
+                    requireText(item, "title"),
+                    requireText(item, "rationale"),
+                    requireText(item, "sql")));
+        }
+        return out;
+    }
+
+    private static OptimizationType parseOptimizationType(JsonNode node, String field) {
+        var v = node.get(field);
+        if (v == null || v.isNull() || !v.isString()) {
+            throw new AiAnalysisParseException("Field '" + field + "' must be a string");
+        }
+        try {
+            return OptimizationType.valueOf(v.stringValue());
+        } catch (IllegalArgumentException e) {
+            throw new AiAnalysisParseException("Field '" + field + "' must be one of INDEX|REWRITE");
+        }
     }
 }

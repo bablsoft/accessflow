@@ -24,6 +24,7 @@ import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { SqlBlock } from '@/components/common/SqlBlock';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { IssueCard } from '@/components/editor/IssueCard';
+import { OptimizationCard } from '@/components/editor/OptimizationCard';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { routingActionLabel } from '@/utils/enumLabels';
@@ -449,6 +450,31 @@ export function QueryDetailPage() {
                   >
                     {query.ai_analysis.issues.map((iss, i) => (
                       <IssueCard key={i} issue={iss} />
+                    ))}
+                  </div>
+                )}
+                {query.ai_analysis && query.ai_analysis.optimizations.length > 0 && (
+                  <div
+                    style={{
+                      padding: '0 14px 14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      className="muted"
+                      style={{
+                        fontSize: 11,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {t('queries.detail.optimizations_title')}
+                    </div>
+                    {query.ai_analysis.optimizations.map((opt, i) => (
+                      <OptimizationCard key={i} optimization={opt} />
                     ))}
                   </div>
                 )}

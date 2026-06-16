@@ -158,7 +158,8 @@ class AiAnalysisListenerIntegrationTest {
     void onSubmittedPersistsAnalysisAndLinksQueryRequest() {
         var result = new AiAnalysisResult(85, RiskLevel.HIGH, "DELETE without WHERE",
                 List.of(new AiIssue(RiskLevel.HIGH, "DELETE_WITHOUT_WHERE", "msg", "fix")),
-                false, 1000L, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 100, 50);
+                false, 1000L, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 100, 50,
+                List.of());
         when(strategy.analyze(any(), any(), any(), any(), any())).thenReturn(result);
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->

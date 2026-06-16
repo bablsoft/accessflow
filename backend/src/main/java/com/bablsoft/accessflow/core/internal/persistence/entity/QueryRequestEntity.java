@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.core.internal.persistence.entity;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -51,6 +52,11 @@ public class QueryRequestEntity {
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "query_status")
     private QueryStatus status = QueryStatus.PENDING_AI;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "submission_reason", nullable = false, columnDefinition = "submission_reason")
+    private SubmissionReason submissionReason = SubmissionReason.USER_SUBMITTED;
 
     @Column(columnDefinition = "text")
     private String justification;

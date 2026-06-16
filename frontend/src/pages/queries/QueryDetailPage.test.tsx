@@ -85,6 +85,7 @@ function failedQuery(): QueryDetail {
       risk_score: 100,
       summary: 'AI analysis failed: provider unavailable',
       issues: [],
+      optimizations: [],
       missing_indexes_detected: false,
       affects_row_estimate: null,
       ai_provider: 'ANTHROPIC',
@@ -237,6 +238,30 @@ describe('QueryDetailPage — AI failure surface (AF-249)', () => {
 
     expect(await screen.findByText('looks fine')).toBeInTheDocument();
     expect(screen.queryByText(/Review is proceeding without an AI recommendation/i)).toBeNull();
+  });
+
+  it('renders optimization suggestions read-only (no Apply button)', async () => {
+    setUser('REVIEWER');
+    const ok = failedQuery();
+    ok.ai_analysis = {
+      ...ok.ai_analysis!,
+      failed: false,
+      error_message: null,
+      optimizations: [
+        {
+          type: 'INDEX',
+          title: 'Add index on users(email)',
+          rationale: 'Speeds up the lookup.',
+          sql: 'CREATE INDEX idx_users_email ON users(email)',
+        },
+      ],
+    };
+    getQueryMock.mockResolvedValue(ok);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Add index on users(email)')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Apply as draft/i })).toBeNull();
   });
 });
 

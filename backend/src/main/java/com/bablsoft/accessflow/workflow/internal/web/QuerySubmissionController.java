@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
@@ -45,6 +46,9 @@ class QuerySubmissionController {
                                                Authentication authentication,
                                                RequestAuditContext auditContext) {
         var caller = (JwtClaims) authentication.getPrincipal();
+        var submissionReason = body.submissionReason() != null
+                ? body.submissionReason()
+                : SubmissionReason.USER_SUBMITTED;
         var result = querySubmissionService.submit(new SubmissionInput(
                 body.datasourceId(),
                 body.sql(),
@@ -52,17 +56,20 @@ class QuerySubmissionController {
                 caller.userId(),
                 caller.organizationId(),
                 caller.role() == UserRoleType.ADMIN,
-                body.scheduledFor()));
-        recordAudit(caller, result.id(), body, auditContext);
+                body.scheduledFor(),
+                submissionReason));
+        recordAudit(caller, result.id(), body, submissionReason, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.id(), result.status(), null, null, null));
     }
 
     private void recordAudit(JwtClaims caller, java.util.UUID queryId,
-                             SubmitQueryRequestBody body, RequestAuditContext auditContext) {
+                             SubmitQueryRequestBody body, SubmissionReason submissionReason,
+                             RequestAuditContext auditContext) {
         try {
             var metadata = new HashMap<String, Object>();
             metadata.put("datasource_id", body.datasourceId().toString());
+            metadata.put("submission_reason", submissionReason.name());
             auditLogService.record(new AuditEntry(
                     AuditAction.QUERY_SUBMITTED,
                     AuditResourceType.QUERY_REQUEST,

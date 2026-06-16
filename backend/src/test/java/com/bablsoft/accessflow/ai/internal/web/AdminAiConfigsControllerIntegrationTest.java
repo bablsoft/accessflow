@@ -281,7 +281,8 @@ class AdminAiConfigsControllerIntegrationTest {
         when(aiAnalyzerStrategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), any(), anyString(),
                 eq(existing.getId())))
                 .thenReturn(new AiAnalysisResult(10, RiskLevel.LOW, "ok",
-                        java.util.List.of(), false, null, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 1, 1));
+                        java.util.List.of(), false, null, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 1, 1,
+                        java.util.List.of()));
 
         var result = mvc.post().uri("/api/v1/admin/ai-configs/" + existing.getId() + "/test")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
