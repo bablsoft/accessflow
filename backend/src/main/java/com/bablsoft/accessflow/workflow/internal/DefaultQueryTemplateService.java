@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateAccessDeniedException;
+import com.bablsoft.accessflow.workflow.api.QueryTemplateChangeType;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateFilter;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNameAlreadyExistsException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNotFoundException;
@@ -13,6 +14,7 @@ import com.bablsoft.accessflow.workflow.api.QueryTemplateService;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateView;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateVisibility;
 import com.bablsoft.accessflow.workflow.internal.persistence.entity.QueryTemplateEntity;
+import com.bablsoft.accessflow.workflow.internal.persistence.entity.QueryTemplateVersionEntity;
 import com.bablsoft.accessflow.workflow.internal.persistence.repo.QueryTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ class DefaultQueryTemplateService implements QueryTemplateService {
 
     private final QueryTemplateRepository queryTemplateRepository;
     private final UserQueryService userQueryService;
+    private final QueryTemplateVersionRecorder versionRecorder;
 
     @Override
     @Transactional(readOnly = true)
@@ -85,6 +88,7 @@ class DefaultQueryTemplateService implements QueryTemplateService {
         entity.setCreatedAt(Instant.now());
         entity.setUpdatedAt(entity.getCreatedAt());
         var saved = queryTemplateRepository.save(entity);
+        versionRecorder.recordSnapshot(saved, saved.getOwnerId(), QueryTemplateChangeType.CREATED);
         return QueryTemplateMapper.toView(saved, resolveOwnerName(saved.getOwnerId()));
     }
 
@@ -122,6 +126,7 @@ class DefaultQueryTemplateService implements QueryTemplateService {
         }
         entity.setDatasourceId(command.datasourceId());
         entity.setUpdatedAt(Instant.now());
+        versionRecorder.recordSnapshot(entity, callerUserId, QueryTemplateChangeType.UPDATED);
         return QueryTemplateMapper.toView(entity, resolveOwnerName(entity.getOwnerId()));
     }
 
@@ -133,6 +138,34 @@ class DefaultQueryTemplateService implements QueryTemplateService {
             throw new QueryTemplateAccessDeniedException(id);
         }
         queryTemplateRepository.delete(entity);
+    }
+
+    @Override
+    @Transactional
+    public QueryTemplateView restoreVersion(UUID templateId, UUID versionId, UUID organizationId,
+                                            UUID callerUserId) {
+        var entity = loadVisibleOrThrow(templateId, organizationId, callerUserId);
+        if (!entity.getOwnerId().equals(callerUserId)) {
+            throw new QueryTemplateAccessDeniedException(templateId);
+        }
+        QueryTemplateVersionEntity version = versionRecorder.requireVersion(templateId, versionId);
+        if (!version.getName().equalsIgnoreCase(entity.getName())) {
+            queryTemplateRepository.findByOrganizationIdAndOwnerIdAndNameIgnoreCase(
+                            organizationId, callerUserId, version.getName())
+                    .filter(other -> !other.getId().equals(templateId))
+                    .ifPresent(other -> {
+                        throw new QueryTemplateNameAlreadyExistsException(other.getName());
+                    });
+        }
+        entity.setName(version.getName());
+        entity.setBody(version.getBody());
+        entity.setDescription(version.getDescription());
+        entity.setTags(version.getTags() == null ? new String[0] : version.getTags().clone());
+        entity.setVisibility(version.getVisibility());
+        entity.setDatasourceId(version.getDatasourceId());
+        entity.setUpdatedAt(Instant.now());
+        versionRecorder.recordSnapshot(entity, callerUserId, QueryTemplateChangeType.RESTORED);
+        return QueryTemplateMapper.toView(entity, resolveOwnerName(entity.getOwnerId()));
     }
 
     private QueryTemplateEntity loadVisibleOrThrow(UUID id, UUID organizationId, UUID callerUserId) {

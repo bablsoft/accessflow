@@ -6,13 +6,16 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateAccessDeniedException;
+import com.bablsoft.accessflow.workflow.api.QueryTemplateChangeType;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateFilter;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNameAlreadyExistsException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNotFoundException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateService.CreateQueryTemplateCommand;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateService.UpdateQueryTemplateCommand;
+import com.bablsoft.accessflow.workflow.api.QueryTemplateVersionNotFoundException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateVisibility;
 import com.bablsoft.accessflow.workflow.internal.persistence.entity.QueryTemplateEntity;
+import com.bablsoft.accessflow.workflow.internal.persistence.entity.QueryTemplateVersionEntity;
 import com.bablsoft.accessflow.workflow.internal.persistence.repo.QueryTemplateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,7 @@ class DefaultQueryTemplateServiceTest {
 
     @Mock QueryTemplateRepository queryTemplateRepository;
     @Mock UserQueryService userQueryService;
+    @Mock QueryTemplateVersionRecorder versionRecorder;
 
     private DefaultQueryTemplateService service;
     private final UUID orgId = UUID.randomUUID();
@@ -50,7 +54,7 @@ class DefaultQueryTemplateServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultQueryTemplateService(queryTemplateRepository, userQueryService);
+        service = new DefaultQueryTemplateService(queryTemplateRepository, userQueryService, versionRecorder);
     }
 
     @Test
@@ -163,6 +167,7 @@ class DefaultQueryTemplateServiceTest {
         assertThat(saved.getValue().getTags()).containsExactly("billing");
         assertThat(view.visibility()).isEqualTo(QueryTemplateVisibility.TEAM);
         assertThat(view.ownerDisplayName()).isEqualTo("Alice");
+        verify(versionRecorder).recordSnapshot(saved.getValue(), owner, QueryTemplateChangeType.CREATED);
     }
 
     @Test
@@ -182,6 +187,7 @@ class DefaultQueryTemplateServiceTest {
         assertThat(view.description()).isEqualTo("desc2");
         assertThat(view.tags()).containsExactly("x");
         assertThat(view.visibility()).isEqualTo(QueryTemplateVisibility.TEAM);
+        verify(versionRecorder).recordSnapshot(entity, owner, QueryTemplateChangeType.UPDATED);
     }
 
     @Test
@@ -234,6 +240,81 @@ class DefaultQueryTemplateServiceTest {
 
         assertThatThrownBy(() -> service.delete(entity.getId(), orgId, otherUser))
                 .isInstanceOf(QueryTemplateNotFoundException.class);
+    }
+
+    @Test
+    void restoreOwnerAppliesSnapshotAndRecordsRestoredVersion() {
+        var entity = templateOwnedBy(owner, QueryTemplateVisibility.PRIVATE, "Current");
+        entity.setBody("SELECT 999");
+        var version = versionOf(entity.getId(), "Original", "SELECT 1", QueryTemplateVisibility.TEAM);
+        when(queryTemplateRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        when(versionRecorder.requireVersion(entity.getId(), version.getId())).thenReturn(version);
+        when(queryTemplateRepository.findByOrganizationIdAndOwnerIdAndNameIgnoreCase(orgId, owner, "Original"))
+                .thenReturn(Optional.empty());
+        when(userQueryService.findById(owner)).thenReturn(Optional.of(userView(owner, "Alice")));
+
+        var view = service.restoreVersion(entity.getId(), version.getId(), orgId, owner);
+
+        assertThat(view.name()).isEqualTo("Original");
+        assertThat(view.body()).isEqualTo("SELECT 1");
+        assertThat(view.visibility()).isEqualTo(QueryTemplateVisibility.TEAM);
+        assertThat(entity.getBody()).isEqualTo("SELECT 1");
+        verify(versionRecorder).recordSnapshot(entity, owner, QueryTemplateChangeType.RESTORED);
+    }
+
+    @Test
+    void restoreForbidsNonOwnerOnTeamTemplate() {
+        var entity = templateOwnedBy(owner, QueryTemplateVisibility.TEAM, "Shared");
+        when(queryTemplateRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.restoreVersion(entity.getId(), UUID.randomUUID(), orgId, otherUser))
+                .isInstanceOf(QueryTemplateAccessDeniedException.class);
+        verify(versionRecorder, never()).recordSnapshot(any(), any(), any());
+    }
+
+    @Test
+    void restoreThrowsWhenVersionMissing() {
+        var entity = templateOwnedBy(owner, QueryTemplateVisibility.PRIVATE, "Current");
+        UUID versionId = UUID.randomUUID();
+        when(queryTemplateRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        when(versionRecorder.requireVersion(entity.getId(), versionId))
+                .thenThrow(new QueryTemplateVersionNotFoundException(entity.getId(), versionId));
+
+        assertThatThrownBy(() -> service.restoreVersion(entity.getId(), versionId, orgId, owner))
+                .isInstanceOf(QueryTemplateVersionNotFoundException.class);
+        verify(versionRecorder, never()).recordSnapshot(any(), any(), any());
+    }
+
+    @Test
+    void restoreRejectsWhenRestoredNameNowCollides() {
+        var entity = templateOwnedBy(owner, QueryTemplateVisibility.PRIVATE, "Current");
+        var version = versionOf(entity.getId(), "Taken", "SELECT 1", QueryTemplateVisibility.PRIVATE);
+        var other = templateOwnedBy(owner, QueryTemplateVisibility.PRIVATE, "Taken");
+        when(queryTemplateRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        when(versionRecorder.requireVersion(entity.getId(), version.getId())).thenReturn(version);
+        when(queryTemplateRepository.findByOrganizationIdAndOwnerIdAndNameIgnoreCase(orgId, owner, "Taken"))
+                .thenReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> service.restoreVersion(entity.getId(), version.getId(), orgId, owner))
+                .isInstanceOf(QueryTemplateNameAlreadyExistsException.class);
+        verify(versionRecorder, never()).recordSnapshot(any(), any(), any());
+    }
+
+    private QueryTemplateVersionEntity versionOf(UUID templateId, String name, String body,
+                                                 QueryTemplateVisibility visibility) {
+        var version = new QueryTemplateVersionEntity();
+        version.setId(UUID.randomUUID());
+        version.setTemplateId(templateId);
+        version.setOrganizationId(orgId);
+        version.setVersionNumber(1);
+        version.setName(name);
+        version.setBody(body);
+        version.setTags(new String[]{"a"});
+        version.setVisibility(visibility);
+        version.setChangeType(QueryTemplateChangeType.CREATED);
+        version.setAuthorId(owner);
+        version.setCreatedAt(Instant.parse("2026-05-01T00:00:00Z"));
+        return version;
     }
 
     private QueryTemplateEntity templateOwnedBy(UUID ownerId, QueryTemplateVisibility visibility, String name) {

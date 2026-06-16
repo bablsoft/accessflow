@@ -8,10 +8,13 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateFilter;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateService;
+import com.bablsoft.accessflow.workflow.api.QueryTemplateVersionService;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateVisibility;
 import com.bablsoft.accessflow.workflow.internal.web.model.CreateQueryTemplateRequest;
 import com.bablsoft.accessflow.workflow.internal.web.model.QueryTemplatePageResponse;
 import com.bablsoft.accessflow.workflow.internal.web.model.QueryTemplateResponse;
+import com.bablsoft.accessflow.workflow.internal.web.model.QueryTemplateVersionPageResponse;
+import com.bablsoft.accessflow.workflow.internal.web.model.QueryTemplateVersionResponse;
 import com.bablsoft.accessflow.workflow.internal.web.model.UpdateQueryTemplateRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -47,6 +50,7 @@ import java.util.UUID;
 class QueryTemplateController {
 
     private final QueryTemplateService queryTemplateService;
+    private final QueryTemplateVersionService queryTemplateVersionService;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -150,6 +154,53 @@ class QueryTemplateController {
         queryTemplateService.delete(id, caller.organizationId(), caller.userId());
         recordAudit(AuditAction.QUERY_TEMPLATE_DELETED, id, caller, auditContext, Map.of());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/versions")
+    @Operation(summary = "List the version history of a query template (paginated, newest first)")
+    @ApiResponse(responseCode = "200", description = "Page of immutable version snapshots")
+    @ApiResponse(responseCode = "404", description = "Template not found or not visible to the caller")
+    QueryTemplateVersionPageResponse listVersions(@PathVariable UUID id,
+                                                  Authentication authentication,
+                                                  Pageable pageable) {
+        var caller = currentClaims(authentication);
+        var page = queryTemplateVersionService.listVersions(id, caller.organizationId(), caller.userId(),
+                        SpringPageableAdapter.toPageRequest(pageable))
+                .map(QueryTemplateVersionResponse::from);
+        return QueryTemplateVersionPageResponse.from(page);
+    }
+
+    @GetMapping("/{id}/versions/{versionId}")
+    @Operation(summary = "Get a single version snapshot of a query template")
+    @ApiResponse(responseCode = "200", description = "Version snapshot")
+    @ApiResponse(responseCode = "404", description = "Template or version not found / not visible")
+    QueryTemplateVersionResponse getVersion(@PathVariable UUID id,
+                                            @PathVariable UUID versionId,
+                                            Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var version = queryTemplateVersionService.getVersion(id, versionId,
+                caller.organizationId(), caller.userId());
+        return QueryTemplateVersionResponse.from(version);
+    }
+
+    @PostMapping("/{id}/versions/{versionId}/restore")
+    @Operation(summary = "Restore a template to a prior version (owner only; preserves history)")
+    @ApiResponse(responseCode = "200", description = "Template restored; a new version was recorded")
+    @ApiResponse(responseCode = "403", description = "Caller can see the template but is not its owner")
+    @ApiResponse(responseCode = "404", description = "Template or version not found / not visible")
+    @ApiResponse(responseCode = "409", description = "Restored name collides with another template")
+    QueryTemplateResponse restoreVersion(@PathVariable UUID id,
+                                         @PathVariable UUID versionId,
+                                         Authentication authentication,
+                                         RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        var restored = queryTemplateService.restoreVersion(id, versionId,
+                caller.organizationId(), caller.userId());
+        recordAudit(AuditAction.QUERY_TEMPLATE_RESTORED, id, caller, auditContext,
+                Map.of("versionId", versionId.toString(),
+                        "name", restored.name(),
+                        "visibility", restored.visibility().name()));
+        return QueryTemplateResponse.from(restored, caller.userId());
     }
 
     private JwtClaims currentClaims(Authentication authentication) {

@@ -30,6 +30,21 @@ public interface QueryTemplateService {
 
     void delete(UUID id, UUID organizationId, UUID callerUserId);
 
+    /**
+     * Restores the template to a prior version's content (AF-442). Restore preserves history — it
+     * applies the snapshot's fields to the current template and records a new {@code RESTORED}
+     * version rather than deleting any. Owner-only, subject to the same name-uniqueness rules as a
+     * normal update.
+     *
+     * @throws QueryTemplateNotFoundException        if the template is not visible to the caller
+     * @throws QueryTemplateAccessDeniedException    if the caller can see but does not own the template
+     * @throws QueryTemplateVersionNotFoundException if no such version exists under the template
+     * @throws QueryTemplateNameAlreadyExistsException if the restored name now collides with another
+     *                                                 template owned by the caller
+     */
+    QueryTemplateView restoreVersion(UUID templateId, UUID versionId, UUID organizationId,
+                                     UUID callerUserId);
+
     record CreateQueryTemplateCommand(
             UUID organizationId,
             UUID ownerId,

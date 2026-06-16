@@ -419,7 +419,12 @@ The editor's `actions` slot exposes two buttons next to **History**:
 
 Picking **Open** stages the template in `pendingTemplate` state, which mounts `LoadTemplateModal` ([frontend/src/components/editor/LoadTemplateModal.tsx](../frontend/src/components/editor/LoadTemplateModal.tsx)). That component calls `extractPlaceholders(template.body)` ([frontend/src/utils/sqlPlaceholders.ts](../frontend/src/utils/sqlPlaceholders.ts)); when zero placeholders are present it auto-fires `onConfirm(body)` and skips the modal, otherwise it renders one required `Form.Item` per `:identifier` and substitutes via `substitutePlaceholders` on submit. The negative lookbehind `(?<![:\w])` excludes PostgreSQL `::` casts so `x::text` is never treated as a placeholder.
 
-API access lives in [frontend/src/api/queryTemplates.ts](../frontend/src/api/queryTemplates.ts) with the standard `queryTemplateKeys` factory (`all`, `lists`, `list(filters)`, `detail(id)`). Mutations invalidate `queryTemplateKeys.all` on success.
+Each row also has a **History** action (and a clickable name) that opens `TemplateDetailDrawer` ([frontend/src/components/editor/TemplateDetailDrawer.tsx](../frontend/src/components/editor/TemplateDetailDrawer.tsx)) — an Ant `Drawer` with two tabs (AF-442):
+
+- **Details** — name, visibility, owner, datasource pin, tags, description, and the read-only SQL body (reusing `SqlEditor` in `readOnly` mode).
+- **History** — the version timeline (version number, a `change_type` badge — `CREATED` / `UPDATED` / `RESTORED` — author, and timestamp). Two `Select`s pick a **base** and a **compare** version (defaulting to the two newest); the chosen pair renders a side-by-side Git-style diff via `SqlDiffView` ([frontend/src/components/editor/SqlDiffView.tsx](../frontend/src/components/editor/SqlDiffView.tsx)), a thin wrapper over `@codemirror/merge`'s `MergeView` (both panes read-only, reusing the shared SQL highlight + theme extracted to [frontend/src/components/editor/codemirrorTheme.ts](../frontend/src/components/editor/codemirrorTheme.ts)). A **Restore this version** action (owner-only, behind a `Popconfirm`) calls `restoreTemplateVersion` and invalidates the template + version caches; restore creates a new version rather than destroying history.
+
+API access lives in [frontend/src/api/queryTemplates.ts](../frontend/src/api/queryTemplates.ts) with the `queryTemplateKeys` factory (`all`, `lists`, `list(filters)`, `detail(id)`, `versions(id)`, `version(id, versionId)`) plus `listTemplateVersions` / `getTemplateVersion` / `restoreTemplateVersion`. Mutations invalidate `queryTemplateKeys.all` on success.
 
 **Validation parity** — every `Form.Item` rule mirrors a backend Bean Validation constraint per the CLAUDE.md parity rule:
 
@@ -431,7 +436,7 @@ API access lives in [frontend/src/api/queryTemplates.ts](../frontend/src/api/que
 | `tags` | `@Size(max=10)` + per-entry `@Size(max=32)` | custom validator (length + per-entry) |
 | `visibility` | `@NotNull` | `required` |
 
-The drawer / save modal / load modal each ship a Vitest + React Testing Library suite under [frontend/src/components/editor/](../frontend/src/components/editor/) covering the happy path, the auto-confirm shortcut, validation, and the editable-flag visibility of Edit / Delete buttons.
+The drawer / save modal / load modal / detail drawer / diff view each ship a Vitest + React Testing Library suite under [frontend/src/components/editor/](../frontend/src/components/editor/) covering the happy path, the auto-confirm shortcut, validation, the editable-flag visibility of Edit / Delete buttons, the default two-newest diff selection, and the restore confirm flow.
 
 ---
 

@@ -382,6 +382,26 @@
       "load_button": "Charger",
       "visibility_private": "Privé",
       "visibility_team": "Équipe",
+      "history": {
+        "history_button": "Historique",
+        "title": "Historique des versions — {{name}}",
+        "tab_details": "Détails",
+        "tab_history": "Historique",
+        "owner": "Propriétaire",
+        "empty_state": "Aucun historique de version pour le moment.",
+        "compare_base": "Comparer",
+        "compare_target": "avec",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "par {{author}} · {{when}}",
+        "author_unknown": "Inconnu",
+        "diff_base_label": "version {{number}}",
+        "diff_target_label": "version {{number}}",
+        "restore_button": "Restaurer cette version",
+        "restore_confirm_title": "Restaurer cette version ?",
+        "restore_confirm_body": "Restaurer la version {{number}} ? Cela crée une nouvelle version ; l’historique est conservé.",
+        "restore_success": "Modèle restauré à la version sélectionnée"
+      },
       "fields": {
         "name": "Nom",
         "name_placeholder": "ex. Utilisateurs principaux par inscription",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Créée",
+      "UPDATED": "Modifiée",
+      "RESTORED": "Restaurée"
     },
     "risk_level": {
       "LOW": "Faible",

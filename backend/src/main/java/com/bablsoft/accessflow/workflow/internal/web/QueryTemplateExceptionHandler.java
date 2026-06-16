@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateAccessDeniedException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNameAlreadyExistsException;
 import com.bablsoft.accessflow.workflow.api.QueryTemplateNotFoundException;
+import com.bablsoft.accessflow.workflow.api.QueryTemplateVersionNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -35,6 +36,17 @@ class QueryTemplateExceptionHandler {
         pd.setProperty("error", "QUERY_TEMPLATE_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("templateId", ex.templateId().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryTemplateVersionNotFoundException.class)
+    ProblemDetail handleVersionNotFound(QueryTemplateVersionNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.query_template_version_not_found"));
+        pd.setProperty("error", "QUERY_TEMPLATE_VERSION_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("templateId", ex.templateId().toString());
+        pd.setProperty("versionId", ex.versionId().toString());
         return pd;
     }
 

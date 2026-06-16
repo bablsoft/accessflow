@@ -382,6 +382,26 @@
       "load_button": "Load",
       "visibility_private": "Private",
       "visibility_team": "Team",
+      "history": {
+        "history_button": "History",
+        "title": "Version history — {{name}}",
+        "tab_details": "Details",
+        "tab_history": "History",
+        "owner": "Owner",
+        "empty_state": "No version history yet.",
+        "compare_base": "Compare",
+        "compare_target": "with",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "by {{author}} · {{when}}",
+        "author_unknown": "Unknown",
+        "diff_base_label": "version {{number}}",
+        "diff_target_label": "version {{number}}",
+        "restore_button": "Restore this version",
+        "restore_confirm_title": "Restore this version?",
+        "restore_confirm_body": "Restore version {{number}}? This creates a new version; history is preserved.",
+        "restore_success": "Template restored to the selected version"
+      },
       "fields": {
         "name": "Name",
         "name_placeholder": "e.g. Top users by signup",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Created",
+      "UPDATED": "Edited",
+      "RESTORED": "Restored"
     },
     "risk_level": {
       "LOW": "Low",

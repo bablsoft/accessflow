@@ -447,6 +447,30 @@ Unique index `(organization_id, owner_id, LOWER(name))` — an owner may not hav
 
 ---
 
+## query_template_versions
+
+Immutable version history of saved query templates (AF-442). A snapshot is written on every content-changing save and on restore; rows are INSERT-only and never updated. `version_number` is contiguous per template starting at 1.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `template_id` | FK → `query_templates` ON DELETE CASCADE — deleting a template discards its history |
+| `organization_id` | UUID NOT NULL — denormalised so version reads filter by org without joining the template |
+| `version_number` | INTEGER NOT NULL — per-template sequence starting at 1 (read-then-increment, guarded by the unique index) |
+| `datasource_id` | UUID nullable — the pinned datasource at snapshot time |
+| `name` | VARCHAR(128) NOT NULL — snapshot of the template name |
+| `body` | TEXT NOT NULL — snapshot of the SQL body |
+| `description` | VARCHAR(1000) nullable |
+| `tags` | TEXT[] NOT NULL DEFAULT `ARRAY[]::TEXT[]` |
+| `visibility` | ENUM `query_template_visibility` — point-in-time visibility (**not** used for access control; the current template's visibility is) |
+| `change_type` | ENUM `query_template_change_type`: `CREATED` \| `UPDATED` \| `RESTORED` |
+| `author_id` | UUID NOT NULL — the user who triggered the save/restore. No FK: an audit-style immutable row must outlive user deletion |
+| `created_at` | TIMESTAMPTZ |
+
+Unique index `(template_id, version_number)` enforces contiguous, non-duplicated numbering and is the race safety-net for the `max + 1` numbering in `DefaultQueryTemplateVersioningService`. Filter index on `(template_id)` for the newest-first list. Snapshot writing, the no-op-on-unchanged check, and visibility-enforced reads live in `DefaultQueryTemplateVersioningService`; restore (which reuses the template's owner + name-uniqueness guards) lives in `DefaultQueryTemplateService`.
+
+---
+
 ## query_requests
 
 The central entity. Represents a single SQL submission through the platform.

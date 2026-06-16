@@ -5,61 +5,13 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { sql, PostgreSQL, MySQL, StandardSQL, type SQLConfig } from '@codemirror/lang-sql';
 import { javascript } from '@codemirror/lang-javascript';
 import { json } from '@codemirror/lang-json';
-import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import { syntaxHighlighting, indentOnInput, bracketMatching } from '@codemirror/language';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import type { DatasourceSchema, DbType, AiIssue } from '@/types/api';
 import { formatSql } from '@/utils/sqlFormat';
 import { activeSyntax, engineMode } from '@/utils/engineModes';
-
-const accessflowHighlight = HighlightStyle.define([
-  { tag: t.keyword, color: 'var(--sql-keyword)', fontWeight: '600' },
-  { tag: [t.string, t.special(t.string)], color: 'var(--sql-string)' },
-  { tag: t.number, color: 'var(--sql-number)' },
-  { tag: t.comment, color: 'var(--sql-comment)', fontStyle: 'italic' },
-  { tag: t.function(t.variableName), color: 'var(--sql-fn)' },
-  { tag: t.operator, color: 'var(--sql-op)' },
-  { tag: t.tagName, color: 'var(--sql-table)' },
-  { tag: [t.atom, t.bool], color: 'var(--sql-keyword)' },
-]);
-
-const editorTheme = EditorView.theme({
-  '&': {
-    fontSize: '13px',
-    fontFamily: 'var(--font-mono)',
-    height: '100%',
-    background: 'var(--bg-code)',
-    color: 'var(--fg)',
-  },
-  '.cm-content': { padding: '12px 8px', caretColor: 'var(--fg)' },
-  '.cm-gutters': {
-    background: 'var(--bg-sunken)',
-    color: 'var(--fg-faint)',
-    borderRight: '1px solid var(--border)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '11.5px',
-  },
-  '.cm-activeLineGutter': { background: 'var(--bg-hover)' },
-  '.cm-cursor': { borderLeftColor: 'var(--fg)' },
-  '.cm-selectionBackground, ::selection': { background: 'var(--accent-bg)' },
-  '&.cm-focused .cm-selectionBackground, &.cm-focused ::selection': {
-    background: 'var(--accent-bg)',
-  },
-  '.cm-line': { padding: '0 4px' },
-  '.cm-scroller': { overflow: 'auto' },
-  '.cm-tooltip-autocomplete': {
-    background: 'var(--bg-elev)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius)',
-    fontFamily: 'var(--font-sans)',
-    boxShadow: 'var(--shadow-md)',
-  },
-  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-    background: 'var(--accent-bg)',
-    color: 'var(--fg)',
-  },
-});
+import { accessflowHighlight, editorTheme } from './codemirrorTheme';
 
 class IssueMarker extends GutterMarker {
   constructor(private severity: AiIssue['severity']) {

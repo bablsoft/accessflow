@@ -18,9 +18,10 @@ import {
   listQueryTemplates,
   queryTemplateKeys,
 } from '@/api/queryTemplates';
-import type { QueryTemplate, QueryTemplateVisibility } from '@/types/api';
+import type { DbType, QueryTemplate, QueryTemplateVisibility } from '@/types/api';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { TemplateDetailDrawer } from './TemplateDetailDrawer';
 
 type VisibilityFilter = 'ALL' | QueryTemplateVisibility;
 
@@ -28,6 +29,7 @@ interface QueryTemplatesDrawerProps {
   open: boolean;
   onClose: () => void;
   currentDatasourceId: string | null;
+  dbType?: DbType;
   onOpen: (template: QueryTemplate) => void;
 }
 
@@ -37,6 +39,7 @@ export function QueryTemplatesDrawer({
   open,
   onClose,
   currentDatasourceId,
+  dbType,
   onOpen,
 }: QueryTemplatesDrawerProps) {
   const { t } = useTranslation();
@@ -44,6 +47,9 @@ export function QueryTemplatesDrawer({
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [visibility, setVisibility] = useState<VisibilityFilter>('ALL');
+  const [detail, setDetail] = useState<{ template: QueryTemplate; tab: 'details' | 'history' } | null>(
+    null,
+  );
 
   const filters = useMemo(
     () => ({
@@ -111,6 +117,13 @@ export function QueryTemplatesDrawer({
                   <Button key="open" type="link" onClick={() => onOpen(item)}>
                     {t('editor.templates.open_button')}
                   </Button>,
+                  <Button
+                    key="history"
+                    type="link"
+                    onClick={() => setDetail({ template: item, tab: 'history' })}
+                  >
+                    {t('editor.templates.history.history_button')}
+                  </Button>,
                   item.editable ? (
                     <Popconfirm
                       key="delete"
@@ -131,7 +144,13 @@ export function QueryTemplatesDrawer({
                 <List.Item.Meta
                   title={
                     <Space size="small" wrap>
-                      <strong>{item.name}</strong>
+                      <Button
+                        type="link"
+                        style={{ padding: 0, height: 'auto', fontWeight: 600 }}
+                        onClick={() => setDetail({ template: item, tab: 'details' })}
+                      >
+                        {item.name}
+                      </Button>
                       <Tag color={item.visibility === 'TEAM' ? 'blue' : 'default'}>
                         {item.visibility === 'TEAM'
                           ? t('editor.templates.visibility_team')
@@ -165,6 +184,14 @@ export function QueryTemplatesDrawer({
           />
         )}
       </Space>
+      <TemplateDetailDrawer
+        open={detail !== null}
+        onClose={() => setDetail(null)}
+        template={detail?.template ?? null}
+        currentDatasourceId={currentDatasourceId}
+        dbType={dbType}
+        defaultTab={detail?.tab ?? 'details'}
+      />
     </Drawer>
   );
 }
