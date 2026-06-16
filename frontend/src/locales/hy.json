@@ -382,6 +382,26 @@
       "load_button": "Բեռնել",
       "visibility_private": "Անձնական",
       "visibility_team": "Թիմային",
+      "history": {
+        "history_button": "Պատմություն",
+        "title": "Տարբերակների պատմություն — {{name}}",
+        "tab_details": "Մանրամասներ",
+        "tab_history": "Պատմություն",
+        "owner": "Սեփականատեր",
+        "empty_state": "Դեռ տարբերակների պատմություն չկա։",
+        "compare_base": "Համեմատել",
+        "compare_target": "հետ",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "{{author}} · {{when}}",
+        "author_unknown": "Անհայտ",
+        "diff_base_label": "տարբերակ {{number}}",
+        "diff_target_label": "տարբերակ {{number}}",
+        "restore_button": "Վերականգնել այս տարբերակը",
+        "restore_confirm_title": "Վերականգնե՞լ այս տարբերակը։",
+        "restore_confirm_body": "Վերականգնե՞լ {{number}} տարբերակը։ Սա ստեղծում է նոր տարբերակ. պատմությունը պահպանվում է։",
+        "restore_success": "Կաղապարը վերականգնվեց ընտրված տարբերակին"
+      },
       "fields": {
         "name": "Անուն",
         "name_placeholder": "օր.՝ Թոփ օգտատերերը գրանցմամբ",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Ստեղծված",
+      "UPDATED": "Խմբագրված",
+      "RESTORED": "Վերականգնված"
     },
     "risk_level": {
       "LOW": "Ցածր",

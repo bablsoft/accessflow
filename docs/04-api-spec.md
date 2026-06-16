@@ -3302,6 +3302,54 @@ Same request and response shape as `POST`. Caller must be the owner; non-owners 
 - `QUERY_TEMPLATE_NAME_CONFLICT` (409) — duplicate name on create / rename.
 - Standard `VALIDATION_ERROR` (400) for Bean Validation failures.
 
+### Version History (AF-442)
+
+Every content-changing save (create, or an update that actually changes the body / name / description / tags / visibility / pinned datasource) records an **immutable snapshot** in `query_template_versions`; identical re-saves are a no-op. Versions are numbered per template starting at 1 and are never mutated retroactively. The same visibility rules as the parent template apply (a `PRIVATE` template's history is owner-only); access control always uses the template's **current** visibility, never a snapshot's point-in-time value.
+
+| Method | Path | Status |
+|--------|------|--------|
+| `GET` | `/query-templates/{id}/versions` | Paginated version history (newest first) |
+| `GET` | `/query-templates/{id}/versions/{versionId}` | A single version snapshot |
+| `POST` | `/query-templates/{id}/versions/{versionId}/restore` | Restore the template to a prior version (owner only) |
+
+**GET /query-templates/{id}/versions** — `page` (default 0), `size` (default 20, max 100). Ordered by `version_number` descending.
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "template_id": "uuid",
+      "version_number": 2,
+      "datasource_id": "uuid",
+      "name": "Top users",
+      "body": "SELECT * FROM users WHERE country = :country LIMIT :limit",
+      "description": "Recent signups by country.",
+      "tags": ["billing", "weekly"],
+      "visibility": "TEAM",
+      "change_type": "UPDATED",
+      "author_id": "uuid",
+      "author_display_name": "Alice",
+      "created_at": "2026-05-02T11:30:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 2,
+  "total_pages": 1
+}
+```
+
+`change_type` is one of `CREATED`, `UPDATED`, `RESTORED`. The body of each version lets the SPA render a side-by-side diff between any two without further round-trips.
+
+**POST /query-templates/{id}/versions/{versionId}/restore** — applies the snapshot's fields to the template and records a **new** version (`change_type = RESTORED`); history is preserved, never destroyed. Owner only.
+
+**Response 200:** the updated template object (same shape as `GET /query-templates/{id}`).
+
+- `QUERY_TEMPLATE_VERSION_NOT_FOUND` (404) — no version with that id exists under the template (or the template is not visible to the caller).
+- Restore also surfaces `QUERY_TEMPLATE_FORBIDDEN` (403, non-owner), `QUERY_TEMPLATE_NOT_FOUND` (404), and `QUERY_TEMPLATE_NAME_CONFLICT` (409, when the restored name now collides with another of the caller's templates).
+
 ---
 
 ## Notification Endpoints

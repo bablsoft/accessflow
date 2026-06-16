@@ -382,6 +382,26 @@
       "load_button": "加载",
       "visibility_private": "私有",
       "visibility_team": "团队",
+      "history": {
+        "history_button": "历史",
+        "title": "版本历史 — {{name}}",
+        "tab_details": "详情",
+        "tab_history": "历史",
+        "owner": "所有者",
+        "empty_state": "暂无版本历史。",
+        "compare_base": "比较",
+        "compare_target": "与",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "由 {{author}} · {{when}}",
+        "author_unknown": "未知",
+        "diff_base_label": "版本 {{number}}",
+        "diff_target_label": "版本 {{number}}",
+        "restore_button": "恢复此版本",
+        "restore_confirm_title": "恢复此版本？",
+        "restore_confirm_body": "恢复版本 {{number}}？这将创建一个新版本；历史记录会保留。",
+        "restore_success": "模板已恢复到所选版本"
+      },
       "fields": {
         "name": "名称",
         "name_placeholder": "例如：按注册的活跃用户",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "已创建",
+      "UPDATED": "已编辑",
+      "RESTORED": "已恢复"
     },
     "risk_level": {
       "LOW": "低",

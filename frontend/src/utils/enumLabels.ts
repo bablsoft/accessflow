@@ -10,6 +10,7 @@ import type {
   MaskingStrategy,
   OAuth2Provider,
   QueryStatus,
+  QueryTemplateChangeType,
   QueryType,
   RagStoreType,
   RiskLevel,
@@ -39,6 +40,9 @@ export const accessGrantStatusLabel = (t: TFunction, v: AccessGrantStatus): stri
 
 export const queryTypeLabel = (t: TFunction, v: QueryType): string =>
   t(`enums.query_type.${v}` as const);
+
+export const queryTemplateChangeLabel = (t: TFunction, v: QueryTemplateChangeType): string =>
+  t(`enums.query_template_change_type.${v}` as const);
 
 export const riskLevelLabel = (t: TFunction, v: RiskLevel): string =>
   t(`enums.risk_level.${v}` as const);

@@ -1493,6 +1493,13 @@ APPROVED → FAILED (execution error)</pre>
             them client-side. Submission still flows through the standard AI analysis and
             review pipeline; templates are a pure save / load surface, never a bypass.
           </p>
+          <p>
+            Every save records an immutable <strong>version</strong>. Open a template's
+            <strong>History</strong> tab to see how it evolved — pick any two revisions for a
+            side-by-side Git-style diff, and <strong>restore</strong> a prior version when an
+            edit went wrong. Restoring creates a new version rather than discarding history, so
+            the full trail is always preserved.
+          </p>
           <figure class="docs-figure">
             <picture>
               <source srcset="../images/docs/editor-query-templates-light.png" media="(prefers-color-scheme: light)" />

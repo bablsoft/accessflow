@@ -382,6 +382,26 @@
       "load_button": "Laden",
       "visibility_private": "Privat",
       "visibility_team": "Team",
+      "history": {
+        "history_button": "Verlauf",
+        "title": "Versionsverlauf — {{name}}",
+        "tab_details": "Details",
+        "tab_history": "Verlauf",
+        "owner": "Besitzer",
+        "empty_state": "Noch kein Versionsverlauf.",
+        "compare_base": "Vergleichen",
+        "compare_target": "mit",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "von {{author}} · {{when}}",
+        "author_unknown": "Unbekannt",
+        "diff_base_label": "Version {{number}}",
+        "diff_target_label": "Version {{number}}",
+        "restore_button": "Diese Version wiederherstellen",
+        "restore_confirm_title": "Diese Version wiederherstellen?",
+        "restore_confirm_body": "Version {{number}} wiederherstellen? Dies erstellt eine neue Version; der Verlauf bleibt erhalten.",
+        "restore_success": "Vorlage auf die ausgewählte Version zurückgesetzt"
+      },
       "fields": {
         "name": "Name",
         "name_placeholder": "z. B. Top-Nutzer nach Anmeldung",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Erstellt",
+      "UPDATED": "Bearbeitet",
+      "RESTORED": "Wiederhergestellt"
     },
     "risk_level": {
       "LOW": "Niedrig",

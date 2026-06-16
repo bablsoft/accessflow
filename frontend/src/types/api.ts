@@ -1590,3 +1590,24 @@ export interface UpdateQueryTemplateInput {
   datasource_id?: string | null;
   visibility: QueryTemplateVisibility;
 }
+
+// ── Query template versions (AF-442) ─────────────────────────────────────────
+export type QueryTemplateChangeType = 'CREATED' | 'UPDATED' | 'RESTORED';
+
+export interface QueryTemplateVersion {
+  id: string;
+  template_id: string;
+  version_number: number;
+  datasource_id: string | null;
+  name: string;
+  body: string;
+  description: string | null;
+  tags: string[];
+  visibility: QueryTemplateVisibility;
+  change_type: QueryTemplateChangeType;
+  author_id: string | null;
+  author_display_name: string | null;
+  created_at: string;
+}
+
+export type QueryTemplateVersionPage = PageEnvelope<QueryTemplateVersion>;

@@ -822,7 +822,16 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 **Tag storage** is a native PostgreSQL `text[]` column mapped via Hibernate 6's `@JdbcTypeCode(SqlTypes.ARRAY)` on a `String[]` field — no `hypersistence-utils` dependency. The list endpoint's tag filter uses `array_position(tags, :tag) IS NOT NULL` for index-friendly containment lookups, and the GIN index `idx_query_templates_tags_gin` keeps that path cheap.
 
-**Audit.** Every successful mutation calls `auditLogService.record(...)` with one of `QUERY_TEMPLATE_CREATED`, `QUERY_TEMPLATE_UPDATED`, `QUERY_TEMPLATE_DELETED` and resource type `QUERY_TEMPLATE`.
+**Audit.** Every successful mutation calls `auditLogService.record(...)` with one of `QUERY_TEMPLATE_CREATED`, `QUERY_TEMPLATE_UPDATED`, `QUERY_TEMPLATE_DELETED`, `QUERY_TEMPLATE_RESTORED` and resource type `QUERY_TEMPLATE`.
+
+### Version history & restore (AF-442)
+
+`workflow.api.QueryTemplateVersionService` (+ `DefaultQueryTemplateVersioningService`) own the immutable history table `query_template_versions`. The versioning service implements the public read interface (`listVersions`, `getVersion`) **and** a package-private `QueryTemplateVersionRecorder` (`recordSnapshot`, `requireVersion`) — keeping the entity-typed snapshot methods out of the `api` package so `ApiPackageDependencyTest` stays green.
+
+- **Snapshot on save.** `DefaultQueryTemplateService.create()` records a `CREATED` snapshot; `update()` records an `UPDATED` snapshot **only when the content actually changed** (the recorder compares `name`/`body`/`description`/`tags`/`visibility`/`datasourceId` against the latest snapshot and no-ops otherwise). The insert runs in the caller's transaction — no `REQUIRES_NEW` — so the version commits atomically with the edit.
+- **Version numbering** is `max(version_number) + 1` per template (1 when none), with the unique index `(template_id, version_number)` as the race safety-net.
+- **Visibility.** Reads enforce the same rule as `QueryTemplateService.get`, evaluated against the **current** parent template — a snapshot's stored `visibility` is never trusted for access control, so a template flipped `TEAM → PRIVATE` cannot leak old TEAM snapshots. Missing versions throw `QueryTemplateVersionNotFoundException` (404).
+- **Restore** lives on `QueryTemplateService.restoreVersion` (it is a template mutation): it reuses `loadVisibleOrThrow` + the owner-check + name-uniqueness guard, applies the snapshot's fields to the template, bumps `updated_at`, and records a fresh `RESTORED` snapshot. History is preserved — restore never deletes a version. The dependency direction is one-way (`DefaultQueryTemplateService` → `DefaultQueryTemplateVersioningService`), so there is no Spring bean cycle.
 
 ---
 

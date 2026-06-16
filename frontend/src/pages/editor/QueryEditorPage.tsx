@@ -297,6 +297,7 @@ export function QueryEditorPage() {
         open={templatesOpen}
         onClose={() => setTemplatesOpen(false)}
         currentDatasourceId={ds.id}
+        dbType={ds.db_type}
         onOpen={(template) => setPendingTemplate(template)}
       />
       <SaveTemplateModal

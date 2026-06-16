@@ -484,6 +484,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | dagre | 0.8.x | Auto-layout for the ER diagram graph |
 | CodeMirror + @codemirror/lang-sql | 6.x | SQL editor (PostgreSQL/MySQL dialects) |
 | @codemirror/lang-javascript + @codemirror/lang-json | 6.x | MongoDB query highlighting — shell (JS) and JSON-command modes |
+| @codemirror/merge | 6.x | Side-by-side Git-style diff for saved-query version history (AF-442) |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |

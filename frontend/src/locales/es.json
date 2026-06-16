@@ -382,6 +382,26 @@
       "load_button": "Cargar",
       "visibility_private": "Privada",
       "visibility_team": "Equipo",
+      "history": {
+        "history_button": "Historial",
+        "title": "Historial de versiones — {{name}}",
+        "tab_details": "Detalles",
+        "tab_history": "Historial",
+        "owner": "Propietario",
+        "empty_state": "Aún no hay historial de versiones.",
+        "compare_base": "Comparar",
+        "compare_target": "con",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "por {{author}} · {{when}}",
+        "author_unknown": "Desconocido",
+        "diff_base_label": "versión {{number}}",
+        "diff_target_label": "versión {{number}}",
+        "restore_button": "Restaurar esta versión",
+        "restore_confirm_title": "¿Restaurar esta versión?",
+        "restore_confirm_body": "¿Restaurar la versión {{number}}? Esto crea una nueva versión; el historial se conserva.",
+        "restore_success": "Plantilla restaurada a la versión seleccionada"
+      },
       "fields": {
         "name": "Nombre",
         "name_placeholder": "p. ej. Usuarios principales por registro",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Creada",
+      "UPDATED": "Editada",
+      "RESTORED": "Restaurada"
     },
     "risk_level": {
       "LOW": "Bajo",

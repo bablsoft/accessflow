@@ -382,6 +382,26 @@
       "load_button": "Загрузить",
       "visibility_private": "Личный",
       "visibility_team": "Командный",
+      "history": {
+        "history_button": "История",
+        "title": "История версий — {{name}}",
+        "tab_details": "Подробности",
+        "tab_history": "История",
+        "owner": "Владелец",
+        "empty_state": "Истории версий пока нет.",
+        "compare_base": "Сравнить",
+        "compare_target": "с",
+        "version_option": "v{{number}} · {{change}} · {{when}}",
+        "version_label": "v{{number}}",
+        "version_meta": "{{author}} · {{when}}",
+        "author_unknown": "Неизвестно",
+        "diff_base_label": "версия {{number}}",
+        "diff_target_label": "версия {{number}}",
+        "restore_button": "Восстановить эту версию",
+        "restore_confirm_title": "Восстановить эту версию?",
+        "restore_confirm_body": "Восстановить версию {{number}}? Будет создана новая версия; история сохраняется.",
+        "restore_success": "Шаблон восстановлен до выбранной версии"
+      },
       "fields": {
         "name": "Имя",
         "name_placeholder": "напр. Топ пользователей по регистрации",
@@ -1790,6 +1810,11 @@
       "UPDATE": "Update",
       "DELETE": "Delete",
       "DDL": "DDL"
+    },
+    "query_template_change_type": {
+      "CREATED": "Создано",
+      "UPDATED": "Изменено",
+      "RESTORED": "Восстановлено"
     },
     "risk_level": {
       "LOW": "Низкий",

@@ -4,6 +4,8 @@ import type {
   QueryTemplate,
   QueryTemplateFilters,
   QueryTemplatePage,
+  QueryTemplateVersion,
+  QueryTemplateVersionPage,
   UpdateQueryTemplateInput,
 } from '@/types/api';
 
@@ -14,7 +16,15 @@ export const queryTemplateKeys = {
   lists: () => ['queryTemplates', 'list'] as const,
   list: (filters: QueryTemplateFilters = {}) => ['queryTemplates', 'list', filters] as const,
   detail: (id: string) => ['queryTemplates', 'detail', id] as const,
+  versions: (id: string) => ['queryTemplates', 'detail', id, 'versions'] as const,
+  version: (id: string, versionId: string) =>
+    ['queryTemplates', 'detail', id, 'versions', versionId] as const,
 };
+
+export interface TemplateVersionFilters {
+  page?: number;
+  size?: number;
+}
 
 export async function listQueryTemplates(
   filters: QueryTemplateFilters = {},
@@ -52,4 +62,35 @@ export async function updateQueryTemplate(
 
 export async function deleteQueryTemplate(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
+}
+
+export async function listTemplateVersions(
+  id: string,
+  filters: TemplateVersionFilters = {},
+): Promise<QueryTemplateVersionPage> {
+  const params: Record<string, number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  const { data } = await apiClient.get<QueryTemplateVersionPage>(`${BASE}/${id}/versions`, {
+    params,
+  });
+  return data;
+}
+
+export async function getTemplateVersion(
+  id: string,
+  versionId: string,
+): Promise<QueryTemplateVersion> {
+  const { data } = await apiClient.get<QueryTemplateVersion>(`${BASE}/${id}/versions/${versionId}`);
+  return data;
+}
+
+export async function restoreTemplateVersion(
+  id: string,
+  versionId: string,
+): Promise<QueryTemplate> {
+  const { data } = await apiClient.post<QueryTemplate>(
+    `${BASE}/${id}/versions/${versionId}/restore`,
+  );
+  return data;
 }
