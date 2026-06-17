@@ -7,10 +7,12 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -179,6 +181,43 @@ class RedisQueryEngineIntegrationTest {
     }
 
     @Test
+    void sampleTableReturnsKeyValuesForStringPrefix() {
+        run("MSET user:1 Ada user:2 Bo");
+        var result = sample("user", 100, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.columns()).extracting(c -> c.name()).containsExactly("key", "value");
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        run("MSET user:1 Ada user:2 Bo user:3 Cy");
+        var result = sample("user", 2, List.of(), List.of());
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void sampleTableFailsClosedForPoliciedPrefix() {
+        run("SET user:1 Ada");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "user", "owner",
+                RowSecurityOperator.EQUALS, List.of("someone"));
+        assertThatThrownBy(() -> sample("user", 100, List.of(directive), List.of()))
+                .isInstanceOf(UnrewritableRowSecurityException.class)
+                .hasMessageContaining("error.row_security_redis_unsupported");
+    }
+
+    @Test
+    void sampleTableMasksHashFields() {
+        run("HSET session:1 name Ada email ada@x.io");
+        var mask = new ColumnMaskDirective("session.email", MaskingStrategy.EMAIL, Map.of(),
+                UUID.randomUUID());
+        var result = sample("session", 100, List.of(), List.of(mask));
+        int emailIdx = result.columns().stream().map(c -> c.name()).toList().indexOf("email");
+        assertThat(result.rows().get(0).get(emailIdx)).isEqualTo("a***@x.io");
+        assertThat(result.appliedMaskingPolicyIds()).isNotEmpty();
+    }
+
+    @Test
     void connectionProbePings() {
         assertThat(engine.testConnection(descriptor).ok()).isTrue();
     }
@@ -211,6 +250,14 @@ class RedisQueryEngineIntegrationTest {
 
     private Object run(String query) {
         return execute(query, engine.parse(query).type(), 1000, List.of(), List.of());
+    }
+
+    private SelectExecutionResult sample(String prefix, int maxRows, List<RowSecurityDirective> rls,
+                                         List<ColumnMaskDirective> masks) {
+        var request = new SampleTableRequest(descriptor.id(), descriptor.databaseName(), prefix,
+                List.of(), masks, rls, null, null);
+        return (SelectExecutionResult) engine.sampleTable(new QueryEngineSampleRequest(request,
+                descriptor, maxRows, Duration.ofSeconds(10)));
     }
 
     private Object execute(String query, QueryType type, int maxRows, List<RowSecurityDirective> rls,

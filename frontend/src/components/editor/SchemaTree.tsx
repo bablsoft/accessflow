@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { Input, Select } from 'antd';
-import {
-  SearchOutlined,
-  RightOutlined,
-  DownOutlined,
-  TableOutlined,
-} from '@ant-design/icons';
+import { Select } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { dbTypeLabel } from '@/utils/enumLabels';
+import { SchemaObjectTree } from '@/components/datasources/SchemaObjectTree';
+import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
 import type { Datasource } from '@/types/api';
 
 interface SchemaTreeProps {
@@ -19,9 +15,7 @@ interface SchemaTreeProps {
 
 export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState('');
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ public: true });
-  const [openTable, setOpenTable] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ schema: string; table: string } | null>(null);
   const schemaQuery = useSchemaIntrospect(ds.id);
 
   return (
@@ -39,7 +33,7 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
           className="muted"
           style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
         >
-          Datasource
+          {t('editor.datasource_label')}
         </label>
         <Select
           size="small"
@@ -50,144 +44,37 @@ export function SchemaTree({ ds, datasources, onChangeDs }: SchemaTreeProps) {
         />
         <div
           className="mono muted"
-          style={{
-            fontSize: 10,
-            marginTop: 8,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
+          style={{ fontSize: 10, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}
         >
           <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: 'var(--risk-low)',
-            }}
+            style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--risk-low)' }}
           />
           {dbTypeLabel(t, ds.db_type)} · {ds.host}:{ds.port}
         </div>
       </div>
-      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
-        <Input
-          size="small"
-          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
-          placeholder="Filter tables…"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-      </div>
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '6px 0',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-        }}
-      >
-        {schemaQuery.isLoading && (
-          <div className="muted" style={{ padding: '8px 12px', fontSize: 11 }}>
-            {t('datasources.settings.schema_loading')}
-          </div>
-        )}
-        {schemaQuery.isError && (
-          <div className="muted" style={{ padding: '8px 12px', fontSize: 11, color: 'var(--risk-high)' }}>
-            {t('datasources.settings.schema_error')}
-          </div>
-        )}
-        {schemaQuery.data?.schemas.map((s) => {
-          const open = expanded[s.name];
-          return (
-            <div key={s.name}>
-              <button
-                onClick={() => setExpanded((e) => ({ ...e, [s.name]: !e[s.name] }))}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  width: '100%',
-                  padding: '4px 12px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--fg-muted)',
-                  fontFamily: 'inherit',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                }}
-              >
-                {open ? (
-                  <DownOutlined style={{ fontSize: 9 }} />
-                ) : (
-                  <RightOutlined style={{ fontSize: 9 }} />
-                )}
-                {s.name}
-              </button>
-              {open &&
-                s.tables
-                  .filter((t) => !filter || t.name.toLowerCase().includes(filter.toLowerCase()))
-                  .map((tab) => {
-                    const isOpen = openTable === tab.name;
-                    return (
-                      <div key={tab.name}>
-                        <div
-                          onClick={() => setOpenTable(isOpen ? null : tab.name)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: '3px 12px 3px 24px',
-                            cursor: 'pointer',
-                            color: 'var(--fg)',
-                            background: isOpen ? 'var(--bg-hover)' : 'transparent',
-                          }}
-                        >
-                          <TableOutlined style={{ fontSize: 11, color: 'var(--sql-table)' }} />
-                          <span>{tab.name}</span>
-                          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--fg-faint)' }}>
-                            {tab.columns.length}
-                          </span>
-                        </div>
-                        {isOpen &&
-                          tab.columns.map((c) => (
-                            <div
-                              key={c.name}
-                              style={{
-                                padding: '2px 12px 2px 40px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                fontSize: 11,
-                              }}
-                            >
-                              {c.primary_key ? (
-                                <span style={{ color: 'var(--risk-med)', fontSize: 9 }}>PK</span>
-                              ) : (
-                                <span style={{ width: 12 }} />
-                              )}
-                              <span>{c.name}</span>
-                              <span
-                                style={{
-                                  marginLeft: 'auto',
-                                  color: 'var(--fg-faint)',
-                                  fontSize: 10,
-                                }}
-                              >
-                                {c.type}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    );
-                  })}
-            </div>
-          );
-        })}
-      </div>
+      {schemaQuery.isLoading && (
+        <div className="muted" style={{ padding: '8px 12px', fontSize: 11 }}>
+          {t('datasources.settings.schema_loading')}
+        </div>
+      )}
+      {schemaQuery.isError && (
+        <div
+          className="muted"
+          style={{ padding: '8px 12px', fontSize: 11, color: 'var(--risk-high)' }}
+        >
+          {t('datasources.settings.schema_error')}
+        </div>
+      )}
+      {schemaQuery.data && (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <SchemaObjectTree
+            schemas={schemaQuery.data.schemas}
+            selected={preview}
+            onPreview={(schema, table) => setPreview({ schema, table })}
+          />
+        </div>
+      )}
+      <SampleDataDrawer datasourceId={ds.id} target={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

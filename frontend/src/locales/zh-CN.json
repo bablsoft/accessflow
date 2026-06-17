@@ -422,7 +422,8 @@
         "visibility_required": "可见性为必填",
         "placeholder_required": ":{{name}} 的值为必填"
       }
-    }
+    },
+    "datasource_label": "数据源"
   },
   "ai_panel": {
     "title": "AI 分析",
@@ -945,7 +946,19 @@
         "save_error": "保存行级安全策略失败",
         "delete_success": "行级安全策略已删除",
         "delete_error": "删除行级安全策略失败"
-      }
+      },
+      "object_tree_search_placeholder": "筛选架构、表、列…",
+      "object_tree_no_match": "没有对象匹配“{{query}}”",
+      "sample_preview_button": "预览数据",
+      "sample_title": "样本 · {{table}}",
+      "sample_error": "加载示例数据失败",
+      "sample_empty": "无行",
+      "sample_masked_tooltip": "列已被访问策略屏蔽",
+      "sample_governed_note": "已应用行级安全和列屏蔽 — 被屏蔽的列绝不会显示原始值。",
+      "sample_truncated": "{{count}} 行（受代理行数限制）",
+      "sample_row_count": "{{count}} 行",
+      "sample_select_prompt": "浏览架构并预览任意表的受控、有限的行样本。",
+      "sample_preview_aria": "预览 {{table}} 的数据"
     }
   },
   "admin": {

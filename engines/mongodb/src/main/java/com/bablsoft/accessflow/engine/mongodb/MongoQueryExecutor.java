@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.engine.mongodb;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
@@ -67,6 +69,28 @@ class MongoQueryExecutor {
             }
             long affected = runWrite(database, command);
             return new UpdateExecutionResult(affected, durationSince(start), policyIds);
+        } catch (MongoException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        var start = clock.instant();
+        // Sample = find({}) over the collection, funneled through the same row-security + masking
+        // pipeline as execute() so parity is automatic.
+        var command = MongoCommand.builder(request.table(), MongoOperation.FIND)
+                .filter(new Document())
+                .build();
+        var applied = rowSecurityApplier.apply(command, request.rowSecurityPredicates());
+        var policyIds = applied.appliedPolicyIds();
+        var database = clientManager.database(descriptor, true);
+        try {
+            var docs = runRead(database, applied.command(), maxRows, timeout);
+            var result = resultMapper.materialize(docs, maxRows, durationSince(start),
+                    request.restrictedColumns(), request.columnMasks());
+            return policyIds.isEmpty() ? result : result.withRowSecurityPolicyIds(policyIds);
         } catch (MongoException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

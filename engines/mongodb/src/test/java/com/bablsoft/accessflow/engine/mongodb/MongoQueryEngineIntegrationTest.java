@@ -8,10 +8,12 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
@@ -217,6 +219,39 @@ class MongoQueryEngineIntegrationTest {
     }
 
     @Test
+    void sampleTableReturnsCollectionDocuments() {
+        var result = sample("people", 100, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(3);
+        assertThat(result.columns()).extracting("name").contains("name", "team", "email");
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        var result = sample("people", 2, List.of(), List.of());
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void sampleTableAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "people", "team",
+                RowSecurityOperator.EQUALS, List.of("sales"));
+        var result = sample("people", 100, List.of(directive), List.of());
+        assertThat(result.rowCount()).isEqualTo(1);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void sampleTableAppliesColumnMask() {
+        var mask = new ColumnMaskDirective("people.email", MaskingStrategy.EMAIL, Map.of(),
+                UUID.randomUUID());
+        var result = sample("people", 100, List.of(), List.of(mask));
+        int emailIdx = result.columns().stream().map(c -> c.name()).toList().indexOf("email");
+        assertThat(result.rows()).allSatisfy(row ->
+                assertThat(row.get(emailIdx).toString()).contains("***"));
+    }
+
+    @Test
     void connectionProbePings() {
         ConnectionTestResult result = engine.testConnection(descriptor);
         assertThat(result.ok()).isTrue();
@@ -234,6 +269,15 @@ class MongoQueryEngineIntegrationTest {
 
     private Object run(String query) {
         return execute(query, engine.parse(query).type(), 1000, List.of(), List.of());
+    }
+
+    private SelectExecutionResult sample(String table, int maxRows,
+                                         List<RowSecurityDirective> rls,
+                                         List<ColumnMaskDirective> masks) {
+        var request = new SampleTableRequest(descriptor.id(), descriptor.databaseName(), table,
+                List.of(), masks, rls, null, null);
+        return (SelectExecutionResult) engine.sampleTable(new QueryEngineSampleRequest(request,
+                descriptor, maxRows, Duration.ofSeconds(10)));
     }
 
     private Object execute(String query, QueryType type, int maxRows,

@@ -51,6 +51,21 @@ public interface QueryEngine {
     QueryExecutionResult execute(QueryEngineExecutionRequest request);
 
     /**
+     * Read a bounded, governance-applied sample of rows from a single table/collection (issue
+     * AF-443). The engine issues its native "read all rows from this table, capped at
+     * {@code effectiveMaxRows}" query and funnels it through the same row-security + column-masking
+     * path as {@link #execute(QueryEngineExecutionRequest)}, so a masked column never returns a raw
+     * value and row-level security filters the sample. Engines whose row-security model has no
+     * per-row meaning for the target (e.g. key-value prefixes) must fail closed — deny with an
+     * empty result — when a row-security directive applies. Returns a
+     * {@link SelectExecutionResult}.
+     *
+     * @throws QueryExecutionException on engine/server failures ({@link
+     *         QueryExecutionTimeoutException} for timeouts).
+     */
+    QueryExecutionResult sampleTable(QueryEngineSampleRequest request);
+
+    /**
      * Short-lived connectivity probe (the engine analogue of the JDBC {@code SELECT 1}).
      *
      * @throws DatasourceConnectionTestException when the target is unreachable or misconfigured.

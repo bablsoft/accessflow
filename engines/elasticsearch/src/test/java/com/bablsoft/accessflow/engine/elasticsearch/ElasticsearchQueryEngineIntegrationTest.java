@@ -8,11 +8,13 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
@@ -86,6 +88,15 @@ class ElasticsearchQueryEngineIntegrationTest {
                 Duration.ofSeconds(30)));
     }
 
+    private static SelectExecutionResult sample(String index, int maxRows,
+                                                List<RowSecurityDirective> rls,
+                                                List<ColumnMaskDirective> masks) {
+        var request = new SampleTableRequest(DS_ID, descriptor.databaseName(), index,
+                List.of(), masks, rls, null, null);
+        return (SelectExecutionResult) engine.sampleTable(new QueryEngineSampleRequest(request,
+                descriptor, maxRows, Duration.ofSeconds(30)));
+    }
+
     private static void seed(String index) {
         exec("{\"bulk\":\"" + index + "\",\"operations\":["
                 + "{\"id\":\"1\",\"document\":{\"tenant\":\"acme\",\"user\":{\"email\":\"a@x.io\"}}},"
@@ -128,6 +139,52 @@ class ElasticsearchQueryEngineIntegrationTest {
                 UUID.randomUUID());
         var result = (SelectExecutionResult) exec("{\"search\":\"logs-mask\"}", QueryType.SELECT,
                 List.of(mask), List.of());
+        int userCol = result.columns().stream().map(c -> c.name()).toList().indexOf("user");
+        for (var row : result.rows()) {
+            @SuppressWarnings("unchecked")
+            var user = (Map<String, Object>) row.get(userCol);
+            assertThat((String) user.get("email")).contains("***@");
+        }
+    }
+
+    // All four sample tests reuse a single index. seed() re-indexes the same three fixed-id docs
+    // (idempotent), so the index is auto-created exactly once — avoiding the rapid successive
+    // index-creation that a single-node Testcontainers ES can reject mid-burst.
+    private static final String SAMPLE_INDEX = "logs-sample";
+
+    @Test
+    void sampleTableReturnsIndexDocuments() {
+        seed(SAMPLE_INDEX);
+        var result = sample(SAMPLE_INDEX, 100, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(3);
+        assertThat(result.columns()).extracting(c -> c.name()).contains("_id", "tenant");
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        seed(SAMPLE_INDEX);
+        var result = sample(SAMPLE_INDEX, 2, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void sampleTableAppliesRowSecurity() {
+        seed(SAMPLE_INDEX);
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, SAMPLE_INDEX, "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+        var result = sample(SAMPLE_INDEX, 100, List.of(directive), List.of());
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void sampleTableAppliesNestedColumnMask() {
+        seed(SAMPLE_INDEX);
+        var mask = new ColumnMaskDirective("user.email", MaskingStrategy.EMAIL, Map.of(),
+                UUID.randomUUID());
+        var result = sample(SAMPLE_INDEX, 100, List.of(), List.of(mask));
         int userCol = result.columns().stream().map(c -> c.name()).toList().indexOf("user");
         for (var row : result.rows()) {
             @SuppressWarnings("unchecked")

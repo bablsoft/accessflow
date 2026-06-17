@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.engine.cassandra;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.engine.cassandra.CassandraResultMapper.CqlColumn;
 import com.datastax.oss.driver.api.core.CqlIdentifier;
@@ -84,6 +87,19 @@ class CassandraQueryExecutor {
         } catch (DriverException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Sample = SELECT * FROM "table" (run in the datasource keyspace), funneled through the
+        // same parse + key-aware row-security + masking pipeline as execute(). The table name comes
+        // from introspection in CQL-internal form, so it is double-quoted to preserve case.
+        var sql = "SELECT * FROM \"" + request.table().replace("\"", "\"\"") + "\"";
+        var execRequest = new QueryExecutionRequest(request.datasourceId(), sql, QueryType.SELECT,
+                null, null, request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null);
+        return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
     }
 
     private static SimpleStatement build(CassandraRowSecurityApplier.Applied applied, boolean read,

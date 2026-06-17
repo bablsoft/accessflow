@@ -66,6 +66,7 @@ export default defineConfig({
         'src/components/datasources/ErDiagramTab.tsx',
         'src/components/datasources/erDiagramLayout.ts',
         'src/hooks/useSchemaIntrospect.ts',
+        'src/hooks/useTableSample.ts',
         'src/hooks/useWebSocket.ts',
         'src/pages/admin/reviewPlanTemplateForm.ts',
         'src/pages/admin/routingPolicyForm.ts',

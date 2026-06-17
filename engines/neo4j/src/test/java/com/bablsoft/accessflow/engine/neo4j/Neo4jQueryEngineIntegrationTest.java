@@ -8,10 +8,12 @@ import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -169,6 +171,42 @@ class Neo4jQueryEngineIntegrationTest {
     }
 
     @Test
+    void sampleTableReturnsNodes() {
+        var result = sample("User", 100, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(3);
+        assertThat(result.columns()).extracting(c -> c.name()).contains("n");
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        var result = sample("User", 2, List.of(), List.of());
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void sampleTableAppliesLabelScopedRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "User", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+        var result = sample("User", 100, List.of(directive), List.of());
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void sampleTableAppliesLabelAwareColumnMask() {
+        var mask = new ColumnMaskDirective("User.email", MaskingStrategy.EMAIL, Map.of(),
+                UUID.randomUUID());
+        var result = sample("User", 100, List.of(), List.of(mask));
+        assertThat(result.rows()).allSatisfy(row -> {
+            @SuppressWarnings("unchecked")
+            var node = (Map<String, Object>) row.get(0);
+            assertThat(String.valueOf(node.get("email"))).contains("***");
+        });
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(mask.policyId());
+    }
+
+    @Test
     void connectionProbeSucceedsAndFailsForUnreachableHost() {
         assertThat(engine.testConnection(descriptor).ok()).isTrue();
         assertThatThrownBy(() -> engine.testConnection(descriptor("127.0.0.1", 1)))
@@ -203,6 +241,15 @@ class Neo4jQueryEngineIntegrationTest {
 
     private static Object run(String query) {
         return execute(query, engine.parse(query).type(), 1000, List.of(), List.of());
+    }
+
+    private static SelectExecutionResult sample(String label, int maxRows,
+                                                List<RowSecurityDirective> rls,
+                                                List<ColumnMaskDirective> masks) {
+        var request = new SampleTableRequest(descriptor.id(), descriptor.databaseName(), label,
+                List.of(), masks, rls, null, null);
+        return (SelectExecutionResult) engine.sampleTable(new QueryEngineSampleRequest(request,
+                descriptor, maxRows, Duration.ofSeconds(30)));
     }
 
     private static Object execute(String query, QueryType type, int maxRows,

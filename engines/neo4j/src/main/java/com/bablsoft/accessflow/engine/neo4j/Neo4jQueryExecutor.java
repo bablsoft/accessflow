@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.engine.neo4j;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Result;
@@ -77,6 +80,19 @@ class Neo4jQueryExecutor {
         } catch (Neo4jException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Sample = MATCH (n:`Label`) RETURN n, funneled through the same parse + label-scoped
+        // row-security + label-aware masking pipeline as execute(). The label comes from
+        // introspection (allow-listed); backticks are doubled defensively.
+        var sql = "MATCH (n:`" + request.table().replace("`", "``") + "`) RETURN n";
+        var execRequest = new QueryExecutionRequest(request.datasourceId(), sql, QueryType.SELECT,
+                null, null, request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null);
+        return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
     }
 
     /** Collect up to {@code maxRows + 1} records (the truncation sentinel), converting each value. */

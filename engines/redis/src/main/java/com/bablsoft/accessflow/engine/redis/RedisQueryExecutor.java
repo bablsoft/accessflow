@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.engine.redis;
 
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import redis.clients.jedis.JedisPooled;
@@ -18,8 +21,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -190,6 +195,109 @@ class RedisQueryExecutor {
             // ---- admin (DDL) --------------------------------------------------------------
             case FLUSHDB -> { jedis.flushDB(); yield new UpdateExecutionResult(0, dur(start)); }
         };
+    }
+
+    // ---- sample-data path (AF-443) --------------------------------------------------------------
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Row security has no per-row meaning in a key-value model: fail closed if a policy targets
+        // this prefix (parity with execute's failClosedOnRowSecurity). Otherwise SCAN the prefix and
+        // fetch values, with field masking applied by the shared mapper.
+        failClosedForPrefix(request.table(), request.rowSecurityPredicates());
+        var jedis = clientManager.client(descriptor);
+        var restricted = request.restrictedColumns();
+        var masks = request.columnMasks();
+        var start = clock.instant();
+        try {
+            var scanned = scanKeys(jedis, request.table(), maxRows + 1);
+            boolean truncated = scanned.size() > maxRows;
+            var keys = truncated ? scanned.subList(0, maxRows) : scanned;
+            if (keys.isEmpty()) {
+                return resultMapper.rows(List.of(RedisResultMapper.KEY_COLUMN), List.of(), false,
+                        dur(start), restricted, masks);
+            }
+            if ("hash".equals(jedis.type(keys.get(0)))) {
+                return sampleHashes(jedis, keys, truncated, dur(start), restricted, masks);
+            }
+            return sampleKeyValues(jedis, keys, truncated, dur(start), restricted, masks);
+        } catch (JedisException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    private SelectExecutionResult sampleKeyValues(JedisPooled jedis, List<String> keys,
+                                                  boolean truncated, Duration duration,
+                                                  List<String> restricted,
+                                                  List<ColumnMaskDirective> masks) {
+        var rows = new ArrayList<List<Object>>(keys.size());
+        for (var key : keys) {
+            var row = new ArrayList<Object>(2);
+            row.add(key);
+            row.add(sampleValue(jedis, key));
+            rows.add(row);
+        }
+        return resultMapper.rows(List.of(RedisResultMapper.KEY_COLUMN, RedisResultMapper.VALUE_COLUMN),
+                rows, truncated, duration, restricted, masks);
+    }
+
+    private SelectExecutionResult sampleHashes(JedisPooled jedis, List<String> keys,
+                                               boolean truncated, Duration duration,
+                                               List<String> restricted,
+                                               List<ColumnMaskDirective> masks) {
+        var hashes = new ArrayList<Map<String, String>>(keys.size());
+        var columnNames = new LinkedHashSet<String>();
+        for (var key : keys) {
+            var hash = jedis.hgetAll(key);
+            hashes.add(hash);
+            columnNames.addAll(hash.keySet());
+        }
+        var columns = new ArrayList<>(columnNames);
+        var rows = new ArrayList<List<Object>>(hashes.size());
+        for (var hash : hashes) {
+            var row = new ArrayList<Object>(columns.size());
+            for (var column : columns) {
+                row.add(hash.get(column));
+            }
+            rows.add(row);
+        }
+        return resultMapper.rows(columns, rows, truncated, duration, restricted, masks);
+    }
+
+    private static String sampleValue(JedisPooled jedis, String key) {
+        return switch (jedis.type(key)) {
+            case "string" -> jedis.get(key);
+            case "list" -> String.valueOf(jedis.lrange(key, 0, -1));
+            case "set" -> String.valueOf(jedis.smembers(key));
+            case "zset" -> String.valueOf(jedis.zrange(key, 0, -1));
+            default -> null;
+        };
+    }
+
+    private static List<String> scanKeys(JedisPooled jedis, String prefix, int limit) {
+        var keys = new ArrayList<String>();
+        var params = new ScanParams().match(prefix + ":*").count(200);
+        var cursor = ScanParams.SCAN_POINTER_START;
+        do {
+            var result = jedis.scan(cursor, params);
+            keys.addAll(result.getResult());
+            cursor = result.getCursor();
+        } while (!ScanParams.SCAN_POINTER_START.equals(cursor) && keys.size() < limit);
+        return keys.size() > limit ? new ArrayList<>(keys.subList(0, limit)) : keys;
+    }
+
+    private void failClosedForPrefix(String prefix, List<RowSecurityDirective> directives) {
+        if (directives == null || directives.isEmpty()) {
+            return;
+        }
+        var prefixes = Set.of(prefix.toLowerCase(Locale.ROOT).trim());
+        for (var directive : directives) {
+            if (matchingPrefix(directive.tableRef(), prefixes) != null) {
+                throw new UnrewritableRowSecurityException(
+                        messages.get("error.row_security_redis_unsupported", prefix));
+            }
+        }
     }
 
     // ---- row-security fail-closed ---------------------------------------------------------------
