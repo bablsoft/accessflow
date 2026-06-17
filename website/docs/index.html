@@ -839,9 +839,15 @@
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
             <em>Schema</em> and <em>ER diagram</em> tabs alongside <em>Configuration</em> /
             <em>Permissions</em>. The schema view introspects the live database (cached and
-            refreshable from the UI). The ER tab lays those tables out as a node-and-edge graph
-            with PK/FK badges and column types so reviewers and operators can sanity-check what a
-            query is touching without leaving AccessFlow.
+            refreshable from the UI) and renders a <strong>searchable object tree</strong> — one
+            filter matches across schema, table, and column names. Click any table to open a
+            <strong>sample-data preview</strong>: a small, read-only set of rows fetched through the
+            same governance path as a real query, so row-level security filters the rows and column
+            masking redacts sensitive values (masked columns show <code>***</code>, never the raw
+            value). The same searchable tree and preview are available in the query editor sidebar.
+            The ER tab lays those tables out as a node-and-edge graph with PK/FK badges and column
+            types so reviewers and operators can sanity-check what a query is touching without
+            leaving AccessFlow.
           </p>
           <figure class="docs-figure">
             <picture>

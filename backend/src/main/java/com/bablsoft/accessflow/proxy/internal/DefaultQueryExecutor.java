@@ -7,9 +7,11 @@ import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import lombok.RequiredArgsConstructor;
@@ -89,6 +91,36 @@ class DefaultQueryExecutor implements QueryExecutor {
                     request.datasourceId(), ex.getMessage());
             throw sqlExceptionTranslator.translate(ex, effectiveTimeout, LocaleContextHolder.getLocale());
         }
+    }
+
+    @Override
+    public SelectExecutionResult sampleTable(SampleTableRequest request) {
+        var descriptor = datasourceLookupService.findById(request.datasourceId())
+                .orElseThrow(() -> new DatasourceUnavailableException(
+                        msg("error.datasource_unavailable_not_found")));
+        var execProps = properties.execution();
+        int effectiveMaxRows = clampMaxRows(request.maxRowsOverride(),
+                descriptor.maxRowsPerQuery(), execProps.maxRows());
+        Duration effectiveTimeout = request.statementTimeoutOverride() != null
+                ? request.statementTimeoutOverride()
+                : execProps.statementTimeout();
+
+        if (engineCatalog.isEngineManaged(descriptor.dbType())) {
+            return (SelectExecutionResult) engineCatalog.engineFor(descriptor.dbType())
+                    .sampleTable(new QueryEngineSampleRequest(
+                            request, descriptor, effectiveMaxRows, effectiveTimeout));
+        }
+
+        // Relational: build SELECT * FROM <dialect-quoted, allow-listed identifier> and run it
+        // through the same row-security rewrite + column-masking path as a normal SELECT. The row
+        // cap is enforced by JDBC setMaxRows (dialect-agnostic), so no per-dialect LIMIT is needed.
+        var sql = "SELECT * FROM "
+                + IdentifierQuoter.qualifiedTable(descriptor.dbType(), request.schema(), request.table());
+        return (SelectExecutionResult) execute(new QueryExecutionRequest(
+                request.datasourceId(), sql, QueryType.SELECT,
+                request.maxRowsOverride(), request.statementTimeoutOverride(),
+                request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null));
     }
 
     private QueryExecutionResult executeTransactional(QueryExecutionRequest request,

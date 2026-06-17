@@ -422,7 +422,8 @@
         "visibility_required": "La visibilidad es obligatoria",
         "placeholder_required": "Se requiere un valor para :{{name}}"
       }
-    }
+    },
+    "datasource_label": "Fuente de datos"
   },
   "ai_panel": {
     "title": "Análisis de IA",
@@ -945,7 +946,19 @@
         "save_error": "No se pudo guardar la política de seguridad de filas",
         "delete_success": "Política de seguridad de filas eliminada",
         "delete_error": "No se pudo eliminar la política de seguridad de filas"
-      }
+      },
+      "object_tree_search_placeholder": "Filtrar esquemas, tablas, columnas…",
+      "object_tree_no_match": "Ningún objeto coincide con \"{{query}}\"",
+      "sample_preview_button": "Previsualizar datos",
+      "sample_title": "Muestra · {{table}}",
+      "sample_error": "No se pudieron cargar los datos de muestra",
+      "sample_empty": "Sin filas",
+      "sample_masked_tooltip": "Columna enmascarada por política de acceso",
+      "sample_governed_note": "Se aplican seguridad a nivel de fila y enmascaramiento de columnas: las columnas enmascaradas nunca muestran valores sin procesar.",
+      "sample_truncated": "{{count}} filas (limitado por el límite de filas del proxy)",
+      "sample_row_count": "{{count}} filas",
+      "sample_select_prompt": "Explore el esquema y previsualice una muestra limitada y controlada de las filas de cualquier tabla.",
+      "sample_preview_aria": "Previsualizar datos de {{table}}"
     }
   },
   "admin": {

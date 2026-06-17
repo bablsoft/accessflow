@@ -422,7 +422,8 @@
         "visibility_required": "Visibility is required",
         "placeholder_required": "Value for :{{name}} is required"
       }
-    }
+    },
+    "datasource_label": "Datasource"
   },
   "ai_panel": {
     "title": "AI analysis",
@@ -945,7 +946,19 @@
         "save_error": "Failed to save row security policy",
         "delete_success": "Row security policy deleted",
         "delete_error": "Failed to delete row security policy"
-      }
+      },
+      "object_tree_search_placeholder": "Filter schemas, tables, columns…",
+      "object_tree_no_match": "No objects match \"{{query}}\"",
+      "sample_preview_button": "Preview data",
+      "sample_title": "Sample · {{table}}",
+      "sample_error": "Failed to load sample data",
+      "sample_empty": "No rows",
+      "sample_masked_tooltip": "Column masked by access policy",
+      "sample_governed_note": "Row-level security and column masking are applied — masked columns never show raw values.",
+      "sample_truncated": "{{count}} rows (capped by the proxy row limit)",
+      "sample_row_count": "{{count}} rows",
+      "sample_select_prompt": "Browse the schema and preview a bounded, governed sample of any table's rows.",
+      "sample_preview_aria": "Preview data for {{table}}"
     }
   },
   "admin": {

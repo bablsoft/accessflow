@@ -422,7 +422,8 @@
         "visibility_required": "La visibilité est requise",
         "placeholder_required": "Une valeur est requise pour :{{name}}"
       }
-    }
+    },
+    "datasource_label": "Source de données"
   },
   "ai_panel": {
     "title": "Analyse IA",
@@ -945,7 +946,19 @@
         "save_error": "Échec de l’enregistrement de la politique de sécurité des lignes",
         "delete_success": "Politique de sécurité des lignes supprimée",
         "delete_error": "Échec de la suppression de la politique de sécurité des lignes"
-      }
+      },
+      "object_tree_search_placeholder": "Filtrer schémas, tables, colonnes…",
+      "object_tree_no_match": "Aucun objet ne correspond à \"{{query}}\"",
+      "sample_preview_button": "Aperçu des données",
+      "sample_title": "Échantillon · {{table}}",
+      "sample_error": "Échec du chargement des données d'exemple",
+      "sample_empty": "Aucune ligne",
+      "sample_masked_tooltip": "Colonne masquée par la politique d'accès",
+      "sample_governed_note": "La sécurité au niveau des lignes et le masquage des colonnes sont appliqués — les colonnes masquées n'affichent jamais de valeurs brutes.",
+      "sample_truncated": "{{count}} lignes (limité par la limite de lignes du proxy)",
+      "sample_row_count": "{{count}} lignes",
+      "sample_select_prompt": "Parcourez le schéma et prévisualisez un échantillon limité et contrôlé des lignes de n'importe quelle table.",
+      "sample_preview_aria": "Aperçu des données de {{table}}"
     }
   },
   "admin": {

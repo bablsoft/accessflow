@@ -1317,6 +1317,19 @@ export interface DatasourceSchema {
   schemas: SchemaNamespace[];
 }
 
+export interface SampleRowsColumn {
+  name: string;
+  type: string;
+  restricted: boolean;
+}
+export interface SampleRowsResponse {
+  columns: SampleRowsColumn[];
+  rows: unknown[][];
+  row_count: number;
+  truncated: boolean;
+  duration_ms: number;
+}
+
 export type UserNotificationEventType =
   | 'QUERY_SUBMITTED'
   | 'QUERY_APPROVED'

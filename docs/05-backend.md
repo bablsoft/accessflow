@@ -630,6 +630,18 @@ execution.
 
 The result is returned via `DatabaseSchemaView` (immutable nested records: `Schema → Table → Column` + `ForeignKey`). The web layer maps to `DatabaseSchemaResponse` for the `GET /api/v1/datasources/{id}/schema` endpoint; the AI module consumes the same view via `SystemPromptRenderer.describeSchema(...)`.
 
+### Sample data path (AF-443)
+
+`proxy.api.SampleDataService` returns a bounded, fully-governed sample of a single table's rows for the schema-explorer UI — an **ad-hoc read that bypasses review but not governance**. It does *not* create a `query_request`; it resolves the caller's directives and runs through the executor exactly like `DefaultQueryLifecycleService.doExecute`:
+
+1. **Authorization + allow-list.** `DefaultSampleDataService` calls `DatasourceAdminService.introspectSchema(...)` (which enforces org + permission-row access) and validates the requested `schema`/`table` against the returned `DatabaseSchemaView`. Non-ADMINs additionally need `can_read` and the target inside their `allowed_schemas`/`allowed_tables` (same normalization as `DefaultQuerySubmissionService.verifyAllowedTables`). A miss raises `TableNotFoundException` (HTTP 404) — existence is never leaked.
+2. **Directive resolution.** Restricted columns (from the permission), `ColumnMaskDirective`s (`MaskingPolicyResolutionService`), and `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved for the caller.
+3. **Execution.** `QueryExecutor.sampleTable(SampleTableRequest)` enforces the row cap (`maxRowsOverride` clamped to the datasource + global `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS`) and statement timeout, then:
+   - **Relational** datasources: builds `SELECT * FROM <dialect-quoted, allow-listed identifier>` (via `IdentifierQuoter`, never raw input) and runs the existing JDBC path — `RowSecurityRewriter` injects RLS, `JdbcResultRowMapper` + `ColumnMasker` mask post-fetch, JDBC `setMaxRows` caps without a dialect-specific `LIMIT`.
+   - **Engine-managed** (NoSQL) datasources: delegates to the engine's `QueryEngine.sampleTable(QueryEngineSampleRequest)` (see [Engine SDK](15-engine-sdk.md)), which issues its native "read all rows from this table, capped at N" and funnels it through the same parse → row-security → mask pipeline as `execute`. Mongo `find({}).limit(N)`, Couchbase/Cassandra/DynamoDB `SELECT * FROM <keyspace/table>`, Elasticsearch `match_all`, Neo4j `MATCH (n:Label) RETURN n`. **Redis fails closed** — a key-value prefix has no per-row security meaning, so any matching `RowSecurityDirective` denies with an empty result; otherwise it SCANs the prefix and fetches values, with field masking still applied.
+
+The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET /api/v1/datasources/{id}/sample-rows` — masked columns carry the masked value only.
+
 ---
 
 ## Review Workflow State Machine

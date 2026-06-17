@@ -422,7 +422,8 @@
         "visibility_required": "Sichtbarkeit ist erforderlich",
         "placeholder_required": "Wert für :{{name}} ist erforderlich"
       }
-    }
+    },
+    "datasource_label": "Datenquelle"
   },
   "ai_panel": {
     "title": "KI-Analyse",
@@ -945,7 +946,19 @@
         "save_error": "Zeilensicherheitsrichtlinie konnte nicht gespeichert werden",
         "delete_success": "Zeilensicherheitsrichtlinie gelöscht",
         "delete_error": "Zeilensicherheitsrichtlinie konnte nicht gelöscht werden"
-      }
+      },
+      "object_tree_search_placeholder": "Schemas, Tabellen, Spalten filtern…",
+      "object_tree_no_match": "Keine Objekte entsprechen \"{{query}}\"",
+      "sample_preview_button": "Daten anzeigen",
+      "sample_title": "Beispiel · {{table}}",
+      "sample_error": "Beispieldaten konnten nicht geladen werden",
+      "sample_empty": "Keine Zeilen",
+      "sample_masked_tooltip": "Spalte durch Zugriffsrichtlinie maskiert",
+      "sample_governed_note": "Zeilensicherheit und Spaltenmaskierung werden angewendet – maskierte Spalten zeigen niemals Rohwerte.",
+      "sample_truncated": "{{count}} Zeilen (durch Proxy-Zeilenlimit begrenzt)",
+      "sample_row_count": "{{count}} Zeilen",
+      "sample_select_prompt": "Durchsuchen Sie das Schema und zeigen Sie eine begrenzte, kontrollierte Stichprobe der Zeilen einer Tabelle an.",
+      "sample_preview_aria": "Daten für {{table}} anzeigen"
     }
   },
   "admin": {

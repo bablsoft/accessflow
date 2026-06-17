@@ -8,10 +8,12 @@ import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -195,6 +197,48 @@ class DynamoDbQueryEngineIntegrationTest {
     }
 
     @Test
+    void sampleTableReturnsTableRows() {
+        var result = sample("Users", 100, List.of(), List.of());
+        assertThat(result.rowCount()).isEqualTo(3);
+        assertThat(result.columns()).extracting("name").contains("id", "tenant", "name", "email");
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        var result = sample("Users", 2, List.of(), List.of());
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void sampleTableAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "Users", "tenant",
+                RowSecurityOperator.EQUALS, List.of("globex"));
+        var result = sample("Users", 100, List.of(directive), List.of());
+        assertThat(result.rowCount()).isEqualTo(1);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void sampleTableAppliesRecursiveColumnMask() {
+        var emailMask = new ColumnMaskDirective("email", MaskingStrategy.EMAIL, Map.of(),
+                UUID.randomUUID());
+        var ssnMask = new ColumnMaskDirective("profile.ssn", MaskingStrategy.FULL, Map.of(),
+                UUID.randomUUID());
+        var result = sample("Users", 100, List.of(), List.of(emailMask, ssnMask));
+        int emailIdx = columnIndex(result, "email");
+        int profileIdx = columnIndex(result, "profile");
+        assertThat(result.rows()).allMatch(row -> String.valueOf(row.get(emailIdx)).contains("***"));
+        assertThat(result.rows()).allMatch(row -> {
+            @SuppressWarnings("unchecked")
+            var profile = (Map<String, Object>) row.get(profileIdx);
+            return "***".equals(profile.get("ssn")) && !"***".equals(profile.get("phone"));
+        });
+        assertThat(result.appliedMaskingPolicyIds())
+                .contains(emailMask.policyId(), ssnMask.policyId());
+    }
+
+    @Test
     void createAndDeleteTableViaJsonCommand() {
         var create = """
                 {"CreateTable": {"TableName": "Widgets",
@@ -262,6 +306,15 @@ class DynamoDbQueryEngineIntegrationTest {
 
     private static Object run(String query) {
         return execute(query, engine.parse(query).type(), 1000, List.of(), List.of());
+    }
+
+    private static SelectExecutionResult sample(String table, int maxRows,
+                                                List<RowSecurityDirective> rls,
+                                                List<ColumnMaskDirective> masks) {
+        var request = new SampleTableRequest(descriptor.id(), descriptor.databaseName(), table,
+                List.of(), masks, rls, null, null);
+        return (SelectExecutionResult) engine.sampleTable(new QueryEngineSampleRequest(request,
+                descriptor, maxRows, Duration.ofSeconds(30)));
     }
 
     private static Object execute(String query, QueryType type, int maxRows,

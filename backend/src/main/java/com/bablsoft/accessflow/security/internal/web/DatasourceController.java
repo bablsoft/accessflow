@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.proxy.api.SampleDataService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.web.model.ConnectionTestResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceRequest;
@@ -30,17 +31,21 @@ import com.bablsoft.accessflow.security.internal.web.model.DatasourceTypesRespon
 import com.bablsoft.accessflow.security.internal.web.model.PermissionListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionResponse;
 import com.bablsoft.accessflow.security.internal.web.model.TestReplicaRequest;
+import com.bablsoft.accessflow.security.internal.web.model.SampleRowsResponse;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateDatasourceRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,6 +53,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -60,6 +66,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/datasources")
 @Tag(name = "Datasources", description = "Datasource management endpoints")
 @RequiredArgsConstructor
+@Validated
 @Slf4j
 class DatasourceController {
 
@@ -68,6 +75,7 @@ class DatasourceController {
     private final DriverCatalogService driverCatalogService;
     private final CustomJdbcDriverService customJdbcDriverService;
     private final DatasourceReviewerService datasourceReviewerService;
+    private final SampleDataService sampleDataService;
 
     @GetMapping("/types")
     @Operation(summary = "List supported database types with driver resolution status")
@@ -255,6 +263,23 @@ class DatasourceController {
         var caller = currentClaims(authentication);
         return DatabaseSchemaResponse.from(datasourceAdminService.introspectSchema(
                 id, caller.organizationId(), caller.userId(), isAdmin(caller)));
+    }
+
+    @GetMapping("/{id}/sample-rows")
+    @Operation(summary = "Read a bounded, row-level-security- and masking-aware sample of rows "
+            + "from a table")
+    @ApiResponse(responseCode = "200", description = "Sample rows (masked columns carry the "
+            + "masked value, never the raw one)")
+    @ApiResponse(responseCode = "404", description = "Datasource or table not found or not accessible")
+    @ApiResponse(responseCode = "422", description = "Sampling failed (customer database unreachable)")
+    SampleRowsResponse sampleRows(@PathVariable UUID id,
+                                  @RequestParam(required = false) String schema,
+                                  @RequestParam String table,
+                                  @RequestParam(defaultValue = "50") @Min(1) @Max(200) int limit,
+                                  Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return SampleRowsResponse.from(sampleDataService.sample(
+                id, caller.organizationId(), caller.userId(), isAdmin(caller), schema, table, limit));
     }
 
     @GetMapping("/{id}/permissions")

@@ -11,6 +11,8 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
@@ -18,8 +20,11 @@ import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
+
+import java.util.Map;
 
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
@@ -306,6 +311,51 @@ class DefaultQueryExecutorPostgresIntegrationTest {
                 .isInstanceOf(QueryExecutionFailedException.class)
                 .satisfies(ex -> assertThat(((QueryExecutionFailedException) ex).sqlState())
                         .isEqualTo("42P01"));
+    }
+
+    @Test
+    void sampleTableReturnsRowsForRelationalDatasource() {
+        var result = executor.sampleTable(new SampleTableRequest(
+                datasource.getId(), "public", "items", 50, null));
+
+        assertThat(result.rowCount()).isEqualTo(5);
+        assertThat(result.columns()).extracting("name").containsExactly("id", "name", "qty");
+    }
+
+    @Test
+    void sampleTableAppliesRowSecurityPredicate() {
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "items", "qty",
+                RowSecurityOperator.GREATER_THAN, List.of(5));
+        var result = executor.sampleTable(new SampleTableRequest(datasource.getId(), "public",
+                "items", List.of(), List.of(), List.of(directive), 50, null));
+
+        assertThat(result.rowCount()).isEqualTo(2);
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void sampleTableAppliesColumnMaskAndNeverLeaksRawValue() {
+        var policyId = UUID.randomUUID();
+        var mask = new ColumnMaskDirective("public.items.name", MaskingStrategy.FULL,
+                Map.of(), policyId);
+        var result = executor.sampleTable(new SampleTableRequest(datasource.getId(), "public",
+                "items", List.of(), List.of(mask), List.of(), 50, null));
+
+        int nameIdx = result.columns().stream().map(c -> c.name()).toList().indexOf("name");
+        assertThat(result.rows()).allSatisfy(row -> assertThat(row.get(nameIdx)).isEqualTo("***"));
+        assertThat(result.rows()).noneSatisfy(row ->
+                assertThat(row.get(nameIdx)).isEqualTo("apple"));
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void sampleTableHonoursRowCap() {
+        var result = executor.sampleTable(new SampleTableRequest(
+                datasource.getId(), "public", "items", 3, null));
+
+        assertThat(result.rowCount()).isEqualTo(3);
+        assertThat(result.truncated()).isTrue();
     }
 
     private DatasourceEntity saveDatasource() {

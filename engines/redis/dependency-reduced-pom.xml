@@ -4,7 +4,7 @@
   <groupId>com.bablsoft.accessflow</groupId>
   <artifactId>accessflow-engine-redis</artifactId>
   <name>AccessFlow Redis Query Engine</name>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <description>On-demand Redis engine plugin for AccessFlow (issue AF-419). Implements the
         core.api.QueryEngine SPI for governed key-value access and ships as a self-contained shaded
         JAR (bundling the Jedis driver with a relocated commons-pool2 / gson / org.json) resolved

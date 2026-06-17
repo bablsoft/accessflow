@@ -33,6 +33,8 @@ import { Avatar } from '@/components/common/Avatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { StatusPill } from '@/components/common/StatusPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
+import { SchemaObjectTree } from '@/components/datasources/SchemaObjectTree';
+import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
@@ -1119,6 +1121,7 @@ function PermCell({ on }: { on: boolean }) {
 function SchemaTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
   const schemaQuery = useSchemaIntrospect(dsId);
+  const [preview, setPreview] = useState<{ schema: string; table: string } | null>(null);
 
   if (schemaQuery.isLoading) {
     return (
@@ -1136,34 +1139,27 @@ function SchemaTab({ dsId }: { dsId: string }) {
     );
   }
 
-  const tables = schemaQuery.data.schemas[0]?.tables ?? [];
   return (
     <div style={{ padding: 28 }}>
-      <Table
-        rowKey="name"
-        size="middle"
-        dataSource={tables}
-        pagination={false}
-        columns={[
-          {
-            title: t('datasources.settings.schema_col_table'),
-            dataIndex: 'name',
-            render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
-          },
-          {
-            title: t('datasources.settings.schema_col_columns'),
-            render: (_v, tb) => <span className="mono muted">{tb.columns.length}</span>,
-          },
-          {
-            title: t('datasources.settings.schema_col_pk'),
-            render: (_v, tb) => (
-              <span className="mono" style={{ fontSize: 12 }}>
-                {tb.columns.find((c) => c.primary_key)?.name ?? '—'}
-              </span>
-            ),
-          },
-        ]}
-      />
+      <p className="muted" style={{ fontSize: 12, marginTop: 0, marginBottom: 12 }}>
+        {t('datasources.settings.sample_select_prompt')}
+      </p>
+      <div
+        style={{
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          background: 'var(--bg-sunken)',
+          height: 520,
+          overflow: 'hidden',
+        }}
+      >
+        <SchemaObjectTree
+          schemas={schemaQuery.data.schemas}
+          selected={preview}
+          onPreview={(schema, table) => setPreview({ schema, table })}
+        />
+      </div>
+      <SampleDataDrawer datasourceId={dsId} target={preview} onClose={() => setPreview(null)} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import type {
   DatasourcePermission,
   DatasourceSchema,
   DatasourceTypesResponse,
+  SampleRowsResponse,
   UpdateDatasourceInput,
 } from '@/types/api';
 
@@ -25,9 +26,17 @@ export const datasourceKeys = {
   details: () => ['datasources', 'detail'] as const,
   detail: (id: string) => ['datasources', 'detail', id] as const,
   schema: (id: string) => ['datasources', 'detail', id, 'schema'] as const,
+  sampleRows: (id: string, schema: string | undefined, table: string, limit: number) =>
+    ['datasources', 'detail', id, 'sample-rows', schema ?? '', table, limit] as const,
   permissions: (id: string) => ['datasources', 'detail', id, 'permissions'] as const,
   types: () => ['datasources', 'types'] as const,
 };
+
+export interface SampleRowsParams {
+  schema?: string;
+  table: string;
+  limit?: number;
+}
 
 export async function listDatasources(
   filters: DatasourceListFilters = {},
@@ -85,6 +94,19 @@ export async function testReplicaConnection(
 
 export async function getDatasourceSchema(id: string): Promise<DatasourceSchema> {
   const { data } = await apiClient.get<DatasourceSchema>(`${BASE}/${id}/schema`);
+  return data;
+}
+
+export async function getDatasourceSampleRows(
+  id: string,
+  params: SampleRowsParams,
+): Promise<SampleRowsResponse> {
+  const query: Record<string, string | number> = { table: params.table };
+  if (params.schema) query.schema = params.schema;
+  if (typeof params.limit === 'number') query.limit = params.limit;
+  const { data } = await apiClient.get<SampleRowsResponse>(`${BASE}/${id}/sample-rows`, {
+    params: query,
+  });
   return data;
 }
 

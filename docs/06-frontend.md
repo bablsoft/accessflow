@@ -84,6 +84,9 @@ accessflow-ui/
 │   │   │   ├── PermissionMatrix.tsx # User × permission grid
 │   │   │   ├── MaskingTab.tsx       # Dynamic data masking policies tab + create/edit modal (AF-381)
 │   │   │   ├── RowSecurityTab.tsx    # Row-level security policies tab + create/edit modal (AF-380)
+│   │   │   ├── SchemaObjectTree.tsx  # Searchable schema→table→column tree (AF-443)
+│   │   │   ├── SampleDataPreview.tsx # Read-only RLS/masking-aware sample-row table (AF-443)
+│   │   │   ├── SampleDataDrawer.tsx  # Drawer hosting SampleDataPreview (AF-443)
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
 │   │   │
 │   │   └── audit/
@@ -270,7 +273,7 @@ immediately.
 ### DatasourceSettingsPage *(ADMIN)*
 
 - Connection config form with live test button (`POST /datasources/{id}/test`)
-- Schema explorer with table/column tree
+- **Schema** tab (AF-443) — a searchable, hierarchical object tree (`components/datasources/SchemaObjectTree.tsx`) over the introspected schema: schemas → tables → columns, with a single filter that matches across **all three levels** (a column-name query surfaces its table and schema). The pure filter logic lives in `src/utils/schemaFilter.ts` (`filterSchema`). Each table row has a **"Preview data"** action that opens `components/datasources/SampleDataDrawer.tsx` → `SampleDataPreview.tsx`, a read-only AntD `Table` of a bounded, **RLS- and masking-aware** sample fetched via `useTableSample` (`GET /datasources/{id}/sample-rows`). Masked columns are badged with a lock icon and only ever render the masked value; a banner notes that row-level security and masking are applied, and the footer shows the row count / cap. The same `SchemaObjectTree` + `SampleDataDrawer` power the editor sidebar (`components/editor/SchemaTree.tsx`), so the cross-hierarchy search and sample preview are available while writing queries too.
 - **ER diagram** tab (`components/datasources/ErDiagramTab.tsx` → `ErDiagram.tsx`) — renders the introspected schema as a `@xyflow/react` graph, one node per table (showing columns + PK markers) and one edge per foreign key (label `from → to`). Auto-layout via `dagre` (LR rank direction); read-only — `nodesDraggable={false}`. Clicking a node highlights all edges touching it (others fade to opacity 0.18); clicking the canvas background clears the selection. Loading state is a same-size `Skeleton.Node` to avoid CLS; databases without FKs (denormalized warehouses, custom drivers without `getImportedKeys`) render an `EmptyState`. The CSS in `src/styles/globals.css` already honours `prefers-reduced-motion` for all transitions.
 - `PermissionMatrix` — table of all users × (can_read, can_write, can_ddl, row_limit, allowed_schemas, restricted columns count, expires_at). Restricted columns render as `"N columns"` with a hover tooltip listing the fully-qualified names; `"—"` when none.
 - `GrantAccessModal` includes a `restricted_columns` multi-select populated from the datasource's introspected schema (`flattenSchemaToColumns` in `src/utils/schemaColumns.ts`). Help text explains that values are masked in results and the AI reviewer is informed but does not auto-reject.

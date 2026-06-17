@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.engine.couchbase;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.engine.couchbase.CouchbaseRowSecurityApplier.Applied;
 import com.couchbase.client.core.error.CouchbaseException;
@@ -74,6 +77,19 @@ class CouchbaseQueryExecutor {
         } catch (CouchbaseException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Sample = SELECT * FROM `keyspace`, funneled through the same parse + row-security + masking
+        // pipeline as execute() so parity is automatic. The keyspace comes from introspection
+        // (allow-listed); backticks are doubled defensively.
+        var sql = "SELECT * FROM `" + request.table().replace("`", "``") + "`";
+        var execRequest = new QueryExecutionRequest(request.datasourceId(), sql, QueryType.SELECT,
+                null, null, request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null);
+        return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
     }
 
     /** Stream rows reactively, stopping at {@code maxRows + 1} (the truncation sentinel). */

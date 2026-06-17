@@ -4,6 +4,8 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -84,6 +86,19 @@ class DynamoDbQueryExecutor {
         } catch (SdkException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Sample = SELECT * FROM "table" (a bounded Scan), funneled through the same parse +
+        // row-security + masking pipeline as execute(). The table name comes from introspection
+        // (allow-listed); double-quotes are doubled defensively.
+        var sql = "SELECT * FROM \"" + request.table().replace("\"", "\"\"") + "\"";
+        var execRequest = new QueryExecutionRequest(request.datasourceId(), sql, QueryType.SELECT,
+                null, null, request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null);
+        return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
     }
 
     private QueryExecutionResult executeDdl(DynamoDbClient client, String sql, Instant start,

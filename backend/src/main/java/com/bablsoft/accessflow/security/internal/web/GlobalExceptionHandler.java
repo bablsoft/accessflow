@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
+import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
 import com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -77,6 +78,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -102,6 +105,18 @@ class GlobalExceptionHandler {
         pd.setProperty("error", "VALIDATION_ERROR");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("fields", fieldErrors);
+        return pd;
+    }
+
+    @ExceptionHandler({HandlerMethodValidationException.class, ConstraintViolationException.class})
+    ProblemDetail handleParameterValidation(Exception ex) {
+        // Bean Validation constraints on controller method parameters (e.g. @Min/@Max on a
+        // @RequestParam under @Validated) — map to 400 rather than the catch-all 500. The AOP
+        // @Validated path throws ConstraintViolationException; the web-native path throws
+        // HandlerMethodValidationException.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg("error.validation_failed"));
+        pd.setProperty("error", "VALIDATION_ERROR");
+        pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
 
@@ -218,6 +233,14 @@ class GlobalExceptionHandler {
     ProblemDetail handleDatasourceNotFound(DatasourceNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.datasource_not_found"));
         pd.setProperty("error", "DATASOURCE_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(TableNotFoundException.class)
+    ProblemDetail handleTableNotFound(TableNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.table_not_found"));
+        pd.setProperty("error", "TABLE_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

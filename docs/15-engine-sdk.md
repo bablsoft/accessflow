@@ -40,6 +40,7 @@ A plugin implements **`com.bablsoft.accessflow.core.api.QueryEngine`**:
 | `initialize(QueryEngineContext)` | One-time wiring from host capabilities (called once, before any other method) |
 | `parse(query)` | Validate + classify a submitted query → engine-neutral `SqlParseResult` |
 | `execute(QueryEngineExecutionRequest)` | Run an approved query with the host-computed row cap / timeout → `QueryExecutionResult` |
+| `sampleTable(QueryEngineSampleRequest)` | Read a bounded, governance-applied sample of one table/collection (AF-443) — issue the engine's native "read all rows, capped at N" and funnel it through the same row-security + masking path as `execute` → `SelectExecutionResult`. Engines whose row-security model has no per-row meaning (key-value prefixes) must **fail closed** when a directive applies. |
 | `testConnection(descriptor)` | Admin "Test connection" → `ConnectionTestResult` |
 | `introspectSchema(descriptor)` | Schema/collection sampling → `DatabaseSchemaView` (drives the ER diagram, autocomplete, AI schema context) |
 | `evictDatasource(id)` | Drop cached clients when a datasource's config changes or it is deactivated |

@@ -83,6 +83,7 @@
 - **Bulk approval UI** — reviewers can approve/reject multiple queries in one action (AF-346)
 - **AI analysis history dashboard** — trend charts: average risk score over time, most flagged query types, most active users (AF-347)
 - **Schema explorer ER view** — basic entity-relationship diagram rendered from introspected schema (AF-348)
+- **Enhanced schema exploration** — searchable object tree (filter across schemas/tables/columns) plus on-demand, RLS- and masking-aware sample-row previews per table, across every engine (AF-443)
 - **Review plan templates** — pre-built plans (e.g. "Strict — all writes need 2 approvals", "Lenient — reads auto-approved") (AF-349)
 - **Audit log CSV export** (AF-350)
 - **User invitation flow** — invite users by email instead of admin-created accounts (AF-276)

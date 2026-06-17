@@ -458,6 +458,46 @@ The `foreign_keys` array is always present on each table (possibly empty). Each 
 **Response 404:** Datasource does not exist in the caller's organization, or — for non-ADMIN callers — caller has no permission row. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** Schema introspection failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.
 
+### GET /datasources/{id}/sample-rows — Response 200
+
+Returns a bounded sample of rows for a single table/collection (AF-443), executed through the **same governance path** as a normal query: row-level-security predicates are injected and the post-fetch `ColumnMasker` is applied, so masked columns carry the masked value (e.g. `"***"`) and **never** a raw one. The row cap and statement timeout reuse the proxy execution knobs (`ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` / `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT`). No `query_request` is created. Works for every engine — relational datasources run a generated `SELECT * FROM <table>`; engine-managed (NoSQL) datasources run the engine's native "read all" through its `sampleTable` SPI method.
+
+**Query parameters:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `table` | yes | Table / collection / index / node-label / key-prefix name, validated against introspection (an allow-list). |
+| `schema` | no | Schema / namespace qualifier. Omit for engines without a schema concept. |
+| `limit` | no | Requested row count, `1`–`200` (default `50`); further clamped by the configured proxy row cap. |
+
+```
+GET /api/v1/datasources/{id}/sample-rows?schema=public&table=users&limit=50
+```
+
+```json
+{
+  "columns": [
+    { "name": "id", "type": "uuid", "restricted": false },
+    { "name": "email", "type": "varchar", "restricted": true }
+  ],
+  "rows": [
+    ["7c9e…", "***"],
+    ["a1b2…", "***"]
+  ],
+  "row_count": 2,
+  "truncated": false,
+  "duration_ms": 14
+}
+```
+
+`restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap.
+
+ADMINs may sample any datasource in their organization; non-ADMINs need a permission row with `can_read` and the target within their `allowed_schemas` / `allowed_tables`.
+
+**Response 400:** `limit` is out of the `1`–`200` range. `error: VALIDATION_ERROR`.
+**Response 404:** Datasource not accessible, or the table is absent from the introspected schema / outside the caller's allow-list. `error: DATASOURCE_NOT_FOUND` or `TABLE_NOT_FOUND`.
+**Response 422:** Sampling failed (e.g. customer database unreachable). `error: DATASOURCE_CONNECTION_TEST_FAILED`.
+
 ### GET /datasources/{id}/permissions — Response 200
 
 ```json

@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.SampleTableRequest;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -74,6 +77,19 @@ class EsQueryExecutor {
         } catch (SearchTransportException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    SelectExecutionResult sampleTable(SampleTableRequest request,
+                                      DatasourceConnectionDescriptor descriptor, int maxRows,
+                                      Duration timeout) {
+        // Sample = match_all search over the index (no query ⇒ match_all default), funneled through
+        // the same parse + bool.filter row-security + masking pipeline as execute().
+        var envelope = EsJson.object();
+        envelope.put("search", request.table());
+        var execRequest = new QueryExecutionRequest(request.datasourceId(), EsJson.write(envelope),
+                QueryType.SELECT, null, null, request.restrictedColumns(), request.columnMasks(),
+                request.rowSecurityPredicates(), false, null);
+        return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
     }
 
     private QueryExecutionResult search(SearchTransport transport, EsCommand cmd,

@@ -149,6 +149,36 @@ describe('api/datasources', () => {
     expect(result.schemas[0]!.tables[0]!.columns[0]!.primary_key).toBe(true);
   });
 
+  it('getDatasourceSampleRows GETs /sample-rows with table, schema and limit params', async () => {
+    const sample = {
+      columns: [{ name: 'id', type: 'uuid', restricted: false }],
+      rows: [['1']],
+      row_count: 1,
+      truncated: false,
+      duration_ms: 5,
+    };
+    get.mockResolvedValueOnce({ data: sample });
+    const result = await datasourcesApi.getDatasourceSampleRows('ds-1', {
+      schema: 'public',
+      table: 'users',
+      limit: 25,
+    });
+    expect(get).toHaveBeenCalledWith('/api/v1/datasources/ds-1/sample-rows', {
+      params: { table: 'users', schema: 'public', limit: 25 },
+    });
+    expect(result.row_count).toBe(1);
+  });
+
+  it('getDatasourceSampleRows omits the schema param when not provided', async () => {
+    get.mockResolvedValueOnce({
+      data: { columns: [], rows: [], row_count: 0, truncated: false, duration_ms: 1 },
+    });
+    await datasourcesApi.getDatasourceSampleRows('ds-1', { table: 'users' });
+    expect(get).toHaveBeenCalledWith('/api/v1/datasources/ds-1/sample-rows', {
+      params: { table: 'users' },
+    });
+  });
+
   it('listPermissions unwraps the { content } envelope', async () => {
     get.mockResolvedValueOnce({ data: { content: [permissionFixture] } });
     const result = await datasourcesApi.listPermissions('ds-1');
@@ -187,6 +217,10 @@ describe('api/datasources', () => {
       .toEqual(['datasources', 'detail', 'ds-1']);
     expect(datasourcesApi.datasourceKeys.schema('ds-1'))
       .toEqual(['datasources', 'detail', 'ds-1', 'schema']);
+    expect(datasourcesApi.datasourceKeys.sampleRows('ds-1', 'public', 'users', 50))
+      .toEqual(['datasources', 'detail', 'ds-1', 'sample-rows', 'public', 'users', 50]);
+    expect(datasourcesApi.datasourceKeys.sampleRows('ds-1', undefined, 'users', 50))
+      .toEqual(['datasources', 'detail', 'ds-1', 'sample-rows', '', 'users', 50]);
     expect(datasourcesApi.datasourceKeys.permissions('ds-1'))
       .toEqual(['datasources', 'detail', 'ds-1', 'permissions']);
     expect(datasourcesApi.datasourceKeys.list({ page: 0, size: 100 }))

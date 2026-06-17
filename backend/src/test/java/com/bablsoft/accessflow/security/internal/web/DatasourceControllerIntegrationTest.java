@@ -4,8 +4,12 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.ResultColumn;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.SslMode;
+import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.proxy.api.SampleDataService;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -26,15 +30,24 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 @SpringBootTest
@@ -49,6 +62,7 @@ class DatasourceControllerIntegrationTest {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
+    @MockitoBean SampleDataService sampleDataService;
 
     private MockMvcTester mvc;
     private OrganizationEntity primaryOrg;
@@ -197,6 +211,68 @@ class DatasourceControllerIntegrationTest {
                 .exchange();
 
         assertThat(result).hasStatus(401);
+    }
+
+    @Test
+    void sampleRowsReturnsMaskedRows() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var result = new SelectExecutionResult(
+                List.of(new ResultColumn("id", java.sql.Types.OTHER, "uuid", false),
+                        new ResultColumn("email", java.sql.Types.VARCHAR, "varchar", true)),
+                List.of(List.of("1", "***")), 1, false, Duration.ofMillis(7));
+        when(sampleDataService.sample(eq(ds.getId()), eq(primaryOrg.getId()), eq(admin.getId()),
+                anyBoolean(), eq("public"), eq("users"), eq(50))).thenReturn(result);
+
+        var response = mvc.get().uri("/api/v1/datasources/{id}/sample-rows?schema=public&table=users",
+                        ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.row_count").isEqualTo(1);
+        assertThat(response).bodyJson().extractingPath("$.duration_ms").isEqualTo(7);
+        assertThat(response).bodyJson().extractingPath("$.columns[1].restricted").isEqualTo(true);
+        assertThat(response).bodyJson().extractingPath("$.rows[0][1]").asString().isEqualTo("***");
+    }
+
+    @Test
+    void sampleRowsForUnknownTableReturns404() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        when(sampleDataService.sample(any(), any(), any(), anyBoolean(), any(), any(),
+                org.mockito.ArgumentMatchers.anyInt()))
+                .thenThrow(new TableNotFoundException(ds.getId(), "ghosts"));
+
+        var response = mvc.get().uri("/api/v1/datasources/{id}/sample-rows?table=ghosts", ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("TABLE_NOT_FOUND");
+    }
+
+    @Test
+    void sampleRowsWithOutOfRangeLimitReturns400() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var response = mvc.get().uri("/api/v1/datasources/{id}/sample-rows?table=users&limit=9999",
+                        ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+        verify(sampleDataService, never()).sample(any(), any(), any(), anyBoolean(), any(), any(),
+                org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void sampleRowsWithoutTokenReturns401() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var response = mvc.get().uri("/api/v1/datasources/{id}/sample-rows?table=users", ds.getId())
+                .exchange();
+
+        assertThat(response).hasStatus(401);
     }
 
     @Test

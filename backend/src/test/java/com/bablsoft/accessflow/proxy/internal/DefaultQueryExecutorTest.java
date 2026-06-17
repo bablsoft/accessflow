@@ -374,6 +374,50 @@ class DefaultQueryExecutorTest {
         assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
     }
 
+    @Test
+    void sampleTableRelationalBuildsQuotedSelectAndAppliesLimits() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(engineCatalog.isEngineManaged(DbType.POSTGRESQL)).thenReturn(false);
+
+        var request = new com.bablsoft.accessflow.core.api.SampleTableRequest(
+                datasourceId, "public", "users", 50, null);
+
+        var result = executor.sampleTable(request);
+
+        assertThat(result).isInstanceOf(SelectExecutionResult.class);
+        verify(connection).prepareStatement(eq("SELECT * FROM \"public\".\"users\""));
+        verify(connection).setReadOnly(true);
+        verify(statement).setMaxRows(51);
+        verify(statement).setQueryTimeout(30);
+    }
+
+    @Test
+    void sampleTableEngineManagedDispatchesToEngineWithEffectiveLimits() {
+        var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
+        var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var expected = new SelectExecutionResult(List.of(), List.of(), 0, false, Duration.ZERO);
+        when(engine.sampleTable(org.mockito.ArgumentMatchers.any())).thenReturn(expected);
+
+        var request = new com.bablsoft.accessflow.core.api.SampleTableRequest(
+                datasourceId, null, "users", null, null);
+        var result = executor.sampleTable(request);
+
+        assertThat(result).isSameAs(expected);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryEngineSampleRequest.class);
+        verify(engine).sampleTable(captor.capture());
+        assertThat(captor.getValue().descriptor()).isSameAs(mongoDescriptor);
+        assertThat(captor.getValue().effectiveMaxRows()).isEqualTo(2_000);
+        assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(captor.getValue().request().table()).isEqualTo("users");
+    }
+
     private DatasourceConnectionDescriptor descriptor(int maxRows) {
         return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows,
