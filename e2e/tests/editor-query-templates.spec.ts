@@ -106,8 +106,10 @@ test.describe.serial('query templates from /editor', () => {
       { timeout: 15_000 },
     );
 
-    // ── 4. Open the Templates drawer and click Open on our row.
-    await page.getByRole('button', { name: 'Templates' }).click();
+    // ── 4. Open the Templates drawer and click Open on our row. Match the toolbar button's
+    // full accessible name ("book" icon + label) so it doesn't collide with the schema-tree
+    // buttons for the `query_templates` table in the editor sidebar (AF-443).
+    await page.getByRole('button', { name: 'book Templates' }).click();
     const drawer = page.getByRole('dialog').filter({ hasText: 'Query templates' });
     const row = drawer.locator('.ant-list-item').filter({ hasText: TEMPLATE_NAME });
     await expect(row).toBeVisible({ timeout: 10_000 });
