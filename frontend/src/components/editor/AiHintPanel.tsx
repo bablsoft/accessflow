@@ -1,4 +1,5 @@
-import { CheckOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+import { CheckOutlined, ThunderboltOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { AiAnalysis } from '@/types/api';
 import { IssueCard } from './IssueCard';
@@ -8,8 +9,10 @@ import { fmtNum } from '@/utils/dateFormat';
 interface AiHintPanelProps {
   analyzing: boolean;
   analysis: AiAnalysis | null;
+  stale?: boolean;
   aiEnabled: boolean;
   onApplySuggestion?: (sql: string) => void;
+  onReanalyze?: () => void;
 }
 
 const riskBg = (level: AiAnalysis['risk_level']) => {
@@ -24,10 +27,14 @@ const riskBg = (level: AiAnalysis['risk_level']) => {
 export function AiHintPanel({
   analyzing,
   analysis,
+  stale = false,
   aiEnabled,
   onApplySuggestion,
+  onReanalyze,
 }: AiHintPanelProps) {
   const { t } = useTranslation();
+  // Stale only matters while an analysis is actually displayed (not during a re-run).
+  const showStale = stale && !!analysis && !analyzing;
   return (
     <div
       style={{
@@ -49,6 +56,26 @@ export function AiHintPanel({
       >
         <ThunderboltOutlined style={{ color: 'var(--accent)' }} />
         <span style={{ fontWeight: 600, fontSize: 13 }}>{t('ai_panel.title')}</span>
+        {showStale && (
+          <span
+            className="mono"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              marginLeft: 'auto',
+              fontSize: 10,
+              padding: '2px 6px',
+              borderRadius: 999,
+              color: 'var(--risk-med)',
+              background: 'var(--risk-med-bg)',
+              border: '1px solid var(--risk-med)',
+            }}
+          >
+            <WarningOutlined style={{ fontSize: 10 }} />
+            {t('ai_panel.stale_badge')}
+          </span>
+        )}
         {!aiEnabled && (
           <span
             className="mono muted"
@@ -80,6 +107,35 @@ export function AiHintPanel({
           </div>
         ) : (
           <>
+            {showStale && (
+              <div
+                role="status"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  padding: 12,
+                  marginBottom: 16,
+                  background: 'var(--risk-med-bg)',
+                  border: '1px solid var(--risk-med)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                <WarningOutlined style={{ color: 'var(--risk-med)', marginTop: 2, flexShrink: 0 }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                  <span>{t('ai_panel.stale_banner')}</span>
+                  {onReanalyze && (
+                    <div>
+                      <Button size="small" icon={<ThunderboltOutlined />} onClick={onReanalyze}>
+                        {t('ai_panel.reanalyze_button')}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ marginBottom: 16 }}>
               <div
                 style={{

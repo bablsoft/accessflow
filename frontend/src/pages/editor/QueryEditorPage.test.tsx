@@ -178,7 +178,7 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     expect(findSubmitButton()).toBeDisabled(); // hard gate until analyze
   });
 
-  it('enables Submit once analysis completes; clearing analysis on edit re-disables it', async () => {
+  it('marks analysis stale on edit, keeps it visible, and re-disables Submit', async () => {
     listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
     analyzeOnlyMock.mockResolvedValue(sampleAnalysis);
 
@@ -208,7 +208,9 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     await waitFor(() => {
       expect(findSubmitButton()).toBeDisabled();
     });
-    expect(screen.queryByText('Looks fine.')).not.toBeInTheDocument();
+    // The analysis stays on screen (still readable) but is flagged stale.
+    expect(screen.getByText('Looks fine.')).toBeInTheDocument();
+    expect(screen.getByText('stale')).toBeInTheDocument();
   });
 
   it('submits the query and navigates to the detail page on success', async () => {
@@ -297,6 +299,10 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     // Editor is pre-filled with the suggestion; submit re-gates until re-analysis.
     expect((editor as HTMLTextAreaElement).value).toBe(INDEX_DDL);
     await waitFor(() => expect(findSubmitButton()).toBeDisabled());
+    // The analysis is kept on screen (marked stale) so the user can still see the risks and the
+    // remaining suggestions to work on them — it is NOT wiped.
+    expect(screen.getByText('Add index on users(email)')).toBeInTheDocument();
+    expect(screen.getByText('stale')).toBeInTheDocument();
 
     // Re-analyze the applied draft, then submit.
     await act(async () => {

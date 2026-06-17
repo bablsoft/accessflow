@@ -46,6 +46,7 @@ export function QueryEditorPage() {
   const dsId = selectedDsId ?? datasources[0]?.id ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState('');
+  const [analyzedSql, setAnalyzedSql] = useState<string | null>(null);
   const [syntax, setSyntax] = useState<string | undefined>(undefined);
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
@@ -60,7 +61,11 @@ export function QueryEditorPage() {
   const queryClient = useQueryClient();
 
   const analyzeMutation = useMutation({
-    mutationFn: () => analyzeOnly({ datasource_id: ds!.id, sql: sql.trim() }),
+    mutationFn: (sqlToAnalyze: string) => analyzeOnly({ datasource_id: ds!.id, sql: sqlToAnalyze }),
+    onSuccess: (_data, sqlToAnalyze) => {
+      // Remember the exact SQL this analysis ran against so we can detect staleness later.
+      setAnalyzedSql(sqlToAnalyze);
+    },
     onError: () => {
       message.error(t('editor.analyze_error'));
     },
@@ -70,7 +75,9 @@ export function QueryEditorPage() {
     setSql(next);
     // A manual edit clears the "came from an AI suggestion" flag.
     setSubmissionReason('USER_SUBMITTED');
-    if (analyzeMutation.data || analyzeMutation.isError) {
+    // A successful analysis is kept on screen (marked stale below); only clear a *failed* one so the
+    // empty prompt returns and the user can re-analyze.
+    if (analyzeMutation.isError) {
       analyzeMutation.reset();
     }
   };
@@ -109,6 +116,9 @@ export function QueryEditorPage() {
 
   const analyzing = analyzeMutation.isPending;
   const analysis = analyzeMutation.data ?? null;
+  // Stale = an analysis exists but the live SQL has diverged from what it ran against. We keep it on
+  // screen (so the user can still read the risks and apply remaining suggestions) but mark it stale.
+  const analysisStale = !!analysis && analyzedSql !== sql.trim();
 
   const lineCount = (sql.match(/\n/g) ?? []).length + 1;
 
@@ -134,7 +144,7 @@ export function QueryEditorPage() {
   const aiSupported = ds.ai_analysis_enabled && !!ds.ai_config_id;
   const textToSqlSupported = mode.supportsTextToSql && ds.text_to_sql_enabled && !!ds.ai_config_id;
   const sqlNonEmpty = sql.trim().length > 0;
-  const hasFreshAnalysis = !!analyzeMutation.data;
+  const hasFreshAnalysis = !!analysis && !analysisStale;
   const canAnalyze = aiSupported && sqlNonEmpty && !analyzeMutation.isPending;
   const submitGatedByAnalysis = aiSupported && !hasFreshAnalysis;
   const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
@@ -165,7 +175,7 @@ export function QueryEditorPage() {
               <Button
                 icon={analyzeMutation.isPending ? <LoadingOutlined /> : <ThunderboltOutlined />}
                 disabled={!canAnalyze}
-                onClick={() => analyzeMutation.mutate()}
+                onClick={() => analyzeMutation.mutate(sql.trim())}
               >
                 {analyzeMutation.isPending
                   ? t('editor.analyzing_button')
@@ -258,7 +268,7 @@ export function QueryEditorPage() {
               schema={schema}
               dbType={ds.db_type}
               syntax={effectiveSyntax}
-              issues={analysis?.issues}
+              issues={hasFreshAnalysis ? analysis?.issues : undefined}
               height={300}
             />
             <div>
@@ -308,8 +318,10 @@ export function QueryEditorPage() {
         <AiHintPanel
           analyzing={analyzing}
           analysis={analysis}
+          stale={analysisStale}
           aiEnabled={ds.ai_analysis_enabled}
           onApplySuggestion={handleApplySuggestion}
+          onReanalyze={canAnalyze ? () => analyzeMutation.mutate(sql.trim()) : undefined}
         />
       </div>
       <QueryTemplatesDrawer

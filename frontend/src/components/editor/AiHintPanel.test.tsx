@@ -63,4 +63,34 @@ describe('AiHintPanel optimizations', () => {
 
     expect(screen.queryByText('Add index on users(email)')).toBeNull();
   });
+
+  it('marks a stale analysis without hiding its data and re-runs on demand', () => {
+    const onReanalyze = vi.fn();
+    render(
+      wrap(
+        <AiHintPanel
+          analyzing={false}
+          analysis={analysis}
+          stale
+          aiEnabled
+          onReanalyze={onReanalyze}
+        />,
+      ),
+    );
+
+    // Stale indicator is shown, yet the analysis data stays fully visible.
+    expect(screen.getByText('stale')).toBeInTheDocument();
+    expect(screen.getByText('Looks fine.')).toBeInTheDocument();
+    expect(screen.getByText('Add index on users(email)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Re-run analysis/i }));
+    expect(onReanalyze).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the stale banner while a fresh analysis is displayed', () => {
+    render(wrap(<AiHintPanel analyzing={false} analysis={analysis} aiEnabled />));
+
+    expect(screen.queryByText('stale')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Re-run analysis/i })).toBeNull();
+  });
 });
