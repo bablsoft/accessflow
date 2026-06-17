@@ -97,6 +97,9 @@ export function SchemaObjectTree({ schemas, onPreview, selected }: SchemaObjectT
                           type="button"
                           onClick={() => setOpenTable(isOpen ? null : `${s.name}.${tab.name}`)}
                           aria-expanded={isOpen}
+                          // Explicit label so the accessible name is exactly the table name —
+                          // the visible column-count badge below would otherwise leak into it.
+                          aria-label={tab.name}
                           style={tableButtonStyle}
                         >
                           <TableOutlined style={{ fontSize: 11, color: 'var(--sql-table)' }} />

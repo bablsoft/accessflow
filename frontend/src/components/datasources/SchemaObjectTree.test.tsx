@@ -42,6 +42,15 @@ describe('SchemaObjectTree', () => {
     expect(screen.getByText('orders')).toBeInTheDocument();
   });
 
+  it('exposes each table toggle with the table name as its exact accessible name', () => {
+    // The visible column-count badge must not leak into the button's accessible name —
+    // selectors (and the e2e spec) rely on { name: tableName, exact: true }.
+    renderTree();
+    // RTL matches a string `name` exactly, so this fails if the count badge leaks into the name.
+    expect(screen.getByRole('button', { name: 'users' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'orders' })).toBeInTheDocument();
+  });
+
   it('filters tables by a column-name query across the hierarchy', () => {
     renderTree();
     fireEvent.change(screen.getByPlaceholderText(/filter/i), { target: { value: 'email' } });
