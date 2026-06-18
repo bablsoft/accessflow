@@ -61,6 +61,7 @@ import {
   conditionSummary,
   conditionToForm,
   defaultRow,
+  isCidr,
   minutesToTime,
   rowsToCondition,
   type RoutingConditionRow,
@@ -730,6 +731,72 @@ function ConditionValueEditor({ name, operand, groups }: ConditionValueEditorPro
           name={[name, 'bool_value']}
           valuePropName="checked"
           label={t('admin.routing_policies.bool_present_label')}
+          style={{ marginBottom: 0 }}
+        >
+          <Switch />
+        </Form.Item>
+      );
+    case 'source_ip':
+      return (
+        <Form.Item
+          name={[name, 'cidrs']}
+          rules={[
+            { required: true },
+            {
+              validator: (_rule, value: string[] | undefined) => {
+                const bad = (value ?? []).filter((v) => !isCidr(v));
+                return bad.length
+                  ? Promise.reject(
+                      new Error(t('admin.routing_policies.cidr_invalid', { value: bad.join(', ') })),
+                    )
+                  : Promise.resolve();
+              },
+            },
+          ]}
+          style={{ marginBottom: 0 }}
+        >
+          <Select
+            mode="tags"
+            tokenSeparators={[',', ' ']}
+            placeholder={t('admin.routing_policies.cidrs_placeholder')}
+          />
+        </Form.Item>
+      );
+    case 'user_agent':
+      return (
+        <Form.Item name={[name, 'ua_patterns']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+          <Select
+            mode="tags"
+            tokenSeparators={[',']}
+            placeholder={t('admin.routing_policies.user_agent_placeholder')}
+          />
+        </Form.Item>
+      );
+    case 'time_since_last_approval':
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <Form.Item name={[name, 'tsla_operator']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+            <Select options={enumOptions(COMPARISON_OPERATORS, comparisonOperatorLabel, t)} />
+          </Form.Item>
+          <Form.Item
+            name={[name, 'tsla_minutes']}
+            rules={[{ required: true, type: 'number', min: 0 }]}
+            style={{ marginBottom: 0 }}
+          >
+            <InputNumber
+              min={0}
+              style={{ width: '100%' }}
+              addonAfter={t('admin.routing_policies.minutes_suffix')}
+            />
+          </Form.Item>
+        </div>
+      );
+    case 'cicd_origin':
+      return (
+        <Form.Item
+          name={[name, 'bool_value']}
+          valuePropName="checked"
+          label={t('admin.routing_policies.cicd_present_label')}
           style={{ marginBottom: 0 }}
         >
           <Switch />

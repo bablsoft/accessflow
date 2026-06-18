@@ -81,7 +81,10 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
                 parsed.transactional(),
                 input.justification(),
                 input.scheduledFor(),
-                submissionReason));
+                submissionReason,
+                input.submittedIp(),
+                input.submittedUserAgent(),
+                input.ciCdOrigin()));
         eventPublisher.publishEvent(new QuerySubmittedEvent(id));
         return new QuerySubmissionResult(id, QueryStatus.PENDING_AI);
     }

@@ -63,7 +63,7 @@ class DefaultQueryCommentServiceTest {
     void setUp() {
         when(queryLookup.findById(queryId)).thenReturn(Optional.of(new QueryRequestSnapshot(
                 queryId, UUID.randomUUID(), orgId, UUID.randomUUID(), "SELECT 1", QueryType.SELECT,
-                false, QueryStatus.PENDING_REVIEW, null)));
+                false, QueryStatus.PENDING_REVIEW, null, null, null, false)));
         when(accessService.canCollaborate(any(), any(), any(), any())).thenReturn(true);
         when(accessService.collaboratorIds(any(), any())).thenReturn(Set.of(authorId));
         when(userQuery.findById(authorId))

@@ -41,6 +41,9 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
         if (command.submissionReason() != null) {
             entity.setSubmissionReason(command.submissionReason());
         }
+        entity.setSubmittedIp(command.submittedIp());
+        entity.setSubmittedUserAgent(command.submittedUserAgent());
+        entity.setCiCdOrigin(command.ciCdOrigin());
         var saved = queryRequestRepository.save(entity);
         return saved.getId();
     }

@@ -11,5 +11,8 @@ public record SubmitQueryCommand(
         boolean transactional,
         String justification,
         Instant scheduledFor,
-        SubmissionReason submissionReason) {
+        SubmissionReason submissionReason,
+        String submittedIp,
+        String submittedUserAgent,
+        boolean ciCdOrigin) {
 }

@@ -23,7 +23,10 @@ public interface QuerySubmissionService {
             UUID organizationId,
             boolean isAdmin,
             Instant scheduledFor,
-            SubmissionReason submissionReason) {
+            SubmissionReason submissionReason,
+            String submittedIp,
+            String submittedUserAgent,
+            boolean ciCdOrigin) {
     }
 
     record QuerySubmissionResult(UUID id, QueryStatus status) {

@@ -262,6 +262,20 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getQueryType(),
                 entity.isTransactional(),
                 entity.getStatus(),
-                entity.getScheduledFor());
+                entity.getScheduledFor(),
+                entity.getSubmittedIp(),
+                entity.getSubmittedUserAgent(),
+                entity.isCiCdOrigin());
+    }
+
+    private static final List<QueryStatus> APPROVED_STATUSES =
+            List.of(QueryStatus.APPROVED, QueryStatus.EXECUTED);
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Instant> findLastApprovalInstant(UUID organizationId, UUID userId,
+                                                     UUID datasourceId, UUID excludingQueryId) {
+        return queryRequestRepository.findLastApprovalInstant(organizationId, userId, datasourceId,
+                APPROVED_STATUSES, excludingQueryId);
     }
 }

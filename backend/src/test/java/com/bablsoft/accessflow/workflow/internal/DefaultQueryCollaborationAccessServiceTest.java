@@ -152,7 +152,7 @@ class DefaultQueryCollaborationAccessServiceTest {
     private void stubQuery(QueryStatus status) {
         when(queryLookup.findById(queryId)).thenReturn(Optional.of(new QueryRequestSnapshot(
                 queryId, datasourceId, orgId, submitterId, "SELECT 1", QueryType.SELECT, false,
-                status, null)));
+                status, null, null, null, false)));
     }
 
     private ReviewPlanSnapshot plan(ApproverRule... rules) {

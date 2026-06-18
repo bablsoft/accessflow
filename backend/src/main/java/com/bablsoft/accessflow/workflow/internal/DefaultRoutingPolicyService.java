@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.workflow.api.UpdateRoutingPolicyCommand;
 import com.bablsoft.accessflow.workflow.internal.persistence.entity.RoutingPolicyEntity;
 import com.bablsoft.accessflow.workflow.internal.persistence.repo.RoutingPolicyRepository;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingConditionCodec;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingConditionValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -33,6 +34,7 @@ class DefaultRoutingPolicyService implements RoutingPolicyService {
 
     private final RoutingPolicyRepository routingPolicyRepository;
     private final RoutingConditionCodec routingConditionCodec;
+    private final RoutingConditionValidator routingConditionValidator;
     private final MessageSource messageSource;
 
     @Override
@@ -166,6 +168,7 @@ class DefaultRoutingPolicyService implements RoutingPolicyService {
         if (condition == null) {
             throw new IllegalRoutingPolicyException(msg("error.routing_policy_condition_required"));
         }
+        routingConditionValidator.validate(condition);
         return routingConditionCodec.encode(condition);
     }
 

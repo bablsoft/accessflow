@@ -40,6 +40,10 @@ export interface RoutingConditionRow {
   time_start_min?: number;
   time_end_min?: number;
   bool_value?: boolean;
+  cidrs?: string[];
+  ua_patterns?: string[];
+  tsla_operator?: ComparisonOperator;
+  tsla_minutes?: number;
 }
 
 export interface RoutingPolicyFormValues {
@@ -79,6 +83,14 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
     case 'has_limit':
     case 'transactional':
       return { ...base, bool_value: false };
+    case 'source_ip':
+      return { ...base, cidrs: [] };
+    case 'user_agent':
+      return { ...base, ua_patterns: [] };
+    case 'time_since_last_approval':
+      return { ...base, tsla_operator: 'GT', tsla_minutes: 1440 };
+    case 'cicd_origin':
+      return { ...base, bool_value: true };
     default:
       return base;
   }
@@ -86,6 +98,28 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
 
 export function actionRequiresApprovals(action: RoutingAction): boolean {
   return action === 'REQUIRE_APPROVALS' || action === 'ESCALATE';
+}
+
+/**
+ * Client-side CIDR check mirroring the backend's literal-only validation (parity for the
+ * source-IP condition). IPv4: four 0–255 octets + /0–32; IPv6: hex/colon literal + /0–128.
+ * The server stays the source of truth (returns 422 on a malformed block).
+ */
+export function isCidr(value: string): boolean {
+  const trimmed = value.trim();
+  const slash = trimmed.indexOf('/');
+  if (slash < 0) return false;
+  const addr = trimmed.slice(0, slash);
+  const prefixStr = trimmed.slice(slash + 1);
+  if (!/^\d+$/.test(prefixStr)) return false;
+  const prefix = Number(prefixStr);
+  if (addr.includes(':')) {
+    return /^[0-9a-fA-F:]+$/.test(addr) && prefix >= 0 && prefix <= 128;
+  }
+  const octets = addr.split('.');
+  if (octets.length !== 4) return false;
+  if (!octets.every((o) => /^\d{1,3}$/.test(o) && Number(o) <= 255)) return false;
+  return prefix >= 0 && prefix <= 32;
 }
 
 function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
@@ -120,6 +154,18 @@ function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
       return { type: 'has_limit', expected: row.bool_value ?? false };
     case 'transactional':
       return { type: 'transactional', expected: row.bool_value ?? false };
+    case 'source_ip':
+      return { type: 'source_ip', cidrs: row.cidrs ?? [] };
+    case 'user_agent':
+      return { type: 'user_agent', patterns: row.ua_patterns ?? [] };
+    case 'time_since_last_approval':
+      return {
+        type: 'time_since_last_approval',
+        operator: row.tsla_operator ?? 'GT',
+        minutes: row.tsla_minutes ?? 0,
+      };
+    case 'cicd_origin':
+      return { type: 'cicd_origin', expected: row.bool_value ?? false };
   }
 }
 
@@ -168,6 +214,19 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
       return { operand: 'has_limit', negate, bool_value: node.expected };
     case 'transactional':
       return { operand: 'transactional', negate, bool_value: node.expected };
+    case 'source_ip':
+      return { operand: 'source_ip', negate, cidrs: node.cidrs };
+    case 'user_agent':
+      return { operand: 'user_agent', negate, ua_patterns: node.patterns };
+    case 'time_since_last_approval':
+      return {
+        operand: 'time_since_last_approval',
+        negate,
+        tsla_operator: node.operator,
+        tsla_minutes: node.minutes,
+      };
+    case 'cicd_origin':
+      return { operand: 'cicd_origin', negate, bool_value: node.expected };
     default:
       // Nested and/or/not (other than not-of-leaf) cannot be represented by the flat builder.
       return null;
@@ -270,8 +329,19 @@ function rowSummary(t: TFunction, row: RoutingConditionRow): string {
       break;
     case 'has_where':
     case 'has_limit':
+    case 'cicd_origin':
     case 'transactional':
       value = row.bool_value ? t('common.yes') : t('common.no');
+      break;
+    case 'source_ip':
+      value = (row.cidrs ?? []).join(', ');
+      break;
+    case 'user_agent':
+      value = (row.ua_patterns ?? []).join(', ');
+      break;
+    case 'time_since_last_approval':
+      value = `${comparisonOperatorLabel(t, row.tsla_operator ?? 'GT')} ${row.tsla_minutes ?? 0} `
+        + t('admin.routing_policies.minutes_suffix');
       break;
   }
   return `${prefix}${label}: ${value}`;

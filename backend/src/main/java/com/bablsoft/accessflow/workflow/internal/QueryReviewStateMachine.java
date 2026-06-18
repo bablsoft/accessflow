@@ -30,6 +30,7 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -162,14 +163,18 @@ class QueryReviewStateMachine {
                         new QueryAutoRejectedEvent(query.id(), match.policyId(), match.reason()));
             }
             case REQUIRE_APPROVALS -> {
+                int effective = effectiveForRequire(match);
                 routingDecisionService.applyDecision(query.id(), QueryStatus.PENDING_REVIEW, match,
-                        effectiveForRequire(match));
-                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id()));
+                        effective);
+                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(),
+                        match.policyId(), match.reason(), effective));
             }
             case ESCALATE -> {
+                int effective = effectiveForEscalate(match, plan);
                 routingDecisionService.applyDecision(query.id(), QueryStatus.PENDING_REVIEW, match,
-                        effectiveForEscalate(match, plan));
-                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id()));
+                        effective);
+                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(),
+                        match.policyId(), match.reason(), effective));
             }
         }
         log.info("Query {} routed by policy {} -> {}", query.id(), match.policyId(), match.action());
@@ -206,8 +211,15 @@ class QueryReviewStateMachine {
             log.warn("Routing: failed to re-parse SQL for query {}; table/clause signals unavailable",
                     query.id());
         }
+        Integer minutesSinceLastApproval = queryRequestLookupService
+                .findLastApprovalInstant(query.organizationId(), query.submittedByUserId(),
+                        query.datasourceId(), query.id())
+                .map(last -> (int) Math.max(0, Duration.between(last, clock.instant()).toMinutes()))
+                .orElse(null);
         return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, role,
-                groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional);
+                groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional,
+                query.submittedIp(), query.submittedUserAgent(), query.ciCdOrigin(),
+                minutesSinceLastApproval);
     }
 
     private QueryStatus decideNextStatus(ReviewPlanSnapshot plan, QueryRequestSnapshot query,

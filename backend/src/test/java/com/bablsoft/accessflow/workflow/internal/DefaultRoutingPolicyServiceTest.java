@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.workflow.api.UpdateRoutingPolicyCommand;
 import com.bablsoft.accessflow.workflow.internal.persistence.entity.RoutingPolicyEntity;
 import com.bablsoft.accessflow.workflow.internal.persistence.repo.RoutingPolicyRepository;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingConditionCodec;
+import com.bablsoft.accessflow.workflow.internal.routing.RoutingConditionValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +54,8 @@ class DefaultRoutingPolicyServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultRoutingPolicyService(routingPolicyRepository, codec, messageSource());
+        service = new DefaultRoutingPolicyService(routingPolicyRepository, codec,
+                new RoutingConditionValidator(messageSource()), messageSource());
     }
 
     @Test
@@ -74,6 +76,25 @@ class DefaultRoutingPolicyServiceTest {
         assertThatThrownBy(() -> service.create(new CreateRoutingPolicyCommand(orgId, null, "  ",
                 null, 1, true, condition, RoutingAction.AUTO_REJECT, null, null)))
                 .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
+    void createRejectsInvalidSourceIpCidr() {
+        var badCondition = new ConditionNode.SourceIpMatches(List.of("10.0.0.0/8", "not-a-cidr"));
+        assertThatThrownBy(() -> service.create(new CreateRoutingPolicyCommand(orgId, null, "x",
+                null, 1, true, badCondition, RoutingAction.ESCALATE, 1, null)))
+                .isInstanceOf(IllegalRoutingPolicyException.class);
+    }
+
+    @Test
+    void createAcceptsValidSourceIpCidr() {
+        when(routingPolicyRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var ipCondition = new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24"));
+
+        var view = service.create(new CreateRoutingPolicyCommand(orgId, null, "ip-allow",
+                null, 1, true, ipCondition, RoutingAction.AUTO_APPROVE, null, null));
+
+        assertThat(view.condition()).isEqualTo(ipCondition);
     }
 
     @Test

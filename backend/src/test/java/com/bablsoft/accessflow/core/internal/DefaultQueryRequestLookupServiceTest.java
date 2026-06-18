@@ -177,6 +177,21 @@ class DefaultQueryRequestLookupServiceTest {
     }
 
     @Test
+    void findLastApprovalInstantDelegatesWithApprovedStatuses() {
+        var orgId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var excludeId = UUID.randomUUID();
+        var approvedAt = Instant.parse("2025-01-15T10:00:00Z");
+        when(queryRequestRepository.findLastApprovalInstant(eq(orgId), eq(userId), eq(datasourceId),
+                eq(List.of(QueryStatus.APPROVED, QueryStatus.EXECUTED)), eq(excludeId)))
+                .thenReturn(Optional.of(approvedAt));
+
+        assertThat(service.findLastApprovalInstant(orgId, userId, datasourceId, excludeId))
+                .contains(approvedAt);
+    }
+
+    @Test
     void findForOrganizationMapsListItemsWithoutAiAnalysis() {
         var orgId = UUID.randomUUID();
         var entity = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),

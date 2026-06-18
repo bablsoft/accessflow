@@ -357,8 +357,14 @@ The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no exte
 | `has_where` | `expected: bool` | presence of a WHERE clause equals `expected` |
 | `has_limit` | `expected: bool` | presence of a LIMIT clause equals `expected` |
 | `transactional` | `expected: bool` | the `BEGIN…COMMIT` transactional flag equals `expected` |
+| `source_ip` (AF-446) | `cidrs: [string]` | the submission source IP falls within any CIDR (IPv4 or IPv6). CIDR syntax is validated on create / update (422 on a malformed block). **Fails closed**: false when no source IP was captured |
+| `user_agent` (AF-446) | `patterns: [string]` | the submission user-agent matches any glob (`*` wildcard, case-insensitive). **Fails closed**: false when no user-agent was captured |
+| `time_since_last_approval` (AF-446) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `minutes` | minutes since the requester's last APPROVED/EXECUTED query **on the same datasource** satisfy the comparison. **Fails closed**: false when the requester has no prior approval there |
+| `cicd_origin` (AF-446) | `expected: bool` | whether the request came from a CI/CD pipeline (submitted via an API key or with the `X-AccessFlow-CI` header) equals `expected`. Deterministic — the flag defaults to `false` |
 
 On the AI-skipped path (`datasource.ai_analysis_enabled=false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal. Routing is **not** run on the AI-failure path.
+
+The client-context operands (`source_ip`, `user_agent`, `cicd_origin`, `time_since_last_approval`) are **fail-closed**: when the required signal is absent the leaf evaluates to `false`, so a permissive `AUTO_APPROVE` policy keyed on a positive match never fires on missing context. Express escalation of unknown context as `not(source_ip(...))` (true on a missing IP). The IP / user-agent / CI-CD flag are captured at submission and persisted on `query_requests` (`submitted_ip`, `submitted_user_agent`, `cicd_origin`) — routing runs asynchronously after AI completion, where no HTTP request exists.
 
 Example:
 
@@ -506,6 +512,9 @@ The central entity. Represents a single SQL submission through the platform.
 | `scheduled_for` | TIMESTAMPTZ nullable — when set on submission, defers execution: once the query reaches `APPROVED`, the `ScheduledQueryRunJob` picks it up at `scheduled_for ≤ now()` and triggers execution via `QueryLifecycleService.executeScheduled`. A partial index `idx_query_requests_scheduled_for ON query_requests(scheduled_for) WHERE scheduled_for IS NOT NULL` keeps the scan cheap. |
 | `previous_run_id` | UUID nullable, FK → `query_requests(id)`. Set on a successful execution (AF-361) when an earlier `EXECUTED` row exists for the same `(submitted_by, datasource_id, canonical_sql)`. Used by `GET /queries/{id}/diff` to compute the rows-affected / execution-ms / row-count deltas surfaced on `QueryDetailPage`. Rows that executed before the feature shipped have `canonical_sql = NULL` and never match — diff is unavailable for those queries. |
 | `canonical_sql` | TEXT nullable — populated on each successful execution with the output of `SqlCanonicalizer.canonicalize(sql_text)` (strip comments, collapse whitespace, upper-case). Lookup key for `previous_run_id`. A partial index `idx_query_requests_diff_lookup ON query_requests(submitted_by, datasource_id, canonical_sql, execution_completed_at DESC) WHERE status = 'EXECUTED' AND canonical_sql IS NOT NULL` keeps the per-execution lookup a single indexed scan. |
+| `submitted_ip` | VARCHAR(45) nullable (AF-446, Flyway `V88`) — source IP captured at submission (`X-Forwarded-For` first hop, else remote address). Read by the `source_ip` routing condition (routing runs asynchronously, after submission). |
+| `submitted_user_agent` | TEXT nullable (AF-446, `V88`) — the submission `User-Agent` header. Read by the `user_agent` routing condition. |
+| `cicd_origin` | BOOLEAN NOT NULL DEFAULT FALSE (AF-446, `V88`) — true when the query was submitted via an API key or with the `X-AccessFlow-CI` header. Read by the `cicd_origin` routing condition. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 

@@ -37,7 +37,23 @@ public class RoutingConditionEvaluator {
             case ConditionNode.HasWhereClause c -> ctx.hasWhereClause() == c.expected();
             case ConditionNode.HasLimitClause c -> ctx.hasLimitClause() == c.expected();
             case ConditionNode.Transactional c -> ctx.transactional() == c.expected();
+            case ConditionNode.SourceIpMatches c ->
+                    ctx.requesterIpAddress() != null
+                            && CidrMatcher.matchesAny(c.cidrs(), ctx.requesterIpAddress());
+            case ConditionNode.UserAgentMatches c -> matchesUserAgent(c, ctx);
+            case ConditionNode.TimeSinceLastApproval c ->
+                    ctx.minutesSinceLastApproval() != null
+                            && c.operator().test(ctx.minutesSinceLastApproval(), c.minutes());
+            case ConditionNode.CiCdOrigin c -> ctx.ciCdOrigin() == c.expected();
         };
+    }
+
+    private static boolean matchesUserAgent(ConditionNode.UserAgentMatches c, ConditionContext ctx) {
+        String userAgent = ctx.requesterUserAgent();
+        if (userAgent == null) {
+            return false;
+        }
+        return c.patterns().stream().anyMatch(pattern -> GlobMatcher.matches(pattern, userAgent));
     }
 
     private static boolean matchesAnyTable(ConditionNode.ReferencedTableMatches c,

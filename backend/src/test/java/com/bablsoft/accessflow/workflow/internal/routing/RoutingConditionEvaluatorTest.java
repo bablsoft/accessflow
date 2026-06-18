@@ -34,13 +34,17 @@ class RoutingConditionEvaluatorTest {
                 LocalDateTime.of(2026, 6, 3, 14, 30), // Wednesday
                 false,
                 false,
-                false);
+                false,
+                "203.0.113.7",
+                "Mozilla/5.0 (Macintosh)",
+                false,
+                120);
     }
 
     private ConditionContext noRiskContext() {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), null, -1,
                 UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
-                false, false, false);
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120);
     }
 
     @Test
@@ -190,6 +194,85 @@ class RoutingConditionEvaluatorTest {
     private ConditionContext at(int hour, int minute) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
                 UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, hour, minute),
-                false, false, false);
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120);
+    }
+
+    // --- Client-context conditions (AF-446) ---
+
+    private ConditionContext clientContext(String ip, String userAgent, boolean ciCdOrigin,
+                                           Integer minutesSinceLastApproval) {
+        return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
+                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, ip, userAgent, ciCdOrigin, minutesSinceLastApproval);
+    }
+
+    @Test
+    void sourceIpMatchesCidr() {
+        var corporate = new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24", "10.0.0.0/8"));
+        assertThat(evaluator.matches(corporate, clientContext("203.0.113.7", null, false, null)))
+                .isTrue();
+        assertThat(evaluator.matches(corporate, clientContext("198.51.100.4", null, false, null)))
+                .isFalse();
+    }
+
+    @Test
+    void sourceIpMatchesIpv6Cidr() {
+        var node = new ConditionNode.SourceIpMatches(List.of("2001:db8::/32"));
+        assertThat(evaluator.matches(node, clientContext("2001:db8::1", null, false, null))).isTrue();
+        assertThat(evaluator.matches(node, clientContext("2001:dead::1", null, false, null)))
+                .isFalse();
+    }
+
+    @Test
+    void sourceIpFailsClosedWhenIpMissing() {
+        var corporate = new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24"));
+        assertThat(evaluator.matches(corporate, clientContext(null, null, false, null))).isFalse();
+        // Not(SourceIpMatches) stays true on missing IP, so escalation still fires.
+        assertThat(evaluator.matches(new ConditionNode.Not(corporate),
+                clientContext(null, null, false, null))).isTrue();
+    }
+
+    @Test
+    void userAgentGlob() {
+        var node = new ConditionNode.UserAgentMatches(List.of("*curl*", "*GitHubActions*"));
+        assertThat(evaluator.matches(node, clientContext("203.0.113.7", "curl/8.4.0", false, null)))
+                .isTrue();
+        assertThat(evaluator.matches(node,
+                clientContext("203.0.113.7", "Mozilla/5.0 (Macintosh)", false, null))).isFalse();
+    }
+
+    @Test
+    void userAgentFailsClosedWhenMissing() {
+        var node = new ConditionNode.UserAgentMatches(List.of("*curl*"));
+        assertThat(evaluator.matches(node, clientContext("203.0.113.7", null, false, null)))
+                .isFalse();
+    }
+
+    @Test
+    void timeSinceLastApprovalEachOperator() {
+        var ctx = clientContext("203.0.113.7", null, false, 120);
+        assertThat(evaluator.matches(
+                new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 60), ctx)).isTrue();
+        assertThat(evaluator.matches(
+                new ConditionNode.TimeSinceLastApproval(ComparisonOperator.LT, 60), ctx)).isFalse();
+        assertThat(evaluator.matches(
+                new ConditionNode.TimeSinceLastApproval(ComparisonOperator.EQ, 120), ctx)).isTrue();
+    }
+
+    @Test
+    void timeSinceLastApprovalFailsClosedWhenNoPriorApproval() {
+        var ctx = clientContext("203.0.113.7", null, false, null);
+        assertThat(evaluator.matches(
+                new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GTE, 0), ctx)).isFalse();
+    }
+
+    @Test
+    void ciCdOrigin() {
+        assertThat(evaluator.matches(new ConditionNode.CiCdOrigin(true),
+                clientContext("203.0.113.7", null, true, null))).isTrue();
+        assertThat(evaluator.matches(new ConditionNode.CiCdOrigin(true),
+                clientContext("203.0.113.7", null, false, null))).isFalse();
+        assertThat(evaluator.matches(new ConditionNode.CiCdOrigin(false),
+                clientContext("203.0.113.7", null, false, null))).isTrue();
     }
 }

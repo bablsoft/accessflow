@@ -52,7 +52,8 @@ class AuditEventListenerTest {
 
     private QueryRequestSnapshot snapshot(UUID queryId) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null,
+                null, null, false);
     }
 
     @Test
@@ -100,6 +101,26 @@ class AuditEventListenerTest {
 
         assertThat(captor.getValue().action()).isEqualTo(AuditAction.QUERY_REVIEW_REQUESTED);
         assertThat(captor.getValue().actorId()).isNull();
+        assertThat(captor.getValue().metadata()).doesNotContainKey("routing_policy_id");
+    }
+
+    @Test
+    void onQueryReadyForReviewRecordsMatchedPolicyWhenEscalated() {
+        var queryId = UUID.randomUUID();
+        var policyId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryReadyForReview(
+                new QueryReadyForReviewEvent(queryId, policyId, "off-network", 3));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_REVIEW_REQUESTED);
+        assertThat(entry.metadata()).containsEntry("source", "ROUTING_POLICY");
+        assertThat(entry.metadata()).containsEntry("routing_policy_id", policyId.toString());
+        assertThat(entry.metadata()).containsEntry("effective_min_approvals", 3);
+        assertThat(entry.metadata()).containsEntry("reason", "off-network");
     }
 
     @Test

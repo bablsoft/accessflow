@@ -110,6 +110,7 @@
 
 - **Just-in-time (JIT) time-bound access requests** — users self-request temporary, scoped datasource access (e.g. write for 4 hours); granted on approval and auto-revoked on expiry by a clustered scheduler (AF-378)
 - **Policy-as-code routing engine** — attribute-based rules decide query routing (auto-approve, auto-reject, require N approvers, escalate) from query type, referenced tables, AI risk, role / group membership, and time-of-day (AF-379)
+- **Context-aware routing conditions** — routing policies also match on submission client context: source IP / CIDR, user-agent, time-since-last-approval, and CI/CD origin (API key or `X-AccessFlow-CI` header), failing closed on missing context so off-network queries escalate instead of auto-approving (AF-446)
 - **Row-level security policies** — per-user/group/datasource row predicates injected at the AST layer so users see only the rows they are authorised for (AF-380)
 - **Dynamic data masking policies** — per-column masking strategies (full, partial, hash, email, format-preserving) with role/group-based reveal conditions, extending today's static `restricted_columns` masking (AF-381)
 

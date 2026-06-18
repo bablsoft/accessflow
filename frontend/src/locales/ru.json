@@ -1654,7 +1654,12 @@
       "group_count": "групп: {{count}}",
       "condition_advanced": "Расширенное условие",
       "condition_advanced_warning": "Эта политика использует вложенное условие, которое нельзя изменить в визуальном редакторе; сохранение заменит его.",
-      "condition_any_query": "Любой запрос"
+      "condition_any_query": "Любой запрос",
+      "cidrs_placeholder": "напр. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Недопустимый блок CIDR: {{value}}",
+      "user_agent_placeholder": "напр. *curl*, *GitHubActions*",
+      "minutes_suffix": "мин",
+      "cicd_present_label": "Источник CI/CD"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "День недели",
       "has_where": "Есть условие WHERE",
       "has_limit": "Есть условие LIMIT",
-      "transactional": "Транзакционный"
+      "transactional": "Транзакционный",
+      "source_ip": "IP-адрес источника / CIDR",
+      "user_agent": "User-Agent",
+      "time_since_last_approval": "Время с последнего одобрения",
+      "cicd_origin": "Источник CI/CD"
     },
     "row_security_operator": {
       "EQUALS": "=",

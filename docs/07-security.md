@@ -409,6 +409,29 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
 
+### Context-aware routing conditions (AF-446)
+
+Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md)) can match on the
+**client context** of a submission as well as the query itself: `source_ip` (CIDR allow-list, IPv4/IPv6),
+`user_agent` (glob), `time_since_last_approval` (recency on the same datasource), and `cicd_origin`.
+
+- **Trust model of the captured context.** The source IP is taken from the `X-Forwarded-For` first hop
+  (else the remote address), so it is only trustworthy behind a proxy that overwrites that header —
+  deployments that expose AccessFlow directly should not rely on it for hard security decisions. The
+  user-agent is fully client-controlled. `cicd_origin` is set from the **API-key authentication channel**
+  (the `security.api.ApiKeyAuthentication` marker, which a client cannot forge without a valid key) **or**
+  the `X-AccessFlow-CI` header (client-controlled, opt-in). These conditions are intended to *raise*
+  scrutiny (escalate / require approvals), not to be the sole grant of trust.
+- **Fail closed.** When a required signal is absent (no IP, no user-agent, no prior approval) the leaf
+  evaluates to **false**, so a permissive `AUTO_APPROVE` policy never fires on missing context; express
+  "escalate unknown origin" as `not(source_ip(<corporate CIDRs>)) → ESCALATE`, which stays true on a
+  missing IP. CIDR syntax is validated at create/update (422 on a malformed block).
+- **Captured at submission, evaluated later.** Routing runs asynchronously after AI analysis, so the IP,
+  user-agent, and CI/CD flag are persisted on `query_requests` at submission time and read back when the
+  condition context is built; they are never re-derived from a request that no longer exists.
+- **Audit.** A matched `ESCALATE` / `REQUIRE_APPROVALS` policy records its id, resolved
+  `effective_min_approvals`, and reason on the `QUERY_REVIEW_REQUESTED` audit row.
+
 ---
 
 ## Database Credential Security

@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} 个组",
       "condition_advanced": "高级条件",
       "condition_advanced_warning": "此策略使用了引导式编辑器无法编辑的嵌套条件；在此保存将替换它。",
-      "condition_any_query": "任何查询"
+      "condition_any_query": "任何查询",
+      "cidrs_placeholder": "例如 10.0.0.0/8、203.0.113.0/24",
+      "cidr_invalid": "无效的 CIDR 网段：{{value}}",
+      "user_agent_placeholder": "例如 *curl*、*GitHubActions*",
+      "minutes_suffix": "分钟",
+      "cicd_present_label": "来自 CI/CD"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "星期",
       "has_where": "含 WHERE 子句",
       "has_limit": "含 LIMIT 子句",
-      "transactional": "事务性"
+      "transactional": "事务性",
+      "source_ip": "来源 IP / CIDR",
+      "user_agent": "用户代理",
+      "time_since_last_approval": "距上次批准时长",
+      "cicd_origin": "CI/CD 来源"
     },
     "row_security_operator": {
       "EQUALS": "=",

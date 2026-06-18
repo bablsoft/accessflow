@@ -24,7 +24,6 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -92,15 +91,28 @@ class AuditEventListener {
     void onQueryReadyForReview(QueryReadyForReviewEvent event) {
         recordSafely(AuditAction.QUERY_REVIEW_REQUESTED, event.queryRequestId(),
                 () -> queryRequestLookupService.findById(event.queryRequestId()),
-                snapshot -> new AuditEntry(
-                        AuditAction.QUERY_REVIEW_REQUESTED,
-                        AuditResourceType.QUERY_REQUEST,
-                        snapshot.id(),
-                        snapshot.organizationId(),
-                        null,
-                        Map.of(),
-                        null,
-                        null));
+                snapshot -> {
+                    var metadata = new HashMap<String, Object>();
+                    if (event.matchedPolicyId() != null) {
+                        metadata.put("source", "ROUTING_POLICY");
+                        metadata.put("routing_policy_id", event.matchedPolicyId().toString());
+                        if (event.effectiveMinApprovals() != null) {
+                            metadata.put("effective_min_approvals", event.effectiveMinApprovals());
+                        }
+                        if (event.routingReason() != null) {
+                            metadata.put("reason", event.routingReason());
+                        }
+                    }
+                    return new AuditEntry(
+                            AuditAction.QUERY_REVIEW_REQUESTED,
+                            AuditResourceType.QUERY_REQUEST,
+                            snapshot.id(),
+                            snapshot.organizationId(),
+                            null,
+                            metadata,
+                            null,
+                            null);
+                });
     }
 
     @ApplicationModuleListener

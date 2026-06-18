@@ -194,7 +194,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPersistsResultAndPublishesCompleted() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
@@ -226,7 +226,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPublishesSkippedEventWhenAiAnalysisDisabled() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(descriptor(DbType.POSTGRESQL, false, aiConfigId)));
@@ -246,7 +246,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPersistsSentinelWhenAiConfigNotBound() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(descriptor(DbType.POSTGRESQL, true, null)));
@@ -260,7 +260,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPersistsSentinelOnStrategyFailure() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
@@ -283,7 +283,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPersistsSentinelOnParseFailure() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
@@ -298,7 +298,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryFallsBackToNullSchemaWhenIntrospectionFails() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
@@ -326,7 +326,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void analyzeSubmittedQueryPersistsSentinelWhenDatasourceMissing() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
 
@@ -341,7 +341,7 @@ class DefaultAiAnalyzerServiceTest {
     @Test
     void sentinelFallsBackToUnknownWhenAiConfigLookupFails() {
         var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
-                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null);
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
