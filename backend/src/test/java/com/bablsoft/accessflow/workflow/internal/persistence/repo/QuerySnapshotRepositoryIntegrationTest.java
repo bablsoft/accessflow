@@ -127,7 +127,15 @@ class QuerySnapshotRepositoryIntegrationTest {
     @Test
     void deletingQueryCascadesSnapshot() {
         snapshotRepository.save(newSnapshot());
-        queryRequestRepository.delete(query);
+        snapshotRepository.flush();
+
+        // Re-read the parent so its @Version (updated_at) carries the DB-stored,
+        // microsecond-truncated timestamp. Deleting the entity loaded in @BeforeEach
+        // directly trips ObjectOptimisticLockingFailure on platforms whose
+        // Instant.now() has sub-microsecond precision (Linux CI) — the in-memory
+        // nanos no longer match the truncated value in the row.
+        var managed = queryRequestRepository.findById(query.getId()).orElseThrow();
+        queryRequestRepository.delete(managed);
         queryRequestRepository.flush();
 
         assertThat(snapshotRepository.findByQueryRequestId(query.getId())).isEmpty();
