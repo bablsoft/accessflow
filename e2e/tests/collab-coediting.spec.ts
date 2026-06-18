@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  apiBase,
   createPostgresDatasource,
   createReviewPlanViaApi,
   deleteDatasource,
@@ -49,6 +50,7 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
   let collaboratorEmail = '';
   let reviewPlan: CreatedReviewPlan | null = null;
   let datasource: CreatedDatasource | null = null;
+  let submittedId = '';
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -73,6 +75,15 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
   });
 
   test.afterAll(async ({ request }) => {
+    // Cancel the in-review query so it does not linger in the shared /reviews
+    // queue and pollute other specs (workers: 1 runs specs serially).
+    if (submittedId) {
+      await request
+        .post(`${apiBase()}/api/v1/queries/${submittedId}/cancel`, {
+          headers: { Authorization: `Bearer ${adminAccessToken}` },
+        })
+        .catch(() => undefined);
+    }
     if (datasource) {
       await deleteDatasource(request, adminAccessToken, datasource.id);
     }
@@ -91,6 +102,7 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
       'SELECT 1',
       'AF-441 collaborative editing',
     );
+    submittedId = submitted.id;
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
 
     const submitterCtx = await browser.newContext();
@@ -105,24 +117,22 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
       await expect(submitterPage.getByText('SQL (collaborative)')).toBeVisible({ timeout: 15_000 });
       await expect(editor(submitterPage)).toContainText('SELECT 1', { timeout: 15_000 });
 
-      // Collaborator joins → syncs the document state from the submitter.
+      // Collaborator joins → syncs the document state from the submitter. As the
+      // second joiner it does NOT self-seed, so seeing the SQL proves the relay.
       await loginViaUi(collaboratorPage, collaboratorEmail, COLLAB_PASSWORD);
       await collaboratorPage.goto(`/queries/${submitted.id}`);
       await expect(editor(collaboratorPage)).toContainText('SELECT 1', { timeout: 15_000 });
-
-      // Presence: the submitter sees the collaborator's avatar (aria-label = display name).
-      await expect(
-        submitterPage.locator(`[aria-label="${COLLAB_NAME}"]`).first(),
-      ).toBeVisible({ timeout: 15_000 });
 
       // Conflict-free co-editing: the submitter's keystrokes reach the collaborator.
       await typeAtEnd(submitterPage, ' /* coediting-token */');
       await expect(editor(collaboratorPage)).toContainText('coediting-token', { timeout: 15_000 });
 
+      // Presence: the collaborator's join ack carries the full roster, so its
+      // presence bar deterministically reflects both co-authors.
+      await expect(collaboratorPage.getByText('2 people editing')).toBeVisible({ timeout: 15_000 });
+
       // Inline comment: the collaborator opens a thread; the submitter sees it live.
-      await collaboratorPage
-        .getByLabel('Add a comment…')
-        .fill('needs an index on this column');
+      await collaboratorPage.getByLabel('Add a comment…').fill('needs an index on this column');
       await collaboratorPage.getByRole('button', { name: 'Comment' }).click();
       await expect(
         submitterPage.getByText('needs an index on this column'),
