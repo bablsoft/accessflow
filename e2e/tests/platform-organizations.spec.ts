@@ -17,27 +17,16 @@ async function loginViaUi(page: Page, email: string, password: string): Promise<
   await page.waitForURL('**/editor', { timeout: 15_000 });
 }
 
-// Gate UI assertions on the GET the list page issues on mount.
-async function waitForOrgsListReady(page: Page): Promise<void> {
-  await page.waitForResponse(
-    (r) =>
-      r.request().method() === 'GET' &&
-      /\/api\/v1\/platform\/organizations(\?|$)/.test(r.url()) &&
-      r.ok(),
-    { timeout: 15_000 },
-  );
-}
-
 test.describe('Platform organization management', () => {
   test('platform admin can create, configure, and disable an organization', async ({ page }) => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    // The Platform nav group is visible only to platform admins.
+    // The Platform nav group is visible only to platform admins. Wait on rendered content
+    // (not a network response) so the assertions survive TanStack Query's client-side cache.
     await page.goto('/admin/organizations');
-    await waitForOrgsListReady(page);
     await expect(page.getByRole('heading', { name: 'Organizations' })).toBeVisible();
-    // The bootstrap-seeded org is listed.
-    await expect(page.getByText('E2E Test Org')).toBeVisible();
+    // The bootstrap-seeded org loads and renders.
+    await expect(page.getByText('E2E Test Org')).toBeVisible({ timeout: 15_000 });
 
     // Create a new organization with quotas.
     await page.getByRole('button', { name: /Add organization/ }).click();
@@ -49,19 +38,26 @@ test.describe('Platform organization management', () => {
     await expect(page.locator('.ant-modal-title', { hasText: 'Create organization' })).toBeHidden();
     await expect(page.getByText(NEW_ORG_NAME)).toBeVisible();
 
-    // Open its detail page and verify the usage card renders.
+    // Open its detail page and verify the usage + settings cards render.
     await page.getByRole('button', { name: NEW_ORG_NAME }).click();
     await page.waitForURL('**/admin/organizations/**');
     await expect(page.getByText('Usage')).toBeVisible();
     await expect(page.getByText('Settings & quotas')).toBeVisible();
 
-    // Back to the list, disable then re-enable the org.
+    // Back to the list (SPA navigation — the list renders from cache, no refetch).
     await page.getByRole('button', { name: /Back to organizations/ }).click();
-    await waitForOrgsListReady(page);
-
+    await page.waitForURL((url) => url.pathname === '/admin/organizations');
     const row = page.locator('tr', { hasText: NEW_ORG_NAME });
+    await expect(row).toBeVisible();
+
+    // Disable the org (confirm in the AntD modal.confirm dialog), then re-enable it.
     await row.getByRole('button', { name: 'Disable' }).click();
-    await page.getByRole('button', { name: 'Disable' }).last().click(); // confirm modal
+    const confirmModal = page
+      .getByRole('dialog')
+      .filter({ hasText: 'Disable this organization?' })
+      .first();
+    await expect(confirmModal).toBeVisible({ timeout: 10_000 });
+    await confirmModal.getByRole('button', { name: 'Disable' }).click();
     await expect(row.getByText('Disabled')).toBeVisible();
 
     await row.getByRole('button', { name: 'Enable' }).click();
