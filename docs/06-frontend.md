@@ -437,6 +437,10 @@ Displayed below or beside the editor. Shows:
 - "Analyzing…" skeleton state while request is in flight
 - Empty state if SQL is blank or analysis returns no issues
 
+### Dry-run plan panel (AF-445)
+
+The editor's 340px right rail carries a `Segmented` **"AI analysis | Dry run"** toggle; the second tab renders `components/editor/DryRunPanel.tsx`. A **Dry run** action in the editor header (always available — not gated on AI being enabled) calls `POST /queries/dry-run` via `dryRunQuery` (`src/api/queries.ts`) and switches the rail to the Plan tab. The panel shows the estimated impact (operation + estimated rows) and renders the execution plan through `components/editor/PlanTree.tsx` — an indented, read-only tree (`role="tree"`) of each node's operation, target, estimated rows, cost, and filter detail, flattened by the pure `src/utils/queryPlan.ts` (`flattenPlan` / `formatEstimatedRows` / `formatCost`). Engines without a plan concept render a graceful "not supported" message; when an engine returns no structured tree (e.g. Elasticsearch validation) the panel falls back to the raw plan text. A "stale" badge marks a plan whose SQL has since diverged, mirroring `AiHintPanel`.
+
 ### Query templates drawer (AF-364)
 
 The editor's `actions` slot exposes two buttons next to **History**:

@@ -15,6 +15,7 @@ const { listDatasourcesMock, analyzeOnlyMock, submitQueryMock } = vi.hoisted(() 
 
 vi.mock('@/api/queries', () => ({
   analyzeOnly: analyzeOnlyMock,
+  dryRunQuery: vi.fn(),
   submitQuery: submitQueryMock,
   queryKeys: {
     all: ['queries'] as const,

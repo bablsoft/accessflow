@@ -5,12 +5,17 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanRequest;
+import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanner;
+import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlannerRegistry;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
@@ -42,6 +47,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final SqlExceptionTranslator sqlExceptionTranslator;
     private final RowSecurityRewriter rowSecurityRewriter;
     private final QueryEngineCatalog engineCatalog;
+    private final DryRunPlannerRegistry dryRunPlannerRegistry;
     private final Clock clock;
     private final MessageSource messageSource;
 
@@ -121,6 +127,47 @@ class DefaultQueryExecutor implements QueryExecutor {
                 request.maxRowsOverride(), request.statementTimeoutOverride(),
                 request.restrictedColumns(), request.columnMasks(),
                 request.rowSecurityPredicates(), false, null));
+    }
+
+    @Override
+    public QueryDryRunResult dryRun(QueryExecutionRequest request) {
+        var descriptor = datasourceLookupService.findById(request.datasourceId())
+                .orElseThrow(() -> new DatasourceUnavailableException(
+                        msg("error.datasource_unavailable_not_found")));
+        var execProps = properties.execution();
+        Duration effectiveTimeout = request.statementTimeoutOverride() != null
+                ? request.statementTimeoutOverride()
+                : execProps.statementTimeout();
+        String engineId = descriptor.connectorId() != null
+                ? descriptor.connectorId()
+                : descriptor.dbType().name().toLowerCase(java.util.Locale.ROOT);
+
+        if (engineCatalog.isEngineManaged(descriptor.dbType())) {
+            return engineCatalog.engineFor(descriptor.dbType())
+                    .dryRun(new QueryEngineDryRunRequest(request, descriptor, effectiveTimeout));
+        }
+
+        DryRunPlanner planner = dryRunPlannerRegistry.forDbType(descriptor.dbType());
+        if (planner == null) {
+            return QueryDryRunResult.unsupported(engineId);
+        }
+
+        // EXPLAIN-class statements never execute the planned query (no ANALYZE / no SHOWPLAN exec),
+        // so this is non-mutating. SELECT dry-runs prefer the read replica via the routing resolver;
+        // writes plan on the primary (e.g. Oracle writes its scratch PLAN_TABLE there).
+        var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates());
+        Instant start = clock.instant();
+        try (Connection connection = routingResolver.acquire(request.datasourceId(),
+                request.queryType())) {
+            return planner.plan(new DryRunPlanRequest(connection, rewrite.sql(), rewrite.binds(),
+                    request.queryType(), engineId, effectiveTimeout, rewrite.appliedPolicyIds(),
+                    start, clock));
+        } catch (SQLException ex) {
+            log.debug("Dry-run failed for datasource {}: {}",
+                    request.datasourceId(), ex.getMessage());
+            throw sqlExceptionTranslator.translate(ex, effectiveTimeout,
+                    LocaleContextHolder.getLocale());
+        }
     }
 
     private QueryExecutionResult executeTransactional(QueryExecutionRequest request,

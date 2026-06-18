@@ -6,6 +6,7 @@ import type {
   PaginatedResponse,
   QueryDetail,
   QueryDiffResponse,
+  QueryDryRunResult,
   QueryListItem,
   QueryResultsPage,
   QueryStatus,
@@ -106,6 +107,11 @@ export async function getQueryDiff(id: string): Promise<QueryDiffResponse> {
 
 export async function analyzeOnly(input: AnalyzeQueryInput): Promise<AiAnalysis> {
   const { data } = await apiClient.post<AiAnalysis>(`${BASE}/analyze`, input);
+  return data;
+}
+
+export async function dryRunQuery(input: AnalyzeQueryInput): Promise<QueryDryRunResult> {
+  const { data } = await apiClient.post<QueryDryRunResult>(`${BASE}/dry-run`, input);
   return data;
 }
 

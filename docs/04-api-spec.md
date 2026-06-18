@@ -887,6 +887,7 @@ Synchronous.
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
+| `POST` | `/queries/dry-run` | Return a non-committing execution plan + estimated row impact for the SQL without executing or mutating data (AF-445); no review created. Engines without a plan concept degrade gracefully |
 | `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft query in the datasource engine's native language (text-to-query; SQL, MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
 | `GET` | `/queries/{id}/comments` | List the inline collaboration comment threads on a query (AF-441) |
 | `POST` | `/queries/{id}/comments` | Open a new comment thread anchored to a line range of the query's SQL |
@@ -1220,6 +1221,60 @@ Each delta is `current - previous`. A positive value means the new run returned 
 ```
 
 `optimizations` (AF-451) carries concrete, dialect-aware suggestions — `type` is `INDEX` (an index-definition statement) or `REWRITE` (an equivalent, more efficient query). Each `sql` is a ready-to-run statement the editor can load via the **"Apply as draft"** button; applying it pre-fills the editor and the user submits it through `POST /queries` with `submission_reason=AI_SUGGESTION`. The array is empty when the model finds no worthwhile optimization (and on older / custom analyzer prompts that omit the field). The same `optimizations` array appears on the persisted analysis in `GET /queries/{id}`.
+
+### POST /queries/dry-run — Request Body
+
+```json
+{
+  "datasource_id": "uuid",
+  "sql": "SELECT * FROM users WHERE age > 21"
+}
+```
+
+Returns a **non-committing dry-run** (AF-445): the engine's execution plan and a best-effort estimated row impact, produced **without executing or mutating data** and **without creating a `query_request`**. Like the sample-rows path, it applies full governance — the caller must have datasource access, the referenced tables must be inside their allow-list with the matching capability, and the caller's row-security predicates are injected so the plan reflects the governed query. The statement timeout reuses `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT`; SELECT dry-runs prefer the read replica when one is configured.
+
+**Response 200 (supported engine):**
+```json
+{
+  "supported": true,
+  "engine_id": "postgresql",
+  "query_type": "SELECT",
+  "estimated_rows": 1000,
+  "plan": {
+    "operation": "Seq Scan",
+    "target": "users",
+    "estimated_rows": 1000.0,
+    "estimated_cost": 25.5,
+    "detail": "(age > 21)",
+    "children": []
+  },
+  "raw_plan": "[ { \"Plan\": { … } } ]",
+  "unsupported_reason": null,
+  "duration_ms": 12
+}
+```
+
+The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE`, SQL Server `SET SHOWPLAN_ALL ON`, MongoDB `explain` (queryPlanner verbosity), Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`. `plan` is a recursive node tree (`operation`, `target`, `estimated_rows`, `estimated_cost`, `detail`, `children`); `estimated_rows`/`plan`/`raw_plan` are individually nullable when an engine's plan does not expose them.
+
+**Response 200 (engine without a plan concept):**
+```json
+{
+  "supported": false,
+  "engine_id": "redis",
+  "query_type": null,
+  "estimated_rows": null,
+  "plan": null,
+  "raw_plan": null,
+  "unsupported_reason": "Dry-run is not supported for the redis engine",
+  "duration_ms": 0
+}
+```
+
+Redis, Cassandra/ScyllaDB, DynamoDB, and custom JDBC drivers degrade gracefully with `supported: false` and a localized `unsupported_reason`.
+
+**Response 403:** Caller lacks the capability or allow-list entry for a referenced table. `error: FORBIDDEN`.
+**Response 404:** Datasource not found or not accessible. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** SQL could not be parsed (`error: INVALID_SQL`), or the dry-run failed against the customer database.
 
 ### POST /queries/generate-sql — Request Body
 

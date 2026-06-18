@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -237,6 +239,48 @@ class Neo4jQueryEngineIntegrationTest {
         return new DatasourceConnectionDescriptor(UUID.randomUUID(), UUID.randomUUID(),
                 DbType.NEO4J, host, port, DATABASE, "neo4j", PASSWORD, SslMode.DISABLE, 10, 1000,
                 true, null, false, null, "neo4j", null, null, null, null, true, null, null);
+    }
+
+    @Test
+    void dryRunMatchReturnsPlanWithEstimate() {
+        var result = dryRun("MATCH (u:User) WHERE u.region = 'EU' RETURN u", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.plan()).isNotNull();
+        assertThat(result.plan().operation()).isNotBlank();
+    }
+
+    @Test
+    void dryRunCreatePlansWithoutMutating() {
+        long before = ((SelectExecutionResult) run("MATCH (u:User) RETURN u")).rowCount();
+        var result = dryRun("CREATE (:User {id: 777})", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.INSERT);
+        long after = ((SelectExecutionResult) run("MATCH (u:User) RETURN u")).rowCount();
+        assertThat(after).isEqualTo(before);
+    }
+
+    @Test
+    void dryRunSchemaCommandIsUnsupported() {
+        var result = dryRun("CREATE INDEX idx_dry IF NOT EXISTS FOR (u:User) ON (u.id)", List.of());
+        assertThat(result.supported()).isFalse();
+    }
+
+    @Test
+    void dryRunAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "User", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+        var result = dryRun("MATCH (u:User) RETURN u", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    private static QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {
+        var type = engine.parse(query).type();
+        var request = new QueryExecutionRequest(descriptor.id(), query, type, null, null,
+                List.of(), List.of(), rls, false, List.of(query));
+        return engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
     }
 
     private static Object run(String query) {

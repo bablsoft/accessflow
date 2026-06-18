@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
@@ -356,6 +357,49 @@ class DefaultQueryExecutorPostgresIntegrationTest {
 
         assertThat(result.rowCount()).isEqualTo(3);
         assertThat(result.truncated()).isTrue();
+    }
+
+    @Test
+    void dryRunSelectReturnsPlanWithEstimate() {
+        QueryDryRunResult result = executor.dryRun(new QueryExecutionRequest(
+                datasource.getId(), "SELECT id, name FROM items WHERE qty > 4",
+                QueryType.SELECT, null, null));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.plan()).isNotNull();
+        assertThat(result.plan().operation()).isNotBlank();
+        assertThat(result.estimatedRows()).isNotNull();
+        assertThat(result.rawPlan()).contains("Plan");
+    }
+
+    @Test
+    void dryRunUpdateProducesPlanWithoutMutatingData() {
+        QueryDryRunResult result = executor.dryRun(new QueryExecutionRequest(
+                datasource.getId(), "UPDATE items SET name = 'mutated'",
+                QueryType.UPDATE, null, null));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.UPDATE);
+
+        // EXPLAIN (no ANALYZE) never executed the UPDATE — no row was changed.
+        var check = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasource.getId(), "SELECT count(*) FROM items WHERE name = 'mutated'",
+                QueryType.SELECT, null, null));
+        assertThat(((Number) check.rows().getFirst().getFirst()).longValue()).isZero();
+    }
+
+    @Test
+    void dryRunAppliesRowSecurityToThePlannedQuery() {
+        var policyId = UUID.randomUUID();
+        var directive = new RowSecurityDirective(policyId, "items", "qty",
+                RowSecurityOperator.GREATER_THAN, List.of(5));
+        QueryDryRunResult result = executor.dryRun(new QueryExecutionRequest(
+                datasource.getId(), "SELECT name FROM items", QueryType.SELECT, null, null,
+                List.of(), List.of(), List.of(directive), false, null));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
     }
 
     private DatasourceEntity saveDatasource() {

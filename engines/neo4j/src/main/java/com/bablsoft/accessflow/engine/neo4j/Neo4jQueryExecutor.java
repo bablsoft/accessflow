@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.neo4j;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -77,6 +78,31 @@ class Neo4jQueryExecutor {
                     : affectedRows(summary.counters());
             return new UpdateExecutionResult(affected, durationSince(start),
                     applied.appliedPolicyIds());
+        } catch (Neo4jException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        // Schema/admin commands have no meaningful EXPLAIN plan — degrade gracefully.
+        if (statement.kind() == CypherStatementKind.DDL) {
+            return QueryDryRunResult.unsupported(Neo4jQueryEngine.ENGINE_ID);
+        }
+        var applied = rowSecurityApplier.apply(statement, request.rowSecurityPredicates());
+        var driver = driverManager.driver(descriptor);
+        var txConfig = TransactionConfig.builder().withTimeout(timeout).build();
+        // EXPLAIN plans the statement without executing it — no nodes/relationships are mutated.
+        var query = new Query("EXPLAIN " + applied.cypher(), applied.parameters());
+        try (Session session = driver.session(Neo4jConnectionProbe.sessionConfig(descriptor))) {
+            var summary = session.run(query, txConfig).consume();
+            var plan = summary.hasPlan() ? Neo4jPlanMapper.toPlan(summary.plan()) : null;
+            Double estimate = plan != null ? Neo4jPlanMapper.estimatedRows(summary.plan()) : null;
+            Long estimatedRows = estimate != null ? Math.round(estimate) : null;
+            return QueryDryRunResult.of(Neo4jQueryEngine.ENGINE_ID, statement.kind().queryType(),
+                    estimatedRows, plan, null, applied.appliedPolicyIds(), durationSince(start));
         } catch (Neo4jException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

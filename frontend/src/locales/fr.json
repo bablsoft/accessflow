@@ -351,6 +351,12 @@
     "analyze_button": "Analyser",
     "analyzing_button": "Analyse en cours",
     "analyze_error": "Impossible d'exécuter l'analyse IA",
+    "dry_run_button": "Simulation",
+    "dry_running_button": "Planification",
+    "dry_run_error": "Impossible de générer le plan de simulation",
+    "panel_toggle_label": "Panneau d'analyse",
+    "panel_ai": "Analyse IA",
+    "panel_plan": "Simulation",
     "submit_disabled_needs_analysis_tooltip": "Exécute l'analyse IA avant de soumettre.",
     "lines_count_one": "{{count}} ligne",
     "lines_count_other": "{{count}} lignes",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "Source de données"
+  },
+  "dry_run_panel": {
+    "title": "Plan d'exécution",
+    "stale_badge": "Obsolète",
+    "empty_prompt": "Lancez une simulation pour prévisualiser le plan d'exécution et l'impact estimé.",
+    "unsupported": "La simulation n'est pas prise en charge pour ce moteur.",
+    "estimated_impact_label": "Impact estimé",
+    "query_type_label": "Opération",
+    "est_rows_label": "Lignes estimées",
+    "plan_label": "Plan d'exécution",
+    "rows_badge": "≈ {{value}} lignes",
+    "cost_badge": "coût {{value}}",
+    "no_plan": "Le moteur n'a renvoyé aucun plan pour cette requête.",
+    "rerun_button": "Relancer"
   },
   "ai_panel": {
     "title": "Analyse IA",

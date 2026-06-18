@@ -351,6 +351,12 @@
     "analyze_button": "Анализ",
     "analyzing_button": "Анализирую",
     "analyze_error": "Не удалось выполнить ИИ-анализ",
+    "dry_run_button": "Пробный запуск",
+    "dry_running_button": "Планирование",
+    "dry_run_error": "Не удалось построить план пробного запуска",
+    "panel_toggle_label": "Панель анализа",
+    "panel_ai": "ИИ-анализ",
+    "panel_plan": "Пробный запуск",
     "submit_disabled_needs_analysis_tooltip": "Запустите ИИ-анализ перед отправкой.",
     "lines_count_one": "{{count}} строка",
     "lines_count_other": "{{count}} строк",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "Источник данных"
+  },
+  "dry_run_panel": {
+    "title": "План выполнения",
+    "stale_badge": "Устарело",
+    "empty_prompt": "Запустите пробный запуск, чтобы увидеть план выполнения и предполагаемое влияние.",
+    "unsupported": "Пробный запуск не поддерживается для этого движка.",
+    "estimated_impact_label": "Предполагаемое влияние",
+    "query_type_label": "Операция",
+    "est_rows_label": "Оценка строк",
+    "plan_label": "План выполнения",
+    "rows_badge": "≈ {{value}} строк",
+    "cost_badge": "стоимость {{value}}",
+    "no_plan": "Движок не вернул план для этого запроса.",
+    "rerun_button": "Запустить снова"
   },
   "ai_panel": {
     "title": "ИИ-анализ",

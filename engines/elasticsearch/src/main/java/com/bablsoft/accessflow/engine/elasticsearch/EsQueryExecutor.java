@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.elasticsearch;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -90,6 +91,33 @@ class EsQueryExecutor {
                 QueryType.SELECT, null, null, request.restrictedColumns(), request.columnMasks(),
                 request.rowSecurityPredicates(), false, null);
         return (SelectExecutionResult) execute(execRequest, descriptor, maxRows, timeout);
+    }
+
+    QueryDryRunResult dryRun(String engineId, QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var command = parser.parseCommand(request.sql());
+        // Only query-bearing operations can be explained without executing. Index/bulk/DDL cannot.
+        if (!command.operation().isRead() && command.operation() != EsOperation.UPDATE_BY_QUERY
+                && command.operation() != EsOperation.DELETE_BY_QUERY) {
+            return QueryDryRunResult.unsupported(engineId);
+        }
+        var applied = rowSecurityApplier.apply(command, request.rowSecurityPredicates());
+        var cmd = applied.command();
+        var transport = clientManager.transport(descriptor);
+        try {
+            var body = EsJson.object();
+            body.set("query", cmd.query() != null ? cmd.query() : EsJson.matchAll());
+            // _validate/query?explain plans/validates the query without executing it.
+            var raw = transport.perform("POST", path(cmd.index(), "_validate/query"),
+                    Map.of("explain", "true"), EsJson.write(body), JSON);
+            var response = EsJson.parse(raw);
+            return QueryDryRunResult.of(engineId, cmd.operation().queryType(), null,
+                    EsPlanMapper.toPlan(response, cmd.index()), raw, applied.appliedPolicyIds(),
+                    durationSince(start));
+        } catch (SearchTransportException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
     }
 
     private QueryExecutionResult search(SearchTransport transport, EsCommand cmd,

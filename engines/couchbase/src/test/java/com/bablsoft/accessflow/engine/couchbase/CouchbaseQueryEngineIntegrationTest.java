@@ -5,7 +5,9 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -320,6 +322,41 @@ class CouchbaseQueryEngineIntegrationTest {
         return new DatasourceConnectionDescriptor(UUID.randomUUID(), UUID.randomUUID(),
                 DbType.COUCHBASE, "127.0.0.1", 1, "missing", "user", "", SslMode.DISABLE, 10,
                 1000, true, null, false, null, "couchbase", null, null, null, null, true);
+    }
+
+    @Test
+    void dryRunSelectReturnsPlan() {
+        var result = dryRun("SELECT name FROM _default WHERE team = 'eng'", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.plan()).isNotNull();
+        assertThat(result.plan().operation()).isNotBlank();
+    }
+
+    @Test
+    void dryRunUpdatePlansWithoutMutating() {
+        var result = dryRun("UPDATE _default SET bonus = 1 WHERE team = 'eng'", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.UPDATE);
+        var after = (SelectExecutionResult) run("SELECT bonus FROM _default WHERE bonus = 1");
+        assertThat(after.rowCount()).isZero();
+    }
+
+    @Test
+    void dryRunAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "_default", "team",
+                RowSecurityOperator.EQUALS, List.of("sales"));
+        var result = dryRun("SELECT name FROM _default", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    private static QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {
+        var type = engine.parse(query).type();
+        var request = new QueryExecutionRequest(descriptor.id(), query, type, null, null,
+                List.of(), List.of(), rls, false, List.of(query));
+        return engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
     }
 
     private static Object run(String query) {

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
@@ -94,6 +95,75 @@ class MongoQueryExecutor {
         } catch (MongoException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var parsed = parser.parseCommand(request.sql());
+        var applied = rowSecurityApplier.apply(parsed, request.rowSecurityPredicates());
+        var command = applied.command();
+        // explain (queryPlanner verbosity) plans without executing — but only find/aggregate/count/
+        // distinct/update/delete/findAndModify are explainable. INSERT and DDL have no plan.
+        Document explainTarget = explainTarget(command);
+        if (explainTarget == null) {
+            return QueryDryRunResult.unsupported(MongoQueryEngine.ENGINE_ID);
+        }
+        var database = clientManager.database(descriptor, true);
+        try {
+            var response = database.runCommand(new Document("explain", explainTarget)
+                    .append("verbosity", "queryPlanner"));
+            var plan = MongoPlanMapper.toPlan(response, command.collection());
+            return QueryDryRunResult.of(MongoQueryEngine.ENGINE_ID, command.operation().queryType(),
+                    null, plan, response.toJson(), applied.appliedPolicyIds(), durationSince(start));
+        } catch (MongoException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    /** The explain sub-command document for an explainable operation, or {@code null} otherwise. */
+    private static Document explainTarget(MongoCommand command) {
+        var coll = command.collection();
+        return switch (command.operation()) {
+            case FIND -> {
+                var doc = new Document("find", coll).append("filter", filterOrEmpty(command.filter()));
+                if (command.projection() != null) {
+                    doc.append("projection", command.projection());
+                }
+                if (command.sort() != null) {
+                    doc.append("sort", command.sort());
+                }
+                if (command.skip() != null) {
+                    doc.append("skip", command.skip());
+                }
+                if (command.limit() != null) {
+                    doc.append("limit", command.limit());
+                }
+                yield doc;
+            }
+            case AGGREGATE -> new Document("aggregate", coll)
+                    .append("pipeline", command.pipeline())
+                    .append("cursor", new Document());
+            case COUNT_DOCUMENTS -> new Document("count", coll)
+                    .append("query", filterOrEmpty(command.filter()));
+            case DISTINCT -> new Document("distinct", coll)
+                    .append("key", command.distinctKey())
+                    .append("query", filterOrEmpty(command.filter()));
+            case UPDATE_ONE, REPLACE_ONE -> new Document("update", coll).append("updates",
+                    List.of(new Document("q", filterOrEmpty(command.filter()))
+                            .append("u", command.update()).append("multi", false)));
+            case UPDATE_MANY -> new Document("update", coll).append("updates",
+                    List.of(new Document("q", filterOrEmpty(command.filter()))
+                            .append("u", command.update()).append("multi", true)));
+            case FIND_ONE_AND_UPDATE -> new Document("findAndModify", coll)
+                    .append("query", filterOrEmpty(command.filter()))
+                    .append("update", command.update());
+            case DELETE_ONE -> new Document("delete", coll).append("deletes",
+                    List.of(new Document("q", filterOrEmpty(command.filter())).append("limit", 1)));
+            case DELETE_MANY -> new Document("delete", coll).append("deletes",
+                    List.of(new Document("q", filterOrEmpty(command.filter())).append("limit", 0)));
+            default -> null;
+        };
     }
 
     private List<Document> runRead(MongoDatabase database, MongoCommand command, int maxRows,

@@ -241,7 +241,7 @@ The proxy module reads the datasource state via `DatasourceLookupService` (`core
 
 ### Read-replica routing
 
-When a datasource has a `read_replica_jdbc_url` set, `RoutingDataSourceResolver` (`proxy/internal/`) routes any query classified by `SqlParserService` as `QueryType.SELECT` to the sibling replica pool. INSERT/UPDATE/DELETE/DDL and transactional `BEGIN…COMMIT` batches always hit the primary, regardless of the replica configuration.
+When a datasource has a `read_replica_jdbc_url` set, `RoutingDataSourceResolver` (`proxy/internal/`) routes any query classified by `SqlParserService` as `QueryType.SELECT` to the sibling replica pool. INSERT/UPDATE/DELETE/DDL and transactional `BEGIN…COMMIT` batches always hit the primary, regardless of the replica configuration. Dry-runs (AF-445) route through the same resolver by their underlying `QueryType`, so a SELECT dry-run prefers the replica while a write dry-run plans on the primary.
 
 - Replica credentials are encrypted with the same `ENCRYPTION_KEY` as the primary, decrypted only inside `DatasourcePoolFactory.createReplicaPool(...)`, and surface a pool name suffixed `-replica`. When `read_replica_username` or `read_replica_password_encrypted` is `NULL`, the primary's credentials are reused — useful when the replica accepts the same service account.
 - The driver class is shared with the primary: replicas must use the same engine (you cannot point a PostgreSQL primary at a MySQL replica).
@@ -641,6 +641,19 @@ The result is returned via `DatabaseSchemaView` (immutable nested records: `Sche
    - **Engine-managed** (NoSQL) datasources: delegates to the engine's `QueryEngine.sampleTable(QueryEngineSampleRequest)` (see [Engine SDK](15-engine-sdk.md)), which issues its native "read all rows from this table, capped at N" and funnels it through the same parse → row-security → mask pipeline as `execute`. Mongo `find({}).limit(N)`, Couchbase/Cassandra/DynamoDB `SELECT * FROM <keyspace/table>`, Elasticsearch `match_all`, Neo4j `MATCH (n:Label) RETURN n`. **Redis fails closed** — a key-value prefix has no per-row security meaning, so any matching `RowSecurityDirective` denies with an empty result; otherwise it SCANs the prefix and fetches values, with field masking still applied.
 
 The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET /api/v1/datasources/{id}/sample-rows` — masked columns carry the masked value only.
+
+### Dry-run / EXPLAIN path (AF-445)
+
+`proxy.api.QueryDryRunService` returns a **non-committing execution plan + best-effort estimated row impact** for a query — the playground/sandbox a user reaches for before formal submission (`POST /api/v1/queries/dry-run`). Like the sample path it is an **ad-hoc read that bypasses review but not governance**, creates no `query_request`, and never mutates data — every engine plans the statement (relational `EXPLAIN`, Mongo `explain`, …) but never executes it.
+
+1. **Authorization + allow-list.** `DefaultQueryDryRunService` resolves the datasource via `DatasourceAdminService.getForUser`/`getForAdmin` (org + permission-row access; 404 on miss), parses the query through `QueryParser` (`InvalidSqlException` → 422) for the `QueryType` + `referencedTables`, and — for non-ADMINs — verifies the matching capability (`can_read`/`can_write`/`can_ddl`) and that every referenced table is inside the caller's allow-list (same normalization as `DefaultQuerySubmissionService.verifyAllowedTables`; a miss raises Spring Security `AccessDeniedException` → 403).
+2. **Directive resolution.** The caller's `RowSecurityDirective`s (`RowSecurityResolutionService`) are resolved so the plan reflects the **governed** query. Column masks are irrelevant to a plan (no rows are returned) and are omitted.
+3. **Planning.** `QueryExecutor.dryRun(QueryExecutionRequest)` applies the `RowSecurityRewriter`, acquires a connection via `RoutingDataSourceResolver` (SELECT dry-runs prefer the read replica; writes plan on the primary — e.g. Oracle writes its scratch `PLAN_TABLE` there), and:
+   - **Relational** datasources: a per-`DbType` `DryRunPlanner` (`proxy/internal/dryrun/`) runs the dialect's non-executing EXPLAIN — PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE` (rows deleted in a `finally`), SQL Server `SET SHOWPLAN_ALL ON` — and maps it to a `QueryPlanNode` tree. `CUSTOM` JDBC has no planner and degrades gracefully.
+   - **Engine-managed** (NoSQL) datasources: delegates to `QueryEngine.dryRun(QueryEngineDryRunRequest)` (default SPI method returns *unsupported*; overridden by MongoDB `explain` queryPlanner, Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`). Redis, Cassandra/ScyllaDB, and DynamoDB inherit the default and degrade gracefully.
+4. **Graceful degradation.** A `QueryDryRunResult` with `supported=false` carries a localized `unsupportedReason` (`error.dry_run.unsupported`, resolved by the host service) — the engine has no plan concept, or the operation isn't explainable (INSERT/DDL on most engines).
+
+The statement-timeout cap reuses `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT`; there is no row cap (a dry-run returns no rows). The result is mapped to `QueryDryRunResponse` by the controller in the `security` module (which already depends on `proxy`, so it can host the `/queries/dry-run` endpoint and use `JwtClaims` without a module cycle — the same arrangement as the sample-rows endpoint).
 
 ---
 
