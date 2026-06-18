@@ -154,6 +154,7 @@
 - **AI query-optimization & index recommendations** — the analyzer returns concrete, dialect-aware optimization suggestions (index DDL + query rewrites) alongside the risk verdict; each has a one-click "Apply as draft" that pre-fills the editor and routes the suggested statement through the normal review pipeline, audited as `submission_reason=AI_SUGGESTION` (AF-451)
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts
 - **Saved-query version history & diffing** — every template save records an immutable version; view a side-by-side Git-style diff between any two revisions and restore a prior one, with history preserved (AF-442)
+- **Real-time collaborative query editing & co-authoring** — multiple authorized engineers co-edit a query that is in review (VS Code Live Share / Google Docs style): live presence, remote cursors, conflict-free CRDT merge (Yjs relayed over the existing `/ws`), and inline comment threads anchored to the SQL, persisted and audited. Edits re-enter the workflow through the normal submit path; the self-approval guard is unaffected (AF-441)
 - **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence
 
 ---

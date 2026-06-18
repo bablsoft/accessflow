@@ -12,6 +12,7 @@ Frontend dependencies follow a **latest-stable** policy: pin every package to th
 | Ant Design | latest stable (6.x at 2026-05-06) | UI component library |
 | CodeMirror + @codemirror/lang-sql | latest stable (6.x at 2026-05-06) | SQL editor engine (PostgreSQL/MySQL dialects) |
 | @codemirror/lang-javascript + @codemirror/lang-json | latest stable (6.x) | MongoDB query highlighting — shell (JavaScript) and JSON-command modes |
+| yjs + y-codemirror.next + y-protocols | latest stable (13.x / 0.3.x / 1.x at 2026-06-17) | CRDT collaborative editing of a query in review — shared document, remote cursors, awareness (AF-441) |
 | Zustand | latest stable (5.x at 2026-05-06) | Global state management |
 | TanStack Query | latest stable (5.x at 2026-05-06) | Server state, caching, refetching |
 | Axios | latest stable (1.x at 2026-05-06) | HTTP client |
@@ -402,6 +403,29 @@ Built on **CodeMirror 6** (`@codemirror/lang-sql`).
 | Read-only mode | `EditorState.readOnly` extension set to `true` for detail/history views |
 | Theme | Custom theme matching Ant Design token colors; dark/light follows OS preference |
 | Risk indicator | Risk score badge in toolbar updates live as AI analysis returns |
+
+### Collaborative editing (AF-441)
+
+When a query is in review (`PENDING_REVIEW`) and the viewer is an authorized co-author (submitter, or a
+reviewer/admin — the backend confirms assigned-reviewer eligibility on join), the read-only SQL block on
+`QueryDetailPage` is replaced by `components/editor/QueryCollaboration.tsx`, which composes:
+
+- **`CollaborativeSqlEditor.tsx`** — a CodeMirror 6 editor bound to a shared **Yjs** document via the
+  `yCollab` extension from `y-codemirror.next` (remote cursors/selections + a CRDT undo manager). It does
+  **not** take a controlled `value`/`onChange` — the Yjs doc owns the content. It reuses the same
+  language/theme/gutter stack as `SqlEditor` (`engineMode`/`activeSyntax`/`accessflowHighlight`).
+- **`PresenceBar.tsx`** — avatars of the co-authors currently in the room (colour matches each user's
+  remote cursor).
+- **`CommentsPanel.tsx`** + **`CommentThread.tsx`** — inline comment threads anchored to a line range,
+  with reply / resolve / reopen. Data via TanStack Query (`['queries','detail',id,'comments']`, `src/api/comments.ts`);
+  a `collab.comment` WebSocket frame invalidates the key.
+- A **"Save as draft"** action that submits the co-authored SQL through the normal `POST /queries` path
+  (re-entering review) — never a silent mutation of the query under review.
+
+The Yjs transport is `src/realtime/collabProvider.ts` (`QueryCollabProvider`): it owns the `Y.Doc` +
+`Awareness`, sends `collab.join` on construct, relays document/awareness updates over the existing
+`websocketManager` (a single subscription per open query), seeds the document from the query's SQL when it
+is the first joiner, and `destroy()`s on unmount. Deps: `yjs`, `y-codemirror.next`, `y-protocols`.
 
 ### AiHintPanel
 

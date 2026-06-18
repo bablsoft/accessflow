@@ -310,7 +310,10 @@
     "routing_policy_generic": "Impossible d'enregistrer la politique de routage. Veuillez réessayer.",
     "connector_not_found": "Connecteur introuvable.",
     "connector_install_failed": "Impossible d'installer le pilote du connecteur. Vérifiez la connectivité et réessayez.",
-    "connector_generic": "Une erreur s'est produite avec le connecteur. Veuillez réessayer."
+    "connector_generic": "Une erreur s'est produite avec le connecteur. Veuillez réessayer.",
+    "collaboration_forbidden": "Vous ne pouvez pas collaborer sur cette requête.",
+    "comment_not_found": "Commentaire introuvable.",
+    "collaboration_generic": "Une erreur s'est produite avec le commentaire."
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "Politique « {{name}} » — {{reason}}",
       "matched_policy_deleted": "(politique supprimée)",
       "matched_policy_no_reason": "aucune raison indiquée",
-      "optimizations_title": "Suggestions d’optimisation"
+      "optimizations_title": "Suggestions d’optimisation",
+      "card_sql_collab": "SQL (collaboratif)"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "Soumis par l’utilisateur",
       "AI_SUGGESTION": "Suggestion de l’IA"
+    },
+    "comment_status": {
+      "OPEN": "Ouvert",
+      "RESOLVED": "Résolu"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "Documentation",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} personne en édition",
+    "present_other": "{{count}} personnes en édition",
+    "presence_label_one": "{{count}} collaborateur présent",
+    "presence_label_other": "{{count}} collaborateurs présents",
+    "comments_title": "Commentaires",
+    "add_comment": "Commenter",
+    "add_comment_placeholder": "Ajouter un commentaire…",
+    "comment_anchor": "Lignes {{start}}–{{end}}",
+    "reply_placeholder": "Répondre…",
+    "reply": "Répondre",
+    "resolve": "Résoudre",
+    "reopen": "Rouvrir",
+    "no_comments": "Aucun commentaire pour l'instant",
+    "select_lines_hint": "Sélectionnez des lignes dans l'éditeur pour ancrer un commentaire",
+    "save_draft": "Enregistrer comme brouillon",
+    "save_draft_tooltip": "Enregistre le SQL coécrit comme un nouveau brouillon ; il repart en revue",
+    "save_success": "Enregistré comme brouillon {{id}}",
+    "denied_title": "Collaboration indisponible",
+    "denied_body": "Vous n'êtes pas autorisé à coéditer cette requête."
   }
 }

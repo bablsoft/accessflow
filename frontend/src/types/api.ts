@@ -1638,3 +1638,41 @@ export interface QueryTemplateVersion {
 }
 
 export type QueryTemplateVersionPage = PageEnvelope<QueryTemplateVersion>;
+
+// --- AF-441 collaboration comments ---
+
+export type CommentStatus = 'OPEN' | 'RESOLVED';
+
+export interface CommentUserRef {
+  id: string;
+  display_name: string;
+  email: string;
+}
+
+export interface QueryComment {
+  id: string;
+  query_request_id: string;
+  parent_comment_id: string | null;
+  author: CommentUserRef;
+  anchor_start_line: number;
+  anchor_end_line: number;
+  anchor_snapshot: string | null;
+  body: string;
+  status: CommentStatus;
+  resolved_by: CommentUserRef | null;
+  resolved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QueryCommentThread {
+  root: QueryComment;
+  replies: QueryComment[];
+}
+
+export interface CreateCommentInput {
+  anchor_start_line: number;
+  anchor_end_line: number;
+  anchor_snapshot?: string | null;
+  body: string;
+}

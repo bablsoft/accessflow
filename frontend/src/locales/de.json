@@ -310,7 +310,10 @@
     "routing_policy_generic": "Die Routing-Richtlinie konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "connector_not_found": "Konnektor nicht gefunden.",
     "connector_install_failed": "Der Konnektortreiber konnte nicht installiert werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
-    "connector_generic": "Beim Konnektor ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut."
+    "connector_generic": "Beim Konnektor ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+    "collaboration_forbidden": "Sie können an dieser Abfrage nicht mitarbeiten.",
+    "comment_not_found": "Kommentar nicht gefunden.",
+    "collaboration_generic": "Beim Kommentar ist ein Fehler aufgetreten."
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "Richtlinie \"{{name}}\" — {{reason}}",
       "matched_policy_deleted": "(gelöschte Richtlinie)",
       "matched_policy_no_reason": "keine Begründung angegeben",
-      "optimizations_title": "Optimierungsvorschläge"
+      "optimizations_title": "Optimierungsvorschläge",
+      "card_sql_collab": "SQL (kollaborativ)"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "Vom Benutzer eingereicht",
       "AI_SUGGESTION": "KI-Vorschlag"
+    },
+    "comment_status": {
+      "OPEN": "Offen",
+      "RESOLVED": "Gelöst"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "Dokumentation",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} Person bearbeitet",
+    "present_other": "{{count}} Personen bearbeiten",
+    "presence_label_one": "{{count}} Mitarbeiter anwesend",
+    "presence_label_other": "{{count}} Mitarbeiter anwesend",
+    "comments_title": "Kommentare",
+    "add_comment": "Kommentieren",
+    "add_comment_placeholder": "Kommentar hinzufügen…",
+    "comment_anchor": "Zeilen {{start}}–{{end}}",
+    "reply_placeholder": "Antworten…",
+    "reply": "Antworten",
+    "resolve": "Auflösen",
+    "reopen": "Wieder öffnen",
+    "no_comments": "Noch keine Kommentare",
+    "select_lines_hint": "Wählen Sie Zeilen im Editor, um einen Kommentar zu verankern",
+    "save_draft": "Als Entwurf speichern",
+    "save_draft_tooltip": "Speichert das gemeinsam verfasste SQL als neuen Entwurf; es geht erneut in die Prüfung",
+    "save_success": "Als Entwurf {{id}} gespeichert",
+    "denied_title": "Zusammenarbeit nicht verfügbar",
+    "denied_body": "Sie sind nicht berechtigt, diese Abfrage gemeinsam zu bearbeiten."
   }
 }

@@ -1,6 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { getWsUrl } from '@/config/runtimeConfig';
-import { WS_EVENT_NAMES, type WsEnvelope, type WsEventName, type WsEventPayloadMap } from '@/types/ws';
+import {
+  WS_EVENT_NAMES,
+  type CollabOutboundFrame,
+  type WsEnvelope,
+  type WsEventName,
+  type WsEventPayloadMap,
+} from '@/types/ws';
 
 type Handler<E extends WsEventName> = (data: WsEventPayloadMap[E]) => void;
 type AnyHandler = Handler<WsEventName>;
@@ -18,6 +24,8 @@ class WebSocketManager {
   private intentionallyClosed = false;
   private queryClient: QueryClient | null = null;
   private readonly subscribers = new Map<WsEventName, Set<AnyHandler>>();
+  // Query ids whose collaboration room we have joined, so we can re-join after a reconnect.
+  private readonly joinedRooms = new Set<string>();
 
   bindQueryClient(client: QueryClient): void {
     this.queryClient = client;
@@ -36,6 +44,7 @@ class WebSocketManager {
     this.intentionallyClosed = true;
     this.currentToken = null;
     this.reconnectAttempts = 0;
+    this.joinedRooms.clear();
     if (this.reconnectTimer != null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -58,6 +67,27 @@ class WebSocketManager {
     };
   }
 
+  /**
+   * Sends a collaboration frame back over the socket. Returns false if the socket is not open
+   * (the caller's CRDT layer is resilient to dropped frames and re-syncs on reconnect). Tracks
+   * room membership so joins are replayed automatically after a reconnect.
+   */
+  send(frame: CollabOutboundFrame): boolean {
+    if (frame.type === 'collab.join') this.joinedRooms.add(frame.query_id);
+    if (frame.type === 'collab.leave') this.joinedRooms.delete(frame.query_id);
+    return this.rawSend(frame);
+  }
+
+  private rawSend(frame: CollabOutboundFrame): boolean {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return false;
+    try {
+      this.socket.send(JSON.stringify(frame));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private openSocket(): void {
     if (!this.currentToken) return;
     const base = getWsUrl();
@@ -72,6 +102,10 @@ class WebSocketManager {
     this.socket = ws;
     ws.onopen = () => {
       this.reconnectAttempts = 0;
+      // Re-join any active collaboration rooms; peers re-sync state on the fresh join.
+      for (const queryId of this.joinedRooms) {
+        this.rawSend({ type: 'collab.join', query_id: queryId });
+      }
     };
     ws.onmessage = (event: MessageEvent) => this.handleMessage(event.data);
     ws.onerror = () => {
@@ -167,6 +201,13 @@ class WebSocketManager {
       case 'notification.created':
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+        break;
+      case 'collab.comment':
+        if (queryId) {
+          this.queryClient.invalidateQueries({
+            queryKey: ['queries', 'detail', queryId, 'comments'],
+          });
+        }
         break;
     }
   }

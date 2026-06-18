@@ -310,7 +310,10 @@
     "routing_policy_generic": "无法保存路由策略。请重试。",
     "connector_not_found": "未找到连接器。",
     "connector_install_failed": "无法安装连接器驱动。请检查网络连接并重试。",
-    "connector_generic": "连接器出现错误。请重试。"
+    "connector_generic": "连接器出现错误。请重试。",
+    "collaboration_forbidden": "您无法协作处理此查询。",
+    "comment_not_found": "未找到评论。",
+    "collaboration_generic": "评论出现问题。"
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "策略“{{name}}” — {{reason}}",
       "matched_policy_deleted": "（已删除的策略）",
       "matched_policy_no_reason": "未提供原因",
-      "optimizations_title": "优化建议"
+      "optimizations_title": "优化建议",
+      "card_sql_collab": "SQL（协作）"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "用户提交",
       "AI_SUGGESTION": "AI 建议"
+    },
+    "comment_status": {
+      "OPEN": "未解决",
+      "RESOLVED": "已解决"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "文档",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} 人正在编辑",
+    "present_other": "{{count}} 人正在编辑",
+    "presence_label_one": "{{count}} 位协作者在线",
+    "presence_label_other": "{{count}} 位协作者在线",
+    "comments_title": "评论",
+    "add_comment": "评论",
+    "add_comment_placeholder": "添加评论…",
+    "comment_anchor": "第 {{start}}–{{end}} 行",
+    "reply_placeholder": "回复…",
+    "reply": "回复",
+    "resolve": "解决",
+    "reopen": "重新打开",
+    "no_comments": "暂无评论",
+    "select_lines_hint": "在编辑器中选择行以锚定评论",
+    "save_draft": "保存为草稿",
+    "save_draft_tooltip": "将协作编写的 SQL 保存为新草稿；它将重新进入审核",
+    "save_success": "已保存为草稿 {{id}}",
+    "denied_title": "无法协作",
+    "denied_body": "您无权协同编辑此查询。"
   }
 }

@@ -310,7 +310,10 @@
     "routing_policy_generic": "Не удалось сохранить политику маршрутизации. Повторите попытку.",
     "connector_not_found": "Коннектор не найден.",
     "connector_install_failed": "Не удалось установить драйвер коннектора. Проверьте подключение и повторите попытку.",
-    "connector_generic": "Произошла ошибка с коннектором. Повторите попытку."
+    "connector_generic": "Произошла ошибка с коннектором. Повторите попытку.",
+    "collaboration_forbidden": "Вы не можете совместно работать над этим запросом.",
+    "comment_not_found": "Комментарий не найден.",
+    "collaboration_generic": "Произошла ошибка с комментарием."
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "Политика «{{name}}» — {{reason}}",
       "matched_policy_deleted": "(удалённая политика)",
       "matched_policy_no_reason": "причина не указана",
-      "optimizations_title": "Предложения по оптимизации"
+      "optimizations_title": "Предложения по оптимизации",
+      "card_sql_collab": "SQL (совместно)"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "Отправлено пользователем",
       "AI_SUGGESTION": "Предложение ИИ"
+    },
+    "comment_status": {
+      "OPEN": "Открыт",
+      "RESOLVED": "Решён"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "Документация",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} человек редактирует",
+    "present_other": "{{count}} человек редактируют",
+    "presence_label_one": "{{count}} участник на связи",
+    "presence_label_other": "{{count}} участников на связи",
+    "comments_title": "Комментарии",
+    "add_comment": "Комментировать",
+    "add_comment_placeholder": "Добавить комментарий…",
+    "comment_anchor": "Строки {{start}}–{{end}}",
+    "reply_placeholder": "Ответить…",
+    "reply": "Ответить",
+    "resolve": "Решить",
+    "reopen": "Открыть снова",
+    "no_comments": "Пока нет комментариев",
+    "select_lines_hint": "Выделите строки в редакторе, чтобы привязать комментарий",
+    "save_draft": "Сохранить как черновик",
+    "save_draft_tooltip": "Сохраняет совместно написанный SQL как новый черновик; он снова попадает на проверку",
+    "save_success": "Сохранено как черновик {{id}}",
+    "denied_title": "Совместная работа недоступна",
+    "denied_body": "У вас нет прав на совместное редактирование этого запроса."
   }
 }

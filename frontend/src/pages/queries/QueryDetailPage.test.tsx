@@ -605,8 +605,8 @@ describe('QueryDetailPage — query diff card (AF-361)', () => {
 
     render(wrap(<QueryDetailPage />));
 
-    // Wait for the page to render — the sql card should be visible.
-    await screen.findByText('SQL');
+    // Wait for the page to render — for an in-review query the SQL card is collaborative.
+    await screen.findByText('SQL (collaborative)');
     expect(screen.queryByText('Compare to previous run')).toBeNull();
     expect(getQueryDiffMock).not.toHaveBeenCalled();
   });

@@ -25,6 +25,7 @@ import { SqlBlock } from '@/components/common/SqlBlock';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { IssueCard } from '@/components/editor/IssueCard';
 import { OptimizationCard } from '@/components/editor/OptimizationCard';
+import { QueryCollaboration } from '@/components/editor/QueryCollaboration';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
 import { routingActionLabel } from '@/utils/enumLabels';
@@ -185,6 +186,10 @@ export function QueryDetailPage() {
   const aiFailed = query.ai_analysis?.failed === true;
   const aiFailureReason = query.ai_analysis?.error_message ?? '';
   const canReanalyze = isReviewer && aiFailed && query.status === 'PENDING_REVIEW';
+  // Live co-authoring is offered while the query is in review to the submitter and any
+  // reviewer/admin; the backend confirms assigned-reviewer eligibility on join.
+  const canCollaborate =
+    query.status === 'PENDING_REVIEW' && (submitterId === user.id || isReviewer);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -350,10 +355,18 @@ export function QueryDetailPage() {
               })}
             />
           )}
-          <Card title={t('queries.detail.card_sql')} icon={<FileTextOutlined />} extra={<QueryTypePill type={query.query_type} />}>
-            <div style={{ padding: 14 }}>
-              <SqlBlock sql={query.sql_text} />
-            </div>
+          <Card
+            title={canCollaborate ? t('queries.detail.card_sql_collab') : t('queries.detail.card_sql')}
+            icon={<FileTextOutlined />}
+            extra={<QueryTypePill type={query.query_type} />}
+          >
+            {canCollaborate ? (
+              <QueryCollaboration query={query} currentUser={user} />
+            ) : (
+              <div style={{ padding: 14 }}>
+                <SqlBlock sql={query.sql_text} />
+              </div>
+            )}
           </Card>
 
           <Card title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>

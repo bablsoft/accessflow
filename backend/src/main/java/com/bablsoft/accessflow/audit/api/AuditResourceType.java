@@ -30,7 +30,8 @@ public enum AuditResourceType {
     MASKING_POLICY("masking_policy"),
     ROUTING_POLICY("routing_policy"),
     ROW_SECURITY_POLICY("row_security_policy"),
-    CONNECTOR("connector");
+    CONNECTOR("connector"),
+    QUERY_COMMENT("query_comment");
 
     private final String dbValue;
 

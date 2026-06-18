@@ -8,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.HashMap;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.when;
 class RealtimeWebSocketHandlerTest {
 
     @Mock SessionRegistry sessionRegistry;
+    @Mock CollaborationCoordinator collaborationCoordinator;
     @Mock WebSocketSession session;
 
     @InjectMocks RealtimeWebSocketHandler handler;
@@ -49,7 +51,28 @@ class RealtimeWebSocketHandlerTest {
     }
 
     @Test
-    void afterConnectionClosedUnregistersByUserId() {
+    void handleTextMessageRoutesToCollaborationCoordinator() {
+        var claims = new JwtClaims(UUID.randomUUID(), "u@example.com", UserRoleType.REVIEWER,
+                UUID.randomUUID());
+        when(session.getAttributes()).thenReturn(attrs(claims));
+        var payload = "{\"type\":\"collab.join\",\"query_id\":\"" + UUID.randomUUID() + "\"}";
+
+        handler.handleTextMessage(session, new TextMessage(payload));
+
+        verify(collaborationCoordinator).handle(session, claims, payload);
+    }
+
+    @Test
+    void handleTextMessageIgnoredWhenClaimsMissing() {
+        when(session.getAttributes()).thenReturn(new HashMap<>());
+
+        handler.handleTextMessage(session, new TextMessage("{\"type\":\"collab.join\"}"));
+
+        verifyNoInteractions(collaborationCoordinator);
+    }
+
+    @Test
+    void afterConnectionClosedUnregistersAndEvictsFromRooms() {
         var userId = UUID.randomUUID();
         var claims = new JwtClaims(userId, "u@example.com", UserRoleType.ANALYST,
                 UUID.randomUUID());
@@ -58,15 +81,17 @@ class RealtimeWebSocketHandlerTest {
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);
 
         verify(sessionRegistry).unregister(userId, session);
+        verify(collaborationCoordinator).onSessionClosed(session);
     }
 
     @Test
-    void afterConnectionClosedIsNoOpWhenClaimsMissing() {
+    void afterConnectionClosedStillEvictsRoomsWhenClaimsMissing() {
         when(session.getAttributes()).thenReturn(new HashMap<>());
 
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);
 
         verifyNoInteractions(sessionRegistry);
+        verify(collaborationCoordinator).onSessionClosed(session);
     }
 
     private static Map<String, Object> attrs(JwtClaims claims) {

@@ -20,6 +20,7 @@ import type {
   RoutingConditionOperand,
   RowSecurityOperator,
   RowSecurityValueType,
+  CommentStatus,
   SslMode,
   SubmissionReason,
   Weekday,
@@ -53,6 +54,9 @@ export const optimizationTypeLabel = (t: TFunction, v: OptimizationType): string
 
 export const submissionReasonLabel = (t: TFunction, v: SubmissionReason): string =>
   t(`enums.submission_reason.${v}` as const);
+
+export const commentStatusLabel = (t: TFunction, v: CommentStatus): string =>
+  t(`enums.comment_status.${v}` as const);
 
 export const riskLevelLabel = (t: TFunction, v: RiskLevel): string =>
   t(`enums.risk_level.${v}` as const);

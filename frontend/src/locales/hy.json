@@ -310,7 +310,10 @@
     "routing_policy_generic": "Չհաջողվեց պահպանել երթուղավորման քաղաքականությունը. Փորձեք նորից.",
     "connector_not_found": "Միակցիչը չի գտնվել։",
     "connector_install_failed": "Չհաջողվեց տեղադրել միակցիչի դրայվերը։ Ստուգեք կապը և կրկին փորձեք։",
-    "connector_generic": "Միակցիչի հետ սխալ տեղի ունեցավ։ Խնդրում ենք կրկին փորձել։"
+    "connector_generic": "Միակցիչի հետ սխալ տեղի ունեցավ։ Խնդրում ենք կրկին փորձել։",
+    "collaboration_forbidden": "Դուք չեք կարող համագործակցել այս հարցման վրա։",
+    "comment_not_found": "Մեկնաբանությունը չի գտնվել։",
+    "collaboration_generic": "Մեկնաբանության հետ խնդիր առաջացավ։"
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "Քաղաքականություն «{{name}}» — {{reason}}",
       "matched_policy_deleted": "(ջնջված քաղաքականություն)",
       "matched_policy_no_reason": "պատճառ նշված չէ",
-      "optimizations_title": "Օպտիմիզացման առաջարկներ"
+      "optimizations_title": "Օպտիմիզացման առաջարկներ",
+      "card_sql_collab": "SQL (համատեղ)"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "Ուղարկված օգտատիրոջ կողմից",
       "AI_SUGGESTION": "ԱԲ-ի առաջարկ"
+    },
+    "comment_status": {
+      "OPEN": "Բաց",
+      "RESOLVED": "Լուծված"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "Փաստաթղթեր",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} մարդ խմբագրում է",
+    "present_other": "{{count}} մարդ խմբագրում են",
+    "presence_label_one": "{{count}} համագործակից առկա է",
+    "presence_label_other": "{{count}} համագործակից առկա են",
+    "comments_title": "Մեկնաբանություններ",
+    "add_comment": "Մեկնաբանել",
+    "add_comment_placeholder": "Ավելացնել մեկնաբանություն…",
+    "comment_anchor": "Տողեր {{start}}–{{end}}",
+    "reply_placeholder": "Պատասխանել…",
+    "reply": "Պատասխանել",
+    "resolve": "Լուծել",
+    "reopen": "Վերաբացել",
+    "no_comments": "Դեռ մեկնաբանություններ չկան",
+    "select_lines_hint": "Ընտրեք տողեր խմբագրիչում՝ մեկնաբանությունն ամրացնելու համար",
+    "save_draft": "Պահել որպես սևագիր",
+    "save_draft_tooltip": "Պահում է համատեղ գրված SQL-ը որպես նոր սևագիր; այն կրկին անցնում է վերանայման",
+    "save_success": "Պահվեց որպես սևագիր {{id}}",
+    "denied_title": "Համագործակցությունն անհասանելի է",
+    "denied_body": "Դուք իրավունք չունեք համատեղ խմբագրելու այս հարցումը։"
   }
 }

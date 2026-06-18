@@ -1337,6 +1337,43 @@ Every handler wraps its body in try/catch and logs at ERROR; a transient WS or l
 }
 ```
 
+### Real-time collaboration relay (AF-441)
+
+For collaborative editing of a query that is in review, the `/ws` channel becomes **bidirectional**.
+`RealtimeWebSocketHandler.handleTextMessage` routes inbound client frames to
+`realtime/internal/CollaborationCoordinator`, which:
+
+1. **Authorizes joins** through `workflow.api.QueryCollaborationAccessService` — a single source of truth
+   for "who may co-author this query": the submitter, an eligible reviewer (review-plan approver in
+   datasource scope), or an admin, while the query is co-authorable (`PENDING_REVIEW`; the submitter may
+   also co-author while `PENDING_AI`). This centralizes the reviewer-eligibility logic the review path and
+   the dispatcher used to compute separately. An unauthorized join gets a `collab.denied` frame.
+2. **Tracks query-scoped rooms** in `realtime/internal/ws/CollaborationRoomRegistry`
+   (`ConcurrentMap<queryId, Map<sessionId, Participant>>`). A room is created on the first join and dropped
+   when its last participant leaves, so memory is bounded by live collaboration. `afterConnectionClosed`
+   evicts the session from every room and broadcasts the updated presence.
+3. **Relays opaquely.** The backend never parses the Yjs payload — `collab.sync` (document) and
+   `collab.awareness` (cursors/selections) frames are forwarded verbatim to the other members of the room.
+   Convergence (conflict-free merge) is a client-side Yjs CRDT; the keystroke stream is **not persisted**.
+   Late-joiner state is handled client-side: the first joiner of a fresh room seeds the shared document
+   from the query's SQL (signalled by `seed` on `collab.joined`); peers exchange full state on each
+   presence change.
+
+**Approval safety.** Live edits are an ephemeral shared buffer — the backend never mutates the query's
+`sql_text` under review. Committing the co-authored SQL goes through the existing `POST /api/v1/queries`
+submit path, which re-enters the workflow at `PENDING_AI`; the self-approval guard in `DefaultReviewService`
+is unchanged.
+
+**Persisted discussion.** Inline comment threads (`workflow.api.QueryCommentService` →
+`query_comments` table, audited via `QUERY_COMMENT_*` actions) are the durable collaboration artifact. A
+`QueryCommentChangedEvent` drives a `collab.comment` WebSocket fan-out so collaborators' comment panels
+refetch.
+
+**Multi-replica caveat.** Rooms are per-node (in-memory), identical to the existing `SessionRegistry`
+broadcast model — Spring application events are in-process. Cross-node room fan-out is out of scope; a
+deployment that needs collaboration across replicas should pin a query's collaborators to one node
+(sticky sessions) or front `/ws` with a single replica, as for the rest of the realtime module today.
+
 ---
 
 ## User API keys (security module)
