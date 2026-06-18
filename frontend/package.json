@@ -33,7 +33,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.6",
     "react-i18next": "^17.0.8",
-    "react-router-dom": "^7.16.0",
+    "react-router-dom": "^7.18.0",
     "sql-formatter": "^15.7.3",
     "y-codemirror.next": "^0.3.5",
     "y-protocols": "^1.0.7",
