@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} groupe(s)",
       "condition_advanced": "Condition avancée",
       "condition_advanced_warning": "Cette politique utilise une condition imbriquée que l'éditeur guidé ne peut pas modifier ; l'enregistrement ici la remplacera.",
-      "condition_any_query": "Toute requête"
+      "condition_any_query": "Toute requête",
+      "cidrs_placeholder": "p. ex. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Bloc CIDR non valide : {{value}}",
+      "user_agent_placeholder": "p. ex. *curl*, *GitHubActions*",
+      "minutes_suffix": "min",
+      "cicd_present_label": "Provenance CI/CD"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "Jour de la semaine",
       "has_where": "A une clause WHERE",
       "has_limit": "A une clause LIMIT",
-      "transactional": "Transactionnel"
+      "transactional": "Transactionnel",
+      "source_ip": "IP source / CIDR",
+      "user_agent": "Agent utilisateur",
+      "time_since_last_approval": "Temps depuis la dernière approbation",
+      "cicd_origin": "Provenance CI/CD"
     },
     "row_security_operator": {
       "EQUALS": "=",

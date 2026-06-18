@@ -93,6 +93,17 @@ public class QueryRequestEntity {
     @Column(name = "canonical_sql", columnDefinition = "text")
     private String canonicalSql;
 
+    // Client context captured at submission (the only point an HTTP request exists); read back when
+    // routing policies evaluate asynchronously after AI completion. See AF-446.
+    @Column(name = "submitted_ip", length = 45)
+    private String submittedIp;
+
+    @Column(name = "submitted_user_agent", columnDefinition = "text")
+    private String submittedUserAgent;
+
+    @Column(name = "cicd_origin", nullable = false)
+    private boolean ciCdOrigin = false;
+
     @Version
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();

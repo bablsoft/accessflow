@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.Test;
 
@@ -20,5 +21,11 @@ class ApiKeyAuthenticationTokenTest {
         assertThat(token.getAuthorities())
                 .extracting(Object::toString)
                 .containsExactly("ROLE_REVIEWER");
+    }
+
+    @Test
+    void implementsApiKeyAuthenticationMarkerForChannelDetection() {
+        var claims = new JwtClaims(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID());
+        assertThat(new ApiKeyAuthenticationToken(claims)).isInstanceOf(ApiKeyAuthentication.class);
     }
 }

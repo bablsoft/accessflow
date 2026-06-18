@@ -17,5 +17,8 @@ public record QueryRequestSnapshot(
         QueryType queryType,
         boolean transactional,
         QueryStatus status,
-        Instant scheduledFor) {
+        Instant scheduledFor,
+        String submittedIp,
+        String submittedUserAgent,
+        boolean ciCdOrigin) {
 }

@@ -153,6 +153,41 @@ class QuerySubmissionControllerIntegrationTest {
     }
 
     @Test
+    void submitWithCiHeaderFlagsCiCdOrigin() {
+        when(querySubmissionService.submit(any()))
+                .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
+
+        var response = mvc.post().uri("/api/v1/queries")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .header("X-AccessFlow-CI", "true")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"%s\",\"sql\":\"SELECT 1\"}".formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().ciCdOrigin()).isTrue();
+    }
+
+    @Test
+    void submitWithoutCiHeaderDoesNotFlagCiCdOrigin() {
+        when(querySubmissionService.submit(any()))
+                .thenReturn(new QuerySubmissionResult(UUID.randomUUID(), QueryStatus.PENDING_AI));
+
+        var response = mvc.post().uri("/api/v1/queries")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"%s\",\"sql\":\"SELECT 1\"}".formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(response).hasStatus(202);
+        var captor = ArgumentCaptor.forClass(SubmissionInput.class);
+        verify(querySubmissionService).submit(captor.capture());
+        assertThat(captor.getValue().ciCdOrigin()).isFalse();
+    }
+
+    @Test
     void submitWithoutTokenReturns401() {
         var response = mvc.post().uri("/api/v1/queries")
                 .contentType(MediaType.APPLICATION_JSON)

@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,4 +106,21 @@ public interface QueryRequestRepository
                                           @Param("canonicalSql") String canonicalSql,
                                           @Param("excludeId") UUID excludeId,
                                           Pageable pageable);
+
+    // AF-446: most recent approval-time of the requester's prior queries on the same datasource
+    // (status APPROVED or EXECUTED), used by the time-since-last-approval routing condition.
+    // updatedAt is the @Version column, which equals the approve / execute transition time.
+    @Query("""
+            select max(q.updatedAt) from QueryRequestEntity q
+             where q.datasource.organization.id = :orgId
+               and q.submittedBy.id = :userId
+               and q.datasource.id = :datasourceId
+               and q.status in :statuses
+               and (:excludingQueryId is null or q.id <> :excludingQueryId)
+            """)
+    Optional<Instant> findLastApprovalInstant(@Param("orgId") UUID organizationId,
+                                              @Param("userId") UUID userId,
+                                              @Param("datasourceId") UUID datasourceId,
+                                              @Param("statuses") Collection<QueryStatus> statuses,
+                                              @Param("excludingQueryId") UUID excludingQueryId);
 }

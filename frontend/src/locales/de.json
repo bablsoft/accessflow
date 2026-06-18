@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} Gruppe(n)",
       "condition_advanced": "Erweiterte Bedingung",
       "condition_advanced_warning": "Diese Richtlinie verwendet eine verschachtelte Bedingung, die der geführte Editor nicht bearbeiten kann; Speichern ersetzt sie.",
-      "condition_any_query": "Jede Abfrage"
+      "condition_any_query": "Jede Abfrage",
+      "cidrs_placeholder": "z. B. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Kein gültiger CIDR-Block: {{value}}",
+      "user_agent_placeholder": "z. B. *curl*, *GitHubActions*",
+      "minutes_suffix": "Min.",
+      "cicd_present_label": "Ist CI/CD-Herkunft"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "Wochentag",
       "has_where": "Hat WHERE-Klausel",
       "has_limit": "Hat LIMIT-Klausel",
-      "transactional": "Transaktional"
+      "transactional": "Transaktional",
+      "source_ip": "Quell-IP / CIDR",
+      "user_agent": "User-Agent",
+      "time_since_last_approval": "Zeit seit letzter Genehmigung",
+      "cicd_origin": "CI/CD-Herkunft"
     },
     "row_security_operator": {
       "EQUALS": "=",

@@ -48,7 +48,8 @@ class DefaultQueryRequestPersistenceServiceTest {
 
         var futureInstant = java.time.Instant.now().plusSeconds(600);
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, false, "ticket-42", futureInstant, SubmissionReason.AI_SUGGESTION);
+                QueryType.SELECT, false, "ticket-42", futureInstant, SubmissionReason.AI_SUGGESTION,
+                "203.0.113.7", "curl/8.4.0", true);
 
         var id = service.submit(command);
 
@@ -64,6 +65,9 @@ class DefaultQueryRequestPersistenceServiceTest {
         assertThat(saved.getJustification()).isEqualTo("ticket-42");
         assertThat(saved.getScheduledFor()).isEqualTo(futureInstant);
         assertThat(saved.getSubmissionReason()).isEqualTo(SubmissionReason.AI_SUGGESTION);
+        assertThat(saved.getSubmittedIp()).isEqualTo("203.0.113.7");
+        assertThat(saved.getSubmittedUserAgent()).isEqualTo("curl/8.4.0");
+        assertThat(saved.isCiCdOrigin()).isTrue();
         assertThat(saved.getStatus())
                 .isEqualTo(com.bablsoft.accessflow.core.api.QueryStatus.PENDING_AI);
         assertThat(saved.getCreatedAt()).isNotNull();
@@ -76,7 +80,8 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.empty());
 
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, false, null, null, SubmissionReason.USER_SUBMITTED);
+                QueryType.SELECT, false, null, null, SubmissionReason.USER_SUBMITTED,
+                null, null, false);
 
         assertThatThrownBy(() -> service.submit(command))
                 .isInstanceOf(IllegalStateException.class)
@@ -93,7 +98,8 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new SubmitQueryCommand(datasourceId, userId, "SELECT 1",
-                QueryType.SELECT, false, null, null, SubmissionReason.USER_SUBMITTED);
+                QueryType.SELECT, false, null, null, SubmissionReason.USER_SUBMITTED,
+                null, null, false);
 
         assertThatThrownBy(() -> service.submit(command))
                 .isInstanceOf(IllegalStateException.class)

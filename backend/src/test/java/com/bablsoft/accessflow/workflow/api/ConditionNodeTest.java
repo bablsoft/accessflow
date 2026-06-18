@@ -120,4 +120,45 @@ class ConditionNodeTest {
         assertThat(new ConditionNode.HasLimitClause(false).expected()).isFalse();
         assertThat(new ConditionNode.Transactional(true).expected()).isTrue();
     }
+
+    @Test
+    void sourceIpMatchesNullBecomesEmptyImmutableList() {
+        assertThat(new ConditionNode.SourceIpMatches(null).cidrs()).isEmpty();
+        assertThat(new ConditionNode.SourceIpMatches(List.of("10.0.0.0/8")).cidrs())
+                .containsExactly("10.0.0.0/8");
+        assertThatThrownBy(() -> new ConditionNode.SourceIpMatches(List.of("a")).cidrs().add("b"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void userAgentMatchesNullBecomesEmpty() {
+        assertThat(new ConditionNode.UserAgentMatches(null).patterns()).isEmpty();
+        assertThat(new ConditionNode.UserAgentMatches(List.of("*curl*")).patterns())
+                .containsExactly("*curl*");
+    }
+
+    @Test
+    void timeSinceLastApprovalRejectsNullOperator() {
+        assertThatThrownBy(() -> new ConditionNode.TimeSinceLastApproval(null, 5))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void timeSinceLastApprovalRejectsNegativeMinutes() {
+        assertThatThrownBy(() -> new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void timeSinceLastApprovalKeepsOperatorAndMinutes() {
+        var node = new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 1440);
+        assertThat(node.operator()).isEqualTo(ComparisonOperator.GT);
+        assertThat(node.minutes()).isEqualTo(1440);
+    }
+
+    @Test
+    void ciCdOriginExposesExpected() {
+        assertThat(new ConditionNode.CiCdOrigin(true).expected()).isTrue();
+        assertThat(new ConditionNode.CiCdOrigin(false).expected()).isFalse();
+    }
 }

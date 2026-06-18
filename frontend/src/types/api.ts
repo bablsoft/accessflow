@@ -66,7 +66,11 @@ export type RoutingConditionOperand =
   | 'day_of_week'
   | 'has_where'
   | 'has_limit'
-  | 'transactional';
+  | 'transactional'
+  | 'source_ip'
+  | 'user_agent'
+  | 'time_since_last_approval'
+  | 'cicd_origin';
 export type Weekday =
   | 'MONDAY'
   | 'TUESDAY'
@@ -1062,7 +1066,11 @@ export type RoutingCondition =
   | { type: 'day_of_week'; any_of: Weekday[] }
   | { type: 'has_where'; expected: boolean }
   | { type: 'has_limit'; expected: boolean }
-  | { type: 'transactional'; expected: boolean };
+  | { type: 'transactional'; expected: boolean }
+  | { type: 'source_ip'; cidrs: string[] }
+  | { type: 'user_agent'; patterns: string[] }
+  | { type: 'time_since_last_approval'; operator: ComparisonOperator; minutes: number }
+  | { type: 'cicd_origin'; expected: boolean };
 
 export interface RoutingPolicy {
   id: string;

@@ -45,12 +45,28 @@ class RoutingConditionCodecTest {
                 new ConditionNode.TimeOfDay(1320, 360),
                 new ConditionNode.DayOfWeekIn(Set.of(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)),
                 new ConditionNode.HasLimitClause(false),
-                new ConditionNode.Transactional(true)));
+                new ConditionNode.Transactional(true),
+                new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24", "2001:db8::/32")),
+                new ConditionNode.UserAgentMatches(List.of("*curl*", "*GitHubActions*")),
+                new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 1440),
+                new ConditionNode.CiCdOrigin(true)));
 
         var json = codec.encode(tree);
         var decoded = codec.decode(json);
 
         assertThat(decoded).isEqualTo(tree);
+    }
+
+    @Test
+    void wireShapeForClientContextLeaves() {
+        assertThat(codec.encode(new ConditionNode.SourceIpMatches(List.of("10.0.0.0/8"))))
+                .contains("\"type\":\"source_ip\"").contains("\"cidrs\":[\"10.0.0.0/8\"]");
+        assertThat(codec.encode(new ConditionNode.UserAgentMatches(List.of("*curl*"))))
+                .contains("\"type\":\"user_agent\"").contains("\"patterns\":[\"*curl*\"]");
+        assertThat(codec.encode(new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 60)))
+                .contains("\"type\":\"time_since_last_approval\"").contains("\"minutes\":60");
+        assertThat(codec.encode(new ConditionNode.CiCdOrigin(true)))
+                .contains("\"type\":\"cicd_origin\"").contains("\"expected\":true");
     }
 
     @Test

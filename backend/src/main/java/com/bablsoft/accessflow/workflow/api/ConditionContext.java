@@ -17,6 +17,13 @@ import java.util.UUID;
  * <p>{@code riskLevel} is {@code null} and {@code riskScore} is negative when AI analysis was
  * skipped (datasource {@code ai_analysis_enabled = false}); risk-based conditions evaluate to
  * {@code false} in that case.
+ *
+ * <p>The client-context signals are captured at submission and persisted on the query (routing runs
+ * asynchronously, after AI completion, where no HTTP request exists): {@code requesterIpAddress}
+ * and {@code requesterUserAgent} are {@code null} when unavailable, {@code ciCdOrigin} defaults to
+ * {@code false}, and {@code minutesSinceLastApproval} is {@code null} when the requester has no
+ * prior approval on the datasource. The matching client-context conditions fail closed on those
+ * absent signals.
  */
 public record ConditionContext(
         QueryType queryType,
@@ -28,7 +35,11 @@ public record ConditionContext(
         LocalDateTime evaluatedAt,
         boolean hasWhereClause,
         boolean hasLimitClause,
-        boolean transactional) {
+        boolean transactional,
+        String requesterIpAddress,
+        String requesterUserAgent,
+        boolean ciCdOrigin,
+        Integer minutesSinceLastApproval) {
 
     public ConditionContext {
         referencedTables = Set.copyOf(referencedTables == null ? Set.of() : referencedTables);

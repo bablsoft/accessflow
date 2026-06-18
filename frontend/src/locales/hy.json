@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} խումբ",
       "condition_advanced": "Բարդ պայման",
       "condition_advanced_warning": "Այս քաղաքականությունն օգտագործում է ներդրված պայման, որը կառավարվող խմբագրիչը չի կարող խմբագրել. այստեղ պահպանելը այն կփոխարինի.",
-      "condition_any_query": "Ցանկացած հարցում"
+      "condition_any_query": "Ցանկացած հարցում",
+      "cidrs_placeholder": "օր. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Անվավեր CIDR բլոկ՝ {{value}}",
+      "user_agent_placeholder": "օր. *curl*, *GitHubActions*",
+      "minutes_suffix": "ր",
+      "cicd_present_label": "CI/CD ծագում"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "Շաբաթվա օր",
       "has_where": "Ունի WHERE դրույթ",
       "has_limit": "Ունի LIMIT դրույթ",
-      "transactional": "Տրանզակցիոն"
+      "transactional": "Տրանզակցիոն",
+      "source_ip": "Աղբյուրի IP / CIDR",
+      "user_agent": "User-Agent",
+      "time_since_last_approval": "Ժամանակ վերջին հաստատումից",
+      "cicd_origin": "CI/CD ծագում"
     },
     "row_security_operator": {
       "EQUALS": "=",

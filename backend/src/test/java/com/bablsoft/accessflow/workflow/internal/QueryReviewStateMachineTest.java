@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -241,7 +243,12 @@ class QueryReviewStateMachineTest {
         // 1 (plan min) + 2 (escalate delta) = 3
         verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.PENDING_REVIEW),
                 any(RoutingMatch.class), eq(3));
-        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+        var event = ArgumentCaptor.forClass(QueryReadyForReviewEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        // The matched policy is carried on the event so the audit log records the escalation.
+        assertThat(event.getValue().matchedPolicyId()).isEqualTo(policyId);
+        assertThat(event.getValue().effectiveMinApprovals()).isEqualTo(3);
+        assertThat(event.getValue().routingReason()).isEqualTo("matched");
     }
 
     @Test
@@ -365,7 +372,7 @@ class QueryReviewStateMachineTest {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(new QueryRequestSnapshot(queryId, datasourceId,
                         organizationId, submitterId, "SELECT 1", type, false,
-                        QueryStatus.PENDING_AI, null)));
+                        QueryStatus.PENDING_AI, null, "203.0.113.7", "curl/8.4.0", true)));
     }
 
     private void givenPlan(boolean autoApproveReads, boolean requiresHumanApproval,
@@ -386,6 +393,6 @@ class QueryReviewStateMachineTest {
 
     private QueryRequestSnapshot snapshot(QueryStatus status) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", QueryType.SELECT, false, status, null);
+                "SELECT 1", QueryType.SELECT, false, status, null, "203.0.113.7", "curl/8.4.0", true);
     }
 }

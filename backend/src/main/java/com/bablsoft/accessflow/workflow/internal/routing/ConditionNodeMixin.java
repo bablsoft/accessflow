@@ -26,7 +26,11 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ConditionNode.DayOfWeekIn.class, name = "day_of_week"),
         @JsonSubTypes.Type(value = ConditionNode.HasWhereClause.class, name = "has_where"),
         @JsonSubTypes.Type(value = ConditionNode.HasLimitClause.class, name = "has_limit"),
-        @JsonSubTypes.Type(value = ConditionNode.Transactional.class, name = "transactional")
+        @JsonSubTypes.Type(value = ConditionNode.Transactional.class, name = "transactional"),
+        @JsonSubTypes.Type(value = ConditionNode.SourceIpMatches.class, name = "source_ip"),
+        @JsonSubTypes.Type(value = ConditionNode.UserAgentMatches.class, name = "user_agent"),
+        @JsonSubTypes.Type(value = ConditionNode.TimeSinceLastApproval.class, name = "time_since_last_approval"),
+        @JsonSubTypes.Type(value = ConditionNode.CiCdOrigin.class, name = "cicd_origin")
 })
 interface ConditionNodeMixin {
 }

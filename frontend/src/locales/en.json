@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} group(s)",
       "condition_advanced": "Advanced condition",
       "condition_advanced_warning": "This policy uses a nested condition the guided builder can't edit; saving here will replace it.",
-      "condition_any_query": "Any query"
+      "condition_any_query": "Any query",
+      "cidrs_placeholder": "e.g. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Not a valid CIDR block: {{value}}",
+      "user_agent_placeholder": "e.g. *curl*, *GitHubActions*",
+      "minutes_suffix": "min",
+      "cicd_present_label": "Is CI/CD origin"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "Day of week",
       "has_where": "Has WHERE clause",
       "has_limit": "Has LIMIT clause",
-      "transactional": "Transactional"
+      "transactional": "Transactional",
+      "source_ip": "Source IP / CIDR",
+      "user_agent": "User-agent",
+      "time_since_last_approval": "Time since last approval",
+      "cicd_origin": "CI/CD origin"
     },
     "row_security_operator": {
       "EQUALS": "=",

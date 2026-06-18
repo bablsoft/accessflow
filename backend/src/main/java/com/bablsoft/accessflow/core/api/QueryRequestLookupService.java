@@ -13,6 +13,14 @@ public interface QueryRequestLookupService {
     Optional<PendingReviewView> findPendingReview(UUID queryRequestId);
 
     /**
+     * Returns the approval time of the requester's most recent {@code APPROVED} / {@code EXECUTED}
+     * query on the given datasource (excluding {@code excludingQueryId}), or empty when the
+     * requester has no prior approval there. Used by the time-since-last-approval routing condition.
+     */
+    Optional<Instant> findLastApprovalInstant(UUID organizationId, UUID userId, UUID datasourceId,
+                                              UUID excludingQueryId);
+
+    /**
      * Returns the ids of {@code PENDING_REVIEW} queries whose {@code created_at + plan
      * approval_timeout_hours} is earlier than {@code now}. The caller (workflow's timeout job)
      * iterates these and calls {@code QueryRequestStateService.markTimedOut} per id.

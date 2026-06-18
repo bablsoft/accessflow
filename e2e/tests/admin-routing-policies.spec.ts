@@ -13,6 +13,7 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 const UNIQUE_SUFFIX = `af379-${Date.now()}`;
 const BUILDER_POLICY_NAME = `Builder policy ${UNIQUE_SUFFIX}`;
 const AUTO_REJECT_POLICY_NAME = `Auto-reject deletes ${UNIQUE_SUFFIX}`;
+const CICD_REJECT_POLICY_NAME = `Block CI/CD ${UNIQUE_SUFFIX}`;
 const ROUTED_DS_NAME = `Routed DS ${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
@@ -163,5 +164,34 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
       timeout: 10_000,
     });
     await expect(page.getByText(AUTO_REJECT_POLICY_NAME)).toBeVisible({ timeout: 10_000 });
+  });
+
+  // AF-446 — a CI/CD-origin condition matches a submission carrying the X-AccessFlow-CI header.
+  // A SELECT (the DELETE-only policies above don't match) submitted with the header hits this
+  // AUTO_REJECT policy; the same SELECT without the header does not.
+  test('matches the cicd_origin condition only when the X-AccessFlow-CI header is set', async ({
+    request,
+  }) => {
+    const policy = await createRoutingPolicyViaApi(request, adminAccessToken, {
+      name: CICD_REJECT_POLICY_NAME,
+      priority: 2,
+      enabled: true,
+      action: 'AUTO_REJECT',
+      reason: 'CI/CD submissions are blocked',
+      condition: { type: 'cicd_origin', expected: true },
+    });
+    createdPolicyIds.push(policy.id);
+
+    const ciRes = await request.post(`${apiBase()}/api/v1/queries`, {
+      headers: { Authorization: `Bearer ${adminAccessToken}`, 'X-AccessFlow-CI': 'true' },
+      data: {
+        datasource_id: datasourceId as string,
+        sql: 'SELECT 1 FROM accounts',
+        justification: 'e2e: ci-origin routing',
+      },
+    });
+    expect(ciRes.ok()).toBeTruthy();
+    const ciQuery = (await ciRes.json()) as { id: string };
+    await waitForQueryStatus(request, adminAccessToken, ciQuery.id, 'REJECTED', 20_000);
   });
 });

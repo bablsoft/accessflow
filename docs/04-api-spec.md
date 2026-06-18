@@ -956,6 +956,8 @@ The `sql` field carries the query text for **every** engine. For a `MONGODB` dat
 
 `submission_reason` is optional (default `USER_SUBMITTED`; the other value is `AI_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451). It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint.
 
+**Client-context capture (AF-446).** On submission the backend captures the source IP (`X-Forwarded-For` first hop, else remote address), the `User-Agent` header, and a CI/CD-origin flag, persisting them on `query_requests` for the context-aware routing conditions (`source_ip`, `user_agent`, `cicd_origin`). The CI/CD-origin flag is set when the request is authenticated via an API key **or** carries the optional **`X-AccessFlow-CI`** request header with a truthy value (`true` / `1` / `yes` / `ci` / `cicd`) — pipelines using a JWT instead of an API key set this header to opt into CI/CD-origin routing. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
+
 ### POST /queries — Response 202 Accepted
 
 ```json
@@ -1916,7 +1918,7 @@ All endpoints require `role=ADMIN` and operate within the caller's organization.
 }
 ```
 
-`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model.
+`name`, `condition`, and `action` are **required**. `datasource_id` is optional (null = org-wide). `priority` must be unique within the organization. `required_approvals` is required (and only meaningful) for `action: REQUIRE_APPROVALS` (absolute minimum approvers) and `action: ESCALATE` (delta added to the review-plan minimum, default 1); it must be null for `AUTO_APPROVE` / `AUTO_REJECT`. The `condition` is the typed `"type"`-discriminated tree documented in the data model — including the AF-446 client-context operands `source_ip` (CIDR allow-list; deny via `not`), `user_agent`, `time_since_last_approval`, and `cicd_origin`, which **fail closed** when their signal is absent. A malformed CIDR in a `source_ip` leaf is rejected with **422** `ROUTING_POLICY_INVALID`.
 
 **Response 201:** Full routing-policy object (see the list shape below). `Location` header points to `/api/v1/admin/routing-policies/{id}`.
 **Response 400:** Bean Validation failure on the request body. `error: VALIDATION_ERROR`.

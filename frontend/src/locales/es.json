@@ -1654,7 +1654,12 @@
       "group_count": "{{count}} grupo(s)",
       "condition_advanced": "Condición avanzada",
       "condition_advanced_warning": "Esta política usa una condición anidada que el editor guiado no puede editar; guardar aquí la reemplazará.",
-      "condition_any_query": "Cualquier consulta"
+      "condition_any_query": "Cualquier consulta",
+      "cidrs_placeholder": "p. ej. 10.0.0.0/8, 203.0.113.0/24",
+      "cidr_invalid": "Bloque CIDR no válido: {{value}}",
+      "user_agent_placeholder": "p. ej. *curl*, *GitHubActions*",
+      "minutes_suffix": "min",
+      "cicd_present_label": "Es origen CI/CD"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2007,7 +2012,11 @@
       "day_of_week": "Día de la semana",
       "has_where": "Tiene cláusula WHERE",
       "has_limit": "Tiene cláusula LIMIT",
-      "transactional": "Transaccional"
+      "transactional": "Transaccional",
+      "source_ip": "IP de origen / CIDR",
+      "user_agent": "Agente de usuario",
+      "time_since_last_approval": "Tiempo desde la última aprobación",
+      "cicd_origin": "Origen CI/CD"
     },
     "row_security_operator": {
       "EQUALS": "=",

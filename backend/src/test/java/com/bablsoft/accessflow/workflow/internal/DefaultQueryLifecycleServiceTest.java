@@ -130,13 +130,13 @@ class DefaultQueryLifecycleServiceTest {
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", type, false, status, null);
+                "SELECT 1", type, false, status, null, null, null, false);
     }
 
     private QueryRequestSnapshot snapshot(QueryStatus status, QueryType type,
                                           java.time.Instant scheduledFor) {
         return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
-                "SELECT 1", type, false, status, scheduledFor);
+                "SELECT 1", type, false, status, scheduledFor, null, null, false);
     }
 
     // ── cancel ────────────────────────────────────────────────────────────────

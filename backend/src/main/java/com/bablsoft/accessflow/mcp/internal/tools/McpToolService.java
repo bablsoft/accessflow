@@ -141,9 +141,12 @@ public class McpToolService {
             @ToolParam(description = "The SQL statement to submit.") String sql,
             @ToolParam(required = false, description = "Optional justification shown to reviewers.") String justification) {
         var claims = currentUser.requireClaims();
+        // The MCP surface carries no HTTP client context; CI/CD-origin routing is detected on the
+        // REST submission endpoint (API key / X-AccessFlow-CI header), so flag it false here.
         var input = new QuerySubmissionService.SubmissionInput(
                 datasourceId, sql, justification,
-                claims.userId(), claims.organizationId(), currentUser.isAdmin(), null, null);
+                claims.userId(), claims.organizationId(), currentUser.isAdmin(), null, null,
+                null, null, false);
         var result = querySubmissionService.submit(input);
         return new McpQuerySubmission(result.id(), result.status().name());
     }

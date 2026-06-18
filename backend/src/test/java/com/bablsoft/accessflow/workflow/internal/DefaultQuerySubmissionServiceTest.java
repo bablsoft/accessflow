@@ -369,7 +369,7 @@ class DefaultQuerySubmissionServiceTest {
         stubPersist();
 
         service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
-                userId, organizationId, false, null, null));
+                userId, organizationId, false, null, null, null, null, false));
 
         ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(captor.capture());
@@ -384,6 +384,24 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     @Test
+    void persistsClientContextOntoCommand() {
+        stubParse("SELECT 1", QueryType.SELECT);
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null);
+        stubPersist();
+
+        service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
+                userId, organizationId, false, null, null, "203.0.113.7", "curl/8.4.0", true));
+
+        ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
+        verify(queryRequestPersistenceService).submit(captor.capture());
+        var cmd = captor.getValue();
+        assertThat(cmd.submittedIp()).isEqualTo("203.0.113.7");
+        assertThat(cmd.submittedUserAgent()).isEqualTo("curl/8.4.0");
+        assertThat(cmd.ciCdOrigin()).isTrue();
+    }
+
+    @Test
     void propagatesAiSuggestionSubmissionReason() {
         stubParse("SELECT 1", QueryType.SELECT);
         stubActiveDatasourceForUser();
@@ -391,7 +409,8 @@ class DefaultQuerySubmissionServiceTest {
         stubPersist();
 
         service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
-                userId, organizationId, false, null, SubmissionReason.AI_SUGGESTION));
+                userId, organizationId, false, null, SubmissionReason.AI_SUGGESTION,
+                null, null, false));
 
         ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(captor.capture());
@@ -407,7 +426,7 @@ class DefaultQuerySubmissionServiceTest {
 
         var futureInstant = java.time.Instant.now().plusSeconds(600);
         service.submit(new SubmissionInput(datasourceId, "SELECT 1", "ticket-42",
-                userId, organizationId, false, futureInstant, null));
+                userId, organizationId, false, futureInstant, null, null, null, false));
 
         ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(captor.capture());
@@ -415,7 +434,8 @@ class DefaultQuerySubmissionServiceTest {
     }
 
     private SubmissionInput input(String sql, boolean isAdmin) {
-        return new SubmissionInput(datasourceId, sql, null, userId, organizationId, isAdmin, null, null);
+        return new SubmissionInput(datasourceId, sql, null, userId, organizationId, isAdmin, null,
+                null, null, null, false);
     }
 
     private void stubParse(String sql, QueryType type) {
