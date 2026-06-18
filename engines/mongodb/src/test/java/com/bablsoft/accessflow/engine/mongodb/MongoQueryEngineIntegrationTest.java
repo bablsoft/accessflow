@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -265,6 +267,50 @@ class MongoQueryEngineIntegrationTest {
         assertThat(collection.columns()).extracting("name").contains("_id", "name", "team");
         assertThat(collection.columns().stream().filter(c -> c.name().equals("_id"))
                 .findFirst().orElseThrow().primaryKey()).isTrue();
+    }
+
+    @Test
+    void dryRunFindReturnsQueryPlannerPlan() {
+        var result = dryRun("db.people.find({ team: 'eng' })", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.plan()).isNotNull();
+        assertThat(result.rawPlan()).isNotNull();
+    }
+
+    @Test
+    void dryRunUpdatePlansWithoutMutating() {
+        var result = dryRun("db.people.updateMany({ team: 'eng' }, { $set: { bonus: 5 } })", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.UPDATE);
+        // No mutation occurred: no document gained the bonus field.
+        var withBonus = (SelectExecutionResult) run("db.people.find({ bonus: 5 })");
+        assertThat(withBonus.rowCount()).isZero();
+    }
+
+    @Test
+    void dryRunInsertIsUnsupportedAndDoesNotInsert() {
+        var result = dryRun("db.people.insertOne({ name: 'Zed' })", List.of());
+        assertThat(result.supported()).isFalse();
+        assertThat(((SelectExecutionResult) run("db.people.find({ name: 'Zed' })")).rowCount())
+                .isZero();
+    }
+
+    @Test
+    void dryRunAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "people", "team",
+                RowSecurityOperator.EQUALS, List.of("sales"));
+        var result = dryRun("db.people.find({})", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    private QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {
+        var type = engine.parse(query).type();
+        var request = new QueryExecutionRequest(descriptor.id(), query, type, null, null,
+                List.of(), List.of(), rls, false, List.of(query));
+        return engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(10)));
     }
 
     private Object run(String query) {

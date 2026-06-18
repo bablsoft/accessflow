@@ -66,6 +66,19 @@ public interface QueryEngine {
     QueryExecutionResult sampleTable(QueryEngineSampleRequest request);
 
     /**
+     * Produce a non-committing execution plan and best-effort estimated row impact for the query
+     * (issue AF-445), applying the request's row-security directives so the plan reflects the
+     * governed query. Must <em>never</em> execute or mutate data — plan/estimate only (e.g.
+     * MongoDB {@code explain} at {@code queryPlanner} verbosity, Couchbase / Neo4j {@code EXPLAIN},
+     * Elasticsearch {@code _validate/query?explain}). Engines with no plan concept inherit the
+     * default, which returns {@link QueryDryRunResult#unsupported(String)} so the host degrades
+     * gracefully with a clear message.
+     */
+    default QueryDryRunResult dryRun(QueryEngineDryRunRequest request) {
+        return QueryDryRunResult.unsupported(engineId());
+    }
+
+    /**
      * Short-lived connectivity probe (the engine analogue of the JDBC {@code SELECT 1}).
      *
      * @throws DatasourceConnectionTestException when the target is unreachable or misconfigured.

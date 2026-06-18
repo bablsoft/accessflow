@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.couchbase;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -74,6 +75,32 @@ class CouchbaseQueryExecutor {
             long affected = runMutation(scope, applied, timeout);
             return new UpdateExecutionResult(affected, durationSince(start),
                     applied.appliedPolicyIds());
+        } catch (CouchbaseException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        // Index/scope/collection DDL has no meaningful EXPLAIN plan — degrade gracefully.
+        if (statement.kind() == CouchbaseStatementKind.DDL) {
+            return QueryDryRunResult.unsupported(CouchbaseQueryEngine.ENGINE_ID);
+        }
+        var applied = rowSecurityApplier.apply(statement, request.rowSecurityPredicates());
+        var scope = clusterManager.defaultScope(descriptor);
+        try {
+            // EXPLAIN returns the plan without executing the statement (read-only, non-mutating).
+            var result = scope.query("EXPLAIN " + applied.sql(),
+                    options(applied, timeout).readonly(true));
+            var rows = result.rowsAs(byte[].class);
+            Object planRow = rows.isEmpty() ? null : CouchbaseJson.parseRow(rows.get(0));
+            var plan = CouchbasePlanMapper.toPlan(planRow);
+            return QueryDryRunResult.of(CouchbaseQueryEngine.ENGINE_ID, statement.kind().queryType(),
+                    CouchbasePlanMapper.estimatedRows(planRow), plan,
+                    planRow == null ? null : planRow.toString(), applied.appliedPolicyIds(),
+                    durationSince(start));
         } catch (CouchbaseException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

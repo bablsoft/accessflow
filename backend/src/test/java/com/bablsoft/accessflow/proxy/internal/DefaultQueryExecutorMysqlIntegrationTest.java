@@ -141,6 +141,31 @@ class DefaultQueryExecutorMysqlIntegrationTest {
     }
 
     @Test
+    void dryRunSelectReturnsPlanFromMysqlJsonExplain() {
+        var result = executor.dryRun(new QueryExecutionRequest(
+                datasource.getId(), "SELECT qty FROM rich WHERE qty > 10",
+                QueryType.SELECT, null, null));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        // EXPLAIN FORMAT=JSON yields a query_block; the planner returns a tree + raw JSON.
+        assertThat(result.rawPlan()).contains("query_block");
+        assertThat(result.plan()).isNotNull();
+    }
+
+    @Test
+    void dryRunUpdateDoesNotMutateMysqlData() {
+        var result = executor.dryRun(new QueryExecutionRequest(
+                datasource.getId(), "UPDATE rich SET qty = 999", QueryType.UPDATE, null, null));
+        assertThat(result.supported()).isTrue();
+
+        var check = (SelectExecutionResult) executor.execute(new QueryExecutionRequest(
+                datasource.getId(), "SELECT count(*) FROM rich WHERE qty = 999",
+                QueryType.SELECT, null, null));
+        assertThat(((Number) check.rows().getFirst().getFirst()).longValue()).isZero();
+    }
+
+    @Test
     void insertReturnsRowsAffectedAgainstMysql() {
         var result = (UpdateExecutionResult) executor.execute(new QueryExecutionRequest(
                 datasource.getId(),

@@ -351,6 +351,12 @@
     "analyze_button": "Analyze",
     "analyzing_button": "Analyzing",
     "analyze_error": "Could not run AI analysis",
+    "dry_run_button": "Dry run",
+    "dry_running_button": "Planning",
+    "dry_run_error": "Could not produce a dry-run plan",
+    "panel_toggle_label": "Insight panel",
+    "panel_ai": "AI analysis",
+    "panel_plan": "Dry run",
     "submit_disabled_needs_analysis_tooltip": "Run AI analysis before submitting.",
     "lines_count_one": "{{count}} line",
     "lines_count_other": "{{count}} lines",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "Datasource"
+  },
+  "dry_run_panel": {
+    "title": "Execution plan",
+    "stale_badge": "Stale",
+    "empty_prompt": "Run a dry run to preview the execution plan and estimated impact.",
+    "unsupported": "Dry run is not supported for this engine.",
+    "estimated_impact_label": "Estimated impact",
+    "query_type_label": "Operation",
+    "est_rows_label": "Estimated rows",
+    "plan_label": "Execution plan",
+    "rows_badge": "≈ {{value}} rows",
+    "cost_badge": "cost {{value}}",
+    "no_plan": "The engine returned no plan for this query.",
+    "rerun_button": "Run again"
   },
   "ai_panel": {
     "title": "AI analysis",

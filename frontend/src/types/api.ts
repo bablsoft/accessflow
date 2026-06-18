@@ -936,6 +936,29 @@ export interface AiAnalysis {
   optimizations?: OptimizationSuggestion[];
 }
 
+/** One node of a dry-run execution plan tree (AF-445). */
+export interface QueryPlanNode {
+  operation: string;
+  target?: string | null;
+  estimated_rows?: number | null;
+  estimated_cost?: number | null;
+  detail?: string | null;
+  children: QueryPlanNode[];
+}
+
+/** Result of `POST /queries/dry-run` — a non-committing EXPLAIN plan + estimated impact (AF-445). */
+export interface QueryDryRunResult {
+  supported: boolean;
+  engine_id: string;
+  query_type?: QueryType | null;
+  estimated_rows?: number | null;
+  plan?: QueryPlanNode | null;
+  raw_plan?: string | null;
+  /** Localized reason when `supported` is false (engine has no plan concept). */
+  unsupported_reason?: string | null;
+  duration_ms: number;
+}
+
 export interface GeneratedSql {
   sql: string;
   ai_provider: AiProvider;

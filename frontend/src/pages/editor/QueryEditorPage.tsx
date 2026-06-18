@@ -8,6 +8,7 @@ import {
   FolderOpenOutlined,
   BookOutlined,
   SaveOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
+import { DryRunPanel } from '@/components/editor/DryRunPanel';
 import { TextToSqlBar } from '@/components/editor/TextToSqlBar';
 import { SchemaTree } from '@/components/editor/SchemaTree';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
@@ -24,7 +26,7 @@ import { SaveTemplateModal } from '@/components/editor/SaveTemplateModal';
 import { LoadTemplateModal } from '@/components/editor/LoadTemplateModal';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
-import { analyzeOnly, queryKeys, submitQuery } from '@/api/queries';
+import { analyzeOnly, dryRunQuery, queryKeys, submitQuery } from '@/api/queries';
 import { formatSql } from '@/utils/sqlFormat';
 import { activeSyntax, engineMode, syntaxForQuery } from '@/utils/engineModes';
 import type { QueryTemplate, SubmissionReason } from '@/types/api';
@@ -47,6 +49,8 @@ export function QueryEditorPage() {
   const ds = datasources.find((d) => d.id === dsId) ?? null;
   const [sql, setSql] = useState('');
   const [analyzedSql, setAnalyzedSql] = useState<string | null>(null);
+  const [rightPanel, setRightPanel] = useState<'ai' | 'plan'>('ai');
+  const [dryRunSql, setDryRunSql] = useState<string | null>(null);
   const [syntax, setSyntax] = useState<string | undefined>(undefined);
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
@@ -71,6 +75,16 @@ export function QueryEditorPage() {
     },
   });
 
+  const dryRunMutation = useMutation({
+    mutationFn: (sqlToRun: string) => dryRunQuery({ datasource_id: ds!.id, sql: sqlToRun }),
+    onSuccess: (_data, sqlToRun) => {
+      setDryRunSql(sqlToRun);
+    },
+    onError: () => {
+      message.error(t('editor.dry_run_error'));
+    },
+  });
+
   const handleSqlChange = (next: string) => {
     setSql(next);
     // A manual edit clears the "came from an AI suggestion" flag.
@@ -80,6 +94,14 @@ export function QueryEditorPage() {
     if (analyzeMutation.isError) {
       analyzeMutation.reset();
     }
+    if (dryRunMutation.isError) {
+      dryRunMutation.reset();
+    }
+  };
+
+  const handleDryRun = () => {
+    setRightPanel('plan');
+    dryRunMutation.mutate(sql.trim());
   };
 
   const handleApplySuggestion = (suggestionSql: string) => {
@@ -150,6 +172,10 @@ export function QueryEditorPage() {
   const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
   const canSubmit =
     sqlNonEmpty && !submitMutation.isPending && !submitGatedByAnalysis && !scheduleInPast;
+  const dryRunResult = dryRunMutation.data ?? null;
+  const dryRunning = dryRunMutation.isPending;
+  const dryRunStale = !!dryRunResult && dryRunSql !== sql.trim();
+  const canDryRun = sqlNonEmpty && !dryRunning;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -170,6 +196,13 @@ export function QueryEditorPage() {
               onClick={() => setSaveTemplateOpen(true)}
             >
               {t('editor.save_template_button')}
+            </Button>
+            <Button
+              icon={dryRunning ? <LoadingOutlined /> : <ExperimentOutlined />}
+              disabled={!canDryRun}
+              onClick={handleDryRun}
+            >
+              {dryRunning ? t('editor.dry_running_button') : t('editor.dry_run_button')}
             </Button>
             {aiSupported && (
               <Button
@@ -315,14 +348,45 @@ export function QueryEditorPage() {
             <ReviewPlanPreview ds={ds} />
           </div>
         </div>
-        <AiHintPanel
-          analyzing={analyzing}
-          analysis={analysis}
-          stale={analysisStale}
-          aiEnabled={ds.ai_analysis_enabled}
-          onApplySuggestion={handleApplySuggestion}
-          onReanalyze={canAnalyze ? () => analyzeMutation.mutate(sql.trim()) : undefined}
-        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: 'auto 1fr',
+            minHeight: 0,
+            borderLeft: '1px solid var(--border)',
+          }}
+        >
+          <div style={{ padding: 8, borderBottom: '1px solid var(--border)', background: 'var(--bg-sunken)' }}>
+            <Segmented<'ai' | 'plan'>
+              size="small"
+              block
+              value={rightPanel}
+              onChange={setRightPanel}
+              aria-label={t('editor.panel_toggle_label')}
+              options={[
+                { label: t('editor.panel_ai'), value: 'ai' },
+                { label: t('editor.panel_plan'), value: 'plan' },
+              ]}
+            />
+          </div>
+          {rightPanel === 'ai' ? (
+            <AiHintPanel
+              analyzing={analyzing}
+              analysis={analysis}
+              stale={analysisStale}
+              aiEnabled={ds.ai_analysis_enabled}
+              onApplySuggestion={handleApplySuggestion}
+              onReanalyze={canAnalyze ? () => analyzeMutation.mutate(sql.trim()) : undefined}
+            />
+          ) : (
+            <DryRunPanel
+              running={dryRunning}
+              result={dryRunResult}
+              stale={dryRunStale}
+              onRun={canDryRun ? handleDryRun : undefined}
+            />
+          )}
+        </div>
       </div>
       <QueryTemplatesDrawer
         open={templatesOpen}

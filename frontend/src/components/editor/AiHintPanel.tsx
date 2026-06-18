@@ -42,7 +42,7 @@ export function AiHintPanel({
         overflow: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        borderLeft: '1px solid var(--border)',
+        minHeight: 0,
       }}
     >
       <div

@@ -351,6 +351,12 @@
     "analyze_button": "Վերլուծել",
     "analyzing_button": "Վերլուծվում է",
     "analyze_error": "Չհաջողվեց իրականացնել AI վերլուծությունը",
+    "dry_run_button": "Փորձնական գործարկում",
+    "dry_running_button": "Պլանավորում",
+    "dry_run_error": "Չհաջողվեց ստեղծել փորձնական գործարկման պլանը",
+    "panel_toggle_label": "Վերլուծության վահանակ",
+    "panel_ai": "AI վերլուծություն",
+    "panel_plan": "Փորձնական գործարկում",
     "submit_disabled_needs_analysis_tooltip": "Կատարեք AI վերլուծությունը ներկայացնելուց առաջ։",
     "lines_count_one": "{{count}} տող",
     "lines_count_other": "{{count}} տող",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "Տվյալների աղբյուր"
+  },
+  "dry_run_panel": {
+    "title": "Կատարման պլան",
+    "stale_badge": "Հնացած",
+    "empty_prompt": "Կատարեք փորձնական գործարկում՝ կատարման պլանը և գնահատված ազդեցությունը նախադիտելու համար։",
+    "unsupported": "Փորձնական գործարկումը չի աջակցվում այս շարժիչի համար։",
+    "estimated_impact_label": "Գնահատված ազդեցություն",
+    "query_type_label": "Գործողություն",
+    "est_rows_label": "Գնահատված տողեր",
+    "plan_label": "Կատարման պլան",
+    "rows_badge": "≈ {{value}} տող",
+    "cost_badge": "արժեք {{value}}",
+    "no_plan": "Շարժիչը այս հարցման համար պլան չվերադարձրեց։",
+    "rerun_button": "Կրկին գործարկել"
   },
   "ai_panel": {
     "title": "AI վերլուծություն",

@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -86,6 +88,42 @@ class ElasticsearchQueryEngineIntegrationTest {
                 false, null);
         return engine.execute(new QueryEngineExecutionRequest(request, descriptor, 10000,
                 Duration.ofSeconds(30)));
+    }
+
+    private static QueryDryRunResult dryRun(String sql, List<RowSecurityDirective> rls) {
+        var type = engine.parse(sql).type();
+        var request = new QueryExecutionRequest(DS_ID, sql, type, null, null, List.of(), List.of(),
+                rls, false, null);
+        return engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
+    }
+
+    @Test
+    void dryRunSearchValidatesQueryWithoutExecuting() {
+        seed("logs-dryrun");
+        var result = dryRun("{\"search\":\"logs-dryrun\",\"query\":{\"term\":{\"tenant\":\"acme\"}}}",
+                List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.plan()).isNotNull();
+        assertThat(result.plan().operation()).isEqualTo("valid_query");
+    }
+
+    @Test
+    void dryRunIndexOperationIsUnsupported() {
+        var result = dryRun("{\"index\":\"logs-dryrun\",\"id\":\"9\",\"document\":{\"tenant\":\"x\"}}",
+                List.of());
+        assertThat(result.supported()).isFalse();
+    }
+
+    @Test
+    void dryRunAppliesRowSecurity() {
+        seed("logs-dryrun");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "logs-dryrun", "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+        var result = dryRun("{\"search\":\"logs-dryrun\"}", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
     }
 
     private static SelectExecutionResult sample(String index, int maxRows,

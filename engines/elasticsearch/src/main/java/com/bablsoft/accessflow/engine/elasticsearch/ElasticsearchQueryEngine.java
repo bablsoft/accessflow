@@ -3,8 +3,10 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -81,6 +83,14 @@ public class ElasticsearchQueryEngine implements QueryEngine {
     public QueryExecutionResult sampleTable(QueryEngineSampleRequest request) {
         return initialized(executor).sampleTable(request.request(), request.descriptor(),
                 request.effectiveMaxRows(), request.effectiveTimeout());
+    }
+
+    @Override
+    public QueryDryRunResult dryRun(QueryEngineDryRunRequest request) {
+        // engineId() is polymorphic — "elasticsearch" here, "opensearch" in the subclass — so the
+        // result is stamped with the right engine for the shared executor.
+        return initialized(executor).dryRun(engineId(), request.request(), request.descriptor(),
+                request.effectiveTimeout());
     }
 
     @Override

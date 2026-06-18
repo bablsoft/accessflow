@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanner;
+import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlannerRegistry;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
@@ -74,6 +77,7 @@ class DefaultQueryExecutorTest {
 
     private final com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog =
             mock(com.bablsoft.accessflow.core.api.QueryEngineCatalog.class);
+    private final DryRunPlanner dryRunPlanner = mock(DryRunPlanner.class);
 
     private DefaultQueryExecutor executor;
     private DataSource dataSource;
@@ -92,9 +96,11 @@ class DefaultQueryExecutorTest {
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(2_000)));
         var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
                 messageSource);
+        when(dryRunPlanner.supportedTypes()).thenReturn(java.util.Set.of(DbType.POSTGRESQL));
+        var dryRunRegistry = new DryRunPlannerRegistry(List.of(dryRunPlanner));
         executor = new DefaultQueryExecutor(router, lookupService, properties,
                 rowMapper, translator, new RowSecurityRewriter(messageSource),
-                engineCatalog, clock, messageSource);
+                engineCatalog, dryRunRegistry, clock, messageSource);
     }
 
     @Test
@@ -416,6 +422,66 @@ class DefaultQueryExecutorTest {
         assertThat(captor.getValue().effectiveMaxRows()).isEqualTo(2_000);
         assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
         assertThat(captor.getValue().request().table()).isEqualTo("users");
+    }
+
+    @Test
+    void dryRunRelationalDelegatesToDialectPlanner() throws SQLException {
+        var planResult = QueryDryRunResult.of("postgresql", QueryType.SELECT, 42L, null, "{}",
+                java.util.Set.of(), Duration.ZERO);
+        when(dryRunPlanner.plan(org.mockito.ArgumentMatchers.any())).thenReturn(planResult);
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT,
+                null, null);
+
+        var result = executor.dryRun(request);
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.estimatedRows()).isEqualTo(42L);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanRequest.class);
+        verify(dryRunPlanner).plan(captor.capture());
+        assertThat(captor.getValue().engineId()).isEqualTo("postgresql");
+        assertThat(captor.getValue().sql()).isEqualTo("SELECT 1");
+    }
+
+    @Test
+    void dryRunUnsupportedDialectReturnsUnsupported() {
+        var oracle = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.ORACLE, "h", 1521, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(oracle));
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT 1", QueryType.SELECT,
+                null, null);
+
+        var result = executor.dryRun(request);
+
+        assertThat(result.supported()).isFalse();
+        assertThat(result.engineId()).isEqualTo("oracle");
+    }
+
+    @Test
+    void dryRunEngineManagedDelegatesToEngine() {
+        var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
+        var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var expected = QueryDryRunResult.unsupported("mongodb", "INSERT has no plan");
+        when(engine.dryRun(org.mockito.ArgumentMatchers.any())).thenReturn(expected);
+
+        var request = new QueryExecutionRequest(datasourceId, "db.users.insertOne({})",
+                QueryType.INSERT, null, null);
+        var result = executor.dryRun(request);
+
+        assertThat(result).isSameAs(expected);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest.class);
+        verify(engine).dryRun(captor.capture());
+        assertThat(captor.getValue().descriptor()).isSameAs(mongoDescriptor);
+        assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
     }
 
     private DatasourceConnectionDescriptor descriptor(int maxRows) {

@@ -351,6 +351,12 @@
     "analyze_button": "分析",
     "analyzing_button": "分析中",
     "analyze_error": "无法运行 AI 分析",
+    "dry_run_button": "试运行",
+    "dry_running_button": "规划中",
+    "dry_run_error": "无法生成试运行计划",
+    "panel_toggle_label": "分析面板",
+    "panel_ai": "AI 分析",
+    "panel_plan": "试运行",
     "submit_disabled_needs_analysis_tooltip": "请先运行 AI 分析再提交。",
     "lines_count_one": "{{count}} 行",
     "lines_count_other": "{{count}} 行",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "数据源"
+  },
+  "dry_run_panel": {
+    "title": "执行计划",
+    "stale_badge": "已过期",
+    "empty_prompt": "运行试运行以预览执行计划和预估影响。",
+    "unsupported": "此引擎不支持试运行。",
+    "estimated_impact_label": "预估影响",
+    "query_type_label": "操作",
+    "est_rows_label": "预估行数",
+    "plan_label": "执行计划",
+    "rows_badge": "≈ {{value}} 行",
+    "cost_badge": "成本 {{value}}",
+    "no_plan": "引擎未返回此查询的计划。",
+    "rerun_button": "重新运行"
   },
   "ai_panel": {
     "title": "AI 分析",

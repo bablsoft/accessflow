@@ -351,6 +351,12 @@
     "analyze_button": "Analysieren",
     "analyzing_button": "Wird analysiert",
     "analyze_error": "KI-Analyse konnte nicht ausgeführt werden",
+    "dry_run_button": "Probelauf",
+    "dry_running_button": "Plane",
+    "dry_run_error": "Probelauf-Plan konnte nicht erstellt werden",
+    "panel_toggle_label": "Analysebereich",
+    "panel_ai": "KI-Analyse",
+    "panel_plan": "Probelauf",
     "submit_disabled_needs_analysis_tooltip": "Führe die KI-Analyse aus, bevor du einreichst.",
     "lines_count_one": "{{count}} Zeile",
     "lines_count_other": "{{count}} Zeilen",
@@ -432,6 +438,20 @@
       }
     },
     "datasource_label": "Datenquelle"
+  },
+  "dry_run_panel": {
+    "title": "Ausführungsplan",
+    "stale_badge": "Veraltet",
+    "empty_prompt": "Führe einen Probelauf aus, um den Ausführungsplan und die geschätzte Auswirkung anzuzeigen.",
+    "unsupported": "Probelauf wird für diese Engine nicht unterstützt.",
+    "estimated_impact_label": "Geschätzte Auswirkung",
+    "query_type_label": "Operation",
+    "est_rows_label": "Geschätzte Zeilen",
+    "plan_label": "Ausführungsplan",
+    "rows_badge": "≈ {{value}} Zeilen",
+    "cost_badge": "Kosten {{value}}",
+    "no_plan": "Die Engine hat keinen Plan für diese Abfrage zurückgegeben.",
+    "rerun_button": "Erneut ausführen"
   },
   "ai_panel": {
     "title": "KI-Analyse",
