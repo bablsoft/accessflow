@@ -11,6 +11,7 @@ public record MeProfileResponse(
         String role,
         String authProvider,
         boolean totpEnabled,
+        boolean platformAdmin,
         String preferredLanguage
 ) {
     public static MeProfileResponse from(UserView view) {
@@ -21,6 +22,7 @@ public record MeProfileResponse(
                 view.role().name(),
                 view.authProvider().name(),
                 view.totpEnabled(),
+                view.platformAdmin(),
                 view.preferredLanguage()
         );
     }

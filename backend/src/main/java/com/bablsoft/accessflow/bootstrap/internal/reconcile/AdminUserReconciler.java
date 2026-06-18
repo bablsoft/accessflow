@@ -56,6 +56,12 @@ public class AdminUserReconciler {
                 log.info("Bootstrap: admin '{}' present, password differs from spec — leaving the stored hash intact"
                         + " (use the admin API to rotate)", spec.email());
             }
+            // AF-456: ensure the bootstrap admin is a platform admin (promotes a pre-#456 admin on
+            // an upgrade re-run).
+            if (!user.platformAdmin()) {
+                userAdminService.setPlatformAdmin(user.id(), true);
+                log.info("Bootstrap: promoted existing admin '{}' to platform admin", spec.email());
+            }
             return user.id();
         }
 
@@ -64,7 +70,8 @@ public class AdminUserReconciler {
                 spec.email(),
                 spec.displayName(),
                 passwordEncoder.encode(spec.password()),
-                UserRoleType.ADMIN));
+                UserRoleType.ADMIN,
+                true));
         log.info("Bootstrap: created admin user '{}' (id={})", created.email(), created.id());
         stateTracker.publishWithinTransaction(new BootstrapResourceUpsertedEvent(
                 organizationId,

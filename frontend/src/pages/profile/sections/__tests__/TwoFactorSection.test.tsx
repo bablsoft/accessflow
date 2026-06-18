@@ -22,6 +22,7 @@ const baseProfile = {
   role: 'ANALYST' as const,
   auth_provider: 'LOCAL' as const,
   totp_enabled: false,
+  platform_admin: false,
   preferred_language: null,
 };
 

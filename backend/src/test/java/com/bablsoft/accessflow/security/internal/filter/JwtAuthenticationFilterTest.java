@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.when;
 class JwtAuthenticationFilterTest {
 
     @Mock JwtService jwtService;
+    @Mock OrganizationLookupService organizationLookupService;
     @Mock FilterChain filterChain;
     @InjectMocks JwtAuthenticationFilter filter;
 
@@ -62,6 +64,22 @@ class JwtAuthenticationFilterTest {
         assertThat(auth).isNotNull();
         assertThat(auth.getPrincipal()).isEqualTo(claims);
         assertThat(auth.isAuthenticated()).isTrue();
+    }
+
+    @Test
+    void disabledOrganizationPassesThroughWithoutAuthentication() throws Exception {
+        var orgId = UUID.randomUUID();
+        var claims = new JwtClaims(UUID.randomUUID(), "alice@example.com",
+                UserRoleType.ANALYST, orgId);
+        when(jwtService.parseAccessToken("valid-token")).thenReturn(claims);
+        when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
+
+        var request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer valid-token");
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), filterChain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
     @Test

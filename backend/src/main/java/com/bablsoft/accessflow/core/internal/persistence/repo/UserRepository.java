@@ -19,6 +19,8 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     boolean existsByRoleAndActive(UserRoleType role, boolean active);
 
+    long countByOrganization_IdAndActiveTrue(UUID organizationId);
+
     List<UserEntity> findAllByOrganization_Id(UUID organizationId);
 
     Page<UserEntity> findAllByOrganization_Id(UUID organizationId, Pageable pageable);

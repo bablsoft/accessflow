@@ -52,10 +52,7 @@ class SamlExchangeController {
         var result = authenticationService.issueForUser(userId);
         refreshCookieWriter.write(response, result.refreshToken(),
                 RefreshCookieWriter.REFRESH_COOKIE_MAX_AGE);
-        var user = result.user();
-        var summary = new UserSummary(user.id(), user.email(), user.displayName(),
-                user.role().name(), user.authProvider().name(), user.totpEnabled(),
-                user.preferredLanguage());
+        var summary = UserSummary.from(result.user());
         return ResponseEntity.ok(new LoginResponse(result.accessToken(), result.tokenType(),
                 result.expiresIn(), summary));
     }

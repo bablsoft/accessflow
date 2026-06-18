@@ -55,6 +55,19 @@ class JwtServiceImplTest {
         assertThat(claims.email()).isEqualTo(testUser.email());
         assertThat(claims.role()).isEqualTo(testUser.role());
         assertThat(claims.organizationId()).isEqualTo(testUser.organizationId());
+        assertThat(claims.platformAdmin()).isFalse();
+    }
+
+    @Test
+    void accessTokenRoundtripPreservesPlatformAdminClaim() {
+        var platformAdmin = new UserView(UUID.randomUUID(), "boss@example.com", "Boss",
+                UserRoleType.ADMIN, UUID.randomUUID(), true, AuthProviderType.LOCAL, null, null,
+                null, false, true, null);
+
+        var token = jwtService.generateAccessToken(platformAdmin);
+        var claims = jwtService.parseAccessToken(token);
+
+        assertThat(claims.platformAdmin()).isTrue();
     }
 
     @Test

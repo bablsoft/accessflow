@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
+import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
@@ -75,6 +76,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final DatasourceRepository datasourceRepository;
     private final DatasourceUserPermissionRepository permissionRepository;
     private final OrganizationRepository organizationRepository;
+    private final QuotaService quotaService;
     private final UserRepository userRepository;
     private final ReviewPlanRepository reviewPlanRepository;
     private final CustomJdbcDriverRepository customJdbcDriverRepository;
@@ -125,6 +127,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 command.organizationId(), command.name())) {
             throw new DatasourceNameAlreadyExistsException(command.name());
         }
+        quotaService.checkDatasourceQuota(command.organizationId());
         var customDriver = resolveCustomDriverForCreate(command);
         var connectorId = blankToNull(command.connectorId());
         validateDriverChoice(command.dbType(), command.customDriverId(), customDriver, connectorId,

@@ -75,6 +75,11 @@ public class UserEntity {
     @Column(name = "totp_enabled", nullable = false)
     private boolean totpEnabled = false;
 
+    // Orthogonal super-admin capability (AF-456): grants the PLATFORM_ADMIN authority for
+    // cross-org management endpoints. NOT a role — the user keeps their home-org role.
+    @Column(name = "platform_admin", nullable = false)
+    private boolean platformAdmin = false;
+
     @JsonIgnore
     @Column(name = "totp_backup_codes_encrypted", columnDefinition = "TEXT")
     private String totpBackupCodesEncrypted;

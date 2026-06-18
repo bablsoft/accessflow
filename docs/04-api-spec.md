@@ -72,12 +72,13 @@
     "role": "ANALYST",
     "auth_provider": "LOCAL",
     "totp_enabled": false,
+    "platform_admin": false,
     "preferred_language": "es"
   }
 }
 ```
 
-`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`.
+`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`. `platform_admin` (AF-456) is a boolean — `true` for super-admins who additionally hold the `PLATFORM_ADMIN` authority and may reach the cross-org `/api/v1/platform/organizations` management plane; the SPA uses it to show the "Platform" navigation group. The same user object (including `platform_admin`) is returned by `GET /api/v1/me`.
 
 The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
 
@@ -3268,6 +3269,167 @@ The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cach
 
 **Response 401:** Not authenticated.
 **Response 403:** Caller is not an `ADMIN`.
+
+---
+
+## Platform Organizations
+
+Cross-organization tenant management (AF-456). Unlike every other endpoint — which derives
+`organizationId` from the JWT principal and can only touch the caller's own org — these endpoints
+take a foreign org id by path and operate across the whole cluster. They are reachable **only** with
+the `PLATFORM_ADMIN` Spring Security authority (`@PreAuthorize("hasAuthority('PLATFORM_ADMIN')")`),
+granted to users whose `users.platform_admin` flag is set (see [03-data-model.md → users](03-data-model.md#users)
+and [07-security.md → Multi-tenant isolation](07-security.md#multi-tenant-isolation-af-456)). A
+caller without the authority gets `403`. Every mutation is audited against the target org
+(`ORGANIZATION_CREATED` / `ORGANIZATION_UPDATED` / `ORGANIZATION_DISABLED` / `ORGANIZATION_ENABLED`).
+
+| Method | Path | Auth Required | Description |
+|--------|------|---------------|-------------|
+| `GET` | `/platform/organizations` | PLATFORM_ADMIN | List all organizations in the cluster (paginated) |
+| `POST` | `/platform/organizations` | PLATFORM_ADMIN | Create an organization |
+| `GET` | `/platform/organizations/{id}` | PLATFORM_ADMIN | Get a single organization |
+| `PUT` | `/platform/organizations/{id}` | PLATFORM_ADMIN | Update name + quotas |
+| `POST` | `/platform/organizations/{id}/disable` | PLATFORM_ADMIN | Disable (kill-switch) a tenant |
+| `POST` | `/platform/organizations/{id}/enable` | PLATFORM_ADMIN | Re-enable a tenant |
+| `GET` | `/platform/organizations/{id}/usage` | PLATFORM_ADMIN | Current usage vs. quota |
+
+**Organization response object** (returned by the list/get/create/update endpoints):
+
+```json
+{
+  "id": "uuid",
+  "name": "Acme",
+  "slug": "acme",
+  "disabled": false,
+  "max_datasources": 25,
+  "max_users": 100,
+  "max_queries_per_day": 5000,
+  "created_at": "2026-06-18T10:30:00Z",
+  "updated_at": "2026-06-18T10:30:00Z"
+}
+```
+
+A `max_*` value of `null` or `0` means unlimited.
+
+### GET /platform/organizations — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 100) |
+
+**Response 200:**
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "name": "Acme",
+      "slug": "acme",
+      "disabled": false,
+      "max_datasources": 25,
+      "max_users": 100,
+      "max_queries_per_day": 5000,
+      "created_at": "2026-06-18T10:30:00Z",
+      "updated_at": "2026-06-18T10:30:00Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+### POST /platform/organizations — Request Body
+
+```json
+{
+  "name": "Acme",
+  "slug": "acme",
+  "max_datasources": 25,
+  "max_users": 100,
+  "max_queries_per_day": 5000
+}
+```
+
+`name` is required (1–255 chars). `slug` is optional (≤ 100 chars); when blank it is derived from
+`name`. The slug is made unique automatically — on collision a numeric suffix is appended — so create
+never fails on a slug clash. The three `max_*` quotas are optional (≥ 0; null/0 = unlimited).
+
+**Response 201:** The organization response object, with a `Location: /api/v1/platform/organizations/{id}` header.
+**Response 400:** Validation error (blank name, name/slug too long, negative quota).
+
+### GET /platform/organizations/{id} — Response 200
+
+The organization response object.
+
+**Response 404:** `ORGANIZATION_NOT_FOUND` — no organization with that id.
+
+### PUT /platform/organizations/{id} — Request Body
+
+```json
+{
+  "name": "Acme Corp",
+  "max_datasources": 50,
+  "max_users": 200,
+  "max_queries_per_day": 10000
+}
+```
+
+Updates the name and quotas. A `null` field is left unchanged; a quota of `0` sets the limit to
+unlimited.
+
+**Response 200:** The updated organization response object.
+**Response 404:** `ORGANIZATION_NOT_FOUND`.
+
+### POST /platform/organizations/{id}/disable — Response 204
+
+Kill-switches the tenant: its users are blocked at login (local + SSO) and every authenticated
+request from them is rejected immediately by the per-request org-status check. Idempotent.
+
+**Response 404:** `ORGANIZATION_NOT_FOUND`.
+
+### POST /platform/organizations/{id}/enable — Response 204
+
+Re-enables a disabled tenant. Idempotent.
+
+**Response 404:** `ORGANIZATION_NOT_FOUND`.
+
+### GET /platform/organizations/{id}/usage — Response 200
+
+Current consumption against each quota (each `max_*` is `null` when unlimited).
+
+```json
+{
+  "organization_id": "uuid",
+  "datasource_count": 12,
+  "max_datasources": 25,
+  "user_count": 47,
+  "max_users": 100,
+  "queries_last_24h": 1320,
+  "max_queries_per_day": 5000
+}
+```
+
+**Response 404:** `ORGANIZATION_NOT_FOUND`.
+
+### Quota enforcement — `409 QUOTA_EXCEEDED`
+
+Quotas are enforced at the service layer on the **tenant-scoped** endpoints (not on this management
+plane): datasource creation checks `max_datasources`; user creation and invitation issuance check
+`max_users` (active-user count); query submission checks `max_queries_per_day` (rolling trailing-24h
+count). A breach is rejected with `409 Conflict` and a localized `detail` naming the limit:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Your organization has reached its limit of 25 datasources",
+  "error": "QUOTA_EXCEEDED"
+}
+```
 
 ---
 

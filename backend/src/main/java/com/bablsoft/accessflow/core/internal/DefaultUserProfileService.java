@@ -160,6 +160,7 @@ class DefaultUserProfileService implements UserProfileService {
                 entity.getLastLoginAt(),
                 entity.getPreferredLanguage(),
                 entity.isTotpEnabled(),
+                entity.isPlatformAdmin(),
                 entity.getCreatedAt()
         );
     }

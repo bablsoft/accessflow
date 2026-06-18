@@ -190,6 +190,7 @@
             <a href="#first-run">Setup wizard or bootstrap</a>
 
             <h5>Configuration</h5>
+            <a href="#cfg-organizations">Organizations &amp; quotas</a>
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles &amp; RBAC</a>
             <a href="#cfg-groups">User groups</a>
@@ -227,8 +228,8 @@
           <p>
             An operator and admin guide — how to install AccessFlow in different environments,
             how to start it for the first time, and how to configure every entity that drives the
-            review pipeline: users, roles, datasources, review plans, AI, OAuth, SMTP, and
-            notification channels. Everything here is sourced from the
+            review pipeline: organizations, users, roles, datasources, review plans, AI, OAuth, SMTP,
+            and notification channels. Everything here is sourced from the
             <a href="https://github.com/bablsoft/accessflow/tree/main/docs">engineering chapters</a>
             and the project <a href="https://github.com/bablsoft/accessflow/blob/main/README.md">README</a>.
           </p>
@@ -644,6 +645,51 @@
             jump between sections.
           </p>
 
+          <!-- Organizations -->
+          <h3 id="cfg-organizations">Organizations &amp; quotas</h3>
+          <p>
+            A single AccessFlow deployment hosts <strong>one or more organizations</strong>, each a
+            fully-isolated tenant. Every entity — users, datasources, queries, audit rows — is scoped
+            to one org, and a request's org is always derived from the signed-in user's token, never
+            from the request itself, so one tenant can never reach another's data. Most operators run
+            a single org; the cross-org controls below matter when you host several teams or customers
+            on one deployment.
+          </p>
+          <p>
+            <strong>Platform admin (super-admin).</strong> Managing organizations across the cluster
+            requires the <em>platform-admin</em> capability — a flag on a user, separate from the four
+            roles below. A platform admin keeps their normal org role and additionally sees a
+            <strong>Platform</strong> navigation group with the <code>/admin/organizations</code>
+            screen. The first admin you create (via the setup wizard or the
+            <a href="#first-run">bootstrap</a> env vars) is provisioned as a platform admin
+            automatically.
+          </p>
+          <ol>
+            <li><strong>Create an organization.</strong> From <code>/admin/organizations</code>, click
+              <em>New organization</em>, give it a name (an optional URL-safe <em>slug</em> is derived
+              from the name when blank), and optionally set quotas. The org starts enabled and empty —
+              add its first admin and datasources afterwards.</li>
+            <li><strong>Set per-org quotas.</strong> Cap how much a tenant may consume:
+              <em>max datasources</em>, <em>max users</em>, and <em>max queries per day</em> (a rolling
+              trailing-24-hour count). Leave a field blank or set it to <code>0</code> for
+              <strong>unlimited</strong>. Quotas are enforced when the resource is created — a breach is
+              rejected with HTTP <code>409 QUOTA_EXCEEDED</code> and a message naming the limit, so the
+              datasource / user / query simply isn't created.</li>
+            <li><strong>Edit name &amp; quotas.</strong> Open <code>/admin/organizations/&lt;id&gt;</code>
+              to change the name or raise / lower a quota, and to see live usage bars (current count vs.
+              limit) for each cap.</li>
+            <li><strong>Disable a tenant.</strong> Use <em>Disable</em> as a kill-switch — its users are
+              blocked at login (local <em>and</em> SSO) and every in-flight session stops on its next
+              request. The block is immediate (no cache, no waiting for token expiry). <em>Enable</em>
+              restores access.</li>
+          </ol>
+          <p>
+            Every organization action (create, update, disable, enable) is written to the
+            <a href="#cfg-audit-log">audit log</a> against the target org. Per-org login pages /
+            SSO routing across multiple orgs are not yet available — see
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md">the roadmap</a>.
+          </p>
+
           <!-- Users -->
           <h3 id="cfg-users">Users</h3>
           <p>
@@ -673,6 +719,14 @@
             AccessFlow has four roles. Pick the lowest-privilege role for each user — admins are
             the only role that can change configuration. A user can never approve their own
             query, regardless of role.
+          </p>
+          <p>
+            <strong>Platform admin is separate from the four roles.</strong> The
+            <a href="#cfg-organizations">platform-admin</a> capability is an orthogonal flag, not a
+            fifth role — a platform admin keeps whatever role their home org assigns and is
+            <em>additionally</em> allowed to manage organizations across the cluster
+            (<code>/admin/organizations</code>). It grants no extra capability inside any single org;
+            the matrix below still governs every tenant-scoped action.
           </p>
           <div class="docs-table-wrap">
             <table class="docs-table">

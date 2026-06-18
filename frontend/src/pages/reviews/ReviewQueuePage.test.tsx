@@ -86,6 +86,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
         role: 'REVIEWER',
         auth_provider: 'LOCAL',
         totp_enabled: false,
+        platform_admin: false,
         preferred_language: 'en',
       },
       accessToken: 'token',

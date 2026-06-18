@@ -19,6 +19,8 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
 
     List<DatasourceEntity> findAllByOrganization_IdAndActiveTrue(UUID organizationId);
 
+    long countByOrganization_Id(UUID organizationId);
+
     boolean existsByOrganization_Id(UUID organizationId);
 
     boolean existsByOrganization_IdAndNameIgnoreCase(UUID organizationId, String name);

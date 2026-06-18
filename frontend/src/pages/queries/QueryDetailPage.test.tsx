@@ -118,6 +118,7 @@ function setUser(role: Role, userId = 'u-reviewer') {
       role,
       auth_provider: 'LOCAL',
       totp_enabled: false,
+      platform_admin: false,
       preferred_language: 'en',
     },
     accessToken: 'token',

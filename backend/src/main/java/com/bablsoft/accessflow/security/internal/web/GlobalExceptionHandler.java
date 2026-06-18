@@ -21,6 +21,8 @@ import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.TableNotFoundException;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
+import com.bablsoft.accessflow.core.api.OrganizationNotFoundException;
+import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.IllegalLocalizationConfigException;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.bablsoft.accessflow.core.api.IllegalReviewPlanException;
@@ -201,6 +203,29 @@ class GlobalExceptionHandler {
     ProblemDetail handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.email_already_exists"));
         pd.setProperty("error", "EMAIL_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    ProblemDetail handleQuotaExceeded(QuotaExceededException ex) {
+        var key = switch (ex.quotaType()) {
+            case DATASOURCE -> "error.quota_exceeded_datasources";
+            case USER -> "error.quota_exceeded_users";
+            case QUERIES_PER_DAY -> "error.quota_exceeded_queries_per_day";
+        };
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg(key, ex.limit()));
+        pd.setProperty("error", "QUOTA_EXCEEDED");
+        pd.setProperty("quotaType", ex.quotaType().name());
+        pd.setProperty("limit", ex.limit());
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(OrganizationNotFoundException.class)
+    ProblemDetail handleOrganizationNotFound(OrganizationNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.organization_not_found"));
+        pd.setProperty("error", "ORGANIZATION_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

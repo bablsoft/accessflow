@@ -27,6 +27,19 @@ public class OrganizationEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String slug;
 
+    // Per-org quotas (AF-456). NULL or 0 means unlimited; enforced at the service layer.
+    @Column(name = "max_datasources")
+    private Integer maxDatasources;
+
+    @Column(name = "max_users")
+    private Integer maxUsers;
+
+    @Column(name = "max_queries_per_day")
+    private Integer maxQueriesPerDay;
+
+    @Column(name = "disabled", nullable = false)
+    private boolean disabled = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

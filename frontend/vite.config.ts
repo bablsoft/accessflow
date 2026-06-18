@@ -58,6 +58,7 @@ export default defineConfig({
         'src/api/datasources.ts',
         'src/api/maskingPolicies.ts',
         'src/api/notifications.ts',
+        'src/api/organizations.ts',
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',
         'src/api/routingPolicies.ts',

@@ -298,10 +298,7 @@ class AuthController {
     }
 
     private LoginResponse toLoginResponse(com.bablsoft.accessflow.security.api.AuthResult result) {
-        var user = result.user();
-        var summary = new UserSummary(user.id(), user.email(), user.displayName(),
-                user.role().name(), user.authProvider().name(), user.totpEnabled(),
-                user.preferredLanguage());
+        var summary = UserSummary.from(result.user());
         return new LoginResponse(result.accessToken(), result.tokenType(), result.expiresIn(), summary);
     }
 

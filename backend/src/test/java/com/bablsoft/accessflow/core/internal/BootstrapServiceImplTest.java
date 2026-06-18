@@ -79,6 +79,7 @@ class BootstrapServiceImplTest {
         assertThat(cmdCaptor.getValue().email()).isEqualTo("admin@acme.com");
         assertThat(cmdCaptor.getValue().role()).isEqualTo(UserRoleType.ADMIN);
         assertThat(cmdCaptor.getValue().passwordHash()).isEqualTo("hashed-pass");
+        assertThat(cmdCaptor.getValue().platformAdmin()).isTrue();
     }
 
     @Test
