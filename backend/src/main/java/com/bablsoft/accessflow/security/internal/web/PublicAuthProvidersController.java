@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web;
 
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.SingleOrganizationUnavailableException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigService;
 import com.bablsoft.accessflow.security.api.SamlConfigService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Public endpoints the login page calls to learn which sign-in methods are currently enabled,
@@ -34,7 +36,15 @@ class PublicAuthProvidersController {
     @ApiResponse(responseCode = "200", description = "Zero or more enabled providers")
     @SecurityRequirements
     List<OAuth2ProviderSummaryResponse> oauth2Providers() {
-        var organizationId = organizationLookupService.singleOrganization();
+        // AF-456: in a multi-org cluster (or before first-run setup) there is no single org to scope
+        // unauthenticated provider discovery to — degrade to "no SSO buttons" rather than 500. Per-org
+        // SSO login routing is future work; password login is unaffected.
+        UUID organizationId;
+        try {
+            organizationId = organizationLookupService.singleOrganization();
+        } catch (SingleOrganizationUnavailableException ex) {
+            return List.of();
+        }
         return oauth2ConfigService.listActive(organizationId).stream()
                 .map(OAuth2ProviderSummaryResponse::from)
                 .toList();
@@ -45,7 +55,12 @@ class PublicAuthProvidersController {
     @ApiResponse(responseCode = "200", description = "Enabled flag for the single deployment org")
     @SecurityRequirements
     SamlEnabledResponse samlEnabled() {
-        var organizationId = organizationLookupService.singleOrganization();
+        UUID organizationId;
+        try {
+            organizationId = organizationLookupService.singleOrganization();
+        } catch (SingleOrganizationUnavailableException ex) {
+            return new SamlEnabledResponse(false);
+        }
         return new SamlEnabledResponse(samlConfigService.getOrDefault(organizationId).active());
     }
 

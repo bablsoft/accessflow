@@ -67,6 +67,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
                 entity.getLastLoginAt(),
                 entity.getPreferredLanguage(),
                 entity.isTotpEnabled(),
+                entity.isPlatformAdmin(),
                 entity.getCreatedAt()
         );
     }

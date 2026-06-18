@@ -8,6 +8,7 @@ export interface AuthUser {
   role: Role;
   auth_provider: AuthProvider;
   totp_enabled: boolean;
+  platform_admin: boolean;
   preferred_language: string | null;
 }
 

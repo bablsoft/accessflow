@@ -86,6 +86,7 @@ class AdminUserReconcilerTest {
         assertThat(captor.getValue().role()).isEqualTo(UserRoleType.ADMIN);
         assertThat(captor.getValue().organizationId()).isEqualTo(ORG_ID);
         assertThat(captor.getValue().passwordHash()).isEqualTo("hashed");
+        assertThat(captor.getValue().platformAdmin()).isTrue();
 
         var eventCaptor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
         verify(stateTracker).publishWithinTransaction(eventCaptor.capture());
@@ -137,6 +138,34 @@ class AdminUserReconcilerTest {
 
         assertThat(id).isEqualTo(existingId);
         verify(userAdminService, never()).createUser(any());
+    }
+
+    @Test
+    void promotesExistingAdminToPlatformAdminWhenNotAlready() {
+        var existingId = UUID.randomUUID();
+        var existing = new UserView(existingId, "admin@acme.com", "X", UserRoleType.ADMIN,
+                ORG_ID, true, AuthProviderType.LOCAL, "stored-hash", null, null, false,
+                false, null);
+        when(userQueryService.findByEmail("admin@acme.com")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("s3cret", "stored-hash")).thenReturn(true);
+
+        reconciler.reconcile(ORG_ID, new AdminSpec("admin@acme.com", "X", "s3cret"));
+
+        verify(userAdminService).setPlatformAdmin(existingId, true);
+    }
+
+    @Test
+    void doesNotPromoteWhenExistingAdminAlreadyPlatformAdmin() {
+        var existingId = UUID.randomUUID();
+        var existing = new UserView(existingId, "admin@acme.com", "X", UserRoleType.ADMIN,
+                ORG_ID, true, AuthProviderType.LOCAL, "stored-hash", null, null, false,
+                true, null);
+        when(userQueryService.findByEmail("admin@acme.com")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("s3cret", "stored-hash")).thenReturn(true);
+
+        reconciler.reconcile(ORG_ID, new AdminSpec("admin@acme.com", "X", "s3cret"));
+
+        verify(userAdminService, never()).setPlatformAdmin(any(), org.mockito.ArgumentMatchers.anyBoolean());
     }
 
     @Test

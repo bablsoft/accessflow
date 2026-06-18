@@ -4,14 +4,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Resolves the single deployment organization for code paths that have no JWT in scope
- * (the public OAuth2 providers endpoint and the dynamic ClientRegistrationRepository).
- * AccessFlow is single-tenant in practice; this service centralises the assumption so the
- * day a multi-org model ships, only this contract needs to change.
+ * Resolves organization-scoped facts for code paths that have no JWT in scope. {@link
+ * #singleOrganization()} backs unauthenticated SSO/provider discovery, which assumes a single
+ * deployment org (multi-org SSO login routing is future work); {@link #isDisabled(UUID)} is the
+ * request-time tenant kill-switch used by the auth filters (AF-456).
  */
 public interface OrganizationLookupService {
 
     UUID singleOrganization();
 
     Optional<String> findNameById(UUID organizationId);
+
+    /**
+     * Whether the organization is administratively disabled (AF-456). A disabled tenant's users are
+     * blocked at login and at request time. Returns {@code false} for an unknown id.
+     */
+    boolean isDisabled(UUID organizationId);
 }

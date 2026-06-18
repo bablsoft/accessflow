@@ -49,6 +49,7 @@ class DefaultQuerySubmissionServiceTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock QueryRequestPersistenceService queryRequestPersistenceService;
+    @Mock com.bablsoft.accessflow.core.api.QuotaService quotaService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultQuerySubmissionService service;
@@ -103,6 +104,21 @@ class DefaultQuerySubmissionServiceTest {
 
         assertThatThrownBy(() -> service.submit(input("BEGIN", false)))
                 .isInstanceOf(InvalidSqlException.class);
+
+        verify(queryRequestPersistenceService, never()).submit(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void rejectsWhenQueryQuotaExceeded() {
+        stubActiveDatasourceForUser();
+        org.mockito.Mockito.doThrow(new com.bablsoft.accessflow.core.api.QuotaExceededException(
+                        com.bablsoft.accessflow.core.api.QuotaType.QUERIES_PER_DAY,
+                        organizationId, 100, 100))
+                .when(quotaService).checkQueryQuota(organizationId);
+
+        assertThatThrownBy(() -> service.submit(input("SELECT 1", false)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.QuotaExceededException.class);
 
         verify(queryRequestPersistenceService, never()).submit(any());
         verify(eventPublisher, never()).publishEvent(any());

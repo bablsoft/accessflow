@@ -113,7 +113,54 @@ export interface MeProfile {
   role: Role;
   auth_provider: AuthProvider;
   totp_enabled: boolean;
+  platform_admin: boolean;
   preferred_language: string | null;
+}
+
+/** Multi-tenant organization (AF-456). Quota fields are null when unlimited. */
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  disabled: boolean;
+  max_datasources: number | null;
+  max_users: number | null;
+  max_queries_per_day: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationUsage {
+  organization_id: string;
+  datasource_count: number;
+  max_datasources: number | null;
+  user_count: number;
+  max_users: number | null;
+  queries_last_24h: number;
+  max_queries_per_day: number | null;
+}
+
+export interface OrganizationPage {
+  content: Organization[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export interface CreateOrganizationInput {
+  name: string;
+  slug?: string | null;
+  max_datasources?: number | null;
+  max_users?: number | null;
+  max_queries_per_day?: number | null;
+}
+
+export interface UpdateOrganizationInput {
+  name?: string | null;
+  max_datasources?: number | null;
+  max_users?: number | null;
+  max_queries_per_day?: number | null;
 }
 
 export interface UpdateProfileInput {

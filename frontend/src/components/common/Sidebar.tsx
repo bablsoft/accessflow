@@ -24,6 +24,7 @@ import {
   UnlockOutlined,
   LineChartOutlined,
   AppstoreOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -41,6 +42,8 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   roles: Role[];
+  /** When true, visible to platform admins regardless of role (AF-456). */
+  platformAdmin?: boolean;
   badge?: 'pending';
 }
 
@@ -112,10 +115,22 @@ export function Sidebar({
         { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
       ],
     },
+    {
+      id: 'platform',
+      label: t('nav.group_platform'),
+      items: [
+        { id: 'organizations', to: '/admin/organizations', label: t('nav.organizations'), icon: <BankOutlined />, roles: [], platformAdmin: true },
+      ],
+    },
   ];
 
   const visibleGroups = GROUPS
-    .map((g) => ({ ...g, items: g.items.filter((it) => it.roles.includes(user.role)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (it) => it.roles.includes(user.role) || (it.platformAdmin && user.platform_admin),
+      ),
+    }))
     .filter((g) => g.items.length > 0);
 
   return (

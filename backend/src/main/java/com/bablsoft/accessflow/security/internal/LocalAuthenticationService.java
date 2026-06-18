@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal;
 
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.TotpVerificationService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -13,6 +14,8 @@ import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.security.internal.jwt.JwtValidationException;
 import com.bablsoft.accessflow.security.internal.token.RefreshTokenStore;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +33,8 @@ public class LocalAuthenticationService implements AuthenticationService {
     private final RefreshTokenStore refreshTokenStore;
     private final JwtProperties jwtProperties;
     private final TotpVerificationService totpVerificationService;
+    private final OrganizationLookupService organizationLookupService;
+    private final MessageSource messageSource;
 
     @Override
     public AuthResult login(LoginCommand command) {
@@ -39,6 +44,7 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (!user.active()) {
             throw new DisabledException("Account is disabled");
         }
+        ensureOrganizationEnabled(user);
 
         if (user.passwordHash() == null
                 || !passwordEncoder.matches(command.password(), user.passwordHash())) {
@@ -72,6 +78,7 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (!user.active()) {
             throw new DisabledException("Account is disabled");
         }
+        ensureOrganizationEnabled(user);
 
         refreshTokenStore.revoke(refreshToken);
         return issueTokenPair(user);
@@ -91,7 +98,17 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (!user.active()) {
             throw new DisabledException("Account is disabled");
         }
+        ensureOrganizationEnabled(user);
         return issueTokenPair(user);
+    }
+
+    // AF-456: a disabled tenant blocks all token issuance — local login, refresh, and the SSO
+    // exchange path (SAML/OAuth2 both route through issueForUser).
+    private void ensureOrganizationEnabled(UserView user) {
+        if (organizationLookupService.isDisabled(user.organizationId())) {
+            throw new DisabledException(messageSource.getMessage(
+                    "error.organization_disabled", null, LocaleContextHolder.getLocale()));
+        }
     }
 
     private AuthResult issueTokenPair(UserView user) {

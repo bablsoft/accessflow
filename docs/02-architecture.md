@@ -78,3 +78,35 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 8. Reviewer approves via UI (or Slack/webhook) → status becomes `APPROVED`.
 9. Proxy opens JDBC connection to customer database, executes SQL, captures metadata.
 10. Audit log entry written. WebSocket event pushed to submitter. Status becomes `EXECUTED`.
+
+---
+
+## Multi-Tenancy
+
+AccessFlow is multi-tenant: a single deployment hosts one or more **organizations**, and every
+domain entity (users, datasources, queries, review plans, audit rows, …) is scoped by
+`organization_id`. Tenants share one process, one Postgres, and one Redis, but never see each
+other's data.
+
+- **Per-org scoping derived from the JWT.** Every tenant-scoped request reads its
+  `organizationId` from the authenticated principal — never from the request body or path — so a
+  user can only ever reach their own org's resources. This is the primary isolation boundary and it
+  is enforced server-side on every endpoint.
+- **Platform-admin management plane.** A super-admin (the orthogonal `users.platform_admin` flag,
+  surfaced as the `PLATFORM_ADMIN` Spring Security authority — see
+  [07-security.md](07-security.md#platform-admin-super-admin--platform_admin-authority-af-456))
+  manages organizations across the cluster through `/api/v1/platform/organizations`: list, create,
+  update name + quotas, and disable / enable tenants. These are the only endpoints that take a
+  foreign org id by path.
+- **Quota enforcement points.** Each org may carry caps (`max_datasources`, `max_users`,
+  `max_queries_per_day`; NULL / 0 = unlimited). They are enforced at the service layer where the
+  resource is created: datasource creation, user creation + invitation issuance, and query
+  submission (a rolling trailing-24h count). A breach is rejected with `409 QUOTA_EXCEEDED`.
+- **Disabled-org kill-switch.** Setting `organizations.disabled` blocks the tenant at both
+  authentication (login / refresh / SSO exchange) and request time — the JWT and API-key auth
+  filters do a lightweight per-request org-status lookup with no caching, so the block takes effect
+  immediately.
+
+See [03-data-model.md → organizations](03-data-model.md#organizations) for the schema and
+[07-security.md → Multi-tenant isolation](07-security.md#multi-tenant-isolation-af-456) for the full
+security posture.

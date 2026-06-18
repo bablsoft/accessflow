@@ -7,5 +7,6 @@ public record CreateUserCommand(
         String email,
         String displayName,
         String passwordHash,
-        UserRoleType role
+        UserRoleType role,
+        boolean platformAdmin
 ) {}

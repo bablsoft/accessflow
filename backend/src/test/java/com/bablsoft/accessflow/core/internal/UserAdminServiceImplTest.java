@@ -4,6 +4,9 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
+import com.bablsoft.accessflow.core.api.QuotaExceededException;
+import com.bablsoft.accessflow.core.api.QuotaService;
+import com.bablsoft.accessflow.core.api.QuotaType;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -36,6 +39,7 @@ class UserAdminServiceImplTest {
 
     @Mock UserRepository userRepository;
     @Mock OrganizationRepository organizationRepository;
+    @Mock QuotaService quotaService;
     UserAdminServiceImpl service;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -46,7 +50,8 @@ class UserAdminServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserAdminServiceImpl(userRepository, organizationRepository, objectMapper);
+        service = new UserAdminServiceImpl(userRepository, organizationRepository, quotaService,
+                objectMapper);
     }
 
     @Test
@@ -73,7 +78,7 @@ class UserAdminServiceImplTest {
         when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var command = new CreateUserCommand(orgId, "new@example.com", "New User",
-                "hashed-password", UserRoleType.REVIEWER);
+                "hashed-password", UserRoleType.REVIEWER, false);
         var result = service.createUser(command);
 
         assertThat(result.email()).isEqualTo("new@example.com");
@@ -81,6 +86,53 @@ class UserAdminServiceImplTest {
         assertThat(result.authProvider()).isEqualTo(AuthProviderType.LOCAL);
         assertThat(result.active()).isTrue();
         assertThat(result.passwordHash()).isEqualTo("hashed-password");
+        assertThat(result.platformAdmin()).isFalse();
+        verify(quotaService).checkUserQuota(orgId);
+    }
+
+    @Test
+    void createUserPersistsPlatformAdminFlag() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(userRepository.existsByEmail("plat@example.com")).thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.createUser(new CreateUserCommand(orgId, "plat@example.com", "Plat",
+                "hash", UserRoleType.ADMIN, true));
+
+        assertThat(result.platformAdmin()).isTrue();
+    }
+
+    @Test
+    void createUserThrowsWhenQuotaExceeded() {
+        when(userRepository.existsByEmail("over@example.com")).thenReturn(false);
+        org.mockito.Mockito.doThrow(new QuotaExceededException(QuotaType.USER, orgId, 5, 5))
+                .when(quotaService).checkUserQuota(orgId);
+
+        assertThatThrownBy(() -> service.createUser(new CreateUserCommand(orgId, "over@example.com",
+                "Over", "hash", UserRoleType.ANALYST, false)))
+                .isInstanceOf(QuotaExceededException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void setPlatformAdminUpdatesFlag() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ADMIN);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.setPlatformAdmin(userId, true);
+
+        assertThat(result.platformAdmin()).isTrue();
+        assertThat(entity.isPlatformAdmin()).isTrue();
+    }
+
+    @Test
+    void setPlatformAdminThrowsWhenUserMissing() {
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.setPlatformAdmin(userId, true))
+                .isInstanceOf(UserNotFoundException.class);
     }
 
     @Test
@@ -88,7 +140,7 @@ class UserAdminServiceImplTest {
         when(userRepository.existsByEmail("dup@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> service.createUser(new CreateUserCommand(orgId,
-                "dup@example.com", "Dup", "hash", UserRoleType.ANALYST)))
+                "dup@example.com", "Dup", "hash", UserRoleType.ANALYST, false)))
                 .isInstanceOf(EmailAlreadyExistsException.class);
         verify(userRepository, never()).save(any());
     }

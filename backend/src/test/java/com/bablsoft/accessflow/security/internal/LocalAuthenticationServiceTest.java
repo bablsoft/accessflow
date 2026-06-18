@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.TotpVerificationService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -43,6 +45,8 @@ class LocalAuthenticationServiceTest {
     @Mock JwtService jwtService;
     @Mock RefreshTokenStore refreshTokenStore;
     @Mock TotpVerificationService totpVerificationService;
+    @Mock OrganizationLookupService organizationLookupService;
+    @Mock MessageSource messageSource;
 
     private LocalAuthenticationService service;
     private UserView activeUser;
@@ -53,7 +57,8 @@ class LocalAuthenticationServiceTest {
     void setUp() {
         var props = new JwtProperties("", Duration.ofMinutes(15), Duration.ofDays(7));
         service = new LocalAuthenticationService(userQueryService, passwordEncoder,
-                jwtService, refreshTokenStore, props, totpVerificationService);
+                jwtService, refreshTokenStore, props, totpVerificationService,
+                organizationLookupService, messageSource);
         activeUser = new UserView(userId, "alice@example.com", "Alice",
                 UserRoleType.ANALYST, orgId, true, AuthProviderType.LOCAL, "hashed",
                 null, null, false, null);
@@ -72,6 +77,26 @@ class LocalAuthenticationServiceTest {
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
         assertThat(result.tokenType()).isEqualTo("Bearer");
         verify(refreshTokenStore).store(eq("refresh-token"), eq(userId.toString()), anyLong());
+    }
+
+    @Test
+    void loginThrowsWhenOrganizationDisabled() {
+        when(userQueryService.findByEmail("alice@example.com")).thenReturn(Optional.of(activeUser));
+        when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.login(new LoginCommand("alice@example.com", "secret")))
+                .isInstanceOf(DisabledException.class);
+        verify(jwtService, never()).generateAccessToken(any());
+    }
+
+    @Test
+    void issueForUserThrowsWhenOrganizationDisabled() {
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(activeUser));
+        when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.issueForUser(userId))
+                .isInstanceOf(DisabledException.class);
+        verify(jwtService, never()).generateAccessToken(any());
     }
 
     @Test

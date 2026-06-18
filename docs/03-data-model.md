@@ -10,15 +10,25 @@ All entities are stored in AccessFlow's **internal PostgreSQL database**. Custom
 
 ## organizations
 
-Represents a tenant. A deployment hosts a single organization.
+Represents a tenant. A deployment hosts **one or more** organizations, each fully isolated — every
+other entity is scoped by `organization_id`, and the request principal's org is always derived from
+the JWT, never from the request body. Organizations are first-class, manageable resources: platform
+admins (see `users.platform_admin`) create, configure, disable, and enable them across the cluster
+through the `/api/v1/platform/organizations` endpoints (see [04-api-spec.md → Platform Organizations](04-api-spec.md#platform-organizations) and [07-security.md → Multi-tenant isolation](07-security.md#multi-tenant-isolation-af-456)). Per-org quotas cap how much each tenant may consume.
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `name` | VARCHAR(255) NOT NULL |
 | `slug` | VARCHAR(100) UNIQUE — URL-safe identifier |
+| `disabled` | BOOLEAN NOT NULL DEFAULT false (AF-456) — when true the tenant is kill-switched: its users are blocked at login (local + SSO) and every authenticated request is rejected by a lightweight per-request org-status lookup, so disabling takes effect immediately (no cache). |
+| `max_datasources` | INTEGER nullable (AF-456) — per-org cap on datasources. NULL or 0 = unlimited. Enforced at datasource creation; breach → HTTP 409 `QUOTA_EXCEEDED`. |
+| `max_users` | INTEGER nullable (AF-456) — per-org cap on active users. NULL or 0 = unlimited. Enforced at user creation and invitation issuance (counts active users); breach → HTTP 409 `QUOTA_EXCEEDED`. |
+| `max_queries_per_day` | INTEGER nullable (AF-456) — per-org cap on query submissions. NULL or 0 = unlimited. Enforced as a rolling trailing-24h count over `query_requests` (no counter table, no reset job); breach → HTTP 409 `QUOTA_EXCEEDED`. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
+
+The `disabled` / `max_*` columns are added by `V87__org_isolation_quotas_platform_admin.sql`.
 
 ---
 
@@ -36,6 +46,7 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `auth_provider` | ENUM: `LOCAL` \| `SAML` \| `OAUTH2` |
 | `saml_subject` | VARCHAR — SAML NameID, nullable |
 | `role` | ENUM: `ADMIN` \| `REVIEWER` \| `ANALYST` \| `READONLY` |
+| `platform_admin` | BOOLEAN NOT NULL DEFAULT false (AF-456) — orthogonal super-admin flag (**not** a fifth role). A platform admin keeps their home-org `role` and is additionally granted the Spring Security authority `PLATFORM_ADMIN`, which unlocks the cross-org `/api/v1/platform/organizations` management plane. The JWT carries a `platform_admin` claim and the login / `GET /me` user object includes a `platform_admin` boolean. The bootstrap admin and the first-run setup-wizard admin are provisioned as platform admins (a pre-existing bootstrap admin is promoted on an upgrade re-run). Added by `V87__org_isolation_quotas_platform_admin.sql`. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `last_login_at` | TIMESTAMPTZ |
 | `preferred_language` | VARCHAR(20) — BCP-47 code (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`); nullable, falls back to the org default |
@@ -799,7 +810,10 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `AI_CONFIG_DELETED` | Admin deletes an `ai_config` row via `DELETE /admin/ai-configs/{id}`. |
 | `KNOWLEDGE_DOCUMENT_CREATED` | Admin adds a RAG knowledge document via `POST /admin/ai-configs/{id}/knowledge-documents`. Metadata: `ai_config_id`, `title`, `chunk_count`. |
 | `KNOWLEDGE_DOCUMENT_DELETED` | Admin deletes a RAG knowledge document. Metadata: `ai_config_id`. |
-| `ORGANIZATION_CREATED` | Emitted by the env-driven bootstrap reconciler when it provisions a brand-new organization. Metadata: `source: "BOOTSTRAP"`, `change_kind: "CREATE"`, `name`, `slug`. |
+| `ORGANIZATION_CREATED` | Emitted when an organization is provisioned — by the env-driven bootstrap reconciler (metadata `source: "BOOTSTRAP"`, `change_kind: "CREATE"`, `name`, `slug`), or by a platform admin via `POST /api/v1/platform/organizations` (AF-456). Audited against the target org. |
+| `ORGANIZATION_UPDATED` | Platform admin updates an org's name / quotas via `PUT /api/v1/platform/organizations/{id}` (AF-456). Audited against the target org. |
+| `ORGANIZATION_DISABLED` | Platform admin disables a tenant via `POST /api/v1/platform/organizations/{id}/disable` (AF-456). Audited against the target org. |
+| `ORGANIZATION_ENABLED` | Platform admin re-enables a tenant via `POST /api/v1/platform/organizations/{id}/enable` (AF-456). Audited against the target org. |
 | `NOTIFICATION_CHANNEL_CREATED` / `NOTIFICATION_CHANNEL_UPDATED` | Emitted by the bootstrap reconciler when it creates or updates a `notification_channels` row from `accessflow.bootstrap.notificationChannels[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind`, `name`, `channel_type`, optional `changed_fields`. |
 | `NOTIFICATION_DELIVERY_EXHAUSTED` | Emitted by the notifications dispatcher after a webhook channel exhausts its retry budget (1 initial attempt + 3 scheduled retries at +30 s / +2 min / +10 min). Resource: `notification_channel`, `actor_id = NULL`. Metadata: `source: "DISPATCHER"`, `channel_id`, `channel_type`, `event_type`, `attempt_count`, optional `last_http_status`, optional `last_error` (truncated to 500 chars). Other channels (Slack/Discord/Teams/Telegram/Email) are not yet audited on exhaustion. |
 | `OAUTH2_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies a per-provider OAuth2 config from `accessflow.bootstrap.oauth2[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `provider`, `config_type: "oauth2"`, optional `changed_fields`. |

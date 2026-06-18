@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
@@ -34,6 +35,7 @@ class UserAdminServiceImpl implements UserAdminService {
 
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
+    private final QuotaService quotaService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -50,6 +52,7 @@ class UserAdminServiceImpl implements UserAdminService {
         if (userRepository.existsByEmail(command.email())) {
             throw new EmailAlreadyExistsException(command.email());
         }
+        quotaService.checkUserQuota(command.organizationId());
         var organization = organizationRepository.getReferenceById(command.organizationId());
 
         var entity = new UserEntity();
@@ -61,6 +64,7 @@ class UserAdminServiceImpl implements UserAdminService {
         entity.setAuthProvider(AuthProviderType.LOCAL);
         entity.setRole(command.role());
         entity.setActive(true);
+        entity.setPlatformAdmin(command.platformAdmin());
 
         return toView(userRepository.save(entity));
     }
@@ -112,6 +116,15 @@ class UserAdminServiceImpl implements UserAdminService {
         }
         var entity = loadInOrganization(id, organizationId);
         entity.setActive(false);
+        return toView(entity);
+    }
+
+    @Override
+    @Transactional
+    public UserView setPlatformAdmin(UUID id, boolean platformAdmin) {
+        var entity = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        entity.setPlatformAdmin(platformAdmin);
         return toView(entity);
     }
 
@@ -176,6 +189,7 @@ class UserAdminServiceImpl implements UserAdminService {
                 entity.getLastLoginAt(),
                 entity.getPreferredLanguage(),
                 entity.isTotpEnabled(),
+                entity.isPlatformAdmin(),
                 entity.getCreatedAt()
         );
     }

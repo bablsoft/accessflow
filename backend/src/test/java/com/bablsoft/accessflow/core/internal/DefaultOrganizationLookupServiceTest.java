@@ -83,4 +83,24 @@ class DefaultOrganizationLookupServiceTest {
 
         assertThat(service.findNameById(id)).isEmpty();
     }
+
+    @Test
+    void isDisabledReturnsFlag() {
+        var org = new OrganizationEntity();
+        var id = UUID.randomUUID();
+        org.setId(id);
+        org.setDisabled(true);
+        when(organizationRepository.findById(id)).thenReturn(Optional.of(org));
+
+        assertThat(service.isDisabled(id)).isTrue();
+    }
+
+    @Test
+    void isDisabledFalseForUnknownOrNull() {
+        var id = UUID.randomUUID();
+        when(organizationRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThat(service.isDisabled(id)).isFalse();
+        assertThat(service.isDisabled(null)).isFalse();
+    }
 }

@@ -39,6 +39,7 @@ const reviewerUser: AuthUser = {
   role: 'REVIEWER',
   auth_provider: 'LOCAL',
   totp_enabled: false,
+  platform_admin: false,
   preferred_language: null,
 };
 
@@ -49,6 +50,7 @@ const adminUser: AuthUser = {
   role: 'ADMIN',
   auth_provider: 'LOCAL',
   totp_enabled: false,
+  platform_admin: false,
   preferred_language: null,
 };
 
@@ -59,6 +61,7 @@ const analystUser: AuthUser = {
   role: 'ANALYST',
   auth_provider: 'LOCAL',
   totp_enabled: false,
+  platform_admin: false,
   preferred_language: null,
 };
 

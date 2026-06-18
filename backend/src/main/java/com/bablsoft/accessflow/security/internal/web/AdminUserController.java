@@ -80,7 +80,8 @@ class AdminUserController {
                 request.email(),
                 request.displayName(),
                 passwordEncoder.encode(request.password()),
-                request.role()
+                request.role(),
+                false
         );
         var created = userAdminService.createUser(command);
         recordAudit(AuditAction.USER_CREATED, created.id(), caller, auditContext,

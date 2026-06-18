@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.SystemSmtpService;
@@ -56,6 +57,7 @@ class DefaultUserInvitationService implements UserInvitationService {
     private final UserInvitationRepository repository;
     private final SystemSmtpService systemSmtpService;
     private final UserAdminService userAdminService;
+    private final QuotaService quotaService;
     private final OrganizationLookupService organizationLookupService;
     private final PasswordEncoder passwordEncoder;
     private final SpringTemplateEngine templateEngine;
@@ -73,6 +75,9 @@ class DefaultUserInvitationService implements UserInvitationService {
                 normalizedEmail, UserInvitationStatusType.PENDING)) {
             throw new DuplicatePendingInvitationException();
         }
+        // Soft pre-check so the admin gets early feedback; the authoritative seat check runs at
+        // acceptance time in UserAdminService.createUser (a pending invite does not reserve a seat).
+        quotaService.checkUserQuota(organizationId);
         var token = generateToken();
         var hash = sha256Hex(token);
         var entity = new UserInvitationEntity();
@@ -170,7 +175,8 @@ class DefaultUserInvitationService implements UserInvitationService {
                 entity.getEmail(),
                 resolvedDisplayName,
                 passwordEncoder.encode(plaintextPassword),
-                entity.getRole()));
+                entity.getRole(),
+                false));
         entity.setStatus(UserInvitationStatusType.ACCEPTED);
         entity.setAcceptedAt(Instant.now());
         repository.save(entity);

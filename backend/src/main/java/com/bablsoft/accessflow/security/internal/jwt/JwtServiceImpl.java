@@ -30,6 +30,7 @@ class JwtServiceImpl implements JwtService {
     private static final String CLAIM_EMAIL = "email";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_ORG_ID = "org_id";
+    private static final String CLAIM_PLATFORM_ADMIN = "platform_admin";
     private static final JOSEObjectType TYPE_ACCESS = new JOSEObjectType("access");
     private static final JOSEObjectType TYPE_REFRESH = new JOSEObjectType("refresh");
 
@@ -71,6 +72,7 @@ class JwtServiceImpl implements JwtService {
                 .claim(CLAIM_EMAIL, user.email())
                 .claim(CLAIM_ROLE, user.role().name())
                 .claim(CLAIM_ORG_ID, user.organizationId().toString())
+                .claim(CLAIM_PLATFORM_ADMIN, user.platformAdmin())
                 .issueTime(Date.from(now))
                 .expirationTime(Date.from(expiry))
                 .build();
@@ -122,7 +124,8 @@ class JwtServiceImpl implements JwtService {
                     UUID.fromString(claimsSet.getSubject()),
                     claimsSet.getStringClaim(CLAIM_EMAIL),
                     UserRoleType.valueOf(claimsSet.getStringClaim(CLAIM_ROLE)),
-                    UUID.fromString(claimsSet.getStringClaim(CLAIM_ORG_ID))
+                    UUID.fromString(claimsSet.getStringClaim(CLAIM_ORG_ID)),
+                    Boolean.TRUE.equals(claimsSet.getBooleanClaim(CLAIM_PLATFORM_ADMIN))
             );
         } catch (ParseException | IllegalArgumentException e) {
             throw new JwtValidationException("Failed to extract claims", e);

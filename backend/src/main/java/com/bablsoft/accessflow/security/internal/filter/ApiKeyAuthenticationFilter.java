@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserProfileService;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -37,6 +38,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private final ApiKeyService apiKeyService;
     private final UserProfileService userProfileService;
+    private final OrganizationLookupService organizationLookupService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -59,10 +61,11 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private Optional<JwtClaims> loadClaims(UUID userId) {
         try {
             var user = userProfileService.getProfile(userId);
-            if (!user.active()) {
+            if (!user.active() || organizationLookupService.isDisabled(user.organizationId())) {
                 return Optional.empty();
             }
-            return Optional.of(new JwtClaims(user.id(), user.email(), user.role(), user.organizationId()));
+            return Optional.of(new JwtClaims(
+                    user.id(), user.email(), user.role(), user.organizationId(), user.platformAdmin()));
         } catch (RuntimeException ex) {
             return Optional.empty();
         }

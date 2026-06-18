@@ -143,6 +143,7 @@
 - **Behavioral anomaly detection (UBA)** — rolling per-user / per-role baselines built from the audit stream flag out-of-pattern activity (volume, active hours, tables touched, rows returned) and escalate via the policy engine (AF-383)
 - **Access recertification campaigns** — recurring attestation campaigns where datasource owners certify or revoke standing access, with exportable evidence for SOC2 / ISO 27001 audits (AF-384)
 - **Break-glass / emergency access** — a gated, audited, time-boxed bypass that executes immediately while notifying all admins (incl. PagerDuty) and forcing a mandatory post-hoc review (AF-385)
+- **Multi-tenant organization management & per-org quotas** — organizations are first-class, manageable tenants: a super-admin (`platform_admin`) manages them across the cluster from a dedicated UI (`/admin/organizations`) — create, edit, disable / enable — with per-org quotas (`max_datasources`, `max_users`, `max_queries_per_day`, enforced as `409 QUOTA_EXCEEDED`) and a disabled-org kill-switch that blocks login and requests immediately. Cross-org isolation is hardened defense-in-depth (org always derived from the JWT, never the request body) (AF-456)
 
 ---
 

@@ -847,6 +847,51 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 ---
 
+## Multi-tenant isolation hardening (AF-456)
+
+A deployment hosts one or more organizations, each scoped by `organization_id`. AF-456 adds a
+platform-admin management plane, per-org quotas, and a disabled-org kill-switch. The migration is
+`V87__org_isolation_quotas_platform_admin.sql` (adds `organizations.disabled` / `max_datasources` /
+`max_users` / `max_queries_per_day` and `users.platform_admin`).
+
+**Platform-admin management plane.** Cross-org tenant CRUD lives behind
+`/api/v1/platform/organizations` (`@PreAuthorize("hasAuthority('PLATFORM_ADMIN')")`). `platform_admin`
+is an orthogonal boolean on the `users` row, not a fifth role — a platform admin keeps their home-org
+role and is additionally granted the `PLATFORM_ADMIN` Spring Security authority; the JWT carries a
+`platform_admin` claim and the login / `GET /me` user object includes the boolean. The bootstrap admin
+and the first-run setup-wizard admin are provisioned as platform admins (a pre-existing bootstrap admin
+is promoted on an upgrade re-run). Each lifecycle mutation is audited against the **target** org
+(`ORGANIZATION_CREATED` / `ORGANIZATION_UPDATED` / `ORGANIZATION_DISABLED` / `ORGANIZATION_ENABLED`).
+
+**Quota enforcement (fail-on-breach → 409).** A quota-enforcement service performs count-based checks
+at the service layer, at each resource-creation choke point:
+
+| Quota | Checked at | Count basis |
+|---|---|---|
+| `max_datasources` | Datasource creation | Datasources in the org |
+| `max_users` | User creation **and** invitation issuance | Active users in the org |
+| `max_queries_per_day` | Query submission | Rolling **trailing-24h** count over `query_requests` — no counter table, no reset job |
+
+`NULL` or `0` means unlimited. A breach throws a domain exception mapped to `409 Conflict` with
+`error: "QUOTA_EXCEEDED"` and a localized `detail` naming the limit. Quotas bound consumption — they are
+not an access boundary.
+
+**Disabled-org enforcement (immediate per-request block).** `organizations.disabled` is enforced at
+two layers:
+
+- **Authentication choke points** — login, refresh, and the OAuth2 / SAML exchange reject a user whose
+  org is disabled (local + SSO).
+- **The two auth filters** — `JwtAuthenticationFilter` and `ApiKeyAuthenticationFilter` perform a
+  lightweight per-request org-status lookup and reject any request whose org is disabled.
+
+There is **no cache**, by design: disabling a tenant takes effect on the next request rather than at
+token expiry, so an in-flight session stops working immediately.
+
+**Domain invariants.** Quota = fail-on-breach (409, never silently truncate or queue). Disabled-org =
+immediate, per-request block (no grace window, no cache).
+
+---
+
 ## Startup bootstrap (env-driven admin config)
 
 The `bootstrap` module ([com.bablsoft.accessflow.bootstrap](../backend/src/main/java/com/bablsoft/accessflow/bootstrap)) reconciles declared admin configuration from `accessflow.bootstrap.*` properties into the database on every backend start. It is the mechanism that lets a Helm/Kubernetes deployment ship organization, admin user, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP through GitOps — no admin-API click-ops required.

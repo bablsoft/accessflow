@@ -42,4 +42,15 @@ class DefaultOrganizationLookupService implements OrganizationLookupService {
     public Optional<String> findNameById(UUID organizationId) {
         return organizationRepository.findById(organizationId).map(OrganizationEntity::getName);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isDisabled(UUID organizationId) {
+        if (organizationId == null) {
+            return false;
+        }
+        return organizationRepository.findById(organizationId)
+                .map(OrganizationEntity::isDisabled)
+                .orElse(false);
+    }
 }

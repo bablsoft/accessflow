@@ -52,6 +52,12 @@ const GroupDetailPage = lazy(() =>
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 const ConnectorsPage = lazy(() => import('@/pages/admin/connectors/ConnectorsPage'));
+const OrganizationsListPage = lazy(() =>
+  import('@/pages/admin/OrganizationsListPage').then((m) => ({ default: m.OrganizationsListPage })),
+);
+const OrganizationDetailPage = lazy(() =>
+  import('@/pages/admin/OrganizationDetailPage').then((m) => ({ default: m.OrganizationDetailPage })),
+);
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -340,6 +346,26 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <LangfuseConfigPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/organizations"
+            element={
+              <AuthGuard requirePlatformAdmin>
+                <Suspense fallback={null}>
+                  <OrganizationsListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/organizations/:id"
+            element={
+              <AuthGuard requirePlatformAdmin>
+                <Suspense fallback={null}>
+                  <OrganizationDetailPage />
                 </Suspense>
               </AuthGuard>
             }

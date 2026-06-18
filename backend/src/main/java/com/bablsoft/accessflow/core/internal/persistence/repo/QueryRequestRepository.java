@@ -34,6 +34,15 @@ public interface QueryRequestRepository
     @Query("select q from QueryRequestEntity q where q.id = :id")
     Optional<QueryRequestEntity> findByIdForUpdate(@Param("id") UUID id);
 
+    // AF-456: rolling-window query count for an org's per-day quota. Scoped through the datasource's
+    // organization since query_requests has no direct org FK.
+    @Query("""
+            select count(q) from QueryRequestEntity q
+             where q.datasource.organization.id = :orgId
+               and q.createdAt >= :since
+            """)
+    long countByOrganizationSince(@Param("orgId") UUID organizationId, @Param("since") Instant since);
+
     @Query("""
             select distinct q from QueryRequestEntity q
               join q.datasource d

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.UserView;
+
 import java.util.UUID;
 
 public record UserSummary(
@@ -9,5 +11,18 @@ public record UserSummary(
         String role,
         String authProvider,
         boolean totpEnabled,
+        boolean platformAdmin,
         String preferredLanguage
-) {}
+) {
+    public static UserSummary from(UserView view) {
+        return new UserSummary(
+                view.id(),
+                view.email(),
+                view.displayName(),
+                view.role().name(),
+                view.authProvider().name(),
+                view.totpEnabled(),
+                view.platformAdmin(),
+                view.preferredLanguage());
+    }
+}

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
 import com.bablsoft.accessflow.security.internal.jwt.JwtValidationException;
 import jakarta.servlet.FilterChain;
@@ -19,6 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final OrganizationLookupService organizationLookupService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -29,7 +31,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var token = header.substring(7);
             try {
                 var claims = jwtService.parseAccessToken(token);
-                SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(claims));
+                // AF-456: a disabled tenant's still-valid tokens are rejected at request time.
+                if (!organizationLookupService.isDisabled(claims.organizationId())) {
+                    SecurityContextHolder.getContext()
+                            .setAuthentication(new JwtAuthenticationToken(claims));
+                }
             } catch (JwtValidationException ignored) {
                 // Leave SecurityContext empty — Spring Security will reject via entryPoint
             }

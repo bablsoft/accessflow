@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
@@ -41,6 +42,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final QueryRequestPersistenceService queryRequestPersistenceService;
+    private final QuotaService quotaService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -59,6 +61,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
         if (!datasource.active()) {
             throw new DatasourceUnavailableException(msg("error.datasource_unavailable_inactive"));
         }
+        quotaService.checkQueryQuota(input.organizationId());
         var parsed = queryParser.parse(input.sql(), datasource.dbType());
         if (parsed.type() == QueryType.OTHER) {
             throw new InvalidSqlException(msg("error.query_type_not_supported"));

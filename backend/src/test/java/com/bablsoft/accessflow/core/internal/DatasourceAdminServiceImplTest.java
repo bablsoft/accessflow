@@ -62,6 +62,7 @@ class DatasourceAdminServiceImplTest {
     @Mock com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock org.springframework.context.MessageSource messageSource;
+    @Mock com.bablsoft.accessflow.core.api.QuotaService quotaService;
     @InjectMocks DatasourceAdminServiceImpl service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -110,6 +111,21 @@ class DatasourceAdminServiceImplTest {
                 .isInstanceOf(DatasourceNameAlreadyExistsException.class);
         verify(datasourceRepository, never()).save(any());
         verify(driverCatalog, never()).resolve(any());
+    }
+
+    @Test
+    void createThrowsWhenDatasourceQuotaExceeded() {
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        org.mockito.Mockito.doThrow(new com.bablsoft.accessflow.core.api.QuotaExceededException(
+                        com.bablsoft.accessflow.core.api.QuotaType.DATASOURCE, orgId, 3, 3))
+                .when(quotaService).checkDatasourceQuota(orgId);
+
+        assertThatThrownBy(() -> service.create(new CreateDatasourceCommand(orgId, "Prod",
+                DbType.POSTGRESQL, "db", 5432, "appdb", "svc", "pw", SslMode.DISABLE,
+                null, null, null, null, null, false, null, null, null, null, null, null, null, null)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.QuotaExceededException.class);
+        verify(datasourceRepository, never()).save(any());
     }
 
     @Test

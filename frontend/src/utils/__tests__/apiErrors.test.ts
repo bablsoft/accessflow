@@ -16,6 +16,7 @@ import {
   reviewErrorMessage,
   queryCancelErrorMessage,
   reviewPlanErrorMessage,
+  organizationErrorMessage,
   setupErrorMessage,
 } from '../apiErrors';
 
@@ -381,6 +382,41 @@ describe('datasourceCreateErrorMessage', () => {
       title: 'Conflict',
       detail: 'Something more specific',
     }))).toBe('Something more specific');
+  });
+});
+
+describe('organizationErrorMessage', () => {
+  it('maps ORGANIZATION_NOT_FOUND', () => {
+    expect(organizationErrorMessage(buildAxiosError(404, { error: 'ORGANIZATION_NOT_FOUND' })))
+      .toBe('Organization not found.');
+  });
+
+  it('uses the localized detail for QUOTA_EXCEEDED', () => {
+    expect(
+      organizationErrorMessage(
+        buildAxiosError(409, { error: 'QUOTA_EXCEEDED', detail: 'limit of 5 reached' }),
+      ),
+    ).toBe('limit of 5 reached');
+  });
+
+  it('falls back to the generic quota message when QUOTA_EXCEEDED has no detail', () => {
+    expect(organizationErrorMessage(buildAxiosError(409, { error: 'QUOTA_EXCEEDED' })))
+      .toBe('This organization has reached one of its quotas.');
+  });
+
+  it('falls back to title, then detail', () => {
+    expect(organizationErrorMessage(buildAxiosError(400, { title: 'Bad' }))).toBe('Bad');
+    expect(organizationErrorMessage(buildAxiosError(400, { detail: 'Worse' }))).toBe('Worse');
+  });
+
+  it('returns the generic message for a non-axios error without a message', () => {
+    expect(organizationErrorMessage(new Error(''))).toBe(
+      'Could not save the organization. Please try again.',
+    );
+  });
+
+  it('uses an Error message when available', () => {
+    expect(organizationErrorMessage(new Error('boom'))).toBe('boom');
   });
 });
 

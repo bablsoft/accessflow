@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserProfileService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -32,13 +33,15 @@ class ApiKeyAuthenticationFilterTest {
 
     @Mock ApiKeyService apiKeyService;
     @Mock UserProfileService userProfileService;
+    @Mock OrganizationLookupService organizationLookupService;
     @Mock FilterChain chain;
 
     ApiKeyAuthenticationFilter filter;
 
     @BeforeEach
     void setUp() {
-        filter = new ApiKeyAuthenticationFilter(apiKeyService, userProfileService);
+        filter = new ApiKeyAuthenticationFilter(apiKeyService, userProfileService,
+                organizationLookupService);
         SecurityContextHolder.clearContext();
     }
 
@@ -106,6 +109,19 @@ class ApiKeyAuthenticationFilterTest {
         when(userProfileService.getProfile(userId)).thenReturn(inactiveUser(userId));
         var req = new MockHttpServletRequest();
         req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_inactive");
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    void disabled_organization_does_not_authenticate() throws Exception {
+        var userId = UUID.randomUUID();
+        var orgId = UUID.randomUUID();
+        when(apiKeyService.resolveUserId("af_disabled_org")).thenReturn(Optional.of(userId));
+        when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, orgId));
+        when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
+        var req = new MockHttpServletRequest();
+        req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_disabled_org");
         filter.doFilter(req, new MockHttpServletResponse(), chain);
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }

@@ -242,10 +242,62 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 
 **Key rule:** A user can never approve their own query request, regardless of role.
 
+### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
+
+`users.platform_admin` is an **orthogonal boolean flag, not a fifth role** — the four roles above are
+unchanged. A platform admin keeps their home-org `role` (e.g. `ADMIN`) **and** is additionally granted
+the extra Spring Security authority `PLATFORM_ADMIN`. The JWT carries a `platform_admin` claim and the
+login / `GET /me` user object exposes a `platform_admin` boolean.
+
+- **What it unlocks.** Only the cross-org tenant-management plane at `/api/v1/platform/organizations`
+  (`@PreAuthorize("hasAuthority('PLATFORM_ADMIN')")` — see [04-api-spec.md → Platform Organizations](04-api-spec.md#platform-organizations)).
+  It grants **no** extra capability inside any single org — the role matrix above still governs every
+  tenant-scoped action.
+- **How it's granted.** The bootstrap admin and the first-run setup-wizard admin are provisioned as
+  platform admins; a pre-existing bootstrap admin is promoted on an upgrade re-run. Otherwise the flag
+  is set explicitly on the `users` row.
+- **Why a flag, not a role.** It is genuinely orthogonal — a platform admin is still a normal member of
+  their home org with whatever role that org assigns. Modelling it as a role would have forced an
+  artificial choice between "org admin" and "platform admin".
+
 **CSV export of query history** (`GET /queries/export.csv`) reuses the same org-scoping and
 submitter rules as `GET /queries`: non-admin callers receive only their own queries; admins may
 override `submitted_by` to scope to a specific user. No additional role is required, and the
 endpoint never returns SQL text — only the metadata fields already visible on the list page.
+
+---
+
+## Multi-tenant isolation (AF-456)
+
+A deployment hosts one or more `organizations`, each a fully isolated tenant. Isolation is
+**defense-in-depth**, with the org boundary derived server-side rather than trusted from the client.
+
+- **Org is always derived from the JWT principal.** Every tenant-scoped endpoint reads
+  `organizationId` from the authenticated principal — never from a request body or path. A user
+  cannot reference another org's data by guessing an id, because the queries are filtered by the
+  principal's org. The **only** endpoints that legitimately take a foreign org id by path are the
+  platform-admin management plane at `/api/v1/platform/organizations`, gated by the `PLATFORM_ADMIN`
+  authority.
+- **Disabled-org kill-switch.** `organizations.disabled` blocks a tenant in two places: at
+  authentication (login, refresh, SSO exchange — local and SSO) and at request time. The JWT and
+  API-key auth filters perform a lightweight per-request org-status lookup and reject any request
+  whose org is disabled. There is **no cache**, so disabling a tenant takes effect immediately —
+  in-flight sessions stop working on their next request, not at token expiry.
+- **Per-org quotas — fail-on-breach (`409 QUOTA_EXCEEDED`).** Three nullable caps on the org row —
+  `max_datasources`, `max_users`, `max_queries_per_day` (NULL or 0 = unlimited) — are enforced
+  count-based at the service layer: datasource creation checks `max_datasources`; user creation and
+  invitation issuance check `max_users` (active-user count); query submission checks
+  `max_queries_per_day` (a rolling trailing-24h count over `query_requests` — no counter table, no
+  reset job). A breach throws and the API responds `409 Conflict` with `error: "QUOTA_EXCEEDED"` and a
+  localized `detail` naming the limit. Quotas bound consumption; they are not an access boundary.
+- **Multi-org login routing is future work.** Per-org login pages / SSO routing across multiple orgs
+  are explicitly out of scope for AF-456. Unauthenticated provider discovery degrades gracefully when
+  more than one org exists (it never discloses per-org identity — see
+  [`GET /auth/localization-config`](04-api-spec.md#get-authlocalization-config) and the OAuth2/SAML
+  discovery endpoints).
+
+All four organization lifecycle mutations are audited against the target org
+(`ORGANIZATION_CREATED` / `ORGANIZATION_UPDATED` / `ORGANIZATION_DISABLED` / `ORGANIZATION_ENABLED`).
 
 ---
 

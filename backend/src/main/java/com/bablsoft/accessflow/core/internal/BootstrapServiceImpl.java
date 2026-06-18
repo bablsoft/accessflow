@@ -57,7 +57,8 @@ class BootstrapServiceImpl implements BootstrapService {
                 command.email(),
                 command.displayName(),
                 command.passwordHash(),
-                UserRoleType.ADMIN
+                UserRoleType.ADMIN,
+                true
         ));
 
         return new SetupResult(savedOrg.getId(), createdUser.id());
