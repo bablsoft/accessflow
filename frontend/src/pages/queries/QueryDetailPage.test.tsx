@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
@@ -20,12 +20,20 @@ function buildAxiosError(status: number, data: unknown): AxiosError {
   return new AxiosError('Request failed', undefined, undefined, undefined, response);
 }
 
-const { getQueryMock, cancelQueryMock, executeQueryMock, reanalyzeQueryMock, getQueryDiffMock } = vi.hoisted(() => ({
+const {
+  getQueryMock,
+  cancelQueryMock,
+  executeQueryMock,
+  reanalyzeQueryMock,
+  getQueryDiffMock,
+  replayQueryMock,
+} = vi.hoisted(() => ({
   getQueryMock: vi.fn(),
   cancelQueryMock: vi.fn(),
   executeQueryMock: vi.fn(),
   reanalyzeQueryMock: vi.fn(),
   getQueryDiffMock: vi.fn(),
+  replayQueryMock: vi.fn(),
 }));
 
 vi.mock('@/api/queries', () => ({
@@ -34,6 +42,7 @@ vi.mock('@/api/queries', () => ({
   executeQuery: executeQueryMock,
   reanalyzeQuery: reanalyzeQueryMock,
   getQueryDiff: getQueryDiffMock,
+  replayQuery: replayQueryMock,
   queryKeys: {
     all: ['queries'] as const,
     lists: () => ['queries', 'list'] as const,
@@ -43,6 +52,17 @@ vi.mock('@/api/queries', () => ({
     results: (id: string, page: number, size: number) =>
       ['queries', 'detail', id, 'results', page, size] as const,
     diff: (id: string) => ['queries', 'detail', id, 'diff'] as const,
+  },
+}));
+
+const { listDatasourcesMock } = vi.hoisted(() => ({
+  listDatasourcesMock: vi.fn(),
+}));
+
+vi.mock('@/api/datasources', () => ({
+  listDatasources: listDatasourcesMock,
+  datasourceKeys: {
+    list: (filters: unknown) => ['datasources', 'list', filters] as const,
   },
 }));
 
@@ -703,5 +723,105 @@ describe('QueryDetailPage — results view default by engine mode (AF-418)', () 
       'data-view',
       'json',
     );
+  });
+});
+
+describe('QueryDetailPage — replay in test environment (AF-449)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    getQueryDiffMock.mockReset();
+    replayQueryMock.mockReset();
+    listDatasourcesMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+    getQueryDiffMock.mockRejectedValue(buildAxiosError(404, {}));
+  });
+
+  function datasourcePage(content: unknown[]) {
+    return { content, page: 0, size: 100, total_elements: content.length, total_pages: 1, last: true };
+  }
+
+  it('replays an executed query against a chosen same-type datasource', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(executedQuery());
+    listDatasourcesMock.mockResolvedValue(
+      datasourcePage([
+        { id: 'ds-1', name: 'Prod PG', db_type: 'POSTGRESQL', active: true },
+        { id: 'ds-test', name: 'Test PG', db_type: 'POSTGRESQL', active: true },
+        { id: 'ds-mysql', name: 'Prod MySQL', db_type: 'MYSQL', active: true },
+        { id: 'ds-off', name: 'Old PG', db_type: 'POSTGRESQL', active: false },
+      ]),
+    );
+    replayQueryMock.mockResolvedValue({
+      id: 'q-2',
+      status: 'PENDING_AI',
+      ai_analysis: null,
+      review_plan: null,
+      estimated_review_completion: null,
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const replayBtn = await screen.findByRole('button', {
+      name: /Replay in test environment/i,
+    });
+    await act(async () => {
+      fireEvent.click(replayBtn);
+    });
+
+    const dialog = await screen.findByRole('dialog');
+    const combo = within(dialog).getByRole('combobox');
+    await act(async () => {
+      fireEvent.mouseDown(combo);
+    });
+    const option = await screen.findByText('Test PG');
+    await act(async () => {
+      fireEvent.click(option);
+    });
+
+    const okBtn = screen.getAllByRole('button').find((b) => b.textContent === 'Replay')!;
+    await act(async () => {
+      fireEvent.click(okBtn);
+    });
+
+    await waitFor(() => {
+      expect(replayQueryMock).toHaveBeenCalledWith('q-1', 'ds-test');
+    });
+  });
+
+  it('shows an empty state when no eligible target datasource exists', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(executedQuery());
+    listDatasourcesMock.mockResolvedValue(
+      datasourcePage([
+        { id: 'ds-1', name: 'Prod PG', db_type: 'POSTGRESQL', active: true },
+        { id: 'ds-mysql', name: 'Prod MySQL', db_type: 'MYSQL', active: true },
+      ]),
+    );
+
+    render(wrap(<QueryDetailPage />));
+
+    const replayBtn = await screen.findByRole('button', {
+      name: /Replay in test environment/i,
+    });
+    await act(async () => {
+      fireEvent.click(replayBtn);
+    });
+
+    expect(
+      await screen.findByText(/No other active datasource of the same type/i),
+    ).toBeInTheDocument();
+    expect(replayQueryMock).not.toHaveBeenCalled();
+  });
+
+  it('does not show the replay button before the query has executed', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(
+      screen.queryByRole('button', { name: /Replay in test environment/i }),
+    ).toBeNull();
   });
 });

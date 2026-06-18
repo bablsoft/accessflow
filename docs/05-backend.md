@@ -832,6 +832,23 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 ---
 
+## Query snapshots & replay (AF-449)
+
+Executed queries are otherwise immutable, but there was no first-class way to take an approved/executed query and **replay its exact SQL against a test datasource** for debugging an approval or satisfying a compliance audit. The `workflow` module adds an immutable snapshot written on execution plus a replay endpoint that re-enters the full review workflow.
+
+**Snapshot on execution.** `QuerySnapshotListener` (`workflow/internal/`) is an `@ApplicationModuleListener` on `QueryExecutedEvent` — the same event the realtime dispatcher consumes. It fires only when `finalStatus = EXECUTED` (FAILED executions get no snapshot) and delegates to `DefaultQuerySnapshotService.recordOnExecution(queryRequestId)`, which writes one `query_snapshots` row (see [docs/03-data-model.md → query_snapshots](03-data-model.md)) capturing the exact `sql_text`, the source datasource's schema fingerprint (`SchemaHasher` → SHA-256, best-effort/null on introspection failure), the referenced tables (from `proxy.api.QueryParser`), the AI verdict, and the approval decisions (both read from `core.api.QueryRequestLookupService.findDetailById`). Because it is an `@ApplicationModuleListener` it runs in its own AFTER_COMMIT transaction, so the committed query / AI / decision rows are visible; the write is **idempotent** (`existsByQueryRequestId` guard + the `UNIQUE(query_request_id)` backstop) so a redelivered event is a no-op, and the service swallows its own failures so snapshot capture can never disrupt execution.
+
+> Event-durability caveat: the project uses the default **in-memory** Spring Modulith event registry (no `spring-modulith-events-jdbc`), so a process crash in the AFTER_COMMIT window loses that one snapshot — identical to the existing realtime-push exposure on the same event, and accepted for v1. Do not add the JDBC event store for snapshots alone: it would change the realtime listener's behaviour too.
+
+**Replay.** `POST /queries/{id}/replay?targetDatasourceId=…` (`QueryReplayController` → `DefaultQueryReplayService`) loads the snapshot (org-scoped; absent → `QuerySnapshotNotFoundException` → 404, which naturally rejects never-executed queries), resolves the target datasource (its own org-scoped not-found → 404, and enforces the caller's visibility/permission), then validates schema compatibility:
+
+- **Engine family** — the target's `db_type` must equal the snapshot's, else `ReplaySchemaIncompatibleException` (422).
+- **Referenced tables present** — a fresh introspection of the target must contain every table the query references (`ReplaySchemaMatcher`, normalising `schema.table`/bare `table`); missing tables → 422. The full schemas need not match (a test DB legitimately diverges) — only the referenced tables. If the target cannot be introspected the replay is **rejected fail-closed** (422) rather than skipping the check.
+
+It then re-submits through the existing `QuerySubmissionService.submit(...)` with the **caller** as submitter, the target datasource, the snapshot's SQL, `scheduledFor=null` (a stale schedule never re-arms), and `SubmissionReason.USER_SUBMITTED`. The new query enters the normal `PENDING_AI → review` pipeline — **approval is never bypassed**, and because the submitter is the replaying caller, `DefaultReviewService`'s self-approval guard still prevents them from approving their own replay. The controller records a `QUERY_SUBMITTED` audit row on the **new** query id with metadata `{ trigger: "replay", original_query_id, source_datasource_id, target_datasource_id, source_schema_hash, target_schema_hash }` — mirroring the `trigger=scheduled` convention so an auditor can both distinguish a replay and see whether the schema drifted. No new `AuditAction` or `SubmissionReason` enum value is introduced.
+
+---
+
 ## Query templates (AF-364)
 
 `workflow.api.QueryTemplateService` and its `Default*` implementation own the saved-snippets library exposed at `/api/v1/query-templates`. Templates are a pure save / load surface — submission still flows through `POST /api/v1/queries` unchanged. `:identifier` placeholders in the body are stored verbatim; the editor parses them and substitutes values on the client before submit, so there is no template-aware parameter binding on the backend.

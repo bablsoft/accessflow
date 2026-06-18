@@ -14,6 +14,7 @@ interface ProblemDetail {
   maxBytes?: number;
   referencedBy?: string[];
   existingDriverId?: string;
+  missing_tables?: string[];
 }
 
 export function apiErrorTraceId(err: unknown): string | undefined {
@@ -314,6 +315,32 @@ export function queryCancelErrorMessage(err: unknown): string {
   }
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.query_cancel_generic');
+}
+
+export function queryReplayErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'QUERY_SNAPSHOT_NOT_FOUND') {
+      return i18n.t('errors.query_snapshot_not_found');
+    }
+    if (code === 'REPLAY_SCHEMA_INCOMPATIBLE') {
+      const missing = body?.missing_tables;
+      if (missing && missing.length > 0) {
+        return i18n.t('errors.replay_schema_incompatible_tables', {
+          tables: missing.join(', '),
+        });
+      }
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.replay_schema_incompatible');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.query_replay_generic');
 }
 
 export function reviewPlanErrorMessage(err: unknown): string {

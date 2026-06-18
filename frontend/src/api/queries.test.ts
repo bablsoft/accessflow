@@ -96,6 +96,19 @@ describe('api/queries', () => {
     expect(result.rows_affected).toBe(42);
   });
 
+  it('replayQuery POSTs /api/v1/queries/{id}/replay with targetDatasourceId param', async () => {
+    post.mockResolvedValueOnce({
+      data: { id: 'q-2', status: 'PENDING_AI', ai_analysis: null, review_plan: null,
+        estimated_review_completion: null },
+    });
+    const result = await queriesApi.replayQuery('q-1', 'ds-test');
+    expect(post).toHaveBeenCalledWith('/api/v1/queries/q-1/replay', null, {
+      params: { targetDatasourceId: 'ds-test' },
+    });
+    expect(result.id).toBe('q-2');
+    expect(result.status).toBe('PENDING_AI');
+  });
+
   it('getQueryResults sends page+size query params', async () => {
     get.mockResolvedValueOnce({
       data: { columns: [], rows: [], row_count: 0, truncated: false, page: 1, size: 25 },

@@ -158,6 +158,7 @@
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts
 - **Saved-query version history & diffing** — every template save records an immutable version; view a side-by-side Git-style diff between any two revisions and restore a prior one, with history preserved (AF-442)
 - **Real-time collaborative query editing & co-authoring** — multiple authorized engineers co-edit a query that is in review (VS Code Live Share / Google Docs style): live presence, remote cursors, conflict-free CRDT merge (Yjs relayed over the existing `/ws`), and inline comment threads anchored to the SQL, persisted and audited. Edits re-enter the workflow through the normal submit path; the self-approval guard is unaffected (AF-441)
+- **Immutable query snapshots & replay** — every executed query writes a sanitized, exact-replay-capable snapshot (SQL + schema fingerprint + AI verdict + approval decisions). "Replay in test environment" re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never bypassing approval, and distinctly audited (`trigger=replay`) (AF-449)
 - **Compliance report export** — generate PDF/CSV compliance reports for SOC2, HIPAA, ISO 27001 audit evidence
 
 ---
