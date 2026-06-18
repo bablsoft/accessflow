@@ -17,6 +17,7 @@ import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
 import com.bablsoft.accessflow.notifications.events.UserNotificationCreatedEvent;
 import com.bablsoft.accessflow.realtime.internal.ws.SessionRegistry;
+import com.bablsoft.accessflow.workflow.events.QueryCommentChangedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
 import lombok.extern.slf4j.Slf4j;
@@ -241,6 +242,21 @@ class RealtimeEventDispatcher {
             var envelope = serialize("access_request.created", data);
             for (var reviewerId : recipients) {
                 sessionRegistry.sendToUser(reviewerId, envelope);
+            }
+        });
+    }
+
+    @ApplicationModuleListener
+    void onQueryCommentChanged(QueryCommentChangedEvent event) {
+        safe("collab.comment", event.queryRequestId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("query_id", event.queryRequestId().toString());
+            data.put("comment_id", event.commentId().toString());
+            data.put("change_type", event.changeType().name());
+            data.put("actor_id", event.actorId().toString());
+            var envelope = serialize("collab.comment", data);
+            for (var userId : event.recipientIds()) {
+                sessionRegistry.sendToUser(userId, envelope);
             }
         });
     }

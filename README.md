@@ -79,6 +79,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Built-in SQL editor** — CodeMirror 6 with dialect-aware highlighting, schema autocomplete from live introspection, SQL formatter, and inline AI hint markers.
 - **Schema exploration** — a searchable object tree (filter across schemas, tables, and columns), an entity-relationship diagram, and on-demand **sample-row previews** for any table that are row-level-security- and masking-aware, so masked columns never reveal raw values in the preview.
 - **Query templates library** — save frequently used queries (private or team-visible) with tags and `:placeholder` substitution, then load them straight into the editor and share them across the team. Every save records an immutable **version**, so you can review how a query evolved with a side-by-side Git-style diff and restore any prior revision.
+- **Real-time collaborative editing** — co-author a query that's in review with the submitter and reviewers (VS Code Live Share / Google Docs style): live presence, remote cursors, conflict-free CRDT merge over the existing `/ws`, and inline comment threads anchored to the SQL (persisted and audited). Edits re-enter the workflow through the normal submit path, so approval guarantees are never weakened.
 - **Query result diffing** — re-running the same query links the run to its previous execution and surfaces the delta in `rows_affected`, row count, and execution time, so reviewers can spot drift between repeated runs.
 - **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
 - **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
@@ -122,7 +123,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | Internal database | PostgreSQL 18 |
 | Migrations | Flyway |
 | Target databases | **SQL:** PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, ClickHouse via the declarative connector catalog (one-click driver install) — plus any JDBC-compatible engine via an admin-uploaded custom driver JAR. **NoSQL:** MongoDB, Couchbase, Redis, Apache Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, and Neo4j (native engine plugins, installed on demand) |
-| Frontend | React 19, Vite 8, TypeScript 6, Ant Design 6, CodeMirror 6 |
+| Frontend | React 19, Vite 8, TypeScript 6, Ant Design 6, CodeMirror 6, Yjs (collaborative editing) |
 | Server state | TanStack Query 5 |
 | Client state | Zustand 5 |
 | Cache & locks | Redis 8 (JWT refresh-token revocation, ShedLock locks for `@Scheduled` jobs) |

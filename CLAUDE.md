@@ -485,6 +485,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | CodeMirror + @codemirror/lang-sql | 6.x | SQL editor (PostgreSQL/MySQL dialects) |
 | @codemirror/lang-javascript + @codemirror/lang-json | 6.x | MongoDB query highlighting — shell (JS) and JSON-command modes |
 | @codemirror/merge | 6.x | Side-by-side Git-style diff for saved-query version history (AF-442) |
+| yjs + y-codemirror.next + y-protocols | 13.x / 0.3.x / 1.x | CRDT collaborative editing of a query in review — shared doc, remote cursors, awareness (AF-441) |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |

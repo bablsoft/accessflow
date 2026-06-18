@@ -310,7 +310,10 @@
     "routing_policy_generic": "Could not save the routing policy. Please try again.",
     "connector_not_found": "Connector not found.",
     "connector_install_failed": "Could not install the connector driver. Check connectivity and try again.",
-    "connector_generic": "Something went wrong with the connector. Please try again."
+    "connector_generic": "Something went wrong with the connector. Please try again.",
+    "collaboration_forbidden": "You can't collaborate on this query.",
+    "comment_not_found": "Comment not found.",
+    "collaboration_generic": "Something went wrong with the comment."
   },
   "editor": {
     "text_to_sql": {
@@ -554,7 +557,8 @@
       "matched_policy_body": "Policy \"{{name}}\" — {{reason}}",
       "matched_policy_deleted": "(deleted policy)",
       "matched_policy_no_reason": "no reason given",
-      "optimizations_title": "Optimization suggestions"
+      "optimizations_title": "Optimization suggestions",
+      "card_sql_collab": "SQL (collaborative)"
     }
   },
   "reviews": {
@@ -1984,6 +1988,10 @@
     "submission_reason": {
       "USER_SUBMITTED": "User submitted",
       "AI_SUGGESTION": "AI suggestion"
+    },
+    "comment_status": {
+      "OPEN": "Open",
+      "RESOLVED": "Resolved"
     }
   },
   "access": {
@@ -2069,5 +2077,26 @@
     "docs_link": "Documentation",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "collab": {
+    "present_one": "{{count}} person editing",
+    "present_other": "{{count}} people editing",
+    "presence_label_one": "{{count}} collaborator present",
+    "presence_label_other": "{{count}} collaborators present",
+    "comments_title": "Comments",
+    "add_comment": "Comment",
+    "add_comment_placeholder": "Add a comment…",
+    "comment_anchor": "Lines {{start}}–{{end}}",
+    "reply_placeholder": "Reply…",
+    "reply": "Reply",
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "no_comments": "No comments yet",
+    "select_lines_hint": "Select lines in the editor to anchor a comment",
+    "save_draft": "Save as draft",
+    "save_draft_tooltip": "Save the co-authored SQL as a new draft; it re-enters review",
+    "save_success": "Saved as draft {{id}}",
+    "denied_title": "Collaboration unavailable",
+    "denied_body": "You're not authorized to co-edit this query."
   }
 }

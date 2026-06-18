@@ -679,6 +679,35 @@ A unique index on `(query_request_id, reviewer_id, stage)` (Flyway V11) enforces
 
 ---
 
+## query_comments
+
+Inline collaboration comment threads anchored to a line range of a query's SQL while it is in a
+co-authorable state (AF-441, Flyway V86). A thread is a root comment (`parent_comment_id IS NULL`) plus
+replies pointing at the root. Owned by the `workflow` module; cross-aggregate references are bare UUIDs
+(no JPA relationship across the module boundary). The live co-editing buffer is an ephemeral Yjs CRDT
+relayed over `/ws` and is **not** stored here — only the durable discussion is.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | UUID FK → `query_requests` (`ON DELETE CASCADE`) |
+| `author_id` | UUID FK → `users` |
+| `parent_comment_id` | UUID nullable, self-FK (`ON DELETE CASCADE`) — root thread = null; replies point at the root |
+| `anchor_start_line` / `anchor_end_line` | INTEGER — 1-based line range of the anchored SQL. `CHECK (anchor_end_line >= anchor_start_line)`, `CHECK (anchor_start_line >= 1)` |
+| `anchor_snapshot` | TEXT nullable — the anchored SQL text at creation, so the thread stays meaningful after the buffer is resubmitted |
+| `body` | TEXT — the comment text |
+| `status` | ENUM `comment_status`: `OPEN` \| `RESOLVED` (meaningful only on the root) |
+| `resolved_by` | UUID nullable FK → `users` |
+| `resolved_at` | TIMESTAMPTZ nullable |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexes on `(query_request_id, status)` and `(query_request_id, parent_comment_id)`, plus a partial index
+on `(parent_comment_id) WHERE parent_comment_id IS NOT NULL`. Authorization (submitter / eligible reviewer
+/ admin) and audit (`QUERY_COMMENT_*` actions) live in the service layer.
+
+---
+
 ## access_grant_request
 
 Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-requests temporary, scoped access to a datasource; on final-stage approval the `access` module materialises a time-boxed `datasource_user_permissions` row and `AccessGrantExpiryJob` revokes it on expiry. Owned by the `access` module; cross-aggregate references are stored as bare UUIDs (no JPA relationship across the module boundary).
@@ -786,6 +815,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
+| `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
@@ -793,7 +823,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`.
 
 ---
 

@@ -6,9 +6,24 @@ export type WsEventName =
   | 'review.decision_made'
   | 'query.executed'
   | 'ai.analysis_complete'
-  | 'notification.created';
+  | 'notification.created'
+  | 'collab.joined'
+  | 'collab.presence'
+  | 'collab.sync'
+  | 'collab.awareness'
+  | 'collab.denied'
+  | 'collab.comment';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
+
+export type CommentChangeType = 'ADDED' | 'REPLIED' | 'RESOLVED' | 'REOPENED';
+
+/** A co-author present in a query's collaboration room (one row per user). */
+export interface CollabMember {
+  user_id: string;
+  display_name: string;
+  color: string;
+}
 
 export interface WsEventPayloadMap {
   'query.status_changed': {
@@ -44,6 +59,41 @@ export interface WsEventPayloadMap {
     query_id: string | null;
     created_at: string;
   };
+  // Acknowledgement sent only to the joining session. `seed` is true for the first joiner of a
+  // fresh room — that client seeds the shared document from the query's SQL.
+  'collab.joined': {
+    query_id: string;
+    seed: boolean;
+    self: CollabMember;
+    participants: CollabMember[];
+  };
+  // Roster change broadcast to the other members of a room.
+  'collab.presence': {
+    query_id: string;
+    participants: CollabMember[];
+  };
+  // Opaque, relayed Yjs document update (base64) from a peer.
+  'collab.sync': {
+    query_id: string;
+    from_user_id: string;
+    update: string;
+  };
+  // Opaque, relayed Yjs awareness update (base64) — cursors / selections / presence.
+  'collab.awareness': {
+    query_id: string;
+    from_user_id: string;
+    update: string;
+  };
+  'collab.denied': {
+    query_id: string;
+    reason: string;
+  };
+  'collab.comment': {
+    query_id: string;
+    comment_id: string;
+    change_type: CommentChangeType;
+    actor_id: string;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -52,6 +102,13 @@ export interface WsEnvelope<E extends WsEventName = WsEventName> {
   data: WsEventPayloadMap[E];
 }
 
+/** Frames the client sends back over /ws — the collaboration protocol. */
+export type CollabOutboundFrame =
+  | { type: 'collab.join'; query_id: string }
+  | { type: 'collab.leave'; query_id: string }
+  | { type: 'collab.sync'; query_id: string; update: string }
+  | { type: 'collab.awareness'; query_id: string; update: string };
+
 export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'query.status_changed',
   'review.new_request',
@@ -59,4 +116,10 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'query.executed',
   'ai.analysis_complete',
   'notification.created',
+  'collab.joined',
+  'collab.presence',
+  'collab.sync',
+  'collab.awareness',
+  'collab.denied',
+  'collab.comment',
 ];

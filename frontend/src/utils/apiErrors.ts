@@ -129,6 +129,25 @@ export function reviewErrorMessage(err: unknown): string {
   return i18n.t('errors.review_generic');
 }
 
+export function collaborationErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'COLLABORATION_FORBIDDEN') {
+      return i18n.t('errors.collaboration_forbidden');
+    }
+    if (code === 'QUERY_COMMENT_NOT_FOUND') {
+      return i18n.t('errors.comment_not_found');
+    }
+    if (body?.title) return body.title;
+    if (body?.detail) return body.detail;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.collaboration_generic');
+}
+
 export function adminErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

@@ -887,6 +887,55 @@ Synchronous.
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
 | `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft query in the datasource engine's native language (text-to-query; SQL, MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
+| `GET` | `/queries/{id}/comments` | List the inline collaboration comment threads on a query (AF-441) |
+| `POST` | `/queries/{id}/comments` | Open a new comment thread anchored to a line range of the query's SQL |
+| `POST` | `/queries/{id}/comments/{commentId}/replies` | Reply to a comment thread |
+| `POST` | `/queries/{id}/comments/{commentId}/resolve` | Resolve a comment thread |
+| `POST` | `/queries/{id}/comments/{commentId}/reopen` | Reopen a resolved comment thread |
+
+### Query comment endpoints (AF-441)
+
+Inline comments are anchored to a 1-based line range of a query's SQL while the query is in a
+co-authorable state (`PENDING_REVIEW`). Only the submitter, an eligible reviewer, or an admin may read
+or write them; others receive `403 COLLABORATION_FORBIDDEN`. An unknown/out-of-organization query is
+`404`; an unknown comment is `404 QUERY_COMMENT_NOT_FOUND`. Every mutation is audited
+(`QUERY_COMMENT_ADDED` / `…_REPLIED` / `…_RESOLVED` / `…_REOPENED`) and broadcasts a `collab.comment`
+WebSocket event to the query's collaborators.
+
+`POST /queries/{id}/comments` request body:
+
+```json
+{
+  "anchor_start_line": 2,
+  "anchor_end_line": 4,
+  "anchor_snapshot": "UPDATE orders SET status = 'shipped'",
+  "body": "This needs a WHERE clause before it can be approved."
+}
+```
+
+Validation: `body` is required, ≤ 4000 chars; `anchor_start_line` / `anchor_end_line` are required and
+≥ 1. A reply body uses the same `{ "body": "…" }` shape. Resolve/reopen take no body and are idempotent
+(resolving an already-resolved thread returns it unchanged). The single-comment response shape:
+
+```json
+{
+  "id": "uuid",
+  "query_request_id": "uuid",
+  "parent_comment_id": null,
+  "author": { "id": "uuid", "display_name": "Ann Analyst", "email": "ann@example.com" },
+  "anchor_start_line": 2,
+  "anchor_end_line": 4,
+  "anchor_snapshot": "UPDATE orders SET status = 'shipped'",
+  "body": "This needs a WHERE clause before it can be approved.",
+  "status": "OPEN",
+  "resolved_by": null,
+  "resolved_at": null,
+  "created_at": "2026-06-17T10:00:00Z",
+  "updated_at": "2026-06-17T10:00:00Z"
+}
+```
+
+`GET /queries/{id}/comments` returns an array of threads, each `{ "root": <comment>, "replies": [<comment>…] }`.
 
 ### POST /queries — Request Body
 
@@ -3489,6 +3538,34 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
 | `access_request.created` | New JIT access request needs a reviewer's decision | `access_request_id`, `requester_id` |
 | `access_request.status_changed` | Access request changed status (approved/rejected/expired/revoked/cancelled) — pushed to the requester | `access_request_id`, `old_status`, `new_status` |
+| `collab.joined` | Acknowledges this session's `collab.join`; only the joiner receives it. `seed=true` for the first joiner of a fresh room (it seeds the shared document from the query's SQL). | `query_id`, `seed`, `self{user_id,display_name,color}`, `participants[]` |
+| `collab.presence` | A query's collaboration room roster changed (someone joined/left) — sent to the other members | `query_id`, `participants[]` |
+| `collab.sync` | Relayed, opaque Yjs document update (base64) from a co-author | `query_id`, `from_user_id`, `update` |
+| `collab.awareness` | Relayed, opaque Yjs awareness update (base64) — remote cursors/selections | `query_id`, `from_user_id`, `update` |
+| `collab.denied` | A `collab.join` was rejected (not an authorized co-author, or the query is not in a co-authorable state) | `query_id`, `reason` |
+| `collab.comment` | An inline comment thread on a query changed (created/replied/resolved/reopened) — clients refetch | `query_id`, `comment_id`, `change_type`, `actor_id` |
+
+### Collaboration protocol (bidirectional — AF-441)
+
+For real-time collaborative editing of a query that is in review, the `/ws` channel is **bidirectional**:
+the client also sends frames. The backend is an **opaque relay** — it never parses the Yjs payload; it
+authorizes the join (submitter, an eligible reviewer, or admin, while the query is co-authorable) and
+forwards document/awareness updates to the other members of that query's room. Co-editing convergence
+(conflict-free merge) is a client-side Yjs CRDT; the keystroke stream is **not persisted**. Committing the
+co-authored SQL goes through the existing `POST /api/v1/queries` submit path (re-entering the workflow),
+never a silent mutation of the query under review.
+
+**Inbound client frames** (JSON, keyed by `type`):
+
+| Frame | Fields | Meaning |
+|-------|--------|---------|
+| `collab.join` | `query_id` | Join the query's collaboration room (authorized server-side). |
+| `collab.leave` | `query_id` | Leave the room. |
+| `collab.sync` | `query_id`, `update` | A base64 Yjs document update to relay to peers. |
+| `collab.awareness` | `query_id`, `update` | A base64 Yjs awareness update (cursor/selection) to relay. |
+
+> Rooms are per-node (in-memory), matching the existing realtime fan-out model — see
+> [docs/05-backend.md → "Real-time collaboration relay"](05-backend.md).
 
 ### WebSocket Message Format
 

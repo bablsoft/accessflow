@@ -2,12 +2,20 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
   OPTIMIZATION_TYPES,
+  commentStatusLabel,
   optimizationTypeLabel,
   queryTemplateChangeLabel,
   submissionReasonLabel,
 } from './enumLabels';
 
 const t = ((key: string) => key) as unknown as TFunction;
+
+describe('commentStatusLabel', () => {
+  it('maps each comment status to its enum translation key', () => {
+    expect(commentStatusLabel(t, 'OPEN')).toBe('enums.comment_status.OPEN');
+    expect(commentStatusLabel(t, 'RESOLVED')).toBe('enums.comment_status.RESOLVED');
+  });
+});
 
 describe('queryTemplateChangeLabel', () => {
   it('maps each change type to its enum translation key', () => {

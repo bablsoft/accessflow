@@ -4,6 +4,7 @@ import {
   adminErrorMessage,
   apiErrorTraceId,
   authErrorMessage,
+  collaborationErrorMessage,
   connectorErrorMessage,
   customDriverErrorMessage,
   datasourceCreateErrorMessage,
@@ -29,6 +30,31 @@ const buildAxiosError = (status: number, data: unknown): AxiosError => {
   const err = new AxiosError('Request failed', undefined, undefined, undefined, response);
   return err;
 };
+
+describe('collaborationErrorMessage', () => {
+  it('maps COLLABORATION_FORBIDDEN to the forbidden message', () => {
+    expect(collaborationErrorMessage(buildAxiosError(403, { error: 'COLLABORATION_FORBIDDEN' })))
+      .toBe("You can't collaborate on this query.");
+  });
+
+  it('maps QUERY_COMMENT_NOT_FOUND to the not-found message', () => {
+    expect(collaborationErrorMessage(buildAxiosError(404, { error: 'QUERY_COMMENT_NOT_FOUND' })))
+      .toBe('Comment not found.');
+  });
+
+  it('falls back to the problem title when present', () => {
+    expect(collaborationErrorMessage(buildAxiosError(400, { title: 'Bad input' })))
+      .toBe('Bad input');
+  });
+
+  it('returns the generic message for a non-axios error without a message', () => {
+    expect(collaborationErrorMessage(new Error(''))).toBe('Something went wrong with the comment.');
+  });
+
+  it('uses an Error message when available', () => {
+    expect(collaborationErrorMessage(new Error('boom'))).toBe('boom');
+  });
+});
 
 describe('authErrorMessage', () => {
   it('returns the canonical message on 401', () => {
