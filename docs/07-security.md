@@ -215,32 +215,41 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 
 ## Authorization — Role Matrix
 
-| Capability | READONLY | ANALYST | REVIEWER | ADMIN |
-|-----------|----------|---------|----------|-------|
-| Submit SELECT queries | ✓ | ✓ | ✓ | ✓ |
-| Submit DML queries (INSERT/UPDATE/DELETE) | — | ✓ | ✓ | ✓ |
-| Submit DDL queries | — | — | — | ✓ |
-| View own query history | ✓ | ✓ | ✓ | ✓ |
-| View all query history | — | — | ✓ | ✓ |
-| Approve / reject queries | — | — | ✓ | ✓ |
-| Approve own submitted queries | — | — | — | — |
-| Request time-bound datasource access (AF-378) | ✓ | ✓ | ✓ | ✓ |
-| Review / approve / reject access requests | — | — | ✓ | ✓ |
-| Approve own access request | — | — | — | — |
-| Early-revoke an active grant | — | — | — | ✓ |
-| View AI analysis results | ✓ | ✓ | ✓ | ✓ |
-| Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ |
-| Create / edit datasources | — | — | — | ✓ |
-| Manage user permissions | — | — | — | ✓ |
-| Create / edit review plans | — | — | — | ✓ |
-| View audit log | — | — | — | ✓ |
-| Manage notification channels | — | — | — | ✓ |
-| Configure AI provider | — | — | — | ✓ |
-| Manage users (create/deactivate) | — | — | — | ✓ |
-| Configure SAML | — | — | — | ✓ |
-| Configure OAuth providers | — | — | — | ✓ |
+| Capability | READONLY | ANALYST | REVIEWER | ADMIN | AUDITOR |
+|-----------|----------|---------|----------|-------|---------|
+| Submit SELECT queries | ✓ | ✓ | ✓ | ✓ | — |
+| Submit DML queries (INSERT/UPDATE/DELETE) | — | ✓ | ✓ | ✓ | — |
+| Submit DDL queries | — | — | — | ✓ | — |
+| View own query history | ✓ | ✓ | ✓ | ✓ | — |
+| View all query history | — | — | ✓ | ✓ | — |
+| Approve / reject queries | — | — | ✓ | ✓ | — |
+| Approve own submitted queries | — | — | — | — | — |
+| Request time-bound datasource access (AF-378) | ✓ | ✓ | ✓ | ✓ | — |
+| Review / approve / reject access requests | — | — | ✓ | ✓ | — |
+| Approve own access request | — | — | — | — | — |
+| Early-revoke an active grant | — | — | — | ✓ | — |
+| View AI analysis results | ✓ | ✓ | ✓ | ✓ | — |
+| Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ | — |
+| Create / edit datasources | — | — | — | ✓ | — |
+| Manage user permissions | — | — | — | ✓ | — |
+| Create / edit review plans | — | — | — | ✓ | — |
+| View audit log | — | — | — | ✓ | — |
+| Manage notification channels | — | — | — | ✓ | — |
+| Configure AI provider | — | — | — | ✓ | — |
+| Manage users (create/deactivate) | — | — | — | ✓ | — |
+| Configure SAML | — | — | — | ✓ | — |
+| Configure OAuth providers | — | — | — | ✓ | — |
+| View compliance reports (`/admin/compliance/*`, AF-459) | — | — | — | ✓ | ✓ |
+| Export signed compliance reports (PDF/CSV) | — | — | — | ✓ | ✓ |
 
 **Key rule:** A user can never approve their own query request, regardless of role.
+
+**AUDITOR (AF-459)** is a dedicated **read-only compliance role**. It is granted *only* the
+compliance-reporting endpoints (`/api/v1/admin/compliance/*`, gated `hasAnyRole('AUDITOR','ADMIN')`)
+and the auditor dashboard (`/admin/auditor`); it has no datasource permissions, so it cannot submit
+queries, and it cannot reach any other admin surface. Its frontend home redirect is `/admin/auditor`
+(not `/editor`). The role maps to the Spring Security authority `ROLE_AUDITOR` like every other
+`user_role_type` value — no special-casing in `JwtAuthorities`.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
@@ -522,6 +531,15 @@ Implemented today:
 Deferred (tracked as separate GitHub issues):
 
 - Exporting hashes in `GET /admin/audit-log` row responses (the verifier is the canonical tamper-detection surface today).
+
+### Compliance reporting & signed exports (AF-459)
+
+The `compliance` module produces pre-built compliance reports and signed exports for audit evidence. It is read-only and gated to the `AUDITOR` (and `ADMIN`) role.
+
+- **Reports are computed from the immutable `query_snapshots` forensic record** (AF-449) — never from live, mutable query rows — so a report reflects exactly what executed. Two reports: **classified-data access** (executed queries joined to `data_classification_tag` by datasource + table name, surfacing which queries touched PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE objects) and a **regulatory audit trail** of DDL/DELETE operations whose approver names are read from the snapshot's embedded review-decision JSON (forensically correct as of execution time).
+- **Digital signature.** `GET /api/v1/admin/compliance/reports/export?type=…&format=PDF|CSV` renders the report and returns a **detached RSA signature** (`SHA256withRSA`) over the exact delivered bytes, reusing the deployment's JWT RS256 key pair (`security.api.ExportSignatureService`) — no new secret. The signature, its algorithm, and the content SHA-256 are returned as response headers (`X-AccessFlow-Signature`, `X-AccessFlow-Signature-Algorithm`, `X-AccessFlow-Content-SHA256`). `GET /api/v1/admin/compliance/signing-certificate` publishes the PEM public key so an auditor verifies offline: `openssl dgst -sha256 -verify key.pem -signature sig.bin report.pdf`.
+- **Hash chained into the audit log.** Every export records a `COMPLIANCE_REPORT_EXPORTED` audit entry (`resource_type=compliance_report`) whose `metadata.content_sha256` and `metadata.signature` capture the exported bytes — so the export's hash is embedded in the tamper-evident HMAC chain and is itself detectable against later edits via the audit verifier. This audit write is **integrity-critical: if it fails, the export fails** (it is not swallowed, unlike the best-effort audit-CSV meta-audit).
+- **No new persisted data.** Reports reuse `query_snapshots` (V89) + `data_classification_tag` (V90, whose `idx_dct_org` index was added for this org-wide scan); the only schema change is the `AUDITOR` value added to the `user_role_type` enum (V91).
 
 ---
 

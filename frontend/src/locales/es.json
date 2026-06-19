@@ -64,7 +64,8 @@
     "access_requests": "Solicitudes de acceso",
     "routing_policies": "Políticas de enrutamiento",
     "langfuse": "Langfuse",
-    "connectors": "Conectores"
+    "connectors": "Conectores",
+    "auditor": "Informes de cumplimiento"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -2001,7 +2002,8 @@
       "ADMIN": "Administrador",
       "REVIEWER": "Revisor",
       "ANALYST": "Analista",
-      "READONLY": "Solo lectura"
+      "READONLY": "Solo lectura",
+      "AUDITOR": "Auditor"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",
@@ -2259,5 +2261,29 @@
     "save_success": "Guardado como borrador {{id}}",
     "denied_title": "Colaboración no disponible",
     "denied_body": "No tienes autorización para coeditar esta consulta."
+  },
+  "auditor": {
+    "title": "Informes de cumplimiento",
+    "subtitle": "Informes firmados y a prueba de manipulaciones sobre consultas ejecutadas",
+    "tab_classified_access": "Acceso a datos clasificados",
+    "tab_regulatory_trail": "Rastro de auditoría regulatoria",
+    "period": "Período del informe",
+    "export_pdf": "Exportar PDF firmado",
+    "export_csv": "Exportar CSV",
+    "export_signed": "Exportación firmada ({{algorithm}}) y registrada en el registro de auditoría",
+    "export_truncated": "Los resultados se truncaron en el límite de filas; la exportación está incompleta",
+    "export_failed": "La exportación falló",
+    "report_truncated": "Los resultados se truncaron en el límite de filas configurado",
+    "empty_title": "Sin actividad coincidente",
+    "empty_description": "Ninguna consulta ejecutada coincide con este informe para el período seleccionado.",
+    "col_executed_at": "Ejecutado el",
+    "col_datasource": "Fuente de datos",
+    "col_submitter": "Remitente",
+    "col_query_type": "Tipo",
+    "col_referenced_tables": "Tablas referenciadas",
+    "col_classifications": "Clasificaciones",
+    "col_rows_affected": "Filas",
+    "col_sql": "SQL",
+    "col_approvers": "Aprobadores"
   }
 }

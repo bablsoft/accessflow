@@ -64,7 +64,8 @@
     "access_requests": "Demandes d'accès",
     "routing_policies": "Politiques de routage",
     "langfuse": "Langfuse",
-    "connectors": "Connecteurs"
+    "connectors": "Connecteurs",
+    "auditor": "Rapports de conformité"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2001,7 +2002,8 @@
       "ADMIN": "Administrateur",
       "REVIEWER": "Réviseur",
       "ANALYST": "Analyste",
-      "READONLY": "Lecture seule"
+      "READONLY": "Lecture seule",
+      "AUDITOR": "Auditeur"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",
@@ -2259,5 +2261,29 @@
     "save_success": "Enregistré comme brouillon {{id}}",
     "denied_title": "Collaboration indisponible",
     "denied_body": "Vous n'êtes pas autorisé à coéditer cette requête."
+  },
+  "auditor": {
+    "title": "Rapports de conformité",
+    "subtitle": "Rapports signés et infalsifiables sur les requêtes exécutées",
+    "tab_classified_access": "Accès aux données classifiées",
+    "tab_regulatory_trail": "Piste d'audit réglementaire",
+    "period": "Période du rapport",
+    "export_pdf": "Exporter le PDF signé",
+    "export_csv": "Exporter le CSV",
+    "export_signed": "Export signé ({{algorithm}}) et enregistré dans le journal d'audit",
+    "export_truncated": "Les résultats ont été tronqués à la limite de lignes ; l'export est incomplet",
+    "export_failed": "Échec de l'export",
+    "report_truncated": "Les résultats ont été tronqués à la limite de lignes configurée",
+    "empty_title": "Aucune activité correspondante",
+    "empty_description": "Aucune requête exécutée ne correspond à ce rapport pour la période sélectionnée.",
+    "col_executed_at": "Exécuté le",
+    "col_datasource": "Source de données",
+    "col_submitter": "Demandeur",
+    "col_query_type": "Type",
+    "col_referenced_tables": "Tables référencées",
+    "col_classifications": "Classifications",
+    "col_rows_affected": "Lignes",
+    "col_sql": "SQL",
+    "col_approvers": "Approbateurs"
   }
 }

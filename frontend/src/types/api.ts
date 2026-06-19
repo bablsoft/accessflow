@@ -1,4 +1,4 @@
-export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN';
+export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN' | 'AUDITOR';
 export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2';
 export type OAuth2Provider =
   | 'GOOGLE'
@@ -1360,6 +1360,67 @@ export interface OrganizationDataClassification {
   note: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// --- AF-459: compliance reporting ---
+
+export type ComplianceReportType = 'CLASSIFIED_ACCESS' | 'REGULATORY_AUDIT_TRAIL';
+export type ComplianceReportFormat = 'PDF' | 'CSV';
+
+export interface MatchedClassification {
+  table_name: string;
+  column_name: string | null;
+  classification: DataClassification;
+}
+
+export interface ClassifiedAccessRow {
+  query_request_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  submitted_by: string;
+  submitter_email: string | null;
+  query_type: QueryType;
+  referenced_tables: string[];
+  matched: MatchedClassification[];
+  rows_affected: number | null;
+  executed_at: string;
+}
+
+export interface ComplianceApprover {
+  email: string | null;
+  display_name: string | null;
+  decision: string;
+  decided_at: string | null;
+}
+
+export interface RegulatoryAuditTrailRow {
+  query_request_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  submitted_by: string;
+  submitter_email: string | null;
+  query_type: QueryType;
+  sql_text: string;
+  approvers: ComplianceApprover[];
+  executed_at: string;
+}
+
+export interface ComplianceReport {
+  type: ComplianceReportType;
+  organization_id: string;
+  period_from: string;
+  period_to: string;
+  generated_at: string;
+  datasource_id: string | null;
+  classified_access: ClassifiedAccessRow[];
+  audit_trail: RegulatoryAuditTrailRow[];
+  row_count: number;
+  truncated: boolean;
+}
+
+export interface ComplianceSigningCertificate {
+  algorithm: string;
+  public_key_pem: string;
 }
 
 export interface NotificationChannelEmailConfig {

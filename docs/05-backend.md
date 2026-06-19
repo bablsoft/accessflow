@@ -15,6 +15,7 @@ accessflow/
 ├── accessflow-notifications/     # Email (JavaMail), Slack, Webhook, Discord, Telegram, MS Teams, PagerDuty dispatchers
 ├── accessflow-realtime/          # WebSocket fanout of domain events to connected frontend clients
 ├── accessflow-audit/             # Audit log service, Spring application event publishers
+├── accessflow-compliance/        # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459)
 ├── accessflow-mcp/               # Spring AI stateless MCP server — @Tool callbacks for AI agents
 └── accessflow-app/               # Spring Boot main application, Docker entrypoint
 ```
@@ -688,6 +689,41 @@ REST surface lives in the `security` module (`DataClassificationTagController`,
   SENSITIVE +10, clamped to 100) to the score, and recomputes the risk level by quartile thresholds —
   the level can only rise, never drop below the LLM's verdict. The boosted score/level is what persists
   and drives the workflow router.
+
+### Compliance reporting (AF-459)
+
+The `compliance` module produces pre-built compliance reports and signed exports. It is a thin,
+read-only module that depends only on other modules' `api` packages — `workflow.api` (snapshot period
+query), `core.api` (`DataClassificationAdminService`, `DatasourceAdminService`, `UserAdminService`),
+`audit.api` (`AuditLogService.record` + the new `COMPLIANCE_REPORT_EXPORTED` / `compliance_report`
+enum values), and `security.api` (`ExportSignatureService`). Nothing depends back on `compliance`, so it
+introduces no module cycle. (It cannot live in `audit`: `workflow` already depends on `audit.api`, so an
+`audit → workflow.api` edge would cycle — hence a separate module.)
+
+- **Data source = immutable snapshots.** Both reports run over `query_snapshots` (AF-449), not live
+  query rows, so a report is a stable forensic record of what executed. `QuerySnapshotService.findForPeriod`
+  (`workflow.api`, new) returns snapshots in `[from, to)` on `executed_at`, optionally scoped to a
+  datasource and a `QueryType` set, capped at `accessflow.compliance.max-rows`+1 so the service can flag
+  truncation. `DefaultComplianceReportService` (`compliance.internal`) validates the period
+  (`InvalidReportPeriodException` → 400 `INVALID_REPORT_PERIOD` when missing/inverted/over
+  `max-report-period`) and dispatches by `ComplianceReportType`.
+- **Classified-access report.** `ClassificationJoiner` joins each snapshot's `referenced_tables` against
+  `DataClassificationAdminService.listForOrganization(orgId)` keyed by datasource. `TableNameNormalizer`
+  folds both sides (lowercase, strip quotes) and matches a schema-qualified name against a bare tag
+  (and vice-versa) while never matching across different schemas. Snapshots with no classified match are
+  dropped. Submitter emails are batch-resolved via `UserAdminService.findByIds`.
+- **Regulatory audit-trail report.** Snapshots with `query_type ∈ {DDL, DELETE}`; approver names are
+  parsed from the snapshot's embedded `review_decisions` JSON by `ReviewDecisionsParser` (tolerant —
+  malformed JSON yields no approvers, never throws; JSON parsing stays in `internal`, never in `api`).
+- **Signed export + audit chaining.** `DefaultComplianceExportService` renders the report
+  (`CompliancePdfWriter` via Apache PDFBox, or `ComplianceCsvWriter` — its own RFC-4180 copy, since
+  `audit.internal.CsvWriter` can't cross the module boundary), computes the SHA-256, signs the exact
+  bytes with `ExportSignatureService` (`SHA256withRSA` over the JWT RS256 key pair), then records a
+  `COMPLIANCE_REPORT_EXPORTED` audit row carrying the hash + signature. That audit write is
+  **integrity-critical and propagates on failure** (the export fails) — deliberately unlike the audit
+  module's best-effort `AUDIT_LOG_EXPORTED` meta-audit. The controller
+  (`/api/v1/admin/compliance/*`, `hasAnyRole('AUDITOR','ADMIN')`) sets the signature / algorithm /
+  content-hash response headers and exposes the verification public key at `GET /signing-certificate`.
 
 ---
 

@@ -85,6 +85,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Query result diffing** — re-running the same query links the run to its previous execution and surfaces the delta in `rows_affected`, row count, and execution time, so reviewers can spot drift between repeated runs.
 - **Immutable query snapshots & replay** — every executed query writes a sanitized, exact-replay-capable snapshot (SQL, schema fingerprint, AI verdict, approval decisions). A **Replay in test environment** action re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never skipping approval, and distinctly audited (`trigger=replay`).
 - **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
+- **Compliance reporting** — pre-built reports over a period for audit evidence: a **classified-data-access** report (which executed queries touched PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE objects) and a **regulatory audit trail** of DDL/DELETE operations with approver names, computed from the immutable query snapshots. Reports export as **digitally signed** PDF/CSV (verifiable offline with the published public key) whose hash is chained into the tamper-evident audit log. A dedicated read-only **Auditor** role exposes the auditor dashboard.
 - **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
 - **Notifications** — Email (SMTP), Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and HMAC-signed outbound webhooks with retry policy.
 - **Slack approve/reject** — a configured Slack app adds **Approve** / **Reject** buttons to review-request messages; the decision runs through the same self-approval and RBAC guards as the REST API (HMAC-verified Interactive Components).
@@ -112,6 +113,7 @@ AccessFlow is a single Spring Boot 4 application organized as Spring Modulith mo
 - **AI Analyzer** — Spring AI–backed adapters resolved per organization from the `ai_config` row.
 - **Notifications** — async dispatcher fanning events to Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and outbound webhooks.
 - **Audit** — INSERT-only, HMAC-chained record of every domain event.
+- **Compliance** — pre-built compliance reports and signed PDF/CSV exports over the immutable query snapshots, gated to the read-only Auditor role.
 - **Realtime** — WebSocket fan-out for the React SPA.
 
 For the full request flow, technology stack table, and component-level diagrams, see [`docs/02-architecture.md`](https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md).
@@ -235,6 +237,7 @@ accessflow/
 │   │   ├── security/         # JWT, Spring Security filters, SAML 2.0 SSO
 │   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty dispatchers
 │   │   ├── audit/            # INSERT-only, HMAC-chained audit log
+│   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
 ├── engines/          # On-demand engine plugins — engines/mongodb/, engines/couchbase/, engines/redis/, engines/cassandra/, engines/elasticsearch/, engines/dynamodb/ (shaded QueryEngine SPI jars)

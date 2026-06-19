@@ -141,6 +141,77 @@ class QuerySnapshotRepositoryIntegrationTest {
         assertThat(snapshotRepository.findByQueryRequestId(query.getId())).isEmpty();
     }
 
+    @Test
+    void findForPeriodFiltersByWindowDatasourceAndType() {
+        var apr = Instant.parse("2026-04-15T10:00:00Z");
+        var may = Instant.parse("2026-05-20T10:00:00Z");
+        var jul = Instant.parse("2026-07-10T10:00:00Z");
+        saveSnapshot(QueryType.SELECT, apr, datasource);
+        saveSnapshot(QueryType.DELETE, may, datasource);
+        var otherDs = datasourceRepository.save(newDatasource());
+        saveSnapshot(QueryType.DDL, may, otherDs);
+        saveSnapshot(QueryType.SELECT, jul, datasource); // out of window
+
+        var from = Instant.parse("2026-04-01T00:00:00Z");
+        var to = Instant.parse("2026-07-01T00:00:00Z");
+        var page = org.springframework.data.domain.PageRequest.of(0, 100);
+
+        // Whole window, all datasources, all types
+        var all = snapshotRepository.findForPeriod(organization.getId(), from, to, null, page);
+        assertThat(all).hasSize(3);
+        assertThat(all).isSortedAccordingTo((a, b) -> a.getExecutedAt().compareTo(b.getExecutedAt()));
+
+        // Restricted to the primary datasource
+        var primaryOnly = snapshotRepository.findForPeriod(organization.getId(), from, to, datasource.getId(), page);
+        assertThat(primaryOnly).hasSize(2);
+
+        // Restricted to DDL/DELETE types
+        var writes = snapshotRepository.findForPeriodByType(organization.getId(), from, to, null,
+                java.util.Set.of(QueryType.DDL, QueryType.DELETE), page);
+        assertThat(writes).hasSize(2);
+        assertThat(writes).allMatch(s -> s.getQueryType() == QueryType.DDL || s.getQueryType() == QueryType.DELETE);
+    }
+
+    @Test
+    void findForPeriodRespectsPageSizeCap() {
+        var t = Instant.parse("2026-05-01T10:00:00Z");
+        saveSnapshot(QueryType.SELECT, t, datasource);
+        saveSnapshot(QueryType.SELECT, t.plusSeconds(1), datasource);
+        saveSnapshot(QueryType.SELECT, t.plusSeconds(2), datasource);
+
+        var from = Instant.parse("2026-04-01T00:00:00Z");
+        var to = Instant.parse("2026-06-01T00:00:00Z");
+        var capped = snapshotRepository.findForPeriod(organization.getId(), from, to, null,
+                org.springframework.data.domain.PageRequest.of(0, 2));
+
+        assertThat(capped).hasSize(2);
+    }
+
+    private void saveSnapshot(QueryType type, Instant executedAt, DatasourceEntity ds) {
+        var q = new QueryRequestEntity();
+        q.setId(UUID.randomUUID());
+        q.setDatasource(ds);
+        q.setSubmittedBy(submitter);
+        q.setSqlText("SELECT 1");
+        q.setQueryType(type);
+        q.setStatus(QueryStatus.EXECUTED);
+        queryRequestRepository.save(q);
+
+        var snapshot = new QuerySnapshotEntity();
+        snapshot.setId(UUID.randomUUID());
+        snapshot.setQueryRequestId(q.getId());
+        snapshot.setOrganizationId(organization.getId());
+        snapshot.setDatasourceId(ds.getId());
+        snapshot.setSubmittedBy(submitter.getId());
+        snapshot.setSqlText("SELECT 1");
+        snapshot.setQueryType(type);
+        snapshot.setDbType(DbType.POSTGRESQL);
+        snapshot.setReferencedTables(new String[0]);
+        snapshot.setReviewDecisionsJson("[]");
+        snapshot.setExecutedAt(executedAt);
+        snapshotRepository.save(snapshot);
+    }
+
     private QuerySnapshotEntity newSnapshot() {
         var snapshot = new QuerySnapshotEntity();
         snapshot.setId(UUID.randomUUID());

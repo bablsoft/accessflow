@@ -91,7 +91,7 @@ class SamlAttributeMapperTest {
     void fallsBackToDefaultRoleWhenAssertedRoleNotInEnum() {
         var principal = principal("grace", Map.of(
                 "email", List.of("grace@example.com"),
-                "role", List.of("AUDITOR")));
+                "role", List.of("SUPERUSER")));
         var config = config("email", "displayName", "role", UserRoleType.ANALYST);
 
         var mapped = SamlAttributeMapper.map(principal, config);

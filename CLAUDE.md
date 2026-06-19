@@ -92,6 +92,9 @@ com.bablsoft.accessflow/
 ├── audit/          # Audit log service, ApplicationEvent consumers
 │   ├── api/
 │   └── internal/
+├── compliance/     # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459)
+│   ├── api/
+│   └── internal/
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -269,6 +272,8 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL` | ISO-8601 duration. TTL of the one-time Slack account-link code issued for the `/accessflow link <code>` slash-command flow, stored single-use in Redis (default `PT10M`). |
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE` | ISO-8601 duration. Acceptance window for the inbound Slack `X-Slack-Signature` HMAC (`X-Slack-Request-Timestamp` skew) on `/api/v1/integrations/slack/{actions,commands}`; also the Redis replay-dedup window (default `PT5M`). |
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |
+| `ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD` | ISO-8601 duration. Largest period a single compliance report (AF-459) may span; a longer window is rejected `400 INVALID_REPORT_PERIOD` (default `P366D`). |
+| `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Hard cap on executed-query snapshots scanned by a single compliance report / signed export; beyond it the report sets `truncated=true` (default `50000`). Export signing reuses `JWT_PRIVATE_KEY` — no separate signing key. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | ISO-8601 duration. TTL of self-service password-reset tokens issued by `POST /api/v1/auth/password/forgot` (default `PT1H`). Tokens are single-use. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Base URL embedded in password-reset emails (default `http://localhost:5173`). The emailed link is `{base}/reset-password/{token}`. |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |

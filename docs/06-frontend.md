@@ -289,6 +289,12 @@ immediately.
 - Row click opens `AuditDetailDrawer` with full metadata JSON
 - **Verify chain** button in the page header calls `GET /api/v1/admin/audit-log/verify` and renders an inline dismissible alert with the outcome (`Chain valid` + rows-checked count on success; `Chain invalid` with `first_bad_row_id` / `first_bad_reason` when tampering is detected)
 
+### AuditorDashboardPage *(AUDITOR or ADMIN)* — AF-459
+
+The compliance-reporting dashboard at `/admin/auditor` (lazy-loaded). A `Segmented` control switches between the **Classified data access** and **Regulatory audit trail** reports; an AntD `RangePicker` sets the period (defaults to the last 90 days). Data is fetched with TanStack Query (`api/compliance.ts`, key `complianceKeys.report(type, params)`); results render in a `Table` with a `Skeleton` while loading and an `EmptyState` when no rows match. Two header buttons export the current report as a **signed PDF** or **CSV** (`exportComplianceReport`) — the download is triggered from the response blob, and the returned signature / SHA-256 are surfaced via a success toast (with a truncation warning when the row cap was hit).
+
+The `AUDITOR` role is read-only and has no editor access, so `homePathForRole` (`utils/homePath.ts`) sends an auditor's home/`*` redirects to `/admin/auditor` instead of `/editor`, and `AuthGuard` bounces a role-mismatch to that same role-aware home rather than always `/editor`.
+
 ### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
 
 A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: returns `null` unless the current user is an `ADMIN` and every step is either configured server-side or skipped client-side. Non-admins and tenants that have finished onboarding never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`).
@@ -599,6 +605,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/groups                       → GroupsListPage (lazy; user groups — AF-353)
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
+/admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor + RAG section)
 /admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt + RAG knowledge base)

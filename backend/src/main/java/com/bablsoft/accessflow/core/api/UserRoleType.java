@@ -4,5 +4,6 @@ public enum UserRoleType {
     ADMIN,
     REVIEWER,
     ANALYST,
-    READONLY
+    READONLY,
+    AUDITOR
 }

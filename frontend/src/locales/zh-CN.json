@@ -64,7 +64,8 @@
     "access_requests": "访问申请",
     "routing_policies": "路由策略",
     "langfuse": "Langfuse",
-    "connectors": "连接器"
+    "connectors": "连接器",
+    "auditor": "合规报告"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2001,7 +2002,8 @@
       "ADMIN": "管理员",
       "REVIEWER": "审核员",
       "ANALYST": "分析师",
-      "READONLY": "只读"
+      "READONLY": "只读",
+      "AUDITOR": "审计员"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",
@@ -2259,5 +2261,29 @@
     "save_success": "已保存为草稿 {{id}}",
     "denied_title": "无法协作",
     "denied_body": "您无权协同编辑此查询。"
+  },
+  "auditor": {
+    "title": "合规报告",
+    "subtitle": "针对已执行查询的签名防篡改报告",
+    "tab_classified_access": "分类数据访问",
+    "tab_regulatory_trail": "监管审计轨迹",
+    "period": "报告周期",
+    "export_pdf": "导出已签名 PDF",
+    "export_csv": "导出 CSV",
+    "export_signed": "导出已签名（{{algorithm}}）并记录到审计日志",
+    "export_truncated": "结果在行数上限处被截断；导出不完整",
+    "export_failed": "导出失败",
+    "report_truncated": "结果在配置的行数上限处被截断",
+    "empty_title": "无匹配活动",
+    "empty_description": "所选周期内没有匹配此报告的已执行查询。",
+    "col_executed_at": "执行时间",
+    "col_datasource": "数据源",
+    "col_submitter": "提交者",
+    "col_query_type": "类型",
+    "col_referenced_tables": "引用的表",
+    "col_classifications": "分类",
+    "col_rows_affected": "行数",
+    "col_sql": "SQL",
+    "col_approvers": "批准人"
   }
 }
