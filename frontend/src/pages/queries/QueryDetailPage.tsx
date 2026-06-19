@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Input, Popconfirm, Skeleton } from 'antd';
+import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Select, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -8,6 +8,7 @@ import {
   CopyOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
+  ExperimentOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
   PlayCircleOutlined,
@@ -31,14 +32,22 @@ import { useAuthStore } from '@/store/authStore';
 import { routingActionLabel } from '@/utils/enumLabels';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { engineMode } from '@/utils/engineModes';
-import { cancelQuery, executeQuery, getQuery, queryKeys, reanalyzeQuery } from '@/api/queries';
+import {
+  cancelQuery,
+  executeQuery,
+  getQuery,
+  queryKeys,
+  reanalyzeQuery,
+  replayQuery,
+} from '@/api/queries';
+import { datasourceKeys, listDatasources } from '@/api/datasources';
 import {
   approveQuery,
   rejectQuery,
   requestChanges,
   reviewKeys,
 } from '@/api/reviews';
-import { queryCancelErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
+import { queryCancelErrorMessage, queryReplayErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
@@ -53,6 +62,8 @@ export function QueryDetailPage() {
   const user = useAuthStore((s) => s.user);
   const { message } = App.useApp();
   const [comment, setComment] = useState('');
+  const [replayOpen, setReplayOpen] = useState(false);
+  const [replayTarget, setReplayTarget] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
 
   const { data: query, isLoading } = useQuery({
@@ -82,6 +93,24 @@ export function QueryDetailPage() {
         message.error(t('queries.detail.on_execute_error'));
       }
     },
+  });
+
+  const { data: replayDatasources } = useQuery({
+    queryKey: datasourceKeys.list({ size: 100 }),
+    queryFn: () => listDatasources({ size: 100 }),
+    enabled: replayOpen,
+  });
+
+  const replayMutation = useMutation({
+    mutationFn: (targetDatasourceId: string) => replayQuery(id!, targetDatasourceId),
+    onSuccess: (data) => {
+      setReplayOpen(false);
+      setReplayTarget(undefined);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      message.success(t('queries.detail.replay_success'));
+      navigate(`/queries/${data.id}`);
+    },
+    onError: (err) => showApiError(message, err, queryReplayErrorMessage),
   });
 
   const reanalyzeMutation = useMutation({
@@ -183,6 +212,11 @@ export function QueryDetailPage() {
       hasScheduledRun);
   const canExecute =
     query.status === 'APPROVED' && (submitterId === user.id || user.role === 'ADMIN');
+  // Replay is offered once a query has executed; its immutable snapshot exists from then on.
+  const canReplay = query.status === 'EXECUTED';
+  const replayTargets = (replayDatasources?.content ?? []).filter(
+    (d) => d.active && d.id !== query.datasource.id && d.db_type === query.db_type,
+  );
   const aiFailed = query.ai_analysis?.failed === true;
   const aiFailureReason = query.ai_analysis?.error_message ?? '';
   const canReanalyze = isReviewer && aiFailed && query.status === 'PENDING_REVIEW';
@@ -242,6 +276,14 @@ export function QueryDetailPage() {
                 </Button>
               </Popconfirm>
             )}
+            {canReplay && (
+              <Button
+                icon={<ExperimentOutlined />}
+                onClick={() => setReplayOpen(true)}
+              >
+                {t('queries.detail.replay_button')}
+              </Button>
+            )}
             {canExecute && (
               <Button
                 type="primary"
@@ -255,6 +297,37 @@ export function QueryDetailPage() {
           </>
         }
       />
+      <Modal
+        title={t('queries.detail.replay_modal_title')}
+        open={replayOpen}
+        onCancel={() => {
+          setReplayOpen(false);
+          setReplayTarget(undefined);
+        }}
+        onOk={() => replayTarget && replayMutation.mutate(replayTarget)}
+        okText={t('queries.detail.replay_submit')}
+        okButtonProps={{ disabled: !replayTarget, loading: replayMutation.isPending }}
+        cancelText={t('common.cancel')}
+        destroyOnHidden
+      >
+        <p>{t('queries.detail.replay_modal_body')}</p>
+        {replayTargets.length === 0 ? (
+          <Empty description={t('queries.detail.replay_no_targets')} />
+        ) : (
+          <Form layout="vertical">
+            <Form.Item label={t('queries.detail.replay_target_label')} required>
+              <Select
+                aria-label={t('queries.detail.replay_target_label')}
+                placeholder={t('queries.detail.replay_target_placeholder')}
+                value={replayTarget}
+                onChange={setReplayTarget}
+                options={replayTargets.map((d) => ({ value: d.id, label: d.name }))}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+          </Form>
+        )}
+      </Modal>
       <div className="qd-grid">
         <div className="qd-main">
           {showScheduledBanner && (

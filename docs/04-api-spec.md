@@ -884,6 +884,7 @@ Synchronous.
 | `GET` | `/queries/{id}` | Get full query request details including AI analysis |
 | `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set) |
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
+| `POST` | `/queries/{id}/replay` | Replay an executed query's immutable snapshot against a test datasource (`?targetDatasourceId=`), re-entering the full review workflow (AF-449) |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
@@ -1132,6 +1133,30 @@ Re-analysis is only valid when:
 - `403 FORBIDDEN` — caller is not a `REVIEWER` or `ADMIN`.
 - `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization.
 - `409 QUERY_NOT_REANALYZABLE` — query is not in `PENDING_REVIEW`, or the previous analysis did not fail. The response carries the offending `currentStatus` as an extension property.
+
+### POST /queries/{id}/replay — Response 202
+
+Replays the immutable snapshot of an **executed** query against a different (test) datasource (AF-449). The target is named with the required query parameter `?targetDatasourceId={uuid}`; the request body is empty.
+
+```
+POST /api/v1/queries/{id}/replay?targetDatasourceId=2b1f…  → 202 Accepted
+```
+
+When a query reaches `EXECUTED`, AccessFlow writes an immutable `query_snapshots` row capturing the exact `sql_text`, the source datasource's schema fingerprint (`schema_hash`), the AI analysis, and the approval decisions as they stood at execution time. Replay loads that snapshot, validates that the target datasource is compatible, then **re-submits the exact SQL through the full review workflow** against the target — it never bypasses approval. The new query is created with the **caller** as submitter (so the self-approval guard still applies — a user cannot approve their own replay) and `scheduled_for` forced to `null`. The response is the standard `POST /queries` envelope (`id` = the **new** query request, `status` = `PENDING_AI`).
+
+Schema-compatibility gate (validated before re-submission):
+- The target datasource must be the **same `db_type`** as the snapshot — replaying a `POSTGRESQL` query against a `MYSQL` datasource is rejected.
+- Every table the snapshotted query references must **exist in the target** datasource (verified by a fresh introspection of the target). The full schemas need not match (a test DB legitimately diverges) — only the referenced tables must be present.
+- If the target schema cannot be introspected, the replay is rejected (fail-closed) rather than skipping the check.
+
+The replay is **distinctly audited**: a `QUERY_SUBMITTED` audit row is written on the **new** query id with metadata `{ "trigger": "replay", "original_query_id": "<id>", "source_datasource_id": "…", "target_datasource_id": "…", "source_schema_hash": "…", "target_schema_hash": "…" }` — mirroring the `trigger=scheduled` convention so an auditor can both distinguish a replay and see whether the schema drifted between source and target.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `403 FORBIDDEN` — caller has no permission for the target datasource or the query type.
+- `404 QUERY_SNAPSHOT_NOT_FOUND` — no execution snapshot exists for the query (it never executed, or it is in another organization).
+- `404 DATASOURCE_NOT_FOUND` — the target datasource does not exist in the caller's organization.
+- `422 REPLAY_SCHEMA_INCOMPATIBLE` — the target is a different engine, or is missing tables the query references. The response carries `missing_tables` (when applicable) as an extension property.
 
 ### GET /queries/{id}/results — Response 200
 

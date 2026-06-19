@@ -89,6 +89,16 @@ export async function executeQuery(id: string): Promise<ExecuteQueryResponse> {
   return data;
 }
 
+export async function replayQuery(
+  id: string,
+  targetDatasourceId: string,
+): Promise<SubmitQueryResponse> {
+  const { data } = await apiClient.post<SubmitQueryResponse>(`${BASE}/${id}/replay`, null, {
+    params: { targetDatasourceId },
+  });
+  return data;
+}
+
 export async function getQueryResults(
   id: string,
   page = 0,

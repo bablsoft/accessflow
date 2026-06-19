@@ -488,6 +488,34 @@ Unique index `(template_id, version_number)` enforces contiguous, non-duplicated
 
 ---
 
+## query_snapshots
+
+Immutable, sanitized snapshot of an **executed** query (AF-449). Exactly one row is written when a query transitions to `EXECUTED` — `DefaultQuerySnapshotService.recordOnExecution`, invoked by the workflow module's `@ApplicationModuleListener` on `QueryExecutedEvent` (only when `finalStatus = EXECUTED`; FAILED executions get no snapshot). Rows are INSERT-only and never updated. The snapshot is a forensic/compliance record **and** the exact-replay artifact for `POST /queries/{id}/replay` (see [docs/05-backend.md → "Query snapshots & replay"](05-backend.md)).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | UUID NOT NULL **UNIQUE** FK → `query_requests` ON DELETE CASCADE. The UNIQUE constraint is the idempotency backstop for redelivered events (one snapshot per executed query) |
+| `organization_id` | UUID NOT NULL — denormalised for org-scoped reads |
+| `datasource_id` | UUID NOT NULL — the **source** datasource the query executed against |
+| `submitted_by` | UUID NOT NULL — the original submitter. No FK: an immutable record must outlive user deletion (like `audit_log.actor_id`) |
+| `sql_text` | TEXT NOT NULL — the exact SQL captured for replay (AccessFlow inlines literals into `sql_text`; there is no separate bound-parameter store, so this is the complete replay artifact) |
+| `query_type` | ENUM `query_type` |
+| `transactional` | BOOLEAN NOT NULL DEFAULT FALSE |
+| `db_type` | ENUM `db_type` — the source engine; the replay gate requires the target datasource to match |
+| `referenced_tables` | TEXT[] NOT NULL DEFAULT `ARRAY[]::TEXT[]` — tables the query touched (normalized `schema.table`/`table`), used by the replay schema-compatibility gate |
+| `schema_hash` | VARCHAR(64) nullable — SHA-256 fingerprint of the source schema at execution time (forensic only; null when introspection was unavailable). Both source and target hashes are recorded in the replay audit row so drift is visible |
+| `ai_analysis` | JSONB nullable — snapshot of the AI verdict at execution time (null when AI was skipped/absent) |
+| `review_decisions` | JSONB NOT NULL DEFAULT `'[]'` — snapshot of the approval decisions at execution time |
+| `rows_affected` | BIGINT nullable |
+| `execution_duration_ms` | INTEGER nullable |
+| `executed_at` | TIMESTAMPTZ NOT NULL |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` |
+
+Filter index on `(organization_id)`. No special DB-role grant (a normal app-role table; only `audit_log` has the writer-role separation).
+
+---
+
 ## query_requests
 
 The central entity. Represents a single SQL submission through the platform.
