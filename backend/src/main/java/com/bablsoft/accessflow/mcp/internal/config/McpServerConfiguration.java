@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.config;
 
+import com.bablsoft.accessflow.mcp.internal.tools.McpDataToolService;
 import com.bablsoft.accessflow.mcp.internal.tools.McpReviewToolService;
 import com.bablsoft.accessflow.mcp.internal.tools.McpToolService;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -17,9 +18,10 @@ class McpServerConfiguration {
 
     @Bean
     ToolCallbackProvider accessFlowMcpToolCallbacks(McpToolService queryTools,
-                                                    McpReviewToolService reviewTools) {
+                                                    McpReviewToolService reviewTools,
+                                                    McpDataToolService dataTools) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(queryTools, reviewTools)
+                .toolObjects(queryTools, reviewTools, dataTools)
                 .build();
     }
 }

@@ -91,7 +91,7 @@ curl -s -X POST https://accessflow.example.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq .
 ```
 
-You should see all nine tools listed.
+You should see all twelve tools listed.
 
 ---
 
@@ -106,6 +106,9 @@ You should see all nine tools listed.
 | `list_my_queries` | `status?`, `datasourceId?`, `queryType?`, `page?`, `size?` | Caller's own queries (newest first). `status` is forced to the caller's history regardless of args — admins still see all submitters' queries via the REST endpoint, not this tool. |
 | `get_query_status` | `queryId` | Full detail: status, AI risk, review decisions, execution outcome. Submitter-or-admin only. |
 | `get_query_result` | `queryId` | Rows + columns (as JSON strings) for an `EXECUTED` `SELECT`. Returns `invalid_state` if the query is the wrong type or not executed yet. |
+| `validate_sql` | `datasourceId`, `sql` | Parse-only check against the datasource's engine — **no AI cost, no execution**. Returns `{ valid, queryType, referencedTables, hasWhereClause, hasLimitClause, unknownTables, schemaChecked, parseError }`. Parse errors come back as `valid: false` + `parseError` (data, not an MCP error). `unknownTables` are referenced tables absent from the schema you can see; `schemaChecked` is `false` when the database was unreachable (mismatch skipped). Use it to sanity-check a draft before `submit_query`. |
+| `get_column_samples` | `datasourceId`, `schema?`, `table`, `limit?` | Bounded sample rows (default 50, max 200) with the **same row-level security and column masking** as a governed read — masked columns carry the masked value, never the raw one (`restricted` flags them). Requires read access to the table; `not_found` for an unknown or forbidden table. |
+| `get_audit_log` | `action?`, `resourceType?`, `from?`, `to?`, `page?`, `size?` | The **caller's own** audit entries (newest first), scoped to the caller + their organisation — never another user's activity. `from`/`to` are ISO-8601 instants; `resourceType` accepts the enum name (`QUERY_REQUEST`) or db value (`query_request`); `action` is an `AuditAction`. |
 
 ### Workflow
 
@@ -133,6 +136,14 @@ You should see all nine tools listed.
   - `submit_query` enforces `canRead` / `canWrite` / `canDdl` on the datasource permission.
   - `get_query_result` requires `SELECT` + `EXECUTED`.
   - `review_query` enforces stage eligibility + the "no self-approval" rule.
+  - `get_column_samples` runs through the same governed read path as the schema explorer (AF-443):
+    it applies the caller's row-level security predicates and column masks and enforces `canRead` +
+    the schema/table allow-list, so a masked column never returns a raw value.
+  - `get_audit_log` is always scoped to the caller (`actorId` is forced to the calling user) and the
+    caller's organisation — it never returns another user's activity, even for an admin key.
+  - `validate_sql` only parses; it never executes or runs AI analysis. It needs the datasource to be
+    visible to the caller (to pick the engine dialect) and reuses the schema introspection the caller
+    is already permitted to read for its best-effort mismatch check.
 - **Errors:** tools return a structured `{ code, message }` rather than raw exceptions. Codes:
   - `permission_denied` — caller is not allowed.
   - `not_found` — unknown id, or the resource is in a different org.
