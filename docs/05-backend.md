@@ -1516,11 +1516,13 @@ The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `s
 
 - **Starter.** `spring-ai-starter-mcp-server-webmvc` with `spring.ai.mcp.server.protocol=STATELESS`,
   endpoint defaults to `/mcp`.
-- **Tool services.** `@Tool`-annotated methods on `McpToolService` (query / datasource tools)
-  and `McpReviewToolService` (reviewer-only, gated with
-  `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`). `McpCurrentUser` resolves the calling
-  principal from the SecurityContext.
-- **Wiring.** `McpServerConfiguration` exposes both services as a single
+- **Tool services.** `@Tool`-annotated methods on `McpToolService` (query / datasource tools),
+  `McpReviewToolService` (reviewer-only, gated with
+  `@PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")`), and `McpDataToolService` (read-mostly
+  inspection tools: `validate_sql`, `get_column_samples`, `get_audit_log` — delegating to
+  `proxy.api` / `audit.api`). `McpCurrentUser` resolves the calling principal from the
+  SecurityContext.
+- **Wiring.** `McpServerConfiguration` exposes all three services as a single
   `MethodToolCallbackProvider` bean — the starter's auto-configuration picks it up.
 
 ### Exposed MCP tools
@@ -1536,6 +1538,9 @@ The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `s
 | `cancel_query` | `QueryLifecycleService.cancel` | Submitter-only (enforced in service). |
 | `list_pending_reviews` | `ReviewService.listPendingForReviewer` | `@PreAuthorize` reviewer/admin. |
 | `review_query` | `ReviewService.approve` / `reject` / `requestChanges` | `decision` enum dispatch; self-approval still blocked by `DefaultReviewService.prepareDecision`. |
+| `validate_sql` | `QueryParser.parse` (+ `DatasourceAdminService.introspectSchema` for mismatch) | Parse-only; no AI, no execution. Parse errors returned as `valid:false`+`parseError`; schema-mismatch is best-effort (skipped on DB connectivity failure). |
+| `get_column_samples` | `SampleDataService.sample` (AF-443) | Governed sample read — RLS + masking applied, `canRead` + allow-list enforced. |
+| `get_audit_log` | `AuditLogService.query` | `actorId` forced to caller; org-scoped. Returns only the caller's own entries. |
 
 ### Configuration
 
@@ -1550,7 +1555,8 @@ spring:
         version: 1.0.0
         protocol: STATELESS
         instructions: |
-          AccessFlow MCP server. Use list_datasources, submit_query, get_query_status, …
+          AccessFlow MCP server. Use list_datasources, validate_sql, submit_query,
+          get_query_status, get_column_samples, get_audit_log, …
 ```
 
 Default endpoint: `POST /mcp` (the security chain already requires authentication on it via
