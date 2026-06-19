@@ -737,25 +737,27 @@
                   <th><code>ANALYST</code></th>
                   <th><code>REVIEWER</code></th>
                   <th><code>ADMIN</code></th>
+                  <th><code>AUDITOR</code></th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td>Submit <code>SELECT</code> queries</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Submit DML (<code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code>)</td><td>—</td><td>✓</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Submit DDL (<code>CREATE</code> / <code>ALTER</code> / <code>DROP</code>)</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>View own query history</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-                <tr><td>View all queries in the org</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Approve / reject queries</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Request time-bound datasource access (JIT)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Review / approve access requests</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
-                <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Manage user groups</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Manage review plans</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>View audit log</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Manage notification channels</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Configure AI</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
-                <tr><td>Configure SAML / OAuth</td><td>—</td><td>—</td><td>—</td><td>✓</td></tr>
+                <tr><td>Submit <code>SELECT</code> queries</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Submit DML (<code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code>)</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Submit DDL (<code>CREATE</code> / <code>ALTER</code> / <code>DROP</code>)</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>View own query history</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>View all queries in the org</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Approve / reject queries</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Request time-bound datasource access (JIT)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Review / approve access requests</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage user groups</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage review plans</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>View audit log</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Manage notification channels</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Configure AI</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Configure SAML / OAuth</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>View / export compliance reports</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
               </tbody>
             </table>
           </div>
@@ -765,7 +767,10 @@
             Use <code>ANALYST</code> for people who write data through reviewed queries.
             Use <code>REVIEWER</code> for people who approve other users' queries — typically
             senior engineers or DBAs. Use <code>ADMIN</code> for the platform-team operators who
-            configure the system itself.
+            configure the system itself. Use <code>AUDITOR</code> for a dedicated, read-only
+            compliance reviewer — it sees only the compliance dashboard (<code>/admin/auditor</code>):
+            pre-built PII/PCI/GDPR access and DDL/DELETE reports with signed PDF/CSV export, and
+            nothing else.
           </p>
           <p>
             <strong>Datasource-level permissions.</strong> Role is the org-wide ceiling. On top of
@@ -1505,6 +1510,24 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             The HMAC key defaults to a per-deployment value derived from <code>ENCRYPTION_KEY</code>
             (via HKDF-SHA256), or set <code>AUDIT_HMAC_KEY</code> explicitly when rotating.
+          </p>
+          <h3 id="compliance-reports">Compliance reports &amp; signed exports</h3>
+          <p>
+            A dedicated read-only <code>AUDITOR</code> role lands on the compliance dashboard
+            (<code>/admin/auditor</code>) — admins see it too. It offers two pre-built reports over a
+            chosen period, computed from the immutable query snapshots: <strong>classified-data
+            access</strong> (which executed queries touched PII / PCI / PHI / GDPR / FINANCIAL /
+            SENSITIVE objects, joined to your data-classification tags) and a <strong>regulatory
+            audit trail</strong> of DDL/DELETE operations with the approvers' names. Each report
+            exports as a <strong>digitally signed</strong> PDF or CSV: the export carries a detached
+            <code>SHA256withRSA</code> signature (over the deployment's JWT key pair) in the response
+            headers, and an auditor can verify it offline against the public key served at
+            <code>/api/v1/admin/compliance/signing-certificate</code>. Every export is itself recorded
+            in the audit log (<code>COMPLIANCE_REPORT_EXPORTED</code>) with the content hash, so the
+            export is tamper-evident end to end. Tune the largest allowed window with
+            <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (default <code>P366D</code>) and the
+            row cap with <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (default <code>50000</code>);
+            signing reuses <code>JWT_PRIVATE_KEY</code>, so no extra secret is required.
           </p>
         </section>
 

@@ -19,6 +19,7 @@ class ApiPackageDependencyTest {
                             "com.bablsoft.accessflow.access.api..",
                             "com.bablsoft.accessflow.ai.api..",
                             "com.bablsoft.accessflow.audit.api..",
+                            "com.bablsoft.accessflow.compliance.api..",
                             "com.bablsoft.accessflow.core.api..",
                             "com.bablsoft.accessflow.mcp.api..",
                             "com.bablsoft.accessflow.notifications.api..",

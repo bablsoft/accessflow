@@ -1838,6 +1838,10 @@ Paginated queue of access requests the caller can currently act on, self-request
 | `POST` | `/admin/system-smtp/test` | Send a synthetic test email (optionally against an override config) |
 | `GET` | `/admin/audit-log` | Query audit log with filters (see below) |
 | `GET` | `/admin/audit-log/verify` | Verify the HMAC hash chain for the caller's org (tamper detection) |
+| `GET` | `/admin/compliance/reports/classified-access` | Classified-data access report over a period *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/reports/regulatory-audit-trail` | DDL/DELETE regulatory audit trail with approvers *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/reports/export` | Signed PDF/CSV compliance export *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/compliance/signing-certificate` | Public key to verify a signed export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/routing-policies` | List routing policies (priority order) *(ADMIN only)* |
 | `POST` | `/admin/routing-policies` | Create a routing policy *(ADMIN only)* |
 | `GET` | `/admin/routing-policies/{id}` | Get a routing policy *(ADMIN only)* |
@@ -2585,6 +2589,78 @@ timestamp,organization_id,actor_email,action,resource_type,resource_id,ip_addres
 **Response 400:** unknown `resourceType`. `error: BAD_AUDIT_QUERY`.
 
 The body is streamed via `StreamingResponseBody` — the backend reads the result in 500-row pages and flushes each page to the wire so very large exports do not buffer in memory.
+
+### Compliance Reporting (`/admin/compliance`) *(AUDITOR or ADMIN)* — AF-459
+
+Pre-built compliance reports computed over a period from the immutable `query_snapshots` forensic record. All endpoints require `hasAnyRole('AUDITOR','ADMIN')` (otherwise 403). Reports are read-only.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/compliance/reports/classified-access` | Executed queries that touched classified (PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE) objects over a period |
+| `GET` | `/admin/compliance/reports/regulatory-audit-trail` | Executed DDL/DELETE operations with approver names over a period |
+| `GET` | `/admin/compliance/reports/export` | Render a report as a digitally-signed PDF or CSV |
+| `GET` | `/admin/compliance/signing-certificate` | Public key + algorithm to verify a signed export offline |
+
+**Common query parameters** for the report and export endpoints:
+- `from` (required) — inclusive ISO-8601 lower bound on `executed_at`.
+- `to` (required) — exclusive ISO-8601 upper bound on `executed_at`.
+- `datasourceId` (optional) — scope the report to a single datasource.
+
+The period is validated: `from`/`to` are required, `from` must be on or before `to`, and the window may not exceed `accessflow.compliance.max-report-period` (default one year). Violations return `400` with `error: INVALID_REPORT_PERIOD`.
+
+#### GET /admin/compliance/reports/classified-access — Response 200
+
+```json
+{
+  "type": "CLASSIFIED_ACCESS",
+  "organization_id": "…",
+  "period_from": "2026-01-01T00:00:00Z",
+  "period_to": "2026-04-01T00:00:00Z",
+  "generated_at": "2026-04-02T09:00:00Z",
+  "datasource_id": null,
+  "classified_access": [
+    {
+      "query_request_id": "…",
+      "datasource_id": "…",
+      "datasource_name": "ProdDb",
+      "submitted_by": "…",
+      "submitter_email": "alice@example.com",
+      "query_type": "SELECT",
+      "referenced_tables": ["public.customers"],
+      "matched": [{ "table_name": "customers", "column_name": "ssn", "classification": "PII" }],
+      "rows_affected": 5,
+      "executed_at": "2026-02-01T10:00:00Z"
+    }
+  ],
+  "audit_trail": [],
+  "row_count": 1,
+  "truncated": false
+}
+```
+
+`GET /admin/compliance/reports/regulatory-audit-trail` has the same envelope but populates `audit_trail` (rows carry `sql_text` and an `approvers` array of `{email, display_name, decision, decided_at}`) and leaves `classified_access` empty. `truncated` is `true` when the snapshot scan hit `accessflow.compliance.max-rows` (default 50,000).
+
+#### GET /admin/compliance/reports/export — Signed export
+
+**Query parameters**: `type` (`CLASSIFIED_ACCESS` | `REGULATORY_AUDIT_TRAIL`), `format` (`PDF` | `CSV`), plus `from` / `to` / `datasourceId`.
+
+**Response**:
+- `200 OK`; `Content-Type: application/pdf` or `text/csv; charset=utf-8`.
+- `Content-Disposition: attachment; filename="compliance-<type>-YYYYMMDDTHHmmssZ.<ext>"`.
+- `X-AccessFlow-Signature` — Base64 detached RSA signature over the exact response bytes.
+- `X-AccessFlow-Signature-Algorithm` — `SHA256withRSA`.
+- `X-AccessFlow-Content-SHA256` — lowercase hex SHA-256 of the bytes.
+- `X-AccessFlow-Export-Truncated: true` when the report hit the row cap.
+
+**Tamper-evidence** — every export writes a `COMPLIANCE_REPORT_EXPORTED` audit row (`resource_type=compliance_report`) whose `metadata` carries `report_type`, `format`, `period_from`, `period_to`, `datasource_id`, `row_count`, `truncated`, `content_sha256`, `signature`, and `signature_algorithm`, chaining the export's hash into the tamper-evident audit log. The audit write is integrity-critical — if it fails, the export fails.
+
+#### GET /admin/compliance/signing-certificate — Response 200
+
+```json
+{ "algorithm": "SHA256withRSA", "public_key_pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n" }
+```
+
+An auditor verifies a downloaded export offline with the public key: `openssl dgst -sha256 -verify key.pem -signature sig.bin report.pdf`.
 
 ### AI Configurations (`/admin/ai-configs`) *(ADMIN only)*
 
@@ -3943,3 +4019,4 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |
+| `INVALID_REPORT_PERIOD` | 400 | `InvalidReportPeriodException` | Compliance-report period is missing, inverted (`from` after `to`), or exceeds `accessflow.compliance.max-report-period`. |

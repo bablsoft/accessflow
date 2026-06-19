@@ -8,6 +8,7 @@ const COLORS: Record<Role, { fg: string; bg: string; border: string }> = {
   REVIEWER: { fg: 'var(--accent)', bg: 'var(--accent-bg)', border: 'var(--accent-border)' },
   ANALYST: { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' },
   READONLY: { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' },
+  AUDITOR: { fg: 'var(--risk-high)', bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)' },
 };
 
 export function RolePill({ role, size }: { role: Role; size?: 'sm' | 'md' }) {

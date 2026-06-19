@@ -64,7 +64,8 @@
     "access_requests": "Запросы доступа",
     "routing_policies": "Политики маршрутизации",
     "langfuse": "Langfuse",
-    "connectors": "Коннекторы"
+    "connectors": "Коннекторы",
+    "auditor": "Отчёты о соответствии"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -2001,7 +2002,8 @@
       "ADMIN": "Администратор",
       "REVIEWER": "Рецензент",
       "ANALYST": "Аналитик",
-      "READONLY": "Только чтение"
+      "READONLY": "Только чтение",
+      "AUDITOR": "Аудитор"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",
@@ -2259,5 +2261,29 @@
     "save_success": "Сохранено как черновик {{id}}",
     "denied_title": "Совместная работа недоступна",
     "denied_body": "У вас нет прав на совместное редактирование этого запроса."
+  },
+  "auditor": {
+    "title": "Отчёты о соответствии",
+    "subtitle": "Подписанные защищённые от подделки отчёты по выполненным запросам",
+    "tab_classified_access": "Доступ к классифицированным данным",
+    "tab_regulatory_trail": "Регуляторный аудиторский след",
+    "period": "Период отчёта",
+    "export_pdf": "Экспорт подписанного PDF",
+    "export_csv": "Экспорт CSV",
+    "export_signed": "Экспорт подписан ({{algorithm}}) и записан в журнал аудита",
+    "export_truncated": "Результаты усечены по лимиту строк; экспорт неполный",
+    "export_failed": "Не удалось выполнить экспорт",
+    "report_truncated": "Результаты усечены по заданному лимиту строк",
+    "empty_title": "Нет подходящей активности",
+    "empty_description": "Нет выполненных запросов, соответствующих этому отчёту за выбранный период.",
+    "col_executed_at": "Выполнено",
+    "col_datasource": "Источник данных",
+    "col_submitter": "Отправитель",
+    "col_query_type": "Тип",
+    "col_referenced_tables": "Затронутые таблицы",
+    "col_classifications": "Классификации",
+    "col_rows_affected": "Строки",
+    "col_sql": "SQL",
+    "col_approvers": "Утвердившие"
   }
 }

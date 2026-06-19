@@ -27,6 +27,7 @@
         <springdoc.version>3.0.3</springdoc.version>
         <jsqlparser.version>5.3</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
+        <pdfbox.version>3.0.7</pdfbox.version>
         <archiunit.version>1.4.2</archiunit.version>
         <!-- Repo-root connector catalog (issue #334), bundled onto the classpath as connectors/**.
              Local/CI builds run from backend/ so the default resolves to the sibling folder; the
@@ -112,6 +113,14 @@
             <groupId>com.github.jsqlparser</groupId>
             <artifactId>jsqlparser</artifactId>
             <version>${jsqlparser.version}</version>
+        </dependency>
+
+        <!-- Apache PDFBox (Apache License 2.0) — signed compliance-report PDF export (issue #459).
+             Pulls fontbox transitively; pdfbox-tools is intentionally not included. -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
 
         <!--

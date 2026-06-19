@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
@@ -12,12 +13,14 @@ import com.bablsoft.accessflow.workflow.internal.persistence.repo.QuerySnapshotR
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -64,6 +67,17 @@ class DefaultQuerySnapshotService implements QuerySnapshotService {
     public Optional<QuerySnapshotView> find(UUID queryRequestId, UUID organizationId) {
         return repository.findByQueryRequestIdAndOrganizationId(queryRequestId, organizationId)
                 .map(QuerySnapshotMapper::toView);
+    }
+
+    @Override
+    public List<QuerySnapshotView> findForPeriod(UUID organizationId, Instant from, Instant to,
+                                                 UUID datasourceId, Set<QueryType> queryTypes,
+                                                 int limit) {
+        var pageable = PageRequest.of(0, Math.max(1, limit));
+        var rows = queryTypes == null || queryTypes.isEmpty()
+                ? repository.findForPeriod(organizationId, from, to, datasourceId, pageable)
+                : repository.findForPeriodByType(organizationId, from, to, datasourceId, queryTypes, pageable);
+        return rows.stream().map(QuerySnapshotMapper::toView).toList();
     }
 
     private QuerySnapshotEntity build(QueryRequestSnapshot query, QueryDetailView detail) {

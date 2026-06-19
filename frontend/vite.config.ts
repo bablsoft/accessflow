@@ -53,6 +53,7 @@ export default defineConfig({
         'src/api/auth.ts',
         'src/api/client.ts',
         'src/api/comments.ts',
+        'src/api/compliance.ts',
         'src/api/connectors.ts',
         'src/api/dataClassifications.ts',
         'src/api/datasourceHealth.ts',

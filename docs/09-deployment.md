@@ -828,6 +828,8 @@ Two layers exist:
 | `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | Optional | `PT15M` | ISO-8601 duration for the access-token TTL |
 | `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | Optional | `P7D` | ISO-8601 duration for the refresh-token TTL (`HttpOnly` cookie) |
 | `AUDIT_HMAC_KEY` | Optional | derived | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
+| `ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD` | Optional | `P366D` | ISO-8601 duration. Largest period a single compliance report (AF-459) may span; a longer `from`/`to` window is rejected with `400 INVALID_REPORT_PERIOD`. |
+| `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Optional | `50000` | Hard cap on the number of executed-query snapshots a single compliance report or signed export scans; beyond it the report sets `truncated=true`. Compliance-export signing reuses the `JWT_PRIVATE_KEY` RS256 key pair — no separate signing key. |
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:5173` | Frontend origin for CORS policy |
 | `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Optional | `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback` | Where the OAuth2 success/failure handler redirects after the provider roundtrip. The frontend `OAuthCallbackPage` parses `?code=` or `?error=` from the query string. |
 | `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | Optional | `PT1M` | ISO-8601 duration — TTL of the one-time exchange code in Redis. Codes are single-use; keep short. |

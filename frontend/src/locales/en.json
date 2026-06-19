@@ -49,6 +49,7 @@
     "review_plans": "Review plans",
     "data_classifications": "Data classifications",
     "audit": "Audit log",
+    "auditor": "Compliance reports",
     "ai_configs": "AI configurations",
     "ai_analyses": "AI analyses",
     "notifications": "Notifications",
@@ -1968,6 +1969,30 @@
   "risk": {
     "ai_na": "AI N/A"
   },
+  "auditor": {
+    "title": "Compliance reports",
+    "subtitle": "Signed, tamper-evident reports over executed queries",
+    "tab_classified_access": "Classified data access",
+    "tab_regulatory_trail": "Regulatory audit trail",
+    "period": "Reporting period",
+    "export_pdf": "Export signed PDF",
+    "export_csv": "Export CSV",
+    "export_signed": "Export signed ({{algorithm}}) and recorded in the audit log",
+    "export_truncated": "Results were truncated at the row cap; the export is incomplete",
+    "export_failed": "Export failed",
+    "report_truncated": "Results were truncated at the configured row cap",
+    "empty_title": "No matching activity",
+    "empty_description": "No executed queries match this report for the selected period.",
+    "col_executed_at": "Executed at",
+    "col_datasource": "Datasource",
+    "col_submitter": "Submitter",
+    "col_query_type": "Type",
+    "col_referenced_tables": "Referenced tables",
+    "col_classifications": "Classifications",
+    "col_rows_affected": "Rows",
+    "col_sql": "SQL",
+    "col_approvers": "Approvers"
+  },
   "enums": {
     "query_status": {
       "PENDING_AI": "Pending AI",
@@ -2001,7 +2026,8 @@
       "ADMIN": "Admin",
       "REVIEWER": "Reviewer",
       "ANALYST": "Analyst",
-      "READONLY": "Read-only"
+      "READONLY": "Read-only",
+      "AUDITOR": "Auditor"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",

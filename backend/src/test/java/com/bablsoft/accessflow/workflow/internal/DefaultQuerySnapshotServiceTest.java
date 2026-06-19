@@ -25,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
@@ -36,6 +37,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -200,6 +202,74 @@ class DefaultQuerySnapshotServiceTest {
         when(repository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
 
         assertThatCode(() -> service.recordOnExecution(queryId)).doesNotThrowAnyException();
+    }
+
+    private QuerySnapshotEntity entity(QueryType type) {
+        var entity = new QuerySnapshotEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setQueryRequestId(UUID.randomUUID());
+        entity.setOrganizationId(orgId);
+        entity.setDatasourceId(dsId);
+        entity.setSubmittedBy(userId);
+        entity.setSqlText("DELETE FROM users");
+        entity.setQueryType(type);
+        entity.setDbType(DbType.POSTGRESQL);
+        entity.setExecutedAt(executedAt);
+        return entity;
+    }
+
+    @Test
+    void findForPeriodWithoutTypesUsesUnfilteredQuery() {
+        var from = Instant.parse("2026-04-01T00:00:00Z");
+        var to = Instant.parse("2026-07-01T00:00:00Z");
+        when(repository.findForPeriod(eq(orgId), eq(from), eq(to), eq(dsId), any(Pageable.class)))
+                .thenReturn(List.of(entity(QueryType.SELECT)));
+
+        var result = service.findForPeriod(orgId, from, to, dsId, null, 100);
+
+        assertThat(result).hasSize(1);
+        verify(repository).findForPeriod(eq(orgId), eq(from), eq(to), eq(dsId), any(Pageable.class));
+        verify(repository, never()).findForPeriodByType(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void findForPeriodWithEmptyTypesUsesUnfilteredQuery() {
+        var from = Instant.parse("2026-04-01T00:00:00Z");
+        var to = Instant.parse("2026-07-01T00:00:00Z");
+        when(repository.findForPeriod(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.findForPeriod(orgId, from, to, null, Set.of(), 100);
+
+        verify(repository).findForPeriod(any(), any(), any(), any(), any(Pageable.class));
+        verify(repository, never()).findForPeriodByType(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void findForPeriodWithTypesUsesFilteredQueryAndMaps() {
+        var from = Instant.parse("2026-04-01T00:00:00Z");
+        var to = Instant.parse("2026-07-01T00:00:00Z");
+        var types = Set.of(QueryType.DDL, QueryType.DELETE);
+        when(repository.findForPeriodByType(eq(orgId), eq(from), eq(to), eq(null), eq(types), any(Pageable.class)))
+                .thenReturn(List.of(entity(QueryType.DELETE)));
+
+        var result = service.findForPeriod(orgId, from, to, null, types, 100);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().queryType()).isEqualTo(QueryType.DELETE);
+        verify(repository, never()).findForPeriod(any(), any(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void findForPeriodCapsPageSizeAtLeastOne() {
+        when(repository.findForPeriod(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.findForPeriod(orgId, executedAt, executedAt, null, null, 0);
+
+        var captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findForPeriod(any(), any(), any(), any(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(1);
     }
 
     @Test

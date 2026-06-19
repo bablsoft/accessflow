@@ -362,9 +362,9 @@
             <div class="feat-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
-            <h3>Tamper-evident audit</h3>
-            <p>Every decision is recorded in a log that can't be quietly edited after the fact. The append-only metadata audit log is chained with HMAC-SHA256, and INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored.</p>
-            <span class="tag">HMAC-SHA256 chain</span>
+            <h3>Tamper-evident audit &amp; compliance reports</h3>
+            <p>Every decision is recorded in a log that can't be quietly edited after the fact. The append-only metadata audit log is chained with HMAC-SHA256, and INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE regulatory trail with approver names — export as <strong>digitally signed</strong> PDF/CSV (verifiable offline) whose hash is chained back into the audit log, surfaced to a dedicated read-only <strong>Auditor</strong> role.</p>
+            <span class="tag">HMAC-SHA256 chain · signed exports</span>
           </div>
 
           <div class="feat">
@@ -1008,6 +1008,7 @@
               <li>Break-glass emergency access</li>
               <li>Multi-tenant org management &amp; per-org quotas</li>
               <li>Data classification tagging (PII / PCI / PHI / GDPR)</li>
+              <li>Compliance reporting &amp; signed PDF/CSV exports</li>
             </ul>
           </div>
           <div class="milestone" data-status="planned">
@@ -1019,7 +1020,6 @@
               <li>Saved-query version history &amp; diff</li>
               <li>Real-time collaborative editing</li>
               <li>Immutable query snapshots &amp; replay</li>
-              <li>SOC2 / HIPAA report export</li>
             </ul>
           </div>
         </div>

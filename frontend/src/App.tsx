@@ -15,6 +15,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 import { useSetupStore } from '@/store/setupStore';
 import { useAuthStore } from '@/store/authStore';
 import { resolveRouteGuard } from '@/utils/routeGuard';
+import { homePathForRole } from '@/utils/homePath';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
@@ -59,6 +60,7 @@ const OrganizationsListPage = lazy(() =>
 const OrganizationDetailPage = lazy(() =>
   import('@/pages/admin/OrganizationDetailPage').then((m) => ({ default: m.OrganizationDetailPage })),
 );
+const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -74,6 +76,8 @@ export function App() {
   if (guard.type === 'navigate') {
     return <Navigate to={guard.to} replace />;
   }
+
+  const home = homePathForRole(user?.role);
 
   return (
     <AntdApp>
@@ -129,7 +133,7 @@ export function App() {
             </AuthGuard>
           }
         >
-          <Route path="/" element={<Navigate to="/editor" replace />} />
+          <Route path="/" element={<Navigate to={home} replace />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editor" element={<QueryEditorPage />} />
           <Route path="/access-requests" element={<RequestAccessPage />} />
@@ -236,6 +240,16 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <AuditLogPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/auditor"
+            element={
+              <AuthGuard requireRole={['AUDITOR', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <AuditorDashboardPage />
+                </Suspense>
               </AuthGuard>
             }
           />
@@ -382,7 +396,7 @@ export function App() {
             }
           />
         </Route>
-        <Route path="*" element={<Navigate to="/editor" replace />} />
+        <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </AntdApp>
   );

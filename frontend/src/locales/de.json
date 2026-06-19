@@ -64,7 +64,8 @@
     "access_requests": "Zugriffsanfragen",
     "routing_policies": "Routing-Richtlinien",
     "langfuse": "Langfuse",
-    "connectors": "Konnektoren"
+    "connectors": "Konnektoren",
+    "auditor": "Compliance-Berichte"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2001,7 +2002,8 @@
       "ADMIN": "Administrator",
       "REVIEWER": "Prüfer",
       "ANALYST": "Analyst",
-      "READONLY": "Nur-Lesen"
+      "READONLY": "Nur-Lesen",
+      "AUDITOR": "Prüfer"
     },
     "db_type": {
       "POSTGRESQL": "PostgreSQL",
@@ -2259,5 +2261,29 @@
     "save_success": "Als Entwurf {{id}} gespeichert",
     "denied_title": "Zusammenarbeit nicht verfügbar",
     "denied_body": "Sie sind nicht berechtigt, diese Abfrage gemeinsam zu bearbeiten."
+  },
+  "auditor": {
+    "title": "Compliance-Berichte",
+    "subtitle": "Signierte, manipulationssichere Berichte über ausgeführte Abfragen",
+    "tab_classified_access": "Zugriff auf klassifizierte Daten",
+    "tab_regulatory_trail": "Regulatorischer Prüfpfad",
+    "period": "Berichtszeitraum",
+    "export_pdf": "Signiertes PDF exportieren",
+    "export_csv": "CSV exportieren",
+    "export_signed": "Export signiert ({{algorithm}}) und im Audit-Log erfasst",
+    "export_truncated": "Die Ergebnisse wurden am Zeilenlimit abgeschnitten; der Export ist unvollständig",
+    "export_failed": "Export fehlgeschlagen",
+    "report_truncated": "Die Ergebnisse wurden am konfigurierten Zeilenlimit abgeschnitten",
+    "empty_title": "Keine passende Aktivität",
+    "empty_description": "Keine ausgeführten Abfragen entsprechen diesem Bericht für den gewählten Zeitraum.",
+    "col_executed_at": "Ausgeführt am",
+    "col_datasource": "Datenquelle",
+    "col_submitter": "Einreicher",
+    "col_query_type": "Typ",
+    "col_referenced_tables": "Referenzierte Tabellen",
+    "col_classifications": "Klassifizierungen",
+    "col_rows_affected": "Zeilen",
+    "col_sql": "SQL",
+    "col_approvers": "Genehmiger"
   }
 }
