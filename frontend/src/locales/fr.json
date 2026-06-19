@@ -332,7 +332,8 @@
       "generate_button": "Générer le SQL",
       "generating": "Génération",
       "success": "SQL généré — vérifiez-le avant de soumettre",
-      "error": "Impossible de générer le SQL à partir de votre description"
+      "error": "Impossible de générer le SQL à partir de votre description",
+      "error_with_reason": "Impossible de générer le SQL à partir de votre description : {{reason}}"
     },
     "title": "Éditeur SQL",
     "subtitle": "Soumets une requête pour revue par IA et revue humaine.",

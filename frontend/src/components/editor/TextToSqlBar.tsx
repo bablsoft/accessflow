@@ -4,6 +4,7 @@ import { LoadingOutlined, RobotOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { generateSql } from '@/api/queries';
+import { textToSqlErrorMessage } from '@/utils/apiErrors';
 
 interface TextToSqlBarProps {
   datasourceId: string;
@@ -21,8 +22,8 @@ export function TextToSqlBar({ datasourceId, onGenerated }: TextToSqlBarProps) {
       onGenerated(res.sql, res.syntax);
       message.success(t('editor.text_to_sql.success'));
     },
-    onError: () => {
-      message.error(t('editor.text_to_sql.error'));
+    onError: (err) => {
+      message.error(textToSqlErrorMessage(err));
     },
   });
 

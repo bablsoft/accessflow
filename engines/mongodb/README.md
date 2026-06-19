@@ -8,6 +8,13 @@ download from the URL pinned in [`connectors/mongodb/connector.json`](../../conn
 SHA-256 verification, cache under `ACCESSFLOW_DRIVER_CACHE`, isolated `URLClassLoader` — and
 discovers the `MongoQueryEngine` via `java.util.ServiceLoader`.
 
+`MongoJson` parses query arguments with a relaxed Jackson reader (single quotes, unquoted keys,
+comments, trailing commas) and falls back to MongoDB's own lenient reader when Jackson fails, so
+shell extended-JSON constructors — `ObjectId(…)`, `ISODate(…)`, `new Date(…)`, `NumberLong(…)`,
+`NumberDecimal(…)`, `UUID(…)` and canonical `$oid`/`$date` — also parse (common in AI-generated
+`insertMany` drafts, AF-476). The fallback yields driver-native BSON types; the forbidden-operator
+check still runs on the parsed tree.
+
 ## Building
 
 The plugin compiles against the backend's plain JAR (`core.api` SPI + DTOs, `provided` scope), so

@@ -1341,8 +1341,8 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 - `400 VALIDATION_ERROR` — blank/oversized prompt or missing `datasource_id`.
 - `400 TEXT_TO_SQL_NOT_CONFIGURED` — no `ai_config` is bound to the datasource.
 - `409 TEXT_TO_SQL_DISABLED` — the datasource has `text_to_sql_enabled = false`.
-- `422 AI_RESPONSE_INVALID` — the provider returned no usable query, or the draft did not parse for the engine.
-- `503 AI_PROVIDER_UNAVAILABLE` — the provider call failed.
+- `422 AI_RESPONSE_INVALID` — the provider returned no usable query, or the draft did not parse for the engine. The `ProblemDetail` carries a `reason` property with the specific cause (e.g. `Generated query did not parse for MONGODB: …`, `AI response was not valid JSON: …`) so the editor can tell the user what went wrong; the backend also logs it at `WARN`.
+- `503 AI_PROVIDER_UNAVAILABLE` — the provider call failed (logged at `WARN`; the provider message is not surfaced to the client).
 
 ---
 

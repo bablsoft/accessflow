@@ -343,6 +343,25 @@ export function queryReplayErrorMessage(err: unknown): string {
   return i18n.t('errors.query_replay_generic');
 }
 
+export function textToSqlErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    // The backend surfaces the specific parse/validation cause as `reason` on a 422
+    // AI_RESPONSE_INVALID — show it so the user can tell what was wrong with the draft.
+    if (body?.error === 'AI_RESPONSE_INVALID' && body?.reason) {
+      return i18n.t('editor.text_to_sql.error_with_reason', { reason: body.reason });
+    }
+    // TEXT_TO_SQL_DISABLED / TEXT_TO_SQL_NOT_CONFIGURED / AI_PROVIDER_UNAVAILABLE already carry a
+    // localized `detail` from the backend.
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('editor.text_to_sql.error');
+}
+
 export function reviewPlanErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

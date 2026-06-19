@@ -294,6 +294,8 @@ class SystemPromptRendererTest {
 
         assertThat(prompt).contains("the MongoDB query language");
         assertThat(prompt).contains("db.collection.find");
+        assertThat(prompt).contains("db.collection.insertMany");
+        assertThat(prompt).contains("creates it on first write");
         assertThat(prompt).contains("$where");
         assertThat(prompt).doesNotContain("Use dialect-appropriate syntax");
         // The JSON envelope key stays "sql" regardless of engine (wire compatibility).

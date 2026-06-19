@@ -1,9 +1,12 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
 import org.bson.Document;
+import org.bson.types.Decimal128;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -65,6 +68,50 @@ class MongoJsonTest {
     @Test
     void invalidJsonThrows() {
         assertThatThrownBy(() -> MongoJson.parseValue("{ broken "))
+                .isInstanceOf(MongoParseException.class);
+    }
+
+    @Test
+    void parsesObjectIdConstructorViaBsonFallback() {
+        var doc = MongoJson.parseDocument("{ _id: ObjectId(\"507f1f77bcf86cd799439011\"), name: 'Ada' }");
+        assertThat(doc.get("_id")).isInstanceOf(ObjectId.class);
+        assertThat(((ObjectId) doc.get("_id")).toHexString()).isEqualTo("507f1f77bcf86cd799439011");
+        assertThat(doc.get("name")).isEqualTo("Ada");
+    }
+
+    @Test
+    void parsesDateConstructorsViaBsonFallback() {
+        var doc = MongoJson.parseDocument(
+                "{ created: ISODate(\"2020-01-02T03:04:05Z\"), updated: new Date(1577836800000) }");
+        assertThat(doc.get("created")).isInstanceOf(Date.class);
+        assertThat(doc.get("updated")).isInstanceOf(Date.class);
+    }
+
+    @Test
+    void parsesNumberConstructorsViaBsonFallback() {
+        var doc = MongoJson.parseDocument(
+                "{ big: NumberLong(\"123456789012\"), price: NumberDecimal(\"9.99\") }");
+        assertThat(doc.get("big")).isEqualTo(123_456_789_012L);
+        assertThat(doc.get("price")).isInstanceOf(Decimal128.class);
+    }
+
+    @Test
+    void parseDocumentArrayParsesConstructorDocumentsForInsertMany() {
+        var docs = MongoJson.parseDocumentArray(
+                "[{ _id: ObjectId(\"507f1f77bcf86cd799439011\"), at: ISODate(\"2020-01-01T00:00:00Z\") },"
+                        + " { _id: ObjectId(\"507f191e810c19729de860ea\") }]");
+        assertThat(docs).hasSize(2);
+        assertThat(docs.get(0).get("_id")).isInstanceOf(ObjectId.class);
+        assertThat(docs.get(0).get("at")).isInstanceOf(Date.class);
+        assertThat(docs.get(1).get("_id")).isInstanceOf(ObjectId.class);
+    }
+
+    @Test
+    void forbiddenOperatorsStillRejectedAfterBsonFallback() {
+        // $where with a constructor sibling forces the BSON fallback; the operator must still be caught.
+        var doc = MongoJson.parseDocument(
+                "{ _id: ObjectId(\"507f1f77bcf86cd799439011\"), $where: \"true\" }");
+        assertThatThrownBy(() -> MongoJson.assertNoForbiddenOperators(doc))
                 .isInstanceOf(MongoParseException.class);
     }
 

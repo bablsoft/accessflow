@@ -1,9 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AxiosError, type AxiosResponse } from 'axios';
 import { App } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
+
+function buildAxiosError(status: number, data: unknown): AxiosError {
+  const response = { data, status, statusText: '', headers: {}, config: {} as never } as AxiosResponse;
+  return new AxiosError('Request failed', undefined, undefined, undefined, response);
+}
 
 const { generateSqlMock } = vi.hoisted(() => ({ generateSqlMock: vi.fn() }));
 
@@ -66,5 +72,22 @@ describe('TextToSqlBar', () => {
 
     await waitFor(() => expect(generateSqlMock).toHaveBeenCalled());
     expect(onGenerated).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the backend reason when the draft fails to parse', async () => {
+    generateSqlMock.mockRejectedValue(
+      buildAxiosError(422, {
+        error: 'AI_RESPONSE_INVALID',
+        reason: "Generated query did not parse for MONGODB: unsupported operation 'mapReduce'",
+      }),
+    );
+    render(wrap(<TextToSqlBar datasourceId="ds-1" onGenerated={vi.fn()} />));
+
+    fireEvent.change(screen.getByLabelText('Describe your query'), {
+      target: { value: 'insert dummy users' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Generate query/i }));
+
+    expect(await screen.findByText(/unsupported operation 'mapReduce'/i)).toBeInTheDocument();
   });
 });

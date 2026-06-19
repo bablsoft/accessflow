@@ -18,6 +18,7 @@ import {
   reviewPlanErrorMessage,
   organizationErrorMessage,
   setupErrorMessage,
+  textToSqlErrorMessage,
 } from '../apiErrors';
 
 const buildAxiosError = (status: number, data: unknown): AxiosError => {
@@ -54,6 +55,38 @@ describe('collaborationErrorMessage', () => {
 
   it('uses an Error message when available', () => {
     expect(collaborationErrorMessage(new Error('boom'))).toBe('boom');
+  });
+});
+
+describe('textToSqlErrorMessage', () => {
+  it('surfaces the specific reason on a 422 AI_RESPONSE_INVALID', () => {
+    const msg = textToSqlErrorMessage(
+      buildAxiosError(422, {
+        error: 'AI_RESPONSE_INVALID',
+        reason: "Generated query did not parse for MONGODB: unsupported operation 'mapReduce'",
+      }),
+    );
+    expect(msg).toContain("unsupported operation 'mapReduce'");
+    expect(msg).toMatch(/could not generate a query/i);
+  });
+
+  it('falls back to the localized backend detail when there is no reason', () => {
+    expect(
+      textToSqlErrorMessage(
+        buildAxiosError(409, {
+          error: 'TEXT_TO_SQL_DISABLED',
+          detail: 'Text-to-SQL generation is disabled for this datasource',
+        }),
+      ),
+    ).toBe('Text-to-SQL generation is disabled for this datasource');
+  });
+
+  it('uses the generic message for a non-axios error without a message', () => {
+    expect(textToSqlErrorMessage(new Error(''))).toMatch(/could not generate a query/i);
+  });
+
+  it('uses an Error message when available', () => {
+    expect(textToSqlErrorMessage(new Error('boom'))).toBe('boom');
   });
 });
 

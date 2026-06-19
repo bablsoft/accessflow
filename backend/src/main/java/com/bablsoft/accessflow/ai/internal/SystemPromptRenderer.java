@@ -146,10 +146,13 @@ class SystemPromptRenderer {
                             + " TRANSACTION or batch / multi-statement input.")),
             Map.entry(DbType.MONGODB, new QueryLanguageProfile(
                     "the MongoDB query language", "shell",
-                    "- Emit a MongoDB shell command such as db.collection.find({...}) or"
-                            + " db.collection.aggregate([...]) (the JSON command-document form is also"
-                            + " accepted). Never use $where, $function, mapReduce, or other server-side"
-                            + " JavaScript.")),
+                    "- Emit a MongoDB shell command such as db.collection.find({...}),"
+                            + " db.collection.aggregate([...]), db.collection.insertOne({...}), or"
+                            + " db.collection.insertMany([{...}, ...]) (the JSON command-document form"
+                            + " is also accepted). For an insert whose target collection the request"
+                            + " names but the schema context does not list, use the requested"
+                            + " collection name verbatim — MongoDB creates it on first write. Never"
+                            + " use $where, $function, mapReduce, or other server-side JavaScript.")),
             Map.entry(DbType.REDIS, new QueryLanguageProfile(
                     "the Redis command language (redis-cli)", "cli",
                     "- Emit redis-cli commands from the read-oriented allow-list (GET, MGET, HGETALL,"
