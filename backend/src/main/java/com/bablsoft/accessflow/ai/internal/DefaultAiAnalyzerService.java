@@ -8,6 +8,9 @@ import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.DataClassification;
+import com.bablsoft.accessflow.core.api.DataClassificationQueryService;
+import com.bablsoft.accessflow.core.api.DataClassificationTagView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
@@ -20,14 +23,22 @@ import com.bablsoft.accessflow.core.api.SupportedLanguage;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +57,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final LocalizationConfigService localizationConfigService;
+    private final DataClassificationQueryService dataClassificationQueryService;
+    private final SqlParserService sqlParserService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -60,9 +73,13 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         var restrictedColumns = permissionLookupService.findFor(userId, datasourceId)
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
-        var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
-        return strategy.analyze(sql, descriptor.dbType(), schemaContext,
+        var classificationTags = loadClassificationTags(datasourceId, organizationId);
+        var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns,
+                classificationAnnotations(classificationTags));
+        var result = strategy.analyze(sql, descriptor.dbType(), schemaContext,
                 resolveLanguage(organizationId), aiConfigId);
+        return ClassificationRiskBooster.boost(result,
+                ClassificationRiskBooster.bumpFor(referencedClassifications(sql, classificationTags)));
     }
 
     private void verifySameOrg(UUID aiConfigId, UUID datasourceOrgId) {
@@ -106,16 +123,20 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                 .findFor(snapshot.submittedByUserId(), datasourceId)
                 .map(p -> p.restrictedColumns())
                 .orElse(List.of());
+        var classificationTags = loadClassificationTags(datasourceId, snapshot.organizationId());
         String schemaContext = null;
         try {
             var schemaView = datasourceAdminService.introspectSchemaForSystem(datasourceId, snapshot.organizationId());
-            schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
+            schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns,
+                    classificationAnnotations(classificationTags));
         } catch (RuntimeException e) {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }
         try {
-            var result = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
+            var analysis = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
                     resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
+            var result = ClassificationRiskBooster.boost(analysis, ClassificationRiskBooster.bumpFor(
+                    referencedClassifications(snapshot.sqlText(), classificationTags)));
             var issuesJson = responseParser.issuesAsJson(result.issues());
             var optimizationsJson = responseParser.optimizationsAsJson(result.optimizations());
             var command = new PersistAiAnalysisCommand(
@@ -156,6 +177,72 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("Failed to resolve AI review language for org {}: {}", organizationId, e.getMessage());
             return SupportedLanguage.EN.code();
         }
+    }
+
+    private List<DataClassificationTagView> loadClassificationTags(UUID datasourceId, UUID organizationId) {
+        try {
+            return dataClassificationQueryService.findByDatasource(datasourceId, organizationId);
+        } catch (RuntimeException e) {
+            log.warn("Failed to load classification tags for datasource {}: {}", datasourceId,
+                    e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Builds the prompt-annotation map keyed by lowercase {@code table} (table-level tags) and
+     * {@code table.column} (column-level tags), so the schema context can surface classifications
+     * next to each object.
+     */
+    private Map<String, List<DataClassification>> classificationAnnotations(
+            List<DataClassificationTagView> tags) {
+        var map = new LinkedHashMap<String, List<DataClassification>>();
+        for (var tag : tags) {
+            var table = lastSegment(tag.tableName());
+            var key = tag.columnName() == null
+                    ? table
+                    : table + "." + tag.columnName().toLowerCase(Locale.ROOT);
+            map.computeIfAbsent(key, k -> new ArrayList<>()).add(tag.classification());
+        }
+        return map;
+    }
+
+    /**
+     * Resolves the set of classifications carried by tables the query references. Parsing failures
+     * (unparseable SQL) yield an empty set — the bump is best-effort and never blocks analysis.
+     */
+    private Set<DataClassification> referencedClassifications(String sql,
+                                                              List<DataClassificationTagView> tags) {
+        if (tags.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> referenced;
+        try {
+            referenced = sqlParserService.parse(sql).referencedTables();
+        } catch (RuntimeException e) {
+            log.debug("Classification risk: could not resolve referenced tables: {}", e.getMessage());
+            return Set.of();
+        }
+        if (referenced == null || referenced.isEmpty()) {
+            return Set.of();
+        }
+        var referencedTables = referenced.stream().map(this::lastSegment).collect(Collectors.toSet());
+        var result = EnumSet.noneOf(DataClassification.class);
+        for (var tag : tags) {
+            if (referencedTables.contains(lastSegment(tag.tableName()))) {
+                result.add(tag.classification());
+            }
+        }
+        return result;
+    }
+
+    private String lastSegment(String qualifiedName) {
+        if (qualifiedName == null) {
+            return "";
+        }
+        var normalized = qualifiedName.toLowerCase(Locale.ROOT);
+        var dot = normalized.lastIndexOf('.');
+        return dot >= 0 ? normalized.substring(dot + 1) : normalized;
     }
 
     private void persistFailureAndPublish(UUID queryRequestId, UUID aiConfigId, String reason) {

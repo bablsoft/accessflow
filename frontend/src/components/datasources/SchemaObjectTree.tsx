@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Input, Tooltip } from 'antd';
+import { Input, Tag, Tooltip } from 'antd';
 import {
   SearchOutlined,
   RightOutlined,
@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { filterSchema } from '@/utils/schemaFilter';
-import type { SchemaNamespace } from '@/types/api';
+import type { DataClassification, SchemaNamespace } from '@/types/api';
 
 interface SchemaObjectTreeProps {
   schemas: SchemaNamespace[];
@@ -17,13 +17,40 @@ interface SchemaObjectTreeProps {
   onPreview?: (schema: string, table: string) => void;
   /** The currently previewed table (schema + table), highlighted in the tree. */
   selected?: { schema: string; table: string } | null;
+  /**
+   * Data-classification tags keyed by lowercase `table` (table-level) and `table.column`
+   * (column-level); when present, classified objects render their classifications as badges.
+   */
+  tagsByObject?: Map<string, DataClassification[]>;
+}
+
+function classificationsFor(
+  tagsByObject: Map<string, DataClassification[]> | undefined,
+  key: string,
+): DataClassification[] {
+  return tagsByObject?.get(key.toLowerCase()) ?? [];
+}
+
+function ClassificationBadges({ classifications }: { classifications: DataClassification[] }) {
+  if (classifications.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      {classifications.map((c) => (
+        <Tag key={c} color="volcano" style={{ marginInlineEnd: 0, fontSize: 9, lineHeight: '14px', padding: '0 4px' }}>
+          {c}
+        </Tag>
+      ))}
+    </>
+  );
 }
 
 /**
  * Searchable, hierarchical schema browser (schemas → tables → columns). The filter matches across
  * all three levels (AF-443). Used by both the datasource settings Schema tab and the editor sidebar.
  */
-export function SchemaObjectTree({ schemas, onPreview, selected }: SchemaObjectTreeProps) {
+export function SchemaObjectTree({ schemas, onPreview, selected, tagsByObject }: SchemaObjectTreeProps) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -108,6 +135,9 @@ export function SchemaObjectTree({ schemas, onPreview, selected }: SchemaObjectT
                             {tab.columns.length}
                           </span>
                         </button>
+                        <ClassificationBadges
+                          classifications={classificationsFor(tagsByObject, tab.name)}
+                        />
                         {onPreview && (
                           <Tooltip title={t('datasources.settings.sample_preview_button')}>
                             <button
@@ -132,6 +162,12 @@ export function SchemaObjectTree({ schemas, onPreview, selected }: SchemaObjectT
                               <span style={{ width: 12 }} />
                             )}
                             <span>{c.name}</span>
+                            <ClassificationBadges
+                              classifications={classificationsFor(
+                                tagsByObject,
+                                `${tab.name}.${c.name}`,
+                              )}
+                            />
                             <span style={{ marginLeft: 'auto', color: 'var(--fg-faint)', fontSize: 10 }}>
                               {c.type}
                             </span>

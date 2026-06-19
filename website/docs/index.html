@@ -959,6 +959,23 @@
             </picture>
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
           </figure>
+          <p>
+            <strong>Data classification.</strong> The datasource <em>Classification</em> tab tags
+            tables and columns with one or more data classifications — <em>PII</em>, <em>PCI</em>,
+            <em>PHI</em>, <em>GDPR</em>, <em>FINANCIAL</em>, or <em>SENSITIVE</em> — and
+            <strong>derives stricter handling automatically</strong>. Tagging a <em>column</em>
+            auto-applies a masking policy from the classification's default strategy
+            (PII / GDPR / FINANCIAL → partial, PCI / PHI → full, SENSITIVE → hash), so you don't
+            hand-configure masking for every sensitive field; a table-level tag (no column) is
+            informational. A query that references a tagged table gets an automatic AI risk-score
+            bump, and a <em>derivation preview</em> suggests a stricter review posture (AI review,
+            human approval, minimum approvals) aggregated across the datasource's tags — a suggestion
+            you apply on the datasource's review plan, never auto-changed. Tags are immutable
+            (create / delete) and audited; deleting a tag keeps the masking policy it derived. The
+            classifications appear as badges in the schema explorer, and <em>Admin → Data
+            classifications</em> (<code>/admin/data-classifications</code>) lists every tag across all
+            datasources as the evidence base for compliance reporting.
+          </p>
 
           <h3 id="cfg-connectors">Connectors</h3>
           <p>

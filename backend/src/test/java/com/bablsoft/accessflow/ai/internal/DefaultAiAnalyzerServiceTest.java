@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.DataClassification;
+import com.bablsoft.accessflow.core.api.DataClassificationQueryService;
+import com.bablsoft.accessflow.core.api.DataClassificationTagView;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
@@ -25,10 +28,12 @@ import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
+import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,8 +43,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,6 +68,8 @@ class DefaultAiAnalyzerServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock LocalizationConfigService localizationConfigService;
+    @Mock DataClassificationQueryService dataClassificationQueryService;
+    @Mock SqlParserService sqlParserService;
     @Mock ApplicationEventPublisher eventPublisher;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
@@ -79,7 +88,7 @@ class DefaultAiAnalyzerServiceTest {
         service = new DefaultAiAnalyzerService(strategy, aiConfigRepository, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
                 permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
-                eventPublisher);
+                dataClassificationQueryService, sqlParserService, eventPublisher);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -221,6 +230,62 @@ class DefaultAiAnalyzerServiceTest {
                     assertThat(ev.queryRequestId()).isEqualTo(queryRequestId);
                     assertThat(ev.aiAnalysisId()).isEqualTo(newAnalysisId);
                 });
+    }
+
+    @Test
+    void analyzeSubmittedQueryRaisesRiskWhenReferencedTableIsClassified() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT * FROM users", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        when(dataClassificationQueryService.findByDatasource(datasourceId, organizationId))
+                .thenReturn(List.of(new DataClassificationTagView(UUID.randomUUID(), datasourceId, "users",
+                        "id", DataClassification.PCI, null, Instant.now(), Instant.now())));
+        when(sqlParserService.parse("SELECT * FROM users"))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT * FROM users"),
+                        Set.of("users")));
+        // LLM verdict is MEDIUM/60; PCI adds +30 → 90 → CRITICAL.
+        when(strategy.analyze(any(), any(), any(), any(), eq(aiConfigId)))
+                .thenReturn(new AiAnalysisResult(60, RiskLevel.MEDIUM, "s", List.of(), false, null,
+                        AiProviderType.ANTHROPIC, "model-x", 1, 1, List.of()));
+        when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        ArgumentCaptor<PersistAiAnalysisCommand> cmdCaptor = ArgumentCaptor.forClass(PersistAiAnalysisCommand.class);
+        verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), cmdCaptor.capture());
+        assertThat(cmdCaptor.getValue().riskScore()).isEqualTo(90);
+        assertThat(cmdCaptor.getValue().riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue())
+                .isInstanceOfSatisfying(AiAnalysisCompletedEvent.class,
+                        ev -> assertThat(ev.riskScore()).isEqualTo(90));
+    }
+
+    @Test
+    void analyzeSubmittedQueryAnnotatesSchemaContextWithClassifications() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT id FROM users", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        when(dataClassificationQueryService.findByDatasource(datasourceId, organizationId))
+                .thenReturn(List.of(new DataClassificationTagView(UUID.randomUUID(), datasourceId, "users",
+                        "id", DataClassification.PII, null, Instant.now(), Instant.now())));
+        when(sqlParserService.parse("SELECT id FROM users"))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT id FROM users"),
+                        Set.of("users")));
+        ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
+        when(strategy.analyze(eq("SELECT id FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(),
+                any(), eq(aiConfigId))).thenReturn(sampleResult());
+        when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        assertThat(contextCaptor.getValue()).contains("id uuid pk not null [PII]");
     }
 
     @Test

@@ -655,6 +655,40 @@ The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET 
 
 The statement-timeout cap reuses `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT`; there is no row cap (a dry-run returns no rows). The result is mapped to `QueryDryRunResponse` by the controller in the `security` module (which already depends on `proxy`, so it can host the `/queries/dry-run` endpoint and use `JwtClaims` without a module cycle — the same arrangement as the sample-rows endpoint).
 
+### Data classification & derivation (AF-447)
+
+`data_classification_tag` rows (see [docs/03-data-model.md](03-data-model.md)) tag tables/columns with
+one or more classifications — `PII`, `PCI`, `PHI`, `GDPR`, `FINANCIAL`, `SENSITIVE` — and **auto-derive
+stricter handling**, the foundation for compliance reporting. Tags are managed by
+`DefaultDataClassificationService` (`core.internal`, implementing both `core.api.DataClassificationAdminService`
+for CRUD/preview/reporting and `core.api.DataClassificationQueryService` for read-only consumers); the
+REST surface lives in the `security` module (`DataClassificationTagController`,
+`AdminDataClassificationController`), mirroring the masking-policy split.
+
+- **Defaults registry.** `DataClassificationDefaults` (`core.internal`) maps each classification to a
+  recommended masking strategy + params and a review posture (PII/GDPR/FINANCIAL → `PARTIAL`
+  `visible_suffix=4`, 1 approval; PCI/PHI → `FULL`, 2 approvals; SENSITIVE → `HASH`, no mandatory human
+  approval). It stays out of `core.api` because it references `MaskingStrategy` and is an implementation
+  policy, not a contract.
+- **Masking derivation (auto-applied).** Creating a **column-level** tag with `apply_masking` on
+  idempotently calls `MaskingPolicyAdminService.create(...)` for `table_name.column_name` using the
+  classification default — skipped when an enabled masking policy already covers the column. Table-level
+  tags (no column) derive no masking. **Deleting a tag never removes the derived masking policy** — it
+  may have been customized and silently dropping a security control is dangerous; the derivation preview
+  surfaces the now-detached state.
+- **Review derivation (suggested, not applied).** `previewDerivation(...)` aggregates the strictest
+  posture across the datasource's tags (`requires_*` OR-ed, `min_approvals` MAX-ed) and the per-column
+  masking suggestions with an `already_applied` flag. It **never mutates a review plan** — plans are
+  shared across datasources, so a stricter posture is only ever a suggestion an admin applies manually.
+- **AI risk hook.** `DefaultAiAnalyzerService` fetches the datasource's tags before analysis, annotates
+  the schema context the LLM sees (`users(email … [PII,GDPR])`, reusing the `*RESTRICTED*` mechanism in
+  `SystemPromptRenderer.describeSchema`), and after the LLM returns applies a **deterministic risk bump**
+  via `ClassificationRiskBooster`: it re-parses the SQL (`proxy.api.SqlParserService`) for referenced
+  tables, adds the strongest per-classification weight (PCI/PHI +30, FINANCIAL +20, PII/GDPR +15,
+  SENSITIVE +10, clamped to 100) to the score, and recomputes the risk level by quartile thresholds —
+  the level can only rise, never drop below the LLM's verdict. The boosted score/level is what persists
+  and drives the workflow router.
+
 ---
 
 ## Review Workflow State Machine

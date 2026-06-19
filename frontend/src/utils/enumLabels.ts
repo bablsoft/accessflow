@@ -5,6 +5,7 @@ import type {
   AuthProvider,
   ChannelType,
   ComparisonOperator,
+  DataClassification,
   DbType,
   InvitationStatus,
   MaskingStrategy,
@@ -130,6 +131,18 @@ export const ROW_SECURITY_VALUE_TYPES: readonly RowSecurityValueType[] = [
 
 export const rowSecurityValueTypeLabel = (t: TFunction, v: RowSecurityValueType): string =>
   t(`enums.row_security_value_type.${v}` as const);
+
+export const DATA_CLASSIFICATIONS: readonly DataClassification[] = [
+  'PII',
+  'PCI',
+  'PHI',
+  'GDPR',
+  'FINANCIAL',
+  'SENSITIVE',
+] as const;
+
+export const dataClassificationLabel = (t: TFunction, v: DataClassification): string =>
+  t(`enums.data_classification.${v}` as const);
 
 // ── Routing policies ──────────────────────────────────────────────────────────
 export const QUERY_TYPES: readonly QueryType[] = [

@@ -31,7 +31,8 @@ public enum AuditResourceType {
     ROUTING_POLICY("routing_policy"),
     ROW_SECURITY_POLICY("row_security_policy"),
     CONNECTOR("connector"),
-    QUERY_COMMENT("query_comment");
+    QUERY_COMMENT("query_comment"),
+    DATA_CLASSIFICATION_TAG("data_classification_tag");
 
     private final String dbValue;
 

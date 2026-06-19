@@ -6,6 +6,8 @@ import {
   aiProviderLabel,
   authProviderLabel,
   channelTypeLabel,
+  DATA_CLASSIFICATIONS,
+  dataClassificationLabel,
   dbTypeLabel,
   enumOptions,
   invitationStatusLabel,
@@ -81,6 +83,9 @@ describe('enumLabels (key shape)', () => {
   it('maskingStrategyLabel builds enums.masking_strategy.<value>', () => {
     expect(maskingStrategyLabel(stubT, 'PARTIAL')).toBe('enums.masking_strategy.PARTIAL');
   });
+  it('dataClassificationLabel builds enums.data_classification.<value>', () => {
+    expect(dataClassificationLabel(stubT, 'PII')).toBe('enums.data_classification.PII');
+  });
 });
 
 describe('enumLabels (English text round-trip)', () => {
@@ -136,6 +141,11 @@ describe('enumLabels (English text round-trip)', () => {
   it('returns a non-empty resolved string for every MaskingStrategy', () => {
     for (const v of maskingStrategies) {
       expect(maskingStrategyLabel(t, v)).not.toBe(`enums.masking_strategy.${v}`);
+    }
+  });
+  it('returns a non-empty resolved string for every DataClassification', () => {
+    for (const v of DATA_CLASSIFICATIONS) {
+      expect(dataClassificationLabel(t, v)).not.toBe(`enums.data_classification.${v}`);
     }
   });
 

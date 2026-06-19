@@ -1309,6 +1309,59 @@ export interface CreateRowSecurityPolicyInput {
 
 export type UpdateRowSecurityPolicyInput = CreateRowSecurityPolicyInput;
 
+export type DataClassification = 'PII' | 'PCI' | 'PHI' | 'GDPR' | 'FINANCIAL' | 'SENSITIVE';
+
+export interface DataClassificationTag {
+  id: string;
+  datasource_id: string;
+  table_name: string;
+  column_name: string | null;
+  classification: DataClassification;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateDataClassificationTagInput {
+  table_name: string;
+  column_name?: string;
+  classifications: DataClassification[];
+  note?: string;
+  apply_masking?: boolean;
+}
+
+export interface ClassificationReviewPosture {
+  requires_ai_review: boolean;
+  requires_human_approval: boolean;
+  min_approvals: number;
+  driven_by: DataClassification[];
+}
+
+export interface ClassificationMaskingSuggestion {
+  column_ref: string;
+  classification: DataClassification;
+  suggested_strategy: MaskingStrategy;
+  suggested_params: Record<string, string>;
+  already_applied: boolean;
+}
+
+export interface DataClassificationDerivation {
+  suggested_review_posture: ClassificationReviewPosture;
+  masking_suggestions: ClassificationMaskingSuggestion[];
+}
+
+export interface OrganizationDataClassification {
+  id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  table_name: string;
+  column_name: string | null;
+  classification: DataClassification;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NotificationChannelEmailConfig {
   smtp_host: string;
   smtp_port: number;

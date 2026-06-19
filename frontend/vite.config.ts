@@ -54,6 +54,7 @@ export default defineConfig({
         'src/api/client.ts',
         'src/api/comments.ts',
         'src/api/connectors.ts',
+        'src/api/dataClassifications.ts',
         'src/api/datasourceHealth.ts',
         'src/api/datasources.ts',
         'src/api/maskingPolicies.ts',

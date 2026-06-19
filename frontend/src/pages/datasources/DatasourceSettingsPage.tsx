@@ -67,9 +67,15 @@ import {
   listRowSecurityPolicies,
   rowSecurityPolicyKeys,
 } from '@/api/rowSecurityPolicies';
+import { ClassificationTab } from '@/components/datasources/ClassificationTab';
+import {
+  dataClassificationKeys,
+  listClassificationTags,
+} from '@/api/dataClassifications';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type {
   CreatePermissionInput,
+  DataClassification,
   Datasource,
   DatasourcePermission,
   UpdateDatasourceInput,
@@ -106,6 +112,12 @@ export function DatasourceSettingsPage() {
   const rowSecurityPoliciesQuery = useQuery({
     queryKey: id ? rowSecurityPolicyKeys.list(id) : ['row-security-policies', 'list', 'idle'],
     queryFn: () => listRowSecurityPolicies(id!),
+    enabled: !!id,
+  });
+
+  const classificationTagsQuery = useQuery({
+    queryKey: id ? dataClassificationKeys.list(id) : ['data-classifications', 'list', 'idle'],
+    queryFn: () => listClassificationTags(id!),
     enabled: !!id,
   });
 
@@ -178,6 +190,7 @@ export function DatasourceSettingsPage() {
   const permissionsCount = permissionsQuery.data?.length ?? 0;
   const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
   const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
+  const classificationCount = classificationTagsQuery.data?.length ?? 0;
   const testIcon =
     testMutation.isPending ? (
       <LoadingOutlined />
@@ -230,6 +243,10 @@ export function DatasourceSettingsPage() {
             key: 'row-security',
             label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
           },
+          {
+            key: 'classification',
+            label: t('datasources.settings.tab_classification', { count: classificationCount }),
+          },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
@@ -240,6 +257,7 @@ export function DatasourceSettingsPage() {
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
+        {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>
@@ -1123,6 +1141,22 @@ function SchemaTab({ dsId }: { dsId: string }) {
   const schemaQuery = useSchemaIntrospect(dsId);
   const [preview, setPreview] = useState<{ schema: string; table: string } | null>(null);
 
+  const tagsQuery = useQuery({
+    queryKey: dataClassificationKeys.list(dsId),
+    queryFn: () => listClassificationTags(dsId),
+  });
+  const tagsByObject = useMemo(() => {
+    const map = new Map<string, DataClassification[]>();
+    for (const tag of tagsQuery.data ?? []) {
+      const table = tag.table_name.toLowerCase().split('.').pop() ?? tag.table_name.toLowerCase();
+      const key = tag.column_name ? `${table}.${tag.column_name.toLowerCase()}` : table;
+      const list = map.get(key) ?? [];
+      list.push(tag.classification);
+      map.set(key, list);
+    }
+    return map;
+  }, [tagsQuery.data]);
+
   if (schemaQuery.isLoading) {
     return (
       <div style={{ padding: 28 }} className="muted">
@@ -1157,6 +1191,7 @@ function SchemaTab({ dsId }: { dsId: string }) {
           schemas={schemaQuery.data.schemas}
           selected={preview}
           onPreview={(schema, table) => setPreview({ schema, table })}
+          tagsByObject={tagsByObject}
         />
       </div>
       <SampleDataDrawer datasourceId={dsId} target={preview} onClose={() => setPreview(null)} />
