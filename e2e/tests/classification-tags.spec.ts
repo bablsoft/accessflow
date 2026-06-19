@@ -55,8 +55,13 @@ test.describe.serial('data classification tagging (AF-447)', () => {
     await noteField.click();
     await dialog.getByRole('combobox').nth(1).fill('email');
     await noteField.click();
-    await dialog.getByRole('combobox').nth(2).click();
-    await page.getByRole('option', { name: 'PII', exact: true }).click();
+    // Multi-select: type to filter then Enter to pick the highlighted option. A direct
+    // click on the rendered <div role="option"> is flaky — AntD's virtual-list dropdown
+    // re-renders/repositions, so the option never settles into an actionable state.
+    const classificationSelect = dialog.getByRole('combobox').nth(2);
+    await classificationSelect.click();
+    await classificationSelect.fill('PII');
+    await page.keyboard.press('Enter');
     await noteField.click();
 
     await dialog.getByRole('button', { name: 'Save' }).click();
