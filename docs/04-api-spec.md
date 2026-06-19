@@ -141,6 +141,11 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `POST` | `/datasources/{id}/row-security-policies` | ADMIN | Create a row-security policy on a datasource table |
 | `PUT` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Update a row-security policy |
 | `DELETE` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Delete a row-security policy |
+| `GET` | `/datasources/{id}/classification-tags` | ADMIN | List data-classification tags for a datasource (AF-447) |
+| `POST` | `/datasources/{id}/classification-tags` | ADMIN | Tag a table/column with one or more data classifications |
+| `DELETE` | `/datasources/{id}/classification-tags/{tagId}` | ADMIN | Remove a classification tag (keeps the derived masking policy) |
+| `GET` | `/datasources/{id}/classification-tags/derivation-preview` | ADMIN | Preview the masking + review handling implied by a datasource's tags |
+| `GET` | `/admin/data-classifications` | ADMIN | List every classification tag in the organization (compliance reporting) |
 | `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
 | `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
 | `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
@@ -701,6 +706,78 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 > rewrite (a policied table inside a `UNION`, a CTE, a sub-select, an `INSERT … SELECT`, or an
 > `UPDATE … FROM` / `DELETE … USING` join onto another policied table), execution returns **HTTP 422**
 > `error: ROW_SECURITY_UNREWRITABLE` rather than running unfiltered.
+
+---
+
+### Data classification tags (AF-447)
+
+Tag datasource tables and columns with one or more data classifications — `PII`, `PCI`, `PHI`,
+`GDPR`, `FINANCIAL`, `SENSITIVE`. Tagging a **column** auto-applies a derived masking policy
+(idempotent), the AI analyzer raises a query's risk score when it references a tagged object, and a
+derivation preview suggests a stricter review posture. Tags are **immutable** (create / delete only —
+re-classify by deleting and re-creating) and audited (`DATA_CLASSIFICATION_TAG_ADDED` /
+`DATA_CLASSIFICATION_TAG_REMOVED`). All endpoints are ADMIN-only and organization-scoped.
+
+#### POST /datasources/{id}/classification-tags — Request Body
+
+```json
+{
+  "table_name": "public.users",
+  "column_name": "email",
+  "classifications": ["PII", "GDPR"],
+  "note": "contact info",
+  "apply_masking": true
+}
+```
+
+`table_name` is required (non-blank, ≤ 256 chars). `column_name` is optional (≤ 256 chars); when
+omitted/blank the tag is **table-level** (informational — raises review posture and AI risk but
+derives no masking). `classifications` is required and non-empty; **one tag row is created per
+classification**. `apply_masking` defaults `true` and only applies to column-level tags: it
+idempotently creates a masking policy for `table_name.column_name` from the classification's default
+strategy (PII/GDPR/FINANCIAL → `PARTIAL`, PCI/PHI → `FULL`, SENSITIVE → `HASH`), skipped when an
+enabled policy already covers the column.
+
+**Response 201:** `{ "content": [ <tag>, … ] }` — the created tags. `Location` points to the
+collection. **Response 404:** `DATASOURCE_NOT_FOUND`. **Response 422:** blank table, empty
+classifications, or a duplicate `(object, classification)` tag — `error: ILLEGAL_DATA_CLASSIFICATION_TAG`.
+
+#### DELETE /datasources/{id}/classification-tags/{tagId}
+
+**Response 204:** No content. **Response 404:** `DATA_CLASSIFICATION_TAG_NOT_FOUND`. Deleting a tag
+**does not** remove the masking policy it derived — that policy is independently editable on the
+Masking tab; remove it there if no longer needed.
+
+#### GET /datasources/{id}/classification-tags/derivation-preview — Response 200
+
+```json
+{
+  "suggested_review_posture": {
+    "requires_ai_review": true,
+    "requires_human_approval": true,
+    "min_approvals": 2,
+    "driven_by": ["PII", "PCI"]
+  },
+  "masking_suggestions": [
+    {
+      "column_ref": "public.users.email",
+      "classification": "PII",
+      "suggested_strategy": "PARTIAL",
+      "suggested_params": { "visible_suffix": "4" },
+      "already_applied": true
+    }
+  ]
+}
+```
+
+Read-only. The posture is the strictest aggregate over the datasource's tags (`requires_*` OR-ed,
+`min_approvals` MAX-ed) — it is a **suggestion**, never auto-applied to the shared review plan.
+
+#### GET /admin/data-classifications — Response 200
+
+`{ "content": [ { id, datasource_id, datasource_name, table_name, column_name, classification, note,
+created_at, updated_at }, … ] }` — every classification tag in the organization across all
+datasources, the evidence base for compliance reporting.
 
 ---
 

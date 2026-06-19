@@ -145,14 +145,14 @@
 - **Access recertification campaigns** — recurring attestation campaigns where datasource owners certify or revoke standing access, with exportable evidence for SOC2 / ISO 27001 audits (AF-384)
 - **Break-glass / emergency access** — a gated, audited, time-boxed bypass that executes immediately while notifying all admins (incl. PagerDuty) and forcing a mandatory post-hoc review (AF-385)
 - **Multi-tenant organization management & per-org quotas** — organizations are first-class, manageable tenants: a super-admin (`platform_admin`) manages them across the cluster from a dedicated UI (`/admin/organizations`) — create, edit, disable / enable — with per-org quotas (`max_datasources`, `max_users`, `max_queries_per_day`, enforced as `409 QUOTA_EXCEEDED`) and a disabled-org kill-switch that blocks login and requests immediately. Cross-org isolation is hardened defense-in-depth (org always derived from the JWT, never the request body) (AF-456)
+- **Data classification tagging** — tag datasource tables/columns with one or more data classifications (PII, PCI, PHI, GDPR, FINANCIAL, SENSITIVE) in the schema explorer; tagging a column auto-applies a masking policy, the AI analyzer raises a query's risk score when it references a tagged object, and a derivation preview suggests a stricter review posture. Tags are audited and queryable org-wide for compliance reporting (AF-447)
 
 ---
 
 ## v2.1
 
-**Theme:** Data classification, query suggestions, and compliance reporting.
+**Theme:** Query suggestions and compliance reporting.
 
-- **Data classification tagging** — mark columns as PII, PCI, PHI in the schema explorer; AI analysis uses tags to increase risk score automatically
 - **AI query-optimization & index recommendations** — the analyzer returns concrete, dialect-aware optimization suggestions (index DDL + query rewrites) alongside the risk verdict; each has a one-click "Apply as draft" that pre-fills the editor and routes the suggested statement through the normal review pipeline, audited as `submission_reason=AI_SUGGESTION` (AF-451)
 - **Query playground / dry-run sandbox** — preview a query's impact before formal submission: a non-committing dry run returns the engine's execution plan (node type, rows, cost, filters) and a best-effort estimated row impact **without mutating data**, surfaced in the editor's right rail next to the AI panel. Runs through the same governance as a real execution (datasource access, allow-list, row-security) but creates no review. Dialect-aware across every engine that has a plan concept — relational `EXPLAIN` (PostgreSQL / MySQL / MariaDB / Oracle / SQL Server), MongoDB `explain`, Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`; engines without one degrade gracefully. SELECT dry-runs prefer the read replica when configured (AF-445)
 - **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts

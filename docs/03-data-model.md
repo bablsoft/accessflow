@@ -264,6 +264,43 @@ unfiltered. Applied policy ids ride on the `QUERY_EXECUTED` audit metadata
 
 ---
 
+## data_classification_tag
+
+Data-classification tags on datasource tables/columns (AF-447). Each row binds one classification to
+one object (a table, or a specific column) so a single column may carry several classes via several
+rows. Tags drive automatic derivation of stricter handling: a column-level tag auto-applies a
+`masking_policy`, the AI analyzer raises a query's risk score when it references a tagged table, and a
+read-only derivation preview suggests a stricter review posture. Tags are immutable (create / delete
+only) and queryable org-wide for compliance reporting. Created by
+`V90__create_data_classification_tags.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` (`ON DELETE CASCADE`) |
+| `datasource_id` | FK → `datasources` (`ON DELETE CASCADE` — tags are datasource-scoped child config) |
+| `table_name` | TEXT NOT NULL — `schema.table` or bare `table` |
+| `column_name` | TEXT nullable — the tagged column; **NULL = a table-level tag** (informational; derives no masking) |
+| `classification` | ENUM `data_classification`: `PII` \| `PCI` \| `PHI` \| `GDPR` \| `FINANCIAL` \| `SENSITIVE` |
+| `note` | TEXT nullable — optional free-text note |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id, datasource_id)` for the per-datasource scan and `(organization_id)` for
+the org-wide reporting scan. A unique expression index on
+`(organization_id, datasource_id, table_name, COALESCE(column_name, ''), classification)` rejects
+duplicate tags — the `COALESCE` collapses NULL column names so duplicate table-level tags are caught
+too.
+
+**Derivation.** Each classification maps to a default masking strategy and review posture
+(PII/GDPR/FINANCIAL → `PARTIAL`, PCI/PHI → `FULL` + 2 approvals, SENSITIVE → `HASH`). On creating a
+column-level tag with `apply_masking` on, the service idempotently creates a `masking_policy` for
+`table_name.column_name` (skipped when an enabled policy already covers it). **Deleting a tag does not
+delete the derived masking policy.** Tag changes are audited via `DATA_CLASSIFICATION_TAG_ADDED` /
+`DATA_CLASSIFICATION_TAG_REMOVED` (resource `data_classification_tag`).
+
+---
+
 ## review_plans
 
 Defines an approval policy. Assigned to datasources.
@@ -866,6 +903,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
+| `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.

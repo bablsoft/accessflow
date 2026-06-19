@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.ai.internal;
 
+import com.bablsoft.accessflow.core.api.DataClassification;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 class SystemPromptRenderer {
@@ -267,14 +269,28 @@ class SystemPromptRenderer {
     }
 
     String describeSchema(DatabaseSchemaView schema, List<String> restrictedColumns) {
+        return describeSchema(schema, restrictedColumns, Map.of());
+    }
+
+    /**
+     * Renders the schema context, marking restricted columns with {@code *RESTRICTED*} and tagged
+     * objects with their data classifications (e.g. {@code [PII,GDPR]}). The classification map is
+     * keyed by lowercase {@code table} (table-level tags) and {@code table.column} (column-level
+     * tags); see {@code DefaultAiAnalyzerService#classificationAnnotations}.
+     */
+    String describeSchema(DatabaseSchemaView schema, List<String> restrictedColumns,
+                          Map<String, List<DataClassification>> classifications) {
         if (schema == null || schema.schemas() == null || schema.schemas().isEmpty()) {
             return null;
         }
         var restricted = parseRestricted(restrictedColumns);
+        var tags = classifications == null ? Map.<String, List<DataClassification>>of() : classifications;
         var sb = new StringBuilder();
         for (var s : schema.schemas()) {
             for (var t : s.tables()) {
-                sb.append(s.name()).append('.').append(t.name()).append('(');
+                sb.append(s.name()).append('.').append(t.name());
+                sb.append(classificationLabel(tags.get(t.name().toLowerCase(Locale.ROOT))));
+                sb.append('(');
                 boolean first = true;
                 for (var c : t.columns()) {
                     if (!first) {
@@ -291,11 +307,22 @@ class SystemPromptRenderer {
                     if (isRestricted(restricted, s.name(), t.name(), c.name())) {
                         sb.append(" *RESTRICTED*");
                     }
+                    sb.append(classificationLabel(tags.get(
+                            (t.name() + "." + c.name()).toLowerCase(Locale.ROOT))));
                 }
                 sb.append(")\n");
             }
         }
         return sb.toString().stripTrailing();
+    }
+
+    private static String classificationLabel(List<DataClassification> classifications) {
+        if (classifications == null || classifications.isEmpty()) {
+            return "";
+        }
+        return " [" + classifications.stream()
+                .map(DataClassification::name)
+                .collect(Collectors.joining(",")) + "]";
     }
 
     private static Restricted parseRestricted(List<String> entries) {

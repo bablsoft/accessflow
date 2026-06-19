@@ -15,6 +15,8 @@ import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
+import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
@@ -336,6 +338,24 @@ class GlobalExceptionHandler {
         // Message is resolved at the throw site via MessageSource — see DefaultMaskingPolicyAdminService.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_MASKING_POLICY");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DataClassificationTagNotFoundException.class)
+    ProblemDetail handleDataClassificationTagNotFound(DataClassificationTagNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.data_classification_tag_not_found"));
+        pd.setProperty("error", "DATA_CLASSIFICATION_TAG_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalDataClassificationTagException.class)
+    ProblemDetail handleIllegalDataClassificationTag(IllegalDataClassificationTagException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultDataClassificationService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_DATA_CLASSIFICATION_TAG");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

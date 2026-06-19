@@ -409,6 +409,26 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
 
+### Data classification tags (AF-447)
+
+`data_classification_tag` rows let admins tag tables/columns as `PII`, `PCI`, `PHI`, `GDPR`,
+`FINANCIAL`, or `SENSITIVE` and have AccessFlow **derive stricter handling automatically**, rather than
+configuring every masking/review rule by hand.
+
+- **ADMIN-only.** All classification endpoints (`/datasources/{id}/classification-tags*` and the org-wide
+  `/admin/data-classifications`) require the ADMIN role and are organization-scoped (datasource must
+  belong to the caller's org, else `DATASOURCE_NOT_FOUND`).
+- **Derived masking is additive and reversible-safe.** Tagging a column auto-creates a `masking_policy`
+  (idempotent); **deleting a tag never deletes the derived policy**, so a classification change can never
+  silently weaken an in-place masking control — removing the control is always an explicit, separate,
+  audited action on the Masking tab.
+- **Classification raises AI risk deterministically.** A query that references a tagged table gets a
+  fixed risk-score bump on top of the LLM verdict (the level can only rise), so sensitive-data access is
+  escalated by the routing engine even if the model under-rates it.
+- **Audit.** Tag add/remove emit `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED`
+  (resource `data_classification_tag`); the org-wide list endpoint is the evidence base for compliance
+  reporting.
+
 ### Context-aware routing conditions (AF-446)
 
 Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md)) can match on the
