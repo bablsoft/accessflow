@@ -332,7 +332,8 @@
       "generate_button": "Generar SQL",
       "generating": "Generando",
       "success": "SQL generado: revísalo antes de enviar",
-      "error": "No se pudo generar SQL a partir de tu descripción"
+      "error": "No se pudo generar SQL a partir de tu descripción",
+      "error_with_reason": "No se pudo generar SQL a partir de tu descripción: {{reason}}"
     },
     "title": "Editor SQL",
     "subtitle": "Envía una consulta para revisión por IA y revisión humana.",

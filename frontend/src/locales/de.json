@@ -332,7 +332,8 @@
       "generate_button": "SQL generieren",
       "generating": "Wird generiert",
       "success": "SQL generiert – vor dem Absenden prüfen",
-      "error": "SQL konnte nicht aus Ihrer Beschreibung generiert werden"
+      "error": "SQL konnte nicht aus Ihrer Beschreibung generiert werden",
+      "error_with_reason": "SQL konnte nicht aus Ihrer Beschreibung generiert werden: {{reason}}"
     },
     "title": "SQL-Editor",
     "subtitle": "Reiche eine Abfrage zur KI- und menschlichen Prüfung ein.",

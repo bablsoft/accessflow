@@ -332,7 +332,8 @@
       "generate_button": "生成 SQL",
       "generating": "生成中",
       "success": "已生成 SQL，请在提交前检查",
-      "error": "无法根据您的描述生成 SQL"
+      "error": "无法根据您的描述生成 SQL",
+      "error_with_reason": "无法根据您的描述生成 SQL：{{reason}}"
     },
     "title": "SQL 编辑器",
     "subtitle": "提交查询以进行 AI 和人工审核。",

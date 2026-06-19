@@ -15,16 +15,23 @@ import java.util.Set;
 /**
  * Relaxed JSON ⇄ BSON helpers for the MongoDB query parser. Parsing accepts the mongo-shell dialect
  * (single quotes, unquoted property names, comments, trailing commas) which is a superset of strict
- * JSON, so the JSON-command form parses through the same path. The output is {@link Document}
- * (objects) / {@link List} (arrays) / scalars — directly consumable by the MongoDB driver as
- * filters, updates, and documents. No JavaScript is ever evaluated; query operators that execute
- * server-side JS or write outside the audited path are rejected up front.
+ * JSON, so the JSON-command form parses through the same path. Inputs that use shell extended-JSON
+ * constructors ({@code ObjectId(...)}, {@code ISODate(...)}, {@code new Date(...)},
+ * {@code NumberLong(...)}, {@code NumberDecimal(...)}, {@code UUID(...)}) or the canonical
+ * {@code $oid} / {@code $date} forms — which the relaxed Jackson reader cannot parse — fall back to
+ * MongoDB's own lenient JSON reader. The output is {@link Document} (objects) / {@link List}
+ * (arrays) / scalars — directly consumable by the MongoDB driver as filters, updates, and documents.
+ * No JavaScript is ever evaluated; query operators that execute server-side JS or write outside the
+ * audited path are rejected up front.
  */
 final class MongoJson {
 
     /** Operators that execute arbitrary JS or exfiltrate writes outside the governed path. */
     private static final Set<String> FORBIDDEN_OPERATORS =
             Set.of("$where", "$function", "$accumulator", "$out", "$merge");
+
+    /** Wrapper key used to round-trip an arbitrary value through the BSON document reader. */
+    private static final String WRAP_KEY = "__af_value__";
 
     private static final JsonMapper MAPPER = JsonMapper.builder()
             .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
@@ -41,13 +48,25 @@ final class MongoJson {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        JsonNode node;
         try {
-            node = MAPPER.readTree(raw);
-        } catch (RuntimeException ex) {
+            return toBson(MAPPER.readTree(raw));
+        } catch (RuntimeException jacksonFailure) {
+            // Shell extended-JSON constructors (ObjectId(...), ISODate(...), new Date(...),
+            // NumberLong(...), NumberDecimal(...), UUID(...)) and canonical $oid / $date forms are
+            // not parseable by the relaxed Jackson reader. Retry with MongoDB's own lenient reader,
+            // which understands them and yields driver-native BSON types (ObjectId, Date,
+            // Decimal128, Long) the executor hands straight to insertOne/insertMany.
+            return parseExtendedJson(raw);
+        }
+    }
+
+    private static Object parseExtendedJson(String raw) {
+        try {
+            // Wrap so any shape — scalar, object, or array — round-trips through the document reader.
+            return Document.parse("{\"" + WRAP_KEY + "\": " + raw + "}").get(WRAP_KEY);
+        } catch (RuntimeException bsonFailure) {
             throw new MongoParseException("error.mongo.invalid_json", raw.strip());
         }
-        return toBson(node);
     }
 
     /** Parse a value that must be a JSON object, returning it as a {@link Document}. */

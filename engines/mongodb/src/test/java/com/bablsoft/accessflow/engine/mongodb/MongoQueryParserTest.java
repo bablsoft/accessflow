@@ -59,6 +59,20 @@ class MongoQueryParserTest {
     }
 
     @Test
+    void parsesInsertManyWithShellConstructors() {
+        var command = parser.parseCommand(
+                "db.users.insertMany([{ _id: ObjectId(\"507f1f77bcf86cd799439011\"), name: 'Ada',"
+                        + " joined: ISODate(\"2020-01-02T03:04:05Z\") },"
+                        + " { _id: ObjectId(\"507f191e810c19729de860ea\"), name: 'Grace' }])");
+        assertThat(command.operation()).isEqualTo(MongoOperation.INSERT_MANY);
+        assertThat(command.collection()).isEqualTo("users");
+        assertThat(command.documents()).hasSize(2);
+        assertThat(command.documents().get(0).get("_id"))
+                .isInstanceOf(org.bson.types.ObjectId.class);
+        assertThat(command.documents().get(0).get("joined")).isInstanceOf(java.util.Date.class);
+    }
+
+    @Test
     void parsesUpdateManyAsUpdate() {
         var result = parser.parse("db.users.updateMany({ active: true }, { $set: { tier: 'gold' } })");
         assertThat(result.type()).isEqualTo(QueryType.UPDATE);

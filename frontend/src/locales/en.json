@@ -332,7 +332,8 @@
       "generate_button": "Generate query",
       "generating": "Generating",
       "success": "Query generated — review it before submitting",
-      "error": "Could not generate a query from your description"
+      "error": "Could not generate a query from your description",
+      "error_with_reason": "Could not generate a query from your description: {{reason}}"
     },
     "title": "SQL editor",
     "subtitle": "Submit a query for AI and human review.",
