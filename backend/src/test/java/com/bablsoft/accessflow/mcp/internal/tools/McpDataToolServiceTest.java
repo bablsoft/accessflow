@@ -156,6 +156,24 @@ class McpDataToolServiceTest {
     }
 
     @Test
+    void validate_sql_valid_with_no_referenced_tables_reports_no_unknowns() {
+        var dsId = UUID.randomUUID();
+        var sql = "SELECT 1";
+        when(datasourceAdminService.getForUser(dsId, orgId, userId)).thenReturn(newDatasourceView());
+        when(queryParser.parse(sql, DbType.POSTGRESQL)).thenReturn(new SqlParseResult(
+                QueryType.SELECT, false, List.of(sql), Set.of(), false, false));
+        when(datasourceAdminService.introspectSchema(dsId, orgId, userId, false))
+                .thenReturn(schemaWithUsersAndOrders());
+
+        var result = tools.validateSql(dsId, sql);
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.schemaChecked()).isTrue();
+        assertThat(result.referencedTables()).isEmpty();
+        assertThat(result.unknownTables()).isEmpty();
+    }
+
+    @Test
     void validate_sql_propagates_datasource_not_found() {
         var dsId = UUID.randomUUID();
         when(datasourceAdminService.getForUser(dsId, orgId, userId))
