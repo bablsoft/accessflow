@@ -7,6 +7,7 @@ export type WsEventName =
   | 'query.executed'
   | 'ai.analysis_complete'
   | 'notification.created'
+  | 'anomaly.detected'
   | 'collab.joined'
   | 'collab.presence'
   | 'collab.sync'
@@ -58,6 +59,13 @@ export interface WsEventPayloadMap {
     event_type: UserNotificationEventType;
     query_id: string | null;
     created_at: string;
+  };
+  'anomaly.detected': {
+    anomaly_id: string;
+    user_id: string;
+    datasource_id: string;
+    feature: string;
+    score: number;
   };
   // Acknowledgement sent only to the joining session. `seed` is true for the first joiner of a
   // fresh room — that client seeds the shared document from the query's SQL.
@@ -116,6 +124,7 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'query.executed',
   'ai.analysis_complete',
   'notification.created',
+  'anomaly.detected',
   'collab.joined',
   'collab.presence',
   'collab.sync',

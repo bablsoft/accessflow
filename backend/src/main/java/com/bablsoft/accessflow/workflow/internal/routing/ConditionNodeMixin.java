@@ -30,7 +30,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ConditionNode.SourceIpMatches.class, name = "source_ip"),
         @JsonSubTypes.Type(value = ConditionNode.UserAgentMatches.class, name = "user_agent"),
         @JsonSubTypes.Type(value = ConditionNode.TimeSinceLastApproval.class, name = "time_since_last_approval"),
-        @JsonSubTypes.Type(value = ConditionNode.CiCdOrigin.class, name = "cicd_origin")
+        @JsonSubTypes.Type(value = ConditionNode.CiCdOrigin.class, name = "cicd_origin"),
+        @JsonSubTypes.Type(value = ConditionNode.AnomalyDetected.class, name = "anomaly_detected")
 })
 interface ConditionNodeMixin {
 }

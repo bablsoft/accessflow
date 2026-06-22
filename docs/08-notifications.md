@@ -18,6 +18,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_APPROVED` | Query fully approved (all stages complete) — fired for both human approval and auto-approval | Query submitter | implemented |
 | `QUERY_REJECTED` | Reviewer rejects query | Query submitter | implemented |
 | `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
+| `ANOMALY_DETECTED` | `BehaviorAnomalyDetectionJob` flags a behavioural anomaly (UBA, AF-383) | All ADMIN users in the org plus the flagged user. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -278,7 +279,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
 {
   "routing_key": "R0ABCD1234567890ABCDEF",
   "default_severity": "critical",
-  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT"]
+  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY"]
 }
 ```
 
@@ -287,6 +288,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
 - `triggers` (required, at least one) — which events page this channel. A **trigger filter** runs before any HTTP call, so unlike the chat channels a PagerDuty channel only fires for the events it opts into:
   - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
+  - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
 The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.
@@ -346,6 +348,7 @@ in `NotificationContextBuilder`:
 | `QUERY_REJECTED` | The original submitter |
 | `REVIEW_TIMEOUT` | The original submitter and every active org admin (de-duplicated) |
 | `AI_HIGH_RISK` | All active org admins |
+| `ANOMALY_DETECTED` | All active org admins plus the flagged user |
 | `ACCESS_REQUEST_SUBMITTED` | Eligible plan approvers at the lowest stage (excluding the requester), falling back to all active org admins when the plan resolves no one |
 | `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | The requester |
 | `TEST` | Skipped — never persisted to the inbox |

@@ -65,7 +65,8 @@
     "routing_policies": "Politiques de routage",
     "langfuse": "Langfuse",
     "connectors": "Connecteurs",
-    "auditor": "Rapports de conformité"
+    "auditor": "Rapports de conformité",
+    "anomalies": "Anomalies"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "Ouvert",
       "RESOLVED": "Résolu"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "Ouverte",
+      "ACKNOWLEDGED": "Confirmée",
+      "DISMISSED": "Rejetée"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "Lignes",
     "col_sql": "SQL",
     "col_approvers": "Approbateurs"
+  },
+  "anomalies": {
+    "title": "Anomalies",
+    "subtitle": "Anomalies comportementales détectées dans l'activité de requêtes des utilisateurs : volumes inhabituels, accès en dehors des heures et autres écarts par rapport au comportement habituel de chaque utilisateur.",
+    "filter_status_all": "Tous les statuts",
+    "filter_datasource_all": "Toutes les sources de données",
+    "filter_user_placeholder": "ID utilisateur",
+    "filter_feature_placeholder": "Caractéristique",
+    "count_label": "{{count}} anomalies",
+    "load_error": "Impossible de charger les anomalies",
+    "empty_title": "Aucune anomalie",
+    "empty_description": "Rien d'inhabituel sur cette période. Élargissez la plage de dates ou retirez des filtres pour en voir davantage.",
+    "chart_by_feature_title": "Anomalies par caractéristique",
+    "axis_feature": "Caractéristique",
+    "axis_count": "Anomalies",
+    "col_detected": "Détectée",
+    "col_user": "Utilisateur",
+    "col_datasource": "Source de données",
+    "col_feature": "Caractéristique",
+    "col_score": "Score",
+    "col_status": "Statut",
+    "col_summary": "Résumé",
+    "col_actions": "Actions",
+    "user_unknown": "Utilisateur inconnu",
+    "action_acknowledge": "Confirmer",
+    "action_dismiss": "Rejeter",
+    "acknowledge_success": "Anomalie confirmée",
+    "dismiss_success": "Anomalie rejetée",
+    "acknowledge_confirm_title": "Confirmer l'anomalie ?",
+    "acknowledge_confirm_body": "Marquer l'anomalie « {{feature}} » comme examinée.",
+    "dismiss_confirm_title": "Rejeter l'anomalie ?",
+    "dismiss_confirm_body": "Rejeter l'anomalie « {{feature}} » comme faux positif.",
+    "drawer_title": "Détail de l'anomalie",
+    "section_signal": "Signal",
+    "section_summary": "Résumé IA",
+    "section_detail": "Détail",
+    "field_score": "Score",
+    "field_observed": "Valeur observée",
+    "field_baseline_mean": "Moyenne de référence",
+    "field_baseline_stddev": "Écart-type de référence",
+    "field_window": "Fenêtre",
+    "field_detected": "Détectée le",
+    "field_acknowledged": "Confirmée le",
+    "toast_detected": "Nouvelle anomalie détectée : {{feature}} (score {{score}})",
+    "badge": {
+      "label_one": "{{count}} anomalie",
+      "label_other": "{{count}} anomalies",
+      "tooltip_one": "{{count}} anomalie ouverte (score max {{score}})",
+      "tooltip_other": "{{count}} anomalies ouvertes (score max {{score}})"
+    }
   }
 }

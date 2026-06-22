@@ -53,7 +53,7 @@ class RoutingPolicyEngineTest {
     private ConditionContext deleteContext() {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 80,
                 UserRoleType.ANALYST, Set.of(), LocalDateTime.of(2026, 6, 3, 10, 0),
-                false, false, false, "203.0.113.7", "curl/8.4.0", false, 120);
+                false, false, false, "203.0.113.7", "curl/8.4.0", false, 120, false);
     }
 
     @Test

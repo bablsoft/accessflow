@@ -10,12 +10,14 @@ import java.util.Optional;
  * Selectable PagerDuty trigger. A PagerDuty channel only pages for the triggers an operator
  * enables, and each maps to exactly one {@link NotificationEventType}:
  * {@code CRITICAL_RISK} → {@link NotificationEventType#AI_HIGH_RISK} (the listener fires that
- * event only for {@code CRITICAL} risk) and {@code REVIEW_TIMEOUT} →
- * {@link NotificationEventType#REVIEW_TIMEOUT}.
+ * event only for {@code CRITICAL} risk), {@code REVIEW_TIMEOUT} →
+ * {@link NotificationEventType#REVIEW_TIMEOUT}, and {@code ANOMALY} →
+ * {@link NotificationEventType#ANOMALY_DETECTED} (behavioural anomaly detection, AF-383).
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),
-    REVIEW_TIMEOUT(NotificationEventType.REVIEW_TIMEOUT);
+    REVIEW_TIMEOUT(NotificationEventType.REVIEW_TIMEOUT),
+    ANOMALY(NotificationEventType.ANOMALY_DETECTED);
 
     private final NotificationEventType eventType;
 
@@ -46,7 +48,7 @@ public enum PagerDutyTrigger {
         } catch (IllegalArgumentException ex) {
             throw new NotificationChannelConfigException(
                     "Config key '" + ChannelConfigCodec.KEY_TRIGGERS
-                            + "' must contain only CRITICAL_RISK or REVIEW_TIMEOUT", ex);
+                            + "' must contain only CRITICAL_RISK, REVIEW_TIMEOUT or ANOMALY", ex);
         }
     }
 }

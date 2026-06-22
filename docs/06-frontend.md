@@ -58,6 +58,7 @@ accessflow-ui/
 │   │   ├── common/
 │   │   │   ├── StatusBadge.tsx     # Color-coded query status badge
 │   │   │   ├── RiskBadge.tsx       # Color-coded AI risk level badge
+│   │   │   ├── AnomalyBadge.tsx    # Caller's open-anomaly count for a datasource (UBA — AF-383)
 │   │   │   ├── CopyButton.tsx      # Copy-to-clipboard wrapper
 │   │   │   ├── LogoMark.tsx        # Two-tone brand mark (mirrors website logo)
 │   │   │   └── PageHeader.tsx      # Consistent page header with breadcrumbs
@@ -134,6 +135,7 @@ accessflow-ui/
 │   │   └── admin/
 │   │       ├── UsersPage.tsx
 │   │       ├── AuditLogPage.tsx
+│   │       ├── AnomaliesPage.tsx     # Behavioural anomaly detection (UBA — AF-383)
 │   │       ├── AIConfigPage.tsx
 │   │       ├── NotificationsPage.tsx
 │   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
@@ -294,6 +296,14 @@ immediately.
 The compliance-reporting dashboard at `/admin/auditor` (lazy-loaded). A `Segmented` control switches between the **Classified data access** and **Regulatory audit trail** reports; an AntD `RangePicker` sets the period (defaults to the last 90 days). Data is fetched with TanStack Query (`api/compliance.ts`, key `complianceKeys.report(type, params)`); results render in a `Table` with a `Skeleton` while loading and an `EmptyState` when no rows match. Two header buttons export the current report as a **signed PDF** or **CSV** (`exportComplianceReport`) — the download is triggered from the response blob, and the returned signature / SHA-256 are surfaced via a success toast (with a truncation warning when the row cap was hit).
 
 The `AUDITOR` role is read-only and has no editor access, so `homePathForRole` (`utils/homePath.ts`) sends an auditor's home/`*` redirects to `/admin/auditor` instead of `/editor`, and `AuthGuard` bounces a role-mismatch to that same role-aware home rather than always `/editor`.
+
+### AnomaliesPage *(AUDITOR or ADMIN)* — AF-383
+
+The behavioural-anomaly-detection (UBA) dashboard at `/admin/anomalies` (lazy-loaded; nav entry in the **System** group, ADMIN). The header carries summary charts (via `@ant-design/charts` — anomalies over time and by feature) above a filterable `Table` of `behavior_anomaly` rows. Filters mirror the backend query params (status, user, datasource, feature, date range); data is fetched with TanStack Query (`api/anomalies.ts`, key `anomalyKeys.list(params)`) and renders a `Skeleton` while loading / an `EmptyState` when nothing matches. Each row shows the flagged user, datasource, feature, score, observed-vs-baseline values, and the optional `ai_summary`. Per-row **Acknowledge** / **Dismiss** actions (ADMIN only — hidden for AUDITOR) call `POST /admin/anomalies/{id}/{acknowledge,dismiss}` with optimistic cache invalidation. The page subscribes to the `anomaly.detected` WebSocket event and invalidates `anomalyKeys` so a freshly-flagged anomaly appears without a manual refresh.
+
+### AnomalyBadge (`components/common/AnomalyBadge.tsx`) — AF-383
+
+A reusable badge that surfaces the **current user's own** open-anomaly count for a datasource (e.g. in the editor's datasource selector). It reads `GET /anomalies/badge?datasourceId=` via TanStack Query and renders an AntD `Badge` with the `openCount` and a tooltip carrying `maxScore`; it renders nothing when `openCount` is `0`. Status/colour go through the shared risk-colour helpers — never an inline hex.
 
 ### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
 
@@ -534,6 +544,7 @@ useEffect(() =>
 | `review.new_request`   | `['reviews','pending']`                                                     |
 | `review.decision_made` | `['reviews','pending']` and `['queries','detail',query_id]`                 |
 | `notification.created` | `['notifications','list']` and `['notifications','unread-count']`           |
+| `anomaly.detected`     | `['anomalies','list']` and `['anomalies','badge',datasource_id]` (UBA — AF-383) |
 
 #### Reconnection
 
@@ -606,6 +617,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
 /admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
+/admin/anomalies                    → AnomaliesPage (lazy; AUDITOR or ADMIN — behavioural anomaly detection / UBA, AF-383)
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor + RAG section)
 /admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt + RAG knowledge base)

@@ -398,6 +398,7 @@ The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no exte
 | `user_agent` (AF-446) | `patterns: [string]` | the submission user-agent matches any glob (`*` wildcard, case-insensitive). **Fails closed**: false when no user-agent was captured |
 | `time_since_last_approval` (AF-446) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `minutes` | minutes since the requester's last APPROVED/EXECUTED query **on the same datasource** satisfy the comparison. **Fails closed**: false when the requester has no prior approval there |
 | `cicd_origin` (AF-446) | `expected: bool` | whether the request came from a CI/CD pipeline (submitted via an API key or with the `X-AccessFlow-CI` header) equals `expected`. Deterministic — the flag defaults to `false` |
+| `anomaly_detected` (AF-383) | `expected: bool` | whether the submitter currently has an `OPEN` `behavior_anomaly` on the target datasource equals `expected`. The UBA detector is a periodic batch over **past** data, so this signal escalates the flagged user's **next** query — pair it with `ESCALATE`. Deterministic — false when the user has no open anomaly there |
 
 On the AI-skipped path (`datasource.ai_analysis_enabled=false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal. Routing is **not** run on the AI-failure path.
 
@@ -708,6 +709,70 @@ backend missing its endpoint/collection).
 
 ---
 
+## behavior_baseline
+
+Rolling per-`(organization, user, datasource)` behavioural baseline for user-behaviour analytics
+(UBA, AF-383). One row per principal/datasource pair; the `ai` module's `BehaviorAnomalyDetectionJob`
+upserts it each cycle from `audit_log` **metadata only** (never query result data). The `features`
+blob holds the rolling per-feature observation windows (capped at `accessflow.ai.anomaly.max-baseline-samples`),
+the 24-bucket active-hour histogram used for off-hours detection, and the query-type / table
+frequency maps used for categorical-novelty and unseen-table detection. Created by
+`V92__create_behavior_baselines_and_anomalies.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `user_id` | FK → `users` — the principal the baseline profiles |
+| `datasource_id` | FK → `datasources` — the datasource the baseline is scoped to |
+| `features` | JSONB NOT NULL DEFAULT `'{}'` — rolling per-feature observation windows (query count, distinct tables, rows returned, error rate), the 24-bucket active-hour histogram, and the query-type / table frequency maps |
+| `sample_size` | INTEGER NOT NULL DEFAULT 0 — number of windows aggregated into the baseline; detection stays dormant until it reaches `accessflow.ai.anomaly.min-sample-size` (cold-start guard) |
+| `last_window_start` | TIMESTAMPTZ nullable — start of the most recently aggregated lookback window; the watermark the job advances from |
+| `version` | BIGINT — optimistic locking |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Unique index on `(organization_id, user_id, datasource_id)` — one baseline per principal/datasource.
+
+---
+
+## behavior_anomaly
+
+A single flagged out-of-pattern event (UBA, AF-383). Inserted by `BehaviorAnomalyDetectionJob` when a
+feature's observed value crosses the configured z-score threshold (with an IQR robust fallback and a
+constant-baseline guard) against the principal's `behavior_baseline`. Rows are immutable except for the
+acknowledge / dismiss status transition. Created by `V92__create_behavior_baselines_and_anomalies.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `user_id` | FK → `users` — the principal whose activity was flagged |
+| `datasource_id` | FK → `datasources` — the datasource the anomalous activity targeted |
+| `feature` | TEXT NOT NULL — the tracked feature that triggered the anomaly (`query_count`, `active_hour`, `distinct_tables`, `query_types`, `new_tables`, `rows_returned`, `error_rate`) |
+| `score` | DOUBLE PRECISION NOT NULL — the anomaly score (z-score, or the IQR-derived score on the robust fallback) |
+| `observed_value` | DOUBLE PRECISION nullable — the observed feature value in the flagged window |
+| `baseline_mean` | DOUBLE PRECISION nullable — the baseline mean for the feature at detection time |
+| `baseline_stddev` | DOUBLE PRECISION nullable — the baseline standard deviation for the feature at detection time |
+| `detail` | JSONB NOT NULL DEFAULT `'{}'` — structured per-feature evidence (e.g. the off-hours bucket, the unseen tables / query types, the contributing window counts) |
+| `ai_summary` | TEXT nullable — optional AI-generated natural-language explanation of why the event is anomalous (null when `accessflow.ai.anomaly.summary-enabled=false` or the summary call failed — fully fail-safe, never blocks detection) |
+| `status` | ENUM `behavior_anomaly_status`: `OPEN` \| `ACKNOWLEDGED` \| `DISMISSED` — defaults `OPEN` |
+| `detected_at` | TIMESTAMPTZ NOT NULL — when the job flagged the event |
+| `acknowledged_by` | FK → `users` nullable — the admin who acknowledged / dismissed the anomaly |
+| `acknowledged_at` | TIMESTAMPTZ nullable |
+| `window_start` / `window_end` | TIMESTAMPTZ — the lookback window the anomaly was detected over |
+| `version` | BIGINT — optimistic locking |
+
+**Indexes**
+- `(organization_id, status, detected_at DESC)` — the admin list view (status filter, newest first).
+- `(organization_id, user_id, datasource_id, status)` — the per-principal / per-datasource badge lookup and the `anomalyActive` routing signal.
+- UNIQUE `(organization_id, user_id, datasource_id, feature, window_start)` — dedup so a re-run over the same window never double-inserts the same anomaly.
+
+**`behavior_anomaly_status` values:** `OPEN` (just detected, raises the `anomalyActive` routing signal
+and the badge count), `ACKNOWLEDGED` (an admin has triaged it; no longer raises the routing signal),
+`DISMISSED` (an admin marked it a false positive).
+
+---
+
 ## knowledge_document
 
 RAG knowledge-base documents attached to a RAG-enabled `ai_config` (AF-336). The raw `content` is
@@ -866,8 +931,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_REVIEW_REQUESTED` | Query enters pending review |
 | `QUERY_APPROVED` | Reviewer approves |
 | `QUERY_REJECTED` | Reviewer rejects |
-| `QUERY_EXECUTED` | Proxy executes approved query |
-| `QUERY_FAILED` | Execution error |
+| `QUERY_EXECUTED` | Proxy executes approved query. Metadata is enriched (AF-383) with `datasource_id`, `query_type`, `referenced_tables`, `distinct_table_count`, and `rows_returned` so the UBA behavioural baselines (`behavior_baseline`) are derivable from `audit_log` alone — no query result data. Also carries `applied_masking_policy_ids` / `applied_row_security_policy_ids` when policies fired. |
+| `QUERY_FAILED` | Execution error. Metadata is enriched (AF-383) with `datasource_id` and `query_type` for UBA error-rate tracking. |
 | `QUERY_CANCELLED` | Submitter cancels |
 | `DATASOURCE_CREATED` | Admin creates datasource |
 | `DATASOURCE_UPDATED` | Admin updates datasource config |

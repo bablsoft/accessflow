@@ -101,11 +101,27 @@ class PagerDutyPayloadFactory {
                 && ctx.approvalTimeoutHours() != null) {
             details.put("approval_timeout_hours", ctx.approvalTimeoutHours());
         }
+        if (ctx.anomalyId() != null) {
+            details.put("anomaly_id", ctx.anomalyId().toString());
+            if (ctx.anomalyFeature() != null) {
+                details.put("anomaly_feature", ctx.anomalyFeature());
+            }
+            if (ctx.anomalyScore() != null) {
+                details.put("anomaly_score", ctx.anomalyScore());
+            }
+            if (ctx.anomalyUserLabel() != null) {
+                details.put("anomaly_user", ctx.anomalyUserLabel());
+            }
+        }
         return details;
     }
 
     private static String dedupKey(NotificationContext ctx) {
-        return "accessflow-" + ctx.organizationId() + "-" + ctx.queryRequestId();
+        // queryRequestId is null for non-query events (anomalies); fall back to the anomaly id so each
+        // anomaly is its own PagerDuty incident rather than all collapsing into one.
+        var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
+                : ctx.anomalyId() != null ? ctx.anomalyId() : "none";
+        return "accessflow-" + ctx.organizationId() + "-" + subject;
     }
 
     private static String source(NotificationContext ctx) {
@@ -121,6 +137,7 @@ class PagerDutyPayloadFactory {
         return switch (ctx.eventType()) {
             case AI_HIGH_RISK -> "AccessFlow: AI flagged a CRITICAL-risk query on " + datasource;
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
+            case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;
         };
     }

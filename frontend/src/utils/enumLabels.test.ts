@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
+  ANOMALY_STATUSES,
   OPTIMIZATION_TYPES,
+  anomalyStatusLabel,
   commentStatusLabel,
   optimizationTypeLabel,
   queryTemplateChangeLabel,
@@ -37,5 +39,17 @@ describe('submissionReasonLabel', () => {
   it('maps each submission reason to its enum translation key', () => {
     expect(submissionReasonLabel(t, 'USER_SUBMITTED')).toBe('enums.submission_reason.USER_SUBMITTED');
     expect(submissionReasonLabel(t, 'AI_SUGGESTION')).toBe('enums.submission_reason.AI_SUGGESTION');
+  });
+});
+
+describe('anomalyStatusLabel', () => {
+  it('exposes every behaviour-anomaly status', () => {
+    expect(ANOMALY_STATUSES).toEqual(['OPEN', 'ACKNOWLEDGED', 'DISMISSED']);
+  });
+
+  it('maps each status to its enum translation key', () => {
+    expect(anomalyStatusLabel(t, 'OPEN')).toBe('enums.behavior_anomaly_status.OPEN');
+    expect(anomalyStatusLabel(t, 'ACKNOWLEDGED')).toBe('enums.behavior_anomaly_status.ACKNOWLEDGED');
+    expect(anomalyStatusLabel(t, 'DISMISSED')).toBe('enums.behavior_anomaly_status.DISMISSED');
   });
 });

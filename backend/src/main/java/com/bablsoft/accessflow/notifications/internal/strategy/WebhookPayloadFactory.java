@@ -38,6 +38,16 @@ class WebhookPayloadFactory {
         envelope.put("timestamp", ctx.occurredAt() != null ? ctx.occurredAt() : Instant.now());
         envelope.put("organization_id", ctx.organizationId());
         envelope.put("query_request", queryRequest);
+        if (ctx.anomalyId() != null) {
+            var anomaly = new LinkedHashMap<String, Object>();
+            anomaly.put("id", ctx.anomalyId());
+            anomaly.put("feature", ctx.anomalyFeature());
+            anomaly.put("score", ctx.anomalyScore());
+            anomaly.put("observed_value", ctx.anomalyObservedValue());
+            anomaly.put("baseline_mean", ctx.anomalyBaselineMean());
+            anomaly.put("user", ctx.anomalyUserLabel());
+            envelope.put("anomaly", anomaly);
+        }
         return objectMapper.writeValueAsString(envelope);
     }
 

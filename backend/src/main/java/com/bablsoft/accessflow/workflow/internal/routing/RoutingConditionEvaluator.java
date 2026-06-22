@@ -45,6 +45,7 @@ public class RoutingConditionEvaluator {
                     ctx.minutesSinceLastApproval() != null
                             && c.operator().test(ctx.minutesSinceLastApproval(), c.minutes());
             case ConditionNode.CiCdOrigin c -> ctx.ciCdOrigin() == c.expected();
+            case ConditionNode.AnomalyDetected c -> ctx.anomalyActive() == c.expected();
         };
     }
 

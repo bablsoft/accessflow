@@ -96,6 +96,12 @@ class SlackBlockKitFactory {
                 && ctx.approvalTimeoutHours() != null) {
             fields.add(mrkdwn("*Auto-rejected after:*\n" + ctx.approvalTimeoutHours() + " hours"));
         }
+        if (ctx.anomalyFeature() != null) {
+            var anomaly = ctx.anomalyScore() != null
+                    ? ctx.anomalyFeature() + " (score " + ctx.anomalyScore() + ")"
+                    : ctx.anomalyFeature();
+            fields.add(mrkdwn("*Anomaly:*\n" + anomaly));
+        }
         return SectionBlock.builder().fields(fields).build();
     }
 
@@ -154,6 +160,7 @@ class SlackBlockKitFactory {
             case REVIEW_TIMEOUT -> "⌛ Query Auto-Rejected (review timeout)";
             case AI_HIGH_RISK -> "🚨 AI Flagged High-Risk Query";
             case TEST -> "AccessFlow Test";
+            case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

@@ -1,5 +1,16 @@
-import type { AccessGrantStatus, QueryStatus } from '@/types/api';
+import type { AccessGrantStatus, BehaviorAnomalyStatus, QueryStatus } from '@/types/api';
 import type { ColorTriple } from './riskColors';
+
+export const anomalyStatusColor = (status: BehaviorAnomalyStatus): ColorTriple => {
+  switch (status) {
+    case 'OPEN':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'ACKNOWLEDGED':
+      return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+    case 'DISMISSED':
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
 
 export const accessGrantStatusColor = (status: AccessGrantStatus): ColorTriple => {
   switch (status) {

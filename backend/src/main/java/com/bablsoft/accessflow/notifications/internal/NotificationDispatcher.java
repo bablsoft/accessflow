@@ -65,7 +65,21 @@ class NotificationDispatcher {
             log.debug("Skipping {} for unknown query {}", eventType, queryRequestId);
             return;
         }
-        var ctx = contextOpt.get();
+        deliver(eventType, contextOpt.get());
+    }
+
+    /** Dispatch a behavioural anomaly (UBA, AF-383) — non-query-backed; fans out to all active
+     *  org channels, mirroring {@code AI_HIGH_RISK}. */
+    void dispatchAnomaly(UUID anomalyId, UUID organizationId) {
+        var contextOpt = contextBuilder.buildAnomaly(anomalyId, organizationId);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping ANOMALY_DETECTED for unknown anomaly {}", anomalyId);
+            return;
+        }
+        deliver(NotificationEventType.ANOMALY_DETECTED, contextOpt.get());
+    }
+
+    private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
         boolean emailChannelDelivered = false;
@@ -165,7 +179,8 @@ class NotificationDispatcher {
 
     private List<NotificationChannelEntity> resolveChannels(NotificationEventType eventType,
                                                             NotificationContext ctx) {
-        if (eventType == NotificationEventType.AI_HIGH_RISK) {
+        if (eventType == NotificationEventType.AI_HIGH_RISK
+                || eventType == NotificationEventType.ANOMALY_DETECTED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

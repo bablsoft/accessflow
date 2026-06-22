@@ -3,6 +3,7 @@ import type {
   AccessGrantStatus,
   AiProvider,
   AuthProvider,
+  BehaviorAnomalyStatus,
   ChannelType,
   ComparisonOperator,
   DataClassification,
@@ -41,6 +42,15 @@ export const queryStatusLabel = (t: TFunction, v: QueryStatus): string =>
 
 export const accessGrantStatusLabel = (t: TFunction, v: AccessGrantStatus): string =>
   t(`enums.access_grant_status.${v}` as const);
+
+export const ANOMALY_STATUSES: readonly BehaviorAnomalyStatus[] = [
+  'OPEN',
+  'ACKNOWLEDGED',
+  'DISMISSED',
+] as const;
+
+export const anomalyStatusLabel = (t: TFunction, v: BehaviorAnomalyStatus): string =>
+  t(`enums.behavior_anomaly_status.${v}` as const);
 
 export const queryTypeLabel = (t: TFunction, v: QueryType): string =>
   t(`enums.query_type.${v}` as const);

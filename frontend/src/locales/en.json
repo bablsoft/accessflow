@@ -65,7 +65,8 @@
     "access_requests": "Access requests",
     "routing_policies": "Routing policies",
     "langfuse": "Langfuse",
-    "connectors": "Connectors"
+    "connectors": "Connectors",
+    "anomalies": "Anomalies"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -2096,6 +2097,11 @@
       "REVOKED": "Revoked",
       "CANCELLED": "Cancelled"
     },
+    "behavior_anomaly_status": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Acknowledged",
+      "DISMISSED": "Dismissed"
+    },
     "masking_strategy": {
       "FULL": "Full mask",
       "PARTIAL": "Partial (keep last N)",
@@ -2264,6 +2270,56 @@
     "docs_link": "Documentation",
     "category_relational": "SQL",
     "category_nosql": "NoSQL"
+  },
+  "anomalies": {
+    "title": "Anomalies",
+    "subtitle": "Behavioural anomalies detected across user query activity — unusual volumes, off-hours access, and other deviations from each user's baseline.",
+    "filter_status_all": "All statuses",
+    "filter_datasource_all": "All datasources",
+    "filter_user_placeholder": "User ID",
+    "filter_feature_placeholder": "Feature",
+    "count_label": "{{count}} anomalies",
+    "load_error": "Could not load anomalies",
+    "empty_title": "No anomalies",
+    "empty_description": "Nothing unusual in this window. Widen the date range or clear filters to see more.",
+    "chart_by_feature_title": "Anomalies by feature",
+    "axis_feature": "Feature",
+    "axis_count": "Anomalies",
+    "col_detected": "Detected",
+    "col_user": "User",
+    "col_datasource": "Datasource",
+    "col_feature": "Feature",
+    "col_score": "Score",
+    "col_status": "Status",
+    "col_summary": "Summary",
+    "col_actions": "Actions",
+    "user_unknown": "Unknown user",
+    "action_acknowledge": "Acknowledge",
+    "action_dismiss": "Dismiss",
+    "acknowledge_success": "Anomaly acknowledged",
+    "dismiss_success": "Anomaly dismissed",
+    "acknowledge_confirm_title": "Acknowledge anomaly?",
+    "acknowledge_confirm_body": "Mark the \"{{feature}}\" anomaly as reviewed.",
+    "dismiss_confirm_title": "Dismiss anomaly?",
+    "dismiss_confirm_body": "Dismiss the \"{{feature}}\" anomaly as a false positive.",
+    "drawer_title": "Anomaly detail",
+    "section_signal": "Signal",
+    "section_summary": "AI summary",
+    "section_detail": "Detail",
+    "field_score": "Score",
+    "field_observed": "Observed value",
+    "field_baseline_mean": "Baseline mean",
+    "field_baseline_stddev": "Baseline std dev",
+    "field_window": "Window",
+    "field_detected": "Detected at",
+    "field_acknowledged": "Acknowledged at",
+    "toast_detected": "New anomaly detected: {{feature}} (score {{score}})",
+    "badge": {
+      "label_one": "{{count}} anomaly",
+      "label_other": "{{count}} anomalies",
+      "tooltip_one": "{{count}} open anomaly (max score {{score}})",
+      "tooltip_other": "{{count}} open anomalies (max score {{score}})"
+    }
   },
   "collab": {
     "present_one": "{{count}} person editing",

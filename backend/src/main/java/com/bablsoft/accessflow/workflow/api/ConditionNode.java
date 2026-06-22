@@ -182,4 +182,13 @@ public sealed interface ConditionNode {
      */
     record CiCdOrigin(boolean expected) implements ConditionNode {
     }
+
+    /**
+     * Matches when the requester has an active (OPEN) behavioural anomaly on this datasource
+     * (UBA, AF-383) equal to {@code expected}. Pair {@code AnomalyDetected(true)} with an
+     * {@code ESCALATE} action to force extra approvals on a flagged user's next query. Deterministic
+     * (no missing-context case): the flag is always present, defaulting to {@code false}.
+     */
+    record AnomalyDetected(boolean expected) implements ConditionNode {
+    }
 }

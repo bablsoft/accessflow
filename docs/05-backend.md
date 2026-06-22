@@ -875,10 +875,13 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
 | `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
+| `BehaviorAnomalyDetectionJob` | ai | `behaviorAnomalyDetectionJob` | `accessflow.ai.anomaly.detection-poll-interval` | `PT15M` |
 
 `AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
 
 `ScheduledQueryRunJob` implements query scheduling (AF-345): a submitter may include `scheduled_for` on `POST /queries` to defer execution. The query still goes through the normal AI / review flow; once it reaches `APPROVED`, the job picks it up at the next tick where `scheduled_for ≤ now()` and calls `QueryLifecycleService.executeScheduled(id)`. That method bypasses the per-user ownership guard (the actor is the scheduler, not a request principal), records the submitter as the audit actor, and tags the audit metadata with `"trigger": "scheduled"`. The job is idempotent — if the query is no longer `APPROVED` (manual execute / cancel raced the tick), the lifecycle service logs and returns without firing.
+
+`BehaviorAnomalyDetectionJob` implements behavioural anomaly detection (UBA, AF-383): each tick it advances each `(user, datasource)` baseline watermark over the configured `accessflow.ai.anomaly.lookback-window`, aggregating new windows from `audit_log` metadata (never query result data) into `behavior_baseline`, then runs statistical detection on the freshest window and inserts `behavior_anomaly` rows for out-of-pattern features. It swallows per-row `RuntimeException`s so one bad principal cannot abort the batch. See [§ Behavioural anomaly detection (UBA)](#behavioural-anomaly-detection-uba-af-383).
 
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
 
@@ -1274,6 +1277,56 @@ Admins attach a per-`ai_config` knowledge base; at analysis / text-to-SQL time t
 | Missing index on WHERE column | +15 |
 | Subquery with no index | +10 |
 | Single-row operation with PK WHERE | -20 |
+
+### Behavioural anomaly detection (UBA, AF-383)
+
+The `ai` module additionally runs **user-behaviour analytics**: a clustered-safe scheduled job builds
+rolling per-`(user, datasource)` behavioural baselines and flags out-of-pattern activity. It is built
+**entirely from `audit_log` metadata** — never query result data — so the audit log stays the single
+forensic source and no new data path touches customer rows.
+
+**Metadata enrichment.** To make features derivable from the audit log alone, the `QUERY_EXECUTED`
+audit metadata was enriched with `datasource_id`, `query_type`, `referenced_tables`,
+`distinct_table_count`, and `rows_returned`; `QUERY_FAILED` gained `datasource_id` and `query_type`.
+
+**Pipeline** (`BehaviorAnomalyDetectionJob`, lock `behaviorAnomalyDetectionJob`, cadence
+`accessflow.ai.anomaly.detection-poll-interval`, default `PT15M`):
+
+1. **Baseline aggregation.** For each `(user, datasource)` with new audit activity, the job advances the
+   `behavior_baseline` watermark over `accessflow.ai.anomaly.lookback-window` (default `PT1H`) windows,
+   updating a JSONB `features` blob: rolling per-feature observation series (query count, distinct
+   tables, rows returned, error rate — capped at `accessflow.ai.anomaly.max-baseline-samples`, default
+   `90`), a 24-bucket active-hour histogram, and query-type / table frequency maps. Detection stays
+   dormant until `sample_size ≥ accessflow.ai.anomaly.min-sample-size` (default `7`) — the cold-start
+   guard.
+2. **Statistical detection.** On the freshest window each tracked feature is scored:
+   - **Scalar features** (query count, distinct tables, rows returned, error rate) use a **z-score**
+     against the baseline mean/stddev, flagging when it crosses `accessflow.ai.anomaly.z-score-threshold`
+     (default `3.0`); when the baseline stddev is degenerate it falls back to a **robust IQR** test
+     (`accessflow.ai.anomaly.iqr-multiplier`, default `1.5`), with a constant-baseline guard so a flat
+     history never divides by zero.
+   - **Active-hour** detection flags a query landing in a bucket whose baseline frequency is below
+     `accessflow.ai.anomaly.off-hours-threshold` (default `0.02`) — off-hours activity.
+   - **Categorical novelty** (query types) and **unseen tables** (new tables) flag the first appearance
+     of a value absent from the baseline frequency map.
+3. **AI summary (optional, fail-safe).** When `accessflow.ai.anomaly.summary-enabled` (default `true`),
+   the bound `ai_config`'s analyzer is asked for a one-paragraph natural-language explanation, stored in
+   `behavior_anomaly.ai_summary`. Per the AI module's no-throw contract this is **fully fail-safe** — a
+   failed or disabled summary leaves the column `null` and never blocks the detection.
+4. **Integration / events.** Each new `OPEN` anomaly:
+   - raises the `anomalyActive` routing signal — the new `AnomalyDetected` routing condition (wire type
+     `anomaly_detected`) lets a policy `ESCALATE` the flagged user's **next** query (detection is a
+     periodic batch over past data, so it influences future submissions, not the already-executed
+     query);
+   - fires the notification fanout mirroring `AI_HIGH_RISK` across all active org channels including
+     PagerDuty (new `NotificationEventType.ANOMALY_DETECTED`, PagerDuty trigger `ANOMALY`);
+   - emits an `anomaly.detected` WebSocket event (`{ anomaly_id, user_id, datasource_id, feature,
+     score }`) to org admins and the subject user.
+
+Anomalies are read/triaged via `GET /admin/anomalies` (AUDITOR/ADMIN) and acknowledged / dismissed by an
+ADMIN (`POST /admin/anomalies/{id}/{acknowledge,dismiss}`); each user sees their own open-anomaly badge
+via `GET /anomalies/badge?datasourceId=`. See [docs/03-data-model.md → behavior_baseline / behavior_anomaly](03-data-model.md#behavior_baseline)
+and [docs/04-api-spec.md → Behavioural Anomaly Detection (UBA)](04-api-spec.md#behavioural-anomaly-detection-uba--af-383).
 
 ---
 

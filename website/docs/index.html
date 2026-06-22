@@ -207,6 +207,8 @@
             <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
             <a href="#cfg-saml">SAML 2.0 SSO</a>
             <a href="#cfg-audit-log">Audit log</a>
+            <a href="#compliance-reports">Compliance reports</a>
+            <a href="#cfg-anomalies">Anomaly detection (UBA)</a>
 
             <h5>End-user workflows</h5>
             <a href="#flow-submit">Submitting a query</a>
@@ -758,6 +760,8 @@
                 <tr><td>Configure AI</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Configure SAML / OAuth</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>View / export compliance reports</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td>View behavioural anomalies (UBA)</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Acknowledge / dismiss anomalies</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
               </tbody>
             </table>
           </div>
@@ -1528,6 +1532,33 @@ APPROVED → FAILED (execution error)</pre>
             <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (default <code>P366D</code>) and the
             row cap with <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (default <code>50000</code>);
             signing reuses <code>JWT_PRIVATE_KEY</code>, so no extra secret is required.
+          </p>
+
+          <h3 id="cfg-anomalies">Behavioural anomaly detection (UBA)</h3>
+          <p>
+            A clustered-safe background job (<code>BehaviorAnomalyDetectionJob</code>) builds rolling
+            per-<code>(user, datasource)</code> behavioural baselines <strong>from the audit log alone</strong>
+            — never query result data — and flags out-of-pattern activity: query volume, off-hours access,
+            distinct and newly-seen tables, query types, rows returned, and error rate. Detection uses a
+            z-score test with a robust IQR fallback, and a cold-start guard keeps a freshly-seen user from
+            being flagged before enough history exists. Each anomaly optionally carries an AI
+            natural-language explanation, raises a routing signal that <strong>escalates the flagged user's
+            next query</strong> to stricter review, fires a notification across every active channel
+            (including PagerDuty), and lands on the <code>/admin/anomalies</code> dashboard. <code>ADMIN</code>
+            and the read-only <code>AUDITOR</code> role can review anomalies; only <code>ADMIN</code> can
+            <em>acknowledge</em> (triaged) or <em>dismiss</em> (false positive) one.
+          </p>
+          <p>
+            Tune the detector with the <code>accessflow.ai.anomaly.*</code> environment variables:
+            <code>ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL</code> (cadence, default <code>PT15M</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_LOOKBACK_WINDOW</code> (aggregation window, default <code>PT1H</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_Z_SCORE_THRESHOLD</code> (default <code>3.0</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_IQR_MULTIPLIER</code> (default <code>1.5</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_MIN_SAMPLE_SIZE</code> (cold-start guard, default <code>7</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES</code> (default <code>90</code>),
+            <code>ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD</code> (default <code>0.02</code>), and
+            <code>ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED</code> (AI explanations on/off, default
+            <code>true</code>).
           </p>
         </section>
 

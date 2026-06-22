@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
@@ -65,6 +66,7 @@ class QueryReviewStateMachine {
     private final UserGroupService userGroupService;
     private final RoutingPolicyEngine routingPolicyEngine;
     private final RoutingDecisionService routingDecisionService;
+    private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final ApplicationEventPublisher eventPublisher;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone. A field
@@ -216,10 +218,12 @@ class QueryReviewStateMachine {
                         query.datasourceId(), query.id())
                 .map(last -> (int) Math.max(0, Duration.between(last, clock.instant()).toMinutes()))
                 .orElse(null);
+        boolean anomalyActive = behaviorAnomalyLookupService.hasActiveAnomaly(
+                query.organizationId(), query.submittedByUserId(), query.datasourceId());
         return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, role,
                 groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional,
                 query.submittedIp(), query.submittedUserAgent(), query.ciCdOrigin(),
-                minutesSinceLastApproval);
+                minutesSinceLastApproval, anomalyActive);
     }
 
     private QueryStatus decideNextStatus(ReviewPlanSnapshot plan, QueryRequestSnapshot query,
