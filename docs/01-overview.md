@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-AccessFlow is an open-source database access governance platform. It acts as a full SQL proxy between application users and relational databases — PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box, and any other JDBC-compatible engine can be wired in via an admin-uploaded custom driver JAR — enforcing configurable review and approval workflows before any query is executed against live data.
+AccessFlow is an open-source database access governance platform. It acts as a full query proxy between application users and customer databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server out of the box (plus any other JDBC-compatible engine via an admin-uploaded custom driver JAR), and the NoSQL engines MongoDB, Couchbase, Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, DynamoDB, and Neo4j through on-demand native engine plugins — enforcing configurable review and approval workflows before any query is executed against live data.
 
 Modern engineering teams face a critical gap: databases hold sensitive business data yet granting access is typically binary — either a user has credentials or they do not. AccessFlow bridges this gap by introducing a structured, auditable layer that supports:
 
