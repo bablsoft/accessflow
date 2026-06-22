@@ -87,6 +87,18 @@ public interface AiAnalysisStatsRepository extends JpaRepository<AiAnalysisEntit
                                          @Param("to") Instant to,
                                          @Param("datasourceId") UUID datasourceId);
 
+    // Monthly token-budget aggregate for the AI rate-limiter (AF-55). COALESCE keeps the result
+    // non-null (0) when the org has no analyses in the window.
+    @Query(value = """
+            SELECT COALESCE(SUM(a.prompt_tokens + a.completion_tokens), 0)
+            FROM ai_analyses a
+            JOIN query_requests qr ON qr.id = a.query_request_id
+            JOIN datasources d     ON d.id = qr.datasource_id
+            WHERE d.organization_id = :organizationId
+              AND a.created_at >= :since
+            """, nativeQuery = true)
+    long sumTokensSince(@Param("organizationId") UUID organizationId, @Param("since") Instant since);
+
     interface RiskScoreBucketRow {
         LocalDate getBucketDate();
         BigDecimal getSuccessAvgRiskScore();

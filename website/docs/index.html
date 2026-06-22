@@ -1560,6 +1560,18 @@ APPROVED → FAILED (execution error)</pre>
             <code>ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED</code> (AI explanations on/off, default
             <code>true</code>).
           </p>
+          <p>
+            <strong>AI rate limit &amp; cost budget.</strong> Two per-organization guardrails protect the
+            provider API key from a runaway editor or compromised account, enforced before every AI
+            analysis call (editor preview, text-to-SQL, and the async analysis on query submit).
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> (default <code>30</code>; <code>&lt;= 0</code>
+            disables) caps requests per minute via a Redis counter, and
+            <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> (default <code>0</code> = unlimited /
+            opt-in) caps the summed prompt + completion tokens of the org's analyses in the current
+            calendar month. When a limit is hit, the synchronous editor paths return
+            <code>HTTP 429</code> and the async path records a <code>CRITICAL</code> "AI budget exhausted" /
+            "AI rate limit exceeded" analysis row so human review still proceeds.
+          </p>
         </section>
 
         <!-- 4b. End-user workflows -->

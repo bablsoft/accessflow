@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerService;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.AiProviderType;
@@ -60,6 +62,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final DataClassificationQueryService dataClassificationQueryService;
     private final SqlParserService sqlParserService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AiRateLimiter aiRateLimiter;
 
     @Override
     public AiAnalysisResult analyzePreview(UUID datasourceId, String sql, UUID userId,
@@ -76,6 +79,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         var classificationTags = loadClassificationTags(datasourceId, organizationId);
         var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns,
                 classificationAnnotations(classificationTags));
+        aiRateLimiter.enforce(organizationId);
         var result = strategy.analyze(sql, descriptor.dbType(), schemaContext,
                 resolveLanguage(organizationId), aiConfigId);
         return ClassificationRiskBooster.boost(result,
@@ -133,6 +137,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }
         try {
+            aiRateLimiter.enforce(snapshot.organizationId());
             var analysis = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
                     resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
             var result = ClassificationRiskBooster.boost(analysis, ClassificationRiskBooster.bumpFor(
@@ -147,6 +152,14 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             var analysisId = aiAnalysisPersistenceService.persist(queryRequestId, command);
             eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId,
                     result.riskLevel(), result.riskScore()));
+        } catch (AiBudgetExceededException e) {
+            log.warn("AI analysis blocked for query {}: monthly token budget exhausted ({})",
+                    queryRequestId, e.getMessage());
+            persistSentinel(queryRequestId, descriptor.aiConfigId(), "AI budget exhausted", e.getMessage());
+        } catch (AiRateLimitExceededException e) {
+            log.warn("AI analysis blocked for query {}: rate limit exceeded ({})",
+                    queryRequestId, e.getMessage());
+            persistSentinel(queryRequestId, descriptor.aiConfigId(), "AI rate limit exceeded", e.getMessage());
         } catch (AiAnalysisException | AiAnalysisParseException e) {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
             persistFailureAndPublish(queryRequestId, descriptor.aiConfigId(), e.getMessage());
@@ -246,10 +259,20 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     }
 
     private void persistFailureAndPublish(UUID queryRequestId, UUID aiConfigId, String reason) {
+        persistSentinel(queryRequestId, aiConfigId, "AI analysis failed: " + reason, reason);
+    }
+
+    /**
+     * Writes a sentinel {@code CRITICAL} analysis row (risk 100, no tokens) carrying {@code summary}
+     * as the reviewer-facing reason, then publishes {@link AiAnalysisFailedEvent}. Used for provider
+     * failures ({@code "AI analysis failed: …"}) and for the AF-55 guardrails
+     * ({@code "AI budget exhausted"} / {@code "AI rate limit exceeded"}).
+     */
+    private void persistSentinel(UUID queryRequestId, UUID aiConfigId, String summary, String reason) {
         var fallback = resolveSentinelConfig(aiConfigId);
         var command = new PersistAiAnalysisCommand(
                 fallback.provider(), fallback.model(), 100, RiskLevel.CRITICAL,
-                "AI analysis failed: " + reason, "[]", "[]", false, null, 0, 0,
+                summary, "[]", "[]", false, null, 0, 0,
                 true, reason);
         try {
             aiAnalysisPersistenceService.persist(queryRequestId, command);

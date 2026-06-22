@@ -1190,6 +1190,15 @@ Two entry points:
   `query_requests.ai_analysis_id`, and publishes `AiAnalysisCompletedEvent` (or
   `AiAnalysisFailedEvent` plus a sentinel `CRITICAL` row on failure — never propagates).
 
+#### Rate limit & cost budget (AF-55)
+
+Immediately before each `AiAnalyzerStrategy` call — in `analyzePreview`, in `analyzeSubmittedQuery`, and in `DefaultTextToSqlService.generateSql` — the `ai` module's `AiRateLimiter` (`DefaultAiRateLimiter`) enforces two per-organization guardrails so a runaway editor or compromised account cannot drain the provider API key / monthly budget:
+
+- **Requests per minute** — a Redis fixed-window counter (key `accessflow:ai:ratelimit:{orgId}:{epochMinute}`, 60s TTL on first increment), reusing the same Redis that backs JWT revocation / ShedLock. Bound from `accessflow.ai.rate-limit.requests-per-minute` (default 30; `<= 0` disables).
+- **Monthly token budget** — sums `prompt_tokens + completion_tokens` from the org's `ai_analyses` rows since the start of the current calendar month (UTC `Clock`) via the new `core.api` method `AiAnalysisStatsLookupService.sumTokensSince(orgId, since)`. Bound from `accessflow.ai.rate-limit.tokens-per-month` (default 0 = unlimited / opt-in; `<= 0` disables).
+
+On violation the limiter throws `AiRateLimitExceededException` / `AiBudgetExceededException` (both extend `AiAnalysisException`). On the synchronous preview / text-to-SQL paths these propagate to `AiAnalysisExceptionHandler`, which maps them to **HTTP 429** (`AI_RATE_LIMIT_EXCEEDED` — carrying `limit` + `retryAfterSeconds` — and `AI_BUDGET_EXCEEDED`). On the async submitted-query path the listener catches them and records a sentinel `CRITICAL` analysis row (`summary = "AI rate limit exceeded"` / `"AI budget exhausted"`, `failed = true`) so review still proceeds with a missing-AI-signal surface. The admin connectivity-test path (`POST /admin/ai-configs/{id}/test`) is intentionally **not** rate-limited.
+
 ### System Prompt Template
 
 ```

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
 import com.bablsoft.accessflow.ai.api.TextToSqlNotConfiguredException;
@@ -50,6 +51,7 @@ class DefaultTextToSqlServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock LocalizationConfigService localizationConfigService;
     @Mock QueryParser queryParser;
+    @Mock AiRateLimiter aiRateLimiter;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
 
@@ -64,7 +66,7 @@ class DefaultTextToSqlServiceTest {
     void setUp() {
         service = new DefaultTextToSqlService(strategy, aiConfigRepository, promptRenderer,
                 datasourceLookupService, datasourceAdminService, permissionLookupService,
-                localizationConfigService, queryParser);
+                localizationConfigService, queryParser, aiRateLimiter);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -195,6 +197,19 @@ class DefaultTextToSqlServiceTest {
 
         assertThatThrownBy(() -> service.generateSql(datasourceId, "x", userId, organizationId, false))
                 .isInstanceOf(TextToSqlNotConfiguredException.class);
+        verify(strategy, never()).generateSql(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void generateSqlPropagatesRateLimitExceeded() {
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(true, aiConfigId)));
+        when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
+                .thenReturn(schemaView());
+        org.mockito.Mockito.doThrow(new AiRateLimitExceededException(30, 60))
+                .when(aiRateLimiter).enforce(organizationId);
+
+        assertThatThrownBy(() -> service.generateSql(datasourceId, "x", userId, organizationId, false))
+                .isInstanceOf(AiRateLimitExceededException.class);
         verify(strategy, never()).generateSql(any(), any(), any(), any(), any());
     }
 

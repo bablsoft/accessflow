@@ -876,6 +876,15 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 - **Available** → migrations run normally; the `vector_store` table is additionally created if it is missing (self-healing the case where pgvector is installed only *after* a degraded first boot).
 - **Unavailable** (or `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`) → V69 is recorded as applied without executing it, `knowledge_document` is created by the idempotent `V73` migration, the `vector_store` table is omitted, and the in-app PGVECTOR store is disabled. A `WARN` is logged, `GET /admin/ai-configs/rag/capabilities` reports `pgvector_available: false`, the admin UI shows a banner on the RAG settings, and PGVECTOR ingestion / connection tests return `400 RAG_CONFIG_INVALID`. External Qdrant RAG continues to work. Install the extension (or use a pgvector-enabled image) and restart to enable PGVECTOR.
 
+#### AI Rate Limit & Cost Budget (AF-55)
+
+Per-organization guardrails enforced before **every** `AiAnalyzerStrategy` call (editor preview analysis, text-to-SQL, and the async submitted-query analysis) so a runaway editor or compromised account cannot drain the provider API key / monthly budget. The per-minute limit uses a Redis fixed-window counter (reusing the JWT/ShedLock Redis); the monthly budget sums `prompt_tokens + completion_tokens` from the org's `ai_analyses` rows in the current calendar month. When a limit is exceeded the synchronous preview / text-to-SQL paths return **HTTP 429**, while the async path records a sentinel `CRITICAL` analysis row (`summary = "AI budget exhausted"` / `"AI rate limit exceeded"`). Both bind under `accessflow.ai.rate-limit.*`.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE` | Optional | `30` | Per-organization request cap per minute across all AI analysis paths. A value `<= 0` disables the per-minute limit. |
+| `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` | Optional | `0` | Per-organization monthly token budget (summed `prompt_tokens + completion_tokens` over the current calendar month). `0` (the default) = unlimited / opt-in; a value `<= 0` disables the budget. |
+
 #### Behavioural Anomaly Detection (UBA, AF-383)
 
 Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, which builds rolling per-`(user, datasource)` behavioural baselines from `audit_log` metadata and flags out-of-pattern activity. All bind under `accessflow.ai.anomaly.*`.
