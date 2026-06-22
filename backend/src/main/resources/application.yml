@@ -131,6 +131,14 @@ accessflow:
     # Maximum character length of a single knowledge document accepted for ingestion.
     max-document-chars: ${ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS:100000}
   ai:
+    rate-limit:
+      # Per-organization AI guardrails (AF-55), enforced before every AiAnalyzerStrategy call so a
+      # runaway editor or compromised account cannot drain the provider API key / monthly budget.
+      # requests-per-minute: Redis fixed-window per-org request cap (<=0 disables).
+      requests-per-minute: ${ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE:30}
+      # tokens-per-month: per-org monthly budget over summed ai_analyses prompt+completion tokens
+      # in the current calendar month; 0 = unlimited / opt-in (<=0 disables).
+      tokens-per-month: ${ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH:0}
     anomaly:
       # Behavioural anomaly detection (UBA, AF-383). The job runs every detection-poll-interval over
       # the most recent completed lookback-window of audit metadata; deviations beyond the z-score /

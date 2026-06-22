@@ -4,7 +4,9 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
 import com.bablsoft.accessflow.ai.api.OptimizationType;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
@@ -71,6 +73,7 @@ class DefaultAiAnalyzerServiceTest {
     @Mock DataClassificationQueryService dataClassificationQueryService;
     @Mock SqlParserService sqlParserService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock AiRateLimiter aiRateLimiter;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
@@ -88,7 +91,7 @@ class DefaultAiAnalyzerServiceTest {
         service = new DefaultAiAnalyzerService(strategy, aiConfigRepository, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
                 permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
-                dataClassificationQueryService, sqlParserService, eventPublisher);
+                dataClassificationQueryService, sqlParserService, eventPublisher, aiRateLimiter);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -421,5 +424,60 @@ class DefaultAiAnalyzerServiceTest {
         assertThat(captor.getValue().aiModel()).isEqualTo("unknown");
         assertThat(captor.getValue().aiProvider()).isEqualTo(AiProviderType.ANTHROPIC);
         assertThat(captor.getValue().optimizationsJson()).isEqualTo("[]");
+    }
+
+    @Test
+    void analyzePreviewPropagatesRateLimitExceeded() {
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
+                .thenReturn(schemaView());
+        org.mockito.Mockito.doThrow(new AiRateLimitExceededException(30, 60))
+                .when(aiRateLimiter).enforce(organizationId);
+
+        assertThatThrownBy(() -> service.analyzePreview(datasourceId, "SELECT 1", userId, organizationId, false))
+                .isInstanceOf(AiRateLimitExceededException.class);
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void analyzeSubmittedQueryPersistsSentinelWhenBudgetExhausted() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        org.mockito.Mockito.doThrow(new AiBudgetExceededException(1000, 1000))
+                .when(aiRateLimiter).enforce(organizationId);
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        ArgumentCaptor<PersistAiAnalysisCommand> captor = ArgumentCaptor.forClass(PersistAiAnalysisCommand.class);
+        verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), captor.capture());
+        var cmd = captor.getValue();
+        assertThat(cmd.summary()).isEqualTo("AI budget exhausted");
+        assertThat(cmd.riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(cmd.failed()).isTrue();
+        verify(eventPublisher).publishEvent(any(AiAnalysisFailedEvent.class));
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void analyzeSubmittedQueryPersistsSentinelWhenRateLimited() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        org.mockito.Mockito.doThrow(new AiRateLimitExceededException(30, 60))
+                .when(aiRateLimiter).enforce(organizationId);
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        ArgumentCaptor<PersistAiAnalysisCommand> captor = ArgumentCaptor.forClass(PersistAiAnalysisCommand.class);
+        verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), captor.capture());
+        assertThat(captor.getValue().summary()).isEqualTo("AI rate limit exceeded");
+        assertThat(captor.getValue().riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        verify(eventPublisher).publishEvent(any(AiAnalysisFailedEvent.class));
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any());
     }
 }

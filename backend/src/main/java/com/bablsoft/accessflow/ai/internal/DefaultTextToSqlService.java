@@ -46,6 +46,7 @@ class DefaultTextToSqlService implements TextToSqlService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final LocalizationConfigService localizationConfigService;
     private final QueryParser queryParser;
+    private final AiRateLimiter aiRateLimiter;
 
     @Override
     public GeneratedSqlResult generateSql(UUID datasourceId, String prompt, UUID userId,
@@ -66,6 +67,7 @@ class DefaultTextToSqlService implements TextToSqlService {
                 .orElse(List.of());
         var schemaContext = promptRenderer.describeSchema(schemaView, restrictedColumns);
         var dbType = descriptor.dbType();
+        aiRateLimiter.enforce(organizationId);
         var generated = strategy.generateSql(prompt, dbType, schemaContext,
                 resolveLanguage(organizationId), aiConfigId);
         var result = generated.withSyntax(promptRenderer.syntaxFor(dbType, generated.sql()));

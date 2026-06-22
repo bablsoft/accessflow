@@ -2,12 +2,14 @@ package com.bablsoft.accessflow.ai.internal.web;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
+import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
@@ -53,6 +55,28 @@ class AiAnalysisExceptionHandler {
         log.warn("AI provider call failed: {}", ex.getMessage(), ex);
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, msg("error.ai_provider_unavailable"));
         pd.setProperty("error", "AI_PROVIDER_UNAVAILABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiRateLimitExceededException.class)
+    ProblemDetail handleAiRateLimitExceeded(AiRateLimitExceededException ex) {
+        log.warn("AI rate limit exceeded: {}", ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+                msg("error.ai.rate_limit_exceeded"));
+        pd.setProperty("error", "AI_RATE_LIMIT_EXCEEDED");
+        pd.setProperty("limit", ex.limit());
+        pd.setProperty("retryAfterSeconds", ex.retryAfterSeconds());
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiBudgetExceededException.class)
+    ProblemDetail handleAiBudgetExceeded(AiBudgetExceededException ex) {
+        log.warn("AI monthly token budget exhausted: {}", ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+                msg("error.ai.budget_exceeded"));
+        pd.setProperty("error", "AI_BUDGET_EXCEEDED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

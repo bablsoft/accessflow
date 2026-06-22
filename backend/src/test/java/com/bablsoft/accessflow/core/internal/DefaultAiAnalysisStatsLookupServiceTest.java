@@ -75,6 +75,15 @@ class DefaultAiAnalysisStatsLookupServiceTest {
                 });
     }
 
+    @Test
+    void sumTokensSinceDelegatesToRepository() {
+        var orgId = UUID.randomUUID();
+        var since = Instant.parse("2026-06-01T00:00:00Z");
+        when(repository.sumTokensSince(orgId, since)).thenReturn(4242L);
+
+        assertThat(service.sumTokensSince(orgId, since)).isEqualTo(4242L);
+    }
+
     private static org.assertj.core.groups.Tuple tuple(Object... values) {
         return org.assertj.core.groups.Tuple.tuple(values);
     }

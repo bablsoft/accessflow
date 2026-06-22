@@ -1324,6 +1324,8 @@ Each delta is `current - previous`. A positive value means the new run returned 
 
 `optimizations` (AF-451) carries concrete, dialect-aware suggestions — `type` is `INDEX` (an index-definition statement) or `REWRITE` (an equivalent, more efficient query). Each `sql` is a ready-to-run statement the editor can load via the **"Apply as draft"** button; applying it pre-fills the editor and the user submits it through `POST /queries` with `submission_reason=AI_SUGGESTION`. The array is empty when the model finds no worthwhile optimization (and on older / custom analyzer prompts that omit the field). The same `optimizations` array appears on the persisted analysis in `GET /queries/{id}`.
 
+**Errors:** in addition to `503 AI_PROVIDER_UNAVAILABLE` (provider call failed) and `422 AI_RESPONSE_INVALID` (unparseable response), this endpoint enforces the per-organization AI guardrails (AF-55) — `429 AI_RATE_LIMIT_EXCEEDED` (per-minute request cap; the `ProblemDetail` carries `limit` and `retryAfterSeconds`) and `429 AI_BUDGET_EXCEEDED` (monthly token budget exhausted). The same two 429s apply to `POST /queries/generate-sql`, and the async submitted-query analysis records a sentinel `CRITICAL` analysis row instead.
+
 ### POST /queries/dry-run — Request Body
 
 ```json
@@ -1419,6 +1421,8 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 - `400 TEXT_TO_SQL_NOT_CONFIGURED` — no `ai_config` is bound to the datasource.
 - `409 TEXT_TO_SQL_DISABLED` — the datasource has `text_to_sql_enabled = false`.
 - `422 AI_RESPONSE_INVALID` — the provider returned no usable query, or the draft did not parse for the engine. The `ProblemDetail` carries a `reason` property with the specific cause (e.g. `Generated query did not parse for MONGODB: …`, `AI response was not valid JSON: …`) so the editor can tell the user what went wrong; the backend also logs it at `WARN`.
+- `429 AI_RATE_LIMIT_EXCEEDED` — the organization exceeded its per-minute AI request limit (`accessflow.ai.rate-limit.requests-per-minute`, AF-55). The `ProblemDetail` carries `limit` and `retryAfterSeconds` properties.
+- `429 AI_BUDGET_EXCEEDED` — the organization has consumed its monthly AI token budget (`accessflow.ai.rate-limit.tokens-per-month`, AF-55).
 - `503 AI_PROVIDER_UNAVAILABLE` — the provider call failed (logged at `WARN`; the provider message is not surfaced to the client).
 
 ---

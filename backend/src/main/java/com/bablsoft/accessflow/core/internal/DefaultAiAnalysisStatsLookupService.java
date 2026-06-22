@@ -42,4 +42,10 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
                 .toList();
         return new AiAnalysisStatsRaw(riskScoreOverTime, topIssueCategories, topSubmitters);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long sumTokensSince(UUID organizationId, Instant since) {
+        return repository.sumTokensSince(organizationId, since);
+    }
 }

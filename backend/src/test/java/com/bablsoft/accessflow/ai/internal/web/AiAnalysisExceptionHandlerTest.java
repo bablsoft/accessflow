@@ -2,7 +2,9 @@ package com.bablsoft.accessflow.ai.internal.web;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
+import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -62,6 +64,32 @@ class AiAnalysisExceptionHandlerTest {
         assertThat(pd.getProperties()).containsEntry("error", "AI_PROVIDER_UNAVAILABLE");
         assertThat(pd.getProperties()).doesNotContainKey("reason");
         assertThat(pd.getDetail()).isEqualTo("AI provider is currently unavailable");
+    }
+
+    @Test
+    void mapsRateLimitToTooManyRequestsWithLimitAndRetryAfter() {
+        when(messageSource.getMessage(eq("error.ai.rate_limit_exceeded"), any(), any(Locale.class)))
+                .thenReturn("Too many AI analysis requests");
+
+        var pd = handler.handleAiRateLimitExceeded(new AiRateLimitExceededException(30, 60));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(pd.getProperties()).containsEntry("error", "AI_RATE_LIMIT_EXCEEDED");
+        assertThat(pd.getProperties()).containsEntry("limit", 30);
+        assertThat(pd.getProperties()).containsEntry("retryAfterSeconds", 60L);
+        assertThat(pd.getDetail()).isEqualTo("Too many AI analysis requests");
+    }
+
+    @Test
+    void mapsBudgetToTooManyRequests() {
+        when(messageSource.getMessage(eq("error.ai.budget_exceeded"), any(), any(Locale.class)))
+                .thenReturn("Monthly AI budget reached");
+
+        var pd = handler.handleAiBudgetExceeded(new AiBudgetExceededException(1000, 1000));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+        assertThat(pd.getProperties()).containsEntry("error", "AI_BUDGET_EXCEEDED");
+        assertThat(pd.getDetail()).isEqualTo("Monthly AI budget reached");
     }
 
     @Test

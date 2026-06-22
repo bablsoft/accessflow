@@ -17,4 +17,15 @@ public interface AiAnalysisStatsLookupService {
      * @param datasourceId   optional filter; when non-null restricts to a single datasource.
      */
     AiAnalysisStatsRaw query(UUID organizationId, Instant from, Instant to, UUID datasourceId);
+
+    /**
+     * Sums {@code prompt_tokens + completion_tokens} across the organization's {@code ai_analyses}
+     * rows created on or after {@code since} — used by the AI rate-limiter to enforce a monthly
+     * token budget (AF-55). Org-scoped through {@code datasources.organization_id}; returns 0 when
+     * there are no matching rows.
+     *
+     * @param organizationId required. Scopes the sum to datasources owned by this org.
+     * @param since          inclusive lower bound on {@code ai_analyses.created_at}.
+     */
+    long sumTokensSince(UUID organizationId, Instant since);
 }
