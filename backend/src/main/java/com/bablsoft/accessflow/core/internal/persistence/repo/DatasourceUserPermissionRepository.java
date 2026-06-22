@@ -13,6 +13,8 @@ public interface DatasourceUserPermissionRepository extends JpaRepository<Dataso
 
     List<DatasourceUserPermissionEntity> findAllByUser_Id(UUID userId);
 
+    List<DatasourceUserPermissionEntity> findAllByUser_IdAndCanBreakGlassTrue(UUID userId);
+
     List<DatasourceUserPermissionEntity> findAllByDatasource_Id(UUID datasourceId);
 
     boolean existsByUser_IdAndDatasource_Id(UUID userId, UUID datasourceId);

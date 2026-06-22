@@ -13,6 +13,7 @@ public record DatasourcePermissionView(
         boolean canRead,
         boolean canWrite,
         boolean canDdl,
+        boolean canBreakGlass,
         Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,

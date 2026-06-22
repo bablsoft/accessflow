@@ -37,6 +37,17 @@ public interface QueryLifecycleService {
     ExecutionOutcome execute(ExecuteQueryCommand command);
 
     /**
+     * Executes an already-{@code APPROVED} break-glass query (AF-385). Identical to a normal
+     * execution through the proxy guards, but records a prominent {@code QUERY_BREAK_GLASS_EXECUTED}
+     * audit action instead of {@code QUERY_EXECUTED}. Called by {@link BreakGlassService} after it
+     * force-approves the query; not exposed as its own endpoint.
+     *
+     * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if no query exists.
+     * @throws QueryNotExecutableException if the query is not in {@code APPROVED}.
+     */
+    ExecutionOutcome executeBreakGlass(UUID queryRequestId, UUID actorUserId);
+
+    /**
      * System-triggered execution of a query whose {@code scheduled_for} timestamp is at or before
      * the current instant. Bypasses the per-user ownership check because the actor is the
      * scheduler, not a request principal — the submitter is recorded as the audit actor and the

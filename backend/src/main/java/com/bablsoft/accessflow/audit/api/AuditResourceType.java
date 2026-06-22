@@ -34,7 +34,8 @@ public enum AuditResourceType {
     QUERY_COMMENT("query_comment"),
     DATA_CLASSIFICATION_TAG("data_classification_tag"),
     COMPLIANCE_REPORT("compliance_report"),
-    BEHAVIOR_ANOMALY("behavior_anomaly");
+    BEHAVIOR_ANOMALY("behavior_anomaly"),
+    BREAK_GLASS_EVENT("break_glass_event");
 
     private final String dbValue;
 

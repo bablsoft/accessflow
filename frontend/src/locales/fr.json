@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "Connecteurs",
     "auditor": "Rapports de conformité",
-    "anomalies": "Anomalies"
+    "anomalies": "Anomalies",
+    "break_glass": "Journal break-glass"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -445,7 +446,15 @@
         "placeholder_required": "Une valeur est requise pour :{{name}}"
       }
     },
-    "datasource_label": "Source de données"
+    "datasource_label": "Source de données",
+    "break_glass_button": "Accès d'urgence",
+    "break_glass_success": "Requête d'urgence exécutée",
+    "break_glass_error": "Échec de l'accès d'urgence",
+    "break_glass_modal_title": "Accès d'urgence (break-glass)",
+    "break_glass_confirm": "Exécuter maintenant",
+    "break_glass_modal_warning_title": "Ceci contourne la revue",
+    "break_glass_modal_warning_body": "La requête s'exécute immédiatement sans approbation. Tous les administrateurs sont notifiés, l'action est auditée de façon visible et doit être revue par la suite.",
+    "break_glass_justification_placeholder": "Expliquez l'urgence (obligatoire)"
   },
   "dry_run_panel": {
     "title": "Plan d'exécution",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "Soumis par l’utilisateur",
-      "AI_SUGGESTION": "Suggestion de l’IA"
+      "AI_SUGGESTION": "Suggestion de l’IA",
+      "EMERGENCY_ACCESS": "Accès d'urgence"
     },
     "comment_status": {
       "OPEN": "Ouvert",
@@ -2161,6 +2171,10 @@
       "OPEN": "Ouverte",
       "ACKNOWLEDGED": "Confirmée",
       "DISMISSED": "Rejetée"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "En attente de revue",
+      "REVIEWED": "Revu"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} anomalie ouverte (score max {{score}})",
       "tooltip_other": "{{count}} anomalies ouvertes (score max {{score}})"
     }
+  },
+  "breakglass": {
+    "title": "Journal break-glass",
+    "subtitle": "Exécutions en accès d'urgence en attente de revue rétrospective",
+    "count_label": "{{count}} événements",
+    "load_error": "Échec du chargement des événements break-glass",
+    "empty_title": "Aucun événement break-glass",
+    "empty_description": "Les exécutions en accès d'urgence apparaîtront ici.",
+    "filter_status_all": "Tous les statuts",
+    "filter_datasource_all": "Toutes les sources de données",
+    "filter_user_placeholder": "Filtrer par id d'utilisateur",
+    "col_executed": "Exécuté",
+    "col_user": "Utilisateur",
+    "col_datasource": "Source de données",
+    "col_justification": "Justification",
+    "col_status": "Statut",
+    "col_actions": "Actions",
+    "user_unknown": "Utilisateur inconnu",
+    "action_acknowledge": "Valider",
+    "acknowledge_success": "Événement break-glass validé",
+    "acknowledge_confirm_title": "Valider l'événement break-glass",
+    "acknowledge_confirm_body": "Confirmez que vous avez examiné cette exécution d’urgence. Cela clôt la revue rétrospective.",
+    "acknowledge_comment_placeholder": "Ajouter une note de rapprochement (facultatif)",
+    "drawer_title": "Événement break-glass",
+    "view_query": "Voir la requête exécutée",
+    "section_justification": "Justification",
+    "section_query": "Requête",
+    "section_review": "Revue",
+    "field_executed": "Exécuté le",
+    "field_reviewed_by": "Revu par",
+    "field_reviewed_at": "Revu le",
+    "field_review_comment": "Commentaire"
   }
 }

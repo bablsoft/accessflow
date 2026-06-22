@@ -314,6 +314,7 @@ class DatasourceController {
                 request.canRead(),
                 request.canWrite(),
                 request.canDdl(),
+                request.canBreakGlass(),
                 request.rowLimitOverride(),
                 request.allowedSchemas(),
                 request.allowedTables(),
@@ -327,6 +328,7 @@ class DatasourceController {
         metadata.put("can_read", view.canRead());
         metadata.put("can_write", view.canWrite());
         metadata.put("can_ddl", view.canDdl());
+        metadata.put("can_break_glass", view.canBreakGlass());
         recordAudit(AuditAction.PERMISSION_GRANTED, AuditResourceType.PERMISSION, view.id(),
                 caller, auditContext, metadata);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()

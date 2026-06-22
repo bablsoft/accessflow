@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "Коннекторы",
     "auditor": "Отчёты о соответствии",
-    "anomalies": "Аномалии"
+    "anomalies": "Аномалии",
+    "break_glass": "Журнал break-glass"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -445,7 +446,15 @@
         "placeholder_required": "Требуется значение для :{{name}}"
       }
     },
-    "datasource_label": "Источник данных"
+    "datasource_label": "Источник данных",
+    "break_glass_button": "Аварийный доступ",
+    "break_glass_success": "Аварийный запрос выполнен",
+    "break_glass_error": "Ошибка аварийного доступа",
+    "break_glass_modal_title": "Аварийный доступ (break-glass)",
+    "break_glass_confirm": "Выполнить сейчас",
+    "break_glass_modal_warning_title": "Это обходит проверку",
+    "break_glass_modal_warning_body": "Запрос выполняется немедленно без согласования. Уведомляются все администраторы, действие заметно фиксируется в аудите и должно быть проверено впоследствии.",
+    "break_glass_justification_placeholder": "Опишите аварийную ситуацию (обязательно)"
   },
   "dry_run_panel": {
     "title": "План выполнения",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "Отправлено пользователем",
-      "AI_SUGGESTION": "Предложение ИИ"
+      "AI_SUGGESTION": "Предложение ИИ",
+      "EMERGENCY_ACCESS": "Аварийный доступ"
     },
     "comment_status": {
       "OPEN": "Открыт",
@@ -2161,6 +2171,10 @@
       "OPEN": "Открыта",
       "ACKNOWLEDGED": "Подтверждена",
       "DISMISSED": "Отклонена"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "Ожидает проверки",
+      "REVIEWED": "Проверено"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} открытая аномалия (макс. оценка {{score}})",
       "tooltip_other": "{{count}} открытых аномалий (макс. оценка {{score}})"
     }
+  },
+  "breakglass": {
+    "title": "Журнал break-glass",
+    "subtitle": "Аварийные запуски, ожидающие ретроспективной проверки",
+    "count_label": "{{count}} событий",
+    "load_error": "Не удалось загрузить события break-glass",
+    "empty_title": "Событий break-glass нет",
+    "empty_description": "Аварийные запуски будут отображаться здесь.",
+    "filter_status_all": "Все статусы",
+    "filter_datasource_all": "Все источники данных",
+    "filter_user_placeholder": "Фильтр по ID пользователя",
+    "col_executed": "Выполнено",
+    "col_user": "Пользователь",
+    "col_datasource": "Источник данных",
+    "col_justification": "Обоснование",
+    "col_status": "Статус",
+    "col_actions": "Действия",
+    "user_unknown": "Неизвестный пользователь",
+    "action_acknowledge": "Подтвердить",
+    "acknowledge_success": "Событие break-glass подтверждено",
+    "acknowledge_confirm_title": "Подтвердить событие break-glass",
+    "acknowledge_confirm_body": "Подтвердите, что вы проверили этот аварийный запуск. Это закроет ретроспективную проверку.",
+    "acknowledge_comment_placeholder": "Добавьте примечание о сверке (необязательно)",
+    "drawer_title": "Событие break-glass",
+    "view_query": "Открыть выполненный запрос",
+    "section_justification": "Обоснование",
+    "section_query": "Запрос",
+    "section_review": "Проверка",
+    "field_executed": "Выполнено",
+    "field_reviewed_by": "Кто проверил",
+    "field_reviewed_at": "Когда проверено",
+    "field_review_comment": "Комментарий"
   }
 }

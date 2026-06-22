@@ -624,6 +624,7 @@ export interface CreatePermissionInput {
   can_read?: boolean;
   can_write?: boolean;
   can_ddl?: boolean;
+  can_break_glass?: boolean;
   row_limit_override?: number | null;
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
@@ -923,7 +924,7 @@ export interface OptimizationSuggestion {
   sql: string;
 }
 
-export type SubmissionReason = 'USER_SUBMITTED' | 'AI_SUGGESTION';
+export type SubmissionReason = 'USER_SUBMITTED' | 'AI_SUGGESTION' | 'EMERGENCY_ACCESS';
 
 export interface AiAnalysis {
   risk_level: RiskLevel;
@@ -1232,6 +1233,7 @@ export interface DatasourcePermission {
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
+  can_break_glass: boolean;
   row_limit_override: number | null;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
@@ -1732,6 +1734,63 @@ export interface AnomalyListFilters {
 export interface AnomalyBadge {
   openCount: number;
   maxScore: number;
+}
+
+// ── Break-glass / emergency access (AF-385) ──────────────────────────────────
+export type BreakGlassEventStatus = 'PENDING_REVIEW' | 'REVIEWED';
+
+export interface BreakGlassEvent {
+  id: string;
+  query_request_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  submitted_by_user_id: string;
+  submitted_by_display_name: string | null;
+  submitted_by_email: string | null;
+  sql_text: string | null;
+  execution_status: QueryStatus | null;
+  justification: string;
+  status: BreakGlassEventStatus;
+  reviewed_by_user_id: string | null;
+  reviewed_by_display_name: string | null;
+  review_comment: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export type BreakGlassEventPage = PageEnvelope<BreakGlassEvent>;
+
+export interface BreakGlassListFilters {
+  page?: number;
+  size?: number;
+  status?: BreakGlassEventStatus;
+  datasource_id?: string;
+  user_id?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BreakGlassEligibilityItem {
+  datasource_id: string;
+  expires_at: string | null;
+}
+
+export interface BreakGlassEligibilityResponse {
+  eligible_datasources: BreakGlassEligibilityItem[];
+}
+
+export interface BreakGlassSubmitInput {
+  datasource_id: string;
+  sql: string;
+  justification: string;
+}
+
+export interface BreakGlassExecuteResponse {
+  id: string;
+  event_id: string;
+  status: QueryStatus;
+  rows_affected: number | null;
+  duration_ms: number | null;
 }
 
 // ── Datasource health dashboard (AF-365) ─────────────────────────────────────

@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "连接器",
     "auditor": "合规报告",
-    "anomalies": "异常"
+    "anomalies": "异常",
+    "break_glass": "Break-glass 日志"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -445,7 +446,15 @@
         "placeholder_required": ":{{name}} 的值为必填"
       }
     },
-    "datasource_label": "数据源"
+    "datasource_label": "数据源",
+    "break_glass_button": "应急访问",
+    "break_glass_success": "应急查询已执行",
+    "break_glass_error": "应急访问失败",
+    "break_glass_modal_title": "应急（break-glass）访问",
+    "break_glass_confirm": "立即执行",
+    "break_glass_modal_warning_title": "此操作将绕过审批",
+    "break_glass_modal_warning_body": "查询将在未经审批的情况下立即执行。所有管理员都会收到通知，该操作会被显著记录到审计日志，并且必须事后复核。",
+    "break_glass_justification_placeholder": "请说明紧急情况（必填）"
   },
   "dry_run_panel": {
     "title": "执行计划",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "用户提交",
-      "AI_SUGGESTION": "AI 建议"
+      "AI_SUGGESTION": "AI 建议",
+      "EMERGENCY_ACCESS": "应急访问"
     },
     "comment_status": {
       "OPEN": "未解决",
@@ -2161,6 +2171,10 @@
       "OPEN": "待处理",
       "ACKNOWLEDGED": "已确认",
       "DISMISSED": "已忽略"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "待复核",
+      "REVIEWED": "已复核"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} 条待处理异常（最高评分 {{score}}）",
       "tooltip_other": "{{count}} 条待处理异常（最高评分 {{score}}）"
     }
+  },
+  "breakglass": {
+    "title": "Break-glass 日志",
+    "subtitle": "等待事后复核的应急访问执行记录",
+    "count_label": "{{count}} 条事件",
+    "load_error": "加载 break-glass 事件失败",
+    "empty_title": "暂无 break-glass 事件",
+    "empty_description": "应急访问执行记录将显示在此处。",
+    "filter_status_all": "全部状态",
+    "filter_datasource_all": "全部数据源",
+    "filter_user_placeholder": "按用户 ID 筛选",
+    "col_executed": "执行时间",
+    "col_user": "用户",
+    "col_datasource": "数据源",
+    "col_justification": "理由",
+    "col_status": "状态",
+    "col_actions": "操作",
+    "user_unknown": "未知用户",
+    "action_acknowledge": "确认",
+    "acknowledge_success": "已确认 break-glass 事件",
+    "acknowledge_confirm_title": "确认 break-glass 事件",
+    "acknowledge_confirm_body": "确认您已复核此次应急执行。此操作将关闭事后复核。",
+    "acknowledge_comment_placeholder": "添加对账备注（可选）",
+    "drawer_title": "Break-glass 事件",
+    "view_query": "查看已执行的查询",
+    "section_justification": "理由",
+    "section_query": "查询",
+    "section_review": "复核",
+    "field_executed": "执行于",
+    "field_reviewed_by": "复核人",
+    "field_reviewed_at": "复核于",
+    "field_review_comment": "备注"
   }
 }

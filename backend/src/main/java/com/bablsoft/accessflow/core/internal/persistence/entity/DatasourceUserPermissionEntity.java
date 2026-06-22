@@ -43,6 +43,9 @@ public class DatasourceUserPermissionEntity {
     @Column(name = "can_ddl", nullable = false)
     private boolean canDdl = false;
 
+    @Column(name = "can_break_glass", nullable = false)
+    private boolean canBreakGlass = false;
+
     @Column(name = "row_limit_override")
     private Integer rowLimitOverride;
 

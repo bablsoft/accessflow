@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "Konnektoren",
     "auditor": "Compliance-Berichte",
-    "anomalies": "Anomalien"
+    "anomalies": "Anomalien",
+    "break_glass": "Break-Glass-Protokoll"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -445,7 +446,15 @@
         "placeholder_required": "Wert für :{{name}} ist erforderlich"
       }
     },
-    "datasource_label": "Datenquelle"
+    "datasource_label": "Datenquelle",
+    "break_glass_button": "Notfallzugriff",
+    "break_glass_success": "Notfallabfrage ausgeführt",
+    "break_glass_error": "Notfallzugriff fehlgeschlagen",
+    "break_glass_modal_title": "Notfallzugriff (Break-Glass)",
+    "break_glass_confirm": "Jetzt ausführen",
+    "break_glass_modal_warning_title": "Dies umgeht die Prüfung",
+    "break_glass_modal_warning_body": "Die Abfrage wird sofort ohne Genehmigung ausgeführt. Alle Administratoren werden benachrichtigt, die Aktion wird deutlich protokolliert und muss anschließend geprüft werden.",
+    "break_glass_justification_placeholder": "Begründen Sie den Notfall (erforderlich)"
   },
   "dry_run_panel": {
     "title": "Ausführungsplan",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "Vom Benutzer eingereicht",
-      "AI_SUGGESTION": "KI-Vorschlag"
+      "AI_SUGGESTION": "KI-Vorschlag",
+      "EMERGENCY_ACCESS": "Notfallzugriff"
     },
     "comment_status": {
       "OPEN": "Offen",
@@ -2161,6 +2171,10 @@
       "OPEN": "Offen",
       "ACKNOWLEDGED": "Bestätigt",
       "DISMISSED": "Verworfen"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "Prüfung ausstehend",
+      "REVIEWED": "Geprüft"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} offene Anomalie (max. Wert {{score}})",
       "tooltip_other": "{{count}} offene Anomalien (max. Wert {{score}})"
     }
+  },
+  "breakglass": {
+    "title": "Break-Glass-Protokoll",
+    "subtitle": "Notfallzugriffe, die auf eine nachträgliche Prüfung warten",
+    "count_label": "{{count}} Ereignisse",
+    "load_error": "Break-Glass-Ereignisse konnten nicht geladen werden",
+    "empty_title": "Keine Break-Glass-Ereignisse",
+    "empty_description": "Notfallzugriffe werden hier angezeigt.",
+    "filter_status_all": "Alle Status",
+    "filter_datasource_all": "Alle Datenquellen",
+    "filter_user_placeholder": "Nach Benutzer-ID filtern",
+    "col_executed": "Ausgeführt",
+    "col_user": "Benutzer",
+    "col_datasource": "Datenquelle",
+    "col_justification": "Begründung",
+    "col_status": "Status",
+    "col_actions": "Aktionen",
+    "user_unknown": "Unbekannter Benutzer",
+    "action_acknowledge": "Bestätigen",
+    "acknowledge_success": "Break-Glass-Ereignis bestätigt",
+    "acknowledge_confirm_title": "Break-Glass-Ereignis bestätigen",
+    "acknowledge_confirm_body": "Bestätigen Sie, dass Sie diese Notfallausführung geprüft haben. Dies schließt die nachträgliche Prüfung ab.",
+    "acknowledge_comment_placeholder": "Abstimmungsnotiz hinzufügen (optional)",
+    "drawer_title": "Break-Glass-Ereignis",
+    "view_query": "Ausgeführte Abfrage anzeigen",
+    "section_justification": "Begründung",
+    "section_query": "Abfrage",
+    "section_review": "Prüfung",
+    "field_executed": "Ausgeführt am",
+    "field_reviewed_by": "Geprüft von",
+    "field_reviewed_at": "Geprüft am",
+    "field_review_comment": "Kommentar"
   }
 }

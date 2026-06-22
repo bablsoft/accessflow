@@ -37,6 +37,7 @@ const AiConfigCreateWizardPage = lazy(
 const AiConfigEditPage = lazy(() => import('@/pages/admin/ai-configs/AiConfigEditPage'));
 const AiAnalysesPage = lazy(() => import('@/pages/admin/AiAnalysesPage'));
 const AnomaliesPage = lazy(() => import('@/pages/admin/AnomaliesPage'));
+const BreakGlassLogPage = lazy(() => import('@/pages/admin/BreakGlassLogPage'));
 const DataClassificationsPage = lazy(() => import('@/pages/admin/DataClassificationsPage'));
 const DatasourceHealthPage = lazy(() => import('@/pages/admin/DatasourceHealthPage'));
 import { NotificationsPage } from '@/pages/admin/NotificationsPage';
@@ -308,6 +309,16 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <AnomaliesPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/break-glass"
+            element={
+              <AuthGuard requireRole={['AUDITOR', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <BreakGlassLogPage />
                 </Suspense>
               </AuthGuard>
             }

@@ -66,7 +66,8 @@
     "routing_policies": "Routing policies",
     "langfuse": "Langfuse",
     "connectors": "Connectors",
-    "anomalies": "Anomalies"
+    "anomalies": "Anomalies",
+    "break_glass": "Break-glass log"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -445,7 +446,15 @@
         "placeholder_required": "Value for :{{name}} is required"
       }
     },
-    "datasource_label": "Datasource"
+    "datasource_label": "Datasource",
+    "break_glass_button": "Emergency access",
+    "break_glass_success": "Emergency query executed",
+    "break_glass_error": "Emergency access failed",
+    "break_glass_modal_title": "Emergency (break-glass) access",
+    "break_glass_confirm": "Execute now",
+    "break_glass_modal_warning_title": "This bypasses review",
+    "break_glass_modal_warning_body": "The query executes immediately without approval. All administrators are notified, the action is prominently audited, and it must be reviewed afterwards.",
+    "break_glass_justification_placeholder": "Explain the emergency (required)"
   },
   "dry_run_panel": {
     "title": "Execution plan",
@@ -2180,11 +2189,16 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "User submitted",
-      "AI_SUGGESTION": "AI suggestion"
+      "AI_SUGGESTION": "AI suggestion",
+      "EMERGENCY_ACCESS": "Emergency access"
     },
     "comment_status": {
       "OPEN": "Open",
       "RESOLVED": "Resolved"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "Pending review",
+      "REVIEWED": "Reviewed"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
     "save_success": "Saved as draft {{id}}",
     "denied_title": "Collaboration unavailable",
     "denied_body": "You're not authorized to co-edit this query."
+  },
+  "breakglass": {
+    "title": "Break-glass log",
+    "subtitle": "Emergency-access executions awaiting retrospective review",
+    "count_label": "{{count}} events",
+    "load_error": "Failed to load break-glass events",
+    "empty_title": "No break-glass events",
+    "empty_description": "Emergency-access executions will appear here.",
+    "filter_status_all": "All statuses",
+    "filter_datasource_all": "All datasources",
+    "filter_user_placeholder": "Filter by user id",
+    "col_executed": "Executed",
+    "col_user": "User",
+    "col_datasource": "Datasource",
+    "col_justification": "Justification",
+    "col_status": "Status",
+    "col_actions": "Actions",
+    "user_unknown": "Unknown user",
+    "action_acknowledge": "Acknowledge",
+    "acknowledge_success": "Break-glass event acknowledged",
+    "acknowledge_confirm_title": "Acknowledge break-glass event",
+    "acknowledge_confirm_body": "Confirm you have reviewed this emergency execution. This closes the retrospective review.",
+    "acknowledge_comment_placeholder": "Add a reconciliation note (optional)",
+    "drawer_title": "Break-glass event",
+    "view_query": "View executed query",
+    "section_justification": "Justification",
+    "section_query": "Query",
+    "section_review": "Review",
+    "field_executed": "Executed at",
+    "field_reviewed_by": "Reviewed by",
+    "field_reviewed_at": "Reviewed at",
+    "field_review_comment": "Comment"
   }
 }

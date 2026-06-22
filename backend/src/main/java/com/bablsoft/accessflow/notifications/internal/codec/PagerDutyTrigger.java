@@ -11,13 +11,16 @@ import java.util.Optional;
  * enables, and each maps to exactly one {@link NotificationEventType}:
  * {@code CRITICAL_RISK} → {@link NotificationEventType#AI_HIGH_RISK} (the listener fires that
  * event only for {@code CRITICAL} risk), {@code REVIEW_TIMEOUT} →
- * {@link NotificationEventType#REVIEW_TIMEOUT}, and {@code ANOMALY} →
- * {@link NotificationEventType#ANOMALY_DETECTED} (behavioural anomaly detection, AF-383).
+ * {@link NotificationEventType#REVIEW_TIMEOUT}, {@code ANOMALY} →
+ * {@link NotificationEventType#ANOMALY_DETECTED} (behavioural anomaly detection, AF-383), and
+ * {@code BREAK_GLASS} → {@link NotificationEventType#BREAK_GLASS_EXECUTED} (emergency access,
+ * AF-385).
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),
     REVIEW_TIMEOUT(NotificationEventType.REVIEW_TIMEOUT),
-    ANOMALY(NotificationEventType.ANOMALY_DETECTED);
+    ANOMALY(NotificationEventType.ANOMALY_DETECTED),
+    BREAK_GLASS(NotificationEventType.BREAK_GLASS_EXECUTED);
 
     private final NotificationEventType eventType;
 
@@ -48,7 +51,8 @@ public enum PagerDutyTrigger {
         } catch (IllegalArgumentException ex) {
             throw new NotificationChannelConfigException(
                     "Config key '" + ChannelConfigCodec.KEY_TRIGGERS
-                            + "' must contain only CRITICAL_RISK, REVIEW_TIMEOUT or ANOMALY", ex);
+                            + "' must contain only CRITICAL_RISK, REVIEW_TIMEOUT, ANOMALY or "
+                            + "BREAK_GLASS", ex);
         }
     }
 }

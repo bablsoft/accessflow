@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
   ANOMALY_STATUSES,
+  BREAK_GLASS_STATUSES,
   OPTIMIZATION_TYPES,
   anomalyStatusLabel,
+  breakGlassStatusLabel,
   commentStatusLabel,
   optimizationTypeLabel,
   queryTemplateChangeLabel,
@@ -39,6 +41,22 @@ describe('submissionReasonLabel', () => {
   it('maps each submission reason to its enum translation key', () => {
     expect(submissionReasonLabel(t, 'USER_SUBMITTED')).toBe('enums.submission_reason.USER_SUBMITTED');
     expect(submissionReasonLabel(t, 'AI_SUGGESTION')).toBe('enums.submission_reason.AI_SUGGESTION');
+    expect(submissionReasonLabel(t, 'EMERGENCY_ACCESS')).toBe(
+      'enums.submission_reason.EMERGENCY_ACCESS',
+    );
+  });
+});
+
+describe('breakGlassStatusLabel', () => {
+  it('exposes every break-glass status', () => {
+    expect(BREAK_GLASS_STATUSES).toEqual(['PENDING_REVIEW', 'REVIEWED']);
+  });
+
+  it('maps each status to its enum translation key', () => {
+    expect(breakGlassStatusLabel(t, 'PENDING_REVIEW')).toBe(
+      'enums.break_glass_status.PENDING_REVIEW',
+    );
+    expect(breakGlassStatusLabel(t, 'REVIEWED')).toBe('enums.break_glass_status.REVIEWED');
   });
 });
 

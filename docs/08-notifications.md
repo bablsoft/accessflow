@@ -19,6 +19,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_REJECTED` | Reviewer rejects query | Query submitter | implemented |
 | `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
 | `ANOMALY_DETECTED` | `BehaviorAnomalyDetectionJob` flags a behavioural anomaly (UBA, AF-383) | All ADMIN users in the org plus the flagged user. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
+| `BREAK_GLASS_EXECUTED` | A break-glass / emergency-access query executes, bypassing review (AF-385) | All active ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -58,6 +59,8 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/query-approved.html` — `QUERY_APPROVED`
 - `email/query-rejected.html` — `QUERY_REJECTED`
 - `email/query-review-timeout.html` — `REVIEW_TIMEOUT` (auto-rejection prompted by `QueryTimeoutJob`; renders an explicit explanatory banner with the configured `approval_timeout_hours` and an amber accent so the submitter can visually distinguish it from a reviewer rejection)
+- `email/anomaly-detected.html` — `ANOMALY_DETECTED`
+- `email/break-glass-executed.html` — `BREAK_GLASS_EXECUTED` (AF-385; red emergency banner, the executing user, datasource, and SQL preview, with a CTA to the executed query / break-glass log)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)
@@ -279,7 +282,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
 {
   "routing_key": "R0ABCD1234567890ABCDEF",
   "default_severity": "critical",
-  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY"]
+  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY", "BREAK_GLASS"]
 }
 ```
 
@@ -289,6 +292,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
+  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385).
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
 The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.

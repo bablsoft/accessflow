@@ -211,6 +211,6 @@ class DefaultSampleDataServiceTest {
                                                     List<String> allowedSchemas,
                                                     List<String> allowedTables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, canRead,
-                false, false, allowedSchemas, allowedTables, restrictedColumns, null);
+                false, false, false, allowedSchemas, allowedTables, restrictedColumns, null);
     }
 }

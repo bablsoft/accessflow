@@ -532,8 +532,8 @@ class DatasourceAdminServiceImplTest {
         user.setOrganization(otherOrg);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
-        var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null, null);
+        var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
+                null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -544,8 +544,8 @@ class DatasourceAdminServiceImplTest {
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
-        var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null, null);
+        var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
+                null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -563,8 +563,8 @@ class DatasourceAdminServiceImplTest {
         when(permissionRepository.existsByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(true);
 
-        var command = new CreatePermissionCommand(userId, true, false, false, null, null, null,
-                null, null);
+        var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
+                null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(DatasourcePermissionAlreadyExistsException.class);
     }
@@ -589,7 +589,7 @@ class DatasourceAdminServiceImplTest {
         when(permissionRepository.save(any(DatasourceUserPermissionEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        var command = new CreatePermissionCommand(userId, true, true, false, 500,
+        var command = new CreatePermissionCommand(userId, true, true, false, true, 500,
                 List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null);
         var view = service.grantPermission(datasourceId, orgId, adminId, command);
 
@@ -598,6 +598,7 @@ class DatasourceAdminServiceImplTest {
         assertThat(view.canRead()).isTrue();
         assertThat(view.canWrite()).isTrue();
         assertThat(view.canDdl()).isFalse();
+        assertThat(view.canBreakGlass()).isTrue();
         assertThat(view.allowedSchemas()).containsExactly("public");
         assertThat(view.allowedTables()).containsExactly("orders");
         assertThat(view.restrictedColumns()).containsExactly("public.orders.ssn");

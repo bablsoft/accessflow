@@ -762,9 +762,19 @@
                 <tr><td>View / export compliance reports</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
                 <tr><td>View behavioural anomalies (UBA)</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
                 <tr><td>Acknowledge / dismiss anomalies</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+                <tr><td>Break-glass / emergency execution<sup>†</sup></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>View break-glass log</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+                <tr><td>Acknowledge break-glass events</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
               </tbody>
             </table>
           </div>
+          <p class="small muted">
+            <sup>†</sup> Break-glass / emergency execution is not granted by role — it is gated by a
+            separate per-user, per-datasource <code>can_break_glass</code> permission that an admin
+            grants explicitly (required for everyone, including admins; time-boxed). A user can
+            break glass only on a datasource they hold that grant for, and only for query types they
+            already have the capability for.
+          </p>
           <p>
             <strong>Which role for what.</strong> Use <code>READONLY</code> for people who only
             need to look at production data (analysts, on-call engineers reading dashboards).
@@ -813,6 +823,22 @@
             </picture>
             <figcaption><code>/admin/access-requests</code> — pending JIT access requests; admins approve, reject, or revoke an active grant.</figcaption>
           </figure>
+          <p>
+            <strong>Break-glass / emergency access.</strong> For genuine emergencies — production is
+            down and approvers are unreachable — an admin can grant a user the
+            <code>can_break_glass</code> permission on a datasource (a checkbox on the permission
+            grant, alongside read / write / DDL, time-boxed via the same <code>expires_at</code>).
+            With that grant, an <strong>Emergency access</strong> button appears on the editor for
+            that datasource: the user supplies a mandatory justification and the query
+            <strong>executes immediately, bypassing review</strong> — but still through every proxy
+            guard (schema/table allow-list, dynamic masking, row-level security, row caps). The grant
+            is required for <em>everyone, including admins</em>. Each break-glass execution fires
+            instant notifications to all admins (including PagerDuty), writes a prominently-tagged
+            <code>QUERY_BREAK_GLASS_EXECUTED</code> audit row, and opens a <strong>mandatory
+            retro-review</strong> on the <code>/admin/break-glass</code> log that an admin —
+            <em>never the submitter</em> — must acknowledge after the fact. The executed query keeps
+            its normal terminal state; the retro-review is tracked alongside it.
+          </p>
 
           <!-- User groups -->
           <h3 id="cfg-groups">User groups</h3>

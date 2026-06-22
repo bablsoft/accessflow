@@ -190,7 +190,7 @@ class DefaultAiAnalyzerServiceTest {
                                                 "ssn", "text", true, false)),
                                         List.of()))))));
         var permission = new com.bablsoft.accessflow.core.api.DatasourceUserPermissionView(
-                UUID.randomUUID(), userId, datasourceId, true, false, false,
+                UUID.randomUUID(), userId, datasourceId, true, false, false, false,
                 List.of(), List.of(), List.of("public.users.ssn"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);

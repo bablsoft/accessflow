@@ -9,6 +9,7 @@ public record CreatePermissionCommand(
         Boolean canRead,
         Boolean canWrite,
         Boolean canDdl,
+        Boolean canBreakGlass,
         Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,

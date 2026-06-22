@@ -38,6 +38,25 @@ describe('api/queries', () => {
     expect(result.status).toBe('PENDING_AI');
   });
 
+  it('breakGlassSubmit posts to /api/v1/queries/break-glass', async () => {
+    post.mockResolvedValueOnce({
+      data: { id: 'q-9', event_id: 'e-9', status: 'EXECUTED', rows_affected: 3, duration_ms: 12 },
+    });
+    const result = await queriesApi.breakGlassSubmit({
+      datasource_id: 'ds-1',
+      sql: 'SELECT 1',
+      justification: 'prod down',
+    });
+    expect(post).toHaveBeenCalledWith('/api/v1/queries/break-glass', {
+      datasource_id: 'ds-1',
+      sql: 'SELECT 1',
+      justification: 'prod down',
+    });
+    expect(result.id).toBe('q-9');
+    expect(result.event_id).toBe('e-9');
+    expect(result.status).toBe('EXECUTED');
+  });
+
   it('listQueries maps filter fields to camelCase query params', async () => {
     get.mockResolvedValueOnce({
       data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0, last: true },

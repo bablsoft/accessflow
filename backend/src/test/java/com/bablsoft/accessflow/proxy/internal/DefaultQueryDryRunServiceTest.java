@@ -64,7 +64,7 @@ class DefaultQueryDryRunServiceTest {
     private DatasourceUserPermissionView permission(boolean read, List<String> schemas,
                                                     List<String> tables) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId, read,
-                false, false, schemas, tables, List.of(), null);
+                false, false, false, schemas, tables, List.of(), null);
     }
 
     @Test

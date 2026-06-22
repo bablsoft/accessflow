@@ -52,6 +52,7 @@ export default defineConfig({
         'src/api/admin.ts',
         'src/api/anomalies.ts',
         'src/api/auth.ts',
+        'src/api/breakGlass.ts',
         'src/api/client.ts',
         'src/api/comments.ts',
         'src/api/compliance.ts',

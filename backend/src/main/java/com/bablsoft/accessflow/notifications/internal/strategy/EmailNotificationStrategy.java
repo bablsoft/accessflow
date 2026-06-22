@@ -163,6 +163,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case ANOMALY_DETECTED -> "email/anomaly-detected";
+            case BREAK_GLASS_EXECUTED -> "email/break-glass-executed";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
@@ -186,6 +187,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
             case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";
+            case BREAK_GLASS_EXECUTED -> "notification.email.subject.break_glass_executed";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";

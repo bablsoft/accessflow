@@ -523,6 +523,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setCanRead(Boolean.TRUE.equals(command.canRead()));
         entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
         entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
+        entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
         entity.setRowLimitOverride(command.rowLimitOverride());
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
@@ -803,6 +804,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.isCanRead(),
                 entity.isCanWrite(),
                 entity.isCanDdl(),
+                entity.isCanBreakGlass(),
                 entity.getRowLimitOverride(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
