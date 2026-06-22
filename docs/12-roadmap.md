@@ -161,6 +161,7 @@
 - **Saved-query version history & diffing** — every template save records an immutable version; view a side-by-side Git-style diff between any two revisions and restore a prior one, with history preserved (AF-442)
 - **Real-time collaborative query editing & co-authoring** — multiple authorized engineers co-edit a query that is in review (VS Code Live Share / Google Docs style): live presence, remote cursors, conflict-free CRDT merge (Yjs relayed over the existing `/ws`), and inline comment threads anchored to the SQL, persisted and audited. Edits re-enter the workflow through the normal submit path; the self-approval guard is unaffected (AF-441)
 - **Immutable query snapshots & replay** — every executed query writes a sanitized, exact-replay-capable snapshot (SQL + schema fingerprint + AI verdict + approval decisions). "Replay in test environment" re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never bypassing approval, and distinctly audited (`trigger=replay`) (AF-449)
+- **Mobile-friendly approvals (PWA) with one-tap push** — an installable PWA with an offline-capable review-queue shell, plus Web Push (VAPID) delivery as a per-user notification path: a reviewer away from their desk gets a push when a query needs approval and approves/rejects in one tap. The decision only commits after a **step-up auth** re-verification (password, or TOTP when 2FA is enrolled), and the self-approval guard is enforced server-side regardless of channel (AF-444)
 
 ---
 

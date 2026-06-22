@@ -827,6 +827,30 @@ For `REQUIRE_APPROVALS` / `ESCALATE`, the resolved absolute count is written to 
 
 `approve` may resolve to either `PENDING_REVIEW` (more approvers needed at this stage, or higher stages remain) or `APPROVED` (last stage threshold met). `reject` is always terminal (`REJECTED`). `request-changes` is non-terminal — the query stays in `PENDING_REVIEW` and the comment is recorded for the submitter.
 
+### Step-up auth and the one-tap push decide path (AF-444)
+
+`POST /reviews/{queryId}/decide` is the decision endpoint for the mobile/PWA one-tap push flow. It is
+**not** a new decision path — it consumes a step-up token, then delegates to the same
+`ReviewService.approve()` / `reject()` as the in-app and Slack endpoints, so the self-approval guard
+(step 1 above) and every eligibility/state guard apply identically. A user can never approve their
+own query from any channel.
+
+Step-up auth lives in the `security` module:
+
+- `security.api.StepUpService` (`DefaultStepUpService`) re-verifies an existing credential — a TOTP
+  code when the user has 2FA enrolled (`core.api.TotpVerificationService`), otherwise the account
+  password (`PasswordEncoder` against the `UserView.passwordHash`). On success it mints a **single-use**
+  token via `StepUpCodeStore` (Redis, `stepup:` namespace, TTL `accessflow.security.step-up.ttl`,
+  default `PT5M`), following the OAuth2 / SAML exchange-code pattern. SSO-only users without a password
+  and without 2FA cannot step up — they decide in the standard authenticated review screen.
+- `POST /auth/step-up` issues the token; `ReviewController.decide` `consume()`s it, asserts the token
+  was issued to the caller, then commits the decision and audits it (`QUERY_APPROVED` / `QUERY_REJECTED`
+  with metadata `channel=PUSH, step_up=true`).
+
+Web-push delivery (the per-user subscription path, VAPID, and `WebPushSender`'s pure-JDK RFC 8291 /
+RFC 8292 implementation) lives in the `notifications` module — see
+[docs/08-notifications.md → Web Push](08-notifications.md).
+
 Terminal transitions publish `QueryApprovedEvent` / `QueryRejectedEvent` (in `workflow.events`) for the audit and notifications modules to subscribe to.
 
 ### Approval timeout (auto-rejection)

@@ -652,6 +652,21 @@
       "row_status_forbidden": "Interdit",
       "row_status_invalid_state": "Pas en attente",
       "row_status_not_found": "Introuvable"
+    },
+    "decide": {
+      "title": "Approuver ou rejeter",
+      "subtitle": "Confirmez votre identité pour valider cette décision",
+      "context": "{{datasource}} · demandé par {{submitter}}",
+      "password_label": "Confirmez votre mot de passe",
+      "totp_label": "Code d'authentification",
+      "step_up_help": "Requis pour confirmer une décision depuis une notification push",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "approved": "Requête approuvée",
+      "rejected": "Requête rejetée",
+      "own_query": "Vous ne pouvez pas examiner votre propre requête.",
+      "not_pending": "Cette requête n'est plus en attente d'examen.",
+      "not_found": "Requête introuvable."
     }
   },
   "timeline": {
@@ -2387,5 +2402,14 @@
     "field_reviewed_by": "Revu par",
     "field_reviewed_at": "Revu le",
     "field_review_comment": "Commentaire"
+  },
+  "push": {
+    "enable": "Activer les approbations push",
+    "disable": "Désactiver les approbations push",
+    "enabled": "Approbations push activées",
+    "disabled": "Approbations push désactivées",
+    "blocked": "Les notifications sont bloquées dans les paramètres du navigateur",
+    "permission_required": "Autorisez les notifications pour activer les approbations push",
+    "error": "Impossible de mettre à jour les approbations push"
   }
 }

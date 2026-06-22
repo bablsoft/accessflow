@@ -63,6 +63,8 @@ import com.bablsoft.accessflow.security.api.PasswordResetTokenRevokedException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigInvalidException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigNotFoundException;
 import com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteException;
+import com.bablsoft.accessflow.security.api.StepUpRequiredException;
+import com.bablsoft.accessflow.security.api.StepUpVerificationException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
@@ -136,6 +138,22 @@ class GlobalExceptionHandler {
     ProblemDetail handleTotpAuthentication(TotpAuthenticationException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.totp_invalid"));
         pd.setProperty("error", "TOTP_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(StepUpVerificationException.class)
+    ProblemDetail handleStepUpVerification(StepUpVerificationException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.step_up_failed"));
+        pd.setProperty("error", "STEP_UP_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(StepUpRequiredException.class)
+    ProblemDetail handleStepUpRequired(StepUpRequiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, msg("error.step_up_required"));
+        pd.setProperty("error", "STEP_UP_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

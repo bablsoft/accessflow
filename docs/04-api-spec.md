@@ -28,6 +28,7 @@
 | `POST` | `/auth/login` | Authenticate with email + password, returns JWT access token + HttpOnly refresh token cookie |
 | `POST` | `/auth/refresh` | Exchange refresh token for new access token |
 | `POST` | `/auth/logout` | Revoke current refresh token |
+| `POST` | `/auth/step-up` | Re-verify a credential (password, or TOTP when 2FA is enrolled) and mint a single-use step-up token for the one-tap push decision flow (AF-444) |
 | `GET` | `/auth/setup-status` | Public — `{ "setup_required": boolean }` for the first-run wizard |
 | `GET` | `/auth/localization-config` | Public — `{ "available_languages": string[], "default_language": string }` so the login-page language selector can offer only the languages an admin has allowed (union across all orgs; per-tenant identity is not disclosed) |
 | `POST` | `/auth/setup` | Public — first-run create org + admin; returns a `LoginResponse` and sets the refresh cookie so the SPA can chain into the SMTP setup step |
@@ -100,6 +101,29 @@ Exchanges the `refresh_token` cookie for a new access token. Reads the refresh t
 Revokes the current refresh token and clears the cookie. Reads the refresh token from the `refresh_token` cookie; no request body.
 
 **Response 204:** No content. The response sets `refresh_token=` with `Max-Age=0` to clear the cookie. Returns 204 even when no cookie is present, so logout is idempotent.
+
+### POST /auth/step-up
+
+Re-verifies the authenticated caller's credential and mints a **single-use, short-lived** step-up token (AF-444). Used by the one-tap push approve/reject flow so a single notification tap can never commit a decision. Requires a valid access token.
+
+**Request body** — supply exactly one credential. For a local-password user send `password`; for a user with 2FA enrolled send `totp_code` (a current TOTP). SSO-only users without a password and without 2FA cannot step up here — they complete the decision in the standard authenticated review screen.
+
+```json
+{ "password": "current-password" }
+```
+```json
+{ "totp_code": "123456" }
+```
+
+**Response 200:**
+
+```json
+{ "step_up_token": "<opaque-single-use-token>", "expires_at": "2026-06-22T12:05:00Z" }
+```
+
+The token is consumed by `POST /reviews/{queryId}/decide`. TTL is `ACCESSFLOW_SECURITY_STEP_UP_TTL` (default `PT5M`).
+
+**Response 401** (`error: STEP_UP_FAILED`): the supplied credential did not verify.
 
 ### GET /auth/localization-config
 
@@ -1484,6 +1508,7 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 | `POST` | `/reviews/{queryId}/approve` | Approve a query request |
 | `POST` | `/reviews/{queryId}/reject` | Reject a query request |
 | `POST` | `/reviews/{queryId}/request-changes` | Request changes from submitter before re-submission |
+| `POST` | `/reviews/{queryId}/decide` | Commit an approve/reject from a one-tap push action; requires a step-up token (AF-444) |
 | `POST` | `/reviews/bulk` | Apply the same decision to a batch of queries; returns per-row outcomes |
 | `GET` | `/review-plans` | List all review plans |
 | `GET` | `/review-plans/templates` | List built-in review plan templates |
@@ -1557,6 +1582,40 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
 ```
 
 `comment` is **required** (≥ 1 non-whitespace character, ≤ 4,000 characters; HTTP 400 `VALIDATION_ERROR` if blank or missing). The decision is recorded with type `REQUESTED_CHANGES`; the query remains in `PENDING_REVIEW` so the submitter (or another reviewer) can act on the comment. The frontend renders a "Changes requested" alert at the top of `/queries/:id` whenever the latest `review_decisions[]` entry has `decision: REQUESTED_CHANGES` and the query is still `PENDING_REVIEW`.
+
+### POST /reviews/{queryId}/decide — Request Body
+
+The one-tap push decision endpoint (AF-444). Only approve and reject are available from push — request-changes stays an in-app action.
+
+```json
+{
+  "decision": "APPROVE",
+  "comment": "Looks good.",
+  "step_up_token": "<single-use-token-from-/auth/step-up>"
+}
+```
+
+`decision` is `APPROVE` or `REJECT` (required). `comment` is optional (≤ 4,000 characters). `step_up_token` is **required** — the single-use token from `POST /auth/step-up`, bound to the caller; a missing/expired/foreign token returns HTTP 401 `STEP_UP_REQUIRED`. On success the decision goes through the **same** `ReviewService` path as the in-app endpoints — the self-approval guard (HTTP 403 when the caller is the submitter, regardless of channel), reviewer-eligibility, and status guards all apply. The decision is audited as `QUERY_APPROVED` / `QUERY_REJECTED` with metadata `channel=PUSH, step_up=true`. **Response 200** mirrors `POST /reviews/{queryId}/approve`.
+
+## Web Push Endpoints (AF-444)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/push/vapid-public-key` | Returns the deployment VAPID public key (`{ "public_key": "<base64url>" }`) so the browser can create a subscription |
+| `POST` | `/push/subscriptions` | Store (or refresh) the caller's push subscription for this device → 201 |
+| `DELETE` | `/push/subscriptions` | Remove the caller's push subscription for this device → 204 (idempotent) |
+
+All three require an authenticated user; subscriptions are always scoped to the caller. `POST /push/subscriptions` body mirrors the browser's `PushSubscription.toJSON()`:
+
+```json
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/…",
+  "keys": { "p256dh": "<base64url>", "auth": "<base64url>" },
+  "user_agent": "Mozilla/5.0 …"
+}
+```
+
+`DELETE /push/subscriptions` takes `{ "endpoint": "https://…" }`. Web-push delivery itself is server-initiated when a query becomes ready for review — it is not a REST endpoint. See [docs/08-notifications.md](08-notifications.md) → "Web Push".
 
 ### POST /reviews/bulk — Request Body
 

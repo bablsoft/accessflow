@@ -963,6 +963,10 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | Optional | `P7D` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations`. Pending invitations past this duration are treated as expired on preview/accept; admins can resend to issue a fresh token. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | Optional | `PT1H` | ISO-8601 duration. TTL of password-reset tokens issued by `POST /api/v1/auth/password/forgot`. Tokens are single-use; users must request a new one if the link expires. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Optional | `http://localhost:5173` | Base URL embedded in password-reset emails. Set this to your production frontend origin (e.g. `https://accessflow.example.com`); the emailed link is `{base}/reset-password/{token}`. |
+| `ACCESSFLOW_SECURITY_STEP_UP_TTL` | Optional | `PT5M` | ISO-8601 duration (AF-444). TTL of the single-use step-up token minted by `POST /auth/step-up` and consumed by the one-tap push decision endpoint. Keep short. |
+| `ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY` | Optional | _(auto-generated)_ | Web Push VAPID public key (raw base64url, e.g. from `web-push generate-vapid-keys`) (AF-444). When set together with the private key it takes precedence; otherwise a keypair is auto-generated on first use and persisted (private key encrypted with `ENCRYPTION_KEY`) in `push_vapid_config`. |
+| `ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY` | Optional | _(auto-generated)_ | Web Push VAPID private key (raw base64url, paired with the public key) (AF-444). When unset, AccessFlow auto-generates and persists the keypair so push survives restarts and works across replicas. |
+| `ACCESSFLOW_PUSH_VAPID_SUBJECT` | Optional | `mailto:accessflow@localhost` | VAPID `sub` claim — a `mailto:` or `https:` contact URL identifying this application server to push services (AF-444). |
 
 #### Observability
 

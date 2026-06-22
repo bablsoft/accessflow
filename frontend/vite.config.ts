@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 
@@ -9,7 +10,37 @@ const pkg = JSON.parse(
 const APP_VERSION = process.env.VITE_APP_VERSION ?? pkg.version;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // PWA (AF-444): we own the service worker source (src/sw.ts) for the push /
+    // notificationclick handlers; Workbox injects the precache manifest for the
+    // offline review-queue shell. Registration is manual (main.tsx) to honour the
+    // strict CSP — no inline registration script.
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      manifest: {
+        name: 'AccessFlow',
+        short_name: 'AccessFlow',
+        description: 'Database access governance — review and approve queries on the go.',
+        theme_color: '#0a0a0a',
+        background_color: '#0a0a0a',
+        display: 'standalone',
+        start_url: '/reviews',
+        scope: '/',
+        icons: [
+          { src: '/pwa-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+        ],
+      },
+      // The single-bundle SPA chunk (AntD + CodeMirror) exceeds Workbox's 2 MiB default; raise the
+      // precache ceiling so the offline app shell includes it.
+      injectManifest: { maximumFileSizeToCacheInBytes: 6 * 1024 * 1024 },
+      devOptions: { enabled: false },
+    }),
+  ],
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
@@ -63,17 +94,21 @@ export default defineConfig({
         'src/api/maskingPolicies.ts',
         'src/api/notifications.ts',
         'src/api/organizations.ts',
+        'src/api/push.ts',
         'src/api/queries.ts',
         'src/api/reviewPlans.ts',
         'src/api/routingPolicies.ts',
         'src/api/rowSecurityPolicies.ts',
         'src/api/setup.ts',
         'src/api/slack.ts',
+        'src/api/stepup.ts',
         'src/components/datasources/ErDiagramTab.tsx',
         'src/components/datasources/erDiagramLayout.ts',
         'src/hooks/useSchemaIntrospect.ts',
         'src/hooks/useTableSample.ts',
         'src/hooks/useWebSocket.ts',
+        'src/hooks/usePushSubscription.ts',
+        'src/utils/push.ts',
         'src/pages/admin/reviewPlanTemplateForm.ts',
         'src/pages/admin/routingPolicyForm.ts',
         'src/pages/queries/buildTimelineStages.ts',
