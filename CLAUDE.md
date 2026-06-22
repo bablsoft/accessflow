@@ -276,6 +276,9 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Hard cap on executed-query snapshots scanned by a single compliance report / signed export; beyond it the report sets `truncated=true` (default `50000`). Export signing reuses `JWT_PRIVATE_KEY` — no separate signing key. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | ISO-8601 duration. TTL of self-service password-reset tokens issued by `POST /api/v1/auth/password/forgot` (default `PT1H`). Tokens are single-use. |
 | `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Base URL embedded in password-reset emails (default `http://localhost:5173`). The emailed link is `{base}/reset-password/{token}`. |
+| `ACCESSFLOW_SECURITY_STEP_UP_TTL` | ISO-8601 duration (AF-444). TTL of the single-use step-up token minted by `POST /auth/step-up` and consumed by the one-tap push decision endpoint `POST /reviews/{id}/decide` (default `PT5M`). Binds `accessflow.security.step-up.ttl`. |
+| `ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY` / `ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY` | Optional Web Push VAPID keypair (raw base64url, e.g. from `web-push generate-vapid-keys`) (AF-444). When both are set they take precedence; otherwise a keypair is auto-generated on first use and persisted (private key encrypted with `ENCRYPTION_KEY`) in `push_vapid_config`. Binds `accessflow.push.vapid.{public-key,private-key}`. |
+| `ACCESSFLOW_PUSH_VAPID_SUBJECT` | VAPID `sub` claim — a `mailto:` or `https:` contact URL identifying this application server to push services (default `mailto:accessflow@localhost`). Binds `accessflow.push.vapid.subject`. |
 | `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
 | `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
 | `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
@@ -513,6 +516,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | @codemirror/lang-javascript + @codemirror/lang-json | 6.x | MongoDB query highlighting — shell (JS) and JSON-command modes |
 | @codemirror/merge | 6.x | Side-by-side Git-style diff for saved-query version history (AF-442) |
 | yjs + y-codemirror.next + y-protocols | 13.x / 0.3.x / 1.x | CRDT collaborative editing of a query in review — shared doc, remote cursors, awareness (AF-441) |
+| vite-plugin-pwa | 1.x | PWA build — `injectManifest` mode; Workbox precaches the offline review-queue shell, custom `src/sw.ts` owns the push / notificationclick handlers (AF-444) |
 | Zustand | 5.x | Auth + UI state |
 | TanStack Query | 5.x | Server state (replaces `useEffect` for data fetching) |
 | Axios | 1.x | HTTP client |

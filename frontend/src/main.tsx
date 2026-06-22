@@ -87,3 +87,14 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>,
 );
+
+// PWA service worker (AF-444): register manually (not via an inline script) so the strict CSP is
+// honoured. Production only — the dev server has its own module graph. Enables the offline review
+// shell and Web Push delivery.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* registration is best-effort; the app works without it */
+    });
+  });
+}

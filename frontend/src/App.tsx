@@ -20,6 +20,7 @@ import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
 import { ReviewQueuePage } from '@/pages/reviews/ReviewQueuePage';
+const PushDecidePage = lazy(() => import('@/pages/reviews/PushDecidePage'));
 import { RequestAccessPage } from '@/pages/access-requests/RequestAccessPage';
 import { AccessRequestsQueuePage } from '@/pages/access-requests/AccessRequestsQueuePage';
 import { DatasourceListPage } from '@/pages/datasources/DatasourceListPage';
@@ -146,6 +147,16 @@ export function App() {
             element={
               <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
                 <ReviewQueuePage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/reviews/:id/decide"
+            element={
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <PushDecidePage />
+                </Suspense>
               </AuthGuard>
             }
           />

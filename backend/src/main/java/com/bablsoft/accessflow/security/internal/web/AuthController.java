@@ -10,11 +10,15 @@ import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.SetupCommand;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
+import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.api.LoginCommand;
 import com.bablsoft.accessflow.security.api.PasswordResetService;
+import com.bablsoft.accessflow.security.api.StepUpService;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.security.api.UserInvitationService;
+import com.bablsoft.accessflow.security.internal.web.model.StepUpRequest;
+import com.bablsoft.accessflow.security.internal.web.model.StepUpResponse;
 import com.bablsoft.accessflow.security.internal.web.model.AcceptInvitationRequest;
 import com.bablsoft.accessflow.security.internal.web.model.ForgotPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.InvitationPreviewResponse;
@@ -36,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CookieValue;
@@ -69,6 +74,7 @@ class AuthController {
     private final UserInvitationService userInvitationService;
     private final PasswordResetService passwordResetService;
     private final LocalizationConfigService localizationConfigService;
+    private final StepUpService stepUpService;
 
     @GetMapping("/setup-status")
     @Operation(summary = "Report whether the deployment still needs first-time admin setup")
@@ -265,6 +271,21 @@ class AuthController {
                     ex.getMessage());
             throw ex;
         }
+    }
+
+    @PostMapping("/step-up")
+    @Operation(summary = "Re-verify a credential and mint a single-use step-up token",
+            description = "Used by the one-tap push approve/reject flow (AF-444). Supply the account "
+                    + "password, or a TOTP code when 2FA is enrolled. The returned token authorises a "
+                    + "single review decision via POST /reviews/{id}/decide before it expires.")
+    @ApiResponse(responseCode = "200", description = "Verified; single-use step-up token returned")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "401", description = "Missing JWT, or the credential did not verify")
+    StepUpResponse stepUp(@Valid @RequestBody StepUpRequest request, Authentication authentication) {
+        var caller = (JwtClaims) authentication.getPrincipal();
+        var token = stepUpService.issue(caller.userId(), caller.email(),
+                request.password(), request.totpCode());
+        return StepUpResponse.from(token);
     }
 
     @PostMapping("/refresh")

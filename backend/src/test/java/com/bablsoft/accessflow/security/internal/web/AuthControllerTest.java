@@ -16,7 +16,11 @@ import com.bablsoft.accessflow.security.api.AuthResult;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.PasswordResetPreview;
 import com.bablsoft.accessflow.security.api.PasswordResetService;
+import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.api.PasswordResetTokenExpiredException;
+import com.bablsoft.accessflow.security.api.StepUpService;
+import com.bablsoft.accessflow.security.api.StepUpService.StepUpToken;
+import com.bablsoft.accessflow.security.api.StepUpVerificationException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.security.api.UserInvitationService;
@@ -24,7 +28,9 @@ import com.bablsoft.accessflow.security.internal.web.model.ForgotPasswordRequest
 import com.bablsoft.accessflow.security.internal.web.model.LoginRequest;
 import com.bablsoft.accessflow.security.internal.web.model.ResetPasswordRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SetupRequest;
+import com.bablsoft.accessflow.security.internal.web.model.StepUpRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.core.Authentication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -56,6 +62,7 @@ class AuthControllerTest {
     private UserInvitationService userInvitationService;
     private PasswordResetService passwordResetService;
     private LocalizationConfigService localizationConfigService;
+    private StepUpService stepUpService;
     private AuthController controller;
 
     private final RequestAuditContext auditContext =
@@ -71,9 +78,41 @@ class AuthControllerTest {
         userInvitationService = mock(UserInvitationService.class);
         passwordResetService = mock(PasswordResetService.class);
         localizationConfigService = mock(LocalizationConfigService.class);
+        stepUpService = mock(StepUpService.class);
         controller = new AuthController(authenticationService, auditLogService, userQueryService,
                 bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService,
-                passwordResetService, localizationConfigService);
+                passwordResetService, localizationConfigService, stepUpService);
+    }
+
+    @Test
+    void stepUpVerifiesCredentialAndReturnsToken() {
+        var userId = UUID.randomUUID();
+        var caller = new JwtClaims(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(),
+                false);
+        var authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(caller);
+        var expiry = Instant.parse("2026-06-22T00:05:00Z");
+        when(stepUpService.issue(userId, "rev@acme.test", "pw", null))
+                .thenReturn(new StepUpToken("tok-123", expiry));
+
+        var response = controller.stepUp(new StepUpRequest("pw", null), authentication);
+
+        assertThat(response.stepUpToken()).isEqualTo("tok-123");
+        assertThat(response.expiresAt()).isEqualTo(expiry);
+    }
+
+    @Test
+    void stepUpPropagatesVerificationFailure() {
+        var userId = UUID.randomUUID();
+        var caller = new JwtClaims(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(),
+                false);
+        var authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(caller);
+        when(stepUpService.issue(userId, "rev@acme.test", null, "000000"))
+                .thenThrow(new StepUpVerificationException());
+
+        assertThatThrownBy(() -> controller.stepUp(new StepUpRequest(null, "000000"), authentication))
+                .isInstanceOf(StepUpVerificationException.class);
     }
 
     @Test

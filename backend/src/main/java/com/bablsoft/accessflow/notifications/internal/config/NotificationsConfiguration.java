@@ -10,7 +10,8 @@ import org.springframework.scheduling.concurrent.SimpleAsyncTaskScheduler;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({NotificationsProperties.class, SlackProperties.class})
+@EnableConfigurationProperties({NotificationsProperties.class, SlackProperties.class,
+        PushProperties.class})
 class NotificationsConfiguration {
 
     // @Primary so the notification strategies' by-type RestClient injection keeps resolving now

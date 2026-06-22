@@ -22,5 +22,7 @@
     "ignoreDeprecations": "6.0",
     "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "vite.config.ts", "vitest.setup.ts"]
+  "include": ["src", "vite.config.ts", "vitest.setup.ts"],
+  "comment": "src/sw.ts targets the ServiceWorker global scope (not DOM) and is bundled by vite-plugin-pwa's esbuild, so it is excluded from the app type-check.",
+  "exclude": ["src/sw.ts"]
 }

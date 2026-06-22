@@ -303,6 +303,44 @@ PagerDuty delivery uses the **same async retry scheduler as the generic `WEBHOOK
 
 ---
 
+### Web Push (PWA one-tap approve/reject) — AF-444
+
+Unlike the channels above (org-admin-configured, one delivery target each), Web Push is a **per-user
+subscription path**: a reviewer installs the PWA, opts in, and their browser registers a W3C Push API
+subscription (`push_subscriptions`). It is **not** a `notification_channel_type` — modelling it as one
+would not fit the per-device subscription shape and would needlessly extend the `NotificationEventType`
+switch fan-out. Instead a dedicated `WebPushNotificationListener` (in `notifications.internal`) runs
+**alongside** the channel-based `NotificationDispatcher`.
+
+**Trigger.** On `QueryReadyForReviewEvent` (a query entering `PENDING_REVIEW`), the listener resolves
+the same eligible reviewers the `QUERY_SUBMITTED` channel notification would target (reusing
+`NotificationContextBuilder`), looks up each recipient's stored subscriptions, and pushes a one-tap
+message. Best-effort: any failure is logged and never affects the workflow transition.
+
+**Delivery.** `WebPushSender` implements the W3C Web Push protocol with **pure JDK crypto** — no
+`web-push` library, no BouncyCastle, no Netty:
+- RFC 8291 message encryption (Content-Encoding `aes128gcm`): ECDH on P-256, two HKDF-SHA256
+  derivations, AES-128-GCM — produces the request body.
+- RFC 8292 VAPID: an ES256-signed JWT yielding the `Authorization: vapid t=…, k=…` header.
+
+The deployment VAPID keypair (`PushVapidKeyProvider`) is auto-generated and persisted on first use
+(private key encrypted with `ENCRYPTION_KEY`, in `push_vapid_config`), or supplied via
+`ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY` / `ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY` / `ACCESSFLOW_PUSH_VAPID_SUBJECT`.
+A `404`/`410` from the push service prunes the now-invalid subscription.
+
+**Payload.** A JSON document the service worker renders: `title`, `body` (datasource + submitter +
+SQL preview), `data.url` (a deep link to `/reviews/{id}/decide`), and `approve` / `reject` action
+buttons.
+
+**One-tap is gated by step-up auth.** Tapping an action opens the PWA at `/reviews/{id}/decide`, where
+the reviewer re-verifies (password, or TOTP when 2FA is enrolled) via `POST /auth/step-up`; the
+returned single-use token is presented to `POST /reviews/{id}/decide`. A single tap never commits a
+decision, and the **self-approval guard is enforced server-side regardless of channel** — the
+push-decide path routes through the same `ReviewService.approve()` / `reject()` as the REST and Slack
+flows.
+
+---
+
 ## Admin: Testing Channels
 
 `POST /admin/notification-channels/{id}/test` sends a test payload for the configured channel type:

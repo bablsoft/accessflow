@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="AccessFlow">
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M168 352 L256 150 L344 352"/>
+    <path d="M198 286 L314 286"/>
+  </g>
+  <circle cx="256" cy="392" r="18" fill="#22c55e"/>
+</svg>

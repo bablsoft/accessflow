@@ -610,7 +610,8 @@ for deployment recipes (Docker Compose, Helm).
 /editor                             → QueryEditorPage
 /queries                            → QueryListPage  (header **Export CSV** button hits `GET /queries/export.csv` with the active server-side filters — `status`, `datasource_id`, `submitted_by`, `from`, `to`, `query_type`. Client-only filters on the page, namely the free-text search and risk-level select, are not sent because the backend has no equivalent filter; this matches the behaviour of the list endpoint itself. The mutation downloads via a temporary `<a>` element and shows a warning toast when the response carries `X-AccessFlow-Export-Truncated: true`.)
 /queries/:id                        → QueryDetailPage
-/reviews                            → ReviewQueuePage
+/reviews                            → ReviewQueuePage (header carries the **Enable push approvals** toggle — AF-444)
+/reviews/:id/decide                 → PushDecidePage (lazy; REVIEWER/ADMIN — one-tap push decide landing with step-up auth, AF-444)
 /profile                            → ProfilePage
 
 /datasources                        → DatasourceListPage
@@ -738,3 +739,31 @@ The Axios response interceptor in `api/client.ts` skips the auto-refresh path fo
 When the refresh attempt **itself** fails (the cookie is gone or revoked, the server replies 401 on `/auth/refresh`), the interceptor clears the auth store, surfaces an `auth.session_expired` toast via the `messageBridge`, and navigates to `/login` via the `navigationBridge`. Both bridges are module-level handles bound from inside `<AntdApp>` — `MessageBridgeBinder` wires `App.useApp().message`, and `NavigationBridgeBinder` wires React Router's `useNavigate()`. The redirect is a soft SPA navigation (no full page reload), so the AntD message portal survives across the route change and the toast remains visible on `/login`. If the navigation bridge hasn't bound yet (e.g. before the React tree mounts), the interceptor falls back to `window.location.assign('/login')`. The end-to-end failure path is covered by `e2e/tests/auth-session-expiry.spec.ts`.
 
 The Topbar replaces the standalone logout button with an Ant `Dropdown` whose menu items are **Profile settings** (`/profile`) and **Sign out**. On narrow viewports the display-name pill collapses to the icon via `topbar.css`.
+
+## Progressive Web App & Web Push (AF-444)
+
+The app is an installable PWA with an offline-capable review-queue shell and one-tap push approvals.
+
+- **Build & service worker.** `vite-plugin-pwa` runs in `injectManifest` mode: we own the service
+  worker source at [`src/sw.ts`](../frontend/src/sw.ts) (so the push / notificationclick handlers are
+  hand-written), while Workbox injects the precache manifest for the offline shell. `src/sw.ts` is a
+  `ServiceWorkerGlobalScope` file excluded from the app `tsconfig`/ESLint (it is bundled by
+  vite-plugin-pwa's esbuild). The SW precaches the app shell, serves cached `index.html` for
+  navigations when offline, renders the push notification with **Approve** / **Reject** actions, and on
+  `notificationclick` deep-links to `/reviews/{id}/decide?action=…`.
+- **Manifest & icons.** Generated from the plugin `manifest` option (`manifest.webmanifest`,
+  `display: standalone`, `start_url: /reviews`), with a maskable SVG icon at `public/pwa-icon.svg`.
+- **Registration.** `main.tsx` registers `/sw.js` manually (production only) — never via an inline
+  script — so the strict CSP (`default-src 'self'`) is honoured. `frontend/nginx.conf` serves `sw.js`
+  and `manifest.webmanifest` with `no-store` so updates propagate.
+- **Subscription.** `hooks/usePushSubscription.ts` owns the opt-in: it requests notification permission,
+  subscribes via the registered SW with the deployment VAPID key (`GET /push/vapid-public-key`), and
+  registers / removes the subscription on the backend (`src/api/push.ts`). The
+  `components/review/PushApprovalsToggle` (on the review-queue header) drives it; it is hidden on
+  browsers without push support and disabled when notifications are blocked. Pure helpers
+  (`urlBase64ToUint8Array`, `serializePushSubscription`) live in `src/utils/push.ts`.
+- **One-tap decide.** `pages/reviews/PushDecidePage.tsx` (`/reviews/:id/decide`) is the focused,
+  mobile-friendly landing the notification opens. It shows the query summary, then requires **step-up
+  auth** — password, or a TOTP code when 2FA is enrolled — via `POST /auth/step-up` (`src/api/stepup.ts`)
+  before committing the decision through `decideFromPush` → `POST /reviews/{id}/decide`. A single tap
+  never commits; the self-approval guard is enforced server-side regardless of channel.

@@ -14,7 +14,7 @@ import java.security.interfaces.RSAPublicKey;
 @Configuration
 @EnableConfigurationProperties({JwtProperties.class, CorsProperties.class, OAuth2RedirectProperties.class,
         SamlRedirectProperties.class, SamlSpKeyMaterialProperties.class,
-        InvitationProperties.class, PasswordResetProperties.class})
+        InvitationProperties.class, PasswordResetProperties.class, StepUpProperties.class})
 class SecurityPropertiesConfiguration {
 
     @Bean

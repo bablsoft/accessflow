@@ -652,6 +652,21 @@
       "row_status_forbidden": "Verboten",
       "row_status_invalid_state": "Nicht zur Prüfung anstehend",
       "row_status_not_found": "Nicht gefunden"
+    },
+    "decide": {
+      "title": "Genehmigen oder ablehnen",
+      "subtitle": "Bestätige deine Identität, um diese Entscheidung zu übernehmen",
+      "context": "{{datasource}} · angefragt von {{submitter}}",
+      "password_label": "Passwort bestätigen",
+      "totp_label": "Authentifizierungscode",
+      "step_up_help": "Erforderlich, um eine Entscheidung aus einer Push-Benachrichtigung zu bestätigen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "approved": "Abfrage genehmigt",
+      "rejected": "Abfrage abgelehnt",
+      "own_query": "Du kannst deine eigene Abfrage nicht prüfen.",
+      "not_pending": "Diese Abfrage wartet nicht mehr auf eine Prüfung.",
+      "not_found": "Abfrage nicht gefunden."
     }
   },
   "timeline": {
@@ -2387,5 +2402,14 @@
     "field_reviewed_by": "Geprüft von",
     "field_reviewed_at": "Geprüft am",
     "field_review_comment": "Kommentar"
+  },
+  "push": {
+    "enable": "Push-Freigaben aktivieren",
+    "disable": "Push-Freigaben deaktivieren",
+    "enabled": "Push-Freigaben aktiviert",
+    "disabled": "Push-Freigaben deaktiviert",
+    "blocked": "Benachrichtigungen sind in den Browsereinstellungen blockiert",
+    "permission_required": "Benachrichtigungen zulassen, um Push-Freigaben zu aktivieren",
+    "error": "Push-Freigaben konnten nicht aktualisiert werden"
   }
 }

@@ -805,6 +805,46 @@ Indexes: `UNIQUE(query_request_id)`; `(organization_id, status, created_at DESC)
 
 ---
 
+## push_subscriptions
+
+Per-user, per-device W3C Push API subscriptions for the mobile/PWA one-tap approve/reject flow
+(AF-444, Flyway V96). A user may hold several rows (one per browser/device). Owned by the
+`notifications` module. The `endpoint + p256dh_key + auth_key` tuple is what `WebPushSender` needs to
+deliver an encrypted push; these are device push keys (not AccessFlow credentials) and are stored in
+clear — a DB read already exposes far more, and the self-approval / step-up guards live in the app.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `user_id` | UUID NOT NULL FK → `users(id)` ON DELETE CASCADE |
+| `organization_id` | UUID NOT NULL FK → `organizations(id)` ON DELETE CASCADE |
+| `endpoint` | TEXT NOT NULL `UNIQUE` — the push-service URL; upsert key (re-subscribing the same browser updates the row) |
+| `p256dh_key` | TEXT NOT NULL — subscription public key (base64url) |
+| `auth_key` | TEXT NOT NULL — subscription auth secret (base64url) |
+| `user_agent` | TEXT nullable — display/diagnostics only |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+| `last_used_at` | TIMESTAMPTZ nullable |
+
+Indexes: `UNIQUE(endpoint)`; `(user_id)`; `(organization_id)`. A `404`/`410` from the push service
+prunes the row (the subscription expired).
+
+## push_vapid_config
+
+The single deployment-level VAPID keypair used to sign Web Push requests (AF-444, Flyway V96). One
+row. Auto-generated and persisted on first use (mirrors `saml_config`) unless the
+`ACCESSFLOW_PUSH_VAPID_*` env overrides are set. The public key is exposed to browsers via
+`GET /push/vapid-public-key`; the private key is AES-256-GCM encrypted with `ENCRYPTION_KEY`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `public_key` | TEXT NOT NULL — base64url uncompressed P-256 point |
+| `private_key_encrypted` | TEXT NOT NULL — AES-256-GCM ciphertext of the base64url private scalar (`@JsonIgnore`) |
+| `subject` | TEXT NOT NULL — VAPID `sub` claim (`mailto:` / `https:` contact URL) |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+
+---
+
 ## knowledge_document
 
 RAG knowledge-base documents attached to a RAG-enabled `ai_config` (AF-336). The raw `content` is

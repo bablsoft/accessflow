@@ -5,7 +5,9 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'playwright-report', 'test-results', 'coverage'] },
+  // src/sw.ts runs in the ServiceWorker global scope (worker globals, self.__WB_MANIFEST)
+  // and is bundled by vite-plugin-pwa, not by the app build — exclude it from app linting.
+  { ignores: ['dist', 'playwright-report', 'test-results', 'coverage', 'src/sw.ts'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

@@ -652,6 +652,21 @@
       "row_status_forbidden": "Forbidden",
       "row_status_invalid_state": "Not pending review",
       "row_status_not_found": "Not found"
+    },
+    "decide": {
+      "title": "Approve or reject",
+      "subtitle": "Confirm your identity to commit this decision",
+      "context": "{{datasource}} · requested by {{submitter}}",
+      "password_label": "Confirm your password",
+      "totp_label": "Authentication code",
+      "step_up_help": "Required to confirm a decision from a push notification",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Query approved",
+      "rejected": "Query rejected",
+      "own_query": "You can't review your own query.",
+      "not_pending": "This query is no longer awaiting review.",
+      "not_found": "Query not found."
     }
   },
   "timeline": {
@@ -2387,5 +2402,14 @@
     "field_reviewed_by": "Reviewed by",
     "field_reviewed_at": "Reviewed at",
     "field_review_comment": "Comment"
+  },
+  "push": {
+    "enable": "Enable push approvals",
+    "disable": "Disable push approvals",
+    "enabled": "Push approvals enabled",
+    "disabled": "Push approvals disabled",
+    "blocked": "Notifications are blocked in your browser settings",
+    "permission_required": "Allow notifications to enable push approvals",
+    "error": "Couldn't update push approvals"
   }
 }

@@ -163,6 +163,10 @@ accessflow:
       # Base URL used to build the accept-invite link embedded in the email. Defaults to the
       # frontend origin (same default as ACCESSFLOW_PUBLIC_BASE_URL).
       accept-base-url: ${ACCESSFLOW_PUBLIC_BASE_URL:http://localhost:5173}
+    step-up:
+      # TTL of the single-use step-up token minted by POST /auth/step-up and consumed by the
+      # one-tap push decision endpoint (AF-444). Keep short.
+      ttl: ${ACCESSFLOW_SECURITY_STEP_UP_TTL:PT5M}
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
   proxy:
@@ -221,6 +225,15 @@ accessflow:
     # PagerDuty Events API v2 base URL used by PAGERDUTY notification channels. Override for
     # air-gapped installs that route through an internal proxy.
     pagerduty-api-base-url: ${ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL:https://events.pagerduty.com/}
+  push:
+    # Web Push (VAPID) keypair (AF-444). When both keys are set (raw base64url, e.g. from
+    # `web-push generate-vapid-keys`) they take precedence; otherwise a keypair is auto-generated
+    # on first use and persisted (private key encrypted with ENCRYPTION_KEY) in push_vapid_config.
+    vapid:
+      public-key: ${ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY:}
+      private-key: ${ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY:}
+      # VAPID `sub` claim — a mailto: or https: contact URL identifying this application server.
+      subject: ${ACCESSFLOW_PUSH_VAPID_SUBJECT:mailto:accessflow@localhost}
   workflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.

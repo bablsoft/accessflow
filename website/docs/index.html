@@ -1755,6 +1755,27 @@ APPROVED → FAILED (execution error)</pre>
             page renders.
           </p>
 
+          <h3 id="flow-mobile">Mobile approvals &amp; one-tap push</h3>
+          <p>
+            AccessFlow installs as a <strong>Progressive Web App</strong> with an offline-capable
+            review queue. A reviewer who taps <em>Enable push approvals</em> on <code>/reviews</code>
+            (and grants the browser notification permission) starts receiving <strong>Web Push</strong>
+            notifications whenever a query needs their approval. The notification carries
+            <em>Approve</em> and <em>Reject</em> actions; tapping one opens a focused page that shows
+            the query, then requires a <strong>step-up re-verification</strong> — your password, or a
+            TOTP code when 2FA is enrolled — before the decision commits. A single tap never approves
+            a query, and the self-approval guard is enforced server-side on every channel.
+          </p>
+          <p>
+            <strong>Operators:</strong> push works out of the box — a VAPID keypair is auto-generated
+            and persisted on first use (the private key encrypted with <code>ENCRYPTION_KEY</code>).
+            To pin your own keys, set <code>ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY</code> /
+            <code>ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY</code> (raw base64url, e.g. from
+            <code>web-push generate-vapid-keys</code>) and a <code>ACCESSFLOW_PUSH_VAPID_SUBJECT</code>
+            contact URL. The step-up token lifetime is <code>ACCESSFLOW_SECURITY_STEP_UP_TTL</code>
+            (default <code>PT5M</code>).
+          </p>
+
           <h3 id="flow-diff">Comparing repeated runs</h3>
           <p>
             When the same submitter re-runs the same query against the same datasource,

@@ -12,11 +12,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * Centralises the audit-log write that accompanies every review decision so the single-row
- * and bulk endpoints stay consistent.
+ * Centralises the audit-log write that accompanies every review decision so the single-row,
+ * bulk, and push (AF-444) endpoints stay consistent.
  */
 @Component
 @RequiredArgsConstructor
@@ -27,11 +28,16 @@ class ReviewDecisionAuditWriter {
 
     void record(AuditAction action, UUID queryId, JwtClaims caller, DecisionOutcome outcome,
                 String comment, RequestAuditContext auditContext) {
+        record(action, queryId, caller, outcome, comment, auditContext, Map.of());
+    }
+
+    void record(AuditAction action, UUID queryId, JwtClaims caller, DecisionOutcome outcome,
+                String comment, RequestAuditContext auditContext, Map<String, Object> extraMetadata) {
         if (outcome.wasIdempotentReplay()) {
             return;
         }
         try {
-            var metadata = new HashMap<String, Object>();
+            var metadata = new HashMap<String, Object>(extraMetadata);
             if (comment != null && !comment.isBlank()) {
                 metadata.put("comment", comment);
             }

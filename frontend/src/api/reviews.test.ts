@@ -96,6 +96,33 @@ describe('api/reviews', () => {
     });
   });
 
+  it('decideFromPush POSTs /api/v1/reviews/{id}/decide with the step-up token', async () => {
+    post.mockResolvedValueOnce({ data: decisionFixture });
+    const result = await reviewsApi.decideFromPush('q-1', {
+      decision: 'APPROVE',
+      stepUpToken: 'tok',
+      comment: 'ok',
+    });
+    expect(post).toHaveBeenCalledWith('/api/v1/reviews/q-1/decide', {
+      decision: 'APPROVE',
+      comment: 'ok',
+      step_up_token: 'tok',
+    });
+    expect(result.decision).toBe('APPROVED');
+  });
+
+  it('decideFromPush sends comment=null when omitted', async () => {
+    post.mockResolvedValueOnce({
+      data: { ...decisionFixture, decision: 'REJECTED', resulting_status: 'REJECTED' },
+    });
+    await reviewsApi.decideFromPush('q-2', { decision: 'REJECT', stepUpToken: 'tok2' });
+    expect(post.mock.calls[0]?.[1]).toMatchObject({
+      decision: 'REJECT',
+      comment: null,
+      step_up_token: 'tok2',
+    });
+  });
+
   it('reviewKeys produce stable factory output', () => {
     expect(reviewsApi.reviewKeys.all).toEqual(['reviews']);
     expect(reviewsApi.reviewKeys.pending()).toEqual(['reviews', 'pending']);

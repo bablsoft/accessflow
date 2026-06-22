@@ -12,6 +12,7 @@ import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
 import { RejectModal } from '@/components/review/RejectModal';
 import { BulkDecisionModal } from '@/components/review/BulkDecisionModal';
+import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
 import { queryKeys } from '@/api/queries';
@@ -241,9 +242,12 @@ export function ReviewQueuePage() {
         title={t('reviews.title')}
         subtitle={t('reviews.subtitle')}
         actions={
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-            {t('common.refresh')}
-          </Button>
+          <Space>
+            <PushApprovalsToggle />
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+              {t('common.refresh')}
+            </Button>
+          </Space>
         }
       />
       <Tabs

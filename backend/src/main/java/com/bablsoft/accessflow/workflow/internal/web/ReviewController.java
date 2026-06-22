@@ -4,8 +4,11 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.api.StepUpRequiredException;
+import com.bablsoft.accessflow.security.api.StepUpService;
 import com.bablsoft.accessflow.workflow.api.BulkReviewCommentRequiredException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
+import com.bablsoft.accessflow.workflow.api.ReviewService.DecisionOutcome;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
 import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -33,6 +37,7 @@ class ReviewController {
 
     private final ReviewService reviewService;
     private final ReviewDecisionAuditWriter auditWriter;
+    private final StepUpService stepUpService;
 
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
@@ -85,6 +90,37 @@ class ReviewController {
         var outcome = reviewService.reject(queryId, toContext(caller), body.comment());
         auditWriter.record(AuditAction.QUERY_REJECTED, queryId, caller, outcome, body.comment(),
                 auditContext);
+        return ReviewDecisionResponse.from(queryId, outcome);
+    }
+
+    @PostMapping("/{queryId}/decide")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @Operation(summary = "Commit an approve/reject from a one-tap push action, gated by step-up auth",
+            description = "AF-444. Requires a single-use step-up token from POST /auth/step-up bound to "
+                    + "the caller. The self-approval and reviewer-eligibility guards still apply — a user "
+                    + "can never approve their own query from any channel.")
+    @ApiResponse(responseCode = "200", description = "Decision recorded; resulting status returned")
+    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "401", description = "Missing/invalid JWT, or missing/expired step-up token")
+    @ApiResponse(responseCode = "403", description = "Caller is the submitter, not a reviewer, or not an eligible approver")
+    @ApiResponse(responseCode = "404", description = "Query not found")
+    @ApiResponse(responseCode = "409", description = "Query is not in PENDING_REVIEW")
+    ReviewDecisionResponse decide(@PathVariable UUID queryId,
+                                  @Valid @RequestBody PushDecisionRequest body,
+                                  Authentication authentication,
+                                  RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        var stepUpUserId = stepUpService.consume(body.stepUpToken());
+        if (!stepUpUserId.equals(caller.userId())) {
+            throw new StepUpRequiredException();
+        }
+        boolean reject = body.decision() == PushDecisionRequest.PushDecisionType.REJECT;
+        DecisionOutcome outcome = reject
+                ? reviewService.reject(queryId, toContext(caller), body.comment())
+                : reviewService.approve(queryId, toContext(caller), body.comment());
+        var auditAction = reject ? AuditAction.QUERY_REJECTED : AuditAction.QUERY_APPROVED;
+        auditWriter.record(auditAction, queryId, caller, outcome, body.comment(), auditContext,
+                Map.of("channel", "PUSH", "step_up", true));
         return ReviewDecisionResponse.from(queryId, outcome);
     }
 

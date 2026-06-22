@@ -63,6 +63,30 @@ export async function requestChanges(
   return data;
 }
 
+export type PushDecision = 'APPROVE' | 'REJECT';
+
+export interface PushDecisionInput {
+  decision: PushDecision;
+  stepUpToken: string;
+  comment?: string;
+}
+
+/**
+ * Commits an approve/reject from the one-tap push flow (AF-444). The step-up token proves the
+ * reviewer re-verified; the server still enforces the self-approval and eligibility guards.
+ */
+export async function decideFromPush(
+  queryId: string,
+  input: PushDecisionInput,
+): Promise<ReviewDecisionResult> {
+  const { data } = await apiClient.post<ReviewDecisionResult>(`${BASE}/${queryId}/decide`, {
+    decision: input.decision,
+    comment: input.comment ?? null,
+    step_up_token: input.stepUpToken,
+  });
+  return data;
+}
+
 export interface BulkDecisionInput {
   queryIds: string[];
   decision: ReviewDecisionType;
