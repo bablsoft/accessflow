@@ -430,7 +430,7 @@ export async function grantPermissionViaApi(
   adminAccessToken: string,
   datasourceId: string,
   userId: string,
-  opts: { canRead?: boolean; canWrite?: boolean; canDdl?: boolean } = {},
+  opts: { canRead?: boolean; canWrite?: boolean; canDdl?: boolean; canBreakGlass?: boolean } = {},
 ): Promise<void> {
   const res = await request.post(
     `${apiBase()}/api/v1/datasources/${datasourceId}/permissions`,
@@ -441,6 +441,7 @@ export async function grantPermissionViaApi(
         can_read: opts.canRead ?? true,
         can_write: opts.canWrite ?? false,
         can_ddl: opts.canDdl ?? false,
+        can_break_glass: opts.canBreakGlass ?? false,
       },
     },
   );

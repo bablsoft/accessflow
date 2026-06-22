@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "Միակցիչներ",
     "auditor": "Համապատասխանության հաշվետվություններ",
-    "anomalies": "Անոմալիաներ"
+    "anomalies": "Անոմալիաներ",
+    "break_glass": "Break-glass մատյան"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -445,7 +446,15 @@
         "placeholder_required": ":{{name}}-ի համար արժեք պարտադիր է"
       }
     },
-    "datasource_label": "Տվյալների աղբյուր"
+    "datasource_label": "Տվյալների աղբյուր",
+    "break_glass_button": "Արտակարգ մուտք",
+    "break_glass_success": "Արտակարգ հարցումը կատարվեց",
+    "break_glass_error": "Արտակարգ մուտքը ձախողվեց",
+    "break_glass_modal_title": "Արտակարգ (break-glass) մուտք",
+    "break_glass_confirm": "Կատարել հիմա",
+    "break_glass_modal_warning_title": "Սա շրջանցում է վերանայումը",
+    "break_glass_modal_warning_body": "Հարցումը կատարվում է անմիջապես՝ առանց հաստատման։ Բոլոր ադմինիստրատորները ծանուցվում են, գործողությունն աչքի ընկնող կերպով գրանցվում է աուդիտում և պետք է վերանայվի հետագայում։",
+    "break_glass_justification_placeholder": "Բացատրեք արտակարգ իրավիճակը (պարտադիր)"
   },
   "dry_run_panel": {
     "title": "Կատարման պլան",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "Ուղարկված օգտատիրոջ կողմից",
-      "AI_SUGGESTION": "ԱԲ-ի առաջարկ"
+      "AI_SUGGESTION": "ԱԲ-ի առաջարկ",
+      "EMERGENCY_ACCESS": "Արտակարգ մուտք"
     },
     "comment_status": {
       "OPEN": "Բաց",
@@ -2161,6 +2171,10 @@
       "OPEN": "Բաց",
       "ACKNOWLEDGED": "Հաստատված",
       "DISMISSED": "Մերժված"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "Սպասում է վերանայման",
+      "REVIEWED": "Վերանայված"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} բաց անոմալիա (առավելագույն միավոր {{score}})",
       "tooltip_other": "{{count}} բաց անոմալիա (առավելագույն միավոր {{score}})"
     }
+  },
+  "breakglass": {
+    "title": "Break-glass մատյան",
+    "subtitle": "Արտակարգ մուտքի կատարումներ՝ հետադարձ վերանայման սպասող",
+    "count_label": "{{count}} իրադարձություն",
+    "load_error": "Break-glass իրադարձությունները բեռնել չհաջողվեց",
+    "empty_title": "Break-glass իրադարձություններ չկան",
+    "empty_description": "Արտակարգ մուտքի կատարումները կհայտնվեն այստեղ։",
+    "filter_status_all": "Բոլոր կարգավիճակները",
+    "filter_datasource_all": "Բոլոր տվյալների աղբյուրները",
+    "filter_user_placeholder": "Զտել ըստ օգտատիրոջ ID-ի",
+    "col_executed": "Կատարված է",
+    "col_user": "Օգտատեր",
+    "col_datasource": "Տվյալների աղբյուր",
+    "col_justification": "Հիմնավորում",
+    "col_status": "Կարգավիճակ",
+    "col_actions": "Գործողություններ",
+    "user_unknown": "Անհայտ օգտատեր",
+    "action_acknowledge": "Հաստատել",
+    "acknowledge_success": "Break-glass իրադարձությունը հաստատվեց",
+    "acknowledge_confirm_title": "Հաստատել break-glass իրադարձությունը",
+    "acknowledge_confirm_body": "Հաստատեք, որ վերանայել եք այս արտակարգ կատարումը։ Սա փակում է հետադարձ վերանայումը։",
+    "acknowledge_comment_placeholder": "Ավելացրեք համադրման նշում (ըստ ցանկության)",
+    "drawer_title": "Break-glass իրադարձություն",
+    "view_query": "Դիտել կատարված հարցումը",
+    "section_justification": "Հիմնավորում",
+    "section_query": "Հարցում",
+    "section_review": "Վերանայում",
+    "field_executed": "Կատարված է",
+    "field_reviewed_by": "Վերանայող",
+    "field_reviewed_at": "Վերանայման ամսաթիվ",
+    "field_review_comment": "Մեկնաբանություն"
   }
 }

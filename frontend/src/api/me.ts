@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type {
+  BreakGlassEligibilityResponse,
   ChangePasswordInput,
   ConfirmTotpInput,
   DisableTotpInput,
@@ -11,10 +12,16 @@ import type {
 
 export const meKeys = {
   current: ['me'] as const,
+  breakGlass: ['me', 'break-glass'] as const,
 };
 
 export async function getCurrentUser(): Promise<MeProfile> {
   const { data } = await apiClient.get<MeProfile>('/api/v1/me');
+  return data;
+}
+
+export async function getBreakGlassEligibility(): Promise<BreakGlassEligibilityResponse> {
+  const { data } = await apiClient.get<BreakGlassEligibilityResponse>('/api/v1/me/break-glass');
   return data;
 }
 

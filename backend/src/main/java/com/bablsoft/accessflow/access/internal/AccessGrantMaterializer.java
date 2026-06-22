@@ -46,6 +46,7 @@ class AccessGrantMaterializer {
                 entity.isCanRead(),
                 entity.isCanWrite(),
                 entity.isCanDdl(),
+                false,
                 null,
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),

@@ -26,11 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.Set;
-import java.util.TreeSet;
 
 @Service
 @RequiredArgsConstructor
@@ -104,7 +100,7 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
         if (permission.expiresAt() != null && permission.expiresAt().isBefore(Instant.now())) {
             throw new AccessDeniedException("Permission expired for datasource: " + datasourceId);
         }
-        if (!hasCapability(permission, queryType)) {
+        if (!DatasourcePermissionChecker.hasCapability(permission, queryType)) {
             throw new AccessDeniedException(
                     "Insufficient permission for " + queryType + " on datasource: " + datasourceId);
         }
@@ -113,69 +109,13 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
 
     private void verifyAllowedTables(DatasourceUserPermissionView permission,
                                      java.util.UUID datasourceId, Set<String> referencedTables) {
-        var allowedSchemas = normalizeList(permission.allowedSchemas());
-        var allowedTables = normalizeList(permission.allowedTables());
-        if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {
-            return;
-        }
-        if (referencedTables == null || referencedTables.isEmpty()) {
-            return;
-        }
-        var rejected = new TreeSet<String>();
-        for (String table : referencedTables) {
-            if (allowedTables.contains(table)) {
-                continue;
-            }
-            int dotIdx = table.indexOf('.');
-            if (dotIdx > 0) {
-                String schema = table.substring(0, dotIdx);
-                if (allowedSchemas.contains(schema)) {
-                    continue;
-                }
-            }
-            rejected.add(table);
-        }
+        var rejected = DatasourcePermissionChecker.rejectedTables(permission, referencedTables);
         if (!rejected.isEmpty()) {
             String joined = String.join(", ", rejected);
-            log.warn("Allow-list rejection on datasource {} for user {}: tables {} not in "
-                    + "allowed_schemas={} / allowed_tables={}",
-                    datasourceId, permission.userId(), rejected, allowedSchemas, allowedTables);
+            log.warn("Allow-list rejection on datasource {} for user {}: tables {} not allowed",
+                    datasourceId, permission.userId(), rejected);
             throw new AccessDeniedException(
                     msg("error.permission.table_not_allowed", new Object[]{joined}));
         }
-    }
-
-    private static List<String> normalizeList(List<String> raw) {
-        if (raw == null || raw.isEmpty()) {
-            return List.of();
-        }
-        var out = new ArrayList<String>(raw.size());
-        for (String entry : raw) {
-            if (entry == null) {
-                continue;
-            }
-            var stripped = new StringBuilder(entry.length());
-            for (int i = 0; i < entry.length(); i++) {
-                char c = entry.charAt(i);
-                if (c == '"' || c == '`' || c == '[' || c == ']') {
-                    continue;
-                }
-                stripped.append(c);
-            }
-            var normalized = stripped.toString().trim().toLowerCase(Locale.ROOT);
-            if (!normalized.isEmpty()) {
-                out.add(normalized);
-            }
-        }
-        return List.copyOf(out);
-    }
-
-    private static boolean hasCapability(DatasourceUserPermissionView permission, QueryType type) {
-        return switch (type) {
-            case SELECT -> permission.canRead();
-            case INSERT, UPDATE, DELETE -> permission.canWrite();
-            case DDL -> permission.canDdl();
-            case OTHER -> false;
-        };
     }
 }

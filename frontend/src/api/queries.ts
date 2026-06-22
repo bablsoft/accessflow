@@ -1,6 +1,8 @@
 import { apiClient } from './client';
 import type {
   AiAnalysis,
+  BreakGlassExecuteResponse,
+  BreakGlassSubmitInput,
   ExecuteQueryResponse,
   GeneratedSql,
   PaginatedResponse,
@@ -59,6 +61,13 @@ export const queryKeys = {
 
 export async function submitQuery(input: SubmitQueryInput): Promise<SubmitQueryResponse> {
   const { data } = await apiClient.post<SubmitQueryResponse>(BASE, input);
+  return data;
+}
+
+export async function breakGlassSubmit(
+  input: BreakGlassSubmitInput,
+): Promise<BreakGlassExecuteResponse> {
+  const { data } = await apiClient.post<BreakGlassExecuteResponse>(`${BASE}/break-glass`, input);
   return data;
 }
 

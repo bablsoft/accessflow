@@ -120,7 +120,18 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         if (query.status() != QueryStatus.APPROVED) {
             throw new QueryNotExecutableException(query.id(), query.status());
         }
-        return doExecute(query, command.callerUserId(), null, true);
+        return doExecute(query, command.callerUserId(), null, true, AuditAction.QUERY_EXECUTED);
+    }
+
+    @Override
+    public ExecutionOutcome executeBreakGlass(UUID queryRequestId, UUID actorUserId) {
+        var query = queryRequestLookupService.findById(queryRequestId)
+                .orElseThrow(() -> new QueryRequestNotFoundException(queryRequestId));
+        if (query.status() != QueryStatus.APPROVED) {
+            throw new QueryNotExecutableException(query.id(), query.status());
+        }
+        return doExecute(query, actorUserId, "break_glass", true,
+                AuditAction.QUERY_BREAK_GLASS_EXECUTED);
     }
 
     @Override
@@ -133,11 +144,12 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     query.id(), query.status(), query.scheduledFor());
             return;
         }
-        doExecute(query, query.submittedByUserId(), "scheduled", false);
+        doExecute(query, query.submittedByUserId(), "scheduled", false, AuditAction.QUERY_EXECUTED);
     }
 
     private ExecutionOutcome doExecute(QueryRequestSnapshot query, UUID actorUserId,
-                                       String trigger, boolean surfaceClientErrors) {
+                                       String trigger, boolean surfaceClientErrors,
+                                       AuditAction successAction) {
         var startedAt = Instant.now();
         try {
             var restrictedColumns = permissionLookupService
@@ -205,6 +217,9 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             if (trigger != null) {
                 successMetadata.put("trigger", trigger);
             }
+            if (successAction == AuditAction.QUERY_BREAK_GLASS_EXECUTED) {
+                successMetadata.put("break_glass", true);
+            }
             if (!appliedMaskingPolicyIds.isEmpty()) {
                 successMetadata.put("applied_masking_policy_ids", appliedMaskingPolicyIds.stream()
                         .map(UUID::toString).sorted().toList());
@@ -214,7 +229,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                         appliedRowSecurityPolicyIds.stream()
                                 .map(UUID::toString).sorted().toList());
             }
-            recordAudit(AuditAction.QUERY_EXECUTED, query.id(), actorUserId,
+            recordAudit(successAction, query.id(), actorUserId,
                     query.organizationId(), successMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
                     query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED));

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Button, DatePicker, Input, Segmented, Tooltip } from 'antd';
+import { Alert, App, Button, DatePicker, Input, Modal, Segmented, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
   ThunderboltOutlined,
@@ -9,6 +9,7 @@ import {
   BookOutlined,
   SaveOutlined,
   ExperimentOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,7 +27,8 @@ import { SaveTemplateModal } from '@/components/editor/SaveTemplateModal';
 import { LoadTemplateModal } from '@/components/editor/LoadTemplateModal';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
-import { analyzeOnly, dryRunQuery, queryKeys, submitQuery } from '@/api/queries';
+import { analyzeOnly, breakGlassSubmit, dryRunQuery, queryKeys, submitQuery } from '@/api/queries';
+import { getBreakGlassEligibility, meKeys } from '@/api/me';
 import { formatSql } from '@/utils/sqlFormat';
 import { activeSyntax, engineMode, syntaxForQuery } from '@/utils/engineModes';
 import type { QueryTemplate, SubmissionReason } from '@/types/api';
@@ -58,6 +60,8 @@ export function QueryEditorPage() {
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<QueryTemplate | null>(null);
+  const [breakGlassOpen, setBreakGlassOpen] = useState(false);
+  const [breakGlassJustification, setBreakGlassJustification] = useState('');
   const schemaQuery = useSchemaIntrospect(ds?.id);
   const schema = schemaQuery.data ?? EMPTY_SCHEMA;
   const { message } = App.useApp();
@@ -133,6 +137,29 @@ export function QueryEditorPage() {
     },
     onError: () => {
       message.error(t('editor.submit_error'));
+    },
+  });
+
+  const breakGlassEligibilityQuery = useQuery({
+    queryKey: meKeys.breakGlass,
+    queryFn: getBreakGlassEligibility,
+  });
+  const breakGlassEligible = (breakGlassEligibilityQuery.data?.eligible_datasources ?? []).some(
+    (e) => e.datasource_id === dsId,
+  );
+
+  const breakGlassMutation = useMutation({
+    mutationFn: () =>
+      breakGlassSubmit({ datasource_id: ds!.id, sql, justification: breakGlassJustification }),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
+      message.success({ content: t('editor.break_glass_success'), duration: 2.5 });
+      setBreakGlassOpen(false);
+      setBreakGlassJustification('');
+      navigate(`/queries/${result.id}`);
+    },
+    onError: () => {
+      message.error(t('editor.break_glass_error'));
     },
   });
 
@@ -213,6 +240,17 @@ export function QueryEditorPage() {
                 {analyzeMutation.isPending
                   ? t('editor.analyzing_button')
                   : t('editor.analyze_button')}
+              </Button>
+            )}
+            {breakGlassEligible && (
+              <Button
+                danger
+                icon={<WarningOutlined />}
+                disabled={!sqlNonEmpty}
+                onClick={() => setBreakGlassOpen(true)}
+                data-testid="break-glass-button"
+              >
+                {t('editor.break_glass_button')}
               </Button>
             )}
             <Tooltip
@@ -410,6 +448,45 @@ export function QueryEditorPage() {
           setTemplatesOpen(false);
         }}
       />
+      <Modal
+        open={breakGlassOpen}
+        title={t('editor.break_glass_modal_title')}
+        okText={t('editor.break_glass_confirm')}
+        cancelText={t('common.cancel')}
+        okButtonProps={{
+          danger: true,
+          disabled: !breakGlassJustification.trim(),
+          'data-testid': 'break-glass-confirm',
+        }}
+        confirmLoading={breakGlassMutation.isPending}
+        onCancel={() => setBreakGlassOpen(false)}
+        onOk={() => breakGlassMutation.mutate()}
+      >
+        <Alert
+          type="error"
+          showIcon
+          message={t('editor.break_glass_modal_warning_title')}
+          description={t('editor.break_glass_modal_warning_body')}
+          style={{ marginBottom: 12 }}
+        />
+        <label
+          className="muted"
+          style={{ display: 'block', fontSize: 11.5, fontWeight: 500, marginBottom: 5 }}
+        >
+          {t('editor.justification_label')}{' '}
+          <span className="muted" style={{ fontWeight: 400 }}>
+            {t('editor.justification_required_note')}
+          </span>
+        </label>
+        <Input.TextArea
+          value={breakGlassJustification}
+          onChange={(e) => setBreakGlassJustification(e.target.value)}
+          placeholder={t('editor.break_glass_justification_placeholder')}
+          maxLength={4000}
+          rows={3}
+          data-testid="break-glass-justification"
+        />
+      </Modal>
     </div>
   );
 }

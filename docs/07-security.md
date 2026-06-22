@@ -352,6 +352,17 @@ A user can self-request temporary, scoped access instead of an admin pre-grantin
 - **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard datasource-access check above returns 403.
 - **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* permission is revoked and replaced (extend/widen). This preserves standing access as the source of truth while letting JIT grants stack predictably.
 
+### Break-glass / emergency access (AF-385)
+
+A distinct submission mode that **skips pre-approval** for genuine emergencies, with compensating controls and these non-negotiable security invariants:
+
+- **Gated by an explicit `can_break_glass` permission, required for everyone — including admins.** Unlike normal submission (where admins bypass the per-datasource permission check), break-glass is enforced for all callers at the service layer (`DefaultBreakGlassService`): a non-null, non-expired `datasource_user_permissions` row with `can_break_glass=true` **and** the capability for the parsed query type **and** the table allow-list, else `BreakGlassNotPermittedException` (403). Time-boxed via the grant's `expires_at`.
+- **All proxy guards still apply.** The query runs through the identical execution path — schema/table allow-list, dynamic masking, row-level security, and row caps are enforced exactly as for a reviewed query. Break-glass bypasses *approval*, never the *data-protection* controls.
+- **Justification is mandatory** and captured on the `break_glass_events` row and in the audit metadata.
+- **Compensating controls.** Instant fanout to every active org admin (incl. PagerDuty); a prominently distinct `QUERY_BREAK_GLASS_EXECUTED` audit row (not `QUERY_EXECUTED`); and a mandatory retro-review.
+- **A submitter can never acknowledge their own break-glass event.** Enforced at the service layer (`SelfAcknowledgeNotAllowedException`, 403), mirroring the query-review and JIT self-approval blocks. The retrospective reconciliation (`BREAK_GLASS_REVIEWED`) must be performed by a different admin.
+- **State-machine safety.** The break-glass path is `PENDING_AI → APPROVED → EXECUTED` (no `QuerySubmittedEvent`, `submission_reason=EMERGENCY_ACCESS`); the illegal-transition guard still rejects anything off-path. The executed query lands in its normal terminal state and is never re-opened — the retro-review is tracked alongside it.
+
 ### Column-level restrictions
 
 `datasource_user_permissions.restricted_columns` is a `TEXT[]` of fully-qualified `schema.table.column` entries. This is a **defense-in-depth, value-masking** control — not a primary access boundary:

@@ -66,7 +66,8 @@
     "langfuse": "Langfuse",
     "connectors": "Conectores",
     "auditor": "Informes de cumplimiento",
-    "anomalies": "Anomalías"
+    "anomalies": "Anomalías",
+    "break_glass": "Registro break-glass"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -445,7 +446,15 @@
         "placeholder_required": "Se requiere un valor para :{{name}}"
       }
     },
-    "datasource_label": "Fuente de datos"
+    "datasource_label": "Fuente de datos",
+    "break_glass_button": "Acceso de emergencia",
+    "break_glass_success": "Consulta de emergencia ejecutada",
+    "break_glass_error": "Error en el acceso de emergencia",
+    "break_glass_modal_title": "Acceso de emergencia (break-glass)",
+    "break_glass_confirm": "Ejecutar ahora",
+    "break_glass_modal_warning_title": "Esto omite la revisión",
+    "break_glass_modal_warning_body": "La consulta se ejecuta de inmediato sin aprobación. Se notifica a todos los administradores, la acción se audita de forma destacada y debe revisarse posteriormente.",
+    "break_glass_justification_placeholder": "Explique la emergencia (obligatorio)"
   },
   "dry_run_panel": {
     "title": "Plan de ejecución",
@@ -2151,7 +2160,8 @@
     },
     "submission_reason": {
       "USER_SUBMITTED": "Enviado por el usuario",
-      "AI_SUGGESTION": "Sugerencia de IA"
+      "AI_SUGGESTION": "Sugerencia de IA",
+      "EMERGENCY_ACCESS": "Acceso de emergencia"
     },
     "comment_status": {
       "OPEN": "Abierto",
@@ -2161,6 +2171,10 @@
       "OPEN": "Abierta",
       "ACKNOWLEDGED": "Confirmada",
       "DISMISSED": "Descartada"
+    },
+    "break_glass_status": {
+      "PENDING_REVIEW": "Pendiente de revisión",
+      "REVIEWED": "Revisado"
     }
   },
   "access": {
@@ -2341,5 +2355,37 @@
       "tooltip_one": "{{count}} anomalía abierta (puntuación máx. {{score}})",
       "tooltip_other": "{{count}} anomalías abiertas (puntuación máx. {{score}})"
     }
+  },
+  "breakglass": {
+    "title": "Registro break-glass",
+    "subtitle": "Ejecuciones de acceso de emergencia pendientes de revisión retrospectiva",
+    "count_label": "{{count}} eventos",
+    "load_error": "Error al cargar los eventos de break-glass",
+    "empty_title": "Sin eventos de break-glass",
+    "empty_description": "Las ejecuciones de acceso de emergencia aparecerán aquí.",
+    "filter_status_all": "Todos los estados",
+    "filter_datasource_all": "Todas las fuentes de datos",
+    "filter_user_placeholder": "Filtrar por id de usuario",
+    "col_executed": "Ejecutado",
+    "col_user": "Usuario",
+    "col_datasource": "Fuente de datos",
+    "col_justification": "Justificación",
+    "col_status": "Estado",
+    "col_actions": "Acciones",
+    "user_unknown": "Usuario desconocido",
+    "action_acknowledge": "Reconocer",
+    "acknowledge_success": "Evento de break-glass reconocido",
+    "acknowledge_confirm_title": "Reconocer evento de break-glass",
+    "acknowledge_confirm_body": "Confirme que ha revisado esta ejecución de emergencia. Esto cierra la revisión retrospectiva.",
+    "acknowledge_comment_placeholder": "Añada una nota de conciliación (opcional)",
+    "drawer_title": "Evento de break-glass",
+    "view_query": "Ver la consulta ejecutada",
+    "section_justification": "Justificación",
+    "section_query": "Consulta",
+    "section_review": "Revisión",
+    "field_executed": "Ejecutado el",
+    "field_reviewed_by": "Revisado por",
+    "field_reviewed_at": "Revisado el",
+    "field_review_comment": "Comentario"
   }
 }

@@ -540,6 +540,7 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
   "can_read": true,
   "can_write": false,
   "can_ddl": false,
+  "can_break_glass": false,
   "row_limit_override": 1000,
   "allowed_schemas": ["public"],
   "allowed_tables": ["users", "orders"],
@@ -548,7 +549,9 @@ ADMINs may sample any datasource in their organization; non-ADMINs need a permis
 }
 ```
 
-`restricted_columns` is optional. Each entry must be non-blank.
+`restricted_columns` is optional. Each entry must be non-blank. `can_break_glass` (AF-385, optional,
+default `false`) grants the emergency break-glass submission mode on this datasource — time-boxed via
+`expires_at`. The flag is returned on the permission object alongside `can_read`/`can_write`/`can_ddl`.
 
 **Response 201:** Permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/{permId}`.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
@@ -957,6 +960,8 @@ Synchronous.
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/queries` | Submit a query for review/execution |
+| `POST` | `/queries/break-glass` | **Emergency access (AF-385):** execute a query immediately, bypassing pre-approval. Requires a `can_break_glass` grant on the datasource; justification mandatory. Returns **200 synchronously** (execution already ran), not 202 |
+| `GET` | `/me/break-glass` | List the datasources the caller may currently break-glass on (backs the editor's "Emergency access" button gating) |
 | `GET` | `/queries` | List query requests (filterable by status, datasource, user, date range) |
 | `GET` | `/queries/{id}` | Get full query request details including AI analysis |
 | `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set) |
@@ -1072,6 +1077,50 @@ The `sql` field carries the query text for **every** engine. For a `MONGODB` dat
 A request may bundle multiple data-modifying statements inside a `BEGIN; … COMMIT;` envelope so that they execute atomically against the customer database. The proxy recognises the following opening markers (case-insensitive, optional trailing `;`): `BEGIN`, `BEGIN WORK`, `BEGIN TRANSACTION`, `START TRANSACTION`. Recognised closing markers: `COMMIT`, `COMMIT WORK`, `COMMIT TRANSACTION`, `END`. Whitespace and SQL comments around the markers are tolerated.
 
 Inside the envelope, every statement must classify as `INSERT`, `UPDATE`, or `DELETE`. Mixing SELECT with DML, SELECT-only transactions, DDL, `ROLLBACK`, `SAVEPOINT`, and nested `BEGIN` blocks are all rejected with HTTP 422 — see the error sub-cases above. The persisted `query_requests` row carries the original SQL text verbatim and a `transactional=true` flag (see [docs/03-data-model.md](03-data-model.md)). The representative `query_type` is the first inner statement's type. On execute, the proxy re-parses the SQL, opens a single JDBC connection with `autoCommit=false`, runs each inner statement, and commits — or rolls back atomically on any `SQLException`. `rows_affected` is the sum across inner statements.
+
+### POST /queries/break-glass — Emergency access (AF-385)
+
+Executes a query **immediately**, bypassing AI analysis and human review, through all the usual proxy
+guards (allow-list, masking, row-security, row caps). Gated by a per-user/per-datasource
+`can_break_glass` grant — **required for everyone, including admins**. A justification is mandatory.
+Opens a mandatory retrospective review and fans out to all org admins (incl. PagerDuty).
+
+**Request Body**
+```json
+{ "datasource_id": "uuid", "sql": "SELECT …", "justification": "prod is on fire" }
+```
+`justification` is required (`@NotBlank`, max 4000); `sql` is required (max 100,000).
+
+**Response 200** (synchronous — execution already ran, unlike normal submit's 202):
+```json
+{ "id": "uuid", "event_id": "uuid", "status": "EXECUTED", "rows_affected": 12, "duration_ms": 48 }
+```
+`status` is the executed query's terminal status (`EXECUTED` / `FAILED`); `event_id` is the opened
+`break_glass_events` retro-review.
+
+**Errors:** `400 VALIDATION_ERROR` (missing justification / sql / datasource_id) · `403
+BREAK_GLASS_NOT_PERMITTED` (no effective `can_break_glass` grant, or the grant lacks the capability /
+allow-list for the query) · `404 DATASOURCE_NOT_FOUND` · `422 INVALID_SQL` (unparseable / unsupported
+type) · `422 DATASOURCE_UNAVAILABLE` (inactive).
+
+### GET /me/break-glass — Break-glass eligibility (AF-385)
+
+Returns the datasources the caller may currently break-glass on (non-expired `can_break_glass`
+grants). Any authenticated role. Backs the editor's conditional "Emergency access" button.
+
+**Response 200**
+```json
+{ "eligible_datasources": [{ "datasource_id": "uuid", "expires_at": "2026-12-31T23:59:59Z" }] }
+```
+
+### GET /admin/break-glass — Break-glass log (AF-385)
+
+Paginated, newest-first list of `break_glass_events` for the caller's organization (ADMIN/AUDITOR).
+Query params: `status` (`PENDING_REVIEW` / `REVIEWED`), `datasourceId`, `userId`, `from`, `to`, `page`,
+`size` (max 200). Each item carries the executed query id + status, submitter, datasource, justification,
+and review fields. `POST /admin/break-glass/{id}/acknowledge` (ADMIN, optional `{ "comment": "…" }`)
+transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and rejects self-acknowledge
+(403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`) and already-reviewed (409 `BREAK_GLASS_ALREADY_REVIEWED`).
 
 ### GET /queries — Query Parameters
 
@@ -1850,6 +1899,9 @@ Paginated queue of access requests the caller can currently act on, self-request
 | `GET` | `/admin/anomalies/{id}` | Get a single behavioural anomaly *(AUDITOR or ADMIN)* |
 | `POST` | `/admin/anomalies/{id}/acknowledge` | Acknowledge an open anomaly *(ADMIN only)* |
 | `POST` | `/admin/anomalies/{id}/dismiss` | Dismiss an anomaly as a false positive *(ADMIN only)* |
+| `GET` | `/admin/break-glass` | List break-glass events with filters (status, datasource, user, date range), newest first (AF-385) *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/break-glass/{id}` | Get a single break-glass event *(AUDITOR or ADMIN)* |
+| `POST` | `/admin/break-glass/{id}/acknowledge` | Acknowledge (reconcile) a pending break-glass event; optional `{ "comment": "…" }`. The submitter cannot acknowledge their own event (403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`); already-reviewed is 409 `BREAK_GLASS_ALREADY_REVIEWED` *(ADMIN only)* |
 | `GET` | `/admin/routing-policies` | List routing policies (priority order) *(ADMIN only)* |
 | `POST` | `/admin/routing-policies` | Create a routing policy *(ADMIN only)* |
 | `GET` | `/admin/routing-policies/{id}` | Get a routing policy *(ADMIN only)* |

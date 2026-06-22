@@ -463,7 +463,7 @@ class DefaultQuerySubmissionServiceTest {
         when(permissionLookupService.findFor(eq(userId), eq(datasourceId)))
                 .thenReturn(Optional.of(new DatasourceUserPermissionView(
                         UUID.randomUUID(), userId, datasourceId,
-                        canRead, canWrite, canDdl,
+                        canRead, canWrite, canDdl, false,
                         allowedSchemas, allowedTables, List.of(), expiresAt)));
     }
 

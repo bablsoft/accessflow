@@ -180,7 +180,8 @@ class NotificationDispatcher {
     private List<NotificationChannelEntity> resolveChannels(NotificationEventType eventType,
                                                             NotificationContext ctx) {
         if (eventType == NotificationEventType.AI_HIGH_RISK
-                || eventType == NotificationEventType.ANOMALY_DETECTED) {
+                || eventType == NotificationEventType.ANOMALY_DETECTED
+                || eventType == NotificationEventType.BREAK_GLASS_EXECUTED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

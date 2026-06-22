@@ -25,6 +25,16 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 .map(DefaultDatasourceUserPermissionLookupService::toView);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourceUserPermissionView> findBreakGlassEligible(UUID userId) {
+        var now = java.time.Instant.now();
+        return permissionRepository.findAllByUser_IdAndCanBreakGlassTrue(userId).stream()
+                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(now))
+                .map(DefaultDatasourceUserPermissionLookupService::toView)
+                .toList();
+    }
+
     private static DatasourceUserPermissionView toView(DatasourceUserPermissionEntity entity) {
         return new DatasourceUserPermissionView(
                 entity.getId(),
@@ -33,6 +43,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 entity.isCanRead(),
                 entity.isCanWrite(),
                 entity.isCanDdl(),
+                entity.isCanBreakGlass(),
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 toList(entity.getRestrictedColumns()),

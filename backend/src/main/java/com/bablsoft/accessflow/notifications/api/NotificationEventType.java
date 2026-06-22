@@ -12,5 +12,6 @@ public enum NotificationEventType {
     ACCESS_GRANT_EXPIRED,
     ACCESS_GRANT_REVOKED,
     ANOMALY_DETECTED,
+    BREAK_GLASS_EXECUTED,
     TEST
 }

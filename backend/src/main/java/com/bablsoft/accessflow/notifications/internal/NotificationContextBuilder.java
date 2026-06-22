@@ -105,7 +105,8 @@ class NotificationContextBuilder {
                     ? List.of(toRecipient(submitter))
                     : List.of();
             case REVIEW_TIMEOUT -> reviewTimeoutRecipients(snapshot, submitter);
-            case AI_HIGH_RISK -> userQueryService
+            // AI_HIGH_RISK and BREAK_GLASS_EXECUTED both fan out to every active org admin (AF-385).
+            case AI_HIGH_RISK, BREAK_GLASS_EXECUTED -> userQueryService
                     .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
                     .stream()
                     .filter(UserView::active)

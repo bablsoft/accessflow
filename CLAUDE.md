@@ -351,6 +351,8 @@ com.bablsoft.accessflow/
                                             datasource.ai_analysis_enabled=false;
                                             APPROVED only when plan.requires_human_approval=false)
   PENDING_AI → APPROVED  (routing-policy AUTO_APPROVE — AF-379)
+  PENDING_AI → APPROVED  (break-glass — submitter holds can_break_glass; bypasses AI + review,
+                          submission_reason=EMERGENCY_ACCESS, no QuerySubmittedEvent — AF-385)
   PENDING_AI → REJECTED  (routing-policy AUTO_REJECT — AF-379; no review_decisions row,
                           audited via QueryAutoRejectedEvent)
   PENDING_REVIEW → CANCELLED (submitter only)
@@ -358,10 +360,20 @@ com.bablsoft.accessflow/
                               deferred run has not yet fired — AF-345)
   APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now() —
                               system-initiated, audit metadata trigger=scheduled)
+  APPROVED       → EXECUTED  (break-glass run — audit action QUERY_BREAK_GLASS_EXECUTED — AF-385)
   APPROVED       → FAILED    (execution error)
   ```
 
-  Illegal transitions must throw a domain exception, not silently succeed.
+  Illegal transitions must throw a domain exception, not silently succeed. **Break-glass /
+  emergency access (AF-385):** a distinct submission mode gated by a per-user/per-datasource
+  `can_break_glass` permission (required for everyone, including admins). It persists the query as
+  `EMERGENCY_ACCESS` without publishing `QuerySubmittedEvent`, force-approves it
+  (`PENDING_AI → APPROVED`), and executes it immediately through all the usual proxy guards
+  (allow-list, masking, row-security, row caps). Compensating controls: instant fanout to all org
+  admins (incl. PagerDuty), a prominent `QUERY_BREAK_GLASS_EXECUTED` audit row, and a mandatory
+  retro-review tracked in `break_glass_events` (the executed query is never re-opened) that an admin
+  — never the submitter — must acknowledge (`BREAK_GLASS_REVIEWED`). See
+  [docs/05-backend.md](docs/05-backend.md) → "Break-glass / emergency access".
 
 ---
 

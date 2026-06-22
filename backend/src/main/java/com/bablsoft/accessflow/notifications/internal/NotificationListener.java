@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
+import com.bablsoft.accessflow.workflow.events.BreakGlassExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +72,12 @@ class NotificationListener {
             return;
         }
         safeDispatch(NotificationEventType.AI_HIGH_RISK, event.queryRequestId(),
+                null, null, null);
+    }
+
+    @ApplicationModuleListener
+    void onBreakGlassExecuted(BreakGlassExecutedEvent event) {
+        safeDispatch(NotificationEventType.BREAK_GLASS_EXECUTED, event.queryRequestId(),
                 null, null, null);
     }
 

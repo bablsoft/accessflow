@@ -1,5 +1,19 @@
-import type { AccessGrantStatus, BehaviorAnomalyStatus, QueryStatus } from '@/types/api';
+import type {
+  AccessGrantStatus,
+  BehaviorAnomalyStatus,
+  BreakGlassEventStatus,
+  QueryStatus,
+} from '@/types/api';
 import type { ColorTriple } from './riskColors';
+
+export const breakGlassStatusColor = (status: BreakGlassEventStatus): ColorTriple => {
+  switch (status) {
+    case 'PENDING_REVIEW':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'REVIEWED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+  }
+};
 
 export const anomalyStatusColor = (status: BehaviorAnomalyStatus): ColorTriple => {
   switch (status) {

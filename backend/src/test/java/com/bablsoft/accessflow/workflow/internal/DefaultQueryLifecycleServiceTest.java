@@ -285,7 +285,7 @@ class DefaultQueryLifecycleServiceTest {
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
         var permissionView = new DatasourceUserPermissionView(
-                UUID.randomUUID(), submitterId, datasourceId, true, false, false,
+                UUID.randomUUID(), submitterId, datasourceId, true, false, false, false,
                 List.of(), List.of(), List.of("public.users.ssn", "public.users.email"), null);
         when(permissionLookupService.findFor(submitterId, datasourceId))
                 .thenReturn(Optional.of(permissionView));
@@ -712,6 +712,47 @@ class DefaultQueryLifecycleServiceTest {
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.executeScheduled(queryId))
+                .isInstanceOf(QueryRequestNotFoundException.class);
+    }
+
+    // ── executeBreakGlass (AF-385) ────────────────────────────────────────────
+
+    @Test
+    void executeBreakGlassRecordsBreakGlassAuditActionAndExecutes() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED, QueryType.SELECT)));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)), 1L, false, Duration.ofMillis(10)));
+
+        var outcome = service.executeBreakGlass(queryId, submitterId);
+
+        assertThat(outcome.status()).isEqualTo(QueryStatus.EXECUTED);
+        verify(queryRequestStateService).recordExecutionOutcome(any(RecordExecutionCommand.class));
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action())
+                .isEqualTo(AuditAction.QUERY_BREAK_GLASS_EXECUTED);
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("break_glass", true)
+                .containsEntry("trigger", "break_glass");
+    }
+
+    @Test
+    void executeBreakGlassThrowsWhenQueryNotApproved() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+
+        assertThatThrownBy(() -> service.executeBreakGlass(queryId, submitterId))
+                .isInstanceOf(QueryNotExecutableException.class);
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeBreakGlassThrowsNotFoundWhenQueryGone() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.executeBreakGlass(queryId, submitterId))
                 .isInstanceOf(QueryRequestNotFoundException.class);
     }
 }

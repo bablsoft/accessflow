@@ -128,7 +128,7 @@ class DefaultTextToSqlServiceTest {
         when(datasourceAdminService.introspectSchema(datasourceId, organizationId, userId, false))
                 .thenReturn(schemaView());
         var permission = new DatasourceUserPermissionView(UUID.randomUUID(), userId, datasourceId,
-                true, false, false, List.of(), List.of(), List.of("public.orders.created_at"), null);
+                true, false, false, false, List.of(), List.of(), List.of("public.orders.created_at"), null);
         when(permissionLookupService.findFor(userId, datasourceId)).thenReturn(Optional.of(permission));
         ArgumentCaptor<String> ctx = ArgumentCaptor.forClass(String.class);
         when(strategy.generateSql(any(), eq(DbType.POSTGRESQL), ctx.capture(), eq("en"), eq(aiConfigId)))

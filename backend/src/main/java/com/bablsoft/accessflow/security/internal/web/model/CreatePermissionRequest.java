@@ -13,6 +13,7 @@ public record CreatePermissionRequest(
         Boolean canRead,
         Boolean canWrite,
         Boolean canDdl,
+        Boolean canBreakGlass,
         @Min(value = 1, message = "{validation.row_limit.min}") Integer rowLimitOverride,
         List<String> allowedSchemas,
         List<String> allowedTables,

@@ -174,6 +174,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `can_read` | BOOLEAN DEFAULT false |
 | `can_write` | BOOLEAN DEFAULT false |
 | `can_ddl` | BOOLEAN DEFAULT false — CREATE/ALTER/DROP |
+| `can_break_glass` | BOOLEAN NOT NULL DEFAULT false (AF-385, Flyway V94) — grants the emergency break-glass submission mode on this datasource. Required for everyone (including admins); time-boxed via `expires_at`. |
 | `row_limit_override` | INTEGER nullable — overrides datasource default |
 | `allowed_schemas` | TEXT[] — null means all schemas permitted |
 | `allowed_tables` | TEXT[] — null means all tables permitted |
@@ -567,7 +568,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
 | `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
-| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
+| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
 | `execution_started_at` | TIMESTAMPTZ nullable |
@@ -773,6 +774,37 @@ and the badge count), `ACKNOWLEDGED` (an admin has triaged it; no longer raises 
 
 ---
 
+## break_glass_events
+
+Mandatory retrospective review opened by a break-glass / emergency-access execution (AF-385, Flyway
+V95). One row per break-glass query. Owned by the `workflow` module (`workflow/internal/persistence/`);
+cross-aggregate references are stored as bare UUIDs (no FK) like `query_snapshots` / `audit_log`, so
+deleting a user never erases the forensic record. The executed query lands in its normal terminal
+`EXECUTED`/`FAILED` state and is never re-opened — this row tracks the review alongside it.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | UUID NOT NULL `UNIQUE` FK → `query_requests(id)` ON DELETE CASCADE — one event per query (idempotency backstop) |
+| `organization_id` | UUID NOT NULL — bare (no FK) |
+| `datasource_id` | UUID NOT NULL — bare (no FK) |
+| `submitted_by` | UUID NOT NULL — bare (no FK); the user who broke glass |
+| `justification` | TEXT NOT NULL — mandatory reason captured at submission |
+| `status` | ENUM `break_glass_status`: `PENDING_REVIEW` (default) \| `REVIEWED` |
+| `reviewed_by` | UUID nullable — bare (no FK); the admin who acknowledged (never the submitter) |
+| `review_comment` | TEXT nullable — optional reconciliation note |
+| `reviewed_at` | TIMESTAMPTZ nullable |
+| `version` | BIGINT — optimistic lock |
+| `created_at` | TIMESTAMPTZ DEFAULT now() |
+
+Indexes: `UNIQUE(query_request_id)`; `(organization_id, status, created_at DESC)` for the admin
+"Break-glass log" (status-filtered, newest first).
+
+**`break_glass_status` values:** `PENDING_REVIEW` (unreconciled — surfaced on the admin log),
+`REVIEWED` (an admin has acknowledged the emergency execution after the fact).
+
+---
+
 ## knowledge_document
 
 RAG knowledge-base documents attached to a RAG-enabled `ai_config` (AF-336). The raw `content` is
@@ -932,6 +964,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_APPROVED` | Reviewer approves |
 | `QUERY_REJECTED` | Reviewer rejects |
 | `QUERY_EXECUTED` | Proxy executes approved query. Metadata is enriched (AF-383) with `datasource_id`, `query_type`, `referenced_tables`, `distinct_table_count`, and `rows_returned` so the UBA behavioural baselines (`behavior_baseline`) are derivable from `audit_log` alone — no query result data. Also carries `applied_masking_policy_ids` / `applied_row_security_policy_ids` when policies fired. |
+| `QUERY_BREAK_GLASS_EXECUTED` | Proxy executes a break-glass / emergency-access query (AF-385), bypassing pre-approval. Prominently distinct from `QUERY_EXECUTED`; metadata carries `break_glass=true` plus the same UBA enrichment. Resource: `query_request`. |
+| `BREAK_GLASS_REVIEWED` | An admin acknowledges (reconciles) a break-glass retro-review (AF-385). Resource: `break_glass_event`. Metadata: `query_request_id`, `datasource_id`, `submitted_by`. |
 | `QUERY_FAILED` | Execution error. Metadata is enriched (AF-383) with `datasource_id` and `query_type` for UBA error-rate tracking. |
 | `QUERY_CANCELLED` | Submitter cancels |
 | `DATASOURCE_CREATED` | Admin creates datasource |
@@ -978,7 +1012,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`.
 
 ---
 

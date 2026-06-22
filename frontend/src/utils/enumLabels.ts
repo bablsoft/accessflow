@@ -4,6 +4,7 @@ import type {
   AiProvider,
   AuthProvider,
   BehaviorAnomalyStatus,
+  BreakGlassEventStatus,
   ChannelType,
   ComparisonOperator,
   DataClassification,
@@ -51,6 +52,14 @@ export const ANOMALY_STATUSES: readonly BehaviorAnomalyStatus[] = [
 
 export const anomalyStatusLabel = (t: TFunction, v: BehaviorAnomalyStatus): string =>
   t(`enums.behavior_anomaly_status.${v}` as const);
+
+export const BREAK_GLASS_STATUSES: readonly BreakGlassEventStatus[] = [
+  'PENDING_REVIEW',
+  'REVIEWED',
+] as const;
+
+export const breakGlassStatusLabel = (t: TFunction, v: BreakGlassEventStatus): string =>
+  t(`enums.break_glass_status.${v}` as const);
 
 export const queryTypeLabel = (t: TFunction, v: QueryType): string =>
   t(`enums.query_type.${v}` as const);

@@ -136,6 +136,7 @@ accessflow-ui/
 │   │       ├── UsersPage.tsx
 │   │       ├── AuditLogPage.tsx
 │   │       ├── AnomaliesPage.tsx     # Behavioural anomaly detection (UBA — AF-383)
+│   │       ├── BreakGlassLogPage.tsx # Break-glass / emergency-access log (AF-385)
 │   │       ├── AIConfigPage.tsx
 │   │       ├── NotificationsPage.tsx
 │   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
@@ -300,6 +301,10 @@ The `AUDITOR` role is read-only and has no editor access, so `homePathForRole` (
 ### AnomaliesPage *(AUDITOR or ADMIN)* — AF-383
 
 The behavioural-anomaly-detection (UBA) dashboard at `/admin/anomalies` (lazy-loaded; nav entry in the **System** group, ADMIN). The header carries summary charts (via `@ant-design/charts` — anomalies over time and by feature) above a filterable `Table` of `behavior_anomaly` rows. Filters mirror the backend query params (status, user, datasource, feature, date range); data is fetched with TanStack Query (`api/anomalies.ts`, key `anomalyKeys.list(params)`) and renders a `Skeleton` while loading / an `EmptyState` when nothing matches. Each row shows the flagged user, datasource, feature, score, observed-vs-baseline values, and the optional `ai_summary`. Per-row **Acknowledge** / **Dismiss** actions (ADMIN only — hidden for AUDITOR) call `POST /admin/anomalies/{id}/{acknowledge,dismiss}` with optimistic cache invalidation. The page subscribes to the `anomaly.detected` WebSocket event and invalidates `anomalyKeys` so a freshly-flagged anomaly appears without a manual refresh.
+
+### BreakGlassLogPage *(AUDITOR or ADMIN)* — AF-385
+
+The break-glass / emergency-access log at `/admin/break-glass` (lazy-loaded; nav entry in the **Security** group, AUDITOR/ADMIN). A filterable `Table` of `break_glass_events` (default filter `PENDING_REVIEW` — unreconciled), fetched with TanStack Query (`api/breakGlass.ts`, key `breakGlassKeys.list(params)`); filters mirror the backend params (status, datasource, user, date range). Each row shows the executing user, datasource, justification, and a `BreakGlassStatusPill`; a row click opens a `Drawer` with the executed query link, full justification, SQL, and review fields. The per-row **Acknowledge** action (ADMIN only) opens a modal with an optional reconciliation comment and calls `POST /admin/break-glass/{id}/acknowledge`, invalidating `breakGlassKeys`. The **Emergency access** flow itself lives on the editor: `QueryEditorPage` queries `GET /me/break-glass` (`meKeys.breakGlass`) and renders a danger **"Emergency access"** button — only when the selected datasource is eligible — that opens a justification-forcing confirmation modal (`breakGlassSubmit`, `POST /queries/break-glass`) and navigates to the executed query on success. A new `BreakGlassStatusPill` (`components/common/`) and `breakGlassStatusColor` / `breakGlassStatusLabel` helpers back the status rendering.
 
 ### AnomalyBadge (`components/common/AnomalyBadge.tsx`) — AF-383
 
