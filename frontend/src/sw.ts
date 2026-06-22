@@ -25,10 +25,12 @@ const SHELL_CACHE = 'accessflow-shell-v1';
 const SHELL_URLS = ['/', '/index.html', ...self.__WB_MANIFEST.map((entry) => entry.url)];
 
 self.addEventListener('install', (event) => {
+  // Best-effort precache: cache entries individually so one transiently-failing asset doesn't
+  // abort the whole install (cache.addAll is atomic). Keeps the SW installable under load.
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
-      .then((cache) => cache.addAll(SHELL_URLS))
+      .then((cache) => Promise.allSettled(SHELL_URLS.map((url) => cache.add(url))))
       .then(() => self.skipWaiting()),
   );
 });

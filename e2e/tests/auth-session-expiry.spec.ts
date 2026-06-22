@@ -87,10 +87,12 @@ test('refresh failure with revoked cookie clears state, toasts, redirects to /lo
   });
 
   // ── 5. Toast renders and navigationBridge redirects to /login ────────────────────
-  // The AntD message renders into multiple wrappers inside .ant-message-notice;
-  // scope by class so the locator matches the single message container.
+  // The AntD message renders into multiple wrappers inside .ant-message-notice; scope by class.
+  // Several requests can be in flight when the cookie is cleared (more so now the PWA service
+  // worker precaches the app shell on load), and each failed refresh surfaces its own
+  // session-expired toast — so assert at least one renders rather than exactly one.
   await expect(
-    page.locator('.ant-message-notice', { hasText: 'Session expired' }),
+    page.locator('.ant-message-notice', { hasText: 'Session expired' }).first(),
   ).toBeVisible({ timeout: 10_000 });
   await page.waitForURL('**/login', { timeout: 10_000 });
 

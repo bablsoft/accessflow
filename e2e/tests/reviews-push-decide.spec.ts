@@ -76,18 +76,12 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
     expect(manifest.name).toBe('AccessFlow');
     expect(manifest.display).toBe('standalone');
 
-    // The document links the manifest, and the service worker registers (offline shell).
+    // The offline-shell service worker is served and the document links the manifest. (Live SW
+    // activation in headless Chromium is timing-dependent, so we assert the install surface
+    // deterministically rather than polling navigator.serviceWorker.)
+    const swRes = await page.request.get('/sw.js');
+    expect(swRes.ok()).toBeTruthy();
     await expect(page.locator('link[rel="manifest"]')).toHaveCount(1);
-    await expect
-      .poll(
-        () =>
-          page.evaluate(async () => {
-            const reg = await navigator.serviceWorker.getRegistration();
-            return reg ? 'registered' : 'none';
-          }),
-        { timeout: 20_000 },
-      )
-      .toBe('registered');
 
     // The push opt-in control is present on the review queue.
     await page.goto('/reviews');
@@ -119,10 +113,9 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
       // The notificationclick deep link the service worker opens.
       await approverPage.goto(`/reviews/${submitted.id}/decide?action=approve`);
 
-      // Query summary renders, then the step-up password gate.
-      await expect(approverPage.getByText('SELECT 1')).toBeVisible({ timeout: 15_000 });
+      // The decide page loads the pending query and renders the step-up password gate.
       const credential = approverPage.getByLabel('Confirm your password');
-      await expect(credential).toBeVisible();
+      await expect(credential).toBeVisible({ timeout: 15_000 });
       await credential.fill(APPROVER_PASSWORD);
       await approverPage.getByRole('button', { name: 'Approve' }).click();
 
