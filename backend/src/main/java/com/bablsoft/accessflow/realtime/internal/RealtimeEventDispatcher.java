@@ -10,8 +10,10 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
@@ -269,6 +271,29 @@ class RealtimeEventDispatcher {
             data.put("old_status", event.oldStatus().name());
             data.put("new_status", event.newStatus().name());
             sendTo(event.requesterId(), "access_request.status_changed", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onAnomalyDetected(AnomalyDetectedEvent event) {
+        safe("anomaly.detected", event.anomalyId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("anomaly_id", event.anomalyId().toString());
+            data.put("user_id", event.userId().toString());
+            data.put("datasource_id", event.datasourceId().toString());
+            data.put("feature", event.feature());
+            data.put("score", event.score());
+            var envelope = serialize("anomaly.detected", data);
+            // Fan out to org admins (triage) and the subject user (their own badge).
+            Set<UUID> recipients = new LinkedHashSet<>();
+            userQueryService.findByOrganizationAndRole(event.organizationId(), UserRoleType.ADMIN)
+                    .stream()
+                    .filter(UserView::active)
+                    .forEach(u -> recipients.add(u.id()));
+            recipients.add(event.userId());
+            for (var userId : recipients) {
+                sessionRegistry.sendToUser(userId, envelope);
+            }
         });
     }
 

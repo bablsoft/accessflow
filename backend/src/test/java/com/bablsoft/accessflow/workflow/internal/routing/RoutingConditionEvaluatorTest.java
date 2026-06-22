@@ -38,13 +38,14 @@ class RoutingConditionEvaluatorTest {
                 "203.0.113.7",
                 "Mozilla/5.0 (Macintosh)",
                 false,
-                120);
+                120,
+                false);
     }
 
     private ConditionContext noRiskContext() {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), null, -1,
                 UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
-                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120);
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120, false);
     }
 
     @Test
@@ -194,7 +195,7 @@ class RoutingConditionEvaluatorTest {
     private ConditionContext at(int hour, int minute) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
                 UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, hour, minute),
-                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120);
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120, false);
     }
 
     // --- Client-context conditions (AF-446) ---
@@ -203,7 +204,7 @@ class RoutingConditionEvaluatorTest {
                                            Integer minutesSinceLastApproval) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
                 UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
-                false, false, false, ip, userAgent, ciCdOrigin, minutesSinceLastApproval);
+                false, false, false, ip, userAgent, ciCdOrigin, minutesSinceLastApproval, false);
     }
 
     @Test
@@ -264,6 +265,23 @@ class RoutingConditionEvaluatorTest {
         var ctx = clientContext("203.0.113.7", null, false, null);
         assertThat(evaluator.matches(
                 new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GTE, 0), ctx)).isFalse();
+    }
+
+    @Test
+    void anomalyDetected() {
+        assertThat(evaluator.matches(new ConditionNode.AnomalyDetected(true),
+                anomalyContext(true))).isTrue();
+        assertThat(evaluator.matches(new ConditionNode.AnomalyDetected(true),
+                anomalyContext(false))).isFalse();
+        assertThat(evaluator.matches(new ConditionNode.AnomalyDetected(false),
+                anomalyContext(false))).isTrue();
+    }
+
+    private ConditionContext anomalyContext(boolean anomalyActive) {
+        return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
+                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120,
+                anomalyActive);
     }
 
     @Test

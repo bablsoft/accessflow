@@ -50,6 +50,7 @@ export default defineConfig({
         'src/mocks/delay.ts',
         'src/api/accessRequests.ts',
         'src/api/admin.ts',
+        'src/api/anomalies.ts',
         'src/api/auth.ts',
         'src/api/client.ts',
         'src/api/comments.ts',

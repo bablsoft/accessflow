@@ -65,7 +65,8 @@
     "routing_policies": "Երթուղավորման քաղաքականություններ",
     "langfuse": "Langfuse",
     "connectors": "Միակցիչներ",
-    "auditor": "Համապատասխանության հաշվետվություններ"
+    "auditor": "Համապատասխանության հաշվետվություններ",
+    "anomalies": "Անոմալիաներ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "Բաց",
       "RESOLVED": "Լուծված"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "Բաց",
+      "ACKNOWLEDGED": "Հաստատված",
+      "DISMISSED": "Մերժված"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "Տողեր",
     "col_sql": "SQL",
     "col_approvers": "Հաստատողներ"
+  },
+  "anomalies": {
+    "title": "Անոմալիաներ",
+    "subtitle": "Օգտատերերի հարցումների ակտիվության մեջ հայտնաբերված վարքագծային անոմալիաներ՝ անսովոր ծավալներ, ոչ աշխատանքային ժամերին մուտքեր և յուրաքանչյուր օգտատիրոջ սովորական վարքից այլ շեղումներ։",
+    "filter_status_all": "Բոլոր կարգավիճակները",
+    "filter_datasource_all": "Բոլոր տվյալների աղբյուրները",
+    "filter_user_placeholder": "Օգտատիրոջ ID",
+    "filter_feature_placeholder": "Հատկանիշ",
+    "count_label": "{{count}} անոմալիա",
+    "load_error": "Չհաջողվեց բեռնել անոմալիաները",
+    "empty_title": "Անոմալիաներ չկան",
+    "empty_description": "Այս միջակայքում ոչ մի անսովոր բան չկա։ Ընդլայնեք ամսաթվերի միջակայքը կամ հեռացրեք զտիչները՝ ավելին տեսնելու համար։",
+    "chart_by_feature_title": "Անոմալիաներ ըստ հատկանիշի",
+    "axis_feature": "Հատկանիշ",
+    "axis_count": "Անոմալիաներ",
+    "col_detected": "Հայտնաբերված",
+    "col_user": "Օգտատեր",
+    "col_datasource": "Տվյալների աղբյուր",
+    "col_feature": "Հատկանիշ",
+    "col_score": "Միավոր",
+    "col_status": "Կարգավիճակ",
+    "col_summary": "Ամփոփում",
+    "col_actions": "Գործողություններ",
+    "user_unknown": "Անհայտ օգտատեր",
+    "action_acknowledge": "Հաստատել",
+    "action_dismiss": "Մերժել",
+    "acknowledge_success": "Անոմալիան հաստատվեց",
+    "dismiss_success": "Անոմալիան մերժվեց",
+    "acknowledge_confirm_title": "Հաստատե՞լ անոմալիան",
+    "acknowledge_confirm_body": "Նշել «{{feature}}» անոմալիան՝ որպես ստուգված։",
+    "dismiss_confirm_title": "Մերժե՞լ անոմալիան",
+    "dismiss_confirm_body": "Մերժել «{{feature}}» անոմալիան՝ որպես կեղծ ազդանշան։",
+    "drawer_title": "Անոմալիայի մանրամասներ",
+    "section_signal": "Ազդանշան",
+    "section_summary": "AI ամփոփում",
+    "section_detail": "Մանրամասներ",
+    "field_score": "Միավոր",
+    "field_observed": "Դիտարկված արժեք",
+    "field_baseline_mean": "Բազային միջին",
+    "field_baseline_stddev": "Բազային ստ. շեղում",
+    "field_window": "Պատուհան",
+    "field_detected": "Հայտնաբերման ամսաթիվ",
+    "field_acknowledged": "Հաստատման ամսաթիվ",
+    "toast_detected": "Հայտնաբերվեց նոր անոմալիա՝ {{feature}} (միավոր {{score}})",
+    "badge": {
+      "label_one": "{{count}} անոմալիա",
+      "label_other": "{{count}} անոմալիա",
+      "tooltip_one": "{{count}} բաց անոմալիա (առավելագույն միավոր {{score}})",
+      "tooltip_other": "{{count}} բաց անոմալիա (առավելագույն միավոր {{score}})"
+    }
   }
 }

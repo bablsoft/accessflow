@@ -876,6 +876,21 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 - **Available** → migrations run normally; the `vector_store` table is additionally created if it is missing (self-healing the case where pgvector is installed only *after* a degraded first boot).
 - **Unavailable** (or `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`) → V69 is recorded as applied without executing it, `knowledge_document` is created by the idempotent `V73` migration, the `vector_store` table is omitted, and the in-app PGVECTOR store is disabled. A `WARN` is logged, `GET /admin/ai-configs/rag/capabilities` reports `pgvector_available: false`, the admin UI shows a banner on the RAG settings, and PGVECTOR ingestion / connection tests return `400 RAG_CONFIG_INVALID`. External Qdrant RAG continues to work. Install the extension (or use a pgvector-enabled image) and restart to enable PGVECTOR.
 
+#### Behavioural Anomaly Detection (UBA, AF-383)
+
+Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, which builds rolling per-`(user, datasource)` behavioural baselines from `audit_log` metadata and flags out-of-pattern activity. All bind under `accessflow.ai.anomaly.*`.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL` | Optional | `PT15M` | ISO-8601 duration. Cadence at which `BehaviorAnomalyDetectionJob` rebuilds baselines and runs detection. ShedLock makes it safe under horizontal scaling. |
+| `ACCESSFLOW_AI_ANOMALY_LOOKBACK_WINDOW` | Optional | `PT1H` | ISO-8601 duration. The aggregation window the baseline advances over each cycle (one observation per window). |
+| `ACCESSFLOW_AI_ANOMALY_Z_SCORE_THRESHOLD` | Optional | `3.0` | Z-score above which a scalar feature (query count, distinct tables, rows returned, error rate) is flagged. |
+| `ACCESSFLOW_AI_ANOMALY_IQR_MULTIPLIER` | Optional | `1.5` | IQR multiplier for the robust fallback used when the baseline standard deviation is degenerate. |
+| `ACCESSFLOW_AI_ANOMALY_MIN_SAMPLE_SIZE` | Optional | `7` | Cold-start guard: number of baseline windows required before detection activates for a `(user, datasource)`. |
+| `ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES` | Optional | `90` | Cap on the rolling per-feature observation series retained in each baseline. |
+| `ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD` | Optional | `0.02` | Minimum baseline frequency for an active-hour bucket below which a query landing in it is flagged as off-hours. |
+| `ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED` | Optional | `true` | When `true`, the bound `ai_config` analyzer generates a natural-language explanation per anomaly (fully fail-safe — a failed or disabled summary never blocks detection). |
+
 #### Customer-DB Proxy (HikariCP + Execution)
 
 | Variable | Required | Default | Description |

@@ -65,7 +65,8 @@
     "routing_policies": "Routing-Richtlinien",
     "langfuse": "Langfuse",
     "connectors": "Konnektoren",
-    "auditor": "Compliance-Berichte"
+    "auditor": "Compliance-Berichte",
+    "anomalies": "Anomalien"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "Offen",
       "RESOLVED": "Gelöst"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "Offen",
+      "ACKNOWLEDGED": "Bestätigt",
+      "DISMISSED": "Verworfen"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "Zeilen",
     "col_sql": "SQL",
     "col_approvers": "Genehmiger"
+  },
+  "anomalies": {
+    "title": "Anomalien",
+    "subtitle": "Verhaltensanomalien in der Abfrageaktivität der Nutzer — ungewöhnliche Mengen, Zugriffe außerhalb der Geschäftszeiten und andere Abweichungen vom Normalverhalten jedes Nutzers.",
+    "filter_status_all": "Alle Status",
+    "filter_datasource_all": "Alle Datenquellen",
+    "filter_user_placeholder": "Benutzer-ID",
+    "filter_feature_placeholder": "Merkmal",
+    "count_label": "{{count}} Anomalien",
+    "load_error": "Anomalien konnten nicht geladen werden",
+    "empty_title": "Keine Anomalien",
+    "empty_description": "Nichts Ungewöhnliches in diesem Zeitraum. Erweitern Sie den Zeitraum oder entfernen Sie Filter, um mehr zu sehen.",
+    "chart_by_feature_title": "Anomalien nach Merkmal",
+    "axis_feature": "Merkmal",
+    "axis_count": "Anomalien",
+    "col_detected": "Erkannt",
+    "col_user": "Benutzer",
+    "col_datasource": "Datenquelle",
+    "col_feature": "Merkmal",
+    "col_score": "Wert",
+    "col_status": "Status",
+    "col_summary": "Zusammenfassung",
+    "col_actions": "Aktionen",
+    "user_unknown": "Unbekannter Benutzer",
+    "action_acknowledge": "Bestätigen",
+    "action_dismiss": "Verwerfen",
+    "acknowledge_success": "Anomalie bestätigt",
+    "dismiss_success": "Anomalie verworfen",
+    "acknowledge_confirm_title": "Anomalie bestätigen?",
+    "acknowledge_confirm_body": "Die Anomalie „{{feature}}“ als geprüft markieren.",
+    "dismiss_confirm_title": "Anomalie verwerfen?",
+    "dismiss_confirm_body": "Die Anomalie „{{feature}}“ als Fehlalarm verwerfen.",
+    "drawer_title": "Anomalie-Details",
+    "section_signal": "Signal",
+    "section_summary": "KI-Zusammenfassung",
+    "section_detail": "Details",
+    "field_score": "Wert",
+    "field_observed": "Beobachteter Wert",
+    "field_baseline_mean": "Basislinien-Mittelwert",
+    "field_baseline_stddev": "Basislinien-Standardabw.",
+    "field_window": "Zeitfenster",
+    "field_detected": "Erkannt am",
+    "field_acknowledged": "Bestätigt am",
+    "toast_detected": "Neue Anomalie erkannt: {{feature}} (Wert {{score}})",
+    "badge": {
+      "label_one": "{{count}} Anomalie",
+      "label_other": "{{count}} Anomalien",
+      "tooltip_one": "{{count}} offene Anomalie (max. Wert {{score}})",
+      "tooltip_other": "{{count}} offene Anomalien (max. Wert {{score}})"
+    }
   }
 }

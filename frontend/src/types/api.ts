@@ -1689,6 +1689,51 @@ export interface AiAnalysisStatsFilters {
   datasource_id?: string;
 }
 
+// ── Behavioural anomaly detection (AF-383) ───────────────────────────────────
+export type BehaviorAnomalyStatus = 'OPEN' | 'ACKNOWLEDGED' | 'DISMISSED';
+
+export interface BehaviorAnomaly {
+  id: string;
+  user_id: string;
+  user_display_name: string | null;
+  user_email: string | null;
+  datasource_id: string;
+  datasource_name: string | null;
+  feature: string;
+  score: number;
+  observed_value: number;
+  baseline_mean: number;
+  baseline_stddev: number;
+  detail: Record<string, unknown>;
+  ai_summary: string | null;
+  status: BehaviorAnomalyStatus;
+  detected_at: string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  window_start: string;
+  window_end: string;
+}
+
+export type AnomalyPage = PageEnvelope<BehaviorAnomaly>;
+
+export interface AnomalyListFilters {
+  page?: number;
+  size?: number;
+  status?: BehaviorAnomalyStatus;
+  user_id?: string;
+  datasource_id?: string;
+  feature?: string;
+  from?: string;
+  to?: string;
+}
+
+// The badge endpoint returns camelCase keys (openCount / maxScore), unlike the
+// snake_case anomaly resource — matched verbatim to the wire format here.
+export interface AnomalyBadge {
+  openCount: number;
+  maxScore: number;
+}
+
 // ── Datasource health dashboard (AF-365) ─────────────────────────────────────
 export interface DatasourceHealth {
   datasource_id: string;

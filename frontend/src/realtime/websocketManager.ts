@@ -202,6 +202,15 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
         break;
+      case 'anomaly.detected': {
+        const anomalyId = (envelope.data as { anomaly_id?: string }).anomaly_id;
+        this.queryClient.invalidateQueries({ queryKey: ['anomalies', 'list'] });
+        this.queryClient.invalidateQueries({ queryKey: ['anomalies', 'badge'] });
+        if (anomalyId) {
+          this.queryClient.invalidateQueries({ queryKey: ['anomalies', 'detail', anomalyId] });
+        }
+        break;
+      }
       case 'collab.comment':
         if (queryId) {
           this.queryClient.invalidateQueries({

@@ -65,7 +65,8 @@
     "routing_policies": "Политики маршрутизации",
     "langfuse": "Langfuse",
     "connectors": "Коннекторы",
-    "auditor": "Отчёты о соответствии"
+    "auditor": "Отчёты о соответствии",
+    "anomalies": "Аномалии"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "Открыт",
       "RESOLVED": "Решён"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "Открыта",
+      "ACKNOWLEDGED": "Подтверждена",
+      "DISMISSED": "Отклонена"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "Строки",
     "col_sql": "SQL",
     "col_approvers": "Утвердившие"
+  },
+  "anomalies": {
+    "title": "Аномалии",
+    "subtitle": "Поведенческие аномалии, обнаруженные в активности запросов пользователей: необычные объёмы, доступ в нерабочее время и другие отклонения от обычного поведения каждого пользователя.",
+    "filter_status_all": "Все статусы",
+    "filter_datasource_all": "Все источники данных",
+    "filter_user_placeholder": "ID пользователя",
+    "filter_feature_placeholder": "Признак",
+    "count_label": "Аномалий: {{count}}",
+    "load_error": "Не удалось загрузить аномалии",
+    "empty_title": "Аномалий нет",
+    "empty_description": "В этом интервале нет ничего необычного. Расширьте диапазон дат или снимите фильтры, чтобы увидеть больше.",
+    "chart_by_feature_title": "Аномалии по признаку",
+    "axis_feature": "Признак",
+    "axis_count": "Аномалии",
+    "col_detected": "Обнаружена",
+    "col_user": "Пользователь",
+    "col_datasource": "Источник данных",
+    "col_feature": "Признак",
+    "col_score": "Оценка",
+    "col_status": "Статус",
+    "col_summary": "Сводка",
+    "col_actions": "Действия",
+    "user_unknown": "Неизвестный пользователь",
+    "action_acknowledge": "Подтвердить",
+    "action_dismiss": "Отклонить",
+    "acknowledge_success": "Аномалия подтверждена",
+    "dismiss_success": "Аномалия отклонена",
+    "acknowledge_confirm_title": "Подтвердить аномалию?",
+    "acknowledge_confirm_body": "Отметить аномалию «{{feature}}» как проверенную.",
+    "dismiss_confirm_title": "Отклонить аномалию?",
+    "dismiss_confirm_body": "Отклонить аномалию «{{feature}}» как ложное срабатывание.",
+    "drawer_title": "Сведения об аномалии",
+    "section_signal": "Сигнал",
+    "section_summary": "Сводка ИИ",
+    "section_detail": "Детали",
+    "field_score": "Оценка",
+    "field_observed": "Наблюдаемое значение",
+    "field_baseline_mean": "Среднее базовой линии",
+    "field_baseline_stddev": "Станд. откл. базовой линии",
+    "field_window": "Окно",
+    "field_detected": "Обнаружена",
+    "field_acknowledged": "Подтверждена",
+    "toast_detected": "Обнаружена новая аномалия: {{feature}} (оценка {{score}})",
+    "badge": {
+      "label_one": "{{count}} аномалия",
+      "label_other": "{{count}} аномалий",
+      "tooltip_one": "{{count}} открытая аномалия (макс. оценка {{score}})",
+      "tooltip_other": "{{count}} открытых аномалий (макс. оценка {{score}})"
+    }
   }
 }

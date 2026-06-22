@@ -198,6 +198,21 @@ describe('websocketManager', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
   });
 
+  it('default invalidation fires for anomaly.detected', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'anomaly.detected',
+      timestamp: 'now',
+      data: { anomaly_id: 'an-1', user_id: 'u1', datasource_id: 'ds1', feature: 'rows', score: 4.2 },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['anomalies', 'list'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['anomalies', 'badge'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['anomalies', 'detail', 'an-1'] });
+  });
+
   it('default invalidations fire for review.new_request and review.decision_made', () => {
     const { client, spy } = makeQueryClient();
     websocketManager.bindQueryClient(client);

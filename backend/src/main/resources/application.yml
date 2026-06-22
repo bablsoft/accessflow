@@ -130,6 +130,19 @@ accessflow:
     chunk-size: ${ACCESSFLOW_RAG_CHUNK_SIZE:800}
     # Maximum character length of a single knowledge document accepted for ingestion.
     max-document-chars: ${ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS:100000}
+  ai:
+    anomaly:
+      # Behavioural anomaly detection (UBA, AF-383). The job runs every detection-poll-interval over
+      # the most recent completed lookback-window of audit metadata; deviations beyond the z-score /
+      # IQR thresholds (once the baseline has min-sample-size windows) are persisted as anomalies.
+      detection-poll-interval: ${ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL:PT15M}
+      lookback-window: ${ACCESSFLOW_AI_ANOMALY_LOOKBACK_WINDOW:PT1H}
+      z-score-threshold: ${ACCESSFLOW_AI_ANOMALY_Z_SCORE_THRESHOLD:3.0}
+      iqr-multiplier: ${ACCESSFLOW_AI_ANOMALY_IQR_MULTIPLIER:1.5}
+      min-sample-size: ${ACCESSFLOW_AI_ANOMALY_MIN_SAMPLE_SIZE:7}
+      max-baseline-samples: ${ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES:90}
+      off-hours-threshold: ${ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD:0.02}
+      summary-enabled: ${ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED:true}
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
     access-token-expiry: ${ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY:PT15M}

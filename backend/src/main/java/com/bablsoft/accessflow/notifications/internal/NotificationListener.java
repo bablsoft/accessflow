@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
@@ -71,6 +72,15 @@ class NotificationListener {
         }
         safeDispatch(NotificationEventType.AI_HIGH_RISK, event.queryRequestId(),
                 null, null, null);
+    }
+
+    @ApplicationModuleListener
+    void onAnomalyDetected(AnomalyDetectedEvent event) {
+        try {
+            dispatcher.dispatchAnomaly(event.anomalyId(), event.organizationId());
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for anomaly {}", event.anomalyId(), ex);
+        }
     }
 
     private void safeDispatch(NotificationEventType type, UUID queryRequestId,

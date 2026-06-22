@@ -1842,6 +1842,10 @@ Paginated queue of access requests the caller can currently act on, self-request
 | `GET` | `/admin/compliance/reports/regulatory-audit-trail` | DDL/DELETE regulatory audit trail with approvers *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/reports/export` | Signed PDF/CSV compliance export *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/compliance/signing-certificate` | Public key to verify a signed export *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/anomalies` | List behavioural anomalies with filters (UBA, AF-383) *(AUDITOR or ADMIN)* |
+| `GET` | `/admin/anomalies/{id}` | Get a single behavioural anomaly *(AUDITOR or ADMIN)* |
+| `POST` | `/admin/anomalies/{id}/acknowledge` | Acknowledge an open anomaly *(ADMIN only)* |
+| `POST` | `/admin/anomalies/{id}/dismiss` | Dismiss an anomaly as a false positive *(ADMIN only)* |
 | `GET` | `/admin/routing-policies` | List routing policies (priority order) *(ADMIN only)* |
 | `POST` | `/admin/routing-policies` | Create a routing policy *(ADMIN only)* |
 | `GET` | `/admin/routing-policies/{id}` | Get a routing policy *(ADMIN only)* |
@@ -2661,6 +2665,95 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 ```
 
 An auditor verifies a downloaded export offline with the public key: `openssl dgst -sha256 -verify key.pem -signature sig.bin report.pdf`.
+
+### Behavioural Anomaly Detection (UBA) — AF-383
+
+User-behaviour-analytics anomalies flagged by the `ai` module's `BehaviorAnomalyDetectionJob` from
+`audit_log` metadata (never query result data). The list / detail reads allow `hasAnyRole('AUDITOR','ADMIN')`;
+the acknowledge / dismiss mutations are **ADMIN only**. See
+[docs/05-backend.md → "Behavioural anomaly detection (UBA)"](05-backend.md#behavioural-anomaly-detection-uba-af-383).
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/admin/anomalies` | AUDITOR / ADMIN | List anomalies (paged, filterable) |
+| `GET` | `/admin/anomalies/{id}` | AUDITOR / ADMIN | Get one anomaly |
+| `POST` | `/admin/anomalies/{id}/acknowledge` | ADMIN | Mark an OPEN anomaly as ACKNOWLEDGED |
+| `POST` | `/admin/anomalies/{id}/dismiss` | ADMIN | Mark an anomaly DISMISSED (false positive) |
+| `GET` | `/anomalies/badge` | Any authenticated user | The caller's own open-anomaly badge for a datasource |
+
+#### GET /admin/anomalies — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 100) |
+| `status` | enum | Filter by `OPEN` / `ACKNOWLEDGED` / `DISMISSED` |
+| `userId` | uuid | Filter by the flagged principal |
+| `datasourceId` | uuid | Filter by the targeted datasource |
+| `feature` | string | Filter by tracked feature (`query_count`, `active_hour`, `distinct_tables`, `query_types`, `new_tables`, `rows_returned`, `error_rate`) |
+| `from` | ISO-8601 | Inclusive lower bound on `detected_at` |
+| `to` | ISO-8601 | Exclusive upper bound on `detected_at` |
+
+**Response 200:** A paged envelope (`content`, `page`, `size`, `total_elements`, `total_pages`). Each element:
+
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "user_display_name": "Alice Analyst",
+  "user_email": "alice@example.com",
+  "datasource_id": "uuid",
+  "datasource_name": "Production PostgreSQL",
+  "feature": "query_count",
+  "score": 4.7,
+  "observed_value": 312.0,
+  "baseline_mean": 48.0,
+  "baseline_stddev": 11.2,
+  "detail": { "window_count": 312, "baseline_samples": 30 },
+  "ai_summary": "Alice ran 312 queries against Production PostgreSQL in the last hour, ~6.5× her typical hourly volume.",
+  "status": "OPEN",
+  "detected_at": "2026-06-20T03:14:00Z",
+  "acknowledged_by": null,
+  "acknowledged_at": null,
+  "window_start": "2026-06-20T02:00:00Z",
+  "window_end": "2026-06-20T03:00:00Z"
+}
+```
+
+`ai_summary` is `null` when AI summaries are disabled (`accessflow.ai.anomaly.summary-enabled=false`) or the
+summary call failed (the detector is fully fail-safe — a missing summary never blocks a detection).
+
+#### GET /admin/anomalies/{id} — Response 200
+
+Single anomaly object (same shape as a `content[]` element above). **Response 404:** `ANOMALY_NOT_FOUND`
+when the anomaly is absent or belongs to a different organization.
+
+#### POST /admin/anomalies/{id}/acknowledge — *(ADMIN only)*
+
+Transitions an `OPEN` anomaly to `ACKNOWLEDGED`, stamping `acknowledged_by` / `acknowledged_at`. An
+acknowledged anomaly no longer raises the `anomalyActive` routing signal or the badge count.
+
+**Response 200:** the updated anomaly object.
+**Response 404:** `ANOMALY_NOT_FOUND`.
+**Response 409:** `ANOMALY_INVALID_STATE` — the anomaly is already `ACKNOWLEDGED` or `DISMISSED`.
+
+#### POST /admin/anomalies/{id}/dismiss — *(ADMIN only)*
+
+Transitions an anomaly to `DISMISSED` (false positive). Same response codes as `acknowledge`
+(`200` / `404 ANOMALY_NOT_FOUND` / `409 ANOMALY_INVALID_STATE`).
+
+#### GET /anomalies/badge — Response 200
+
+Any authenticated user. Returns the caller's **own** open-anomaly summary for the supplied datasource —
+powers the in-editor `AnomalyBadge`. No admin role required (a user only ever sees their own counts).
+
+**Query parameters:** `datasourceId` (required, uuid).
+
+```json
+{ "openCount": 2, "maxScore": 4.7 }
+```
+
+`openCount` is `0` and `maxScore` `null` when the caller has no open anomaly on that datasource.
 
 ### AI Configurations (`/admin/ai-configs`) *(ADMIN only)*
 
@@ -3941,6 +4034,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `collab.awareness` | Relayed, opaque Yjs awareness update (base64) — remote cursors/selections | `query_id`, `from_user_id`, `update` |
 | `collab.denied` | A `collab.join` was rejected (not an authorized co-author, or the query is not in a co-authorable state) | `query_id`, `reason` |
 | `collab.comment` | An inline comment thread on a query changed (created/replied/resolved/reopened) — clients refetch | `query_id`, `comment_id`, `change_type`, `actor_id` |
+| `anomaly.detected` | A behavioural anomaly was flagged (UBA, AF-383) — pushed to org admins and the subject user | `anomaly_id`, `user_id`, `datasource_id`, `feature`, `score` |
 
 ### Collaboration protocol (bidirectional — AF-441)
 
@@ -4020,3 +4114,5 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |
 | `INVALID_REPORT_PERIOD` | 400 | `InvalidReportPeriodException` | Compliance-report period is missing, inverted (`from` after `to`), or exceeds `accessflow.compliance.max-report-period`. |
+| `ANOMALY_NOT_FOUND` | 404 | `AnomalyNotFoundException` | Unknown behavioural-anomaly id, or the anomaly is in another organization (UBA, AF-383). |
+| `ANOMALY_INVALID_STATE` | 409 | `AnomalyInvalidStateException` | Tried to acknowledge / dismiss an anomaly that is not in the required state (already acknowledged or dismissed). |

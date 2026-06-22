@@ -11,5 +11,6 @@ public enum NotificationEventType {
     ACCESS_REQUEST_REJECTED,
     ACCESS_GRANT_EXPIRED,
     ACCESS_GRANT_REVOKED,
+    ANOMALY_DETECTED,
     TEST
 }

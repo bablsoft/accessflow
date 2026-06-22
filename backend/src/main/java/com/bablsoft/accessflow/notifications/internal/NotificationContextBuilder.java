@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
+import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -39,6 +41,7 @@ class NotificationContextBuilder {
     private final DatasourceAdminService datasourceAdminService;
     private final UserQueryService userQueryService;
     private final LocalizationConfigService localizationConfigService;
+    private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -110,9 +113,64 @@ class NotificationContextBuilder {
                     .toList();
             case TEST -> submitter != null ? List.of(toRecipient(submitter)) : List.of();
             // Access (JIT) events are not query-backed; they are handled by AccessNotificationListener.
+            // Anomaly events are not query-backed either; they are built via buildAnomaly(...).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> List.of();
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED -> List.of();
         };
+    }
+
+    /**
+     * Builds the context for a behavioural anomaly (UBA, AF-383). Not query-backed: every
+     * query/access field is null and the anomaly fields carry the signal. Recipients are the
+     * organization's active ADMINs (mirroring {@code AI_HIGH_RISK}).
+     */
+    Optional<NotificationContext> buildAnomaly(UUID anomalyId, UUID organizationId) {
+        var view = behaviorAnomalyLookupService.findById(organizationId, anomalyId).orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var recipients = userQueryService
+                .findByOrganizationAndRole(organizationId, UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
+        var locale = localizationConfigService.getOrDefault(organizationId).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.ANOMALY_DETECTED,
+                organizationId,
+                null, null, null, null, null, null, null,
+                view.aiSummary(),
+                view.datasourceId(),
+                view.datasourceName(),
+                view.userId(),
+                view.userEmail(),
+                view.userDisplayName(),
+                null, null, null, null,
+                buildAnomalyUrl(),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                anomalyId,
+                view.feature(),
+                view.score(),
+                view.observedValue(),
+                view.baselineMean(),
+                anomalyUserLabel(view)));
+    }
+
+    private static String anomalyUserLabel(BehaviorAnomalyView view) {
+        if (view.userDisplayName() != null && !view.userDisplayName().isBlank()) {
+            return view.userDisplayName();
+        }
+        return view.userEmail() != null ? view.userEmail() : view.userId().toString();
+    }
+
+    private URI buildAnomalyUrl() {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/admin/anomalies");
     }
 
     private List<RecipientView> reviewTimeoutRecipients(QueryRequestSnapshot snapshot,

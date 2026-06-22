@@ -193,6 +193,15 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var successMetadata = new HashMap<String, Object>();
             successMetadata.put("rows_affected", rowsAffected);
             successMetadata.put("duration_ms", durationMs);
+            // AF-383 (UBA): enrich so behavioural baselines derive from audit_log alone (never query
+            // result data). datasource_id groups a user's activity per datasource; query_type /
+            // referenced_tables / rows_returned feed the tracked features.
+            successMetadata.put("datasource_id", query.datasourceId().toString());
+            successMetadata.put("query_type", query.queryType().name());
+            successMetadata.put("referenced_tables",
+                    parsed.referencedTables().stream().sorted().toList());
+            successMetadata.put("distinct_table_count", parsed.referencedTables().size());
+            successMetadata.put("rows_returned", rowsAffected);
             if (trigger != null) {
                 successMetadata.put("trigger", trigger);
             }
@@ -237,6 +246,10 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                 startedAt, completedAt, null, null));
         var failureMetadata = new HashMap<String, Object>();
         failureMetadata.put("error", failureMessage);
+        // AF-383 (UBA): datasource_id + query_type let the error-rate feature be computed per
+        // (user, datasource) from audit_log alone.
+        failureMetadata.put("datasource_id", query.datasourceId().toString());
+        failureMetadata.put("query_type", query.queryType().name());
         if (ex instanceof QueryExecutionFailedException qef && qef.sqlState() != null) {
             failureMetadata.put("sql_state", qef.sqlState());
             failureMetadata.put("vendor_code", qef.vendorCode());

@@ -24,6 +24,11 @@ import java.util.UUID;
  * {@code false}, and {@code minutesSinceLastApproval} is {@code null} when the requester has no
  * prior approval on the datasource. The matching client-context conditions fail closed on those
  * absent signals.
+ *
+ * <p>{@code anomalyActive} is {@code true} when the requester has at least one OPEN behavioural
+ * anomaly (UBA, AF-383) on this datasource at submission time. Because anomaly detection is a
+ * periodic batch over past audit data, it cannot mutate an already-executed query — instead it
+ * raises this signal so a routing policy can ESCALATE the requester's <em>next</em> query.
  */
 public record ConditionContext(
         QueryType queryType,
@@ -39,7 +44,8 @@ public record ConditionContext(
         String requesterIpAddress,
         String requesterUserAgent,
         boolean ciCdOrigin,
-        Integer minutesSinceLastApproval) {
+        Integer minutesSinceLastApproval,
+        boolean anomalyActive) {
 
     public ConditionContext {
         referencedTables = Set.copyOf(referencedTables == null ? Set.of() : referencedTables);

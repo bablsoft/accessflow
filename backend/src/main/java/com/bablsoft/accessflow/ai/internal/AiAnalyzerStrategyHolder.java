@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -58,6 +59,14 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private final Clock clock;
 
     private final ConcurrentHashMap<UUID, AiAnalyzerStrategy> cache = new ConcurrentHashMap<>();
+    // Separate cache of bare ChatModels keyed by ai_config id, for the freeform anomaly-summary path
+    // (which bypasses the JSON-schema-bound analyze() delegates). Evicted alongside the delegate cache.
+    private final ConcurrentHashMap<UUID, ChatModel> chatModelCache = new ConcurrentHashMap<>();
+
+    private static final String ANOMALY_SUMMARY_PREAMBLE = """
+            You are a database security analyst. In 2-3 plain sentences, explain why the described \
+            database-access pattern looks anomalous relative to the user's historical baseline, and \
+            what a reviewer should check. Do not use markdown, headings, or bullet points.""";
 
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
@@ -91,8 +100,62 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         return delegate.generateSql(prompt, dbType, schemaContext, language, aiConfigId);
     }
 
+    /**
+     * Make a single freeform natural-language call against the organization's first usable
+     * {@code ai_config}, reusing the per-config provider resolution. Used by the UBA anomaly
+     * summarizer (AF-383). Fail-safe by contract: returns {@link Optional#empty()} when no usable
+     * config exists or any provider/parse error occurs — it never throws and never blocks detection.
+     */
+    Optional<String> summarizeFreeform(UUID organizationId, String userPrompt) {
+        if (organizationId == null || userPrompt == null || userPrompt.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            var entity = resolveUsableConfig(organizationId).orElse(null);
+            if (entity == null) {
+                log.debug("No usable ai_config for org {}; skipping anomaly summary", organizationId);
+                return Optional.empty();
+            }
+            var chatModel = chatModelCache.computeIfAbsent(entity.getId(), key -> buildChatModel(entity));
+            var invocation = ChatModelInvoker.invoke(chatModel, ANOMALY_SUMMARY_PREAMBLE, userPrompt,
+                    entity.getProvider().name());
+            var text = invocation.text();
+            return text == null || text.isBlank() ? Optional.empty() : Optional.of(text.strip());
+        } catch (RuntimeException ex) {
+            log.warn("Anomaly AI summary failed for org {}: {}", organizationId, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private Optional<AiConfigEntity> resolveUsableConfig(UUID organizationId) {
+        return aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(organizationId).stream()
+                .filter(AiAnalyzerStrategyHolder::isUsable)
+                .findFirst();
+    }
+
+    private static boolean isUsable(AiConfigEntity entity) {
+        var provider = entity.getProvider();
+        if (provider == AiProviderType.OLLAMA
+                || provider == AiProviderType.OPENAI_COMPATIBLE
+                || provider == AiProviderType.HUGGING_FACE) {
+            return true;
+        }
+        return entity.getApiKeyEncrypted() != null && !entity.getApiKeyEncrypted().isBlank();
+    }
+
+    private ChatModel buildChatModel(AiConfigEntity entity) {
+        return switch (entity.getProvider()) {
+            case ANTHROPIC -> buildAnthropicChatModel(entity);
+            case OPENAI -> buildOpenAiChatModel(entity);
+            case OPENAI_COMPATIBLE -> buildOpenAiCompatibleChatModel(entity);
+            case HUGGING_FACE -> buildHuggingFaceChatModel(entity);
+            case OLLAMA -> buildOllamaChatModel(entity);
+        };
+    }
+
     @ApplicationModuleListener
     void onConfigUpdated(AiConfigUpdatedEvent event) {
+        chatModelCache.remove(event.aiConfigId());
         var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
             log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={}, rag_changed={})",
@@ -104,6 +167,7 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     @ApplicationModuleListener
     void onConfigDeleted(AiConfigDeletedEvent event) {
+        chatModelCache.remove(event.aiConfigId());
         var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
             log.info("Evicted AI analyzer delegate for deleted ai_config={}", event.aiConfigId());

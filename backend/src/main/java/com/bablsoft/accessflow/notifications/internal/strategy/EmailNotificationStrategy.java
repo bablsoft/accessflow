@@ -147,6 +147,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("approvalTimeoutHours", ctx.approvalTimeoutHours());
         context.setVariable("reviewUrl",
                 ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
+        context.setVariable("anomalyFeature", ctx.anomalyFeature());
+        context.setVariable("anomalyScore", ctx.anomalyScore());
+        context.setVariable("anomalyObservedValue", ctx.anomalyObservedValue());
+        context.setVariable("anomalyBaselineMean", ctx.anomalyBaselineMean());
+        context.setVariable("anomalyUserLabel", ctx.anomalyUserLabel());
         return templateEngine.process(template, context);
     }
 
@@ -157,6 +162,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_REJECTED -> "email/query-rejected";
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
+            case ANOMALY_DETECTED -> "email/anomaly-detected";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
@@ -179,6 +185,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_REJECTED -> "notification.email.subject.query_rejected";
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
+            case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";

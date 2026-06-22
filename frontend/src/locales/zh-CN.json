@@ -65,7 +65,8 @@
     "routing_policies": "路由策略",
     "langfuse": "Langfuse",
     "connectors": "连接器",
-    "auditor": "合规报告"
+    "auditor": "合规报告",
+    "anomalies": "异常"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "未解决",
       "RESOLVED": "已解决"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "待处理",
+      "ACKNOWLEDGED": "已确认",
+      "DISMISSED": "已忽略"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "行数",
     "col_sql": "SQL",
     "col_approvers": "批准人"
+  },
+  "anomalies": {
+    "title": "异常",
+    "subtitle": "在用户查询活动中检测到的行为异常——异常的查询量、非工作时间访问以及与每位用户基线行为的其他偏差。",
+    "filter_status_all": "全部状态",
+    "filter_datasource_all": "全部数据源",
+    "filter_user_placeholder": "用户 ID",
+    "filter_feature_placeholder": "特征",
+    "count_label": "{{count}} 条异常",
+    "load_error": "无法加载异常",
+    "empty_title": "没有异常",
+    "empty_description": "此时间范围内没有异常。请扩大日期范围或清除筛选条件以查看更多内容。",
+    "chart_by_feature_title": "按特征划分的异常",
+    "axis_feature": "特征",
+    "axis_count": "异常",
+    "col_detected": "检测时间",
+    "col_user": "用户",
+    "col_datasource": "数据源",
+    "col_feature": "特征",
+    "col_score": "评分",
+    "col_status": "状态",
+    "col_summary": "摘要",
+    "col_actions": "操作",
+    "user_unknown": "未知用户",
+    "action_acknowledge": "确认",
+    "action_dismiss": "忽略",
+    "acknowledge_success": "异常已确认",
+    "dismiss_success": "异常已忽略",
+    "acknowledge_confirm_title": "确认异常？",
+    "acknowledge_confirm_body": "将“{{feature}}”异常标记为已审查。",
+    "dismiss_confirm_title": "忽略异常？",
+    "dismiss_confirm_body": "将“{{feature}}”异常忽略为误报。",
+    "drawer_title": "异常详情",
+    "section_signal": "信号",
+    "section_summary": "AI 摘要",
+    "section_detail": "详情",
+    "field_score": "评分",
+    "field_observed": "观测值",
+    "field_baseline_mean": "基线均值",
+    "field_baseline_stddev": "基线标准差",
+    "field_window": "时间窗口",
+    "field_detected": "检测于",
+    "field_acknowledged": "确认于",
+    "toast_detected": "检测到新异常：{{feature}}（评分 {{score}}）",
+    "badge": {
+      "label_one": "{{count}} 条异常",
+      "label_other": "{{count}} 条异常",
+      "tooltip_one": "{{count}} 条待处理异常（最高评分 {{score}}）",
+      "tooltip_other": "{{count}} 条待处理异常（最高评分 {{score}}）"
+    }
   }
 }

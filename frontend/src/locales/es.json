@@ -65,7 +65,8 @@
     "routing_policies": "Políticas de enrutamiento",
     "langfuse": "Langfuse",
     "connectors": "Conectores",
-    "auditor": "Informes de cumplimiento"
+    "auditor": "Informes de cumplimiento",
+    "anomalies": "Anomalías"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -2155,6 +2156,11 @@
     "comment_status": {
       "OPEN": "Abierto",
       "RESOLVED": "Resuelto"
+    },
+    "behavior_anomaly_status": {
+      "OPEN": "Abierta",
+      "ACKNOWLEDGED": "Confirmada",
+      "DISMISSED": "Descartada"
     }
   },
   "access": {
@@ -2285,5 +2291,55 @@
     "col_rows_affected": "Filas",
     "col_sql": "SQL",
     "col_approvers": "Aprobadores"
+  },
+  "anomalies": {
+    "title": "Anomalías",
+    "subtitle": "Anomalías de comportamiento detectadas en la actividad de consultas de los usuarios: volúmenes inusuales, accesos fuera de horario y otras desviaciones del comportamiento habitual de cada usuario.",
+    "filter_status_all": "Todos los estados",
+    "filter_datasource_all": "Todas las fuentes de datos",
+    "filter_user_placeholder": "ID de usuario",
+    "filter_feature_placeholder": "Característica",
+    "count_label": "{{count}} anomalías",
+    "load_error": "No se pudieron cargar las anomalías",
+    "empty_title": "Sin anomalías",
+    "empty_description": "Nada inusual en este intervalo. Amplía el rango de fechas o quita filtros para ver más.",
+    "chart_by_feature_title": "Anomalías por característica",
+    "axis_feature": "Característica",
+    "axis_count": "Anomalías",
+    "col_detected": "Detectada",
+    "col_user": "Usuario",
+    "col_datasource": "Fuente de datos",
+    "col_feature": "Característica",
+    "col_score": "Puntuación",
+    "col_status": "Estado",
+    "col_summary": "Resumen",
+    "col_actions": "Acciones",
+    "user_unknown": "Usuario desconocido",
+    "action_acknowledge": "Confirmar",
+    "action_dismiss": "Descartar",
+    "acknowledge_success": "Anomalía confirmada",
+    "dismiss_success": "Anomalía descartada",
+    "acknowledge_confirm_title": "¿Confirmar anomalía?",
+    "acknowledge_confirm_body": "Marcar la anomalía «{{feature}}» como revisada.",
+    "dismiss_confirm_title": "¿Descartar anomalía?",
+    "dismiss_confirm_body": "Descartar la anomalía «{{feature}}» como falso positivo.",
+    "drawer_title": "Detalle de la anomalía",
+    "section_signal": "Señal",
+    "section_summary": "Resumen de IA",
+    "section_detail": "Detalle",
+    "field_score": "Puntuación",
+    "field_observed": "Valor observado",
+    "field_baseline_mean": "Media de referencia",
+    "field_baseline_stddev": "Desv. típica de referencia",
+    "field_window": "Ventana",
+    "field_detected": "Detectada el",
+    "field_acknowledged": "Confirmada el",
+    "toast_detected": "Nueva anomalía detectada: {{feature}} (puntuación {{score}})",
+    "badge": {
+      "label_one": "{{count}} anomalía",
+      "label_other": "{{count}} anomalías",
+      "tooltip_one": "{{count}} anomalía abierta (puntuación máx. {{score}})",
+      "tooltip_other": "{{count}} anomalías abiertas (puntuación máx. {{score}})"
+    }
   }
 }

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -45,6 +46,7 @@ class NotificationContextBuilderTest {
     private DatasourceAdminService datasourceAdmin;
     private UserQueryService userQuery;
     private LocalizationConfigService localizationConfig;
+    private BehaviorAnomalyLookupService behaviorAnomalyLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -60,13 +62,14 @@ class NotificationContextBuilderTest {
         datasourceAdmin = mock(DatasourceAdminService.class);
         userQuery = mock(UserQueryService.class);
         localizationConfig = mock(LocalizationConfigService.class);
+        behaviorAnomalyLookup = mock(BehaviorAnomalyLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
                 null,
                 null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -309,7 +312,7 @@ class NotificationContextBuilderTest {
                 null,
                 null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, localizationConfig, props);
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())

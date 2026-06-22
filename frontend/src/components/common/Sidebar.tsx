@@ -27,6 +27,7 @@ import {
   AppstoreOutlined,
   BankOutlined,
   AuditOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -115,6 +116,7 @@ export function Sidebar({
         { id: 'ai-analyses', to: '/admin/ai-analyses', label: t('nav.ai_analyses'), icon: <BarChartOutlined />, roles: ['ADMIN'] },
         { id: 'langfuse', to: '/admin/langfuse', label: t('nav.langfuse'), icon: <LineChartOutlined />, roles: ['ADMIN'] },
         { id: 'datasource-health', to: '/admin/datasource-health', label: t('nav.datasource_health'), icon: <DashboardOutlined />, roles: ['ADMIN'] },
+        { id: 'anomalies', to: '/admin/anomalies', label: t('nav.anomalies'), icon: <WarningOutlined />, roles: ['ADMIN'] },
         { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
         { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
       ],
