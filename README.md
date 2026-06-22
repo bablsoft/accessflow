@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Open-source database access governance platform</strong><br>
-  A SQL proxy that puts review, approval, and audit between your team and production data.
+  A SQL and NoSQL proxy that puts review, approval, and audit between your team and production data.
 </p>
 
 <p align="center">

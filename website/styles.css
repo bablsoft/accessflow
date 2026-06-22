@@ -1066,7 +1066,7 @@ section + section { border-top: 1px solid var(--line); }
 
 .roadmap-track {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -1120,7 +1120,6 @@ section + section { border-top: 1px solid var(--line); }
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: auto;
 }
 .milestone li {
   font-size: 12px;
@@ -1132,6 +1131,20 @@ section + section { border-top: 1px solid var(--line); }
   content: '—';
   color: var(--fg-faint);
   flex-shrink: 0;
+}
+
+.rm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rm-cat {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
 }
 
 /* docs */
@@ -1296,7 +1309,7 @@ footer {
   .flow-steps { position: static; }
   .install-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: repeat(2, 1fr); }
-  .roadmap-track { grid-template-columns: repeat(2, 1fr); }
+  .roadmap-track { grid-template-columns: 1fr; }
   .footer-grid { grid-template-columns: 2fr 1fr 1fr; gap: 32px; }
   .arch-services { grid-template-columns: repeat(2, 1fr); }
   .arch-callouts { grid-template-columns: 1fr; }

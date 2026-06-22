@@ -4,12 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AccessFlow — Open-source database access governance</title>
-  <meta name="description" content="AccessFlow is an open-source SQL proxy for PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
+  <meta name="description" content="AccessFlow is an open-source query proxy for SQL and NoSQL databases — PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
 
   <link rel="canonical" href="https://accessflow.bablsoft.com/" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="bablsoft" />
-  <meta name="keywords" content="database access governance, SQL proxy, query approval workflow, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, AI SQL review, Apache 2.0" />
+  <meta name="keywords" content="database access governance, SQL and NoSQL proxy, query approval workflow, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, DynamoDB, AI query review, Apache 2.0" />
   <meta name="theme-color" content="#0A0D11" />
   <meta name="color-scheme" content="dark light" />
 
@@ -29,19 +29,19 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="AccessFlow — Open-source database access governance" />
-  <meta property="og:description" content="Open-source SQL proxy for Postgres, MySQL, MariaDB, Oracle, and SQL Server. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta property="og:description" content="Open-source query proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta property="og:url" content="https://accessflow.bablsoft.com/" />
   <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL proxy with AI review and approval workflows." />
+  <meta property="og:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL &amp; NoSQL proxy with AI review and approval workflows." />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="AccessFlow — Open-source database access governance" />
-  <meta name="twitter:description" content="Open-source SQL proxy for Postgres, MySQL, MariaDB, Oracle, and SQL Server. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta name="twitter:description" content="Open-source query proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
-  <meta name="twitter:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL proxy with AI review and approval workflows." />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL &amp; NoSQL proxy with AI review and approval workflows." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -61,7 +61,7 @@
         "@id": "https://accessflow.bablsoft.com/#software",
         "name": "AccessFlow",
         "url": "https://accessflow.bablsoft.com/",
-        "description": "Open-source SQL proxy for PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log.",
+        "description": "Open-source query proxy for SQL and NoSQL databases — PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, and Neo4j. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Database access governance",
         "operatingSystem": "Linux, macOS, Windows (Docker)",
@@ -184,10 +184,10 @@
             built for <span class="underline">engineers</span>.
           </h1>
           <p class="hero-sub">
-            AccessFlow is an open-source SQL proxy that sits between your team and your databases.
-            Every query is checked, sorted by type, optionally AI-reviewed, and routed through a configurable
-            human-approval workflow before it touches production — with a tamper-evident metadata audit
-            trail of every decision.
+            AccessFlow is an open-source query proxy for SQL and NoSQL databases that sits between your
+            team and your data. Every query is checked, sorted by type, optionally AI-reviewed, and routed
+            through a configurable human-approval workflow before it touches production — with a
+            tamper-evident metadata audit trail of every decision.
           </p>
           <div class="hero-cta">
             <a href="#install" class="btn btn-primary">
@@ -324,7 +324,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
             </div>
             <h3>Full query proxy — SQL and NoSQL</h3>
-            <p>Every query is inspected before it ever reaches the database. Each statement is parsed, classified as SELECT / DML / DDL, and validated against schema and table allow-lists at the query-structure level, then routed through your review policy before it touches the database. <strong>MongoDB</strong> gets the same treatment through a native engine — shell (<span class="mono">db.coll.find({…})</span>) or JSON-command queries are parsed, classified, and governed identically, with row-level security applied as <span class="mono">$match</span> stages and field masking on returned documents; results render as both a JSON document view and a flattened table. <strong>Couchbase</strong> joins the NoSQL line-up with SQL++ (N1QL): statements are classified like SQL, dangerous constructs (<span class="mono">CURL()</span>, JavaScript UDFs, <span class="mono">system:*</span> keyspaces) are rejected up front, and row-level security is ANDed into the WHERE clause with parameter binding — never string concatenation. <strong>Redis</strong> brings governed key-value access: redis-cli commands (<span class="mono">GET</span>, <span class="mono">HGETALL</span>, <span class="mono">SCAN</span>, <span class="mono">SET</span>, <span class="mono">DEL</span>) are classified onto the same workflow, server-side scripting and blast-radius commands (<span class="mono">EVAL</span>, <span class="mono">CONFIG</span>, <span class="mono">FLUSHALL</span>) are rejected up front, field masking applies to returned values, and row-security policies fail closed. <strong>Cassandra</strong> and the CQL-compatible <strong>ScyllaDB</strong> add wide-column governance through a single native engine: CQL statements are classified like SQL (SELECT / INSERT / UPDATE / DELETE, plus <span class="mono">CREATE</span>/<span class="mono">ALTER</span>/<span class="mono">DROP</span> and <span class="mono">TRUNCATE</span>), server-side code (<span class="mono">BEGIN … BATCH</span>, <span class="mono">CREATE FUNCTION</span>/<span class="mono">AGGREGATE</span>) is rejected up front, and row-level security is key-aware and fails closed — predicates splice into the WHERE clause only on partition/clustering key columns with CQL-filterable operators, never injecting <span class="mono">ALLOW FILTERING</span>. <strong>Elasticsearch</strong> and the wire-compatible <strong>OpenSearch</strong> bring governed search access through a single native engine: a JSON query envelope (<span class="mono">{"search":"logs-*","query":{…}}</span>, plus count, get, index/bulk, update/delete-by-query, and index management) is classified onto the same workflow, server-side scripting (<span class="mono">script</span>, <span class="mono">runtime_mappings</span>, Painless) and cluster APIs are rejected up front, row-level security injects <span class="mono">bool.filter</span> clauses on keyword fields (fail-closed on writes into a policied index), and field masking applies recursively to <span class="mono">_source</span> fields including nested dot-paths. <strong>Amazon DynamoDB</strong> brings governed key-value access through PartiQL: SELECT / INSERT / UPDATE / DELETE statements (and JSON table-management commands) are classified onto the same workflow, transaction/batch statements are rejected, row-level security splices predicates into the WHERE clause with parameter binding on any attribute, and field masking applies recursively by dot-path — and its connection is cloud credentials + region rather than host/port, the first engine to exercise that. <strong>Neo4j</strong> brings governed graph access through <strong>Cypher</strong> over Bolt: clause-based statements classify onto the same workflow by their strongest write clause (DELETE / CREATE-MERGE / SET / read), <span class="mono">LOAD CSV</span> and procedure calls outside a read-only allow-list are rejected up front, row-level security ANDs property predicates onto each <span class="mono">MATCH</span>'s <span class="mono">WHERE</span> with parameter binding (node-label policies, fail-closed on anonymous or write shapes), and field masking is label-aware and recursive — connecting via host/port or a full <span class="mono">bolt://</span> / <span class="mono">neo4j+s://</span> URI (Neo4j Aura / clustered routing). Optional <strong>read-replica routing</strong> ships SELECT traffic to a sibling pool while writes always hit the primary — with automatic primary fall-back and an audit row on replica failure. <strong>Dynamic data masking</strong> renders sensitive columns per requester — full, partial, hash, email, or format-preserving — with role / group / user reveal conditions, applied before results are ever serialized or stored. <strong>Row-level security</strong> injects per-table predicates into the parsed query so a scoped user only sees or affects the rows they are authorised for — values bound as parameters, never concatenated; un-rewritable queries rejected rather than run unfiltered. <strong>Data classification tagging</strong> lets admins mark tables and columns as PII, PCI, PHI, GDPR, FINANCIAL, or SENSITIVE right in the schema explorer — tagging a column auto-applies a masking policy, the AI analyzer raises a query's risk score when it touches a tagged object, and tags are audited and queryable org-wide as the evidence base for compliance reporting. A <strong>dry-run sandbox</strong> lets an engineer preview a query's execution plan (node type, estimated rows, cost, filters) and estimated row impact <em>before</em> submitting it for review — non-committing and dialect-aware across every engine with a plan concept (relational <span class="mono">EXPLAIN</span>, MongoDB <span class="mono">explain</span>, Couchbase / Neo4j <span class="mono">EXPLAIN</span>, Elasticsearch / OpenSearch query validation), running through the same governance (access, allow-list, row-level security) but never executing or mutating data; engines without one degrade gracefully. Every executed query also writes an <strong>immutable, sanitized snapshot</strong> (exact SQL, schema fingerprint, AI verdict, approval decisions), and a <strong>Replay in test environment</strong> action re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never skipping approval, and distinctly audited.</p>
+            <p>Every query is inspected before it ever reaches the database — parsed, sorted by type (read, write, or schema change), checked against the tables a user is allowed to touch, and routed through your review policy. The same governance covers <strong>NoSQL</strong> too: MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, and Neo4j all flow through identical checks, with dangerous or server-side commands blocked up front. Layer on <strong>row-level security</strong> so users only see the rows they're cleared for, <strong>dynamic masking</strong> that hides sensitive columns per person, and <strong>data-classification tags</strong> (PII, PCI, PHI, GDPR) that auto-apply masking and raise a query's risk score. A <strong>dry-run preview</strong> shows a query's impact before review without changing any data, and every executed query is saved as an exact snapshot you can <strong>replay in a test environment</strong>.</p>
             <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · connector catalog · custom drivers · read-replica routing · dynamic masking · row-level security · data classification</span>
           </div>
 
@@ -336,7 +336,7 @@
               </svg>
             </div>
             <h3>AI query analysis</h3>
-            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. The analyzer is pluggable per organization — Anthropic, OpenAI, Ollama, any OpenAI-compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …), or Hugging Face (hosted Inference Providers router or a local / self-hosted TGI server). Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human ever sees it. Beyond flagging problems it proposes concrete fixes — <strong>dialect-aware index recommendations and query rewrites</strong>, each with a one-click <strong>“Apply as draft”</strong> that pre-fills the editor and routes the suggestion through the normal review pipeline (nothing auto-executes). Tailor the analyzer's behaviour with an <strong>editable system prompt per configuration</strong> — override the built-in template or leave it blank to use the default. Opt in per datasource to <strong>text-to-query</strong> — users describe what they want in plain language and the AI drafts a schema-grounded query into the editor, in the engine's native query language (SQL, plus MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL for the NoSQL engines; restricted fields are never referenced); the draft still flows through risk analysis and human review. Attach a per-configuration <strong>RAG knowledge base</strong> — knowledge documents are embedded and the most relevant chunks are retrieved into the prompt so analysis reflects your house rules (pluggable vector store: in-app pgvector or external Qdrant). Optional <strong>Langfuse integration</strong> adds LLM tracing of every analysis and runtime prompt management. An admin <span class="mono">/admin/ai-analyses</span> dashboard charts average risk over time, top issue categories, and most active submitters. Beyond per-query analysis, <strong>behavioral anomaly detection (UBA)</strong> learns each user's normal pattern from the audit log alone — query volume, active hours, the tables and query types they touch, rows returned, error rate — and flags out-of-pattern activity with z-score detection (robust IQR fallback) plus an optional AI explanation. A flagged user's <em>next</em> query is automatically escalated to stricter review, admins are paged, and every anomaly lands on an <span class="mono">/admin/anomalies</span> dashboard to acknowledge or dismiss.</p>
+            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time.</p>
             <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · History dashboard</span>
           </div>
 
@@ -345,7 +345,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
             <h3>Configurable review workflows</h3>
-            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, approval timeouts that auto-reject, and submitter cancellation. Bulk approve, reject, or request changes on whole batches from <span class="mono">/reviews</span> so high-volume queues clear in one action. Scope reviewers to specific datasources by user or by <strong>group</strong> so each team only sees its own queue. Layer on <strong>policy-as-code routing</strong> — ordered rules that, right after AI analysis, auto-approve, auto-reject, require N approvals, or escalate a query based on its type, referenced tables, AI risk, requester role or group, time-of-day, and the submission <strong>client context</strong> (source IP / CIDR, user-agent, time-since-last-approval, and CI/CD origin via API key or the <span class="mono">X-AccessFlow-CI</span> header); client-context rules fail closed, so an off-network or long-idle request escalates to stricter review instead of slipping through. First match by priority wins, anything unmatched falls through to the review plan. Users can also raise a <strong>just-in-time access request</strong> — temporary, scoped read/write/DDL access for a set duration that runs through the same approval engine, is granted as a time-boxed permission, and is auto-revoked on expiry. For true emergencies there's <strong>break-glass / emergency access</strong> — a gated, time-boxed permission that lets a query execute immediately, bypassing review but still through every proxy guard (allow-list, masking, row-level security, row caps), while forcing a justification, paging all admins (incl. PagerDuty), writing a prominently-tagged audit row, and opening a mandatory retro-review an admin (never the submitter) must acknowledge. Reviewers are paged via Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or HMAC-signed webhooks — and with a Slack app connected they can <strong>approve or reject directly from the Slack message</strong>, with the same self-approval and role checks as the UI. AccessFlow also installs as a <strong>mobile PWA</strong> with an offline review queue and <strong>Web Push</strong>, so an on-call reviewer can approve or reject in <strong>one tap from a push notification</strong> — gated by a step-up re-verification (password, or TOTP when 2FA is on), with the self-approval guard enforced server-side on every channel. While a query sits in review, the submitter and reviewers can <strong>co-author it in real time</strong> — live presence, remote cursors, conflict-free merge, and inline comment threads anchored to the SQL — and any edits re-enter the workflow through the normal submit path, so approvals are never bypassed.</p>
+            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, timeouts, and bulk decisions — and scope each queue to the right team by user or group. Add <strong>policy-as-code routing</strong> to auto-approve, escalate, or require extra approvals based on query type, AI risk, who's asking, time of day, and where the request came from. Users can request <strong>just-in-time</strong> temporary access, and for genuine emergencies <strong>break-glass</strong> runs a query immediately — still through every guard — while paging all admins and opening a mandatory follow-up review. Reviewers are notified by Email, Slack, Discord, Telegram, Teams, PagerDuty, or webhook, and can <strong>approve right from Slack</strong> or <strong>one tap on a mobile push</strong> (with a step-up check). While a query waits, reviewers and the submitter can even <strong>co-author it live</strong> — any edit re-enters review, so approvals are never skipped.</p>
             <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Break-glass emergency access · Bulk decisions · Real-time co-authoring · Inline comments · Slack approve/reject · Mobile PWA · One-tap push approvals · Email · Slack · Discord · Telegram · Teams · PagerDuty · Webhooks</span>
           </div>
 
@@ -354,7 +354,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <h3>Workforce-ready auth</h3>
-            <p>Sign in with the accounts your company already uses. JWT RS256 with HttpOnly refresh-token rotation. SAML 2.0 SP- and IdP-initiated SSO with attribute-based role mapping and per-IdP group mapping that auto-syncs AccessFlow group memberships on every login. OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab, plus a generic OIDC provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel) — plus optional TOTP 2FA. One deployment hosts <strong>multiple fully-isolated organizations</strong> (every entity is scoped by org, always derived from the JWT — never the request body); a <strong>super-admin (platform admin)</strong> manages tenants across the cluster — create, edit, disable / enable — with <strong>per-org quotas</strong> (datasources, users, queries-per-day; a breach returns <span class="mono">409 QUOTA_EXCEEDED</span>) and a disabled-org kill-switch that blocks login and requests immediately.</p>
+            <p>Sign in with the accounts your company already uses — SAML 2.0 SSO and OAuth 2.0 / OIDC, with built-in templates for Google, GitHub, Microsoft, GitLab, and a generic provider for any other IdP (Keycloak, Auth0, Okta, …). Roles and group memberships sync automatically from your identity provider on every login, with optional TOTP two-factor. One deployment hosts <strong>multiple fully-isolated organizations</strong>, and a <strong>super-admin</strong> manages tenants across the cluster — with per-org quotas and a kill-switch that disables an org instantly.</p>
             <span class="tag">JWT · SAML · OAuth · IdP group sync · TOTP · Multi-tenant orgs · Per-org quotas</span>
           </div>
 
@@ -363,7 +363,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <h3>Tamper-evident audit &amp; compliance reports</h3>
-            <p>Every decision is recorded in a log that can't be quietly edited after the fact. The append-only metadata audit log is chained with HMAC-SHA256, and INSERT-only DB grants make after-the-fact rewrites detectable. CSV export, searchable UI, no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE regulatory trail with approver names — export as <strong>digitally signed</strong> PDF/CSV (verifiable offline) whose hash is chained back into the audit log, surfaced to a dedicated read-only <strong>Auditor</strong> role.</p>
+            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role.</p>
             <span class="tag">HMAC-SHA256 chain · signed exports</span>
           </div>
 
@@ -923,105 +923,111 @@
         </div>
         <div class="roadmap-track">
           <div class="milestone" data-status="published">
-            <span class="ver">v1.0</span>
+            <span class="ver">v1</span>
             <h4>Core platform</h4>
-            <ul>
-              <li>SQL proxy · 5 DBs + custom drivers</li>
-              <li>AI review · risk + index hints</li>
-              <li>Multi-stage approval workflows</li>
-              <li>JWT · SAML · OAuth · TOTP 2FA</li>
-              <li>HMAC-chained audit log</li>
-              <li>Docker Compose + Helm 3</li>
-            </ul>
+            <div class="rm-group">
+              <h5 class="rm-cat">Proxy &amp; data access</h5>
+              <ul>
+                <li>SQL proxy · 5 DBs + custom drivers</li>
+                <li>Read-replica routing · result diffing</li>
+                <li>Schema explorer &amp; ER view · sample previews</li>
+                <li>Datasource health dashboard</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">AI analysis</h5>
+              <ul>
+                <li>Risk scoring + index hints · analytics</li>
+                <li>OpenAI-compatible &amp; Hugging Face providers</li>
+                <li>Editable prompts · Langfuse · text-to-SQL · RAG</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Review &amp; access</h5>
+              <ul>
+                <li>Multi-stage approvals · auto-approve reads</li>
+                <li>Bulk decisions · scheduling · plan templates</li>
+                <li>Reviewer groups &amp; scoping · JIT access</li>
+                <li>Policy-as-code routing · row-level security · masking</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Auth &amp; audit</h5>
+              <ul>
+                <li>JWT · SAML · OAuth/OIDC · TOTP · 4-role RBAC</li>
+                <li>HMAC-chained audit log + CSV export</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Deploy</h5>
+              <ul>
+                <li>Docker Compose · Helm 3 · HPA · health probes</li>
+              </ul>
+            </div>
           </div>
           <div class="milestone" data-status="published">
-            <span class="ver">v1.1</span>
-            <h4>Productivity</h4>
-            <ul>
-              <li>Dynamic driver loading</li>
-              <li>Datasource creation wizard</li>
-              <li>Query scheduling</li>
-              <li>Bulk approval UI</li>
-              <li>AI analytics dashboard</li>
-              <li>Schema explorer ER view</li>
-              <li>Searchable object tree &amp; sample-data previews</li>
-              <li>Review plan templates</li>
-              <li>Audit log CSV export</li>
-              <li>User invitation flow</li>
-            </ul>
-          </div>
-          <div class="milestone" data-status="published">
-            <span class="ver">v1.2</span>
-            <h4>Reviewer experience</h4>
-            <ul>
-              <li>Reviewer access — groups &amp; scoping</li>
-              <li>Read replica routing</li>
-              <li>Query result diffing</li>
-              <li>Slack bot approve / reject</li>
-              <li>PagerDuty integration</li>
-              <li>Query templates library</li>
-              <li>Datasource health dashboard</li>
-            </ul>
-          </div>
-          <div class="milestone" data-status="published">
-            <span class="ver">v1.3</span>
-            <h4>Fine-grained access</h4>
-            <ul>
-              <li>Just-in-time time-bound access</li>
-              <li>Policy-as-code routing engine</li>
-              <li>Row-level security policies</li>
-              <li>Dynamic data masking</li>
-            </ul>
-          </div>
-          <div class="milestone" data-status="published">
-            <span class="ver">v1.4</span>
-            <h4>AI enhancements</h4>
-            <ul>
-              <li>Custom / OpenAI-compatible provider</li>
-              <li>Hugging Face provider</li>
-              <li>Editable analyzer prompts</li>
-              <li>Langfuse tracing &amp; managed prompts</li>
-              <li>Text-to-SQL generation</li>
-              <li>RAG knowledge base</li>
-            </ul>
+            <span class="ver">v2</span>
+            <h4>Beyond SQL &amp; advanced governance</h4>
+            <div class="rm-group">
+              <h5 class="rm-cat">Connectors &amp; NoSQL engines</h5>
+              <ul>
+                <li>Declarative connector catalog</li>
+                <li>MongoDB · Couchbase (SQL++) · Redis</li>
+                <li>Cassandra &amp; ScyllaDB (CQL)</li>
+                <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
+                <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">AI &amp; monitoring</h5>
+              <ul>
+                <li>Behavioral anomaly detection (UBA)</li>
+                <li>AI optimization &amp; index recommendations</li>
+                <li>Expanded MCP agent toolset</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Review &amp; access</h5>
+              <ul>
+                <li>Break-glass emergency access</li>
+                <li>Multi-tenant orgs &amp; per-org quotas</li>
+                <li>Real-time collaborative editing</li>
+                <li>Mobile PWA + one-tap push</li>
+                <li>Version history &amp; diff · dry-run sandbox · replay</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Compliance</h5>
+              <ul>
+                <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
+                <li>Compliance reports &amp; signed exports · Auditor role</li>
+              </ul>
+            </div>
           </div>
           <div class="milestone" data-status="planned">
-            <span class="ver">v2.0</span>
-            <h4>Beyond SQL &amp; governance</h4>
-            <ul>
-              <li>Declarative connector catalog</li>
-              <li>MongoDB query governance</li>
-              <li>Couchbase (SQL++) query governance</li>
-              <li>Redis (key-value) query governance</li>
-              <li>Redis access governance</li>
-              <li>Cassandra &amp; ScyllaDB (CQL) query governance</li>
-              <li>Elasticsearch &amp; OpenSearch (search) query governance</li>
-              <li>Amazon DynamoDB (PartiQL) query governance</li>
-              <li>Neo4j (Cypher) query governance</li>
-              <li>Text-to-query for NoSQL engines</li>
-              <li>REST API governance</li>
-              <li>Custom analyzer plugins</li>
-              <li>Column-level permissions</li>
-              <li>Native wire-protocol gateway</li>
-              <li>Behavioral anomaly detection (UBA)</li>
-              <li>Access recertification</li>
-              <li>Break-glass emergency access</li>
-              <li>Multi-tenant org management &amp; per-org quotas</li>
-              <li>Data classification tagging (PII / PCI / PHI / GDPR)</li>
-              <li>Compliance reporting &amp; signed PDF/CSV exports</li>
-            </ul>
-          </div>
-          <div class="milestone" data-status="planned">
-            <span class="ver">v2.1</span>
-            <h4>Compliance</h4>
-            <ul>
-              <li>Query playground / dry-run sandbox</li>
-              <li>Auto query suggestions</li>
-              <li>Saved-query version history &amp; diff</li>
-              <li>Real-time collaborative editing</li>
-              <li>Immutable query snapshots &amp; replay</li>
-              <li>Mobile approvals (PWA) with one-tap push</li>
-            </ul>
+            <span class="ver">upcoming</span>
+            <h4>Planned</h4>
+            <div class="rm-group">
+              <h5 class="rm-cat">Connectors &amp; access</h5>
+              <ul>
+                <li>REST API governance</li>
+                <li>Native wire-protocol gateway</li>
+                <li>Column-level permissions</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">AI</h5>
+              <ul>
+                <li>Custom analyzer plugins (SPI / HTTP)</li>
+                <li>Automatic query suggestions</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Compliance</h5>
+              <ul>
+                <li>Access recertification campaigns</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
