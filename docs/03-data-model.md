@@ -621,8 +621,8 @@ Stores the result of an AI analysis run for a query request.
 | `optimizations` | JSONB DEFAULT `'[]'` (AF-451) — array of `{ type (`INDEX`\|`REWRITE`), title, rationale, sql }`. Concrete, dialect-aware optimization suggestions; `sql` is a ready-to-run index DDL or rewritten query the editor can "Apply as draft". Empty array when none. |
 | `missing_indexes_detected` | BOOLEAN |
 | `affects_row_estimate` | BIGINT nullable — estimated rows impacted |
-| `prompt_tokens` | INTEGER |
-| `completion_tokens` | INTEGER |
+| `prompt_tokens` | INTEGER — summed across all participating models when orchestration is enabled (AF-450) |
+| `completion_tokens` | INTEGER — summed across all participating models when orchestration is enabled (AF-450) |
 | `failed` | BOOLEAN DEFAULT false — `true` when the AI provider call failed and the row is a sentinel placeholder (per AF-249). The detail / list APIs surface this flag so the frontend can render an "AI analysis failed" state instead of treating the sentinel `risk_level=CRITICAL` as a real risk verdict. |
 | `error_message` | TEXT nullable — the analyzer failure reason when `failed=true`. Mirrors the `reason` field of `AiAnalysisFailedEvent`. Null on successful analyses. |
 | `created_at` | TIMESTAMPTZ |
@@ -683,6 +683,10 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `embedding_model` | VARCHAR(100) nullable — embedding model name. Required when `rag_enabled`. |
 | `embedding_endpoint` | VARCHAR(500) nullable — custom embedding base URL (OLLAMA / OPENAI_COMPATIBLE / HUGGING_FACE). |
 | `embedding_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the embedding provider key; `@JsonIgnore`. |
+| `orchestration_enabled` | BOOLEAN DEFAULT false (AF-450) — when true, the primary model votes alongside the enabled `ai_config_model` members; analysis fans out in parallel and aggregates. |
+| `voting_strategy` | ENUM `voting_strategy`: `WEIGHTED_AVERAGE` (default) \| `MAX_RISK` \| `MAJORITY` (AF-450). How members' risk verdicts combine. |
+| `voting_weight` | DOUBLE PRECISION DEFAULT 1.0, CHECK > 0 (AF-450) — the primary model's weight in the vote. |
+| `guardrail_patterns` | JSONB DEFAULT `'[]'` (AF-450) — array of case-insensitive regex strings; a submitted SQL / NL prompt matching any is blocked before the model call (HTTP 422 `AI_GUARDRAIL_BLOCKED`). Empty = guardrails off. Each pattern must compile as a regex (else HTTP 400 `AI_CONFIG_ORCHESTRATION_INVALID`). |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
@@ -707,6 +711,58 @@ row. Unbind first (by switching the datasource to a different config or disablin
 Invalid RAG settings on create/update are rejected with HTTP 400 `RAG_CONFIG_INVALID` (e.g. RAG
 enabled without a store type or embedding model, an `ANTHROPIC` embedding provider, or a `QDRANT`
 backend missing its endpoint/collection).
+
+Invalid orchestration / guardrail settings are rejected with HTTP 400
+`AI_CONFIG_ORCHESTRATION_INVALID` (a guardrail pattern that is not a valid regex, a non-positive
+voting weight, an orchestration member missing its provider/model, or an `OPENAI_COMPATIBLE` member
+with no endpoint).
+
+---
+
+## ai_config_model
+
+Additional orchestration members of a parent `ai_config` (AF-450). Each carries its own
+provider/model/endpoint/key + voting weight and inherits the parent's `timeout_ms`,
+`max_completion_tokens`, prompt template and RAG retriever — only the model varies. Members are
+managed inline through the parent's create/update payload (full-replace, id-matched to preserve a
+masked key).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `ai_config_id` | FK → `ai_config(id)` NOT NULL, ON DELETE CASCADE |
+| `provider` | ENUM `ai_provider` |
+| `model` | VARCHAR(100) |
+| `endpoint` | VARCHAR(500) nullable — required for an `OPENAI_COMPATIBLE` member |
+| `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
+| `weight` | DOUBLE PRECISION DEFAULT 1.0, CHECK > 0 — this member's weight in the vote |
+| `enabled` | BOOLEAN DEFAULT true — disabled members are skipped at analysis time |
+| `sort_order` | INTEGER DEFAULT 0 — display / iteration order |
+| `created_at` | TIMESTAMPTZ |
+
+---
+
+## ai_analysis_model_result
+
+Per-model breakdown of a single `ai_analyses` row (AF-450) — one row per participating model, written
+for **every** analysis (single-model configs get exactly one). Powers the admin dashboard's per-model
+cost / latency view.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `ai_analysis_id` | FK → `ai_analyses(id)` NOT NULL, ON DELETE CASCADE |
+| `ai_provider` | ENUM `ai_provider` |
+| `ai_model` | VARCHAR(100) |
+| `risk_score` | INTEGER 0–100 nullable — null when this member failed |
+| `risk_level` | ENUM `risk_level` nullable — null when this member failed |
+| `weight` | DOUBLE PRECISION DEFAULT 1.0 — the member's voting weight at analysis time |
+| `prompt_tokens` | INTEGER DEFAULT 0 |
+| `completion_tokens` | INTEGER DEFAULT 0 |
+| `latency_ms` | BIGINT DEFAULT 0 — wall-clock of this member's provider call |
+| `failed` | BOOLEAN DEFAULT false — true when this member's call/parse failed (others may still have succeeded) |
+| `error_message` | TEXT nullable — the member's failure reason when `failed=true` |
+| `created_at` | TIMESTAMPTZ |
 
 ---
 

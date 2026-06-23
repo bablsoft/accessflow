@@ -76,6 +76,34 @@ class DefaultAiAnalysisStatsLookupServiceTest {
     }
 
     @Test
+    void queryMapsPerModelStatsAndResolvesProviderEnum() {
+        var orgId = UUID.randomUUID();
+        var from = Instant.parse("2026-01-01T00:00:00Z");
+        var to = Instant.parse("2026-02-01T00:00:00Z");
+        when(repository.findRiskScoreByDay(orgId, from, to, null)).thenReturn(List.of());
+        when(repository.findTopIssueCategories(orgId, from, to, null)).thenReturn(List.of());
+        when(repository.findTopSubmitters(orgId, from, to, null)).thenReturn(List.of());
+        when(repository.findPerModelStats(orgId, from, to, null))
+                .thenReturn(List.of(perModel("ANTHROPIC", "claude", 6L, 1200L, 400L,
+                        new BigDecimal("850.0"), new BigDecimal("62.5"))));
+
+        var result = service.query(orgId, from, to, null);
+
+        assertThat(result.perModelStats())
+                .singleElement()
+                .satisfies(m -> {
+                    assertThat(m.provider())
+                            .isEqualTo(com.bablsoft.accessflow.core.api.AiProviderType.ANTHROPIC);
+                    assertThat(m.model()).isEqualTo("claude");
+                    assertThat(m.analysisCount()).isEqualTo(6L);
+                    assertThat(m.totalPromptTokens()).isEqualTo(1200L);
+                    assertThat(m.totalCompletionTokens()).isEqualTo(400L);
+                    assertThat(m.avgLatencyMs()).isEqualByComparingTo(new BigDecimal("850.0"));
+                    assertThat(m.avgRiskScore()).isEqualByComparingTo(new BigDecimal("62.5"));
+                });
+    }
+
+    @Test
     void sumTokensSinceDelegatesToRepository() {
         var orgId = UUID.randomUUID();
         var since = Instant.parse("2026-06-01T00:00:00Z");
@@ -112,6 +140,20 @@ class DefaultAiAnalysisStatsLookupServiceTest {
             @Override public String getEmail() { return email; }
             @Override public String getDisplayName() { return displayName; }
             @Override public long getCnt() { return count; }
+        };
+    }
+
+    private static AiAnalysisStatsRepository.PerModelStatRow perModel(String provider, String model,
+            long count, long promptTokens, long completionTokens, BigDecimal avgLatency,
+            BigDecimal avgRisk) {
+        return new AiAnalysisStatsRepository.PerModelStatRow() {
+            @Override public String getProvider() { return provider; }
+            @Override public String getModel() { return model; }
+            @Override public long getAnalysisCount() { return count; }
+            @Override public long getTotalPromptTokens() { return promptTokens; }
+            @Override public long getTotalCompletionTokens() { return completionTokens; }
+            @Override public BigDecimal getAvgLatencyMs() { return avgLatency; }
+            @Override public BigDecimal getAvgRiskScore() { return avgRisk; }
         };
     }
 }

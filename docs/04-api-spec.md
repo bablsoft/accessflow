@@ -2895,6 +2895,11 @@ Returns all AI configurations for the caller's organization, sorted by name. `in
     "system_prompt_template": null,
     "langfuse_prompt_name": null,
     "langfuse_prompt_label": null,
+    "orchestration_enabled": false,
+    "voting_strategy": "WEIGHTED_AVERAGE",
+    "voting_weight": 1.0,
+    "guardrail_patterns": [],
+    "models": [],
     "in_use_count": 2,
     "created_at": "2026-05-06T10:00:00Z",
     "updated_at": "2026-05-06T10:00:00Z"
@@ -2938,6 +2943,8 @@ Creates a new AI configuration.
 Validation: `name` non-blank ≤ 255; `provider` ∈ {OPENAI, ANTHROPIC, OLLAMA, OPENAI_COMPATIBLE, HUGGING_FACE}; `model` non-blank ≤ 100; `endpoint` ≤ 500 (**required** when `provider = OPENAI_COMPATIBLE`); `api_key` ≤ 4096 (optional for OLLAMA, OPENAI_COMPATIBLE, and HUGGING_FACE); `timeout_ms` ∈ [1000, 600000]; `max_prompt_tokens` and `max_completion_tokens` ∈ [100, 200000]; `system_prompt_template` ≤ 20000 and — when non-blank — **must contain the `{{sql}}` placeholder** (else **400** `AI_CONFIG_INVALID_PROMPT`). Omit it (or send blank) to use the built-in default; fetch the default via `GET /admin/ai-configs/prompt-default`. `langfuse_prompt_name` and `langfuse_prompt_label` ≤ 255 each (both optional).
 
 **RAG fields (AF-336, all optional):** `rag_enabled` (boolean), `rag_store_type` (`PGVECTOR` | `QDRANT`), `rag_top_k` ∈ [1, 20], `rag_similarity_threshold` ∈ [0, 1], `rag_endpoint` ≤ 500, `rag_collection` ≤ 255, `rag_api_key` ≤ 4096, `embedding_provider` (`ai_provider`, **not** `ANTHROPIC`), `embedding_model` ≤ 100, `embedding_endpoint` ≤ 500, `embedding_api_key` ≤ 4096. When `rag_enabled = true` the resulting row must have a `rag_store_type`, an `embedding_provider` (≠ `ANTHROPIC`) and an `embedding_model`; `QDRANT` additionally requires `rag_endpoint` + `rag_collection`. A violation returns **400** `RAG_CONFIG_INVALID`. `rag_api_key` / `embedding_api_key` follow the same masking semantics as `api_key`; the keys are never returned (a stored key surfaces as `********`).
+
+**Orchestration + guardrail fields (AF-450, all optional):** `orchestration_enabled` (boolean), `voting_strategy` (`WEIGHTED_AVERAGE` | `MAX_RISK` | `MAJORITY`), `voting_weight` (> 0, the primary model's weight), `guardrail_patterns` (array of ≤ 50 case-insensitive regex strings, each ≤ 500 chars), and `models` (≤ 20 orchestration members). Each member is `{ id?, provider, model, endpoint?, api_key?, weight, enabled }`: `provider` required, `model` ≤ 100 required, `endpoint` ≤ 500 (**required** for an `OPENAI_COMPATIBLE` member), `api_key` ≤ 4096 (same masking as the primary — `********` keeps a member's stored key), `weight` > 0. On update, `models` **replaces** the member set (members carrying a known `id` are updated in place, preserving a masked key; members without a matching `id` are inserted; existing members absent from the list are deleted). A guardrail pattern that is not a valid regex, a non-positive weight, a member missing its provider/model, or an `OPENAI_COMPATIBLE` member with no endpoint returns **400** `AI_CONFIG_ORCHESTRATION_INVALID`. When orchestration is enabled, the bound configuration runs the primary model plus the enabled members in parallel and aggregates per `voting_strategy`. Guardrail patterns are matched against the submitted SQL (analysis) and NL prompt (text-to-SQL) before any model call — a match returns **422** `AI_GUARDRAIL_BLOCKED` on the preview / text-to-SQL endpoints and records a sentinel `CRITICAL` analysis on the async submitted-query path.
 
 `endpoint` is accepted for all providers (for back-compat), but honored at runtime only when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. The `OPENAI_COMPATIBLE` provider reuses the OpenAI client against the supplied base URL (vLLM, LM Studio, Together, Groq, OpenRouter, …) and may run keyless. `HUGGING_FACE` likewise reuses the OpenAI client and is keyless-capable; a blank `endpoint` defaults to the Hugging Face Inference Providers router (`https://router.huggingface.co/v1`), and a custom base URL targets a local / self-hosted TGI server or a Dedicated Inference Endpoint. For OpenAI and Anthropic, Spring AI's built-in default endpoints are used; any stored value is round-tripped through GET but has no effect on outbound calls.
 
@@ -3055,11 +3062,12 @@ Aggregate stats over the AI analysis history, used by the **/admin/ai-analyses**
 
 #### GET /admin/ai-analyses/stats
 
-Returns three series, all scoped to the caller's organization (joined through `query_requests` → `datasources.organization_id`):
+Returns four series, all scoped to the caller's organization (joined through `query_requests` → `datasources.organization_id`):
 
 - `risk_score_over_time` — daily buckets (UTC days). `success_avg_risk_score` is the average over rows with `failed=false` only; `total_count` and `success_count` include failures. Sorted by `date` ASC.
 - `top_issue_categories` — `LOWER(TRIM(category))` grouped from the `issues` JSONB array, top 10 by count.
 - `top_submitters` — top 10 users by analyzed-query count, with email and display name.
+- `per_model_stats` (AF-450) — per-model cost / latency from `ai_analysis_model_result`, grouped by `(provider, model)`: `analysis_count`, summed `total_prompt_tokens` / `total_completion_tokens`, `avg_latency_ms`, and `avg_risk_score` (averaged over non-failed members only). Written for every analysis, so single-model orgs see one row per model too.
 
 **Query parameters:**
 | Name | Type | Required | Default |
@@ -3079,6 +3087,11 @@ Returns three series, all scoped to the caller's organization (joined through `q
   ],
   "top_submitters": [
     { "user_id": "uuid", "email": "alice@x", "display_name": "Alice", "count": 9 }
+  ],
+  "per_model_stats": [
+    { "provider": "ANTHROPIC", "model": "claude-sonnet-4", "analysis_count": 6,
+      "total_prompt_tokens": 1200, "total_completion_tokens": 400,
+      "avg_latency_ms": 850.0, "avg_risk_score": 62.5 }
   ]
 }
 ```

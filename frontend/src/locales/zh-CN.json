@@ -1245,7 +1245,14 @@
       "axis_category": "类别",
       "axis_submitter": "提交者",
       "empty_title": "此时间范围内没有 AI 分析",
-      "empty_description": "选择更宽的时间范围,或向启用了 AI 分析的数据源提交查询。"
+      "empty_description": "选择更宽的时间范围,或向启用了 AI 分析的数据源提交查询。",
+      "chart_cost_per_model_title": "各模型的 Token 成本",
+      "chart_latency_per_model_title": "各模型的平均延迟",
+      "series_prompt_tokens": "提示 Token",
+      "series_completion_tokens": "补全 Token",
+      "axis_tokens": "Token",
+      "axis_latency_ms": "平均延迟（毫秒）",
+      "axis_model": "模型"
     },
     "ai_configs": {
       "title": "AI 配置",
@@ -1349,6 +1356,35 @@
         "document_content_required": "内容为必填项",
         "document_added": "已添加知识文档",
         "document_deleted": "已删除知识文档"
+      },
+      "orchestration": {
+        "section_title": "多模型编排",
+        "section_help": "并行运行多个模型，并通过投票合并它们的判定。上方的主模型与下方的成员一起参与投票。",
+        "enabled": "启用编排",
+        "field_voting_strategy": "投票策略",
+        "field_voting_weight": "主模型权重",
+        "voting_weight_help": "主模型在加权投票中的相对权重。",
+        "weight_positive": "权重必须大于 0",
+        "members_section": "其他模型",
+        "add_member": "添加模型",
+        "remove_member": "移除模型",
+        "member_provider": "提供商",
+        "member_provider_required": "需要提供商",
+        "member_model": "模型",
+        "member_model_required": "需要模型名称",
+        "member_endpoint": "API 端点",
+        "member_endpoint_required": "与 OpenAI 兼容的模型需要端点",
+        "member_api_key": "API 密钥",
+        "member_weight": "权重",
+        "member_enabled": "已启用"
+      },
+      "guardrails": {
+        "section_title": "护栏",
+        "section_help": "在调用任何模型之前，拦截文本匹配已配置模式的查询。每个模式都是不区分大小写的正则表达式。",
+        "add_pattern": "添加模式",
+        "remove_pattern": "移除模式",
+        "pattern_placeholder": "例如 ignore previous instructions",
+        "invalid_regex": "不是有效的正则表达式"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "待复核",
       "REVIEWED": "已复核"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "加权平均",
+      "MAX_RISK": "最高风险",
+      "MAJORITY": "多数投票"
     }
   },
   "access": {

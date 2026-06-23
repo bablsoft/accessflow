@@ -97,6 +97,8 @@ export type AiProvider =
 
 export type RagStoreType = 'PGVECTOR' | 'QDRANT';
 
+export type VotingStrategy = 'WEIGHTED_AVERAGE' | 'MAX_RISK' | 'MAJORITY';
+
 export interface User {
   id: string;
   email: string;
@@ -280,9 +282,24 @@ export interface AiConfig {
   embedding_model: string | null;
   embedding_endpoint: string | null;
   embedding_api_key: string | null;
+  orchestration_enabled: boolean;
+  voting_strategy: VotingStrategy;
+  voting_weight: number;
+  guardrail_patterns: string[];
+  models: AiConfigModel[];
   in_use_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface AiConfigModel {
+  id?: string;
+  provider: AiProvider;
+  model: string;
+  endpoint?: string | null;
+  api_key?: string | null;
+  weight: number;
+  enabled: boolean;
 }
 
 export interface CreateAiConfigInput {
@@ -308,6 +325,11 @@ export interface CreateAiConfigInput {
   embedding_model?: string | null;
   embedding_endpoint?: string | null;
   embedding_api_key?: string | null;
+  orchestration_enabled?: boolean;
+  voting_strategy?: VotingStrategy;
+  voting_weight?: number;
+  guardrail_patterns?: string[];
+  models?: AiConfigModel[];
 }
 
 export interface UpdateAiConfigInput {
@@ -333,6 +355,11 @@ export interface UpdateAiConfigInput {
   embedding_model?: string | null;
   embedding_endpoint?: string | null;
   embedding_api_key?: string | null;
+  orchestration_enabled?: boolean;
+  voting_strategy?: VotingStrategy;
+  voting_weight?: number;
+  guardrail_patterns?: string[];
+  models?: AiConfigModel[];
 }
 
 export interface TestAiConfigResult {
@@ -1679,10 +1706,21 @@ export interface AiAnalysisTopSubmitter {
   count: number;
 }
 
+export interface AiAnalysisModelStat {
+  provider: AiProvider;
+  model: string;
+  analysis_count: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  avg_latency_ms: number | null;
+  avg_risk_score: number | null;
+}
+
 export interface AiAnalysisStats {
   risk_score_over_time: AiAnalysisRiskScorePoint[];
   top_issue_categories: AiAnalysisIssueCategory[];
   top_submitters: AiAnalysisTopSubmitter[];
+  per_model_stats: AiAnalysisModelStat[];
 }
 
 export interface AiAnalysisStatsFilters {

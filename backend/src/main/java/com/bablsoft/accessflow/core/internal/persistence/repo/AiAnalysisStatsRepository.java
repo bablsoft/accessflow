@@ -87,6 +87,34 @@ public interface AiAnalysisStatsRepository extends JpaRepository<AiAnalysisEntit
                                          @Param("to") Instant to,
                                          @Param("datasourceId") UUID datasourceId);
 
+    // AF-450: per-model cost / latency breakdown over ai_analysis_model_result, grouped by the
+    // member's (provider, model). avg_risk_score excludes failed members; token sums and avg latency
+    // include every member row.
+    @Query(value = """
+            SELECT m.ai_provider                                   AS provider,
+                   m.ai_model                                      AS model,
+                   COUNT(*)                                        AS analysis_count,
+                   COALESCE(SUM(m.prompt_tokens), 0)               AS total_prompt_tokens,
+                   COALESCE(SUM(m.completion_tokens), 0)           AS total_completion_tokens,
+                   AVG(m.latency_ms)                               AS avg_latency_ms,
+                   AVG(m.risk_score) FILTER (WHERE m.failed = false) AS avg_risk_score
+            FROM ai_analysis_model_result m
+            JOIN ai_analyses a     ON a.id = m.ai_analysis_id
+            JOIN query_requests qr ON qr.id = a.query_request_id
+            JOIN datasources d     ON d.id = qr.datasource_id
+            WHERE d.organization_id = :organizationId
+              AND a.created_at >= :from
+              AND a.created_at <  :to
+              AND (CAST(:datasourceId AS uuid) IS NULL
+                   OR qr.datasource_id = CAST(:datasourceId AS uuid))
+            GROUP BY m.ai_provider, m.ai_model
+            ORDER BY analysis_count DESC, model ASC
+            """, nativeQuery = true)
+    List<PerModelStatRow> findPerModelStats(@Param("organizationId") UUID organizationId,
+                                            @Param("from") Instant from,
+                                            @Param("to") Instant to,
+                                            @Param("datasourceId") UUID datasourceId);
+
     // Monthly token-budget aggregate for the AI rate-limiter (AF-55). COALESCE keeps the result
     // non-null (0) when the org has no analyses in the window.
     @Query(value = """
@@ -116,5 +144,15 @@ public interface AiAnalysisStatsRepository extends JpaRepository<AiAnalysisEntit
         String getEmail();
         String getDisplayName();
         long getCnt();
+    }
+
+    interface PerModelStatRow {
+        String getProvider();
+        String getModel();
+        long getAnalysisCount();
+        long getTotalPromptTokens();
+        long getTotalCompletionTokens();
+        BigDecimal getAvgLatencyMs();
+        BigDecimal getAvgRiskScore();
     }
 }

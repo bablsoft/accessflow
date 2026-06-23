@@ -1245,7 +1245,14 @@
       "axis_category": "Կատեգորիա",
       "axis_submitter": "Ներկայացնող",
       "empty_title": "Այս միջակայքում AI վերլուծություններ չկան",
-      "empty_description": "Ընտրեք ավելի լայն ամսաթվի միջակայք կամ ուղարկեք հարցումներ AI վերլուծությունն ակտիվացրած տվյալների աղբյուրի դեմ։"
+      "empty_description": "Ընտրեք ավելի լայն ամսաթվի միջակայք կամ ուղարկեք հարցումներ AI վերլուծությունն ակտիվացրած տվյալների աղբյուրի դեմ։",
+      "chart_cost_per_model_title": "Թոքենների արժեքը ըստ մոդելի",
+      "chart_latency_per_model_title": "Միջին հապաղումը ըստ մոդելի",
+      "series_prompt_tokens": "Հարցման թոքեններ",
+      "series_completion_tokens": "Պատասխանի թոքեններ",
+      "axis_tokens": "Թոքեններ",
+      "axis_latency_ms": "Միջին հապաղում (մվրկ)",
+      "axis_model": "Մոդել"
     },
     "ai_configs": {
       "title": "AI կարգավորումներ",
@@ -1349,6 +1356,35 @@
         "document_content_required": "Բովանդակությունը պարտադիր է",
         "document_added": "Գիտելիքի փաստաթուղթն ավելացվեց",
         "document_deleted": "Գիտելիքի փաստաթուղթը ջնջվեց"
+      },
+      "orchestration": {
+        "section_title": "Բազմամոդելային նվագախմբում",
+        "section_help": "Գործարկեք մի քանի մոդել զուգահեռ և համատեղեք դրանց վճիռները քվեարկությամբ։ Վերևի հիմնական մոդելը քվեարկում է ներքևի անդամների հետ միասին։",
+        "enabled": "Միացնել նվագախմբումը",
+        "field_voting_strategy": "Քվեարկության ռազմավարություն",
+        "field_voting_weight": "Հիմնական մոդելի կշիռը",
+        "voting_weight_help": "Հիմնական մոդելի հարաբերական կշիռը կշռված քվեարկության մեջ։",
+        "weight_positive": "Կշիռը պետք է լինի 0-ից մեծ",
+        "members_section": "Լրացուցիչ մոդելներ",
+        "add_member": "Ավելացնել մոդել",
+        "remove_member": "Հեռացնել մոդելը",
+        "member_provider": "Մատակարար",
+        "member_provider_required": "Մատակարարը պարտադիր է",
+        "member_model": "Մոդել",
+        "member_model_required": "Մոդելի անունը պարտադիր է",
+        "member_endpoint": "API վերջնակետ",
+        "member_endpoint_required": "OpenAI-համատեղելի մոդելի համար պահանջվում է վերջնակետ",
+        "member_api_key": "API բանալի",
+        "member_weight": "Կշիռ",
+        "member_enabled": "Միացված"
+      },
+      "guardrails": {
+        "section_title": "Պաշտպանիչ կանոններ",
+        "section_help": "Արգելափակեք հարցումները, որոնց տեքստը համընկնում է կարգավորված կաղապարի հետ՝ նախքան որևէ մոդելի կանչը։ Յուրաքանչյուր կաղապար մեծատառերի նկատմամբ անզգա կանոնավոր արտահայտություն է։",
+        "add_pattern": "Ավելացնել կաղապար",
+        "remove_pattern": "Հեռացնել կաղապարը",
+        "pattern_placeholder": "օր.՝ ignore previous instructions",
+        "invalid_regex": "Անվավեր կանոնավոր արտահայտություն"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "Սպասում է վերանայման",
       "REVIEWED": "Վերանայված"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Կշռված միջին",
+      "MAX_RISK": "Ամենաբարձր ռիսկ",
+      "MAJORITY": "Մեծամասնության քվե"
     }
   },
   "access": {

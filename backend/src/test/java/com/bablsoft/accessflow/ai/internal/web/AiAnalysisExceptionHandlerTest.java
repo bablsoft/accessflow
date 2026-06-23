@@ -3,7 +3,9 @@ package com.bablsoft.accessflow.ai.internal.web;
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
+import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
+import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
@@ -102,6 +104,32 @@ class AiAnalysisExceptionHandlerTest {
 
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
         assertThat(pd.getProperties()).containsEntry("error", "KNOWLEDGE_DOCUMENT_NOT_FOUND");
+    }
+
+    @Test
+    void mapsGuardrailViolationToUnprocessableEntity() {
+        when(messageSource.getMessage(eq("error.ai.guardrail_blocked"), any(), any(Locale.class)))
+                .thenReturn("This query was blocked by a guardrail");
+
+        var pd = handler.handleAiGuardrailViolation(
+                new AiGuardrailViolationException("blocked", "drop\\s+table"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getProperties()).containsEntry("error", "AI_GUARDRAIL_BLOCKED");
+        assertThat(pd.getDetail()).isEqualTo("This query was blocked by a guardrail");
+    }
+
+    @Test
+    void mapsOrchestrationInvalidToBadRequestWithResolvedKey() {
+        when(messageSource.getMessage(eq("error.ai_config.guardrail_pattern_invalid"), any(), any(Locale.class)))
+                .thenReturn("A guardrail pattern is not a valid regular expression");
+
+        var pd = handler.handleAiConfigOrchestrationInvalid(
+                new AiConfigOrchestrationInvalidException("error.ai_config.guardrail_pattern_invalid"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "AI_CONFIG_ORCHESTRATION_INVALID");
+        assertThat(pd.getDetail()).isEqualTo("A guardrail pattern is not a valid regular expression");
     }
 
     @Test

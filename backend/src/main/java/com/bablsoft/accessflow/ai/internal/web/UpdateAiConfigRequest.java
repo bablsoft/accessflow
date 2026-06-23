@@ -3,11 +3,15 @@ package com.bablsoft.accessflow.ai.internal.web;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 record UpdateAiConfigRequest(
         @Size(min = 1, max = 255, message = "{validation.ai_config.name.size}") String name,
@@ -36,7 +40,15 @@ record UpdateAiConfigRequest(
         AiProviderType embeddingProvider,
         @Size(max = 100, message = "{validation.ai_config.embedding_model.max}") String embeddingModel,
         @Size(max = 500, message = "{validation.ai_config.embedding_endpoint.max}") String embeddingEndpoint,
-        @Size(max = 4096, message = "{validation.ai_config.embedding_api_key.max}") String embeddingApiKey) {
+        @Size(max = 4096, message = "{validation.ai_config.embedding_api_key.max}") String embeddingApiKey,
+        Boolean orchestrationEnabled,
+        VotingStrategy votingStrategy,
+        @DecimalMin(value = "0.0", inclusive = false,
+                message = "{validation.ai_config.voting_weight.range}") Double votingWeight,
+        @Size(max = 50, message = "{validation.ai_config.guardrail_patterns.count}")
+        List<@Size(max = 500, message = "{validation.ai_config.guardrail_pattern.max}") String> guardrailPatterns,
+        @Size(max = 20, message = "{validation.ai_config.models.count}")
+        List<@Valid AiConfigModelRequest> models) {
 
     /** Convenience constructor for callers that do not change RAG settings (tests). */
     UpdateAiConfigRequest(String name, AiProviderType provider, String model, String endpoint,
@@ -44,7 +56,8 @@ record UpdateAiConfigRequest(
             String systemPromptTemplate, String langfusePromptName, String langfusePromptLabel) {
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null);
     }
 
     UpdateAiConfigCommand toCommand() {
@@ -70,6 +83,11 @@ record UpdateAiConfigRequest(
                 embeddingProvider,
                 embeddingModel,
                 embeddingEndpoint,
-                embeddingApiKey);
+                embeddingApiKey,
+                orchestrationEnabled,
+                votingStrategy,
+                votingWeight,
+                guardrailPatterns,
+                models == null ? null : models.stream().map(AiConfigModelRequest::toCommand).toList());
     }
 }

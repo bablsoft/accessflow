@@ -3,43 +3,57 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.api.AiConfigEndpointRequiredException;
 import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
+import com.bablsoft.accessflow.ai.api.AiConfigModelCommand;
+import com.bablsoft.accessflow.ai.api.AiConfigModelView;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigModelEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Service
 @RequiredArgsConstructor
 class DefaultAiConfigService implements AiConfigService {
 
     static final String DEFAULT_LANGFUSE_PROMPT_LABEL = "production";
+    private static final TypeReference<List<String>> PATTERN_LIST = new TypeReference<>() { };
 
     private final AiConfigRepository repository;
+    private final AiConfigModelRepository modelRepository;
     private final CredentialEncryptionService encryptionService;
     private final DatasourceLookupService datasourceLookupService;
     private final ApplicationEventPublisher eventPublisher;
     private final SystemPromptRenderer promptRenderer;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,7 +68,8 @@ class DefaultAiConfigService implements AiConfigService {
         }
         var counts = datasourceLookupService.countsByAiConfigIds(ids);
         return entities.stream()
-                .map(e -> toView(e, counts.getOrDefault(e.getId(), 0)))
+                .map(e -> toView(e, counts.getOrDefault(e.getId(), 0), List.of(),
+                        parseGuardrails(e.getGuardrailPatterns())))
                 .toList();
     }
 
@@ -64,7 +79,8 @@ class DefaultAiConfigService implements AiConfigService {
         var entity = loadInOrganization(id, organizationId);
         var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(entity.getId()))
                 .getOrDefault(entity.getId(), 0);
-        return toView(entity, inUse);
+        return toView(entity, inUse, loadModelViews(entity.getId()),
+                parseGuardrails(entity.getGuardrailPatterns()));
     }
 
     @Override
@@ -119,6 +135,8 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.embeddingApiKey() != null && !command.embeddingApiKey().isBlank()) {
             entity.setEmbeddingApiKeyEncrypted(encryptionService.encrypt(command.embeddingApiKey()));
         }
+        applyOrchestration(entity, command.orchestrationEnabled(), command.votingStrategy(),
+                command.votingWeight(), command.guardrailPatterns());
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
@@ -126,7 +144,9 @@ class DefaultAiConfigService implements AiConfigService {
         requireSqlPlaceholder(entity);
         validateRag(entity);
         var saved = repository.save(entity);
-        return toView(saved, 0);
+        replaceModels(saved.getId(), command.models());
+        return toView(saved, 0, loadModelViews(saved.getId()),
+                parseGuardrails(saved.getGuardrailPatterns()));
     }
 
     @Override
@@ -140,6 +160,7 @@ class DefaultAiConfigService implements AiConfigService {
         var oldLangfusePromptName = entity.getLangfusePromptName();
         var oldLangfusePromptLabel = entity.getLangfusePromptLabel();
         var oldRagFingerprint = RagFingerprint.of(entity);
+        var oldOrchFingerprint = OrchestrationFingerprint.of(entity);
         if (command.name() != null) {
             var trimmedName = trim(command.name());
             if (trimmedName == null || trimmedName.isBlank()) {
@@ -181,30 +202,40 @@ class DefaultAiConfigService implements AiConfigService {
         }
         normalizeLangfusePrompt(entity);
         applyRagUpdate(entity, command);
+        applyOrchestrationUpdate(entity, command);
         entity.setUpdatedAt(Instant.now());
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
         validateRag(entity);
         var saved = repository.save(entity);
+        var modelsChanged = command.models() != null;
+        if (modelsChanged) {
+            replaceModels(saved.getId(), command.models());
+        }
         var apiKeyChanged = !Objects.equals(oldCiphertext, saved.getApiKeyEncrypted());
         var langfusePromptChanged = !Objects.equals(oldLangfusePromptName, saved.getLangfusePromptName())
                 || !Objects.equals(oldLangfusePromptLabel, saved.getLangfusePromptLabel());
         var promptChanged = !Objects.equals(oldPrompt, saved.getSystemPromptTemplate())
                 || langfusePromptChanged;
         var ragChanged = !oldRagFingerprint.equals(RagFingerprint.of(saved));
+        var orchestrationChanged = !oldOrchFingerprint.equals(OrchestrationFingerprint.of(saved))
+                || modelsChanged;
         if (oldProvider != saved.getProvider()
                 || !Objects.equals(oldModel, saved.getModel())
                 || apiKeyChanged
                 || promptChanged
                 || ragChanged
+                || orchestrationChanged
                 || hasConnectivityChange(command)) {
             eventPublisher.publishEvent(new AiConfigUpdatedEvent(
                     saved.getId(), oldProvider, saved.getProvider(),
-                    oldModel, saved.getModel(), apiKeyChanged, promptChanged, ragChanged));
+                    oldModel, saved.getModel(), apiKeyChanged, promptChanged, ragChanged,
+                    orchestrationChanged));
         }
         var inUse = datasourceLookupService.countsByAiConfigIds(Set.of(saved.getId()))
                 .getOrDefault(saved.getId(), 0);
-        return toView(saved, inUse);
+        return toView(saved, inUse, loadModelViews(saved.getId()),
+                parseGuardrails(saved.getGuardrailPatterns()));
     }
 
     @Override
@@ -218,6 +249,7 @@ class DefaultAiConfigService implements AiConfigService {
                     .toList();
             throw new AiConfigInUseException(entity.getId(), converted);
         }
+        modelRepository.deleteByAiConfigId(entity.getId());
         repository.delete(entity);
         eventPublisher.publishEvent(new AiConfigDeletedEvent(entity.getId()));
     }
@@ -370,7 +402,8 @@ class DefaultAiConfigService implements AiConfigService {
                 .orElseThrow(() -> new AiConfigNotFoundException(id));
     }
 
-    private static AiConfigView toView(AiConfigEntity entity, int inUseCount) {
+    private AiConfigView toView(AiConfigEntity entity, int inUseCount,
+            List<AiConfigModelView> models, List<String> guardrailPatterns) {
         return new AiConfigView(
                 entity.getId(),
                 entity.getOrganizationId(),
@@ -396,9 +429,165 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getEmbeddingModel(),
                 entity.getEmbeddingEndpoint(),
                 entity.getEmbeddingApiKeyEncrypted() != null && !entity.getEmbeddingApiKeyEncrypted().isBlank(),
+                entity.isOrchestrationEnabled(),
+                entity.getVotingStrategy(),
+                entity.getVotingWeight(),
+                guardrailPatterns,
+                models,
                 inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
+    }
+
+    // --- Multi-model orchestration + guardrails (AF-450) ---
+
+    private void applyOrchestration(AiConfigEntity entity, Boolean orchestrationEnabled,
+            VotingStrategy votingStrategy, Double votingWeight, List<String> guardrailPatterns) {
+        entity.setOrchestrationEnabled(Boolean.TRUE.equals(orchestrationEnabled));
+        if (votingStrategy != null) {
+            entity.setVotingStrategy(votingStrategy);
+        }
+        if (votingWeight != null) {
+            requirePositiveWeight(votingWeight);
+            entity.setVotingWeight(votingWeight);
+        }
+        entity.setGuardrailPatterns(serializeGuardrails(guardrailPatterns));
+    }
+
+    private void applyOrchestrationUpdate(AiConfigEntity entity, UpdateAiConfigCommand command) {
+        if (command.orchestrationEnabled() != null) {
+            entity.setOrchestrationEnabled(command.orchestrationEnabled());
+        }
+        if (command.votingStrategy() != null) {
+            entity.setVotingStrategy(command.votingStrategy());
+        }
+        if (command.votingWeight() != null) {
+            requirePositiveWeight(command.votingWeight());
+            entity.setVotingWeight(command.votingWeight());
+        }
+        if (command.guardrailPatterns() != null) {
+            entity.setGuardrailPatterns(serializeGuardrails(command.guardrailPatterns()));
+        }
+    }
+
+    /**
+     * Replaces the {@code ai_config_model} members for a config (AF-450). Members carrying a known id
+     * are updated in place (preserving a masked API key); members without a matching id are inserted;
+     * existing members absent from {@code models} are deleted. A {@code null} list leaves members
+     * untouched (the update did not address orchestration members).
+     */
+    private void replaceModels(UUID configId, List<AiConfigModelCommand> models) {
+        if (models == null) {
+            return;
+        }
+        var existing = modelRepository.findByAiConfigIdOrderBySortOrderAsc(configId);
+        var existingById = new java.util.HashMap<UUID, AiConfigModelEntity>();
+        for (var e : existing) {
+            existingById.put(e.getId(), e);
+        }
+        var keptIds = new HashSet<UUID>();
+        int order = 0;
+        for (var m : models) {
+            validateMember(m);
+            AiConfigModelEntity row;
+            if (m.id() != null && existingById.containsKey(m.id())) {
+                row = existingById.get(m.id());
+                keptIds.add(row.getId());
+            } else {
+                row = new AiConfigModelEntity();
+                row.setId(UUID.randomUUID());
+                row.setAiConfigId(configId);
+                row.setCreatedAt(Instant.now());
+            }
+            row.setProvider(m.provider());
+            row.setModel(m.model().trim());
+            row.setEndpoint(blankToNull(m.endpoint()));
+            row.setApiKeyEncrypted(resolveEncryptedKey(m.apiKey(), row.getApiKeyEncrypted()));
+            row.setWeight(m.weight() == null ? 1.0 : m.weight());
+            row.setEnabled(m.enabled() == null || m.enabled());
+            row.setSortOrder(order++);
+            modelRepository.save(row);
+        }
+        for (var e : existing) {
+            if (!keptIds.contains(e.getId())) {
+                modelRepository.delete(e);
+            }
+        }
+    }
+
+    private static void validateMember(AiConfigModelCommand m) {
+        if (m.provider() == null) {
+            throw new AiConfigOrchestrationInvalidException(
+                    "error.ai_config.orchestration_member_provider_required");
+        }
+        if (m.model() == null || m.model().isBlank()) {
+            throw new AiConfigOrchestrationInvalidException(
+                    "error.ai_config.orchestration_member_model_required");
+        }
+        if (m.weight() != null && m.weight() <= 0) {
+            throw new AiConfigOrchestrationInvalidException("error.ai_config.voting_weight_invalid");
+        }
+        if (m.provider() == AiProviderType.OPENAI_COMPATIBLE
+                && (m.endpoint() == null || m.endpoint().isBlank())) {
+            throw new AiConfigOrchestrationInvalidException(
+                    "error.ai_config.orchestration_member_endpoint_required");
+        }
+    }
+
+    private static void requirePositiveWeight(double weight) {
+        if (weight <= 0) {
+            throw new AiConfigOrchestrationInvalidException("error.ai_config.voting_weight_invalid");
+        }
+    }
+
+    private String serializeGuardrails(List<String> patterns) {
+        if (patterns == null || patterns.isEmpty()) {
+            return "[]";
+        }
+        var cleaned = new ArrayList<String>(patterns.size());
+        for (var p : patterns) {
+            if (p == null || p.isBlank()) {
+                continue;
+            }
+            var trimmed = p.trim();
+            try {
+                Pattern.compile(trimmed);
+            } catch (PatternSyntaxException e) {
+                throw new AiConfigOrchestrationInvalidException(
+                        "error.ai_config.guardrail_pattern_invalid");
+            }
+            cleaned.add(trimmed);
+        }
+        return objectMapper.writeValueAsString(cleaned);
+    }
+
+    private List<String> parseGuardrails(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, PATTERN_LIST);
+        } catch (RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    private List<AiConfigModelView> loadModelViews(UUID configId) {
+        return modelRepository.findByAiConfigIdOrderBySortOrderAsc(configId).stream()
+                .map(m -> new AiConfigModelView(m.getId(), m.getProvider(), m.getModel(),
+                        m.getEndpoint(),
+                        m.getApiKeyEncrypted() != null && !m.getApiKeyEncrypted().isBlank(),
+                        m.getWeight(), m.isEnabled()))
+                .toList();
+    }
+
+    private record OrchestrationFingerprint(boolean enabled, VotingStrategy strategy, double weight,
+            String guardrailPatterns) {
+
+        static OrchestrationFingerprint of(AiConfigEntity e) {
+            return new OrchestrationFingerprint(e.isOrchestrationEnabled(), e.getVotingStrategy(),
+                    e.getVotingWeight(), e.getGuardrailPatterns());
+        }
     }
 
     private static String trim(String value) {

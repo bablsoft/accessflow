@@ -1308,6 +1308,56 @@ Admins attach a per-`ai_config` knowledge base; at analysis / text-to-SQL time t
 - **pgvector is provisioned outside Flyway.** The `vector` extension is not trusted and the app DB role is not a superuser, so a superuser init script creates it (`deploy/postgres-init/02-pgvector.sql` for Compose, the Helm initContainer, `withInitScript` for Testcontainers); Flyway V69 creates only the `vector_store` table. The embedding dimension is a Flyway placeholder (`ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`, default 1536). The pgvector / Qdrant Spring AI auto-configs are excluded in `application.yml` — stores are built per row, never as context beans.
 - **Graceful degradation when pgvector is absent.** `core.internal.config.PgVectorFlywayConfiguration` registers a `FlywayMigrationStrategy` that, before migrating, best-effort runs `CREATE EXTENSION IF NOT EXISTS vector` (toggle: `accessflow.rag.pgvector.auto-provision`) and detects whether the type is usable. If it is, migrations run normally and `vector_store` is created if missing (self-heals a pgvector-installed-later deployment). If it is not — or `accessflow.rag.pgvector.enabled=false` — V69 is recorded as applied without executing it (its resolved checksum is stored so later boots validate), the pgvector-free `knowledge_document` table is created by the idempotent `V73__ensure_knowledge_document.sql` (Hibernate `ddl-auto=validate` needs it), and `vector_store` is omitted. The decision is published via `core.api.PgVectorAvailability`: `RagComponentsFactory` returns `RagRetriever.DISABLED` for PGVECTOR configs, `DefaultKnowledgeBaseService` throws `AiConfigRagInvalidException` (`error.ai_config.rag.pgvector_unavailable`, HTTP 400) on PGVECTOR ingest / test, and `GET /admin/ai-configs/rag/capabilities` reports `pgvector_available`. The external QDRANT path is unaffected. So the application always starts even on a Postgres without the extension.
 
+### Multi-model orchestration, voting & guardrails (AF-450)
+
+A single `ai_config` can run **several models in parallel** and combine their verdicts, and can
+**block configured prompt patterns** before any model is called. Both live entirely inside the `ai`
+module — `AiAnalyzerStrategyHolder` composes them into the delegate it caches, so the public
+`AiAnalyzerStrategy` API and its callers (preview, async submitted-query analysis, text-to-SQL) are
+unchanged. The delegate is a chain: `GuardrailAiAnalyzerStrategy( OrchestratingAiAnalyzerStrategy( [ member₀(primary), member₁, … ] ) )`.
+
+- **Members.** Member 0 is the primary `ai_config` row; when `orchestration_enabled`, the enabled
+  `ai_config_model` rows are added. Each member is the existing per-provider strategy wrapped in
+  `TracingAiAnalyzerStrategy` (so every member is traced to Langfuse independently). Members reuse the
+  parent's prompt source + RAG retriever and inherit its `timeout_ms` / `max_completion_tokens` — only
+  provider/model/endpoint/key vary. With one member the orchestrator degenerates to that member's
+  result plus a one-entry breakdown.
+- **Parallel invocation.** `OrchestratingAiAnalyzerStrategy.analyze(...)` fans members out on
+  **virtual threads** (`Executors.newVirtualThreadPerTaskExecutor()`), timing each call. Each task
+  catches its own exception, so one member's failure never aborts the others.
+- **Voting (`AiVoteAggregator`).** Over the **successful** members: `WEIGHTED_AVERAGE` = weight-weighted
+  mean of risk scores (level derived from the score via the quartile thresholds in
+  `ClassificationRiskBooster.levelFromScore`); `MAX_RISK` = the single highest-risk member;
+  `MAJORITY` = the weight-weighted most common risk level (ties break toward the higher risk).
+  Regardless of strategy, issues and optimizations are **merged** (union, deduped), the
+  missing-indexes flag is **OR**-ed, the affected-row estimate is the **max**, and tokens are
+  **summed** across successes (so the monthly token budget naturally accounts for every model). The
+  aggregate row's `ai_provider`/`ai_model` are the primary's.
+- **Partial / total failure.** If ≥1 member succeeds, the aggregate is computed over the survivors and
+  the failed members are still recorded in the breakdown (`failed=true`, null score). If **every**
+  member fails, the first failure is rethrown — the async path records the usual sentinel
+  `CRITICAL` row (no breakdown).
+- **Per-model cost / latency.** The aggregate `AiAnalysisResult` carries a `modelResults` list (one
+  `AiModelResult` per member, success or failed). `DefaultAiAnalyzerService` maps it into
+  `PersistAiAnalysisCommand.modelResults`, and `DefaultAiAnalysisPersistenceService` writes one
+  `ai_analysis_model_result` row per member alongside the aggregate `ai_analyses` row — for **every**
+  analysis, so the admin dashboard's per-model token/latency view is uniform. `AiAnalysisStatsRepository.findPerModelStats`
+  groups those rows by `(provider, model)` (summed tokens, average latency, average risk over
+  non-failed members) for `GET /admin/ai-analyses/stats`.
+- **Guardrails (pre-call).** `GuardrailAiAnalyzerStrategy` compiles `guardrail_patterns` (case-insensitive
+  regex) and, before invoking the orchestrator, rejects a submitted SQL / NL prompt matching any with
+  `AiGuardrailViolationException` → HTTP 422 `AI_GUARDRAIL_BLOCKED` on the preview / text-to-SQL paths
+  and the sentinel `CRITICAL` row on the async path. Empty patterns = pass-through. Patterns are
+  validated as regexes at save time (HTTP 400 `AI_CONFIG_ORCHESTRATION_INVALID`).
+- **Post-call guardrail.** Output-schema validation is the existing strict `AiResponseParser` — a member
+  returning malformed JSON throws `AiAnalysisParseException`, which (when all members fail) yields the
+  sentinel row without failing the query. No new code; AF-450 just frames it as the output guardrail.
+- **`generateSql` is not voted** — it delegates to the primary member only (voting an aggregated SQL
+  string is not meaningful); the guardrail still applies to its prompt.
+- **Cache eviction.** Changing orchestration scalars, guardrail patterns, or the member set publishes
+  `AiConfigUpdatedEvent` (now carrying `orchestrationChanged`), evicting the cached delegate so the next
+  call rebuilds the chain.
+
 ### Risk Score Heuristics
 
 | Condition | Score Contribution |

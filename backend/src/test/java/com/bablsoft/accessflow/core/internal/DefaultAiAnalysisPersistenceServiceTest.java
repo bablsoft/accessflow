@@ -2,9 +2,12 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.PersistAiAnalysisCommand;
+import com.bablsoft.accessflow.core.api.PersistAiModelResultCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisModelResultEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
+import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisModelResultRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,7 @@ import static org.mockito.Mockito.when;
 class DefaultAiAnalysisPersistenceServiceTest {
 
     @Mock AiAnalysisRepository aiAnalysisRepository;
+    @Mock AiAnalysisModelResultRepository modelResultRepository;
     @Mock QueryRequestRepository queryRequestRepository;
     @InjectMocks DefaultAiAnalysisPersistenceService service;
 
@@ -64,6 +68,39 @@ class DefaultAiAnalysisPersistenceServiceTest {
         assertThat(saved.getErrorMessage()).isNull();
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(queryRequest.getAiAnalysisId()).isEqualTo(id);
+    }
+
+    @Test
+    void persistWritesPerModelBreakdownRows() {
+        var queryRequestId = UUID.randomUUID();
+        var queryRequest = new QueryRequestEntity();
+        queryRequest.setId(queryRequestId);
+        when(queryRequestRepository.findById(queryRequestId)).thenReturn(Optional.of(queryRequest));
+        when(aiAnalysisRepository.save(any(AiAnalysisEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new PersistAiAnalysisCommand(
+                AiProviderType.ANTHROPIC, "claude", 70, RiskLevel.HIGH, "s", "[]", "[]", false, null,
+                100, 30, false, null,
+                java.util.List.of(
+                        new PersistAiModelResultCommand(AiProviderType.ANTHROPIC, "claude", 70,
+                                RiskLevel.HIGH, 1.0, 60, 20, 800L, false, null),
+                        new PersistAiModelResultCommand(AiProviderType.OLLAMA, "llama", null, null,
+                                2.0, 40, 10, 150L, true, "down")));
+
+        var id = service.persist(queryRequestId, command);
+
+        ArgumentCaptor<AiAnalysisModelResultEntity> captor =
+                ArgumentCaptor.forClass(AiAnalysisModelResultEntity.class);
+        org.mockito.Mockito.verify(modelResultRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        var rows = captor.getAllValues();
+        assertThat(rows).allMatch(r -> r.getAiAnalysisId().equals(id));
+        assertThat(rows.get(0).getAiModel()).isEqualTo("claude");
+        assertThat(rows.get(0).getLatencyMs()).isEqualTo(800L);
+        assertThat(rows.get(0).isFailed()).isFalse();
+        assertThat(rows.get(1).getAiModel()).isEqualTo("llama");
+        assertThat(rows.get(1).isFailed()).isTrue();
+        assertThat(rows.get(1).getErrorMessage()).isEqualTo("down");
+        assertThat(rows.get(1).getRiskScore()).isNull();
     }
 
     @Test

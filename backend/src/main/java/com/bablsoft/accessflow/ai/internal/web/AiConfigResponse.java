@@ -4,8 +4,10 @@ import com.bablsoft.accessflow.ai.api.AiConfigView;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 record AiConfigResponse(
@@ -33,6 +35,11 @@ record AiConfigResponse(
         String embeddingModel,
         String embeddingEndpoint,
         String embeddingApiKey,
+        boolean orchestrationEnabled,
+        VotingStrategy votingStrategy,
+        double votingWeight,
+        List<String> guardrailPatterns,
+        List<AiConfigModelResponse> models,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
@@ -63,6 +70,11 @@ record AiConfigResponse(
                 view.embeddingModel(),
                 view.embeddingEndpoint(),
                 view.embeddingApiKeyMasked() ? UpdateAiConfigCommand.MASKED_API_KEY : null,
+                view.orchestrationEnabled(),
+                view.votingStrategy(),
+                view.votingWeight(),
+                view.guardrailPatterns(),
+                view.models().stream().map(AiConfigModelResponse::from).toList(),
                 view.inUseCount(),
                 view.createdAt(),
                 view.updatedAt());

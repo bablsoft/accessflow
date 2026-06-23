@@ -22,8 +22,16 @@ import {
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
-import type { AiProvider, RagStoreType, UpdateAiConfigInput } from '@/types/api';
+import type {
+  AiConfigModel,
+  AiProvider,
+  RagStoreType,
+  UpdateAiConfigInput,
+  VotingStrategy,
+} from '@/types/api';
 import { RagFormSection } from './RagFormSection';
+import { OrchestrationFormSection } from './OrchestrationFormSection';
+import { GuardrailsFormSection } from './GuardrailsFormSection';
 import { KnowledgeDocumentsSection } from './KnowledgeDocumentsSection';
 
 const MASK = '********';
@@ -50,6 +58,11 @@ interface FormValues {
   embedding_model: string;
   embedding_endpoint: string;
   embedding_api_key: string;
+  orchestration_enabled: boolean;
+  voting_strategy: VotingStrategy;
+  voting_weight: number;
+  guardrail_patterns: string[];
+  models: AiConfigModel[];
 }
 
 export default function AiConfigEditPage() {
@@ -98,6 +111,11 @@ export default function AiConfigEditPage() {
         embedding_model: cfgQuery.data.embedding_model ?? '',
         embedding_endpoint: cfgQuery.data.embedding_endpoint ?? '',
         embedding_api_key: cfgQuery.data.embedding_api_key ?? '',
+        orchestration_enabled: cfgQuery.data.orchestration_enabled,
+        voting_strategy: cfgQuery.data.voting_strategy,
+        voting_weight: cfgQuery.data.voting_weight,
+        guardrail_patterns: cfgQuery.data.guardrail_patterns,
+        models: cfgQuery.data.models,
       });
     }
   }, [cfgQuery.data, form]);
@@ -200,6 +218,19 @@ export default function AiConfigEditPage() {
       embedding_model: values.rag_enabled ? (values.embedding_model?.trim() || null) : null,
       embedding_endpoint: values.embedding_endpoint?.trim() || null,
       embedding_api_key: embeddingApiKey ?? null,
+      orchestration_enabled: values.orchestration_enabled,
+      voting_strategy: values.voting_strategy,
+      voting_weight: values.voting_weight,
+      guardrail_patterns: (values.guardrail_patterns ?? []).filter((p) => p?.trim()),
+      models: (values.models ?? []).map((m) => ({
+        id: m.id,
+        provider: m.provider,
+        model: m.model?.trim() ?? '',
+        endpoint: m.endpoint?.trim() || null,
+        api_key: m.api_key === MASK ? undefined : (m.api_key ?? null),
+        weight: m.weight ?? 1,
+        enabled: m.enabled ?? true,
+      })),
     });
   };
 
@@ -322,6 +353,8 @@ export default function AiConfigEditPage() {
             </Form.Item>
           </div>
           <RagFormSection form={form} />
+          <OrchestrationFormSection form={form} />
+          <GuardrailsFormSection />
           <div
             style={{
               display: 'flex',

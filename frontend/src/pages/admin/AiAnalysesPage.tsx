@@ -11,6 +11,7 @@ import { aiAnalysesKeys, fetchAiAnalysisStats } from '@/api/admin';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
 import type {
   AiAnalysisIssueCategory,
+  AiAnalysisModelStat,
   AiAnalysisRiskScorePoint,
   AiAnalysisStatsFilters,
   AiAnalysisTopSubmitter,
@@ -52,7 +53,8 @@ export default function AiAnalysesPage() {
     !!stats &&
     stats.risk_score_over_time.length === 0 &&
     stats.top_issue_categories.length === 0 &&
-    stats.top_submitters.length === 0;
+    stats.top_submitters.length === 0 &&
+    (stats.per_model_stats?.length ?? 0) === 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -147,6 +149,18 @@ export default function AiAnalysesPage() {
             >
               <TopSubmittersChart rows={stats.top_submitters} />
             </Card>
+            <Card
+              title={t('admin.ai_analyses.chart_cost_per_model_title')}
+              data-testid="ai-analyses-cost-per-model-chart"
+            >
+              <CostPerModelChart rows={stats.per_model_stats ?? []} />
+            </Card>
+            <Card
+              title={t('admin.ai_analyses.chart_latency_per_model_title')}
+              data-testid="ai-analyses-latency-per-model-chart"
+            >
+              <LatencyPerModelChart rows={stats.per_model_stats ?? []} />
+            </Card>
           </Space>
         )}
       </div>
@@ -214,6 +228,75 @@ function IssueCategoriesChart({ rows }: { rows: AiAnalysisIssueCategory[] }) {
       axis={{
         x: { title: t('admin.ai_analyses.axis_count') },
         y: { title: t('admin.ai_analyses.axis_category') },
+      }}
+    />
+  );
+}
+
+function CostPerModelChart({ rows }: { rows: AiAnalysisModelStat[] }) {
+  const { t } = useTranslation();
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        title={t('admin.ai_analyses.empty_title')}
+      />
+    );
+  }
+  // Stacked prompt + completion tokens per model.
+  const data = rows.flatMap((r) => [
+    {
+      model: r.model,
+      series: t('admin.ai_analyses.series_prompt_tokens'),
+      value: r.total_prompt_tokens,
+    },
+    {
+      model: r.model,
+      series: t('admin.ai_analyses.series_completion_tokens'),
+      value: r.total_completion_tokens,
+    },
+  ]);
+  return (
+    <Bar
+      data={data}
+      xField="value"
+      yField="model"
+      colorField="series"
+      stack
+      height={Math.max(220, rows.length * 40 + 40)}
+      legend={{ color: { position: 'top' } }}
+      axis={{
+        x: { title: t('admin.ai_analyses.axis_tokens') },
+        y: { title: t('admin.ai_analyses.axis_model') },
+      }}
+    />
+  );
+}
+
+function LatencyPerModelChart({ rows }: { rows: AiAnalysisModelStat[] }) {
+  const { t } = useTranslation();
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon={<BarChartOutlined style={{ fontSize: 20 }} />}
+        title={t('admin.ai_analyses.empty_title')}
+      />
+    );
+  }
+  const data = rows.map((r) => ({
+    model: r.model,
+    latency: Math.round(r.avg_latency_ms ?? 0),
+  }));
+  return (
+    <Bar
+      data={data}
+      xField="latency"
+      yField="model"
+      height={Math.max(220, rows.length * 40 + 40)}
+      sort={{ reverse: false }}
+      axis={{
+        x: { title: t('admin.ai_analyses.axis_latency_ms') },
+        y: { title: t('admin.ai_analyses.axis_model') },
       }}
     />
   );

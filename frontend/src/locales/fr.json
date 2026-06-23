@@ -1245,7 +1245,14 @@
       "axis_category": "Catégorie",
       "axis_submitter": "Auteur",
       "empty_title": "Aucune analyse IA sur cette période",
-      "empty_description": "Choisissez une plage plus large ou soumettez des requêtes vers une source de données avec l'analyse IA activée."
+      "empty_description": "Choisissez une plage plus large ou soumettez des requêtes vers une source de données avec l'analyse IA activée.",
+      "chart_cost_per_model_title": "Coût en tokens par modèle",
+      "chart_latency_per_model_title": "Latence moyenne par modèle",
+      "series_prompt_tokens": "Tokens de prompt",
+      "series_completion_tokens": "Tokens de réponse",
+      "axis_tokens": "Tokens",
+      "axis_latency_ms": "Latence moyenne (ms)",
+      "axis_model": "Modèle"
     },
     "ai_configs": {
       "title": "Configurations d'IA",
@@ -1349,6 +1356,35 @@
         "document_content_required": "Le contenu est requis",
         "document_added": "Document de connaissances ajouté",
         "document_deleted": "Document de connaissances supprimé"
+      },
+      "orchestration": {
+        "section_title": "Orchestration multi-modèle",
+        "section_help": "Exécutez plusieurs modèles en parallèle et combinez leurs verdicts par vote. Le modèle principal ci-dessus vote avec les membres ci-dessous.",
+        "enabled": "Activer l'orchestration",
+        "field_voting_strategy": "Stratégie de vote",
+        "field_voting_weight": "Poids du modèle principal",
+        "voting_weight_help": "Poids relatif du modèle principal dans le vote pondéré.",
+        "weight_positive": "Le poids doit être supérieur à 0",
+        "members_section": "Modèles supplémentaires",
+        "add_member": "Ajouter un modèle",
+        "remove_member": "Supprimer le modèle",
+        "member_provider": "Fournisseur",
+        "member_provider_required": "Un fournisseur est requis",
+        "member_model": "Modèle",
+        "member_model_required": "Un nom de modèle est requis",
+        "member_endpoint": "Point de terminaison API",
+        "member_endpoint_required": "Un point de terminaison est requis pour un modèle compatible OpenAI",
+        "member_api_key": "Clé API",
+        "member_weight": "Poids",
+        "member_enabled": "Activé"
+      },
+      "guardrails": {
+        "section_title": "Garde-fous",
+        "section_help": "Bloquez les requêtes dont le texte correspond à un motif configuré avant tout appel de modèle. Chaque motif est une expression régulière insensible à la casse.",
+        "add_pattern": "Ajouter un motif",
+        "remove_pattern": "Supprimer le motif",
+        "pattern_placeholder": "p. ex. ignore previous instructions",
+        "invalid_regex": "Expression régulière non valide"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "En attente de revue",
       "REVIEWED": "Revu"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Moyenne pondérée",
+      "MAX_RISK": "Risque le plus élevé",
+      "MAJORITY": "Vote majoritaire"
     }
   },
   "access": {

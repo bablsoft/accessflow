@@ -8,7 +8,9 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
+import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
@@ -141,6 +143,25 @@ class AiAnalysisExceptionHandler {
     ProblemDetail handleAiConfigRagInvalid(AiConfigRagInvalidException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
         pd.setProperty("error", "RAG_CONFIG_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(AiConfigOrchestrationInvalidException.class)
+    ProblemDetail handleAiConfigOrchestrationInvalid(AiConfigOrchestrationInvalidException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
+        pd.setProperty("error", "AI_CONFIG_ORCHESTRATION_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    // More specific than the AiAnalysisException handler (which this extends) → takes precedence.
+    @ExceptionHandler(AiGuardrailViolationException.class)
+    ProblemDetail handleAiGuardrailViolation(AiGuardrailViolationException ex) {
+        log.warn("AI guardrail blocked a prompt before the model call");
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                msg("error.ai.guardrail_blocked"));
+        pd.setProperty("error", "AI_GUARDRAIL_BLOCKED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

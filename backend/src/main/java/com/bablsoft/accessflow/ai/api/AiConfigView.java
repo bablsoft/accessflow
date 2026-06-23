@@ -2,8 +2,10 @@ package com.bablsoft.accessflow.ai.api;
 
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,7 +39,18 @@ public record AiConfigView(
         String embeddingModel,
         String embeddingEndpoint,
         boolean embeddingApiKeyMasked,
+        // --- Multi-model orchestration + guardrails (AF-450) ---
+        boolean orchestrationEnabled,
+        VotingStrategy votingStrategy,
+        double votingWeight,
+        List<String> guardrailPatterns,
+        List<AiConfigModelView> models,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
+
+    public AiConfigView {
+        guardrailPatterns = guardrailPatterns == null ? List.of() : List.copyOf(guardrailPatterns);
+        models = models == null ? List.of() : List.copyOf(models);
+    }
 }
