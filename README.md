@@ -105,6 +105,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Amazon DynamoDB (NoSQL key-value)** — a first-class key-value connector speaking **PartiQL**, shipped as the sixth on-demand engine plugin (`engines/dynamodb/`, AWS SDK for Java v2 over the url-connection HTTP client — no Netty). It is the first engine whose connection is **cloud credentials + region** rather than host/port: the region, access key id, secret access key, and an optional custom endpoint (DynamoDB Local / VPC) map onto the existing datasource fields. PartiQL SELECT / INSERT / UPDATE / DELETE classify onto the same approval workflow, and table management (`CreateTable`/`DeleteTable`/`UpdateTable`) arrives as a JSON command document; transaction/batch statements are rejected. Row-level security splices predicates into the PartiQL WHERE clause (positional parameters, any attribute), failing closed on INSERT-into-policied and deny-all, and field masking applies recursively by dot-path including nested maps/lists.
 - **Neo4j (NoSQL graph)** — a first-class graph connector speaking **Cypher** over Bolt, shipped as the seventh on-demand engine plugin (`engines/neo4j/`, native Neo4j Java driver). Cypher is clause-based, so the query type is the strongest write clause present (DELETE/REMOVE → DELETE, CREATE/MERGE → INSERT, SET → UPDATE, else a `MATCH … RETURN` / `SHOW` read → SELECT), with index/constraint/database/role schema commands as DDL; `LOAD CSV`, procedure calls outside a read-only allow-list, and multi-statement input are rejected up front. Row-level security ANDs property predicates onto each `MATCH`'s `WHERE` (Cypher named parameters, node-label policies), failing closed on anonymous / write-creates-policied-label shapes; field masking is label-aware and recursive. Connection is host/port + database with the SSL mode encoded in the Bolt scheme, **or** a full `bolt://` / `neo4j+s://` URI (Neo4j Aura / clustered routing).
 - **Deploy anywhere** — `docker compose up` for local and small environments; Helm chart for Kubernetes production.
+- **Infrastructure as Code** — an official **Terraform / OpenTofu provider** (`bablsoft/accessflow`) and reusable **GitHub Actions** + **GitLab CI template** manage datasources, review plans, routing / row-security / masking policies, AI configs, and notification channels declaratively over the REST API. Pipelines authenticate with a bootstrap-provisioned **service-account API key**. See [`docs/16-iac.md`](https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md).
 
 ---
 
@@ -140,6 +141,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | AI backends | OpenAI, Anthropic, Ollama, any OpenAI-compatible endpoint, Hugging Face (Inference Providers router or local TGI) (admin-configurable per organization) |
 | Auth | JWT RS256 + optional SAML 2.0 SSO and OAuth 2.0 / OIDC (Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, self-managed GitLab built in) |
 | Deploy | Docker Compose, Helm 3 |
+| Infrastructure as Code | Official Terraform / OpenTofu provider (Go, terraform-plugin-framework) + reusable GitHub Actions and a GitLab CI template |
 
 Library versions in `backend/pom.xml` and `frontend/package.json` are pinned to the latest stable at the time of merge; see `CLAUDE.md` for the dependency-bump rule.
 
@@ -244,7 +246,9 @@ accessflow/
 │   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
-├── engines/          # On-demand engine plugins — engines/mongodb/, engines/couchbase/, engines/redis/, engines/cassandra/, engines/elasticsearch/, engines/dynamodb/ (shaded QueryEngine SPI jars)
+├── engines/          # On-demand engine plugins — engines/mongodb/, engines/couchbase/, engines/redis/, engines/cassandra/, engines/elasticsearch/, engines/dynamodb/, engines/neo4j/ (shaded QueryEngine SPI jars)
+├── terraform-provider/ # Terraform / OpenTofu provider (Go) — released to a dedicated terraform-provider-accessflow mirror repo
+├── ci-templates/     # Reusable GitLab CI template + usage examples (GitHub Actions live in .github/actions/)
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
 ├── connectors/       # Declarative connector catalog (one connector.json + logo per database)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)
@@ -275,6 +279,7 @@ accessflow/
 | [`docs/13-mcp.md`](https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md) | MCP server, user API keys, exposed tools |
 | [`docs/14-connectors.md`](https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
 | [`docs/15-engine-sdk.md`](https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines |
+| [`docs/16-iac.md`](https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md) | Infrastructure as Code — Terraform/OpenTofu provider, CI Actions, service-account API keys, registry publishing |
 
 ---
 

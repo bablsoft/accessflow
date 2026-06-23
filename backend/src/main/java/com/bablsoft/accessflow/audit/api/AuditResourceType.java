@@ -9,6 +9,7 @@ public enum AuditResourceType {
     QUERY_REQUEST("query_request"),
     DATASOURCE("datasource"),
     USER("user"),
+    API_KEY("api_key"),
     PERMISSION("permission"),
     REVIEW_PLAN("review_plan"),
     NOTIFICATION_CHANNEL("notification_channel"),

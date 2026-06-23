@@ -1,0 +1,31 @@
+# Compose override for the Terraform provider acceptance tests (CI `terraform` job).
+#
+# Layered on top of the repo-root docker-compose.yml:
+#   docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml up -d --wait backend
+#
+# It (a) swaps the GHCR backend image for one built from the working tree (tagged
+# accessflow-backend:acc by the CI build step) so the new service-account bootstrap path is
+# exercised, (b) enables bootstrap to seed an org, admin, and a CI service account whose API key is
+# a fixed fixture the acceptance tests authenticate with, and (c) adds a healthcheck so `--wait`
+# blocks until the REST API is ready. The insecure demo ENCRYPTION_KEY / JWT_PRIVATE_KEY from the
+# base file are reused (CI only — never for real data).
+services:
+  backend:
+    image: accessflow-backend:acc
+    environment:
+      ACCESSFLOW_BOOTSTRAP_ENABLED: "true"
+      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: "Acme"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: "admin@acme.test"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "Acme Admin"
+      ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "Password123!"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL: "ci@acme.test"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME: "Terraform CI"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE: "ADMIN"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME: "terraform"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY: "af_acctest_terraform_provider_ci_key_0001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s

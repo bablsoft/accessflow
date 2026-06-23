@@ -30,6 +30,8 @@ jobs:
       e2e: ${{ steps.filter.outputs.e2e }}
       connectors: ${{ steps.filter.outputs.connectors }}
       engines: ${{ steps.filter.outputs.engines }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+      actions: ${{ steps.filter.outputs.actions }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -63,6 +65,18 @@ jobs:
               - 'frontend/**'
               - 'backend/**'
               - 'connectors/**'
+              - '.github/workflows/ci.yml'
+            # The Terraform/OpenTofu provider (AF-452). Acceptance tests boot a backend built from
+            # the working tree, so backend/** is included to catch REST-contract drift.
+            terraform:
+              - 'terraform-provider/**'
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            # Reusable CI Actions + GitLab template (AF-452). The smoke test boots a backend too.
+            actions:
+              - '.github/actions/**'
+              - 'ci-templates/**'
+              - 'backend/**'
               - '.github/workflows/ci.yml'
 
   backend:
@@ -407,13 +421,170 @@ jobs:
           check_name: Engine ${{ matrix.engine }} Test Results
           comment_mode: "off"
 
+  terraform:
+    name: Terraform provider
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform-provider
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: terraform-provider/go.mod
+          cache-dependency-path: terraform-provider/go.sum
+
+      - name: Format check
+        run: test -z "$(gofmt -l .)" || { echo '::error::gofmt needed:'; gofmt -l .; exit 1; }
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: terraform-provider
+
+      - name: Unit tests
+        run: go test ./... -count=1
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Build the backend from the working tree (the service-account bootstrap path is new),
+      # reusing the e2e layer cache for warmth.
+      - name: Build backend image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          tags: accessflow-backend:acc
+          load: true
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,mode=max,scope=tf-acc-backend
+
+      - name: Start backend with a bootstrap service account
+        working-directory: .
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml up -d --wait backend
+
+      - name: Acceptance tests
+        env:
+          TF_ACC: "1"
+          ACCESSFLOW_ENDPOINT: http://localhost:8080
+          ACCESSFLOW_API_KEY: af_acctest_terraform_provider_ci_key_0001
+        run: go test ./internal/provider/ -run TestAcc -count=1 -timeout 20m
+
+      - name: Backend logs on failure
+        if: failure()
+        working-directory: .
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml logs --no-color backend
+
+      - name: Tear down
+        if: always()
+        working-directory: .
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml down -v || true
+
+  actions:
+    name: CI Actions
+    needs: changes
+    if: needs.changes.outputs.actions == 'true'
+    runs-on: ubuntu-latest
+    env:
+      AF_ENDPOINT: http://localhost:8080
+      AF_KEY: af_acctest_terraform_provider_ci_key_0001
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Shellcheck action scripts
+        run: shellcheck .github/actions/*/*.sh
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          tags: accessflow-backend:acc
+          load: true
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,mode=max,scope=tf-acc-backend
+
+      - name: Start backend with a bootstrap service account
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml up -d --wait backend
+
+      - name: Smoke — provision datasource (create)
+        id: ds
+        uses: ./.github/actions/provision-datasource
+        with:
+          endpoint: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          name: ci-smoke-db
+          db-type: POSTGRESQL
+          host: postgres
+          port: "5432"
+          database-name: accessflow
+          username: accessflow
+          password: accessflow
+          ssl-mode: DISABLE
+
+      - name: Smoke — re-provision (idempotent, same id)
+        id: ds2
+        uses: ./.github/actions/provision-datasource
+        with:
+          endpoint: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          name: ci-smoke-db
+          db-type: POSTGRESQL
+          host: postgres
+          port: "5432"
+          database-name: accessflow
+          username: accessflow
+          password: accessflow
+          ssl-mode: DISABLE
+
+      - name: Assert idempotency
+        run: |
+          test "${{ steps.ds.outputs.id }}" = "${{ steps.ds2.outputs.id }}" \
+            || { echo "::error::provision-datasource was not idempotent"; exit 1; }
+
+      - name: Auto-approve SELECTs so run-query reaches EXECUTED
+        run: |
+          curl -fsS -X POST -H "Authorization: ApiKey ${AF_KEY}" -H 'Content-Type: application/json' \
+            -d '{"name":"ci-auto-approve","priority":1,"action":"AUTO_APPROVE","condition":{"type":"query_type","any_of":["SELECT"]}}' \
+            "${AF_ENDPOINT}/api/v1/admin/routing-policies"
+
+      - name: Smoke — run query
+        uses: ./.github/actions/run-query
+        with:
+          endpoint: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          datasource-id: ${{ steps.ds.outputs.id }}
+          sql: "SELECT 1"
+          timeout-seconds: "180"
+
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml logs --no-color backend
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml down -v || true
+
   # Single required status check for branch protection. This job always runs
   # and succeeds when each upstream job either passed or was correctly skipped
   # (its path filter did not match). Configure branch protection to require
   # only this check ("CI / CI Gate") — never the individual area jobs.
   gate:
     name: CI Gate
-    needs: [changes, backend, frontend, helm, e2e, connectors, engines]
+    needs: [changes, backend, frontend, helm, e2e, connectors, engines, terraform, actions]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -426,6 +597,8 @@ jobs:
           E2E_RESULT: ${{ needs.e2e.result }}
           CONNECTORS_RESULT: ${{ needs.connectors.result }}
           ENGINES_RESULT: ${{ needs.engines.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform.result }}
+          ACTIONS_RESULT: ${{ needs.actions.result }}
         run: |
           set -euo pipefail
           if [[ "$CHANGES_RESULT" != "success" ]]; then
@@ -433,7 +606,7 @@ jobs:
             exit 1
           fi
           status=0
-          for area in backend frontend helm e2e connectors engines; do
+          for area in backend frontend helm e2e connectors engines terraform actions; do
             var="$(echo "$area" | tr '[:lower:]' '[:upper:]')_RESULT"
             result="${!var}"
             case "$result" in

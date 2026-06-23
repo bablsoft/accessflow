@@ -219,6 +219,9 @@ class AuditEventListener {
         return switch (type) {
             case ORGANIZATION -> AuditAction.ORGANIZATION_CREATED;
             case ADMIN_USER -> AuditAction.USER_CREATED;
+            case SERVICE_ACCOUNT -> kind == BootstrapChangeKind.CREATE
+                    ? AuditAction.API_KEY_CREATED
+                    : AuditAction.API_KEY_UPDATED;
             case NOTIFICATION_CHANNEL -> kind == BootstrapChangeKind.CREATE
                     ? AuditAction.NOTIFICATION_CHANNEL_CREATED
                     : AuditAction.NOTIFICATION_CHANNEL_UPDATED;
@@ -242,6 +245,7 @@ class AuditEventListener {
         return switch (type) {
             case ORGANIZATION -> AuditResourceType.ORGANIZATION;
             case ADMIN_USER -> AuditResourceType.USER;
+            case SERVICE_ACCOUNT -> AuditResourceType.API_KEY;
             case NOTIFICATION_CHANNEL -> AuditResourceType.NOTIFICATION_CHANNEL;
             case AI_CONFIG -> AuditResourceType.AI_CONFIG;
             case REVIEW_PLAN -> AuditResourceType.REVIEW_PLAN;

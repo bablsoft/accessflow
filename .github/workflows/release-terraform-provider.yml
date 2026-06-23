@@ -1,0 +1,52 @@
+# Release the AccessFlow Terraform/OpenTofu provider (AF-452).
+#
+# The provider's source of truth is terraform-provider/ in this monorepo, but the OpenTofu and
+# HashiCorp registries require a dedicated repo named NAMESPACE/terraform-provider-NAME. This
+# workflow git-subtree-splits terraform-provider/ and pushes it (plus a vX.Y.Z tag) to
+# bablsoft/terraform-provider-accessflow. That repo carries its own release.yml (committed via the
+# subtree) which runs GoReleaser to publish GPG-signed registry artifacts on the pushed tag.
+#
+# Trigger by pushing a tag like `terraform-provider-v1.2.3` to this repo. Requires the
+# MIRROR_REPO_TOKEN secret (a PAT with write access to the mirror repo). See docs/16-iac.md.
+name: Release Terraform provider
+
+on:
+  push:
+    tags:
+      - "terraform-provider-v*"
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Compute mirror tag
+        id: v
+        run: |
+          set -euo pipefail
+          echo "${GITHUB_REF_NAME}" | grep -Eq '^terraform-provider-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' \
+            || { echo "::error::tag must look like terraform-provider-vX.Y.Z"; exit 1; }
+          echo "tag=${GITHUB_REF_NAME#terraform-provider-}" >> "$GITHUB_OUTPUT"
+
+      - name: Split subtree and push to the mirror repo
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
+          MIRROR_TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          set -euo pipefail
+          : "${MIRROR_TOKEN:?MIRROR_REPO_TOKEN secret is required}"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          split="$(git subtree split --prefix terraform-provider HEAD)"
+          remote="https://x-access-token:${MIRROR_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/terraform-provider-accessflow.git"
+          # Update the mirror's main and push the version tag, which fires the mirror's GoReleaser
+          # release workflow. The mirror is release-output only — force pushes are expected.
+          git push --force "$remote" "${split}:refs/heads/main"
+          git push --force "$remote" "${split}:refs/tags/${MIRROR_TAG}"
+          echo "Mirrored terraform-provider/ to ${GITHUB_REPOSITORY_OWNER}/terraform-provider-accessflow @ ${MIRROR_TAG}"

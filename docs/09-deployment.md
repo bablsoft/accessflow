@@ -515,7 +515,7 @@ config:
 
 ## Bootstrap configuration
 
-AccessFlow can seed the **organization, first admin user, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP** from environment variables at startup. This unlocks fully declarative GitOps deployments — `helm upgrade -f values.yaml` reconciles the database to match what's checked in.
+AccessFlow can seed the **organization, first admin user, CI/IaC service accounts, review plans, AI configs, datasources, SAML, OAuth2 providers, notification channels, and system SMTP** from environment variables at startup. This unlocks fully declarative GitOps deployments — `helm upgrade -f values.yaml` reconciles the database to match what's checked in.
 
 **Authoritative semantics.** When `ACCESSFLOW_BOOTSTRAP_ENABLED=true`, the backend re-applies every declared row on every restart. Rows that match a declared spec are **overwritten**; rows not declared are untouched. Admin-UI edits to declared resources are reverted on the next restart — operators should treat the env-driven set as the source of truth.
 
@@ -537,6 +537,8 @@ The backend exposes a single `@ConfigurationProperties("accessflow.bootstrap")` 
 accessflow.bootstrap.enabled                              → ACCESSFLOW_BOOTSTRAP_ENABLED
 accessflow.bootstrap.organization.name                    → ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME
 accessflow.bootstrap.admin.display-name                   → ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME
+accessflow.bootstrap.service-accounts[0].email            → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL
+accessflow.bootstrap.service-accounts[0].api-key          → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY
 accessflow.bootstrap.review-plans[0].name                 → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_NAME
 accessflow.bootstrap.review-plans[0].approver-emails[1]   → ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_0_APPROVER_EMAILS_1
 accessflow.bootstrap.datasources[2].password              → ACCESSFLOW_BOOTSTRAP_DATASOURCES_2_PASSWORD
@@ -549,7 +551,7 @@ The canonical property tree lives in [BootstrapProperties.java](../backend/src/m
 `BootstrapRunner` runs once on `ApplicationReadyEvent` in this fixed order:
 
 ```
-organization → admin user → notification channels → AI configs →
+organization → admin user → service accounts (+ API keys) → notification channels → AI configs →
 review plans (resolve approvers + channels) →
 datasources (resolve review plan + AI config) →
 SAML → OAuth2 → Langfuse → system SMTP
@@ -575,6 +577,7 @@ Sensitive env vars **must** come from Kubernetes `Secret` objects, never from `C
 | Spec path | Env var | Kind |
 |---|---|---|
 | `bootstrap.admin.passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD` | BCrypt-hashed at first start; never rotated |
+| `bootstrap.serviceAccounts[N].apiKeySecretRef` | `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<N>_API_KEY` | SHA-256-hashed; the raw `af_`-prefixed token a pipeline/Terraform sends |
 | `bootstrap.datasources[N].passwordSecretRef` | `ACCESSFLOW_BOOTSTRAP_DATASOURCES_<N>_PASSWORD` | Encrypted (AES-256-GCM) before persist |
 | `bootstrap.aiConfigs[N].apiKeySecretRef` | `ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_<N>_API_KEY` | Encrypted before persist |
 | `bootstrap.notificationChannels[N].sensitiveSecretRefs.<field>` | `ACCESSFLOW_BOOTSTRAP_NOTIFICATION_CHANNELS_<N>_CONFIG_<FIELD>` | Encrypted before persist |
@@ -780,6 +783,35 @@ kubectl logs -l app.kubernetes.io/component=backend --tail=200 | grep Bootstrap
 - **CUSTOM JDBC driver upload** — driver JARs must be uploaded through the admin API.
 - **Deletion of un-declared rows** — bootstrap never deletes; remove rows through the admin API.
 - **Audit-log entries for bootstrap writes** — bootstrap is a system actor; entries are silent today. Tracked in [#196](https://github.com/bablsoft/accessflow/issues/196).
+
+---
+
+## Infrastructure as Code (Terraform / OpenTofu & CI Actions)
+
+Beyond env-driven bootstrap, AccessFlow ships a **Terraform / OpenTofu provider** and reusable
+**GitHub / GitLab CI Actions** (AF-452) for managing governance resources declaratively over the
+REST API from a Terraform/GitOps pipeline. Both authenticate with an API key — bootstrap a
+**service account** (`bootstrap.serviceAccounts[]`, above) to give a pipeline credentials with no
+interactive login.
+
+```hcl
+provider "accessflow" {
+  endpoint = "https://accessflow.example.com" # or ACCESSFLOW_ENDPOINT
+  api_key  = var.accessflow_api_key           # or ACCESSFLOW_API_KEY
+}
+
+resource "accessflow_datasource" "prod" {
+  name     = "prod-postgres"
+  db_type  = "POSTGRESQL"
+  host     = "postgres.prod.internal"
+  port     = 5432
+  ssl_mode = "REQUIRE"
+}
+```
+
+The full provider reference (all resources, write-only-secret behaviour, the registry-publishing
+runbook) and the CI Actions / GitLab template live in
+[docs/16-iac.md](16-iac.md).
 
 ---
 

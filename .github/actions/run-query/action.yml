@@ -1,0 +1,58 @@
+name: "AccessFlow — Run query"
+description: >-
+  Submit a SQL query to AccessFlow and wait for it to reach a terminal state (EXECUTED / REJECTED /
+  FAILED / TIMED_OUT / CANCELLED). Fails the step on any non-EXECUTED terminal status. The query
+  still flows through the full review/approval pipeline — pair with an auto-approve routing policy
+  (or CI-origin context) for unattended runs.
+author: AccessFlow
+branding:
+  icon: play
+  color: blue
+
+inputs:
+  endpoint:
+    description: "AccessFlow base URL."
+    required: true
+  api-key:
+    description: "AccessFlow API key (the af_-prefixed token)."
+    required: true
+  datasource-id:
+    description: "Target datasource UUID."
+    required: true
+  sql:
+    description: "The SQL (or engine-native query) to submit."
+    required: true
+  justification:
+    description: "Optional submission justification."
+    required: false
+  timeout-seconds:
+    description: "How long to wait for a terminal status before giving up."
+    required: false
+    default: "300"
+  poll-interval-seconds:
+    description: "Seconds between status polls."
+    required: false
+    default: "5"
+
+outputs:
+  query-id:
+    description: "The submitted query's UUID."
+    value: ${{ steps.run.outputs.query-id }}
+  status:
+    description: "The terminal query status."
+    value: ${{ steps.run.outputs.status }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        AF_ENDPOINT: ${{ inputs.endpoint }}
+        AF_API_KEY: ${{ inputs.api-key }}
+        AF_DATASOURCE_ID: ${{ inputs.datasource-id }}
+        AF_SQL: ${{ inputs.sql }}
+        AF_JUSTIFICATION: ${{ inputs.justification }}
+        AF_TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+        AF_POLL_INTERVAL_SECONDS: ${{ inputs.poll-interval-seconds }}
+      run: ${{ github.action_path }}/run-query.sh

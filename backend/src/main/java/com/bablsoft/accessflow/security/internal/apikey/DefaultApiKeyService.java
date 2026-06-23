@@ -45,6 +45,31 @@ public class DefaultApiKeyService implements ApiKeyService {
     }
 
     @Override
+    @Transactional
+    public ApiKeyView importOrUpdate(UUID userId, UUID organizationId, String name, String rawKey,
+                                     Instant expiresAt) {
+        if (!ApiKeyHasher.hasExpectedShape(rawKey)) {
+            throw new IllegalArgumentException(
+                    "Imported API key must start with the '" + ApiKeyHasher.PREFIX + "' prefix");
+        }
+        var entity = apiKeyRepository.findByUserIdAndName(userId, name).orElseGet(() -> {
+            var fresh = new ApiKeyEntity();
+            fresh.setId(UUID.randomUUID());
+            fresh.setUserId(userId);
+            fresh.setName(name);
+            fresh.setCreatedAt(Instant.now());
+            return fresh;
+        });
+        entity.setOrganizationId(organizationId);
+        entity.setKeyPrefix(ApiKeyHasher.prefixOf(rawKey));
+        entity.setKeyHash(ApiKeyHasher.hash(rawKey));
+        entity.setExpiresAt(expiresAt);
+        // Re-importing a declared key reactivates it if a prior run (or an admin) had revoked it.
+        entity.setRevokedAt(null);
+        return toView(apiKeyRepository.save(entity));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ApiKeyView> list(UUID userId) {
         return apiKeyRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()

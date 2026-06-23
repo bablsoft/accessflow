@@ -15,6 +15,17 @@ public interface ApiKeyService {
 
     IssuedApiKey issue(UUID userId, UUID organizationId, String name, Instant expiresAt);
 
+    /**
+     * Stores a caller-supplied raw key (rather than generating one) for declarative provisioning —
+     * e.g. the {@code bootstrap} module seeding a service-account key whose plaintext the operator
+     * already holds in a Secret. Authoritative-upsert: when a key named {@code name} already exists
+     * for {@code userId} its hash / prefix / expiry are overwritten in place (and any prior
+     * revocation cleared); otherwise a new row is created. The raw key must carry the standard
+     * {@code af_} shape or an {@link IllegalArgumentException} is thrown (a key without it could
+     * never authenticate via {@link #resolveUserId(String)}). The plaintext is never persisted.
+     */
+    ApiKeyView importOrUpdate(UUID userId, UUID organizationId, String name, String rawKey, Instant expiresAt);
+
     List<ApiKeyView> list(UUID userId);
 
     void revoke(UUID userId, UUID keyId);

@@ -210,6 +210,9 @@
             <a href="#compliance-reports">Compliance reports</a>
             <a href="#cfg-anomalies">Anomaly detection (UBA)</a>
 
+            <h5>Automation</h5>
+            <a href="#iac">Infrastructure as Code</a>
+
             <h5>End-user workflows</h5>
             <a href="#flow-submit">Submitting a query</a>
             <a href="#flow-schedule">Scheduling a query</a>
@@ -1819,6 +1822,90 @@ APPROVED → FAILED (execution error)</pre>
           </p>
         </section>
 
+        <!-- Infrastructure as Code -->
+        <section id="iac" class="docs-section">
+          <h2>Infrastructure as Code (Terraform / OpenTofu &amp; CI Actions)</h2>
+          <p>
+            Beyond the env-driven GitOps bootstrap, AccessFlow ships an official
+            <strong>Terraform / OpenTofu provider</strong> (<code>bablsoft/accessflow</code>) and
+            reusable <strong>GitHub Actions</strong> + a <strong>GitLab CI template</strong> for
+            managing governance resources declaratively over the REST API. Both authenticate with an
+            API key — the provider manages datasources, review plans, routing / row-security /
+            masking policies, AI configs, and notification channels with the same authoritative-upsert
+            semantics as the bootstrap reconciler.
+          </p>
+
+          <h3 id="iac-service-account">Service-account API keys</h3>
+          <p>
+            A pipeline needs credentials without an interactive login. Bootstrap can seed a
+            <strong>service account</strong> — an API-key-only user (password login disabled) whose
+            raw key you supply from a Secret (only its hash is stored, rotated in place when it
+            changes). Set these operator env vars (or the equivalent Helm
+            <code>bootstrap.serviceAccounts[]</code> with an <code>apiKeySecretRef</code>):
+          </p>
+          <ul>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — default <code>ADMIN</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY</code> — the raw <code>af_</code>-prefixed token</li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_EXPIRES_AT</code> — optional ISO-8601</li>
+          </ul>
+          <p>You can also mint a key interactively at <code>POST /api/v1/me/api-keys</code>.</p>
+
+          <h3 id="iac-provider">Terraform / OpenTofu provider</h3>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">main.tf</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>terraform {
+  required_providers {
+    accessflow = { source = <span class="c-str">"bablsoft/accessflow"</span> }
+  }
+}
+
+provider <span class="c-str">"accessflow"</span> {
+  endpoint = <span class="c-str">"https://accessflow.example.com"</span> <span class="c-com"># or ACCESSFLOW_ENDPOINT</span>
+  api_key  = var.accessflow_api_key            <span class="c-com"># or ACCESSFLOW_API_KEY</span>
+}
+
+resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">"prod"</span> {
+  name     = <span class="c-str">"prod-postgres"</span>
+  db_type  = <span class="c-str">"POSTGRESQL"</span>
+  host     = <span class="c-str">"postgres.prod.internal"</span>
+  port     = 5432
+  ssl_mode = <span class="c-str">"REQUIRE"</span>
+}
+</pre>
+          </div>
+          <p>
+            Works with both <code>tofu</code> and <code>terraform</code>. Write-only secrets
+            (<code>password</code>, <code>api_key</code>, notification <code>config</code> values) are
+            never returned by the API, so the provider applies changes to them but can't detect
+            drift — treat the HCL as the source of truth.
+          </p>
+
+          <h3 id="iac-ci">CI Actions</h3>
+          <p>
+            The <code>provision-datasource</code> and <code>run-query</code> GitHub composite actions
+            (referenced as <code>bablsoft/accessflow/.github/actions/&lt;name&gt;@v1</code>) and the
+            <code>include</code>-able GitLab template wrap provisioning a datasource and submitting a
+            governed query from a pipeline. <code>run-query</code> waits for a terminal status and
+            sends an <code>X-AccessFlow-CI</code> header so context-aware routing policies recognise
+            the CI origin.
+          </p>
+          <p>
+            Full provider reference, all resources, and the registry-publishing runbook (the provider
+            is released to a dedicated <code>terraform-provider-accessflow</code> repo that
+            opentofu.org and registry.terraform.io ingest) are in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md">docs/16-iac.md</a>.
+          </p>
+        </section>
+
         <!-- 5. Further reading -->
         <section id="further-reading" class="docs-section">
           <h2>Further reading</h2>
@@ -1836,6 +1923,7 @@ APPROVED → FAILED (execution error)</pre>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">07 · Security</a> — auth, authorization matrix, encryption, audit integrity.</li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md">08 · Notifications</a> — event types, channel configs, signed webhook payloads.</li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">09 · Deployment</a> — full env-var reference, Helm values, Bootstrap GitOps tree.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md">16 · Infrastructure as Code</a> — Terraform/OpenTofu provider, CI Actions, registry publishing.</li>
           </ul>
         </section>
 
