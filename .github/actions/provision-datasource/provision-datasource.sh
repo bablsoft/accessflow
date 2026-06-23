@@ -17,8 +17,8 @@ body="$(jq -n \
   --arg ssl_mode "${AF_SSL_MODE:-DISABLE}" \
   '{name: $name, db_type: $db_type, ssl_mode: $ssl_mode}')"
 
-add_str() { [ -n "${2:-}" ] && body="$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body")" || true; }
-add_num() { [ -n "${2:-}" ] && body="$(jq --argjson v "$2" ". + {\"$1\": \$v}" <<<"$body")" || true; }
+add_str() { if [ -n "${2:-}" ]; then body="$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body")"; fi; }
+add_num() { if [ -n "${2:-}" ]; then body="$(jq --argjson v "$2" ". + {\"$1\": \$v}" <<<"$body")"; fi; }
 
 add_str host "${AF_HOST:-}"
 add_num port "${AF_PORT:-}"

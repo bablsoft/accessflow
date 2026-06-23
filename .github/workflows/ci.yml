@@ -443,11 +443,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-          working-directory: terraform-provider
+      # golangci-lint is run locally via `make lint` (it requires a build matching the module's
+      # go.mod toolchain, which test-only deps pin ahead of released golangci-lint builds); CI
+      # relies on gofmt + go vet here.
 
       - name: Unit tests
         run: go test ./... -count=1
@@ -473,6 +471,18 @@ jobs:
       - name: Start backend with a bootstrap service account
         working-directory: .
         run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml up -d --wait backend
+
+      - name: Wait for the bootstrap service-account key
+        working-directory: .
+        run: |
+          for _ in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+              -H 'Authorization: ApiKey af_acctest_terraform_provider_ci_key_0001' \
+              http://localhost:8080/api/v1/datasources)"
+            if [ "$code" = "200" ]; then echo "service-account key ready"; exit 0; fi
+            echo "waiting for bootstrap service-account key (HTTP $code)…"; sleep 2
+          done
+          echo "::error::service-account key never became usable"; exit 1
 
       - name: Acceptance tests
         env:
@@ -519,6 +529,16 @@ jobs:
 
       - name: Start backend with a bootstrap service account
         run: docker compose -f docker-compose.yml -f terraform-provider/docker-compose.acc.yml up -d --wait backend
+
+      - name: Wait for the bootstrap service-account key
+        run: |
+          for _ in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "Authorization: ApiKey ${AF_KEY}" "${AF_ENDPOINT}/api/v1/datasources")"
+            if [ "$code" = "200" ]; then echo "service-account key ready"; exit 0; fi
+            echo "waiting for bootstrap service-account key (HTTP $code)…"; sleep 2
+          done
+          echo "::error::service-account key never became usable"; exit 1
 
       - name: Smoke — provision datasource (create)
         id: ds
