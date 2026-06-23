@@ -1082,7 +1082,9 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await page.getByRole('button', { name: 'Add model' }).click();
     const memberRow = page.getByTestId('orchestration-member');
     await expect(memberRow).toBeVisible();
-    await memberRow.getByLabel('Model').fill('gpt-4o-mini');
+    // Scope to the textbox by role — getByLabel('Model') also matches the "Remove model" button
+    // (aria-label contains "model"), which trips strict mode.
+    await memberRow.getByRole('textbox', { name: 'Model' }).fill('gpt-4o-mini');
 
     // Add a guardrail pattern.
     await page.getByRole('button', { name: 'Add pattern' }).click();
