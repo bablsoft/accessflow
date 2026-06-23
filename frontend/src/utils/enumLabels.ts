@@ -26,6 +26,7 @@ import type {
   CommentStatus,
   SslMode,
   SubmissionReason,
+  VotingStrategy,
   Weekday,
 } from '@/types/api';
 
@@ -100,6 +101,24 @@ export const RAG_STORE_TYPES: readonly RagStoreType[] = ['PGVECTOR', 'QDRANT'] a
 
 export const ragStoreTypeLabel = (t: TFunction, v: RagStoreType): string =>
   t(`enums.rag_store_type.${v}` as const);
+
+export const VOTING_STRATEGIES: readonly VotingStrategy[] = [
+  'WEIGHTED_AVERAGE',
+  'MAX_RISK',
+  'MAJORITY',
+] as const;
+
+export const votingStrategyLabel = (t: TFunction, v: VotingStrategy): string =>
+  t(`enums.voting_strategy.${v}` as const);
+
+// All providers are valid orchestration members (unlike embedding, which excludes Anthropic).
+export const ORCHESTRATION_PROVIDERS: readonly AiProvider[] = [
+  'OPENAI',
+  'ANTHROPIC',
+  'OLLAMA',
+  'OPENAI_COMPATIBLE',
+  'HUGGING_FACE',
+] as const;
 
 // Anthropic has no embeddings API, so it is excluded from embedding-provider choices.
 export const EMBEDDING_PROVIDERS: readonly AiProvider[] = [

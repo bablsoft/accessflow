@@ -1221,6 +1221,24 @@ APPROVED → FAILED (execution error)</pre>
             provider switches.
           </p>
           <p>
+            <strong>Multi-model orchestration &amp; voting.</strong> On the configuration's edit page,
+            enable <em>Multi-model orchestration</em> to run several models in parallel against the same
+            query. The primary model above votes alongside the <em>Additional models</em> you add (each
+            with its own provider, model, optional endpoint / API key, and weight). Pick a
+            <em>Voting strategy</em> — <em>Weighted average</em> (default), <em>Highest risk</em>, or
+            <em>Majority vote</em> — to combine their risk verdicts; issues and optimization
+            suggestions from all models are merged. A common setup pairs a fast, cheap local model with
+            a deeper cloud model. Per-model token cost and latency are recorded for every analysis and
+            charted on the <a href="#cfg-ai-analyses">AI analyses dashboard</a>.
+          </p>
+          <p>
+            <strong>Guardrails.</strong> Add one or more <em>Guardrail patterns</em> (case-insensitive
+            regular expressions) to block queries whose text matches a pattern <em>before</em> any model
+            is called — useful for prompt-injection strings or content you never want sent to a
+            provider. A blocked editor preview returns an error inline; a blocked submitted query is
+            recorded as a failed (critical) analysis. Each pattern is validated as a regex when you save.
+          </p>
+          <p>
             <strong>Langfuse integration.</strong> AccessFlow optionally connects to
             <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">Langfuse</a> for
             LLM observability and prompt management, configured per organization at
@@ -1294,9 +1312,11 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             Once AI analyses are flowing, <code>/admin/ai-analyses</code> aggregates them into a
             single org-wide trend view: average risk score over a configurable window, the most
-            frequent issue categories, and the most active submitters. Use it to spot
-            risk-pattern drift, identify which queries the AI consistently flags, and decide
-            whether a stricter review plan or schema-level guardrails are warranted.
+            frequent issue categories, the most active submitters, and — per model —
+            <em>token cost</em> and <em>average latency</em> (so you can compare models when
+            orchestration is enabled). Use it to spot risk-pattern drift, identify which queries the
+            AI consistently flags, weigh each model's cost/latency, and decide whether a stricter
+            review plan or schema-level guardrails are warranted.
           </p>
           <figure class="docs-figure">
             <picture>

@@ -18,6 +18,7 @@ const DUPLICATE_NAME = `e2e-dupe-${UNIQUE_SUFFIX}`;
 const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
 const PROMPT_NAME = `e2e-prompt-${UNIQUE_SUFFIX}`;
 const RAG_NAME = `e2e-rag-${UNIQUE_SUFFIX}`;
+const ORCH_NAME = `e2e-orch-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -197,6 +198,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let huggingFaceAiConfigId: string | null = null;
   let promptAiConfigId: string | null = null;
   let ragAiConfigId: string | null = null;
+  let orchAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -221,6 +223,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       huggingFaceAiConfigId,
       promptAiConfigId,
       ragAiConfigId,
+      orchAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -990,9 +993,11 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(RAG_NAME)}`) }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // RAG section is collapsed (switch off) until enabled.
+    // RAG section is collapsed (switch off) until enabled. The edit page now renders multiple
+    // switches (RAG enable, orchestration enable — AF-450); RagFormSection is rendered first, so
+    // the RAG "Enable RAG" toggle is the first switch on the page.
     await expect(page.getByRole('heading', { name: 'RAG knowledge base' })).toBeVisible();
-    await page.getByRole('switch').click();
+    await page.getByRole('switch').first().click();
 
     // Vector store = In-app (pgvector); embedding provider = Ollama; embedding model required.
     // AntD 6 renders the clickable dropdown items as `.ant-select-item-option` divs (the visible
@@ -1034,10 +1039,79 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await expect(
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(RAG_NAME)}`) }),
     ).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('switch')).toBeChecked();
+    await expect(page.getByRole('switch').first()).toBeChecked();
     await expect(
       page.getByRole('heading', { name: 'Knowledge documents' }),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add document' })).toBeEnabled();
+  });
+
+  // AF-450: multi-model orchestration + guardrails round-trip on the edit page. Saving the config
+  // does NOT call any provider, so this runs without a live AI backend (like the RAG test above).
+  // The orchestration "Enable orchestration" toggle is the second switch on the page (RAG enable is
+  // first); member rows are scoped via the `orchestration-member` test id.
+  test('15) edit page — enable orchestration + voting + member + guardrail round-trips on save', async ({
+    page,
+    request,
+  }) => {
+    const cfg = await createAiConfigViaApi(request, adminAccessToken, {
+      name: ORCH_NAME,
+      provider: 'OLLAMA',
+      model: 'llama3.1:70b',
+      endpoint: 'http://localhost:11434/api',
+    });
+    orchAiConfigId = cfg.id;
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/admin/ai-configs/${orchAiConfigId}`);
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(ORCH_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Enable orchestration — the section is collapsed until then.
+    await expect(
+      page.getByRole('heading', { name: 'Multi-model orchestration' }),
+    ).toBeVisible();
+    await page.getByRole('switch').nth(1).click();
+
+    // Pick a voting strategy (Highest risk → MAX_RISK).
+    await page.getByRole('combobox', { name: /Voting strategy/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: 'Highest risk' }).click();
+
+    // Add one orchestration member. Default provider is OpenAI (no endpoint needed); set its model.
+    await page.getByRole('button', { name: 'Add model' }).click();
+    const memberRow = page.getByTestId('orchestration-member');
+    await expect(memberRow).toBeVisible();
+    await memberRow.getByLabel('Model').fill('gpt-4o-mini');
+
+    // Add a guardrail pattern.
+    await page.getByRole('button', { name: 'Add pattern' }).click();
+    await page.getByTestId('guardrail-pattern').getByRole('textbox').fill('ignore previous');
+
+    const updateResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${orchAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const updateResponse = await updateResponsePromise;
+    expect(updateResponse.status()).toBe(200);
+    const body = (await updateResponse.json()) as {
+      orchestration_enabled: boolean;
+      voting_strategy: string;
+      guardrail_patterns: string[];
+      models: Array<{ provider: string; model: string }>;
+    };
+    expect(body.orchestration_enabled).toBe(true);
+    expect(body.voting_strategy).toBe('MAX_RISK');
+    expect(body.guardrail_patterns).toContain('ignore previous');
+    expect(body.models).toEqual([
+      expect.objectContaining({ provider: 'OPENAI', model: 'gpt-4o-mini' }),
+    ]);
+
+    await expect(
+      page.getByText('AI configuration saved', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

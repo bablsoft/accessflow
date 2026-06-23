@@ -22,6 +22,9 @@ import {
   riskLevelLabel,
   roleLabel,
   sslModeLabel,
+  VOTING_STRATEGIES,
+  ORCHESTRATION_PROVIDERS,
+  votingStrategyLabel,
 } from '../enumLabels';
 import type {
   AiProvider,
@@ -170,6 +173,20 @@ describe('ragStoreTypeLabel', () => {
     expect(RAG_STORE_TYPES).toEqual(['PGVECTOR', 'QDRANT']);
     expect(EMBEDDING_PROVIDERS).not.toContain('ANTHROPIC');
     expect(EMBEDDING_PROVIDERS).toContain('OPENAI');
+  });
+});
+
+describe('votingStrategyLabel', () => {
+  it('translates each voting strategy', () => {
+    expect(votingStrategyLabel(t, 'WEIGHTED_AVERAGE')).toBe('Weighted average');
+    expect(votingStrategyLabel(t, 'MAX_RISK')).toBe('Highest risk');
+    expect(votingStrategyLabel(t, 'MAJORITY')).toBe('Majority vote');
+  });
+
+  it('exposes voting strategies and all orchestration providers (incl. Anthropic)', () => {
+    expect(VOTING_STRATEGIES).toEqual(['WEIGHTED_AVERAGE', 'MAX_RISK', 'MAJORITY']);
+    expect(ORCHESTRATION_PROVIDERS).toContain('ANTHROPIC');
+    expect(ORCHESTRATION_PROVIDERS).toContain('OLLAMA');
   });
 });
 

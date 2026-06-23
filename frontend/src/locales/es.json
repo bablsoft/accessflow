@@ -1245,7 +1245,14 @@
       "axis_category": "Categoría",
       "axis_submitter": "Autor",
       "empty_title": "Sin análisis de IA en este intervalo",
-      "empty_description": "Elige un rango más amplio o envía consultas a una fuente de datos con análisis de IA habilitado."
+      "empty_description": "Elige un rango más amplio o envía consultas a una fuente de datos con análisis de IA habilitado.",
+      "chart_cost_per_model_title": "Coste de tokens por modelo",
+      "chart_latency_per_model_title": "Latencia media por modelo",
+      "series_prompt_tokens": "Tokens de prompt",
+      "series_completion_tokens": "Tokens de respuesta",
+      "axis_tokens": "Tokens",
+      "axis_latency_ms": "Latencia media (ms)",
+      "axis_model": "Modelo"
     },
     "ai_configs": {
       "title": "Configuraciones de IA",
@@ -1349,6 +1356,35 @@
         "document_content_required": "El contenido es obligatorio",
         "document_added": "Documento de conocimiento agregado",
         "document_deleted": "Documento de conocimiento eliminado"
+      },
+      "orchestration": {
+        "section_title": "Orquestación multimodelo",
+        "section_help": "Ejecuta varios modelos en paralelo y combina sus veredictos mediante votación. El modelo principal de arriba vota junto con los miembros de abajo.",
+        "enabled": "Habilitar orquestación",
+        "field_voting_strategy": "Estrategia de votación",
+        "field_voting_weight": "Peso del modelo principal",
+        "voting_weight_help": "Peso relativo del modelo principal en la votación ponderada.",
+        "weight_positive": "El peso debe ser mayor que 0",
+        "members_section": "Modelos adicionales",
+        "add_member": "Agregar modelo",
+        "remove_member": "Eliminar modelo",
+        "member_provider": "Proveedor",
+        "member_provider_required": "Se requiere un proveedor",
+        "member_model": "Modelo",
+        "member_model_required": "Se requiere un nombre de modelo",
+        "member_endpoint": "Endpoint de API",
+        "member_endpoint_required": "Se requiere un endpoint para un modelo compatible con OpenAI",
+        "member_api_key": "Clave de API",
+        "member_weight": "Peso",
+        "member_enabled": "Habilitado"
+      },
+      "guardrails": {
+        "section_title": "Barreras de protección",
+        "section_help": "Bloquea las consultas cuyo texto coincida con un patrón configurado antes de llamar a cualquier modelo. Cada patrón es una expresión regular sin distinción de mayúsculas.",
+        "add_pattern": "Agregar patrón",
+        "remove_pattern": "Eliminar patrón",
+        "pattern_placeholder": "p. ej. ignore previous instructions",
+        "invalid_regex": "No es una expresión regular válida"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "Pendiente de revisión",
       "REVIEWED": "Revisado"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Promedio ponderado",
+      "MAX_RISK": "Mayor riesgo",
+      "MAJORITY": "Voto mayoritario"
     }
   },
   "access": {

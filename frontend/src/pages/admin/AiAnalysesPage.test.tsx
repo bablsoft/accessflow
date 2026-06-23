@@ -47,6 +47,7 @@ function emptyStats(): AiAnalysisStats {
     risk_score_over_time: [],
     top_issue_categories: [],
     top_submitters: [],
+    per_model_stats: [],
   };
 }
 
@@ -63,6 +64,26 @@ function fullStats(): AiAnalysisStats {
     top_submitters: [
       { user_id: 'u1', email: 'a@x.test', display_name: 'Alice', count: 5 },
       { user_id: 'u2', email: 'b@x.test', display_name: null, count: 2 },
+    ],
+    per_model_stats: [
+      {
+        provider: 'ANTHROPIC',
+        model: 'claude-sonnet-4',
+        analysis_count: 6,
+        total_prompt_tokens: 1200,
+        total_completion_tokens: 400,
+        avg_latency_ms: 850,
+        avg_risk_score: 60,
+      },
+      {
+        provider: 'OLLAMA',
+        model: 'llama3',
+        analysis_count: 6,
+        total_prompt_tokens: 1100,
+        total_completion_tokens: 300,
+        avg_latency_ms: 220,
+        avg_risk_score: 55,
+      },
     ],
   };
 }
@@ -89,7 +110,7 @@ describe('AiAnalysesPage', () => {
     listDatasourcesMock.mockResolvedValue(emptyDatasources());
   });
 
-  it('renders the page title and the three chart cards when data is present', async () => {
+  it('renders the page title and all chart cards when data is present', async () => {
     fetchAiAnalysisStatsMock.mockResolvedValue(fullStats());
 
     render(wrap(<AiAnalysesPage />));
@@ -101,12 +122,18 @@ describe('AiAnalysesPage', () => {
     });
     expect(screen.getByTestId('ai-analyses-categories-chart')).toBeInTheDocument();
     expect(screen.getByTestId('ai-analyses-submitters-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-analyses-cost-per-model-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('ai-analyses-latency-per-model-chart')).toBeInTheDocument();
     // Line series with two metrics × two days = 4 points.
     expect(screen.getByTestId('ant-line-chart')).toHaveAttribute('data-points', '4');
-    // Two bar charts: 2 categories + 2 submitters.
+    // Four bar charts: categories(2), submitters(2), cost-per-model(2 models × 2 series = 4),
+    // latency-per-model(2).
     const bars = screen.getAllByTestId('ant-bar-chart');
+    expect(bars).toHaveLength(4);
     expect(bars[0]).toHaveAttribute('data-points', '2');
     expect(bars[1]).toHaveAttribute('data-points', '2');
+    expect(bars[2]).toHaveAttribute('data-points', '4');
+    expect(bars[3]).toHaveAttribute('data-points', '2');
   });
 
   it('shows an empty state when every series is empty', async () => {

@@ -184,6 +184,15 @@ class AdminAiConfigsController {
         if (!Objects.equals(before.systemPromptTemplate(), after.systemPromptTemplate())) {
             metadata.put("prompt_changed", true);
         }
+        if (before.orchestrationEnabled() != after.orchestrationEnabled()
+                || before.votingStrategy() != after.votingStrategy()
+                || before.votingWeight() != after.votingWeight()
+                || before.models().size() != after.models().size()) {
+            metadata.put("orchestration_changed", true);
+        }
+        if (!Objects.equals(before.guardrailPatterns(), after.guardrailPatterns())) {
+            metadata.put("guardrails_changed", true);
+        }
         if (metadata.isEmpty()) {
             return;
         }

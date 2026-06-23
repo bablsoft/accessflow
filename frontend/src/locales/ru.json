@@ -1245,7 +1245,14 @@
       "axis_category": "Категория",
       "axis_submitter": "Автор",
       "empty_title": "В этом окне нет анализов ИИ",
-      "empty_description": "Выберите более широкий диапазон или отправьте запросы к источнику данных с включённым анализом ИИ."
+      "empty_description": "Выберите более широкий диапазон или отправьте запросы к источнику данных с включённым анализом ИИ.",
+      "chart_cost_per_model_title": "Стоимость токенов по модели",
+      "chart_latency_per_model_title": "Средняя задержка по модели",
+      "series_prompt_tokens": "Токены запроса",
+      "series_completion_tokens": "Токены ответа",
+      "axis_tokens": "Токены",
+      "axis_latency_ms": "Средняя задержка (мс)",
+      "axis_model": "Модель"
     },
     "ai_configs": {
       "title": "Конфигурации ИИ",
@@ -1349,6 +1356,35 @@
         "document_content_required": "Требуется содержимое",
         "document_added": "Документ базы знаний добавлен",
         "document_deleted": "Документ базы знаний удалён"
+      },
+      "orchestration": {
+        "section_title": "Оркестрация нескольких моделей",
+        "section_help": "Запускайте несколько моделей параллельно и объединяйте их вердикты голосованием. Основная модель выше голосует вместе с участниками ниже.",
+        "enabled": "Включить оркестрацию",
+        "field_voting_strategy": "Стратегия голосования",
+        "field_voting_weight": "Вес основной модели",
+        "voting_weight_help": "Относительный вес основной модели во взвешенном голосовании.",
+        "weight_positive": "Вес должен быть больше 0",
+        "members_section": "Дополнительные модели",
+        "add_member": "Добавить модель",
+        "remove_member": "Удалить модель",
+        "member_provider": "Провайдер",
+        "member_provider_required": "Требуется провайдер",
+        "member_model": "Модель",
+        "member_model_required": "Требуется название модели",
+        "member_endpoint": "Конечная точка API",
+        "member_endpoint_required": "Для OpenAI-совместимой модели требуется конечная точка",
+        "member_api_key": "Ключ API",
+        "member_weight": "Вес",
+        "member_enabled": "Включено"
+      },
+      "guardrails": {
+        "section_title": "Ограничители",
+        "section_help": "Блокируйте запросы, текст которых соответствует настроенному шаблону, до вызова любой модели. Каждый шаблон — регулярное выражение без учёта регистра.",
+        "add_pattern": "Добавить шаблон",
+        "remove_pattern": "Удалить шаблон",
+        "pattern_placeholder": "напр. ignore previous instructions",
+        "invalid_regex": "Недопустимое регулярное выражение"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "Ожидает проверки",
       "REVIEWED": "Проверено"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Взвешенное среднее",
+      "MAX_RISK": "Максимальный риск",
+      "MAJORITY": "Голосование большинством"
     }
   },
   "access": {

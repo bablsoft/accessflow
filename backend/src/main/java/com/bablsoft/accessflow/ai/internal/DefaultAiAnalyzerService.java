@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.PersistAiAnalysisCommand;
+import com.bablsoft.accessflow.core.api.PersistAiModelResultCommand;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
@@ -148,7 +149,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
                     result.aiProvider(), result.aiModel(), result.riskScore(), result.riskLevel(),
                     result.summary(), issuesJson, optimizationsJson, result.missingIndexesDetected(),
                     result.affectsRowEstimate(), result.promptTokens(), result.completionTokens(),
-                    false, null);
+                    false, null, toModelResultCommands(result.modelResults()));
             var analysisId = aiAnalysisPersistenceService.persist(queryRequestId, command);
             eventPublisher.publishEvent(new AiAnalysisCompletedEvent(queryRequestId, analysisId,
                     result.riskLevel(), result.riskScore()));
@@ -164,6 +165,19 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
             persistFailureAndPublish(queryRequestId, descriptor.aiConfigId(), e.getMessage());
         }
+    }
+
+    private List<PersistAiModelResultCommand> toModelResultCommands(
+            List<com.bablsoft.accessflow.ai.api.AiModelResult> modelResults) {
+        if (modelResults == null) {
+            return List.of();
+        }
+        return modelResults.stream()
+                .map(m -> new PersistAiModelResultCommand(
+                        m.provider(), m.model(), m.riskScore(), m.riskLevel(), m.weight(),
+                        m.promptTokens(), m.completionTokens(), m.latencyMs(), m.failed(),
+                        m.errorMessage()))
+                .toList();
     }
 
     private void requireAnalysisEnabled(DatasourceConnectionDescriptor descriptor) {

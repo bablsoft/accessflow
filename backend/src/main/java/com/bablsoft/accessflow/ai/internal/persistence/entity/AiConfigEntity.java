@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal.persistence.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RagStoreType;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,7 +15,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -108,6 +111,23 @@ public class AiConfigEntity {
     @JsonIgnore
     @Column(name = "embedding_api_key_encrypted", columnDefinition = "text")
     private String embeddingApiKeyEncrypted;
+
+    // --- Multi-model orchestration + guardrails (AF-450) ---
+
+    @Column(name = "orchestration_enabled", nullable = false)
+    private boolean orchestrationEnabled = false;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "voting_strategy", nullable = false, columnDefinition = "voting_strategy")
+    private VotingStrategy votingStrategy = VotingStrategy.WEIGHTED_AVERAGE;
+
+    @Column(name = "voting_weight", nullable = false)
+    private double votingWeight = 1.0;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "guardrail_patterns", nullable = false, columnDefinition = "jsonb")
+    private String guardrailPatterns = "[]";
 
     @Version
     @Column(nullable = false)

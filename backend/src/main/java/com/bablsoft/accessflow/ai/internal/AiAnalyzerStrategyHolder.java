@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
@@ -18,12 +19,18 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Single autowired {@link AiAnalyzerStrategy} bean. Resolves the per-row {@code ai_config} entity,
@@ -47,6 +54,7 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private static final String PLACEHOLDER_API_KEY = "not-needed";
 
     private final AiConfigRepository aiConfigRepository;
+    private final AiConfigModelRepository aiConfigModelRepository;
     private final CredentialEncryptionService encryptionService;
     private final SystemPromptRenderer promptRenderer;
     private final AiResponseParser responseParser;
@@ -56,7 +64,10 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     private final RagComponentsFactory ragComponentsFactory;
     private final LangfusePromptProvider langfusePromptProvider;
     private final LangfuseTracer langfuseTracer;
+    private final ObjectMapper objectMapper;
     private final Clock clock;
+
+    private static final TypeReference<List<String>> PATTERN_LIST = new TypeReference<>() { };
 
     private final ConcurrentHashMap<UUID, AiAnalyzerStrategy> cache = new ConcurrentHashMap<>();
     // Separate cache of bare ChatModels keyed by ai_config id, for the freeform anomaly-summary path
@@ -144,13 +155,8 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     }
 
     private ChatModel buildChatModel(AiConfigEntity entity) {
-        return switch (entity.getProvider()) {
-            case ANTHROPIC -> buildAnthropicChatModel(entity);
-            case OPENAI -> buildOpenAiChatModel(entity);
-            case OPENAI_COMPATIBLE -> buildOpenAiCompatibleChatModel(entity);
-            case HUGGING_FACE -> buildHuggingFaceChatModel(entity);
-            case OLLAMA -> buildOllamaChatModel(entity);
-        };
+        return buildChatModel(entity.getProvider(), entity.getModel(), entity.getEndpoint(),
+                entity.getApiKeyEncrypted(), entity.getMaxCompletionTokens(), entity.getTimeoutMs());
     }
 
     @ApplicationModuleListener
@@ -158,10 +164,10 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         chatModelCache.remove(event.aiConfigId());
         var removed = cache.remove(event.aiConfigId());
         if (removed != null) {
-            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={}, rag_changed={})",
+            log.info("Evicted AI analyzer delegate for ai_config={} (provider {} -> {}, model {} -> {}, api_key_changed={}, prompt_changed={}, rag_changed={}, orchestration_changed={})",
                     event.aiConfigId(), event.oldProvider(), event.newProvider(),
                     event.oldModel(), event.newModel(), event.apiKeyChanged(), event.promptChanged(),
-                    event.ragChanged());
+                    event.ragChanged(), event.orchestrationChanged());
         }
     }
 
@@ -174,18 +180,72 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         }
     }
 
+    /**
+     * Builds the analyzer chain for an {@code ai_config}: a guardrail decorator wrapping a
+     * multi-model orchestrator (AF-450). The orchestrator's first member is the primary row; when
+     * {@code orchestration_enabled} the enabled {@code ai_config_model} rows are added as further
+     * members. Members reuse the parent's prompt source + RAG retriever and inherit its timeout /
+     * max-completion-tokens — only provider/model/endpoint/key vary.
+     */
     private AiAnalyzerStrategy buildDelegate(AiConfigEntity entity) {
         var promptSource = buildPromptSource(entity);
         var rag = ragComponentsFactory.retriever(entity);
-        var base = switch (entity.getProvider()) {
-            case ANTHROPIC -> new AnthropicAnalyzerStrategy(buildAnthropicChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
-            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, buildOpenAiChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
-            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, buildOpenAiCompatibleChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
-            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, buildHuggingFaceChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
-            case OLLAMA -> new OllamaAnalyzerStrategy(buildOllamaChatModel(entity), promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+        var members = new ArrayList<OrchestratingAiAnalyzerStrategy.Member>();
+        members.add(toMember(entity.getProvider(), entity.getModel(), entity.getEndpoint(),
+                entity.getApiKeyEncrypted(), entity.getVotingWeight(), entity, promptSource, rag));
+        if (entity.isOrchestrationEnabled()) {
+            for (var child : aiConfigModelRepository
+                    .findByAiConfigIdAndEnabledTrueOrderBySortOrderAsc(entity.getId())) {
+                members.add(toMember(child.getProvider(), child.getModel(), child.getEndpoint(),
+                        child.getApiKeyEncrypted(), child.getWeight(), entity, promptSource, rag));
+            }
+        }
+        var orchestrator = new OrchestratingAiAnalyzerStrategy(members, entity.getVotingStrategy(), clock);
+        return new GuardrailAiAnalyzerStrategy(compilePatterns(entity.getGuardrailPatterns()),
+                orchestrator, messageSource);
+    }
+
+    private OrchestratingAiAnalyzerStrategy.Member toMember(AiProviderType provider, String model,
+            String endpoint, String apiKeyCiphertext, double weight, AiConfigEntity parent,
+            SystemPromptSource promptSource, RagRetriever rag) {
+        var chatModel = buildChatModel(provider, model, endpoint, apiKeyCiphertext,
+                parent.getMaxCompletionTokens(), parent.getTimeoutMs());
+        var base = switch (provider) {
+            case ANTHROPIC -> new AnthropicAnalyzerStrategy(chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OPENAI -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI, chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case OLLAMA -> new OllamaAnalyzerStrategy(chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
         };
-        return new TracingAiAnalyzerStrategy(base, langfuseTracer, entity.getOrganizationId(),
-                entity.getProvider(), entity.getModel(), clock);
+        var tracing = new TracingAiAnalyzerStrategy(base, langfuseTracer, parent.getOrganizationId(),
+                provider, model, clock);
+        return new OrchestratingAiAnalyzerStrategy.Member(tracing, provider, model, weight);
+    }
+
+    /** Compiles the stored JSON array of regex strings into case-insensitive patterns (best-effort). */
+    private List<Pattern> compilePatterns(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        List<String> raw;
+        try {
+            raw = objectMapper.readValue(json, PATTERN_LIST);
+        } catch (RuntimeException e) {
+            log.warn("Failed to parse guardrail_patterns JSON, ignoring: {}", e.getMessage());
+            return List.of();
+        }
+        var patterns = new ArrayList<Pattern>(raw.size());
+        for (var p : raw) {
+            if (p == null || p.isBlank()) {
+                continue;
+            }
+            try {
+                patterns.add(Pattern.compile(p, Pattern.CASE_INSENSITIVE));
+            } catch (PatternSyntaxException e) {
+                log.warn("Skipping invalid guardrail pattern /{}/: {}", p, e.getMessage());
+            }
+        }
+        return patterns;
     }
 
     /**
@@ -205,54 +265,42 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
                 .orElse(localTemplate);
     }
 
-    private ChatModel buildAnthropicChatModel(AiConfigEntity entity) {
-        var apiKey = requireApiKey(entity);
-        return chatModelFactory.anthropic(apiKey, entity.getModel(),
-                entity.getMaxCompletionTokens(), entity.getTimeoutMs());
+    /**
+     * Builds a Spring AI {@link ChatModel} for one provider/model/endpoint/key. Shared by the primary
+     * config and each orchestration member — the latter inherit the parent's max-completion-tokens and
+     * timeout, so those are passed explicitly rather than read off an entity.
+     */
+    private ChatModel buildChatModel(AiProviderType provider, String model, String endpoint,
+            String apiKeyCiphertext, int maxCompletionTokens, int timeoutMs) {
+        return switch (provider) {
+            case ANTHROPIC -> chatModelFactory.anthropic(requireApiKey(apiKeyCiphertext), model,
+                    maxCompletionTokens, timeoutMs);
+            case OPENAI -> chatModelFactory.openAi(requireApiKey(apiKeyCiphertext), model,
+                    maxCompletionTokens, timeoutMs, null);
+            case OPENAI_COMPATIBLE -> chatModelFactory.openAi(optionalApiKey(apiKeyCiphertext), model,
+                    maxCompletionTokens, timeoutMs, endpoint);
+            // Keyless-capable: a HF token is used for the hosted router but local TGI runs tokenless.
+            // The endpoint defaults to the HF router; a custom base URL targets local TGI / Dedicated
+            // Endpoints. Same OpenAI-compatible client as OPENAI / OPENAI_COMPATIBLE.
+            case HUGGING_FACE -> chatModelFactory.openAi(optionalApiKey(apiKeyCiphertext), model,
+                    maxCompletionTokens, timeoutMs, baseUrlOrDefault(endpoint, DEFAULT_HUGGING_FACE_BASE_URL));
+            case OLLAMA -> chatModelFactory.ollama(baseUrlOrDefault(endpoint, DEFAULT_OLLAMA_BASE_URL),
+                    model, maxCompletionTokens);
+        };
     }
 
-    private ChatModel buildOpenAiChatModel(AiConfigEntity entity) {
-        var apiKey = requireApiKey(entity);
-        return chatModelFactory.openAi(apiKey, entity.getModel(),
-                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), null);
-    }
-
-    private ChatModel buildOpenAiCompatibleChatModel(AiConfigEntity entity) {
-        var apiKey = optionalApiKey(entity);
-        return chatModelFactory.openAi(apiKey, entity.getModel(),
-                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), entity.getEndpoint());
-    }
-
-    private ChatModel buildHuggingFaceChatModel(AiConfigEntity entity) {
-        // Keyless-capable: a HF token is used for the hosted router but local TGI runs tokenless.
-        // The endpoint defaults to the HF router; a custom base URL targets local TGI / Dedicated
-        // Endpoints. Same OpenAI-compatible client as OPENAI / OPENAI_COMPATIBLE.
-        var apiKey = optionalApiKey(entity);
-        var baseUrl = baseUrlOrDefault(entity, DEFAULT_HUGGING_FACE_BASE_URL);
-        return chatModelFactory.openAi(apiKey, entity.getModel(),
-                entity.getMaxCompletionTokens(), entity.getTimeoutMs(), baseUrl);
-    }
-
-    private ChatModel buildOllamaChatModel(AiConfigEntity entity) {
-        var baseUrl = baseUrlOrDefault(entity, DEFAULT_OLLAMA_BASE_URL);
-        return chatModelFactory.ollama(baseUrl, entity.getModel(), entity.getMaxCompletionTokens());
-    }
-
-    private String baseUrlOrDefault(AiConfigEntity entity, String fallback) {
-        var endpoint = entity.getEndpoint();
+    private String baseUrlOrDefault(String endpoint, String fallback) {
         return (endpoint == null || endpoint.isBlank()) ? fallback : endpoint;
     }
 
-    private String requireApiKey(AiConfigEntity entity) {
-        var ciphertext = entity.getApiKeyEncrypted();
+    private String requireApiKey(String ciphertext) {
         if (ciphertext == null || ciphertext.isBlank()) {
             throw notConfigured();
         }
         return encryptionService.decrypt(ciphertext);
     }
 
-    private String optionalApiKey(AiConfigEntity entity) {
-        var ciphertext = entity.getApiKeyEncrypted();
+    private String optionalApiKey(String ciphertext) {
         if (ciphertext == null || ciphertext.isBlank()) {
             return PLACEHOLDER_API_KEY;
         }

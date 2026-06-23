@@ -16,7 +16,8 @@ import {
 //   2. Create a Postgres datasource with ai_analysis_enabled=true bound to it.
 //   3. Submit a handful of queries; the AI listener calls mock-ai → real
 //      ai_analyses rows land in the DB.
-//   4. Drive the /admin/ai-analyses page and assert the three charts render.
+//   4. Drive the /admin/ai-analyses page and assert the charts render (incl. the AF-450
+//      per-model cost / latency cards, which every analysis now populates).
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -79,7 +80,7 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
     }
   });
 
-  test('renders three chart cards with seeded data', async ({ page }) => {
+  test('renders chart cards with seeded data', async ({ page }) => {
     await loginViaUi(page);
     await page.goto('/admin/ai-analyses');
     await waitForStatsResponse(page);
@@ -87,6 +88,10 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
     await expect(page.getByTestId('ai-analyses-risk-chart')).toBeVisible();
     await expect(page.getByTestId('ai-analyses-categories-chart')).toBeVisible();
     await expect(page.getByTestId('ai-analyses-submitters-chart')).toBeVisible();
+    // AF-450: per-model cost / latency cards — every analysis writes a per-model breakdown row,
+    // so even the single-model seeded analyses populate these.
+    await expect(page.getByTestId('ai-analyses-cost-per-model-chart')).toBeVisible();
+    await expect(page.getByTestId('ai-analyses-latency-per-model-chart')).toBeVisible();
   });
 
   test('datasource filter scopes to the seeded datasource', async ({ page }) => {

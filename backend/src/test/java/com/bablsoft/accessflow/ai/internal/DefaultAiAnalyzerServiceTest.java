@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiIssue;
+import com.bablsoft.accessflow.ai.api.AiModelResult;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.OptimizationSuggestion;
 import com.bablsoft.accessflow.ai.api.OptimizationType;
@@ -233,6 +234,37 @@ class DefaultAiAnalyzerServiceTest {
                     assertThat(ev.queryRequestId()).isEqualTo(queryRequestId);
                     assertThat(ev.aiAnalysisId()).isEqualTo(newAnalysisId);
                 });
+    }
+
+    @Test
+    void analyzeSubmittedQueryPersistsPerModelBreakdown() {
+        var snapshot = new QueryRequestSnapshot(queryRequestId, datasourceId, organizationId, userId,
+                "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_AI, null, null, null, false);
+        when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
+        when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
+        var multiModel = new AiAnalysisResult(85, RiskLevel.HIGH, "summary",
+                List.of(new AiIssue(RiskLevel.HIGH, "C", "m", "s")), false, null,
+                AiProviderType.ANTHROPIC, "model-x", 150, 60, List.of(),
+                List.of(
+                        new AiModelResult(AiProviderType.ANTHROPIC, "model-x", 85, RiskLevel.HIGH, 1.0,
+                                100, 40, 900L, false, null),
+                        new AiModelResult(AiProviderType.OLLAMA, "llama3", 50, RiskLevel.MEDIUM, 2.0,
+                                50, 20, 200L, false, null)));
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), eq(aiConfigId)))
+                .thenReturn(multiModel);
+        when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
+
+        service.analyzeSubmittedQuery(queryRequestId);
+
+        ArgumentCaptor<PersistAiAnalysisCommand> cmdCaptor = ArgumentCaptor.forClass(PersistAiAnalysisCommand.class);
+        verify(aiAnalysisPersistenceService).persist(eq(queryRequestId), cmdCaptor.capture());
+        var cmd = cmdCaptor.getValue();
+        assertThat(cmd.modelResults()).hasSize(2);
+        assertThat(cmd.modelResults().get(0).model()).isEqualTo("model-x");
+        assertThat(cmd.modelResults().get(0).latencyMs()).isEqualTo(900L);
+        assertThat(cmd.modelResults().get(1).provider()).isEqualTo(AiProviderType.OLLAMA);
+        assertThat(cmd.modelResults().get(1).weight()).isEqualTo(2.0);
     }
 
     @Test

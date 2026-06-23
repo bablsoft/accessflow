@@ -52,6 +52,7 @@ class AiAnalyzerStrategyHolderTest {
             {"risk_score":10,"risk_level":"LOW","summary":"ok","issues":[],"missing_indexes_detected":false,"affects_row_estimate":null}""";
 
     @Mock AiConfigRepository aiConfigRepository;
+    @Mock com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository aiConfigModelRepository;
     @Mock CredentialEncryptionService encryptionService;
     @Mock MessageSource messageSource;
     @Mock ChatModelFactory chatModelFactory;
@@ -64,15 +65,16 @@ class AiAnalyzerStrategyHolderTest {
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
     private final SqlGenerationResponseParser sqlGenerationResponseParser =
             new SqlGenerationResponseParser(JsonMapper.builder().build());
+    private final tools.jackson.databind.ObjectMapper objectMapper = JsonMapper.builder().build();
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
     private AiAnalyzerStrategyHolder holder;
 
     @BeforeEach
     void setUp() {
-        holder = new AiAnalyzerStrategyHolder(aiConfigRepository, encryptionService,
+        holder = new AiAnalyzerStrategyHolder(aiConfigRepository, aiConfigModelRepository, encryptionService,
                 promptRenderer, responseParser, sqlGenerationResponseParser, messageSource, chatModelFactory,
-                ragComponentsFactory, langfusePromptProvider, langfuseTracer, clock);
+                ragComponentsFactory, langfusePromptProvider, langfuseTracer, objectMapper, clock);
         lenient().when(ragComponentsFactory.retriever(any())).thenReturn(RagRetriever.DISABLED);
     }
 
@@ -284,7 +286,7 @@ class AiAnalyzerStrategyHolderTest {
 
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.OPENAI,
-                "claude-sonnet-4-20250514", "gpt-4o", true, false, false));
+                "claude-sonnet-4-20250514", "gpt-4o", true, false, false, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }
@@ -302,7 +304,7 @@ class AiAnalyzerStrategyHolderTest {
     void onConfigUpdatedIsSilentForUncachedConfig() {
         holder.onConfigUpdated(new AiConfigUpdatedEvent(AI_CONFIG_ID,
                 AiProviderType.ANTHROPIC, AiProviderType.ANTHROPIC,
-                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false, false, false));
+                "claude-sonnet-4-20250514", "claude-sonnet-4-20250514", false, false, false, false));
 
         assertThat(cacheContains(AI_CONFIG_ID)).isFalse();
     }

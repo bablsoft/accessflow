@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.AiAnalysisIssueCategoryView;
+import com.bablsoft.accessflow.core.api.AiAnalysisModelStatView;
 import com.bablsoft.accessflow.core.api.AiAnalysisRiskScoreBucketView;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsRaw;
 import com.bablsoft.accessflow.core.api.AiAnalysisSubmitterView;
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisStatsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,7 +42,18 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
                 .map(r -> new AiAnalysisSubmitterView(
                         r.getUserId(), r.getEmail(), r.getDisplayName(), r.getCnt()))
                 .toList();
-        return new AiAnalysisStatsRaw(riskScoreOverTime, topIssueCategories, topSubmitters);
+        List<AiAnalysisModelStatView> perModelStats = repository
+                .findPerModelStats(organizationId, from, to, datasourceId).stream()
+                .map(r -> new AiAnalysisModelStatView(
+                        AiProviderType.valueOf(r.getProvider()),
+                        r.getModel(),
+                        r.getAnalysisCount(),
+                        r.getTotalPromptTokens(),
+                        r.getTotalCompletionTokens(),
+                        r.getAvgLatencyMs(),
+                        r.getAvgRiskScore()))
+                .toList();
+        return new AiAnalysisStatsRaw(riskScoreOverTime, topIssueCategories, topSubmitters, perModelStats);
     }
 
     @Override

@@ -1294,13 +1294,20 @@
       "chart_risk_score_title": "Risk score over time",
       "chart_categories_title": "Top issue categories",
       "chart_submitters_title": "Top submitters",
+      "chart_cost_per_model_title": "Token cost per model",
+      "chart_latency_per_model_title": "Average latency per model",
       "series_success_avg_risk": "Avg risk score (successful)",
       "series_total_count": "Analyses (all)",
+      "series_prompt_tokens": "Prompt tokens",
+      "series_completion_tokens": "Completion tokens",
       "axis_date": "Date",
       "axis_value": "Value",
       "axis_count": "Analyses",
       "axis_category": "Category",
       "axis_submitter": "Submitter",
+      "axis_tokens": "Tokens",
+      "axis_latency_ms": "Avg latency (ms)",
+      "axis_model": "Model",
       "empty_title": "No AI analyses in this window",
       "empty_description": "Pick a wider date range, or submit queries against a datasource with AI analysis enabled."
     },
@@ -1406,6 +1413,35 @@
         "document_content_required": "Content is required",
         "document_added": "Knowledge document added",
         "document_deleted": "Knowledge document deleted"
+      },
+      "orchestration": {
+        "section_title": "Multi-model orchestration",
+        "section_help": "Run several models in parallel and combine their verdicts by voting. The primary model above votes alongside the members below.",
+        "enabled": "Enable orchestration",
+        "field_voting_strategy": "Voting strategy",
+        "field_voting_weight": "Primary model weight",
+        "voting_weight_help": "Relative weight of the primary model in the weighted vote.",
+        "weight_positive": "Weight must be greater than 0",
+        "members_section": "Additional models",
+        "add_member": "Add model",
+        "remove_member": "Remove model",
+        "member_provider": "Provider",
+        "member_provider_required": "A provider is required",
+        "member_model": "Model",
+        "member_model_required": "A model name is required",
+        "member_endpoint": "API endpoint",
+        "member_endpoint_required": "An endpoint is required for an OpenAI-compatible model",
+        "member_api_key": "API key",
+        "member_weight": "Weight",
+        "member_enabled": "Enabled"
+      },
+      "guardrails": {
+        "section_title": "Guardrails",
+        "section_help": "Block queries whose text matches a configured pattern before any model is called. Each pattern is a case-insensitive regular expression.",
+        "add_pattern": "Add pattern",
+        "remove_pattern": "Remove pattern",
+        "pattern_placeholder": "e.g. ignore previous instructions",
+        "invalid_regex": "Not a valid regular expression"
       }
     },
     "notifications": {
@@ -2197,6 +2233,11 @@
     "rag_store_type": {
       "PGVECTOR": "In-app (pgvector)",
       "QDRANT": "Qdrant"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Weighted average",
+      "MAX_RISK": "Highest risk",
+      "MAJORITY": "Majority vote"
     },
     "optimization_type": {
       "INDEX": "Index",

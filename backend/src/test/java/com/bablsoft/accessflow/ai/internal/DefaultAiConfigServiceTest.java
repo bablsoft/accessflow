@@ -8,20 +8,28 @@ import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
+import com.bablsoft.accessflow.ai.api.AiConfigModelCommand;
+import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigModelEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.VotingStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -43,10 +51,12 @@ import static org.mockito.Mockito.when;
 class DefaultAiConfigServiceTest {
 
     @Mock AiConfigRepository repository;
+    @Mock AiConfigModelRepository modelRepository;
     @Mock CredentialEncryptionService encryptionService;
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock SystemPromptRenderer promptRenderer;
+    @Spy ObjectMapper objectMapper = JsonMapper.builder().build();
     @InjectMocks DefaultAiConfigService service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -633,6 +643,123 @@ class DefaultAiConfigServiceTest {
 
         assertThat(entity.getRagApiKeyEncrypted()).isEqualTo("ENC(old-rag)");
         assertThat(entity.getEmbeddingApiKeyEncrypted()).isEqualTo("ENC(old-embed)");
+    }
+
+    // --- AF-450: orchestration + guardrails ---
+
+    @Test
+    void createWithOrchestrationPersistsScalarsMemberAndGuardrails() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Ensemble")).thenReturn(false);
+        when(encryptionService.encrypt("member-key")).thenReturn("ENC(member)");
+        var configCaptor = ArgumentCaptor.forClass(AiConfigEntity.class);
+        when(repository.save(configCaptor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        var memberCaptor = ArgumentCaptor.forClass(AiConfigModelEntity.class);
+        when(modelRepository.save(memberCaptor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        var member = new AiConfigModelCommand(null, AiProviderType.OLLAMA, "llama3", null, "member-key",
+                2.0, true);
+        var cmd = orchestrationCreateCommand("Ensemble", true, VotingStrategy.MAJORITY, 1.5,
+                List.of("ignore previous", "drop\\s+table"), List.of(member));
+
+        var view = service.create(orgId, cmd);
+
+        var savedConfig = configCaptor.getValue();
+        assertThat(savedConfig.isOrchestrationEnabled()).isTrue();
+        assertThat(savedConfig.getVotingStrategy()).isEqualTo(VotingStrategy.MAJORITY);
+        assertThat(savedConfig.getVotingWeight()).isEqualTo(1.5);
+        assertThat(savedConfig.getGuardrailPatterns()).contains("ignore previous").contains("drop");
+        var savedMember = memberCaptor.getValue();
+        assertThat(savedMember.getProvider()).isEqualTo(AiProviderType.OLLAMA);
+        assertThat(savedMember.getModel()).isEqualTo("llama3");
+        assertThat(savedMember.getWeight()).isEqualTo(2.0);
+        assertThat(savedMember.getApiKeyEncrypted()).isEqualTo("ENC(member)");
+        assertThat(view.orchestrationEnabled()).isTrue();
+        assertThat(view.guardrailPatterns()).containsExactly("ignore previous", "drop\\s+table");
+    }
+
+    @Test
+    void createWithInvalidGuardrailRegexThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Bad")).thenReturn(false);
+
+        var cmd = orchestrationCreateCommand("Bad", true, VotingStrategy.WEIGHTED_AVERAGE, 1.0,
+                List.of("("), List.of());
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigOrchestrationInvalidException.class);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void createWithOpenAiCompatibleMemberMissingEndpointThrows() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Bad")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var member = new AiConfigModelCommand(null, AiProviderType.OPENAI_COMPATIBLE, "m", null, null,
+                1.0, true);
+        var cmd = orchestrationCreateCommand("Bad", true, VotingStrategy.WEIGHTED_AVERAGE, 1.0,
+                List.of(), List.of(member));
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigOrchestrationInvalidException.class);
+    }
+
+    @Test
+    void updateChangingVotingStrategyPublishesEventWithOrchestrationChanged() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, VotingStrategy.MAX_RISK, null, null, null);
+        service.update(configId, orgId, cmd);
+
+        var event = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().orchestrationChanged()).isTrue();
+    }
+
+    @Test
+    void updateMemberWithMaskedKeyPreservesCiphertextAndDeletesRemoved() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        var existing = new AiConfigModelEntity();
+        existing.setId(UUID.randomUUID());
+        existing.setAiConfigId(configId);
+        existing.setProvider(AiProviderType.OLLAMA);
+        existing.setModel("llama3");
+        existing.setApiKeyEncrypted("ENC(old)");
+        var stale = new AiConfigModelEntity();
+        stale.setId(UUID.randomUUID());
+        stale.setAiConfigId(configId);
+        stale.setProvider(AiProviderType.OPENAI);
+        stale.setModel("gone");
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(modelRepository.findByAiConfigIdOrderBySortOrderAsc(configId))
+                .thenReturn(List.of(existing, stale));
+        when(modelRepository.save(any(AiConfigModelEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var keep = new AiConfigModelCommand(existing.getId(), AiProviderType.OLLAMA, "llama3", null,
+                UpdateAiConfigCommand.MASKED_API_KEY, 3.0, true);
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                true, null, null, null, List.of(keep));
+        service.update(configId, orgId, cmd);
+
+        assertThat(existing.getApiKeyEncrypted()).isEqualTo("ENC(old)"); // masked → preserved
+        assertThat(existing.getWeight()).isEqualTo(3.0);
+        verify(modelRepository).delete(stale); // removed member deleted
+    }
+
+    private CreateAiConfigCommand orchestrationCreateCommand(String name, boolean enabled,
+            VotingStrategy strategy, Double weight, List<String> guardrails,
+            List<AiConfigModelCommand> models) {
+        return new CreateAiConfigCommand(name, AiProviderType.ANTHROPIC, "claude-sonnet-4", null,
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                enabled, strategy, weight, guardrails, models);
     }
 
     private CreateAiConfigCommand ragCommand(RagStoreType storeType, AiProviderType embeddingProvider,

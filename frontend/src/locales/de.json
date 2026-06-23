@@ -1245,7 +1245,14 @@
       "axis_category": "Kategorie",
       "axis_submitter": "Einreicher",
       "empty_title": "Keine KI-Analysen in diesem Zeitraum",
-      "empty_description": "Wähle einen größeren Zeitraum oder reiche Abfragen gegen eine Datenquelle mit aktivierter KI-Analyse ein."
+      "empty_description": "Wähle einen größeren Zeitraum oder reiche Abfragen gegen eine Datenquelle mit aktivierter KI-Analyse ein.",
+      "chart_cost_per_model_title": "Token-Kosten pro Modell",
+      "chart_latency_per_model_title": "Durchschnittliche Latenz pro Modell",
+      "series_prompt_tokens": "Prompt-Tokens",
+      "series_completion_tokens": "Antwort-Tokens",
+      "axis_tokens": "Tokens",
+      "axis_latency_ms": "Durchschn. Latenz (ms)",
+      "axis_model": "Modell"
     },
     "ai_configs": {
       "title": "KI-Konfigurationen",
@@ -1349,6 +1356,35 @@
         "document_content_required": "Inhalt ist erforderlich",
         "document_added": "Wissensdokument hinzugefügt",
         "document_deleted": "Wissensdokument gelöscht"
+      },
+      "orchestration": {
+        "section_title": "Multi-Modell-Orchestrierung",
+        "section_help": "Mehrere Modelle parallel ausführen und ihre Bewertungen per Abstimmung kombinieren. Das primäre Modell oben stimmt zusammen mit den Mitgliedern unten ab.",
+        "enabled": "Orchestrierung aktivieren",
+        "field_voting_strategy": "Abstimmungsstrategie",
+        "field_voting_weight": "Gewicht des primären Modells",
+        "voting_weight_help": "Relatives Gewicht des primären Modells in der gewichteten Abstimmung.",
+        "weight_positive": "Das Gewicht muss größer als 0 sein",
+        "members_section": "Weitere Modelle",
+        "add_member": "Modell hinzufügen",
+        "remove_member": "Modell entfernen",
+        "member_provider": "Anbieter",
+        "member_provider_required": "Ein Anbieter ist erforderlich",
+        "member_model": "Modell",
+        "member_model_required": "Ein Modellname ist erforderlich",
+        "member_endpoint": "API-Endpunkt",
+        "member_endpoint_required": "Für ein OpenAI-kompatibles Modell ist ein Endpunkt erforderlich",
+        "member_api_key": "API-Schlüssel",
+        "member_weight": "Gewicht",
+        "member_enabled": "Aktiviert"
+      },
+      "guardrails": {
+        "section_title": "Schutzregeln",
+        "section_help": "Abfragen blockieren, deren Text einem konfigurierten Muster entspricht, bevor ein Modell aufgerufen wird. Jedes Muster ist ein regulärer Ausdruck ohne Berücksichtigung der Groß-/Kleinschreibung.",
+        "add_pattern": "Muster hinzufügen",
+        "remove_pattern": "Muster entfernen",
+        "pattern_placeholder": "z. B. ignore previous instructions",
+        "invalid_regex": "Kein gültiger regulärer Ausdruck"
       }
     },
     "notifications": {
@@ -2190,6 +2226,11 @@
     "break_glass_status": {
       "PENDING_REVIEW": "Prüfung ausstehend",
       "REVIEWED": "Geprüft"
+    },
+    "voting_strategy": {
+      "WEIGHTED_AVERAGE": "Gewichteter Durchschnitt",
+      "MAX_RISK": "Höchstes Risiko",
+      "MAJORITY": "Mehrheitsentscheidung"
     }
   },
   "access": {

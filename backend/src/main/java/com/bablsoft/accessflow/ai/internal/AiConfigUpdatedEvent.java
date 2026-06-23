@@ -19,5 +19,6 @@ record AiConfigUpdatedEvent(
         String newModel,
         boolean apiKeyChanged,
         boolean promptChanged,
-        boolean ragChanged) {
+        boolean ragChanged,
+        boolean orchestrationChanged) {
 }

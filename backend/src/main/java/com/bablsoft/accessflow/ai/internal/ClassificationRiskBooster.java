@@ -64,7 +64,8 @@ final class ClassificationRiskBooster {
                 result.aiModel(),
                 result.promptTokens(),
                 result.completionTokens(),
-                result.optimizations());
+                result.optimizations(),
+                result.modelResults());
     }
 
     static RiskLevel levelFromScore(int score) {
