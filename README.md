@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml"><img src="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://snyk.io/test/github/bablsoft/accessflow?targetFile=backend/pom.xml"><img src="https://snyk.io/test/github/bablsoft/accessflow/badge.svg?targetFile=backend/pom.xml" alt="Snyk Monitoring"></a>
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
   <a href="https://accessflow.bablsoft.com/"><img src="https://img.shields.io/badge/Live%20Demo-accessflow.bablsoft.com-1f6feb?logo=githubpages&logoColor=white" alt="Live site"></a>
 </p>
