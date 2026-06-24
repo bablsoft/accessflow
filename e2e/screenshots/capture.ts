@@ -688,6 +688,35 @@ async function prepEditorTextToSql(page: Page) {
   await page.waitForTimeout(500);
 }
 
+// v2.0 admin pages -------------------------------------------------
+
+async function prepOrganizationsList(page: Page) {
+  // AF-456 — platform-admin multi-tenant management. The bootstrap admin is a
+  // platform admin, so the org list renders the seeded organization + quotas.
+  await gotoAndSettle(page, '/admin/organizations');
+  await page.waitForTimeout(800);
+}
+
+async function prepAuditorDashboard(page: Page) {
+  // AF-459 — read-only AUDITOR dashboard (compliance report builder over the
+  // immutable query-snapshot record).
+  await gotoAndSettle(page, '/admin/auditor');
+  await page.waitForTimeout(1500); // report widgets need a beat to settle
+}
+
+async function prepAnomaliesDashboard(page: Page) {
+  // AF-383 — UBA anomaly review dashboard. Renders the dashboard chrome; the
+  // list is populated by the detection job at runtime.
+  await gotoAndSettle(page, '/admin/anomalies');
+  await page.waitForTimeout(1200);
+}
+
+async function prepBreakGlassLog(page: Page) {
+  // AF-385 — break-glass / emergency-access retro-review log.
+  await gotoAndSettle(page, '/admin/break-glass');
+  await page.waitForTimeout(800);
+}
+
 // ----------------------- main flow -----------------------
 
 async function main() {
@@ -766,6 +795,12 @@ async function main() {
     // v1.4 admin (AF-333 Langfuse, AF-336 RAG knowledge base)
     { name: 'langfuse-config', prep: prepLangfuseConfig, darkToo: true },
     { name: 'ai-configs-rag', prep: prepAiConfigsRag, darkToo: true },
+
+    // v2.0 admin (AF-456 orgs, AF-459 auditor, AF-383 anomalies, AF-385 break-glass)
+    { name: 'organizations-list', prep: prepOrganizationsList, darkToo: true },
+    { name: 'auditor-dashboard', prep: prepAuditorDashboard, darkToo: true },
+    { name: 'anomalies-dashboard', prep: prepAnomaliesDashboard, darkToo: true },
+    { name: 'break-glass-log', prep: prepBreakGlassLog, darkToo: true },
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },

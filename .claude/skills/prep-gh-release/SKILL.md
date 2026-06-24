@@ -181,6 +181,10 @@ Canonical list — these are the PNGs that exist today plus the routes they were
 | `/datasources/<id>/settings` → Row security tab (AF-380) | `datasources-row-security-light.png`, `datasources-row-security-dark.png` |
 | `/admin/langfuse` config form (AF-333) | `langfuse-config-light.png`, `langfuse-config-dark.png` |
 | `/admin/ai-configs/new` → Connection step, Enable RAG toggled (AF-336) | `ai-configs-rag-light.png`, `ai-configs-rag-dark.png` |
+| `/admin/organizations` list (platform-admin multi-tenant management, AF-456) | `organizations-list-light.png`, `organizations-list-dark.png` |
+| `/admin/auditor` dashboard (AF-459) | `auditor-dashboard-light.png`, `auditor-dashboard-dark.png` |
+| `/admin/anomalies` dashboard (UBA, AF-383) | `anomalies-dashboard-light.png`, `anomalies-dashboard-dark.png` |
+| `/admin/break-glass` log (AF-385) | `break-glass-log-light.png`, `break-glass-log-dark.png` |
 | `/editor` with a sample query and the AI hint panel visible | `editor-light.png` (light-only by precedent) |
 | `/editor` → schedule date picker open | `editor-schedule-light.png` (light-only by precedent) |
 | `/editor` → query-templates drawer open | `editor-query-templates-light.png` (light-only by precedent) |

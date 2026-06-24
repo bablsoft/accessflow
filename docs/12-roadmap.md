@@ -129,7 +129,7 @@
 
 ---
 
-## v2.0
+## v2.0 ✅ released
 
 **Theme:** Beyond relational databases — plus native client access and continuous governance.
 
@@ -137,12 +137,7 @@
 - **Couchbase support** — SQL++ (N1QL) query governance through the second on-demand engine plugin (AF-412): classification onto the standard approval workflow, WHERE-splice row-level security, field masking, and scope/collection introspection
 - **Redis read-access governance** — audit and optionally require review for Redis GET/SCAN/keys operations
 - **Text-to-query for NoSQL** — extend text-to-SQL (AF-335) to every NoSQL engine via an engine-language-aware generation prompt: a natural-language prompt drafts the engine's native query (MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli), still submitted through the full review pipeline (AF-439)
-- **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
-- **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
-- **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
-- **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
 - **Behavioral anomaly detection (UBA)** — a clustered-safe scheduled job builds rolling per-`(user, datasource)` baselines from `audit_log` metadata (never query result data) and flags out-of-pattern activity (query volume, off-hours activity, distinct/new tables, query types, rows returned, error rate) via z-score detection with a robust IQR fallback. Each anomaly carries an optional AI natural-language explanation, raises the `anomaly_detected` routing condition to escalate the flagged user's next query, fans out a notification (incl. PagerDuty), and surfaces on the `/admin/anomalies` admin dashboard where it can be acknowledged or dismissed (AF-383)
-- **Access recertification campaigns** — recurring attestation campaigns where datasource owners certify or revoke standing access, with exportable evidence for SOC2 / ISO 27001 audits (AF-384)
 - **Break-glass / emergency access** — a distinct submission mode gated by a per-user/per-datasource `can_break_glass` permission (required for everyone, including admins; time-boxed via the grant's `expires_at`). It skips pre-approval and executes immediately through all the usual proxy guards (allow-list, masking, row-security, row caps), compensating with: instant fanout to all org admins (incl. PagerDuty), a prominent `QUERY_BREAK_GLASS_EXECUTED` audit row, and a mandatory retro-review (tracked in `break_glass_events`, surfaced on the `/admin/break-glass` log) that an admin — never the submitter — must acknowledge (`BREAK_GLASS_REVIEWED`). The executed query never re-opens; the state machine adds the `PENDING_AI → APPROVED → EXECUTED` break-glass path and the illegal-transition guard still rejects everything off-path (AF-385)
 - **Multi-tenant organization management & per-org quotas** — organizations are first-class, manageable tenants: a super-admin (`platform_admin`) manages them across the cluster from a dedicated UI (`/admin/organizations`) — create, edit, disable / enable — with per-org quotas (`max_datasources`, `max_users`, `max_queries_per_day`, enforced as `409 QUOTA_EXCEEDED`) and a disabled-org kill-switch that blocks login and requests immediately. Cross-org isolation is hardened defense-in-depth (org always derived from the JWT, never the request body) (AF-456)
 - **Data classification tagging** — tag datasource tables/columns with one or more data classifications (PII, PCI, PHI, GDPR, FINANCIAL, SENSITIVE) in the schema explorer; tagging a column auto-applies a masking policy, the AI analyzer raises a query's risk score when it references a tagged object, and a derivation preview suggests a stricter review posture. Tags are audited and queryable org-wide for compliance reporting (AF-447)
@@ -165,6 +160,18 @@
 - **Immutable query snapshots & replay** — every executed query writes a sanitized, exact-replay-capable snapshot (SQL + schema fingerprint + AI verdict + approval decisions). "Replay in test environment" re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never bypassing approval, and distinctly audited (`trigger=replay`) (AF-449)
 - **Mobile-friendly approvals (PWA) with one-tap push** — an installable PWA with an offline-capable review-queue shell, plus Web Push (VAPID) delivery as a per-user notification path: a reviewer away from their desk gets a push when a query needs approval and approves/rejects in one tap. The decision only commits after a **step-up auth** re-verification (password, or TOTP when 2FA is enrolled), and the self-approval guard is enforced server-side regardless of channel (AF-444)
 - **Multi-model AI orchestration, voting & guardrails** — an `ai_config` can run several models in parallel (the primary plus weighted `{provider, model, weight}` members, e.g. a fast local Ollama pre-score alongside a deep Claude analysis) and combine their verdicts by a configurable voting strategy (weighted average, highest risk, or majority); issues are merged and risk aggregated. Pre-call guardrails block configured prompt-injection / pattern regexes before any model is called, and the existing strict output-schema validation rejects malformed responses without failing the query. Per-model cost (tokens) and latency are persisted per analysis and charted on the admin dashboard (AF-450)
+- **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
+- **Access recertification campaigns** — recurring attestation campaigns where datasource owners certify or revoke standing access, with exportable evidence for SOC2 / ISO 27001 audits (AF-384)
+
+---
+
+## Backlog / Unscheduled
+
+**Theme:** Candidate features not yet scheduled into a milestone.
+
+- **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
+- **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
+- **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
 
 ---
 
