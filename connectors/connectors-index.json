@@ -1,0 +1,167 @@
+{
+  "version": "2.0.0",
+  "connectors": [
+    {
+      "id": "cassandra",
+      "name": "Apache Cassandra",
+      "dbType": "CASSANDRA",
+      "vendor": "The Apache Software Foundation",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "f19f265433e05729c91ae602fbd0617c801fede77664b781629e9219988a79f1"
+      }
+    },
+    {
+      "id": "clickhouse",
+      "name": "ClickHouse",
+      "dbType": "CUSTOM",
+      "vendor": "ClickHouse, Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "maven",
+        "sha256": "aad21a6b9d357d35d846d0c05b97cba6ed93cf9c6530c928ff38e423a26b6157"
+      }
+    },
+    {
+      "id": "couchbase",
+      "name": "Couchbase",
+      "dbType": "COUCHBASE",
+      "vendor": "Couchbase, Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "a7ea70c36006adf2b7ba5449dacfd02ce7b4a8f93d2b7346aebd9c5346bb94ff"
+      }
+    },
+    {
+      "id": "dynamodb",
+      "name": "Amazon DynamoDB",
+      "dbType": "DYNAMODB",
+      "vendor": "Amazon Web Services",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "05090268ab9bf61135ba6b44a1604010ffef4d8be2e0471089f2ca2c536d768f"
+      }
+    },
+    {
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "dbType": "ELASTICSEARCH",
+      "vendor": "Elastic",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "660fc466f090ca3539f20126d45fac9553a0d557a539f44745b08c6da20982ca"
+      }
+    },
+    {
+      "id": "mariadb",
+      "name": "MariaDB",
+      "dbType": "MARIADB",
+      "vendor": "MariaDB Foundation",
+      "bundled": false,
+      "driver": {
+        "type": "maven",
+        "sha256": "85c4ba2f221d0dfd439c26affbb294f784960763544263c65aba9c2c76858706"
+      }
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "dbType": "MONGODB",
+      "vendor": "MongoDB, Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "300f461c704f51175baa1e42ed4d436cc4afd12105efc7de09565a65562c4ca6"
+      }
+    },
+    {
+      "id": "mssql",
+      "name": "Microsoft SQL Server",
+      "dbType": "MSSQL",
+      "vendor": "Microsoft Corporation",
+      "bundled": false,
+      "driver": {
+        "type": "maven",
+        "sha256": "8b80e2a3d254c26f66d479bc51d2d235f054eeb6e8394260c129bbd7fc7394a7"
+      }
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "dbType": "MYSQL",
+      "vendor": "Oracle Corporation",
+      "bundled": false,
+      "driver": {
+        "type": "maven",
+        "sha256": "0353648eaa1c91e0f4020c959abf756bc866ffd583df22ae6b6f6e0cbd43eb44"
+      }
+    },
+    {
+      "id": "neo4j",
+      "name": "Neo4j",
+      "dbType": "NEO4J",
+      "vendor": "Neo4j, Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "9cf3f86e833e2556b2d07fd52fc0d3cb65cdec64c3e8bc61d1f039ae9afaed02"
+      }
+    },
+    {
+      "id": "opensearch",
+      "name": "OpenSearch",
+      "dbType": "OPENSEARCH",
+      "vendor": "OpenSearch Software Foundation",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "660fc466f090ca3539f20126d45fac9553a0d557a539f44745b08c6da20982ca"
+      }
+    },
+    {
+      "id": "oracle",
+      "name": "Oracle Database",
+      "dbType": "ORACLE",
+      "vendor": "Oracle Corporation",
+      "bundled": false,
+      "driver": {
+        "type": "maven",
+        "sha256": "756663c916f64e94659c197768f5c7a29706bc0fd4274dfdf88f474885516d06"
+      }
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "dbType": "POSTGRESQL",
+      "vendor": "PostgreSQL Global Development Group",
+      "bundled": true,
+      "driver": null
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "dbType": "REDIS",
+      "vendor": "Redis Ltd.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "58e6b505271c6c34b6647cc8922279181716957606e71a809361c37243086bcd"
+      }
+    },
+    {
+      "id": "scylladb",
+      "name": "ScyllaDB",
+      "dbType": "SCYLLADB",
+      "vendor": "ScyllaDB, Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "f19f265433e05729c91ae602fbd0617c801fede77664b781629e9219988a79f1"
+      }
+    }
+  ]
+}
