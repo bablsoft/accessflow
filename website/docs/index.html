@@ -666,12 +666,12 @@
           <!-- Organizations -->
           <h3 id="cfg-organizations">Organizations &amp; quotas</h3>
           <p>
-            A single AccessFlow deployment hosts <strong>one or more organizations</strong>, each a
-            fully-isolated tenant. Every entity — users, datasources, queries, audit rows — is scoped
-            to one org, and a request's org is always derived from the signed-in user's token, never
-            from the request itself, so one tenant can never reach another's data. Most operators run
-            a single org; the cross-org controls below matter when you host several teams or customers
-            on one deployment.
+            <strong>What it is.</strong> Multi-tenancy. A single AccessFlow deployment hosts
+            <strong>one or more organizations</strong>, each a fully-isolated tenant — every user,
+            datasource, query, and audit row belongs to exactly one org, and a tenant can never reach
+            another's data. Reach for it when you host several teams or customers on one deployment and
+            want per-tenant resource caps; most operators run a single org and can ignore the cross-org
+            controls.
           </p>
           <p>
             <strong>Platform admin (super-admin).</strong> Managing organizations across the cluster
@@ -691,6 +691,8 @@
             </picture>
             <figcaption><code>/admin/organizations</code> — platform admins manage every tenant and its quotas from one screen.</figcaption>
           </figure>
+          <p><strong>Configure it.</strong> Platform admins manage tenants and their quotas from
+            <code>/admin/organizations</code>:</p>
           <ol>
             <li><strong>Create an organization.</strong> From <code>/admin/organizations</code>, click
               <em>New organization</em>, give it a name (an optional URL-safe <em>slug</em> is derived
@@ -720,9 +722,12 @@
           <!-- Users -->
           <h3 id="cfg-users">Users</h3>
           <p>
-            Local users are created directly by an admin. Federated users (SAML / OAuth) are
-            auto-provisioned on first sign-in if the feature is enabled (see
-            <a href="#cfg-saml">SAML</a> and <a href="#cfg-oauth">OAuth</a>).
+            <strong>What it is.</strong> The people who can sign in to AccessFlow and the role each one
+            carries. Create accounts directly, or let SAML / OAuth users be auto-provisioned on first
+            sign-in when SSO is enabled (see <a href="#cfg-saml">SAML</a> and <a href="#cfg-oauth">OAuth</a>).
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage everyone from <code>/admin/users</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -739,13 +744,26 @@
             <li><strong>Edit or deactivate.</strong> Click any row to change the role or flip the active toggle. Deactivated users can't sign in but their audit trail is preserved.</li>
             <li><strong>Pending invitations</strong> are listed below the user table; resend or revoke them from there.</li>
           </ol>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_SECURITY_INVITATION_TTL</code> (invite-link
+            lifetime, default <code>P7D</code>), <code>ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL</code>
+            (reset-link lifetime, default <code>PT1H</code>), and
+            <code>ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL</code> (link base, default
+            <code>http://localhost:5173</code>).
+          </p>
 
           <!-- Roles -->
           <h3 id="cfg-roles">User roles &amp; RBAC</h3>
           <p>
-            AccessFlow has four roles. Pick the lowest-privilege role for each user — admins are
-            the only role that can change configuration. A user can never approve their own
-            query, regardless of role.
+            <strong>What it is.</strong> Role-based access control. Every user carries one org-wide
+            role that caps what they can do; on top of it, per-datasource permissions decide which
+            databases they may touch. Pick the lowest-privilege role that still lets someone do their
+            job — only <code>ADMIN</code> can change configuration, and a user can never approve their
+            own query, whatever their role.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Assign one of the five roles when you create or edit a user
+            on <code>/admin/users</code>; the matrix below is what each role may do.
           </p>
           <p>
             <strong>Platform admin is separate from the four roles.</strong> The
@@ -813,11 +831,10 @@
           </p>
           <p>
             <strong>Datasource-level permissions.</strong> Role is the org-wide ceiling. On top of
-            it, every user needs an explicit row in <code>datasource_user_permissions</code> to
-            access a given datasource — that row controls <code>can_read</code> /
-            <code>can_write</code> / <code>can_ddl</code> per datasource, row caps, allowed
-            schemas / tables, and restricted columns (which are masked as <code>***</code> in
-            <code>SELECT</code> results). See
+            it, every user needs an explicit <strong>per-datasource permission grant</strong> to
+            access a given database — it controls <em>read</em> / <em>write</em> / <em>DDL</em> per
+            datasource, row caps, allowed schemas / tables, and restricted columns (which are masked
+            as <code>***</code> in <code>SELECT</code> results). See
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>
             for the full authorization matrix.
           </p>
@@ -831,9 +848,8 @@
             sees and can approve <em>every</em> pending access request from
             <code>/admin/access-requests</code> — even on datasources with no review plan — so a
             request is never stuck waiting for an approver who was never configured. On final
-            approval AccessFlow writes a
-            time-boxed <code>datasource_user_permissions</code> row (<code>expires_at = now +
-            duration</code>); a clustered scheduler revokes it on expiry, and an admin can revoke an
+            approval AccessFlow writes a <strong>time-boxed permission grant</strong> (expiring at
+            <em>now + duration</em>); it's revoked automatically on expiry, and an admin can revoke an
             active grant early from <code>/admin/access-requests</code>. Tune the revocation cadence
             with <code>ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL</code> (default <code>PT5M</code>)
             and the allowed duration window with <code>ACCESSFLOW_ACCESS_MIN_DURATION</code> /
@@ -877,12 +893,12 @@
           <!-- User groups -->
           <h3 id="cfg-groups">User groups</h3>
           <p>
-            User groups are named, organisation-scoped collections of users. They serve two
-            purposes: (1) bundling reviewers so admins can attach a single group — instead of
-            ten individual users — to a datasource as an eligible reviewer; and (2) acting as the
-            target of IdP group mappings so SAML / OAuth2 logins automatically maintain
-            membership.
+            <strong>What it is.</strong> Named, organisation-scoped collections of users. Use them to
+            (1) bundle reviewers so you can attach a single group — instead of ten individual users —
+            to a datasource as eligible reviewers, and (2) act as the target of IdP group mappings so
+            SAML / OAuth2 logins keep membership in sync automatically.
           </p>
+          <p><strong>Configure it.</strong> Manage groups from <code>/admin/groups</code>:</p>
           <ol>
             <li><strong>Create a group.</strong> Go to <code>/admin/groups</code> → <em>Create
               group</em>. Pick a name (e.g. <em>Billing Reviewers</em>) and an optional description.</li>
@@ -900,11 +916,10 @@
               are never touched.</li>
           </ol>
           <p>
-            <strong>Per-datasource reviewer scoping.</strong> When a datasource has at least one
-            row in <code>datasource_reviewers</code> (a direct user assignment or a group
-            assignment), only those reviewers see the datasource's queries. Datasources with no
-            rows fall back to the existing review-plan approvers — so adopting groups is purely
-            additive, no migration required.
+            <strong>Per-datasource reviewer scoping.</strong> Once a datasource has at least one
+            assigned reviewer (a user or a group), only those reviewers see its queries. Datasources
+            with none fall back to the review-plan approvers — so adopting groups is purely additive,
+            no migration required.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -919,9 +934,18 @@
           <!-- Datasources -->
           <h3 id="cfg-datasources">Datasources</h3>
           <p>
-            A datasource describes one customer database that AccessFlow proxies. PostgreSQL,
-            MySQL, MariaDB, Oracle, and MS SQL Server are bundled; any other JDBC engine works by
-            uploading its database driver and setting <em>type</em> to <em>Custom</em>.
+            <strong>What it is.</strong> A governed connection to one of your databases. Every query a
+            user runs against it passes through AccessFlow's review, masking, and row-security guards
+            instead of hitting the database directly — so a datasource is where you decide <em>who</em>
+            may run <em>what</em> against <em>which</em> data. PostgreSQL, MySQL, MariaDB, Oracle, and
+            MS SQL Server are built in; MongoDB, Couchbase, Redis, Cassandra / ScyllaDB,
+            Elasticsearch / OpenSearch, DynamoDB, and Neo4j install from the
+            <a href="#cfg-connectors">connector catalog</a>; any other JDBC engine works by uploading
+            its <a href="#cfg-drivers">driver</a> and choosing <em>Custom</em>.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Create one with the four-step wizard at
+            <code>/datasources/new</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -941,8 +965,8 @@
           <p>
             <strong>Read-replica routing (optional).</strong> On the datasource settings page,
             the <em>Read replica</em> card accepts an optional JDBC URL plus username and password.
-            When set, AccessFlow opens a sibling HikariCP pool and routes every query the SQL
-            parser classifies as <code>SELECT</code> to the replica; INSERT / UPDATE / DELETE / DDL
+            When set, AccessFlow opens a separate connection pool and routes every query classified as
+            <code>SELECT</code> to the replica; INSERT / UPDATE / DELETE / DDL
             and transactional <code>BEGIN … COMMIT</code> batches always hit the primary. The
             replica must use the same database engine as the primary (it reuses the primary's
             JDBC driver). Replica credentials are AES-256-GCM encrypted with the same
@@ -952,11 +976,11 @@
             falls back to the primary so the query still runs and writes a
             <code>DATASOURCE_REPLICA_FALLBACK</code> audit row so the failure is visible at
             <code>/admin/audit-log</code>. Clear the JDBC URL field to disable replica routing.
-            Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> HikariCP tuning as the
+            Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> connection-pool tuning as the
             primary — no separate environment variables.
           </p>
           <p>
-            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can_read / can_write / can_ddl</em>, allowed schemas, allowed tables, and restricted columns (which are masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user cannot see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced at SQL submit time by walking the parsed JSqlParser AST: every referenced table (across joins, subqueries, CTE bodies, and <code>BEGIN; …; COMMIT;</code> envelopes) must either appear verbatim in <em>allowed tables</em> or live in a schema listed in <em>allowed schemas</em>. Matching is case-insensitive, and unqualified table references (<code>FROM users</code> with no schema prefix) only match unqualified entries in <em>allowed tables</em> — a schemas-only list does not cover them. Leave both fields empty to keep the historical "all tables permitted" behaviour.
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, and restricted columns (masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
           </p>
           <p>
             <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
@@ -1045,18 +1069,60 @@
             classifications</em> (<code>/admin/data-classifications</code>) lists every tag across all
             datasources as the evidence base for compliance reporting.
           </p>
+          <p>
+            <strong>Tune it.</strong> Per-datasource fields above set row caps and review behaviour;
+            these environment variables set the engine-level connection and execution ceilings
+            (defaults shown):
+          </p>
+          <ul>
+            <li><strong>Connection pools (all JDBC engines):</strong>
+              <code>ACCESSFLOW_PROXY_CONNECTION_TIMEOUT</code> (<code>30s</code>),
+              <code>ACCESSFLOW_PROXY_IDLE_TIMEOUT</code> (<code>10m</code>),
+              <code>ACCESSFLOW_PROXY_MAX_LIFETIME</code> (<code>30m</code>),
+              <code>ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD</code> (<code>0s</code> = off).</li>
+            <li><strong>Statement execution (all engines):</strong>
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS</code> (<code>10000</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT</code> (<code>30s</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE</code> (<code>1000</code>).</li>
+            <li><strong>MongoDB:</strong> <code>ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_SERVER_SELECTION_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_MAX_POOL_SIZE</code> (<code>10</code>).</li>
+            <li><strong>Couchbase:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_COUCHBASE_CONNECT_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_WAIT_UNTIL_READY_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_SCAN_CONSISTENCY</code> (<code>request-plus</code>).</li>
+            <li><strong>Redis:</strong> <code>ACCESSFLOW_PROXY_ENGINES_REDIS_CONNECT_TIMEOUT</code>
+              (<code>PT5S</code>), <code>…_SOCKET_TIMEOUT</code> (<code>PT5S</code>),
+              <code>…_MAX_POOL_SIZE</code> (<code>10</code>).</li>
+            <li><strong>Cassandra / ScyllaDB:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_CASSANDRA_CONNECT_TIMEOUT</code> /
+              <code>…_SCYLLADB_CONNECT_TIMEOUT</code> (<code>PT10S</code>) and the matching
+              <code>…_REQUEST_TIMEOUT</code> (<code>PT10S</code>).</li>
+            <li><strong>Elasticsearch / OpenSearch:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_CONNECT_TIMEOUT</code> /
+              <code>…_OPENSEARCH_CONNECT_TIMEOUT</code> (<code>PT10S</code>) and
+              <code>…_SOCKET_TIMEOUT</code> (<code>PT30S</code>).</li>
+            <li><strong>DynamoDB:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_DYNAMODB_CONNECT_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_API_CALL_TIMEOUT</code> (<code>PT30S</code>).</li>
+            <li><strong>Neo4j:</strong> <code>ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_MAX_CONNECTION_POOL_SIZE</code> (<code>100</code>).</li>
+          </ul>
 
           <h3 id="cfg-connectors">Connectors</h3>
           <p>
-            The databases AccessFlow can proxy are described by a declarative <strong>connector
-            catalog</strong> — a curated set shipped with the product. Each connector has a
-            <strong>category</strong> that separates the <strong>SQL</strong> (relational) family from
-            the <strong>NoSQL</strong> (document) family, and the <em>Admin → Connectors</em>
-            (<code>/admin/connectors</code>) marketplace groups them accordingly. An admin browses the
-            catalog and <strong>installs</strong> a database's driver — a JDBC driver JAR for SQL engines, a
-            native engine-plugin JAR for NoSQL engines — with one click: AccessFlow downloads it,
-            verifies its pinned SHA-256, and caches it. The bundled PostgreSQL connector shows as
-            <em>Installed</em>; every other connector (including MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, and Neo4j) shows an <em>Install</em> action.
+            <strong>What it is.</strong> The catalog of databases AccessFlow can talk to, and the
+            one-click way to enable them. Use it to turn on support for an engine before you add a
+            datasource for it — so the image doesn't have to ship every database driver. The
+            <em>Admin → Connectors</em> marketplace (<code>/admin/connectors</code>) groups the
+            <strong>SQL</strong> (relational) family separately from the <strong>NoSQL</strong> family.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Click <em>Install</em> on a connector card; AccessFlow
+            downloads its driver, verifies it against a pinned checksum, and caches it. PostgreSQL
+            ships <em>Installed</em>; everything else — MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
+            Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, and the other SQL drivers — shows an
+            <em>Install</em> action.
           </p>
           <p><strong>Built-in connectors — SQL:</strong></p>
           <ul>
@@ -1080,11 +1146,9 @@
           <li><strong>Neo4j</strong> — native graph engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB (native Neo4j Java driver over the Bolt protocol). Users write <strong>Cypher</strong>; the query type is the strongest write clause present (<code>DELETE</code>/<code>REMOVE</code> → DELETE, <code>CREATE</code>/<code>MERGE</code> → INSERT, <code>SET</code> → UPDATE, else a <code>MATCH … RETURN</code> / <code>SHOW</code> read → SELECT), with index / constraint / database / role schema commands as DDL. <code>LOAD CSV</code>, procedure calls outside a read-only allow-list, and multi-statement input are rejected. Row-level security ANDs property predicates onto each <code>MATCH</code>'s <code>WHERE</code> with parameter binding (node-label policies), failing closed on anonymous or write-creates-policied-label shapes; field masking is label-aware and recursive. Connection is host/port + <em>database</em> (the Neo4j database, required) with the SSL mode encoded in the Bolt scheme, <strong>or</strong> a full <code>bolt://</code> / <code>neo4j+s://</code> URI in the optional <em>Bolt connection URI</em> field (Neo4j Aura / clustered routing). Default port 7687 (Bolt).</li>
           </ul>
           <p>
-            Adding a database is a data change, not a code change — each connector is a small
-            <code>connector.json</code> manifest (name, db type, logo, driver coordinates + pinned
-            SHA-256) under the repo's <code>connectors/</code> folder, bundled into the image and
-            published as a release artifact. See the
-            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md">connectors design doc</a>.
+            Adding a new database to the catalog is a data change, not a code change — see the
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md">connectors design doc</a>
+            if you want to contribute one.
           </p>
           <ol>
             <li><strong>Install.</strong> Click <em>Install</em> on a connector card. The driver is fetched from the configured Maven repository (<code>ACCESSFLOW_DRIVERS_REPOSITORY_URL</code>), SHA-256-verified, and cached to <code>ACCESSFLOW_DRIVER_CACHE</code>.</li>
@@ -1094,11 +1158,11 @@
 
           <h3 id="cfg-drivers">Custom JDBC drivers</h3>
           <p>
-            For an engine not in the connector catalog, upload its driver JAR under
-            <em>Admin → Custom JDBC drivers</em> — datasources can then bind to it by setting
-            <em>Database type</em> to <em>Custom</em> in the create wizard. Connectors are the
-            curated catalog; uploads are the escape hatch for anything else.
+            <strong>What it is.</strong> The escape hatch for any JDBC database not in the
+            <a href="#cfg-connectors">connector catalog</a>. Upload its driver JAR and datasources can
+            bind to it by choosing <em>Database type → Custom</em> in the create wizard.
           </p>
+          <p><strong>Configure it.</strong> Manage uploads at <code>/admin/drivers</code>:</p>
           <figure class="docs-figure">
             <picture>
               <source srcset="../images/docs/drivers-list-light.png" media="(prefers-color-scheme: light)" />
@@ -1117,9 +1181,15 @@
           <!-- Review plans -->
           <h3 id="cfg-review-plans">Review plans</h3>
           <p>
-            A review plan is a per-datasource policy that decides how a submitted query reaches
-            execution. Each plan describes a sequence of stages; each stage names approvers (by
-            role or explicit user) and a minimum number of approvals before the query advances.
+            <strong>What it is.</strong> The approval policy attached to a datasource — it decides how
+            a submitted query gets from "submitted" to "executed". Use it to require AI scoring, one or
+            more human sign-offs, or both, and to auto-approve low-risk reads. Each plan is a sequence
+            of stages; each stage names approvers (by role or specific user) and a minimum number of
+            approvals before the query advances.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Build plans at <code>/admin/review-plans</code> — start
+            from a built-in template or from scratch:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1143,7 +1213,7 @@
             <li><strong>Open <code>/admin/review-plans</code></strong> and click <em>Add review plan</em>, or pick a built-in template from the dropdown caret next to it (<em>Strict — writes need 2 approvals</em>, <em>Lenient — reads auto-approved</em>, <em>AI-only — no human approval</em>, <em>Standard — AI + 1 reviewer</em>) to prefill the modal with sensible defaults.</li>
             <li><strong>Name and describe</strong> the policy — e.g. "Production writes — two reviewers".</li>
             <li><strong>Pick the gates.</strong> Toggle <em>Require AI review</em> to score every query before it queues for humans; toggle <em>Require human approval</em> to demand at least one reviewer sign-off. <em>Auto-approve LOW-risk reads</em> lets <code>SELECT</code>s skip humans entirely when AI risk is below the threshold.</li>
-            <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when <code>QueryTimeoutJob</code> auto-rejects an idle <code>PENDING_REVIEW</code> query (cadence configurable via <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>
+            <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when AccessFlow auto-rejects an idle <code>PENDING_REVIEW</code> query (it scans on a cadence set by <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>
             <li><strong>Build the approver chain.</strong> Click <em>Add approver</em> for each stage; each row names a role (or a specific user) and a stage number. Stages advance sequentially, and a single <em>REJECTED</em> decision at any stage terminates the query.</li>
           </ol>
           <p>
@@ -1167,22 +1237,26 @@ PENDING_REVIEW → CANCELLED (submitter only)
 APPROVED → FAILED (execution error)</pre>
           <p>
             A single <code>REJECTED</code> decision at any stage terminates the query. If a query
-            sits in <code>PENDING_REVIEW</code> past the plan's <code>approval_timeout_hours</code>,
-            <code>QueryTimeoutJob</code> auto-rejects it. The job's cadence is configurable via
-            <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code> (default <code>PT5M</code>).
-            <code>auto_approve_reads=true</code> lets <code>SELECT</code>s skip human approval
-            entirely; <code>requires_ai_review=true</code> still scores the read but won't block
-            on a human.
+            sits in <code>PENDING_REVIEW</code> past the plan's <em>approval timeout</em>, AccessFlow
+            auto-rejects it (it scans on a cadence set by
+            <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).
+            <em>Auto-approve reads</em> lets <code>SELECT</code>s skip human approval entirely;
+            <em>Require AI review</em> still scores the read but won't block on a human.
           </p>
 
           <!-- Routing policies -->
           <h3 id="cfg-routing-policies">Routing policies</h3>
           <p>
-            A routing policy is an ordered, attribute-based rule that decides a query's path
-            <em>after</em> AI analysis and <em>before</em> reviewers see it. Policies are evaluated
-            in ascending priority; the <strong>first enabled policy whose condition matches wins</strong>,
-            and anything unmatched falls through to the datasource's <a href="#cfg-review-plans">review plan</a>
-            exactly as before.
+            <strong>What it is.</strong> Policy-as-code that decides a query's path automatically,
+            <em>after</em> AI analysis and <em>before</em> reviewers see it. Use it to auto-approve
+            routine reads, hard-block dangerous patterns, or escalate sensitive ones — instead of
+            sending everything through the same review plan. Policies run in ascending priority and the
+            <strong>first enabled one whose condition matches wins</strong>; anything unmatched falls
+            through to the datasource's <a href="#cfg-review-plans">review plan</a> exactly as before.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage them at <code>/admin/routing-policies</code> (the
+            <em>Routing policies</em> entry in the <em>Security</em> nav group):
           </p>
           <ol>
             <li><strong>Open <code>/admin/routing-policies</code></strong> (the <em>Routing policies</em> entry in the <em>Security</em> nav group, next to <em>Review plans</em>) and click <em>Add policy</em>.</li>
@@ -1214,8 +1288,10 @@ APPROVED → FAILED (execution error)</pre>
           <!-- AI -->
           <h3 id="cfg-ai">AI configurations</h3>
           <p>
-            AI analysis is per-organization. AccessFlow ships adapters for four providers — pick
-            one that fits your data-egress policy:
+            <strong>What it is.</strong> The AI brain behind query risk analysis and natural-language
+            "text-to-query". Configure it per organization and point it at the provider that fits your
+            data-egress policy; AccessFlow then scores every submitted query and, where enabled, drafts
+            queries from plain-language prompts. It ships adapters for five providers — pick one:
           </p>
           <ul>
             <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
@@ -1233,6 +1309,8 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption><code>/admin/ai-configs/new</code> — three-step wizard: <em>Provider → Connection → Test</em>.</figcaption>
           </figure>
+          <p><strong>Configure it.</strong> Create a configuration with the three-step wizard at
+            <code>/admin/ai-configs</code>:</p>
           <ol>
             <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible / Hugging Face). The wizard pre-fills the default model for the provider you chose.</li>
             <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama, Custom OpenAI-compatible, and Hugging Face providers supply an <em>Endpoint</em> URL instead — required for the custom provider, pre-filled with the router URL for Hugging Face and editable to a local TGI / Dedicated Endpoint). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
@@ -1338,19 +1416,37 @@ APPROVED → FAILED (execution error)</pre>
             (<code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>CRITICAL</code>),
             and a list of issues categorised as anti-patterns, missing indexes, restricted-column
             access, etc. The score is informational — only human reviewers can finalize approval
-            unless the plan opts in to <code>auto_approve_reads</code>.
+            unless the plan opts in to <em>auto-approve reads</em>.
           </div>
+          <p>
+            <strong>Tune it.</strong> Langfuse observability:
+            <code>ACCESSFLOW_LANGFUSE_DEFAULT_HOST</code> (<code>https://cloud.langfuse.com</code>),
+            <code>ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL</code> (<code>PT60S</code>),
+            <code>ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT</code> (<code>PT5S</code>),
+            <code>ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT</code> (<code>PT10S</code>). RAG:
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED</code> (<code>true</code>),
+            <code>ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION</code> (<code>true</code>),
+            <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (<code>1536</code>),
+            <code>ACCESSFLOW_RAG_CHUNK_SIZE</code> (<code>800</code>),
+            <code>ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS</code> (<code>100000</code>). Per-org guardrails:
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> (<code>30</code>; <code>&lt;= 0</code>
+            disables) and <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> (<code>0</code> =
+            unlimited).
+          </p>
 
           <!-- AI analyses dashboard -->
           <h3 id="cfg-ai-analyses">AI analyses dashboard</h3>
           <p>
-            Once AI analyses are flowing, <code>/admin/ai-analyses</code> aggregates them into a
-            single org-wide trend view: average risk score over a configurable window, the most
-            frequent issue categories, the most active submitters, and — per model —
-            <em>token cost</em> and <em>average latency</em> (so you can compare models when
-            orchestration is enabled). Use it to spot risk-pattern drift, identify which queries the
-            AI consistently flags, weigh each model's cost/latency, and decide whether a stricter
-            review plan or schema-level guardrails are warranted.
+            <strong>What it is.</strong> An org-wide trend view of every AI analysis. Use it to spot
+            risk-pattern drift, see which queries the AI consistently flags, compare each model's cost
+            and latency, and decide whether a stricter review plan or schema-level guardrails are
+            warranted. <code>/admin/ai-analyses</code> charts the average risk score over a
+            configurable window, the most frequent issue categories, the most active submitters, and —
+            per model — <em>token cost</em> and <em>average latency</em>.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to set up — the dashboard fills in automatically
+            once a datasource has <a href="#cfg-ai">AI analysis</a> enabled.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1365,15 +1461,21 @@ APPROVED → FAILED (execution error)</pre>
           <!-- Datasource health -->
           <h3 id="cfg-datasource-health">Datasource health</h3>
           <p>
-            <code>/admin/datasource-health</code> gives operators a per-datasource operational
-            view that auto-refreshes every 30 seconds. Each card shows live HikariCP connection-pool
-            utilisation as a ring (active / idle / free against the configured maximum) plus a
-            trailing 24-hour summary: query volume, p50 / p95 execution latency, and error count.
-            Use it to spot pool exhaustion, a datasource that has turned slow, or a sudden volume
-            spike. The view is read-only and admin-only. Pool gauges read "pool not initialised"
-            until the first query runs (pools are created lazily); snapshots are cached briefly to
-            keep the auto-refresh cheap (TTL via <code>ACCESSFLOW_PROXY_HEALTH_CACHE_TTL</code>,
-            default 30 s).
+            <strong>What it is.</strong> An operational dashboard for spotting a datasource in trouble
+            — pool exhaustion, a database that has turned slow, or a sudden volume spike. Use it as the
+            first place to look when queries start failing or hanging.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to set up. <code>/admin/datasource-health</code>
+            (admin-only, read-only) auto-refreshes every 30 seconds; each card shows live
+            connection-pool utilisation (active / idle / free against the configured maximum) plus a
+            trailing 24-hour summary of query volume, p50 / p95 execution latency, and error count.
+            Pool gauges read "pool not initialised" until the datasource's first query runs (pools are
+            created on demand).
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_PROXY_HEALTH_CACHE_TTL</code> caches each
+            snapshot so the auto-refresh stays cheap (default <code>PT30S</code>).
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1388,10 +1490,13 @@ APPROVED → FAILED (execution error)</pre>
           <!-- Notification channels -->
           <h3 id="cfg-notification-channels">Notification channels</h3>
           <p>
-            AccessFlow fires notifications when a query is submitted, approved, rejected, times
-            out, or scores <code>CRITICAL</code> on AI risk. Channels are configured per
-            organization; multiple channels of the same type can coexist (e.g. one Slack channel
-            per team).
+            <strong>What it is.</strong> Where AccessFlow sends review notifications — when a query is
+            submitted, approved, rejected, times out, or scores <code>CRITICAL</code> on AI risk. Wire
+            up the channels your team already lives in so reviewers act fast. Configure as many as you
+            like per organization (e.g. one Slack channel per team).
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage channels at <code>/admin/notifications</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1430,6 +1535,17 @@ APPROVED → FAILED (execution error)</pre>
             <code>_SECOND</code> / <code>_THIRD</code>. Failed deliveries log <code>ERROR</code>
             but never affect query workflow state.
           </div>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_PUBLIC_BASE_URL</code> sets the link embedded in
+            messages (default <code>http://localhost:5173</code>); retry delays are
+            <code>ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST</code> / <code>_SECOND</code> / <code>_THIRD</code>
+            (<code>PT30S</code> / <code>PT2M</code> / <code>PT10M</code>). For air-gapped installs that
+            route through an internal proxy, override
+            <code>ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL</code>
+            (<code>https://api.telegram.org/</code>) and
+            <code>ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL</code>
+            (<code>https://events.pagerduty.com/</code>).
+          </p>
 
           <h4>Slack app — Approve / Reject from Slack</h4>
           <p>
@@ -1469,9 +1585,13 @@ APPROVED → FAILED (execution error)</pre>
           <!-- SMTP -->
           <h3 id="cfg-smtp">System SMTP</h3>
           <p>
-            System SMTP is the fallback for transactional emails — password resets, invitations,
-            and any notification email channel that doesn't carry its own SMTP overrides.
-            Configure once per org.
+            <strong>What it is.</strong> The fallback mail server for transactional email — password
+            resets, user invitations, and any email notification channel that doesn't carry its own
+            SMTP settings. Set it once per org so those emails can go out.
+          </p>
+          <p>
+            <strong>Configure it.</strong> On <code>/admin/notifications</code>, the first card is
+            <em>System SMTP</em>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1495,16 +1615,17 @@ APPROVED → FAILED (execution error)</pre>
           <!-- OAuth -->
           <h3 id="cfg-oauth">OAuth 2.0 / OIDC</h3>
           <p>
-            Sign-in with Google, GitHub, Microsoft, and GitLab is built-in — operators only need
-            to register an OAuth app with the provider and store the client id / secret in
-            AccessFlow. Two additional tabs — <em>GitHub Enterprise</em> and
-            <em>GitLab (self-managed)</em> — cover self-hosted variants where you provide your
-            instance's base URL (e.g. <code>https://github.acme.corp</code>) and AccessFlow
-            appends the well-known sub-paths automatically. A seventh generic
-            <em>OpenID Connect</em> tab integrates any other OIDC provider (Keycloak, Auth0,
-            Okta, Authentik, Zitadel) by entering the IdP's endpoint URLs directly. All
-            configuration lives in the database, not in static configuration files, so adding a
-            new provider does not require a restart.
+            <strong>What it is.</strong> Single sign-on through an external identity provider, so
+            people log in with accounts they already have instead of an AccessFlow password. Google,
+            GitHub, Microsoft, and GitLab are built in; two more tabs cover self-hosted <em>GitHub
+            Enterprise</em> and <em>GitLab (self-managed)</em> (you provide the instance base URL, e.g.
+            <code>https://github.acme.corp</code>, and AccessFlow appends the well-known sub-paths); and
+            a generic <em>OpenID Connect</em> tab integrates any other OIDC provider (Keycloak, Auth0,
+            Okta, Authentik, Zitadel). It all lives in the database, so adding a provider needs no
+            restart.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage providers at <code>/admin/oauth2</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1540,12 +1661,22 @@ APPROVED → FAILED (execution error)</pre>
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md
             → Authentication</a>.
           </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code> (where the
+            provider round-trip lands, default <code>${CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>)
+            and <code>ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL</code> (one-time exchange-code lifetime,
+            default <code>PT1M</code>).
+          </p>
 
           <!-- SAML -->
           <h3 id="cfg-saml">SAML 2.0 SSO</h3>
           <p>
-            For SAML-based SSO (Okta, Azure AD, OneLogin, etc.) configure one record per
-            organization. Both SP-initiated and IdP-initiated flows are supported.
+            <strong>What it is.</strong> Single sign-on via a SAML 2.0 identity provider (Okta, Azure
+            AD, OneLogin, …) — the enterprise-SSO alternative to OAuth / OIDC. Configure one record per
+            organization; both SP-initiated and IdP-initiated logins work.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Fill the single form at <code>/admin/saml</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1567,15 +1698,27 @@ APPROVED → FAILED (execution error)</pre>
             signing-cert rotation, and assertion validation rules live in
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>.
           </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL</code>
+            (default <code>${CORS_ALLOWED_ORIGIN}/auth/saml/callback</code>) and
+            <code>ACCESSFLOW_SAML_EXCHANGE_CODE_TTL</code> (default <code>PT1M</code>). To pin the
+            service-provider signing keypair instead of the auto-generated one, set
+            <code>ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM</code> and
+            <code>ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM</code>.
+          </p>
 
           <!-- Audit log -->
           <h3 id="cfg-audit-log">Audit log</h3>
           <p>
-            Every write the system performs — logins, query submissions and decisions, datasource
-            changes, channel edits — appends a row to <code>audit_log</code>. The table is
-            INSERT-only at the database level (the general application role has SELECT only;
-            inserts go through a dedicated audit-writer role), and every row carries an
-            HMAC-SHA256 link to the previous row so tampering is detectable after the fact.
+            <strong>What it is.</strong> A complete, tamper-evident record of everything that happens —
+            logins, query submissions and decisions, datasource changes, channel edits. It's your
+            answer to "who did what, when" for security reviews and compliance. Records are
+            append-only and cryptographically chained, so a deleted or altered entry is detectable
+            after the fact (query result data is never stored).
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to switch on — it captures automatically. Review it
+            at <code>/admin/audit-log</code>:
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1592,26 +1735,35 @@ APPROVED → FAILED (execution error)</pre>
             <li><strong>Export CSV.</strong> Streams the current filter as RFC 4180 CSV with the same columns shown in the UI. Long-running exports respect the same query budget as the table view (use date filters to keep them bounded).</li>
           </ol>
           <p>
-            The HMAC key defaults to a per-deployment value derived from <code>ENCRYPTION_KEY</code>
-            (via HKDF-SHA256), or set <code>AUDIT_HMAC_KEY</code> explicitly when rotating.
+            <strong>Tune it.</strong> The chain-signing key defaults to a per-deployment value derived
+            from <code>ENCRYPTION_KEY</code>; set <code>AUDIT_HMAC_KEY</code> (hex, ≥ 32 bytes)
+            explicitly when you want to manage or rotate it yourself. Inserts run through a dedicated
+            <code>AUDIT_DB_USER</code> / <code>AUDIT_DB_PASSWORD</code> role that has no UPDATE / DELETE
+            rights on the log.
           </p>
           <h3 id="compliance-reports">Compliance reports &amp; signed exports</h3>
           <p>
-            A dedicated read-only <code>AUDITOR</code> role lands on the compliance dashboard
-            (<code>/admin/auditor</code>) — admins see it too. It offers two pre-built reports over a
-            chosen period, computed from the immutable query snapshots: <strong>classified-data
-            access</strong> (which executed queries touched PII / PCI / PHI / GDPR / FINANCIAL /
-            SENSITIVE objects, joined to your data-classification tags) and a <strong>regulatory
-            audit trail</strong> of DDL/DELETE operations with the approvers' names. Each report
-            exports as a <strong>digitally signed</strong> PDF or CSV: the export carries a detached
-            <code>SHA256withRSA</code> signature (over the deployment's JWT key pair) in the response
-            headers, and an auditor can verify it offline against the public key served at
-            <code>/api/v1/admin/compliance/signing-certificate</code>. Every export is itself recorded
-            in the audit log (<code>COMPLIANCE_REPORT_EXPORTED</code>) with the content hash, so the
-            export is tamper-evident end to end. Tune the largest allowed window with
-            <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (default <code>P366D</code>) and the
-            row cap with <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (default <code>50000</code>);
-            signing reuses <code>JWT_PRIVATE_KEY</code>, so no extra secret is required.
+            <strong>What it is.</strong> Ready-made compliance reporting with audit-grade exports. Two
+            pre-built reports answer common auditor questions over a chosen period:
+            <strong>classified-data access</strong> (which executed queries touched PII / PCI / PHI /
+            GDPR / FINANCIAL / SENSITIVE data, joined to your data-classification tags) and a
+            <strong>regulatory audit trail</strong> of DDL / DELETE operations with the approvers'
+            names. Use it to hand a regulator or internal auditor evidence they can verify themselves.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Build and export reports from the compliance dashboard at
+            <code>/admin/auditor</code> — open to the read-only <code>AUDITOR</code> role and to
+            admins. Each report exports as a <strong>digitally signed</strong> PDF or CSV that an
+            auditor can verify offline against the public key at
+            <code>/api/v1/admin/compliance/signing-certificate</code>; every export is itself recorded
+            in the <a href="#cfg-audit-log">audit log</a> with its content hash, so it's tamper-evident
+            end to end.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (largest
+            window, default <code>P366D</code>) and <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (row
+            cap before a report is marked truncated, default <code>50000</code>). Signing reuses
+            <code>JWT_PRIVATE_KEY</code> — no extra secret required.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1625,17 +1777,21 @@ APPROVED → FAILED (execution error)</pre>
 
           <h3 id="cfg-anomalies">Behavioural anomaly detection (UBA)</h3>
           <p>
-            A clustered-safe background job (<code>BehaviorAnomalyDetectionJob</code>) builds rolling
-            per-<code>(user, datasource)</code> behavioural baselines <strong>from the audit log alone</strong>
-            — never query result data — and flags out-of-pattern activity: query volume, off-hours access,
-            distinct and newly-seen tables, query types, rows returned, and error rate. Detection uses a
-            z-score test with a robust IQR fallback, and a cold-start guard keeps a freshly-seen user from
-            being flagged before enough history exists. Each anomaly optionally carries an AI
-            natural-language explanation, raises a routing signal that <strong>escalates the flagged user's
-            next query</strong> to stricter review, fires a notification across every active channel
-            (including PagerDuty), and lands on the <code>/admin/anomalies</code> dashboard. <code>ADMIN</code>
-            and the read-only <code>AUDITOR</code> role can review anomalies; only <code>ADMIN</code> can
-            <em>acknowledge</em> (triaged) or <em>dismiss</em> (false positive) one.
+            <strong>What it is.</strong> Spots when a user's database activity drifts from their own
+            normal pattern — a spike in query volume, access at odd hours, reaching for tables they've
+            never touched, unusual query types or row counts, or a jump in errors — and flags it for an
+            admin. Use it to catch compromised accounts, insider misuse, or credential sharing that
+            static rules would miss. It learns each user's baseline from audit-log metadata only —
+            never query result data.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to switch on — it runs automatically once a user has
+            built up enough history (until then they're left alone). Flagged anomalies appear on
+            <code>/admin/anomalies</code> and fire a notification across every active channel (including
+            PagerDuty), and a flagged user's <strong>next query is escalated to stricter review</strong>.
+            <code>ADMIN</code> and the read-only <code>AUDITOR</code> role can review anomalies; only
+            <code>ADMIN</code> can <em>acknowledge</em> (triaged) or <em>dismiss</em> (false positive)
+            one. Each anomaly can also carry an optional AI natural-language explanation.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -1647,16 +1803,16 @@ APPROVED → FAILED (execution error)</pre>
             <figcaption><code>/admin/anomalies</code> — UBA flags out-of-pattern activity from audit-log baselines; admins acknowledge or dismiss each one.</figcaption>
           </figure>
           <p>
-            Tune the detector with the <code>accessflow.ai.anomaly.*</code> environment variables:
-            <code>ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL</code> (cadence, default <code>PT15M</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_LOOKBACK_WINDOW</code> (aggregation window, default <code>PT1H</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_Z_SCORE_THRESHOLD</code> (default <code>3.0</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_IQR_MULTIPLIER</code> (default <code>1.5</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_MIN_SAMPLE_SIZE</code> (cold-start guard, default <code>7</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES</code> (default <code>90</code>),
-            <code>ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD</code> (default <code>0.02</code>), and
-            <code>ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED</code> (AI explanations on/off, default
-            <code>true</code>).
+            <strong>Tune it.</strong> Sensitivity and cadence via the
+            <code>ACCESSFLOW_AI_ANOMALY_*</code> environment variables:
+            <code>ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL</code> (how often it runs, default
+            <code>PT15M</code>), <code>…_LOOKBACK_WINDOW</code> (aggregation window, <code>PT1H</code>),
+            <code>…_Z_SCORE_THRESHOLD</code> (how far from normal counts as anomalous, <code>3.0</code>),
+            <code>…_IQR_MULTIPLIER</code> (<code>1.5</code>),
+            <code>…_MIN_SAMPLE_SIZE</code> (history required before a user is scored, <code>7</code>),
+            <code>…_MAX_BASELINE_SAMPLES</code> (<code>90</code>),
+            <code>…_OFF_HOURS_THRESHOLD</code> (<code>0.02</code>), and
+            <code>…_SUMMARY_ENABLED</code> (AI explanations on/off, <code>true</code>).
           </p>
           <p>
             <strong>AI rate limit &amp; cost budget.</strong> Two per-organization guardrails protect the
@@ -1829,23 +1985,28 @@ APPROVED → FAILED (execution error)</pre>
 
           <h3 id="flow-mobile">Mobile approvals &amp; one-tap push</h3>
           <p>
-            AccessFlow installs as a <strong>Progressive Web App</strong> with an offline-capable
-            review queue. A reviewer who taps <em>Enable push approvals</em> on <code>/reviews</code>
-            (and grants the browser notification permission) starts receiving <strong>Web Push</strong>
-            notifications whenever a query needs their approval. The notification carries
-            <em>Approve</em> and <em>Reject</em> actions; tapping one opens a focused page that shows
-            the query, then requires a <strong>step-up re-verification</strong> — your password, or a
-            TOTP code when 2FA is enrolled — before the decision commits. A single tap never approves
-            a query, and the self-approval guard is enforced server-side on every channel.
+            <strong>What it is.</strong> Approve or reject from your phone. Reviewers get a push
+            notification the moment a query needs them and can act on it in one tap — without keeping a
+            browser tab open. Install AccessFlow to your home screen and the review queue even works
+            offline.
           </p>
           <p>
-            <strong>Operators:</strong> push works out of the box — a VAPID keypair is auto-generated
-            and persisted on first use (the private key encrypted with <code>ENCRYPTION_KEY</code>).
-            To pin your own keys, set <code>ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY</code> /
+            <strong>Configure it.</strong> A reviewer taps <em>Enable push approvals</em> on
+            <code>/reviews</code> and grants the browser notification permission. From then on each
+            review request arrives as a push notification with <em>Approve</em> and <em>Reject</em>
+            actions; tapping one opens a focused page showing the query and asks for a quick
+            re-verification — your password, or a TOTP code when 2FA is enrolled — before the decision
+            commits. A single tap never approves a query, and the "can't approve your own query" guard
+            is enforced server-side on every channel.
+          </p>
+          <p>
+            <strong>Tune it.</strong> Push works out of the box — a signing keypair is generated and
+            stored on first use (encrypted with <code>ENCRYPTION_KEY</code>). To pin your own, set
+            <code>ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY</code> /
             <code>ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY</code> (raw base64url, e.g. from
             <code>web-push generate-vapid-keys</code>) and a <code>ACCESSFLOW_PUSH_VAPID_SUBJECT</code>
-            contact URL. The step-up token lifetime is <code>ACCESSFLOW_SECURITY_STEP_UP_TTL</code>
-            (default <code>PT5M</code>).
+            contact URL. The re-verification token lifetime is
+            <code>ACCESSFLOW_SECURITY_STEP_UP_TTL</code> (default <code>PT5M</code>).
           </p>
 
           <h3 id="flow-diff">Comparing repeated runs</h3>
@@ -1932,7 +2093,9 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
 </pre>
           </div>
           <p>
-            Works with both <code>tofu</code> and <code>terraform</code>. Write-only secrets
+            Works with both <code>tofu</code> and <code>terraform</code>, and is published at
+            <a href="https://registry.terraform.io/providers/bablsoft/accessflow/latest" target="_blank" rel="noopener noreferrer">registry.terraform.io/providers/bablsoft/accessflow</a>
+            (and the OpenTofu registry as <code>bablsoft/accessflow</code>). Write-only secrets
             (<code>password</code>, <code>api_key</code>, notification <code>config</code> values) are
             never returned by the API, so the provider applies changes to them but can't detect
             drift — treat the HCL as the source of truth.
