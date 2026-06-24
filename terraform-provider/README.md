@@ -5,6 +5,10 @@ database access governance platform. Manage datasources, review plans, routing /
 masking policies, AI configs, and notification channels declaratively through the AccessFlow REST
 API. Works with both [OpenTofu](https://opentofu.org) and Terraform.
 
+Published at
+[registry.terraform.io/providers/bablsoft/accessflow](https://registry.terraform.io/providers/bablsoft/accessflow/latest)
+(and the OpenTofu registry as `bablsoft/accessflow`).
+
 ```hcl
 terraform {
   required_providers {

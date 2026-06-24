@@ -46,8 +46,10 @@ key never appears in the audit log. You can also mint a key interactively at
 
 ## Terraform / OpenTofu provider
 
-Source of truth: [`terraform-provider/`](../terraform-provider/) in this monorepo. Works with both
-OpenTofu (`tofu`) and Terraform (`terraform`).
+Source of truth: [`terraform-provider/`](../terraform-provider/) in this monorepo. Published at
+[registry.terraform.io/providers/bablsoft/accessflow](https://registry.terraform.io/providers/bablsoft/accessflow/latest)
+(and the OpenTofu registry as `bablsoft/accessflow`). Works with both OpenTofu (`tofu`) and
+Terraform (`terraform`).
 
 ```hcl
 terraform {
