@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml"><img src="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://snyk.io/test/github/bablsoft/accessflow?targetFile=backend/pom.xml"><img src="https://snyk.io/test/github/bablsoft/accessflow/badge.svg?targetFile=backend/pom.xml" alt="Snyk Monitoring"></a>
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
   <a href="https://accessflow.bablsoft.com/"><img src="https://img.shields.io/badge/Live%20Demo-accessflow.bablsoft.com-1f6feb?logo=githubpages&logoColor=white" alt="Live site"></a>
 </p>
@@ -89,6 +90,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Tamper-evident audit log** — INSERT-only table chained with HMAC-SHA256; INSERT-only DB grants make after-the-fact rewrites detectable.
 - **Compliance reporting** — pre-built reports over a period for audit evidence: a **classified-data-access** report (which executed queries touched PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE objects) and a **regulatory audit trail** of DDL/DELETE operations with approver names, computed from the immutable query snapshots. Reports export as **digitally signed** PDF/CSV (verifiable offline with the published public key) whose hash is chained into the tamper-evident audit log. A dedicated read-only **Auditor** role exposes the auditor dashboard.
 - **Behavioral anomaly detection (UBA)** — a clustered-safe background job builds rolling per-`(user, datasource)` behavioural baselines from the audit log alone (never query result data) and flags out-of-pattern activity — query volume, off-hours access, distinct/new tables, query types, rows returned, and error rate — using z-score detection with a robust IQR fallback. Each anomaly carries an optional AI natural-language explanation, **escalates the flagged user's next query** via a routing condition, fires a notification (incl. PagerDuty), and surfaces on an `/admin/anomalies` dashboard where an admin can acknowledge or dismiss it. Auditors can review anomalies read-only.
+- **Observability** — OpenTelemetry OTLP trace export of the full proxy pipeline (parse → AI analyze → pool acquire → execute) to Tempo / Jaeger / Honeycomb, Prometheus metrics at `/actuator/prometheus`, and two pre-built Grafana dashboards (shipped via the Helm chart) covering query volume, approval SLAs, AI usage/cost, rejection rates, and connection-pool stats. Structured JSON logging (logstash / ECS / GELF) with a `traceId` correlated across logs, error responses, and traces.
 - **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
 - **Notifications** — Email (SMTP), Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and HMAC-signed outbound webhooks with retry policy.
 - **Slack approve/reject** — a configured Slack app adds **Approve** / **Reject** buttons to review-request messages; the decision runs through the same self-approval and RBAC guards as the REST API (HMAC-verified Interactive Components).
@@ -140,6 +142,7 @@ For the full request flow, technology stack table, and component-level diagrams,
 | Cache & locks | Redis 8 (JWT refresh-token revocation, ShedLock locks for `@Scheduled` jobs) |
 | AI backends | OpenAI, Anthropic, Ollama, any OpenAI-compatible endpoint, Hugging Face (Inference Providers router or local TGI) (admin-configurable per organization) |
 | Auth | JWT RS256 + optional SAML 2.0 SSO and OAuth 2.0 / OIDC (Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, self-managed GitLab built in) |
+| Observability | Micrometer Tracing + OpenTelemetry (OTLP export), Prometheus metrics (Actuator), pre-built Grafana dashboards, structured JSON logging |
 | Deploy | Docker Compose, Helm 3 |
 | Infrastructure as Code | Official Terraform / OpenTofu provider (Go, terraform-plugin-framework) + reusable GitHub Actions and a GitLab CI template |
 

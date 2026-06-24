@@ -240,6 +240,17 @@ jobs:
             -f charts/accessflow/ci/bootstrap-values.yaml \
             > /tmp/rendered-bootstrap.yaml
 
+      - name: Render with observability (OTLP export + Grafana dashboards)
+        run: |
+          helm template accessflow charts/accessflow \
+            --set dashboards.enabled=true \
+            --set observability.tracing.otlp.enabled=true \
+            --set observability.tracing.otlp.endpoint=http://tempo:4318/v1/traces \
+            --set observability.tracing.samplingProbability=0.1 \
+            > /tmp/rendered-observability.yaml
+          grep -q "grafana_dashboard" /tmp/rendered-observability.yaml
+          grep -q "OTEL_EXPORTER_OTLP_ENDPOINT" /tmp/rendered-observability.yaml
+
   e2e:
     name: E2E (${{ matrix.variant.name }})
     needs: changes

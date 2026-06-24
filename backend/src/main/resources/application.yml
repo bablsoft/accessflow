@@ -99,10 +99,18 @@ management:
   tracing:
     sampling:
       probability: ${ACCESSFLOW_TRACING_SAMPLING_PROBABILITY:1.0}
+  # OTLP trace export is OFF unless an endpoint is supplied (AF-454). Setting
+  # OTEL_EXPORTER_OTLP_ENDPOINT (the full OTLP/HTTP traces URL, e.g.
+  # http://tempo:4318/v1/traces) makes OtlpTracingEnvironmentPostProcessor bind
+  # management.opentelemetry.tracing.export.otlp.endpoint, which wires the Spring Boot
+  # OtlpHttpSpanExporter. MDC traceId/spanId are populated regardless of export.
   endpoints:
     web:
+      # health,info are consumed unauthenticated by k8s probes / the version footer;
+      # prometheus is scraped in-cluster (permitAll in SecurityConfiguration) to back the
+      # pre-built Grafana dashboards (AF-454). Restrict it with a NetworkPolicy in production.
       exposure:
-        include: health,info
+        include: health,info,prometheus
 
 logging:
   structured:

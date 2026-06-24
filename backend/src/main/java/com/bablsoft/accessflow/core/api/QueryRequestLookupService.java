@@ -10,6 +10,13 @@ public interface QueryRequestLookupService {
 
     Optional<QueryRequestSnapshot> findById(UUID queryRequestId);
 
+    /**
+     * Returns the {@code created_at} (submission) timestamp of the query request, or empty when no
+     * such query exists. Used by the workflow metrics listener to derive the submission&rarr;approval
+     * latency for the approval-SLA dashboard (AF-454).
+     */
+    Optional<Instant> findCreatedAt(UUID queryRequestId);
+
     Optional<PendingReviewView> findPendingReview(UUID queryRequestId);
 
     /**

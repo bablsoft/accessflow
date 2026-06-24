@@ -303,7 +303,7 @@
           </div>
           <div class="arch-callout">
             <span class="k">Observability</span>
-            <span class="v">HTTP health and readiness probes. HMAC-SHA256 chained, append-only metadata audit log of every action. Optional one-line-JSON console logs (logstash / ECS / GELF) for ELK / OpenSearch.</span>
+            <span class="v">HTTP health and readiness probes. OpenTelemetry OTLP trace export of the full proxy pipeline (Tempo / Jaeger / Honeycomb), Prometheus metrics, and pre-built Grafana dashboards (query volume, approval SLAs, AI usage, rejection rates, pool stats). HMAC-SHA256 chained, append-only metadata audit log of every action. Optional one-line-JSON console logs (logstash / ECS / GELF) for ELK / OpenSearch.</span>
           </div>
         </div>
       </div>
