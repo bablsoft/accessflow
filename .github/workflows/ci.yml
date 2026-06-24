@@ -554,6 +554,8 @@ jobs:
           username: accessflow
           password: accessflow
           ssl-mode: DISABLE
+          # No AI config in the smoke stack — disable AI analysis or create returns 422.
+          ai-analysis-enabled: "false"
 
       - name: Smoke — re-provision (idempotent, same id)
         id: ds2
@@ -569,6 +571,7 @@ jobs:
           username: accessflow
           password: accessflow
           ssl-mode: DISABLE
+          ai-analysis-enabled: "false"
 
       - name: Assert idempotency
         run: |

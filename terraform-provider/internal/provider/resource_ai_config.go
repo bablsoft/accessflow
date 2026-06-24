@@ -27,7 +27,7 @@ type aiConfigResourceModel struct {
 	ID                   types.String `tfsdk:"id"`
 	OrganizationID       types.String `tfsdk:"organization_id"`
 	Name                 types.String `tfsdk:"name"`
-	Provider             types.String `tfsdk:"provider"`
+	Provider             types.String `tfsdk:"ai_provider"`
 	Model                types.String `tfsdk:"model"`
 	Endpoint             types.String `tfsdk:"endpoint"`
 	APIKey               types.String `tfsdk:"api_key"`
@@ -48,7 +48,7 @@ func (r *aiConfigResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"id":              schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"organization_id": schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":            schema.StringAttribute{Required: true},
-			"provider":        schema.StringAttribute{Required: true, MarkdownDescription: "`OPENAI`, `ANTHROPIC`, `OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`."},
+			"ai_provider":     schema.StringAttribute{Required: true, MarkdownDescription: "`OPENAI`, `ANTHROPIC`, `OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE`. (Named `ai_provider` because `provider` is a reserved Terraform argument.)"},
 			"model":           schema.StringAttribute{Required: true},
 			"endpoint":        schema.StringAttribute{Optional: true},
 			"api_key": schema.StringAttribute{

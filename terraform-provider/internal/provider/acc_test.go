@@ -26,14 +26,15 @@ func TestAccDatasource_basic(t *testing.T) {
 			{
 				Config: `
 resource "accessflow_datasource" "test" {
-  name          = "tf-acc-ds"
-  db_type       = "POSTGRESQL"
-  host          = "db.internal"
-  port          = 5432
-  database_name = "app"
-  username      = "reader"
-  password      = "s3cret"
-  ssl_mode      = "DISABLE"
+  name                = "tf-acc-ds"
+  db_type             = "POSTGRESQL"
+  host                = "db.internal"
+  port                = 5432
+  database_name       = "app"
+  username            = "reader"
+  password            = "s3cret"
+  ssl_mode            = "DISABLE"
+  ai_analysis_enabled = false # no ai_config in the test stack; avoids 422 MissingAiConfigForDatasource
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -45,15 +46,16 @@ resource "accessflow_datasource" "test" {
 			{
 				Config: `
 resource "accessflow_datasource" "test" {
-  name               = "tf-acc-ds"
-  db_type            = "POSTGRESQL"
-  host               = "db.internal"
-  port               = 5432
-  database_name      = "app"
-  username           = "reader"
-  password           = "s3cret"
-  ssl_mode           = "DISABLE"
-  max_rows_per_query = 500
+  name                = "tf-acc-ds"
+  db_type             = "POSTGRESQL"
+  host                = "db.internal"
+  port                = 5432
+  database_name       = "app"
+  username            = "reader"
+  password            = "s3cret"
+  ssl_mode            = "DISABLE"
+  ai_analysis_enabled = false
+  max_rows_per_query  = 500
 }
 `,
 				Check: resource.TestCheckResourceAttr("accessflow_datasource.test", "max_rows_per_query", "500"),
@@ -78,8 +80,7 @@ func TestAccReviewPlan_basic(t *testing.T) {
 resource "accessflow_review_plan" "test" {
   name                    = "tf-acc-rp"
   requires_ai_review      = false
-  requires_human_approval = true
-  min_approvals_required  = 1
+  requires_human_approval = false # no approvers attached; the API rejects human-approval plans with none
   auto_approve_reads      = true
 }
 `,
@@ -123,6 +124,11 @@ resource "accessflow_routing_policy" "test" {
 				ResourceName:      "accessflow_routing_policy.test",
 				ImportState:       true,
 				ImportStateVerify: true,
+				// The API re-serializes the condition JSON in field order on read but echoes the
+				// submitted key order on create, so the raw string isn't byte-stable across import.
+				// jsontypes.Normalized handles this for plan/refresh; ImportStateVerify compares
+				// literally, so skip it for this opaque JSON blob (all other attrs are verified).
+				ImportStateVerifyIgnore: []string{"condition"},
 			},
 		},
 	})

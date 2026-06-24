@@ -17,6 +17,8 @@
 #       AF_USERNAME: "af_reader"
 #       AF_SSL_MODE: "REQUIRE"
 #       # AF_PASSWORD comes from a masked/protected CI variable; ACCESSFLOW_API_KEY too.
+#       # Set AF_AI_ANALYSIS_ENABLED: "false" unless you also pass AF_AI_CONFIG_ID — the API
+#       # rejects an AI-enabled datasource with no AI config (HTTP 422).
 #
 # Set ACCESSFLOW_API_KEY (and any secrets like AF_PASSWORD) as masked, protected CI/CD variables.
 
@@ -44,6 +46,7 @@
         add host "${AF_HOST:-}"; addn port "${AF_PORT:-}"; add database_name "${AF_DATABASE_NAME:-}"
         add username "${AF_USERNAME:-}"; add password "${AF_PASSWORD:-}"
         add review_plan_id "${AF_REVIEW_PLAN_ID:-}"; add ai_config_id "${AF_AI_CONFIG_ID:-}"
+        addn ai_analysis_enabled "${AF_AI_ANALYSIS_ENABLED:-}"; addn text_to_sql_enabled "${AF_TEXT_TO_SQL_ENABLED:-}"
         existing=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/datasources?size=100")
         id=$(jq -r --arg n "$AF_NAME" "first(((.content // .)[]? | select(.name==\$n) | .id)) // empty" <<<"$existing")
         if [ -n "$id" ]; then
@@ -69,11 +72,20 @@
         qid=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -H "X-AccessFlow-CI: true" -d "$body" "$base/queries" | jq -r ".id")
         [ -n "$qid" ] && [ "$qid" != "null" ] || { echo "submission failed"; exit 1; }
         echo "Submitted query $qid"
-        end=$(( $(date +%s) + AF_TIMEOUT_SECONDS ))
+        end=$(( $(date +%s) + AF_TIMEOUT_SECONDS )); triggered=0
         while [ "$(date +%s)" -lt "$end" ]; do
           st=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid" | jq -r ".status")
           case "$st" in
             EXECUTED) echo "Query $qid executed"; exit 0 ;;
+            APPROVED)
+              # Approval authorizes; execution is a separate step. Trigger it once for immediate
+              # (non-scheduled) queries, then read the synchronous result.
+              if [ "$triggered" = "0" ]; then
+                triggered=1
+                est=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid/execute" | jq -r ".status")
+                [ "$est" = "EXECUTED" ] && { echo "Query $qid executed"; exit 0; } || { echo "Query $qid execution ended: $est"; exit 1; }
+              fi
+              echo "  status=$st"; sleep "$AF_POLL_INTERVAL_SECONDS" ;;
             REJECTED|FAILED|TIMED_OUT|CANCELLED) echo "Query $qid ended: $st"; exit 1 ;;
             *) echo "  status=$st"; sleep "$AF_POLL_INTERVAL_SECONDS" ;;
           esac

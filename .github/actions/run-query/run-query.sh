@@ -8,8 +8,31 @@ set -euo pipefail
 : "${AF_SQL:?sql is required}"
 
 base="${AF_ENDPOINT%/}/api/v1"
-auth=(-H "Authorization: ApiKey ${AF_API_KEY}")
+# Mark this submission as CI-originated so context-aware routing policies (AF-446) can treat it
+# accordingly instead of failing closed.
+auth=(-H "Authorization: ApiKey ${AF_API_KEY}" -H "X-AccessFlow-CI: true")
 out="${GITHUB_OUTPUT:-/dev/stdout}"
+
+# request METHOD URL [BODY] — captures body + HTTP status and prints the RFC 9457 ProblemDetail
+# on a >=400 before failing, instead of a bare `curl --fail` exit code.
+request() {
+  local method="$1" url="$2" data="${3:-}" resp code
+  if [ -n "$data" ]; then
+    resp="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
+      -d "$data" -w $'\n%{http_code}' "$url")"
+  else
+    resp="$(curl -sS -X "$method" "${auth[@]}" -w $'\n%{http_code}' "$url")"
+  fi
+  code="${resp##*$'\n'}"
+  local payload="${resp%$'\n'*}"
+  if [ "$code" -ge 400 ]; then
+    echo "::error::AccessFlow API ${method} ${url} returned HTTP ${code}" >&2
+    jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" 2>/dev/null >&2 \
+      || echo "  $payload" >&2
+    return 1
+  fi
+  printf '%s' "$payload"
+}
 
 body="$(jq -n \
   --arg ds "$AF_DATASOURCE_ID" \
@@ -17,11 +40,7 @@ body="$(jq -n \
   --arg j "${AF_JUSTIFICATION:-}" \
   '{datasource_id: $ds, sql: $sql} + (if $j == "" then {} else {justification: $j} end)')"
 
-# Mark this submission as CI-originated so context-aware routing policies (AF-446) can treat it
-# accordingly instead of failing closed.
-submit="$(curl -fsS -X POST "${auth[@]}" \
-  -H 'Content-Type: application/json' -H 'X-AccessFlow-CI: true' \
-  -d "$body" "${base}/queries")"
+submit="$(request POST "${base}/queries" "$body")"
 query_id="$(jq -r '.id' <<<"$submit")"
 if [ -z "$query_id" ] || [ "$query_id" = "null" ]; then
   echo "::error::Query submission failed: $submit"
@@ -33,14 +52,35 @@ echo "Submitted query $query_id; awaiting terminal status…"
 deadline=$(( SECONDS + ${AF_TIMEOUT_SECONDS:-300} ))
 interval="${AF_POLL_INTERVAL_SECONDS:-5}"
 status="UNKNOWN"
+triggered=0
 while [ "$SECONDS" -lt "$deadline" ]; do
-  detail="$(curl -fsS "${auth[@]}" "${base}/queries/${query_id}")"
+  detail="$(request GET "${base}/queries/${query_id}")"
   status="$(jq -r '.status' <<<"$detail")"
   case "$status" in
     EXECUTED)
       echo "status=$status" >>"$out"
       echo "Query $query_id executed successfully."
       exit 0
+      ;;
+    APPROVED)
+      # Approval authorizes the query; execution is a separate, deliberate step. Trigger it once
+      # (a scheduled query — scheduled_for set — runs itself, so only execute immediate ones).
+      scheduled_for="$(jq -r '.scheduled_for // empty' <<<"$detail")"
+      if [ "$triggered" = "0" ] && [ -z "$scheduled_for" ]; then
+        echo "  approved — triggering execution…"
+        exec_resp="$(request POST "${base}/queries/${query_id}/execute")"
+        triggered=1
+        exec_status="$(jq -r '.status' <<<"$exec_resp")"
+        echo "status=$exec_status" >>"$out"
+        if [ "$exec_status" = "EXECUTED" ]; then
+          echo "Query $query_id executed successfully."
+          exit 0
+        fi
+        echo "::error::Query $query_id execution ended in status $exec_status"
+        exit 1
+      fi
+      echo "  status=$status (scheduled), waiting ${interval}s…"
+      sleep "$interval"
       ;;
     REJECTED | FAILED | TIMED_OUT | CANCELLED)
       echo "status=$status" >>"$out"

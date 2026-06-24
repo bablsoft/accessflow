@@ -45,6 +45,14 @@ inputs:
   ai-config-id:
     description: "Optional AI config UUID to attach."
     required: false
+  ai-analysis-enabled:
+    description: >-
+      Optional 'true'/'false'. Set 'false' when no AI config is attached — the API rejects an
+      AI-enabled datasource with no ai-config-id (422). Omit to keep the server default (true).
+    required: false
+  text-to-sql-enabled:
+    description: "Optional 'true'/'false'. Like ai-analysis-enabled, needs an AI config when true."
+    required: false
 
 outputs:
   id:
@@ -69,4 +77,6 @@ runs:
         AF_PASSWORD: ${{ inputs.password }}
         AF_REVIEW_PLAN_ID: ${{ inputs.review-plan-id }}
         AF_AI_CONFIG_ID: ${{ inputs.ai-config-id }}
+        AF_AI_ANALYSIS_ENABLED: ${{ inputs.ai-analysis-enabled }}
+        AF_TEXT_TO_SQL_ENABLED: ${{ inputs.text-to-sql-enabled }}
       run: ${{ github.action_path }}/provision-datasource.sh
