@@ -1,0 +1,31 @@
+# Example consumer .gitlab-ci.yml using the AccessFlow reusable GitLab CI templates.
+# Set ACCESSFLOW_API_KEY and PROD_DB_PASSWORD as masked, protected CI/CD variables.
+include:
+  - remote: "https://raw.githubusercontent.com/bablsoft/accessflow/main/ci-templates/gitlab/accessflow.gitlab-ci.yml"
+
+stages:
+  - provision
+  - query
+
+provision_prod_db:
+  stage: provision
+  extends: .accessflow_provision_datasource
+  variables:
+    ACCESSFLOW_ENDPOINT: "https://accessflow.example.com"
+    AF_NAME: "prod-postgres"
+    AF_DB_TYPE: "POSTGRESQL"
+    AF_HOST: "postgres.prod.internal"
+    AF_PORT: "5432"
+    AF_DATABASE_NAME: "app"
+    AF_USERNAME: "af_reader"
+    AF_PASSWORD: "$PROD_DB_PASSWORD"
+    AF_SSL_MODE: "REQUIRE"
+
+row_count_check:
+  stage: query
+  extends: .accessflow_run_query
+  variables:
+    ACCESSFLOW_ENDPOINT: "https://accessflow.example.com"
+    AF_DATASOURCE_ID: "11111111-2222-3333-4444-555555555555"
+    AF_SQL: "SELECT count(*) FROM orders"
+    AF_JUSTIFICATION: "nightly row-count check"

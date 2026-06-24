@@ -1,0 +1,39 @@
+# Release workflow for the dedicated bablsoft/terraform-provider-accessflow repo.
+# This file is committed inside the AccessFlow monorepo's terraform-provider/ directory and
+# carried into the mirror repo by the subtree split. It fires when the monorepo's release job
+# pushes a vX.Y.Z tag to the mirror, builds GPG-signed registry artifacts with GoReleaser, and
+# attaches them to a GitHub Release that opentofu.org / registry.terraform.io ingest.
+#
+# Mirror repo must define secrets: GPG_PRIVATE_KEY, PASSPHRASE.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        id: gpg
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.gpg.outputs.fingerprint }}

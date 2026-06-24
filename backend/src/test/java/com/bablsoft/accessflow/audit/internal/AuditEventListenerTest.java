@@ -322,6 +322,26 @@ class AuditEventListenerTest {
     }
 
     @Test
+    void onBootstrapServiceAccountMapsToApiKeyActionsAndResourceType() {
+        var resourceId = UUID.randomUUID();
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.SERVICE_ACCOUNT, resourceId,
+                BootstrapChangeKind.CREATE, List.of(),
+                Map.of("email", "ci@acme.com", "api_key_name", "terraform")));
+        listener.onBootstrapResourceUpserted(new BootstrapResourceUpsertedEvent(
+                organizationId, BootstrapResourceType.SERVICE_ACCOUNT, resourceId,
+                BootstrapChangeKind.UPDATE, List.of(), Map.of("api_key_name", "terraform")));
+
+        assertThat(captor.getAllValues()).extracting(AuditEntry::action)
+                .containsExactly(AuditAction.API_KEY_CREATED, AuditAction.API_KEY_UPDATED);
+        assertThat(captor.getAllValues()).extracting(AuditEntry::resourceType)
+                .containsOnly(AuditResourceType.API_KEY);
+    }
+
+    @Test
     void onBootstrapSamlAndOauthAndSmtpAlwaysEmitUpdateAction() {
         var resourceId = UUID.randomUUID();
         var captor = ArgumentCaptor.forClass(AuditEntry.class);

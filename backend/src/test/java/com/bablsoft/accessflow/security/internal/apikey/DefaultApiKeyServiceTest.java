@@ -69,6 +69,47 @@ class DefaultApiKeyServiceTest {
     }
 
     @Test
+    void importOrUpdate_creates_a_new_row_storing_the_supplied_keys_hash() {
+        var raw = ApiKeyHasher.generate();
+        when(apiKeyRepository.findByUserIdAndName(userId, "terraform")).thenReturn(Optional.empty());
+        when(apiKeyRepository.save(any(ApiKeyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.importOrUpdate(userId, orgId, "terraform", raw, null);
+
+        assertThat(view.name()).isEqualTo("terraform");
+        var captor = ArgumentCaptor.forClass(ApiKeyEntity.class);
+        verify(apiKeyRepository).save(captor.capture());
+        assertThat(captor.getValue().getKeyHash()).isEqualTo(ApiKeyHasher.hash(raw));
+        assertThat(captor.getValue().getKeyPrefix()).isEqualTo(ApiKeyHasher.prefixOf(raw));
+        assertThat(captor.getValue().getUserId()).isEqualTo(userId);
+        assertThat(captor.getValue().getOrganizationId()).isEqualTo(orgId);
+    }
+
+    @Test
+    void importOrUpdate_overwrites_existing_key_in_place_and_clears_revocation() {
+        var existing = newEntity(userId);
+        existing.setRevokedAt(Instant.now().minusSeconds(60));
+        var originalId = existing.getId();
+        var raw = ApiKeyHasher.generate();
+        when(apiKeyRepository.findByUserIdAndName(userId, "ci")).thenReturn(Optional.of(existing));
+        when(apiKeyRepository.save(any(ApiKeyEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.importOrUpdate(userId, orgId, "ci", raw, null);
+
+        assertThat(view.id()).isEqualTo(originalId);
+        assertThat(existing.getKeyHash()).isEqualTo(ApiKeyHasher.hash(raw));
+        assertThat(existing.getRevokedAt()).isNull();
+        verify(apiKeyRepository).save(existing);
+    }
+
+    @Test
+    void importOrUpdate_rejects_a_key_without_the_expected_prefix() {
+        assertThatThrownBy(() -> service.importOrUpdate(userId, orgId, "ci", "not-a-key", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(apiKeyRepository, never()).save(any());
+    }
+
+    @Test
     void list_maps_entities_to_views_and_drops_hash() {
         var entity = newEntity(userId);
         when(apiKeyRepository.findByUserIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(entity));

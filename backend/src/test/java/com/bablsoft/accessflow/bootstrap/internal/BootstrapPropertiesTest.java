@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.bootstrap.internal;
 
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
@@ -23,6 +24,30 @@ class BootstrapPropertiesTest {
         assertThat(props.datasources()).isEmpty();
         assertThat(props.notificationChannels()).isEmpty();
         assertThat(props.oauth2()).isEmpty();
+        assertThat(props.serviceAccounts()).isEmpty();
+    }
+
+    @Test
+    void bindsIndexedServiceAccountList() {
+        var values = new LinkedHashMap<String, Object>();
+        values.put("accessflow.bootstrap.enabled", "true");
+        values.put("accessflow.bootstrap.service-accounts[0].email", "ci@acme.com");
+        values.put("accessflow.bootstrap.service-accounts[0].display-name", "CI Pipeline");
+        values.put("accessflow.bootstrap.service-accounts[0].role", "ADMIN");
+        values.put("accessflow.bootstrap.service-accounts[0].api-key-name", "terraform");
+        values.put("accessflow.bootstrap.service-accounts[0].api-key", "af_ci_demo_key");
+        values.put("accessflow.bootstrap.service-accounts[0].api-key-expires-at", "2027-01-01T00:00:00Z");
+
+        var props = bind(values);
+
+        assertThat(props.serviceAccounts()).hasSize(1);
+        var sa = props.serviceAccounts().get(0);
+        assertThat(sa.email()).isEqualTo("ci@acme.com");
+        assertThat(sa.displayName()).isEqualTo("CI Pipeline");
+        assertThat(sa.role()).isEqualTo(UserRoleType.ADMIN);
+        assertThat(sa.apiKeyName()).isEqualTo("terraform");
+        assertThat(sa.apiKey()).isEqualTo("af_ci_demo_key");
+        assertThat(sa.apiKeyExpiresAt()).isEqualTo(java.time.Instant.parse("2027-01-01T00:00:00Z"));
     }
 
     @Test
@@ -86,6 +111,6 @@ class BootstrapPropertiesTest {
         var source = new MapConfigurationPropertySource(values);
         return new Binder(source)
                 .bind("accessflow.bootstrap", BootstrapProperties.class)
-                .orElse(new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null));
+                .orElse(new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null, null));
     }
 }

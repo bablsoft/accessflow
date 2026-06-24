@@ -17,6 +17,8 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
 
     Optional<ApiKeyEntity> findByKeyHash(String keyHash);
 
+    Optional<ApiKeyEntity> findByUserIdAndName(UUID userId, String name);
+
     boolean existsByUserIdAndName(UUID userId, String name);
 
     @Modifying

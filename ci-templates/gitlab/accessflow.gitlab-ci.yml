@@ -1,0 +1,94 @@
+# Reusable AccessFlow GitLab CI job templates.
+#
+# Usage in a downstream .gitlab-ci.yml:
+#
+#   include:
+#     - remote: "https://raw.githubusercontent.com/bablsoft/accessflow/main/ci-templates/gitlab/accessflow.gitlab-ci.yml"
+#
+#   provision_prod_db:
+#     extends: .accessflow_provision_datasource
+#     variables:
+#       ACCESSFLOW_ENDPOINT: "https://accessflow.example.com"
+#       AF_NAME: "prod-postgres"
+#       AF_DB_TYPE: "POSTGRESQL"
+#       AF_HOST: "postgres.prod.internal"
+#       AF_PORT: "5432"
+#       AF_DATABASE_NAME: "app"
+#       AF_USERNAME: "af_reader"
+#       AF_SSL_MODE: "REQUIRE"
+#       # AF_PASSWORD comes from a masked/protected CI variable; ACCESSFLOW_API_KEY too.
+#       # Set AF_AI_ANALYSIS_ENABLED: "false" unless you also pass AF_AI_CONFIG_ID — the API
+#       # rejects an AI-enabled datasource with no AI config (HTTP 422).
+#
+# Set ACCESSFLOW_API_KEY (and any secrets like AF_PASSWORD) as masked, protected CI/CD variables.
+
+.accessflow_base:
+  image: alpine:3.21
+  variables:
+    ACCESSFLOW_ENDPOINT: ""
+    ACCESSFLOW_API_KEY: ""
+  before_script:
+    - apk add --no-cache curl jq bash >/dev/null
+
+.accessflow_provision_datasource:
+  extends: .accessflow_base
+  variables:
+    AF_SSL_MODE: "DISABLE"
+  script:
+    - |
+      bash -euo pipefail -c '
+        base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+        : "${ACCESSFLOW_API_KEY:?}"; : "${AF_NAME:?}"; : "${AF_DB_TYPE:?}"
+        body=$(jq -n --arg name "$AF_NAME" --arg db_type "$AF_DB_TYPE" --arg ssl "${AF_SSL_MODE:-DISABLE}" \
+          "{name:\$name, db_type:\$db_type, ssl_mode:\$ssl}")
+        add() { [ -n "${2:-}" ] && body=$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body") || true; }
+        addn() { [ -n "${2:-}" ] && body=$(jq --argjson v "$2" ". + {\"$1\": \$v}" <<<"$body") || true; }
+        add host "${AF_HOST:-}"; addn port "${AF_PORT:-}"; add database_name "${AF_DATABASE_NAME:-}"
+        add username "${AF_USERNAME:-}"; add password "${AF_PASSWORD:-}"
+        add review_plan_id "${AF_REVIEW_PLAN_ID:-}"; add ai_config_id "${AF_AI_CONFIG_ID:-}"
+        addn ai_analysis_enabled "${AF_AI_ANALYSIS_ENABLED:-}"; addn text_to_sql_enabled "${AF_TEXT_TO_SQL_ENABLED:-}"
+        existing=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/datasources?size=100")
+        id=$(jq -r --arg n "$AF_NAME" "first(((.content // .)[]? | select(.name==\$n) | .id)) // empty" <<<"$existing")
+        if [ -n "$id" ]; then
+          curl -fsS -X PUT -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -d "$body" "$base/datasources/$id" >/dev/null
+        else
+          id=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -d "$body" "$base/datasources" | jq -r ".id")
+        fi
+        echo "Datasource $AF_NAME provisioned: $id"
+      '
+
+.accessflow_run_query:
+  extends: .accessflow_base
+  variables:
+    AF_TIMEOUT_SECONDS: "300"
+    AF_POLL_INTERVAL_SECONDS: "5"
+  script:
+    - |
+      bash -euo pipefail -c '
+        base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+        : "${ACCESSFLOW_API_KEY:?}"; : "${AF_DATASOURCE_ID:?}"; : "${AF_SQL:?}"
+        body=$(jq -n --arg ds "$AF_DATASOURCE_ID" --arg sql "$AF_SQL" --arg j "${AF_JUSTIFICATION:-}" \
+          "{datasource_id:\$ds, sql:\$sql} + (if \$j == \"\" then {} else {justification:\$j} end)")
+        qid=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "Content-Type: application/json" -H "X-AccessFlow-CI: true" -d "$body" "$base/queries" | jq -r ".id")
+        [ -n "$qid" ] && [ "$qid" != "null" ] || { echo "submission failed"; exit 1; }
+        echo "Submitted query $qid"
+        end=$(( $(date +%s) + AF_TIMEOUT_SECONDS )); triggered=0
+        while [ "$(date +%s)" -lt "$end" ]; do
+          st=$(curl -fsS -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid" | jq -r ".status")
+          case "$st" in
+            EXECUTED) echo "Query $qid executed"; exit 0 ;;
+            APPROVED)
+              # Approval authorizes; execution is a separate step. Trigger it once for immediate
+              # (non-scheduled) queries, then read the synchronous result.
+              if [ "$triggered" = "0" ]; then
+                triggered=1
+                est=$(curl -fsS -X POST -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" "$base/queries/$qid/execute" | jq -r ".status")
+                [ "$est" = "EXECUTED" ] && { echo "Query $qid executed"; exit 0; } || { echo "Query $qid execution ended: $est"; exit 1; }
+              fi
+              echo "  status=$st"; sleep "$AF_POLL_INTERVAL_SECONDS" ;;
+            REJECTED|FAILED|TIMED_OUT|CANCELLED) echo "Query $qid ended: $st"; exit 1 ;;
+            *) echo "  status=$st"; sleep "$AF_POLL_INTERVAL_SECONDS" ;;
+          esac
+        done
+        echo "Timed out waiting for $qid"; exit 1
+      '

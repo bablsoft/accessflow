@@ -27,6 +27,23 @@ so operators see misconfig at helm time rather than during pod CrashLoopBackOff.
   {{- if not .Values.bootstrap.admin.passwordSecretRef.key -}}
     {{- fail "bootstrap.enabled=true requires bootstrap.admin.passwordSecretRef.key" -}}
   {{- end -}}
+  {{- range $i, $sa := .Values.bootstrap.serviceAccounts -}}
+    {{- if not $sa.email -}}
+      {{- fail (printf "bootstrap.serviceAccounts[%d] is missing email" $i) -}}
+    {{- end -}}
+    {{- if not $sa.displayName -}}
+      {{- fail (printf "bootstrap.serviceAccounts[%d] is missing displayName" $i) -}}
+    {{- end -}}
+    {{- if not $sa.apiKeyName -}}
+      {{- fail (printf "bootstrap.serviceAccounts[%d] is missing apiKeyName" $i) -}}
+    {{- end -}}
+    {{- if not $sa.apiKeySecretRef -}}
+      {{- fail (printf "bootstrap.serviceAccounts[%d] is missing apiKeySecretRef" $i) -}}
+    {{- end -}}
+    {{- if or (not $sa.apiKeySecretRef.name) (not $sa.apiKeySecretRef.key) -}}
+      {{- fail (printf "bootstrap.serviceAccounts[%d].apiKeySecretRef requires both name and key" $i) -}}
+    {{- end -}}
+  {{- end -}}
   {{- range $i, $ds := .Values.bootstrap.datasources -}}
     {{- if eq (upper (toString $ds.dbType)) "CUSTOM" -}}
       {{- fail (printf "bootstrap.datasources[%d] uses dbType=CUSTOM; upload CUSTOM JDBC drivers via the admin API instead" $i) -}}
@@ -84,6 +101,17 @@ ACCESSFLOW_BOOTSTRAP_ORGANIZATION_SLUG: {{ . | quote }}
 {{- end }}
 ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: {{ .Values.bootstrap.admin.email | quote }}
 ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: {{ .Values.bootstrap.admin.displayName | quote }}
+{{- range $i, $sa := .Values.bootstrap.serviceAccounts }}
+ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_EMAIL: {{ $sa.email | quote }}
+ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_DISPLAY_NAME: {{ $sa.displayName | quote }}
+ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_API_KEY_NAME: {{ $sa.apiKeyName | quote }}
+{{- with $sa.role }}
+ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_ROLE: {{ . | quote }}
+{{- end }}
+{{- with $sa.apiKeyExpiresAt }}
+ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_API_KEY_EXPIRES_AT: {{ . | quote }}
+{{- end }}
+{{- end }}
 {{- range $i, $rp := .Values.bootstrap.reviewPlans }}
 ACCESSFLOW_BOOTSTRAP_REVIEW_PLANS_{{ $i }}_NAME: {{ $rp.name | quote }}
 {{- with $rp.description }}
@@ -266,6 +294,13 @@ list. Renders nothing when bootstrap.enabled=false.
     secretKeyRef:
       name: {{ .Values.bootstrap.admin.passwordSecretRef.name | quote }}
       key: {{ .Values.bootstrap.admin.passwordSecretRef.key | quote }}
+{{- range $i, $sa := .Values.bootstrap.serviceAccounts }}
+- name: ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_{{ $i }}_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $sa.apiKeySecretRef.name | quote }}
+      key: {{ $sa.apiKeySecretRef.key | quote }}
+{{- end }}
 {{- range $i, $ds := .Values.bootstrap.datasources }}
 - name: ACCESSFLOW_BOOTSTRAP_DATASOURCES_{{ $i }}_PASSWORD
   valueFrom:

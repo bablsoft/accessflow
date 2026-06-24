@@ -9,6 +9,7 @@ package com.bablsoft.accessflow.audit.events;
 public enum BootstrapResourceType {
     ORGANIZATION,
     ADMIN_USER,
+    SERVICE_ACCOUNT,
     NOTIFICATION_CHANNEL,
     AI_CONFIG,
     REVIEW_PLAN,

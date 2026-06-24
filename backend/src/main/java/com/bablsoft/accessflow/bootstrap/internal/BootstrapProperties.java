@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.bootstrap.internal.spec.OAuth2Spec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.ReviewPlanSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.SamlSpec;
+import com.bablsoft.accessflow.bootstrap.internal.spec.ServiceAccountSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.SystemSmtpSpec;
 import jakarta.validation.Valid;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -20,6 +21,7 @@ public record BootstrapProperties(
         boolean enabled,
         @Valid OrganizationSpec organization,
         @Valid AdminSpec admin,
+        @Valid List<ServiceAccountSpec> serviceAccounts,
         @Valid List<ReviewPlanSpec> reviewPlans,
         @Valid List<AiConfigSpec> aiConfigs,
         @Valid List<DatasourceSpec> datasources,
@@ -31,6 +33,7 @@ public record BootstrapProperties(
 ) {
 
     public BootstrapProperties {
+        serviceAccounts = serviceAccounts == null ? List.of() : List.copyOf(serviceAccounts);
         reviewPlans = reviewPlans == null ? List.of() : List.copyOf(reviewPlans);
         aiConfigs = aiConfigs == null ? List.of() : List.copyOf(aiConfigs);
         datasources = datasources == null ? List.of() : List.copyOf(datasources);

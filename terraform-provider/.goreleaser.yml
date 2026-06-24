@@ -1,0 +1,61 @@
+# GoReleaser config for the AccessFlow Terraform/OpenTofu provider.
+# Produces the exact artifact set the OpenTofu and HashiCorp registries ingest:
+#   terraform-provider-accessflow_<VER>_<OS>_<ARCH>.zip + _SHA256SUMS(.sig) + _manifest.json
+# Run from the dedicated mirror repo (terraform-provider-accessflow) on a vX.Y.Z tag.
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos:
+      - darwin
+      - linux
+      - windows
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+    binary: "{{ .ProjectName }}_v{{ .Version }}"
+
+archives:
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    args:
+      # GPG_FINGERPRINT must be exported in the release environment.
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  # The registries read the GitHub Release assets; never mark it a draft.
+  draft: false
+
+changelog:
+  disable: true

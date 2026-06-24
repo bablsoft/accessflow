@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.bootstrap.internal.reconcile.OAuth2Reconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OrganizationReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.ReviewPlanReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SamlReconciler;
+import com.bablsoft.accessflow.bootstrap.internal.reconcile.ServiceAccountReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SystemSmtpReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.spec.AdminSpec;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
@@ -41,6 +42,7 @@ class BootstrapRunnerTest {
 
     @Mock OrganizationReconciler organizationReconciler;
     @Mock AdminUserReconciler adminUserReconciler;
+    @Mock ServiceAccountReconciler serviceAccountReconciler;
     @Mock NotificationChannelReconciler notificationChannelReconciler;
     @Mock AiConfigReconciler aiConfigReconciler;
     @Mock ReviewPlanReconciler reviewPlanReconciler;
@@ -93,10 +95,12 @@ class BootstrapRunnerTest {
                 eq(BootstrapRunner.BOOTSTRAP_LOCK_AT_MOST_FOR),
                 any(Runnable.class));
         InOrder order = inOrder(organizationReconciler, adminUserReconciler,
-                notificationChannelReconciler, aiConfigReconciler, reviewPlanReconciler,
-                datasourceReconciler, samlReconciler, oauth2Reconciler, systemSmtpReconciler);
+                serviceAccountReconciler, notificationChannelReconciler, aiConfigReconciler,
+                reviewPlanReconciler, datasourceReconciler, samlReconciler, oauth2Reconciler,
+                systemSmtpReconciler);
         order.verify(organizationReconciler).reconcile(any());
         order.verify(adminUserReconciler).reconcile(any(), any());
+        order.verify(serviceAccountReconciler).reconcile(any(), any());
         order.verify(notificationChannelReconciler).reconcile(any(), any());
         order.verify(aiConfigReconciler).reconcile(any(), any());
         order.verify(reviewPlanReconciler).reconcile(any(), any(), anyMap());
@@ -116,7 +120,7 @@ class BootstrapRunnerTest {
                 .isInstanceOf(BootstrapException.class)
                 .hasMessageContaining("missing name");
 
-        verifyNoInteractions(adminUserReconciler, notificationChannelReconciler,
+        verifyNoInteractions(adminUserReconciler, serviceAccountReconciler, notificationChannelReconciler,
                 aiConfigReconciler, reviewPlanReconciler, datasourceReconciler,
                 samlReconciler, oauth2Reconciler, systemSmtpReconciler);
     }
@@ -203,6 +207,7 @@ class BootstrapRunnerTest {
                 props,
                 organizationReconciler,
                 adminUserReconciler,
+                serviceAccountReconciler,
                 notificationChannelReconciler,
                 aiConfigReconciler,
                 reviewPlanReconciler,
@@ -223,6 +228,7 @@ class BootstrapRunnerTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 null,
                 List.of(),
                 null,
@@ -230,6 +236,6 @@ class BootstrapRunnerTest {
     }
 
     private BootstrapProperties disabled() {
-        return new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null);
+        return new BootstrapProperties(false, null, null, null, null, null, null, null, null, null, null, null);
     }
 }

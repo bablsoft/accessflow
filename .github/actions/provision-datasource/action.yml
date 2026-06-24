@@ -1,0 +1,82 @@
+name: "AccessFlow — Provision datasource"
+description: >-
+  Idempotently create or update an AccessFlow datasource via the REST API (look up by name,
+  then POST to create or PUT to update). Authenticates with an AccessFlow API key.
+author: AccessFlow
+branding:
+  icon: database
+  color: blue
+
+inputs:
+  endpoint:
+    description: "AccessFlow base URL, e.g. https://accessflow.example.com"
+    required: true
+  api-key:
+    description: "AccessFlow API key (the af_-prefixed token)."
+    required: true
+  name:
+    description: "Datasource name (unique per organization; the idempotency key)."
+    required: true
+  db-type:
+    description: "Engine, e.g. POSTGRESQL, MYSQL, MONGODB, NEO4J."
+    required: true
+  ssl-mode:
+    description: "DISABLE, REQUIRE, VERIFY_CA, or VERIFY_FULL."
+    required: false
+    default: "DISABLE"
+  host:
+    description: "Database host."
+    required: false
+  port:
+    description: "Database port."
+    required: false
+  database-name:
+    description: "Database / schema name."
+    required: false
+  username:
+    description: "Connection username."
+    required: false
+  password:
+    description: "Connection password (write-only)."
+    required: false
+  review-plan-id:
+    description: "Optional review plan UUID to attach."
+    required: false
+  ai-config-id:
+    description: "Optional AI config UUID to attach."
+    required: false
+  ai-analysis-enabled:
+    description: >-
+      Optional 'true'/'false'. Set 'false' when no AI config is attached — the API rejects an
+      AI-enabled datasource with no ai-config-id (422). Omit to keep the server default (true).
+    required: false
+  text-to-sql-enabled:
+    description: "Optional 'true'/'false'. Like ai-analysis-enabled, needs an AI config when true."
+    required: false
+
+outputs:
+  id:
+    description: "The datasource UUID."
+    value: ${{ steps.provision.outputs.id }}
+
+runs:
+  using: composite
+  steps:
+    - id: provision
+      shell: bash
+      env:
+        AF_ENDPOINT: ${{ inputs.endpoint }}
+        AF_API_KEY: ${{ inputs.api-key }}
+        AF_NAME: ${{ inputs.name }}
+        AF_DB_TYPE: ${{ inputs.db-type }}
+        AF_SSL_MODE: ${{ inputs.ssl-mode }}
+        AF_HOST: ${{ inputs.host }}
+        AF_PORT: ${{ inputs.port }}
+        AF_DATABASE_NAME: ${{ inputs.database-name }}
+        AF_USERNAME: ${{ inputs.username }}
+        AF_PASSWORD: ${{ inputs.password }}
+        AF_REVIEW_PLAN_ID: ${{ inputs.review-plan-id }}
+        AF_AI_CONFIG_ID: ${{ inputs.ai-config-id }}
+        AF_AI_ANALYSIS_ENABLED: ${{ inputs.ai-analysis-enabled }}
+        AF_TEXT_TO_SQL_ENABLED: ${{ inputs.text-to-sql-enabled }}
+      run: ${{ github.action_path }}/provision-datasource.sh

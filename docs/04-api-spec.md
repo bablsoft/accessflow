@@ -3,7 +3,7 @@
 ## General
 
 - **Base path:** `/api/v1`
-- **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`
+- **Authentication:** `Authorization: Bearer <JWT>` on all endpoints except `/auth/*`. Programmatic / IaC clients (the Terraform/OpenTofu provider and the reusable CI Actions — see [docs/16-iac.md](16-iac.md)) instead authenticate with an **API key**: `Authorization: ApiKey <af_…>` (or `X-API-Key: <af_…>`). The key inherits its owning user's permissions; mint one at `POST /api/v1/me/api-keys` or bootstrap a service-account key declaratively. The provider drives the existing datasource / review-plan / routing-policy / AI-config / notification-channel CRUD endpoints below — IaC added **no** new endpoints.
 - **Rate limits:** 1000 req/min general; 100 req/min for query execution endpoints
 - **Content-Type:** `application/json`
 - **Error format:** Every error response follows RFC 9457 `ProblemDetail` and includes a `traceId` that correlates the response with backend logs. Frontends should surface the `traceId` next to the error message so users can include it in support requests.

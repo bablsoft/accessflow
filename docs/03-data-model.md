@@ -1072,6 +1072,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `USER_LOGIN_FAILED` | Failed login attempt |
 | `USER_CREATED` | New user created |
 | `USER_DEACTIVATED` | User account deactivated |
+| `API_KEY_CREATED` | A service-account API key was provisioned (e.g. by the `bootstrap` reconciler for CI/IaC — AF-452). Metadata: `email`, `api_key_name`, `role`. The raw key is never logged. |
+| `API_KEY_UPDATED` | A declared service-account API key was rotated in place. |
 | `USER_PASSWORD_RESET_REQUESTED` | User submitted the public forgot-password form for a real LOCAL account. Metadata: `email`, `source: "self_service"`. |
 | `USER_PASSWORD_RESET_COMPLETED` | User successfully set a new password via the reset link. Metadata: `source: "self_service"`. All refresh tokens for the user are revoked. |
 | `AI_CONFIG_CREATED` | Admin creates a new `ai_config` row via `POST /admin/ai-configs`. Metadata: `name`, `provider`, `model`. |
@@ -1108,7 +1110,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`.
 
 ---
 
@@ -1120,7 +1122,7 @@ Per-resource fingerprint cache used by the env-driven `bootstrap` reconciler to 
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | UUID — references `organizations(id)` semantically; no SQL FK so the row survives org deletion (matches the audit-module convention from V14) |
-| `resource_type` | VARCHAR(100) — one of the `BootstrapResourceType` enum names: `ORGANIZATION`, `ADMIN_USER`, `NOTIFICATION_CHANNEL`, `AI_CONFIG`, `REVIEW_PLAN`, `DATASOURCE`, `SAML_CONFIG`, `OAUTH2_CONFIG`, `SYSTEM_SMTP` |
+| `resource_type` | VARCHAR(100) — one of the `BootstrapResourceType` enum names: `ORGANIZATION`, `ADMIN_USER`, `SERVICE_ACCOUNT`, `NOTIFICATION_CHANNEL`, `AI_CONFIG`, `REVIEW_PLAN`, `DATASOURCE`, `SAML_CONFIG`, `OAUTH2_CONFIG`, `SYSTEM_SMTP`. (`SERVICE_ACCOUNT` rows key on the service-account user UUID.) |
 | `resource_id` | UUID — entity UUID for normal resources, the organization UUID for singleton-per-org configs (SAML, SystemSmtp), or a deterministic UUID derived via `UUID.nameUUIDFromBytes("OAUTH2:" + provider)` for OAuth2-per-provider rows |
 | `spec_fingerprint` | VARCHAR(64) — lowercase hex SHA-256 of the canonical-sorted JSON of the spec |
 | `updated_at` | TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP |

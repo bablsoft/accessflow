@@ -16,6 +16,13 @@ bootstrap:
     email: admin@acme.com
     displayName: Initial Admin
     passwordSecretRef: { name: accessflow-bootstrap-secrets, key: admin-password }
+  serviceAccounts:
+    - email: ci@acme.com
+      displayName: CI Pipeline
+      role: ADMIN
+      apiKeyName: terraform
+      apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: ci-api-key }
+      apiKeyExpiresAt: "2027-01-01T00:00:00Z"
   reviewPlans:
     - name: standard
       requiresAiReview: true

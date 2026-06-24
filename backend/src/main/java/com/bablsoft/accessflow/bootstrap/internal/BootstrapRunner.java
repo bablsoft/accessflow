@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.bootstrap.internal.reconcile.OAuth2Reconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.OrganizationReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.ReviewPlanReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SamlReconciler;
+import com.bablsoft.accessflow.bootstrap.internal.reconcile.ServiceAccountReconciler;
 import com.bablsoft.accessflow.bootstrap.internal.reconcile.SystemSmtpReconciler;
 import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class BootstrapRunner {
     private final BootstrapProperties properties;
     private final OrganizationReconciler organizationReconciler;
     private final AdminUserReconciler adminUserReconciler;
+    private final ServiceAccountReconciler serviceAccountReconciler;
     private final NotificationChannelReconciler notificationChannelReconciler;
     private final AiConfigReconciler aiConfigReconciler;
     private final ReviewPlanReconciler reviewPlanReconciler;
@@ -74,6 +76,8 @@ public class BootstrapRunner {
         var errors = new ArrayList<String>();
         runStep(errors, "admin",
                 () -> adminUserReconciler.reconcile(organizationId, properties.admin()));
+        runStep(errors, "serviceAccounts",
+                () -> serviceAccountReconciler.reconcile(organizationId, properties.serviceAccounts()));
 
         Map<String, UUID> notificationChannelsByName = Map.of();
         try {

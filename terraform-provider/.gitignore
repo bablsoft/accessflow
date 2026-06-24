@@ -1,0 +1,12 @@
+# Build / release artifacts
+/dist/
+terraform-provider-accessflow
+
+# Local Terraform/OpenTofu state & plugin cache
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Editor
+*.swp

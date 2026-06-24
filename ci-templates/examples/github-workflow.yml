@@ -1,0 +1,35 @@
+# Example consumer workflow using the AccessFlow reusable composite actions.
+# Drop this in another repo as .github/workflows/accessflow.yml.
+name: AccessFlow provisioning
+
+on:
+  workflow_dispatch:
+
+jobs:
+  provision-and-query:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Provision the production datasource
+        id: ds
+        uses: bablsoft/accessflow/.github/actions/provision-datasource@main
+        with:
+          endpoint: https://accessflow.example.com
+          api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+          name: prod-postgres
+          db-type: POSTGRESQL
+          host: postgres.prod.internal
+          port: "5432"
+          database-name: app
+          username: af_reader
+          password: ${{ secrets.PROD_DB_PASSWORD }}
+          ssl-mode: REQUIRE
+
+      - name: Run a governed query and wait for execution
+        uses: bablsoft/accessflow/.github/actions/run-query@main
+        with:
+          endpoint: https://accessflow.example.com
+          api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+          datasource-id: ${{ steps.ds.outputs.id }}
+          sql: "SELECT count(*) FROM orders"
+          justification: "nightly row-count check"
+          timeout-seconds: "600"

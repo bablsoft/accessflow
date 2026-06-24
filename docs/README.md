@@ -20,6 +20,7 @@ AccessFlow is an open-source **database access governance platform**. It acts as
 | [13-mcp.md](./13-mcp.md) | Stateless MCP server, user API keys, exposed tools |
 | [14-connectors.md](./14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
 | [15-engine-sdk.md](./15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines, host↔plugin contract, add-an-engine checklist |
+| [16-iac.md](./16-iac.md) | Infrastructure as Code — Terraform/OpenTofu provider, reusable GitHub/GitLab CI Actions, service-account API keys, registry-publishing runbook |
 
 ## Tech Stack Summary
 
