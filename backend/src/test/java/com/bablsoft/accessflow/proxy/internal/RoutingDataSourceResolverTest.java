@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
+import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -38,6 +41,8 @@ class RoutingDataSourceResolverTest {
     private final DatasourceLookupService lookupService = mock(DatasourceLookupService.class);
     private final AuditLogService auditLogService = mock(AuditLogService.class);
     private final StaticMessageSource messageSource = new StaticMessageSource();
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private final ObservationRegistry observationRegistry = ObservationRegistry.create();
     private RoutingDataSourceResolver resolver;
     private DataSource primaryPool;
     private DataSource replicaPool;
@@ -55,8 +60,21 @@ class RoutingDataSourceResolverTest {
         when(primaryPool.getConnection()).thenReturn(primaryConnection);
         when(replicaPool.getConnection()).thenReturn(replicaConnection);
         when(poolManager.resolve(datasourceId)).thenReturn(primaryPool);
+        observationRegistry.observationConfig()
+                .observationHandler(new DefaultMeterObservationHandler(meterRegistry));
         resolver = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
-                messageSource);
+                messageSource, observationRegistry);
+    }
+
+    @Test
+    void recordsAcquireObservationWithQueryTypeAndSuccessOutcome() throws SQLException {
+        when(poolManager.resolveReplica(datasourceId)).thenReturn(Optional.empty());
+
+        resolver.acquire(datasourceId, QueryType.SELECT);
+
+        assertThat(meterRegistry.get("accessflow.datasource.acquire")
+                .tags("query_type", "SELECT", "outcome", "success")
+                .timer().count()).isEqualTo(1);
     }
 
     @Test

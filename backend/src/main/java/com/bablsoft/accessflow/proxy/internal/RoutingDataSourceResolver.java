@@ -9,6 +9,8 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +40,30 @@ class RoutingDataSourceResolver {
     private final DatasourceLookupService datasourceLookupService;
     private final AuditLogService auditLogService;
     private final MessageSource messageSource;
+    private final ObservationRegistry observationRegistry;
 
+    /**
+     * Acquires a pooled connection, traced as {@code accessflow.datasource.acquire} (AF-454) so the
+     * pool-acquire latency is a child span of the surrounding {@code accessflow.query.execute}.
+     */
     Connection acquire(UUID datasourceId, QueryType queryType) throws SQLException {
+        Observation observation = Observation.createNotStarted("accessflow.datasource.acquire", observationRegistry)
+                .lowCardinalityKeyValue("query_type", queryType.name())
+                .start();
+        try (Observation.Scope ignored = observation.openScope()) {
+            Connection connection = doAcquire(datasourceId, queryType);
+            observation.lowCardinalityKeyValue("outcome", "success");
+            return connection;
+        } catch (SQLException | RuntimeException ex) {
+            observation.lowCardinalityKeyValue("outcome", "failure");
+            observation.error(ex);
+            throw ex;
+        } finally {
+            observation.stop();
+        }
+    }
+
+    private Connection doAcquire(UUID datasourceId, QueryType queryType) throws SQLException {
         if (queryType == QueryType.SELECT) {
             try {
                 var replica = poolManager.resolveReplica(datasourceId);

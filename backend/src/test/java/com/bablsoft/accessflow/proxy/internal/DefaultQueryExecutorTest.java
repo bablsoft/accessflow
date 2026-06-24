@@ -19,6 +19,9 @@ import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
+import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,6 +81,8 @@ class DefaultQueryExecutorTest {
     private final com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog =
             mock(com.bablsoft.accessflow.core.api.QueryEngineCatalog.class);
     private final DryRunPlanner dryRunPlanner = mock(DryRunPlanner.class);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private final ObservationRegistry observationRegistry = ObservationRegistry.create();
 
     private DefaultQueryExecutor executor;
     private DataSource dataSource;
@@ -94,13 +99,32 @@ class DefaultQueryExecutorTest {
         when(poolManager.resolve(datasourceId)).thenReturn(dataSource);
         when(poolManager.resolveReplica(datasourceId)).thenReturn(Optional.empty());
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(2_000)));
+        observationRegistry.observationConfig()
+                .observationHandler(new DefaultMeterObservationHandler(meterRegistry));
         var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
-                messageSource);
+                messageSource, observationRegistry);
         when(dryRunPlanner.supportedTypes()).thenReturn(java.util.Set.of(DbType.POSTGRESQL));
         var dryRunRegistry = new DryRunPlannerRegistry(List.of(dryRunPlanner));
         executor = new DefaultQueryExecutor(router, lookupService, properties,
                 rowMapper, translator, new RowSecurityRewriter(messageSource),
-                engineCatalog, dryRunRegistry, clock, messageSource);
+                engineCatalog, dryRunRegistry, clock, messageSource, observationRegistry);
+    }
+
+    @Test
+    void recordsExecuteObservationWithEngineStatementAndOutcomeTags() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+
+        executor.execute(new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, null, null));
+
+        assertThat(meterRegistry.get("accessflow.query.execute")
+                .tags("db_type", "POSTGRESQL", "query_type", "SELECT", "outcome", "success")
+                .timer().count()).isEqualTo(1);
+        // datasource.acquire nests as a child span/meter of the execute observation
+        assertThat(meterRegistry.get("accessflow.datasource.acquire")
+                .tags("query_type", "SELECT", "outcome", "success")
+                .timer().count()).isEqualTo(1);
     }
 
     @Test

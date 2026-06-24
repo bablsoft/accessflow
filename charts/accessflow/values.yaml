@@ -304,6 +304,42 @@ saml:
   idpMetadataUrl: ""
   keystoreSecret: ""
 
+# --- Observability: OTLP trace export + Prometheus scraping (AF-454)
+# Tracing/metrics ship inert by default; MDC trace ids stay populated regardless.
+observability:
+  tracing:
+    # OTLP span export (Micrometer Tracing → OpenTelemetry). Point otlp.endpoint at the
+    # FULL OTLP/HTTP traces URL of your collector (e.g. http://tempo:4318/v1/traces) and
+    # flip enabled=true to emit OTEL_EXPORTER_OTLP_ENDPOINT into the backend env. The
+    # backend wires the exporter automatically; sampling decisions never affect MDC ids.
+    otlp:
+      enabled: false
+      endpoint: ""
+      # Optional comma-separated OTLP headers (k1=v1,k2=v2) — e.g. a Honeycomb team key.
+      headers: ""
+    # Sampling probability (0.0–1.0). Blank keeps the application default (1.0).
+    samplingProbability: ""
+  metrics:
+    # Annotations merged onto the backend pod so a Prometheus server (or the
+    # kube-prometheus-stack scrape config) discovers /actuator/prometheus. Example:
+    #   prometheus.io/scrape: "true"
+    #   prometheus.io/path: /actuator/prometheus
+    #   prometheus.io/port: "8080"
+    podAnnotations: {}
+
+# --- Pre-built Grafana dashboards (AF-454)
+# When enabled, the JSON dashboards in charts/accessflow/dashboards/ ship as a ConfigMap
+# labelled for the Grafana sidecar to auto-import — covering query volume, approval SLAs,
+# AI usage/cost, rejection rates, and connection-pool stats. Requires the Prometheus
+# metrics above to be scraped.
+dashboards:
+  enabled: false
+  # Grafana sidecar discovery label (kube-prometheus-stack default: grafana_dashboard=1).
+  labelKey: grafana_dashboard
+  labelValue: "1"
+  # Optional ConfigMap annotations, e.g. grafana_folder: AccessFlow.
+  annotations: {}
+
 # --- Startup bootstrap of admin config (env-var driven; GitOps-friendly)
 # When enabled, the backend reconciles the resources declared below into the
 # database on every startup. See docs/09-deployment.md → "Bootstrap configuration"

@@ -21,12 +21,16 @@ import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.PersistAiAnalysisCommand;
 import com.bablsoft.accessflow.core.api.PersistAiModelResultCommand;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
+import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SupportedLanguage;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +68,8 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final SqlParserService sqlParserService;
     private final ApplicationEventPublisher eventPublisher;
     private final AiRateLimiter aiRateLimiter;
+    private final ObservationRegistry observationRegistry;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public AiAnalysisResult analyzePreview(UUID datasourceId, String sql, UUID userId,
@@ -139,8 +145,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         }
         try {
             aiRateLimiter.enforce(snapshot.organizationId());
-            var analysis = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
-                    resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
+            var analysis = analyzeWithObservation(snapshot, descriptor, schemaContext);
             var result = ClassificationRiskBooster.boost(analysis, ClassificationRiskBooster.bumpFor(
                     referencedClassifications(snapshot.sqlText(), classificationTags)));
             var issuesJson = responseParser.issuesAsJson(result.issues());
@@ -165,6 +170,50 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             log.warn("AI analysis failed for query {}: {}", queryRequestId, e.getMessage());
             persistFailureAndPublish(queryRequestId, descriptor.aiConfigId(), e.getMessage());
         }
+    }
+
+    /**
+     * Invokes the AI strategy under the {@code accessflow.ai.analyze} span (AF-454) so the model
+     * call latency, provider, and outcome are traced + timed, and records per-provider token usage
+     * on the {@code accessflow.ai.tokens} distribution summary. Tag keys stay constant across the
+     * success and failure paths so the meter time series do not split.
+     */
+    private AiAnalysisResult analyzeWithObservation(QueryRequestSnapshot snapshot,
+                                                    DatasourceConnectionDescriptor descriptor,
+                                                    String schemaContext) {
+        // Each tag is set exactly once per branch (no re-add) so the meter series carry the right
+        // provider/risk on success and consistent keys on failure.
+        Observation observation = Observation.start("accessflow.ai.analyze", observationRegistry);
+        try (Observation.Scope ignored = observation.openScope()) {
+            var analysis = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
+                    resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
+            observation.lowCardinalityKeyValue("provider", providerTag(analysis.aiProvider()))
+                    .lowCardinalityKeyValue("risk_level",
+                            analysis.riskLevel() != null ? analysis.riskLevel().name() : "none")
+                    .lowCardinalityKeyValue("outcome", "success");
+            recordTokenUsage(analysis);
+            return analysis;
+        } catch (RuntimeException ex) {
+            observation.lowCardinalityKeyValue("provider", "unknown")
+                    .lowCardinalityKeyValue("risk_level", "none")
+                    .lowCardinalityKeyValue("outcome", "failure");
+            observation.error(ex);
+            throw ex;
+        } finally {
+            observation.stop();
+        }
+    }
+
+    private void recordTokenUsage(AiAnalysisResult analysis) {
+        var provider = providerTag(analysis.aiProvider());
+        meterRegistry.summary("accessflow.ai.tokens", "provider", provider, "type", "prompt")
+                .record(analysis.promptTokens());
+        meterRegistry.summary("accessflow.ai.tokens", "provider", provider, "type", "completion")
+                .record(analysis.completionTokens());
+    }
+
+    private static String providerTag(AiProviderType provider) {
+        return provider != null ? provider.name() : "unknown";
     }
 
     private List<PersistAiModelResultCommand> toModelResultCommands(

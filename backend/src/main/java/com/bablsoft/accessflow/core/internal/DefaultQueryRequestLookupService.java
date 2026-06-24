@@ -43,6 +43,13 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<Instant> findCreatedAt(UUID queryRequestId) {
+        return queryRequestRepository.findById(queryRequestId)
+                .map(QueryRequestEntity::getCreatedAt);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<PendingReviewView> findPendingReview(UUID queryRequestId) {
         return queryRequestRepository.findById(queryRequestId)
                 .map(this::toPendingReviewView);

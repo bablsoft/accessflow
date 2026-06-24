@@ -145,7 +145,11 @@ class SecurityConfiguration {
                         // Actuator health + info are consumed unauthenticated by k8s probes and
                         // by the frontend version footer (see docs/09-deployment.md). The exposure
                         // list in application.yml already limits what is reachable here.
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        // /actuator/prometheus is scraped in-cluster by Prometheus to back the
+                        // Grafana dashboards (AF-454) — it carries no secrets; restrict it with a
+                        // NetworkPolicy and do not route /actuator through the public ingress.
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
+                                "/actuator/prometheus").permitAll()
                         // WebSocket handshake is authenticated by JwtHandshakeInterceptor via
                         // ?token= (browsers cannot set Authorization on the WS upgrade).
                         .requestMatchers("/ws").permitAll()

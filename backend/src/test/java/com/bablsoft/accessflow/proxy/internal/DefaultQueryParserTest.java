@@ -6,12 +6,16 @@ import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import io.micrometer.core.instrument.observation.DefaultMeterObservationHandler;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -24,7 +28,15 @@ class DefaultQueryParserTest {
     private final SqlParserService sqlParserService = mock(SqlParserService.class);
     private final QueryEngineCatalog engineCatalog = mock(QueryEngineCatalog.class);
     private final QueryEngine engine = mock(QueryEngine.class);
-    private final DefaultQueryParser parser = new DefaultQueryParser(sqlParserService, engineCatalog);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private final ObservationRegistry observationRegistry = ObservationRegistry.create();
+    private final DefaultQueryParser parser;
+
+    {
+        observationRegistry.observationConfig()
+                .observationHandler(new DefaultMeterObservationHandler(meterRegistry));
+        parser = new DefaultQueryParser(sqlParserService, engineCatalog, observationRegistry);
+    }
 
     @Test
     void routesRelationalToSqlParser() {
@@ -34,6 +46,31 @@ class DefaultQueryParserTest {
         assertThat(result.type()).isEqualTo(QueryType.SELECT);
         verify(sqlParserService).parse("SELECT 1");
         verify(engineCatalog, never()).engineFor(any());
+    }
+
+    @Test
+    void recordsParseObservationWithDbTypeAndSuccessOutcome() {
+        when(sqlParserService.parse("SELECT 1"))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT 1"));
+
+        parser.parse("SELECT 1", DbType.POSTGRESQL);
+
+        var timer = meterRegistry.get("accessflow.query.parse")
+                .tags("db_type", "POSTGRESQL", "outcome", "success")
+                .timer();
+        assertThat(timer.count()).isEqualTo(1);
+    }
+
+    @Test
+    void recordsFailureOutcomeWhenParserThrows() {
+        when(sqlParserService.parse("bad")).thenThrow(new IllegalStateException("parse failed"));
+
+        assertThatThrownBy(() -> parser.parse("bad", DbType.POSTGRESQL))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThat(meterRegistry.get("accessflow.query.parse")
+                .tags("db_type", "POSTGRESQL", "outcome", "failure")
+                .timer().count()).isEqualTo(1);
     }
 
     @Test

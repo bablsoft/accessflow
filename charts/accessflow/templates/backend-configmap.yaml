@@ -18,6 +18,16 @@ data:
   # home (~/.accessflow/drivers) is not writable under runAsUser 1000, which would leave
   # every on-demand connector UNAVAILABLE.
   ACCESSFLOW_DRIVER_CACHE: {{ .Values.driverCache.persistence.mountPath | quote }}
+  {{- if and .Values.observability.tracing.otlp.enabled .Values.observability.tracing.otlp.endpoint }}
+  # OTLP trace export (AF-454) — the backend bridges this onto the Spring exporter.
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.tracing.otlp.endpoint | quote }}
+  {{- with .Values.observability.tracing.otlp.headers }}
+  OTEL_EXPORTER_OTLP_HEADERS: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- with .Values.observability.tracing.samplingProbability }}
+  ACCESSFLOW_TRACING_SAMPLING_PROBABILITY: {{ . | quote }}
+  {{- end }}
   {{- range $key, $value := .Values.backend.env }}
   {{ $key }}: {{ $value | quote }}
   {{- end }}

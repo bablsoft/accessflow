@@ -45,6 +45,17 @@ helm install accessflow accessflow/accessflow \
 | [`examples/values-production.yaml`](examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
 | [`examples/values-external-services.yaml`](examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
 | [`examples/values-airgapped.yaml`](examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+| [`examples/values-observability.yaml`](examples/values-observability.yaml) | OTLP trace export to a collector + Prometheus scrape annotations + the pre-built Grafana dashboards. |
+
+### Observability (AF-454)
+
+`observability.tracing.otlp.{enabled,endpoint}` wires OTLP trace export of the proxy
+pipeline (parse → AI analyze → pool acquire → execute) to Tempo / Jaeger / Honeycomb —
+the chart emits `OTEL_EXPORTER_OTLP_ENDPOINT` into the backend env. `observability.metrics.podAnnotations`
+adds Prometheus scrape annotations for `/actuator/prometheus` (unauthenticated for in-cluster
+scraping — keep it off the public ingress and restrict with a NetworkPolicy). `dashboards.enabled=true`
+ships the JSON in [`dashboards/`](dashboards/) as a `grafana_dashboard`-labelled ConfigMap that the
+Grafana sidecar auto-imports (query volume, approval SLAs, AI usage/cost, rejection rates, pool stats).
 
 ### Bootstrap (declarative admin config)
 

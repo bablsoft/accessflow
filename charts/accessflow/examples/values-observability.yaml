@@ -1,0 +1,29 @@
+# Observability example (AF-454): OTLP trace export + pre-built Grafana dashboards.
+#
+#   helm upgrade --install accessflow charts/accessflow -f examples/values-observability.yaml
+#
+# Ships the proxy-pipeline traces to an OTLP collector (Tempo/Jaeger/Honeycomb), exposes
+# Prometheus metrics for scraping, and installs the AccessFlow Grafana dashboards via a
+# sidecar-discovered ConfigMap. /actuator/prometheus is unauthenticated for in-cluster
+# scraping — keep it off the public ingress and restrict it with a NetworkPolicy.
+
+observability:
+  tracing:
+    otlp:
+      enabled: true
+      # Full OTLP/HTTP traces URL of your collector (note the /v1/traces path).
+      endpoint: http://tempo.observability.svc:4318/v1/traces
+      # Optional auth headers, e.g. a Honeycomb team key:
+      # headers: "x-honeycomb-team=YOUR_KEY"
+    # Sample one in ten traces under load; MDC trace ids are populated regardless.
+    samplingProbability: "0.1"
+  metrics:
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/path: /actuator/prometheus
+      prometheus.io/port: "8080"
+
+dashboards:
+  enabled: true
+  annotations:
+    grafana_folder: AccessFlow

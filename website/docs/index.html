@@ -354,6 +354,19 @@
             fields, so correlation works out of the box. The Spring Boot ASCII banner is hidden by
             default; set <code>SPRING_MAIN_BANNER_MODE=console</code> to restore it.
           </p>
+          <p>
+            <strong>Tracing &amp; metrics.</strong> Set
+            <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> to your collector's full OTLP/HTTP traces URL
+            (e.g. <code>http://tempo:4318/v1/traces</code>) and AccessFlow exports the proxy-pipeline
+            spans — parse → AI analyze → pool acquire → execute — to Tempo / Jaeger / Honeycomb
+            (sampling via <code>ACCESSFLOW_TRACING_SAMPLING_PROBABILITY</code>; export is off until an
+            endpoint is set). Prometheus metrics are exposed at <code>/actuator/prometheus</code>
+            (unauthenticated for in-cluster scraping — keep <code>/actuator</code> off the public
+            ingress). The Helm chart ships two pre-built Grafana dashboards behind
+            <code>dashboards.enabled=true</code> covering query volume, approval SLAs, AI usage/cost,
+            rejection rates, and connection-pool stats — see
+            <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-observability.yaml">examples/values-observability.yaml</a>.
+          </p>
 
           <h3 id="run-helm">Kubernetes &amp; Helm</h3>
           <p>

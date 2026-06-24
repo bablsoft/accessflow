@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -19,6 +20,8 @@ import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlannerRegistry;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +53,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final DryRunPlannerRegistry dryRunPlannerRegistry;
     private final Clock clock;
     private final MessageSource messageSource;
+    private final ObservationRegistry observationRegistry;
 
     private String msg(String key) {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
@@ -67,6 +71,30 @@ class DefaultQueryExecutor implements QueryExecutor {
                 ? request.statementTimeoutOverride()
                 : execProps.statementTimeout();
 
+        // accessflow.query.execute span (AF-454) — parents the datasource.acquire child span and
+        // carries the engine + statement-class tags the Grafana dashboards group on.
+        Observation observation = Observation.createNotStarted("accessflow.query.execute", observationRegistry)
+                .lowCardinalityKeyValue("db_type", descriptor.dbType().name())
+                .lowCardinalityKeyValue("query_type", request.queryType().name())
+                .start();
+        try (Observation.Scope ignored = observation.openScope()) {
+            QueryExecutionResult result = executeInternal(request, descriptor,
+                    effectiveMaxRows, effectiveTimeout, execProps);
+            observation.lowCardinalityKeyValue("outcome", "success");
+            return result;
+        } catch (RuntimeException ex) {
+            observation.lowCardinalityKeyValue("outcome", "failure");
+            observation.error(ex);
+            throw ex;
+        } finally {
+            observation.stop();
+        }
+    }
+
+    private QueryExecutionResult executeInternal(QueryExecutionRequest request,
+                                                 DatasourceConnectionDescriptor descriptor,
+                                                 int effectiveMaxRows, Duration effectiveTimeout,
+                                                 ProxyPoolProperties.Execution execProps) {
         if (engineCatalog.isEngineManaged(descriptor.dbType())) {
             return engineCatalog.engineFor(descriptor.dbType())
                     .execute(new QueryEngineExecutionRequest(

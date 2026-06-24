@@ -1500,7 +1500,18 @@ Every log line is therefore prefixed with `[accessflow-app,<traceId>,<spanId>]`.
 
 **Sampling.** Defaults to `1.0` (sample every request). For high-traffic deployments operators can lower this with `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` (e.g. `0.1` to sample one in ten). Sampling controls export volume — log MDC and `ProblemDetail.traceId` are populated regardless of the sampling decision because the trace context is always active per request.
 
-**Wiring an exporter (optional).** To ship traces to a collector, add (for example) `io.opentelemetry:opentelemetry-exporter-otlp` to `pom.xml` and set `management.otlp.tracing.endpoint`. AccessFlow's auto-configuration picks the exporter up automatically; no application-level code change is required.
+**OTLP trace export (AF-454).** The backend bundles `io.opentelemetry:opentelemetry-exporter-otlp`, so trace export is first-class — no rebuild needed. Export is **off by default** (no endpoint configured); setting the standard `OTEL_EXPORTER_OTLP_ENDPOINT` (the full OTLP/HTTP traces URL, e.g. `http://tempo:4318/v1/traces`) turns it on. `OtlpTracingEnvironmentPostProcessor` (registered via `META-INF/spring.factories`) bridges `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (and optional `OTEL_EXPORTER_OTLP_HEADERS`, e.g. a Honeycomb team key) onto Spring Boot 4.1's `management.opentelemetry.tracing.export.otlp.*` properties **only when present** — so an unset endpoint never creates an exporter pointed at an invalid URL. The exported spans are correlated with the same `traceId` that appears in logs and `ProblemDetail`; sampling (above) controls export volume, MDC is unaffected.
+
+**Instrumented spans.** The proxy pipeline is traced with the Micrometer Observation API (one instrumentation point yields both a span and a timer):
+
+| Span / meter | Where | Tags |
+|---|---|---|
+| `accessflow.query.parse` | `DefaultQueryParser.parse` | `db_type`, `outcome` |
+| `accessflow.datasource.acquire` | `RoutingDataSourceResolver.acquire` (child of execute) | `query_type`, `outcome` |
+| `accessflow.query.execute` | `DefaultQueryExecutor.execute` | `db_type`, `query_type`, `outcome` |
+| `accessflow.ai.analyze` | `DefaultAiAnalyzerService` (the `strategy.analyze` call) | `provider`, `risk_level`, `outcome` |
+
+**Metrics & Grafana dashboards.** `micrometer-registry-prometheus` is bundled and `/actuator/prometheus` is exposed (and `permitAll` for in-cluster scraping — restrict it with a NetworkPolicy; do not route `/actuator` through the public ingress). Beyond the Observation timers above, the `WorkflowMetricsListener` turns lifecycle events into business meters — `accessflow.query.{submitted,approved,rejected,executed}` counters (rejected split by `reason=manual|auto|timeout`), the `accessflow.query.approval.latency` SLA timer (submission → approval), and the `accessflow.query.execution.duration` timer — while `DefaultAiAnalyzerService` records `accessflow.ai.tokens` (per `provider` + `type=prompt|completion`). HikariCP `hikaricp_connections_*` pool metrics bind automatically. The Helm chart ships two pre-built dashboards ([`charts/accessflow/dashboards/`](../charts/accessflow/dashboards/)) — *Query Pipeline* (volume, latency, rejection rate, approval SLA, pool stats) and *AI Usage* (analyses, latency, token cost, risk mix) — as a `grafana_dashboard`-labelled ConfigMap when `dashboards.enabled=true`. See [docs/09-deployment.md](09-deployment.md).
 
 ---
 

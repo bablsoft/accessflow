@@ -1,0 +1,3 @@
+# AF-454: bridge OTEL_EXPORTER_OTLP_* env vars onto Spring Boot's OTLP tracing properties.
+org.springframework.boot.EnvironmentPostProcessor=\
+  com.bablsoft.accessflow.OtlpTracingEnvironmentPostProcessor

@@ -1,0 +1,161 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "title": "AccessFlow — Query Pipeline",
+  "uid": "accessflow-query-pipeline",
+  "tags": ["accessflow"],
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Query execution throughput (per s, by outcome)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (outcome) (rate(accessflow_query_execute_seconds_count[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Execution latency (avg) by engine",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (db_type) (rate(accessflow_query_execute_seconds_sum[5m])) / clamp_min(sum by (db_type) (rate(accessflow_query_execute_seconds_count[5m])), 0.001)",
+          "legendFormat": "{{db_type}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Review funnel (per s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(accessflow_query_submitted_total[5m]))",
+          "legendFormat": "submitted"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(accessflow_query_approved_total[5m]))",
+          "legendFormat": "approved"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum by (reason) (rate(accessflow_query_rejected_total[5m]))",
+          "legendFormat": "rejected:{{reason}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Rejection rate (1h)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(accessflow_query_rejected_total[1h])) / clamp_min(sum(rate(accessflow_query_submitted_total[1h])), 0.0001)",
+          "legendFormat": "rejection rate"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Approval SLA — avg time to approve (1h)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(accessflow_query_approval_latency_seconds_sum[1h])) / clamp_min(sum(rate(accessflow_query_approval_latency_seconds_count[1h])), 1)",
+          "legendFormat": "avg approval latency"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Customer-DB connection pools",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(hikaricp_connections_active)",
+          "legendFormat": "active"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(hikaricp_connections_idle)",
+          "legendFormat": "idle"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(hikaricp_connections_pending)",
+          "legendFormat": "pending"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Pool acquire latency (avg)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "sum(rate(accessflow_datasource_acquire_seconds_sum[5m])) / clamp_min(sum(rate(accessflow_datasource_acquire_seconds_count[5m])), 0.001)",
+          "legendFormat": "acquire latency"
+        }
+      ]
+    }
+  ]
+}

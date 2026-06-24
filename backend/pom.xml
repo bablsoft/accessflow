@@ -278,6 +278,19 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-tracing-bridge-otel</artifactId>
         </dependency>
+        <!-- OTLP span exporter (AF-454). Version managed by Spring Boot 4.1's imported
+             opentelemetry-bom. Inert until OTEL_EXPORTER_OTLP_ENDPOINT is set — see
+             OtlpTracingEnvironmentPostProcessor. -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+        <!-- Prometheus scrape registry (AF-454) backing the shipped Grafana dashboards.
+             Exposes /actuator/prometheus; version managed by the Micrometer BOM. -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.slack.api</groupId>
             <artifactId>slack-api-client</artifactId>

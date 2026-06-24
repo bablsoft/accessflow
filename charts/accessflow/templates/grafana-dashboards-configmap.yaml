@@ -1,0 +1,23 @@
+{{- if .Values.dashboards.enabled }}
+{{- /*
+AF-454: ships the JSON dashboards under charts/accessflow/dashboards/ as a ConfigMap labelled
+for the Grafana sidecar (kube-prometheus-stack) to auto-discover and import. Each *.json file
+becomes one data key.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "accessflow.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "accessflow.labels" . | nindent 4 }}
+    {{ .Values.dashboards.labelKey | default "grafana_dashboard" }}: {{ .Values.dashboards.labelValue | default "1" | quote }}
+  {{- with .Values.dashboards.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+{{- range $path, $_ := .Files.Glob "dashboards/*.json" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}

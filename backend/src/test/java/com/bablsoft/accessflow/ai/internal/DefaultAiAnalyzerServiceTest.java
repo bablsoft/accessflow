@@ -78,6 +78,10 @@ class DefaultAiAnalyzerServiceTest {
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
+    private final io.micrometer.core.instrument.simple.SimpleMeterRegistry meterRegistry =
+            new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+    private final io.micrometer.observation.ObservationRegistry observationRegistry =
+            io.micrometer.observation.ObservationRegistry.create();
 
     private DefaultAiAnalyzerService service;
 
@@ -92,7 +96,8 @@ class DefaultAiAnalyzerServiceTest {
         service = new DefaultAiAnalyzerService(strategy, aiConfigRepository, promptRenderer, responseParser,
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
                 permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
-                dataClassificationQueryService, sqlParserService, eventPublisher, aiRateLimiter);
+                dataClassificationQueryService, sqlParserService, eventPublisher, aiRateLimiter,
+                observationRegistry, meterRegistry);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -234,6 +239,15 @@ class DefaultAiAnalyzerServiceTest {
                     assertThat(ev.queryRequestId()).isEqualTo(queryRequestId);
                     assertThat(ev.aiAnalysisId()).isEqualTo(newAnalysisId);
                 });
+
+        // AF-454: the AI call is recorded as the accessflow.ai.tokens distribution summary,
+        // split per provider + token type, and the strategy is timed under accessflow.ai.analyze.
+        assertThat(meterRegistry.get("accessflow.ai.tokens")
+                .tags("provider", "ANTHROPIC", "type", "prompt").summary().totalAmount())
+                .isEqualTo(100.0);
+        assertThat(meterRegistry.get("accessflow.ai.tokens")
+                .tags("provider", "ANTHROPIC", "type", "completion").summary().totalAmount())
+                .isEqualTo(50.0);
     }
 
     @Test

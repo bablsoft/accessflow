@@ -1005,6 +1005,8 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Optional | `1.0` | Micrometer Tracing sampling probability (`0.0` – `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. See [docs/05-backend.md](05-backend.md). |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Optional | — | Enables OTLP trace export (AF-454) when set. The **full OTLP/HTTP traces URL** of your collector — e.g. `http://tempo:4318/v1/traces`, `http://jaeger-collector:4318/v1/traces`, or `https://api.honeycomb.io/v1/traces` (the value is posted verbatim, so include the `/v1/traces` path). Unset = no export (default). `OtlpTracingEnvironmentPostProcessor` bridges it onto Spring Boot's `management.opentelemetry.tracing.export.otlp.endpoint`. See [docs/05-backend.md → "Observability and tracing"](05-backend.md#observability-and-tracing). |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Optional | — | Comma-separated OTLP request headers (`k1=v1,k2=v2`) — e.g. `x-honeycomb-team=YOUR_KEY` for Honeycomb, or a tenant header for Grafana Cloud. Only applied alongside `OTEL_EXPORTER_OTLP_ENDPOINT`. |
 | `ACCESSFLOW_LOGGING_STRUCTURED_FORMAT` | Optional | — | When set, console logs are emitted as one JSON object per line in the named schema. Accepted values: `logstash` (recommended for ELK / OpenSearch), `ecs` (Elastic Common Schema, for Elastic SIEM), `gelf` (Graylog). When unset (default), AccessFlow emits the plain-text format with the `[accessflow-app,<traceId>,<spanId>]` prefix. The MDC `traceId` / `spanId` populated by the Micrometer tracing bridge are top-level fields in every JSON variant — no extra wiring needed. See [docs/05-backend.md → "Observability and tracing"](05-backend.md#observability-and-tracing). |
 
 > **Spring Boot banner.** AccessFlow disables the ASCII banner at startup (`spring.main.banner-mode=off`) so it does not pollute JSON log streams or ELK pipelines. Operators who want it back can re-enable it via `SPRING_MAIN_BANNER_MODE=console` (Spring relaxed binding).
@@ -1022,6 +1024,46 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 > fresh install has no AI configured until an ADMIN sets it; `POST /api/v1/admin/ai-config/test`
 > returns `{"status":"ERROR", "detail":"AI is not configured…"}` until then. No `AI_PROVIDER` /
 > `AI_API_KEY` / `AI_MODEL` env var is read.
+
+---
+
+### Prometheus metrics & Grafana dashboards (AF-454)
+
+The backend exposes Prometheus metrics at **`/actuator/prometheus`** (bundled
+`micrometer-registry-prometheus`). The endpoint is `permitAll` so an in-cluster Prometheus can
+scrape it without a JWT — it carries no secrets, but it is operational data, so **keep `/actuator`
+off the public ingress and restrict the endpoint with a NetworkPolicy.** Alongside the
+auto-bound JVM / HTTP / HikariCP (`hikaricp_connections_*`) meters, AccessFlow emits proxy-pipeline
+timers (`accessflow_query_execute_seconds_*`, `…_parse_…`, `accessflow_datasource_acquire_…`,
+`accessflow_ai_analyze_…`) and workflow business meters (`accessflow_query_{submitted,approved,rejected,executed}_total`,
+`accessflow_query_approval_latency_seconds_*`, `accessflow_ai_tokens_*`).
+
+The Helm chart ships two pre-built Grafana dashboards (`charts/accessflow/dashboards/`) covering
+query volume, approval SLAs, AI usage/cost, rejection rates, and pool stats. Enable them — and the
+OTLP export + scrape annotations — with [`examples/values-observability.yaml`](../charts/accessflow/examples/values-observability.yaml):
+
+```yaml
+observability:
+  tracing:
+    otlp:
+      enabled: true
+      endpoint: http://tempo.observability.svc:4318/v1/traces   # → OTEL_EXPORTER_OTLP_ENDPOINT
+    samplingProbability: "0.1"
+  metrics:
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/path: /actuator/prometheus
+      prometheus.io/port: "8080"
+dashboards:
+  enabled: true            # ConfigMap labelled grafana_dashboard=1 for the Grafana sidecar
+  annotations:
+    grafana_folder: AccessFlow
+```
+
+`dashboards.enabled=true` renders a `grafana_dashboard`-labelled ConfigMap that the
+kube-prometheus-stack Grafana sidecar auto-imports (override the discovery label via
+`dashboards.labelKey` / `dashboards.labelValue`). OTLP export stays off until
+`observability.tracing.otlp.endpoint` is set.
 
 ---
 
