@@ -682,6 +682,15 @@
             <a href="#first-run">bootstrap</a> env vars) is provisioned as a platform admin
             automatically.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/organizations-list-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/organizations-list-dark.png"
+                   alt="The AccessFlow platform-admin Organizations page listing each tenant organization with its per-org datasource, user, and daily-query quotas."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/organizations</code> — platform admins manage every tenant and its quotas from one screen.</figcaption>
+          </figure>
           <ol>
             <li><strong>Create an organization.</strong> From <code>/admin/organizations</code>, click
               <em>New organization</em>, give it a name (an optional URL-safe <em>slug</em> is derived
@@ -855,6 +864,15 @@
             <em>never the submitter</em> — must acknowledge after the fact. The executed query keeps
             its normal terminal state; the retro-review is tracked alongside it.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/break-glass-log-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/break-glass-log-dark.png"
+                   alt="The AccessFlow break-glass log listing emergency-access executions awaiting an admin's mandatory retro-review acknowledgement."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/break-glass</code> — every emergency execution opens a mandatory retro-review here for an admin (never the submitter) to acknowledge.</figcaption>
+          </figure>
 
           <!-- User groups -->
           <h3 id="cfg-groups">User groups</h3>
@@ -1595,6 +1613,15 @@ APPROVED → FAILED (execution error)</pre>
             row cap with <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (default <code>50000</code>);
             signing reuses <code>JWT_PRIVATE_KEY</code>, so no extra secret is required.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/auditor-dashboard-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/auditor-dashboard-dark.png"
+                   alt="The read-only AccessFlow Auditor dashboard with the compliance report builder for classified-data-access and regulatory audit-trail reports over a chosen period."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/auditor</code> — the read-only Auditor role builds and signs compliance reports over the immutable query snapshots.</figcaption>
+          </figure>
 
           <h3 id="cfg-anomalies">Behavioural anomaly detection (UBA)</h3>
           <p>
@@ -1610,6 +1637,15 @@ APPROVED → FAILED (execution error)</pre>
             and the read-only <code>AUDITOR</code> role can review anomalies; only <code>ADMIN</code> can
             <em>acknowledge</em> (triaged) or <em>dismiss</em> (false positive) one.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="../images/docs/anomalies-dashboard-light.png" media="(prefers-color-scheme: light)" />
+              <img src="../images/docs/anomalies-dashboard-dark.png"
+                   alt="The AccessFlow Behavioural anomaly detection dashboard listing flagged out-of-pattern user activity with z-score detail, ready to acknowledge or dismiss."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/anomalies</code> — UBA flags out-of-pattern activity from audit-log baselines; admins acknowledge or dismiss each one.</figcaption>
+          </figure>
           <p>
             Tune the detector with the <code>accessflow.ai.anomaly.*</code> environment variables:
             <code>ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL</code> (cadence, default <code>PT15M</code>),
