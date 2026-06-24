@@ -25,6 +25,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # Don't persist the default GITHUB_TOKEN as an http.<host>.extraheader credential.
+          # It would shadow the MIRROR_REPO_TOKEN embedded in the push URL below, making the
+          # push authenticate as github-actions[bot] (which has no access to the mirror repo)
+          # and 403. With this off, the x-access-token:<PAT> URL credentials are used instead.
+          persist-credentials: false
 
       - name: Compute mirror tag
         id: v
