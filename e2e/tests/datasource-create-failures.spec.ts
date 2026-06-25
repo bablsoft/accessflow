@@ -37,7 +37,7 @@ async function loginViaUi(page: Page, email: string, password: string): Promise<
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Reach the "connection" step of the wizard with PostgreSQL selected and the
@@ -212,15 +212,15 @@ test.describe.serial('datasource create wizard — failure paths', () => {
     await expect(page.getByRole('button', { name: 'Test connection' })).toHaveCount(0);
   });
 
-  test('non-admin (ANALYST) visiting /datasources/new is redirected to /editor', async ({ page }) => {
+  test('non-admin (ANALYST) visiting /datasources/new is redirected to their role home', async ({ page }) => {
     await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/datasources/new');
 
     // AuthGuard with requireRole="ADMIN" replaces the wizard with a
-    // <Navigate to="/editor" replace /> when the logged-in user isn't an
-    // admin (AuthGuard.tsx:14-18). The redirect is silent — no 403 page.
-    await expect(page).toHaveURL(/\/editor$/, { timeout: 10_000 });
+    // <Navigate to={homePathForRole(role)} replace /> when the logged-in user isn't an
+    // admin — /dashboard for a non-auditor. The redirect is silent — no 403 page.
+    await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10_000 });
 
     // Sanity check: the wizard's page title ("Add datasource", i18n key
     // datasources.create.title) must NOT be rendered.

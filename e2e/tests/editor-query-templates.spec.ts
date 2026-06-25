@@ -24,7 +24,7 @@ async function loginViaUi(page: Page): Promise<void> {
   await page.locator('#login-email').fill(ADMIN_EMAIL);
   await page.locator('#login-password').fill(ADMIN_PASSWORD);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function typeInEditor(page: Page, sql: string): Promise<void> {

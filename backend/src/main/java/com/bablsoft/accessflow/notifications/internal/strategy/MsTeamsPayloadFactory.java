@@ -51,6 +51,24 @@ class MsTeamsPayloadFactory {
         body.add(textBlock(headerLabel(ctx), "ExtraLarge", "Bolder", colorForRisk(ctx.riskLevel())));
 
         var facts = new ArrayList<Map<String, String>>();
+        if (ctx.digest() != null) {
+            var d = ctx.digest();
+            facts.add(fact("Week", d.weekStart() + " – " + d.weekEnd()));
+            facts.add(fact("Queries this week", Long.toString(d.totalQueries())));
+            facts.add(fact("Pending approvals", Long.toString(d.pendingApprovals())));
+            facts.add(fact("Open anomalies", Long.toString(d.openAnomalies())));
+            facts.add(fact("Open suggestions", Long.toString(d.openSuggestions())));
+            body.add(factSet(facts));
+            card.put("body", body);
+            if (ctx.reviewUrl() != null) {
+                var action = new LinkedHashMap<String, Object>();
+                action.put("type", "Action.OpenUrl");
+                action.put("title", "Open your dashboard");
+                action.put("url", ctx.reviewUrl().toString());
+                card.put("actions", List.of(action));
+            }
+            return card;
+        }
         facts.add(fact("Datasource", nullToDash(ctx.datasourceName())));
         facts.add(fact("Submitted by", nullToDash(ctx.submitterEmail())));
         if (ctx.queryType() != null) {
@@ -150,6 +168,7 @@ class MsTeamsPayloadFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
+            case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

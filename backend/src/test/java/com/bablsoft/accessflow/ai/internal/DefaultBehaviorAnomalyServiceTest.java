@@ -239,6 +239,97 @@ class DefaultBehaviorAnomalyServiceTest {
         verify(repo, never()).save(any());
     }
 
+    // ----- self-scoped user API (AF-498) -----
+
+    @Test
+    void listForUserMapsPage() {
+        var e = entity(BehaviorAnomalyStatus.OPEN);
+        var page = new PageImpl<>(List.of(e), Pageable.ofSize(20), 1);
+        when(repo.findAll(any(Specification.class), any(Pageable.class))).thenReturn(page);
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(userView()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Prod DB")));
+
+        var result = service.listForUser(ORG, userId, BehaviorAnomalyStatus.OPEN, PageRequest.of(0, 20));
+
+        assertThat(result.content()).hasSize(1);
+        assertThat(result.content().get(0).userId()).isEqualTo(userId);
+    }
+
+    @Test
+    void listForUserRejectsNullArgs() {
+        assertThatThrownBy(() -> service.listForUser(null, userId, null, PageRequest.of(0, 20)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.listForUser(ORG, null, null, PageRequest.of(0, 20)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void acknowledgeOwnTransitionsOpenToAcknowledged() {
+        var e = entity(BehaviorAnomalyStatus.OPEN);
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(userQueryService.findById(any())).thenReturn(Optional.empty());
+        when(datasourceLookupService.findRef(any())).thenReturn(Optional.empty());
+
+        var view = service.acknowledgeOwn(ORG, userId, e.getId());
+
+        assertThat(view.status()).isEqualTo(BehaviorAnomalyStatus.ACKNOWLEDGED);
+        assertThat(e.getAcknowledgedBy()).isEqualTo(userId);
+    }
+
+    @Test
+    void acknowledgeOwnRejectsAnotherUsersAnomalyAsNotFound() {
+        var e = entity(BehaviorAnomalyStatus.OPEN);
+        e.setUserId(UUID.randomUUID()); // belongs to someone else
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.acknowledgeOwn(ORG, userId, e.getId()))
+                .isInstanceOf(AnomalyNotFoundException.class);
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void acknowledgeOwnRejectsNonOpen() {
+        var e = entity(BehaviorAnomalyStatus.DISMISSED);
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.acknowledgeOwn(ORG, userId, e.getId()))
+                .isInstanceOf(IllegalAnomalyStatusTransitionException.class);
+    }
+
+    @Test
+    void dismissOwnTransitionsToDismissed() {
+        var e = entity(BehaviorAnomalyStatus.OPEN);
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+        when(repo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(userQueryService.findById(any())).thenReturn(Optional.empty());
+        when(datasourceLookupService.findRef(any())).thenReturn(Optional.empty());
+
+        var view = service.dismissOwn(ORG, userId, e.getId());
+
+        assertThat(view.status()).isEqualTo(BehaviorAnomalyStatus.DISMISSED);
+    }
+
+    @Test
+    void dismissOwnRejectsAnotherUsersAnomalyAsNotFound() {
+        var e = entity(BehaviorAnomalyStatus.OPEN);
+        e.setUserId(UUID.randomUUID());
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.dismissOwn(ORG, userId, e.getId()))
+                .isInstanceOf(AnomalyNotFoundException.class);
+    }
+
+    @Test
+    void dismissOwnRejectsAlreadyDismissed() {
+        var e = entity(BehaviorAnomalyStatus.DISMISSED);
+        when(repo.findByIdAndOrganizationId(e.getId(), ORG)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.dismissOwn(ORG, userId, e.getId()))
+                .isInstanceOf(IllegalAnomalyStatusTransitionException.class);
+    }
+
     // ----- hasActiveAnomaly -----
 
     @Test

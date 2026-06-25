@@ -249,6 +249,14 @@ accessflow:
     # Cadence at which ScheduledQueryRunJob scans for APPROVED queries whose scheduled_for
     # timestamp has been reached. ShedLock makes this safe under horizontal scaling.
     scheduled-run-poll-interval: ${ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL:PT1M}
+  dashboard:
+    weekly-digest:
+      # Cadence at which WeeklyDigestJob wakes to scan for opted-in users due a digest (AF-498).
+      # ShedLock makes this safe under horizontal scaling.
+      poll-interval: ${ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL:P1D}
+      # Minimum gap between digests for a given user — the job sends at most once per period,
+      # regardless of poll cadence or restarts.
+      period: ${ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD:P7D}
   access:
     # Cadence at which AccessGrantExpiryJob scans for APPROVED access grants past their
     # expires_at and revokes them. ShedLock makes this safe under horizontal scaling.

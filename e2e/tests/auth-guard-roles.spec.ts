@@ -38,7 +38,7 @@ async function loginViaUi(
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function provisionAnalystUser(
@@ -76,26 +76,25 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
     await expect(page.locator('#login-password')).toBeVisible();
   });
 
-  test('ANALYST visiting /admin/users is redirected to /editor', async ({ page }) => {
+  test('ANALYST visiting /admin/users is redirected to their role home', async ({ page }) => {
     await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/admin/users');
-    // `<Navigate to="/editor" replace />` collapses history, so the bad URL
-    // never sticks — wait for the redirect, then assert the authenticated
-    // shell (AppLayout's sidebar) rendered. The QueryEditorPage's <h1>
-    // is conditional (only when a datasource is selected), but the sidebar
-    // nav link is unconditional and only appears for authenticated users.
-    await page.waitForURL('**/editor', { timeout: 10_000 });
+    // AuthGuard's `<Navigate to={homePathForRole(role)} replace />` collapses history, so the bad
+    // URL never sticks — wait for the redirect to the role home (/dashboard for a non-auditor), then
+    // assert the authenticated shell (AppLayout's sidebar) rendered. The sidebar nav link is
+    // unconditional and only appears for authenticated users.
+    await page.waitForURL('**/dashboard', { timeout: 10_000 });
     await expect(
       page.getByRole('link', { name: 'Query editor' }),
     ).toBeVisible();
   });
 
-  test('ANALYST visiting /reviews is redirected to /editor', async ({ page }) => {
+  test('ANALYST visiting /reviews is redirected to their role home', async ({ page }) => {
     await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/reviews');
-    await page.waitForURL('**/editor', { timeout: 10_000 });
+    await page.waitForURL('**/dashboard', { timeout: 10_000 });
     await expect(
       page.getByRole('link', { name: 'Query editor' }),
     ).toBeVisible();
@@ -104,10 +103,10 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
   test('ADMIN can access /editor, /reviews, and /admin/users', async ({ page }) => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    // /editor — UI login already lands here. Assert URL + sidebar-nav so we
-    // notice if the post-login redirect ever changes. The QueryEditorPage <h1>
-    // is conditional on having a datasource selected; the sidebar nav link is
-    // not — it only renders for authenticated users in the AppLayout shell.
+    // /editor — login now lands on /dashboard, so navigate explicitly and assert ADMIN can reach the
+    // editor (URL + sidebar-nav). The QueryEditorPage <h1> is conditional on having a datasource
+    // selected; the sidebar nav link is not — it only renders for authenticated users in the shell.
+    await page.goto('/editor');
     await expect(page).toHaveURL(/\/editor$/);
     await expect(
       page.getByRole('link', { name: 'Query editor' }),

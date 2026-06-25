@@ -1826,6 +1826,21 @@ APPROVED → FAILED (execution error)</pre>
             <code>HTTP 429</code> and the async path records a <code>CRITICAL</code> "AI budget exhausted" /
             "AI rate limit exceeded" analysis row so human review still proceeds.
           </p>
+
+          <h3 id="cfg-dashboard">Personalized dashboard &amp; weekly digest</h3>
+          <p>
+            The default post-login home (<code>/dashboard</code>) is self-scoped — every user sees
+            only their own data, no admin role required: pending approvals as a reviewer, their recent
+            queries with status/risk trend sparklines, an AI optimization-suggestion backlog they can
+            dismiss or open in the editor, and their own behavioural-anomaly alerts. Widgets are
+            customizable (show/hide, collapse, drag-and-drop reorder) and persist per browser. Users can
+            export the week's summary as a <strong>digitally signed</strong> PDF/CSV on demand, and opt
+            in to a <strong>weekly email digest</strong> delivered to their email and any configured chat
+            channels. The digest job is clustered-safe; tune it with
+            <code>ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL</code> (how often the job wakes,
+            default <code>P1D</code>) and <code>ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD</code> (minimum
+            gap between digests per user, default <code>P7D</code>).
+          </p>
         </section>
 
         <!-- 4b. End-user workflows -->

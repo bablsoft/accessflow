@@ -735,6 +735,37 @@ introduces no module cycle. (It cannot live in `audit`: `workflow` already depen
   (`/api/v1/admin/compliance/*`, `hasAnyRole('AUDITOR','ADMIN')`) sets the signature / algorithm /
   content-hash response headers and exposes the verification public key at `GET /signing-certificate`.
 
+### Personalized dashboard (AF-498)
+
+The `dashboard` module is a self-scoped read-aggregation module: every endpoint is bound to the
+authenticated caller's own data (no admin role required). Like `compliance`, it depends only on other
+modules' `api` packages — `workflow.api` (`ReviewService.listPendingForReviewer`), `core.api`
+(`QueryRequestLookupService` + the new self-scoped `MyQueryInsightsLookupService`), `ai.api`
+(`BehaviorAnomalyLookupService` + the new self-scoped `UserBehaviorAnomalyService`), `security.api`
+(`ExportSignatureService`), and `audit.api` (`AuditLogService` + the new `DASHBOARD_SUMMARY_EXPORTED` /
+`dashboard_summary` enum values). Nothing in those modules depends back on `dashboard`; the only new
+edge is `notifications → dashboard` (the digest event), matching the existing `notifications → ai/workflow`
+direction — so no cycle.
+
+- **Self-scoped reads.** `MyQueryInsightsLookupService` (`core.api`, Postgres aggregations over
+  `query_requests` ⨝ `ai_analyses` filtered to `submitted_by = me`) returns day-bucketed status/risk
+  trend series, per-status counts, and the user's recent non-failed analyses that carry optimization
+  suggestions. `UserBehaviorAnomalyService` (`ai.api`) lists / acknowledges / dismisses the caller's
+  **own** anomalies, refusing another user's rows as `AnomalyNotFoundException` (never leaked). The
+  `/anomalies/mine` endpoints live on the existing badge controller in the `ai` module.
+- **Summary + suggestions.** `DashboardService.summary` composes the four headline counts + short recent
+  lists. `DashboardSuggestionService` parses each analysis's `optimizations[]` JSON, assigns a stable
+  `{aiAnalysisId}:{index}` id, and joins it against `dashboard_suggestion_state` (a row exists only for
+  diverged — DISMISSED/APPLIED — items; OPEN is the implicit default) so the backlog shows only OPEN items.
+- **Signed weekly export.** `DefaultDashboardSummaryExportService` mirrors the compliance pipeline —
+  build the week's `DashboardWeeklySummary` → render (`DashboardSummaryPdfWriter` via PDFBox /
+  `DashboardSummaryCsvWriter`) → SHA-256 → `ExportSignatureService.sign` → record an integrity-critical
+  `DASHBOARD_SUMMARY_EXPORTED` audit row → stamp the `X-AccessFlow-Signature` / `-Signature-Algorithm` /
+  `-Content-SHA256` response headers. It defines its own `DashboardSummaryExport` record (no cross-module
+  DTO reuse of `compliance.api.SignedExport`).
+- **Weekly digest job.** See [§ Scheduled jobs and clustering](#scheduled-jobs-and-clustering) for
+  `WeeklyDigestJob` and the transactional event publish.
+
 ---
 
 ## Review Workflow State Machine
@@ -910,6 +941,9 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
 | `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
 | `BehaviorAnomalyDetectionJob` | ai | `behaviorAnomalyDetectionJob` | `accessflow.ai.anomaly.detection-poll-interval` | `PT15M` |
+| `WeeklyDigestJob` | dashboard | `weeklyDigestJob` | `accessflow.dashboard.weekly-digest.poll-interval` | `P1D` |
+
+`WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
 `AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
 

@@ -43,6 +43,19 @@ class TelegramMessageFactory {
     private static String buildEventText(NotificationContext ctx) {
         var sb = new StringBuilder();
         sb.append("*").append(escape(headerLabel(ctx))).append("*\n\n");
+        if (ctx.digest() != null) {
+            var d = ctx.digest();
+            appendField(sb, "Week", d.weekStart() + " - " + d.weekEnd());
+            appendField(sb, "Queries this week", Long.toString(d.totalQueries()));
+            appendField(sb, "Pending approvals", Long.toString(d.pendingApprovals()));
+            appendField(sb, "Open anomalies", Long.toString(d.openAnomalies()));
+            appendField(sb, "Open suggestions", Long.toString(d.openSuggestions()));
+            if (ctx.reviewUrl() != null) {
+                sb.append("\n[").append(escape("Open your dashboard")).append("](")
+                        .append(escapeUrl(ctx.reviewUrl().toString())).append(")");
+            }
+            return sb.toString();
+        }
         appendField(sb, "Datasource", nullToDash(ctx.datasourceName()));
         appendField(sb, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -84,6 +97,7 @@ class TelegramMessageFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
+            case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

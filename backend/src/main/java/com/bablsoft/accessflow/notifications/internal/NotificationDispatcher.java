@@ -79,6 +79,17 @@ class NotificationDispatcher {
         deliver(NotificationEventType.ANOMALY_DETECTED, contextOpt.get());
     }
 
+    /** Dispatch the opt-in weekly digest (AF-498) — non-query-backed; fans out to the user's email
+     *  plus all active org chat channels, mirroring {@code ANOMALY_DETECTED}. */
+    void dispatchWeeklyDigest(com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent event) {
+        var contextOpt = contextBuilder.buildWeeklyDigest(event);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping WEEKLY_DIGEST for unknown/inactive user {}", event.userId());
+            return;
+        }
+        deliver(NotificationEventType.WEEKLY_DIGEST, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -181,7 +192,8 @@ class NotificationDispatcher {
                                                             NotificationContext ctx) {
         if (eventType == NotificationEventType.AI_HIGH_RISK
                 || eventType == NotificationEventType.ANOMALY_DETECTED
-                || eventType == NotificationEventType.BREAK_GLASS_EXECUTED) {
+                || eventType == NotificationEventType.BREAK_GLASS_EXECUTED
+                || eventType == NotificationEventType.WEEKLY_DIGEST) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

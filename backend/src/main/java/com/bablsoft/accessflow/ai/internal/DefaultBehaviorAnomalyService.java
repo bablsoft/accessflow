@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyStatus;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
 import com.bablsoft.accessflow.ai.api.IllegalAnomalyStatusTransitionException;
+import com.bablsoft.accessflow.ai.api.UserBehaviorAnomalyService;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.BehaviorAnomalyEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.BehaviorAnomalyRepository;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
@@ -41,7 +42,8 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
-class DefaultBehaviorAnomalyService implements BehaviorAnomalyAdminService, BehaviorAnomalyLookupService {
+class DefaultBehaviorAnomalyService
+        implements BehaviorAnomalyAdminService, BehaviorAnomalyLookupService, UserBehaviorAnomalyService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultBehaviorAnomalyService.class);
 
@@ -131,6 +133,60 @@ class DefaultBehaviorAnomalyService implements BehaviorAnomalyAdminService, Beha
     @Transactional(readOnly = true)
     public Optional<BehaviorAnomalyView> findById(UUID organizationId, UUID anomalyId) {
         return anomalyRepository.findByIdAndOrganizationId(anomalyId, organizationId).map(this::toView);
+    }
+
+    // ----- self-scoped user API (AF-498) -----
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<BehaviorAnomalyView> listForUser(UUID organizationId, UUID userId,
+                                                         BehaviorAnomalyStatus status,
+                                                         PageRequest pageRequest) {
+        if (organizationId == null || userId == null) {
+            throw new IllegalArgumentException("organizationId and userId are required");
+        }
+        var filter = new AnomalyListFilter(userId, null, null, status, null, null);
+        var spec = BehaviorAnomalySpecifications.forQuery(organizationId, filter);
+        var page = anomalyRepository.findAll(spec, toSpringPageable(pageRequest)).map(this::toView);
+        return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+                page.getTotalElements(), page.getTotalPages());
+    }
+
+    @Override
+    @Transactional
+    public BehaviorAnomalyView acknowledgeOwn(UUID organizationId, UUID userId, UUID anomalyId) {
+        var entity = loadOwnedOrThrow(organizationId, userId, anomalyId);
+        if (entity.getStatus() != BehaviorAnomalyStatus.OPEN) {
+            throw new IllegalAnomalyStatusTransitionException(anomalyId, entity.getStatus(),
+                    BehaviorAnomalyStatus.ACKNOWLEDGED);
+        }
+        entity.setStatus(BehaviorAnomalyStatus.ACKNOWLEDGED);
+        entity.setAcknowledgedBy(userId);
+        entity.setAcknowledgedAt(clock.instant());
+        return toView(anomalyRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public BehaviorAnomalyView dismissOwn(UUID organizationId, UUID userId, UUID anomalyId) {
+        var entity = loadOwnedOrThrow(organizationId, userId, anomalyId);
+        if (entity.getStatus() == BehaviorAnomalyStatus.DISMISSED) {
+            throw new IllegalAnomalyStatusTransitionException(anomalyId, entity.getStatus(),
+                    BehaviorAnomalyStatus.DISMISSED);
+        }
+        entity.setStatus(BehaviorAnomalyStatus.DISMISSED);
+        entity.setAcknowledgedBy(userId);
+        entity.setAcknowledgedAt(clock.instant());
+        return toView(anomalyRepository.save(entity));
+    }
+
+    private BehaviorAnomalyEntity loadOwnedOrThrow(UUID organizationId, UUID userId, UUID anomalyId) {
+        var entity = loadOrThrow(organizationId, anomalyId);
+        if (!entity.getUserId().equals(userId)) {
+            // Never reveal that another user's anomaly exists.
+            throw new AnomalyNotFoundException(anomalyId);
+        }
+        return entity;
     }
 
     // ----- persistence helpers (used by the detection orchestrator) -----

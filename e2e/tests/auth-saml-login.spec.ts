@@ -85,7 +85,7 @@ test.describe('SAML SSO login', () => {
     // IdP redirects through the backend ACS, success handler mints a code,
     // SamlCallbackPage swaps it for a JWT pair, and React Router navigates
     // to /editor. The SAML roundtrip is several hops — leave generous time.
-    await page.waitForURL('**/editor', { timeout: 30_000 });
+    await page.waitForURL('**/dashboard', { timeout: 30_000 });
 
     const storedEmail = await getAuthEmail(page);
     expect(storedEmail).toBe(IDP_EXPECTED_EMAIL);
@@ -126,7 +126,7 @@ test.describe('SAML SSO login', () => {
     await expect(page.locator('input[name="password"]')).toBeVisible();
     // The backend's callback page is never reached.
     await expect(page).not.toHaveURL(/\/auth\/saml\/callback/);
-    await expect(page).not.toHaveURL(/\/editor/);
+    await expect(page).not.toHaveURL(/\/(editor|dashboard)/);
   });
 
   test('failure — server-side SAML rejection renders the callback error page', async ({ page }) => {

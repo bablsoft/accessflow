@@ -11,7 +11,7 @@ import {
   ExperimentOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -38,6 +38,8 @@ const EMPTY_SCHEMA = { schemas: [] };
 
 export function QueryEditorPage() {
   const { t } = useTranslation();
+  // A dashboard AI suggestion ("open in editor", AF-498) navigates here with a preset SQL + datasource.
+  const presetState = useLocation().state as { presetSql?: string; datasourceId?: string } | null;
   const datasourcesQuery = useQuery({
     queryKey: datasourceKeys.list({ size: 100 }),
     queryFn: () => listDatasources({ size: 100 }),
@@ -46,10 +48,10 @@ export function QueryEditorPage() {
     () => (datasourcesQuery.data?.content ?? []).filter((d) => d.active),
     [datasourcesQuery.data],
   );
-  const [selectedDsId, setSelectedDsId] = useState<string | null>(null);
+  const [selectedDsId, setSelectedDsId] = useState<string | null>(presetState?.datasourceId ?? null);
   const dsId = selectedDsId ?? datasources[0]?.id ?? null;
   const ds = datasources.find((d) => d.id === dsId) ?? null;
-  const [sql, setSql] = useState('');
+  const [sql, setSql] = useState(() => presetState?.presetSql ?? '');
   const [analyzedSql, setAnalyzedSql] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<'ai' | 'plan'>('ai');
   const [dryRunSql, setDryRunSql] = useState<string | null>(null);

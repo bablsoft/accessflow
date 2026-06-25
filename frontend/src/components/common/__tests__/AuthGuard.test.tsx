@@ -38,6 +38,7 @@ function renderGuard(requirePlatformAdmin: boolean) {
             </AuthGuard>
           }
         />
+        <Route path="/dashboard" element={<div>dashboard page</div>} />
         <Route path="/editor" element={<div>editor page</div>} />
         <Route path="/login" element={<div>login page</div>} />
       </Routes>
@@ -54,10 +55,10 @@ describe('AuthGuard requirePlatformAdmin', () => {
     expect(screen.getByText('secret content')).toBeInTheDocument();
   });
 
-  it('redirects a non-platform-admin to /editor', () => {
+  it('redirects a non-platform-admin to their role home', () => {
     setUser({ platform_admin: false });
     renderGuard(true);
-    expect(screen.getByText('editor page')).toBeInTheDocument();
+    expect(screen.getByText('dashboard page')).toBeInTheDocument();
     expect(screen.queryByText('secret content')).toBeNull();
   });
 

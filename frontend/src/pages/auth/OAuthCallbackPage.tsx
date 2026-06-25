@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { exchangeOAuth2Code } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
+import { homePathForRole } from '@/utils/homePath';
 import { apiErrorTraceId, authErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
@@ -46,7 +47,7 @@ export function OAuthCallbackPage() {
     void exchangeOAuth2Code(code)
       .then((payload) => {
         setSession(payload);
-        navigate('/editor', { replace: true });
+        navigate(homePathForRole(payload.user?.role), { replace: true });
       })
       .catch((err) => {
         setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });

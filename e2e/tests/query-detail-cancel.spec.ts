@@ -40,7 +40,7 @@ async function loginViaUi(page: Page, email: string, password: string): Promise<
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function submitQuery(
@@ -290,7 +290,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       await inviteePage.locator('#login-email').fill(invitee);
       await inviteePage.locator('#login-password').fill(INVITEE_PASSWORD);
       await inviteePage.locator('button[type="submit"]').click();
-      await inviteePage.waitForURL('**/editor', { timeout: 15_000 });
+      await inviteePage.waitForURL('**/dashboard', { timeout: 15_000 });
 
       await inviteePage.goto(`/queries/${submitted.id}`);
       await expect(

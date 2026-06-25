@@ -67,7 +67,8 @@
     "connectors": "Connecteurs",
     "auditor": "Rapports de conformité",
     "anomalies": "Anomalies",
-    "break_glass": "Journal break-glass"
+    "break_glass": "Journal break-glass",
+    "dashboard": "Tableau de bord"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -326,7 +327,9 @@
     "organization_generic": "Impossible d'enregistrer l'organisation. Veuillez réessayer.",
     "collaboration_forbidden": "Vous ne pouvez pas collaborer sur cette requête.",
     "comment_not_found": "Commentaire introuvable.",
-    "collaboration_generic": "Une erreur s'est produite avec le commentaire."
+    "collaboration_generic": "Une erreur s'est produite avec le commentaire.",
+    "dashboard_suggestion_not_found": "Suggestion d'optimisation introuvable",
+    "dashboard_generic": "Une erreur s'est produite sur le tableau de bord"
   },
   "editor": {
     "text_to_sql": {
@@ -2452,5 +2455,58 @@
     "blocked": "Les notifications sont bloquées dans les paramètres du navigateur",
     "permission_required": "Autorisez les notifications pour activer les approbations push",
     "error": "Impossible de mettre à jour les approbations push"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "subtitle": "Vos approbations en attente, tendances de requêtes, suggestions d'IA et anomalies en un coup d'œil",
+    "customize": "Personnaliser",
+    "weekly_digest": "Résumé hebdomadaire par e-mail",
+    "export": "Exporter cette semaine",
+    "export_pdf": "Exporter en PDF",
+    "export_csv": "Exporter en CSV",
+    "export_failed": "Échec de l'exportation",
+    "collapse": "Réduire le widget",
+    "expand": "Développer le widget",
+    "drag_handle": "Réorganiser le widget {{title}}",
+    "summary": {
+      "pending_approvals": "Approbations en attente",
+      "open_queries": "Requêtes ouvertes",
+      "open_anomalies": "Anomalies ouvertes",
+      "open_suggestions": "Suggestions ouvertes"
+    },
+    "widgets": {
+      "pendingApprovals": "Approbations en attente",
+      "recentQueries": "Mes requêtes récentes",
+      "trends": "Tendances des requêtes",
+      "suggestions": "Suggestions d'optimisation IA",
+      "anomalies": "Alertes d'anomalie"
+    },
+    "pending": {
+      "empty": "Rien n'attend votre examen",
+      "review": "Examiner"
+    },
+    "recent": {
+      "empty": "Vous n'avez encore soumis aucune requête",
+      "view": "Voir"
+    },
+    "trends": {
+      "empty": "Aucune activité de requête sur cette période",
+      "status_title": "Requêtes par statut",
+      "risk_title": "Requêtes par niveau de risque",
+      "axis_date": "Date",
+      "axis_count": "Requêtes"
+    },
+    "suggestions": {
+      "empty": "Aucune suggestion d'optimisation pour le moment",
+      "open_in_editor": "Ouvrir dans l'éditeur",
+      "dismiss": "Ignorer la suggestion",
+      "dismissed": "Suggestion ignorée"
+    },
+    "anomalies": {
+      "empty": "Aucune anomalie détectée dans votre activité",
+      "acknowledge": "Accuser réception",
+      "dismiss": "Ignorer l'anomalie",
+      "score": "Score"
+    }
   }
 }

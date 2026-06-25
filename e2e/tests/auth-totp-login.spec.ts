@@ -105,14 +105,14 @@ test.describe.serial('TOTP login challenge', () => {
     }
   });
 
-  test('valid TOTP code lands on /editor', async ({ page }) => {
+  test('valid TOTP code lands on the dashboard', async ({ page }) => {
     await reachTotpStage(page);
 
     await page.locator('input[autocomplete="one-time-code"]').fill(generateTotp({ secret: totpSecret }));
     await page.getByRole('button', { name: 'Verify and sign in' }).click();
 
-    await page.waitForURL('**/editor', { timeout: 15_000 });
-    expect(new URL(page.url()).pathname).toBe('/editor');
+    await page.waitForURL('**/dashboard', { timeout: 15_000 });
+    expect(new URL(page.url()).pathname).toBe('/dashboard');
   });
 
   test('wrong TOTP code shows error banner and stays on TOTP stage', async ({ page }) => {

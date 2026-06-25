@@ -94,7 +94,7 @@ test.describe('OAuth2 login via mock provider', () => {
     // /login/oauth2/code/oidc → success handler → /auth/oauth/callback?code=…
     // → OAuthCallbackPage exchanges the code → /editor. Generous timeout
     // because the JWK lookup adds a hop the first time.
-    await page.waitForURL('**/editor', { timeout: 30_000 });
+    await page.waitForURL('**/dashboard', { timeout: 30_000 });
 
     const storedEmail = await getAuthEmail(page);
     expect(storedEmail).toBe(OAUTH_EXPECTED_EMAIL);
@@ -144,10 +144,10 @@ test.describe('OAuth2 login via mock provider', () => {
     // entry in Redis). The axios interceptor sees the 401, tries to refresh
     // (no refresh cookie set — the user never authenticated), the refresh
     // also fails, and `onRefreshFailure()` clears auth state and navigates
-    // to /login. The user must NOT end up on /editor.
+    // to /login. The user must NOT end up signed in on the app home.
     await page.goto('/auth/oauth/callback?code=this-code-is-not-in-redis');
 
     await page.waitForURL('**/login', { timeout: 15_000 });
-    await expect(page).not.toHaveURL(/\/editor/);
+    await expect(page).not.toHaveURL(/\/(editor|dashboard)/);
   });
 });

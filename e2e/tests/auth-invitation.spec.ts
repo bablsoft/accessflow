@@ -93,7 +93,7 @@ async function loginAsAdmin(page: Page): Promise<void> {
   await page.locator('#login-email').fill(ADMIN_EMAIL);
   await page.locator('#login-password').fill(ADMIN_PASSWORD);
   await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Open `/admin/users`, click the primary "Invite via email" Dropdown.Button, and
@@ -223,7 +223,7 @@ test.describe('invitation acceptance flow', () => {
       await inviteePage.locator('#login-email').fill(invitee);
       await inviteePage.locator('#login-password').fill(INVITEE_PASSWORD);
       await inviteePage.locator('button[type="submit"]').click();
-      await inviteePage.waitForURL('**/editor', { timeout: 15_000 });
+      await inviteePage.waitForURL('**/dashboard', { timeout: 15_000 });
 
       acceptedInviteToken = token;
     } finally {

@@ -88,6 +88,7 @@ export default defineConfig({
         'src/api/comments.ts',
         'src/api/compliance.ts',
         'src/api/connectors.ts',
+        'src/api/dashboard.ts',
         'src/api/dataClassifications.ts',
         'src/api/datasourceHealth.ts',
         'src/api/datasources.ts',
@@ -115,6 +116,7 @@ export default defineConfig({
         'src/realtime/collabProvider.ts',
         'src/realtime/websocketManager.ts',
         'src/store/authStore.ts',
+        'src/store/preferencesStore.ts',
         'src/store/setupStore.ts',
       ],
       exclude: [

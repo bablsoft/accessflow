@@ -60,6 +60,20 @@ class DiscordPayloadFactory {
             embed.put("description", buildDescription(ctx));
         }
         var fields = new ArrayList<Map<String, Object>>();
+        if (ctx.digest() != null) {
+            var d = ctx.digest();
+            addField(fields, "Week", d.weekStart() + " – " + d.weekEnd());
+            addField(fields, "Queries this week", Long.toString(d.totalQueries()));
+            addField(fields, "Pending approvals", Long.toString(d.pendingApprovals()));
+            addField(fields, "Open anomalies", Long.toString(d.openAnomalies()));
+            addField(fields, "Open suggestions", Long.toString(d.openSuggestions()));
+            if (ctx.reviewUrl() != null) {
+                addField(fields, "Dashboard", ctx.reviewUrl().toString());
+                embed.put("url", ctx.reviewUrl().toString());
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         addField(fields, "Datasource", nullToDash(ctx.datasourceName()));
         addField(fields, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -110,6 +124,7 @@ class DiscordPayloadFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
+            case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

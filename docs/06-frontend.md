@@ -144,7 +144,7 @@ accessflow-ui/
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language, dashboard widget layout (AF-498)
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -296,7 +296,27 @@ immediately.
 
 The compliance-reporting dashboard at `/admin/auditor` (lazy-loaded). A `Segmented` control switches between the **Classified data access** and **Regulatory audit trail** reports; an AntD `RangePicker` sets the period (defaults to the last 90 days). Data is fetched with TanStack Query (`api/compliance.ts`, key `complianceKeys.report(type, params)`); results render in a `Table` with a `Skeleton` while loading and an `EmptyState` when no rows match. Two header buttons export the current report as a **signed PDF** or **CSV** (`exportComplianceReport`) — the download is triggered from the response blob, and the returned signature / SHA-256 are surfaced via a success toast (with a truncation warning when the row cap was hit).
 
-The `AUDITOR` role is read-only and has no editor access, so `homePathForRole` (`utils/homePath.ts`) sends an auditor's home/`*` redirects to `/admin/auditor` instead of `/editor`, and `AuthGuard` bounces a role-mismatch to that same role-aware home rather than always `/editor`.
+The `AUDITOR` role is read-only and has no personal query workflow, so `homePathForRole` (`utils/homePath.ts`) sends an auditor's home/`*` redirects to `/admin/auditor`; every other role lands on `/dashboard` (AF-498), and `AuthGuard` bounces a role-mismatch to that same role-aware home.
+
+### DashboardPage *(any authenticated user)* — AF-498
+
+The personalized home at `/dashboard` (lazy-loaded; nav entry at the top of the **Workflow** group; the
+default post-login landing for non-auditor roles). The header shows headline stat cards (pending
+approvals, open queries, open anomalies, open suggestions) over a customizable, drag-sortable column of
+widgets. Widgets (and their matching stat cards) are **role-gated** to what the current user can
+actually use, mirroring the sidebar nav model — **Pending approvals** shows only for `REVIEWER`/`ADMIN`,
+**My recent queries** / **Query trends** for any query-submitting role, **AI optimization suggestions**
+for editor-capable roles (`ANALYST`/`REVIEWER`/`ADMIN`), and **Anomaly alerts** for `ADMIN`. The core
+widgets — **Pending approvals**, **My recent queries** (+ status/risk trend sparklines via
+`@ant-design/charts`), **AI optimization suggestions** (dismissable, with "open in editor"), and
+**Anomaly alerts** (acknowledge/dismiss) — read from the self-scoped `api/dashboard.ts` (summary +
+trends + suggestions) and `api/anomalies.ts` (`/anomalies/mine`) via TanStack Query, each with a
+`Skeleton` while loading and a per-widget `EmptyState`. Widget show/hide, collapse, and **drag-and-drop
+reorder** (`@dnd-kit`) persist in `preferencesStore.dashboardWidgets` (`{ visible[], order[], collapsed{} }`,
+stored in `af-preferences`). A header `Switch` toggles the opt-in weekly email digest (server-persisted via
+`GET`/`PUT /dashboard/digest-subscription`), and an **Export this week** dropdown downloads the signed
+PDF/CSV weekly summary. "Open in editor" navigates to `/editor` with the suggestion's SQL via router
+`location.state.presetSql` (the editor seeds its initial SQL from it).
 
 ### AnomaliesPage *(AUDITOR or ADMIN)* — AF-383
 
@@ -607,6 +627,7 @@ for deployment recipes (Docker Compose, Helm).
 /reset-password/:token              → ResetPasswordPage (public; previews + consumes a password-reset token)
 /auth/saml/callback                 → SamlCallbackPage
 
+/dashboard                          → DashboardPage (lazy; default post-login home for non-auditor roles, AF-498)
 /editor                             → QueryEditorPage
 /queries                            → QueryListPage  (header **Export CSV** button hits `GET /queries/export.csv` with the active server-side filters — `status`, `datasource_id`, `submitted_by`, `from`, `to`, `query_type`. Client-only filters on the page, namely the free-text search and risk-level select, are not sent because the backend has no equivalent filter; this matches the behaviour of the list endpoint itself. The mutation downloads via a temporary `<a>` element and shows a warning toast when the response carries `X-AccessFlow-Export-Truncated: true`.)
 /queries/:id                        → QueryDetailPage
