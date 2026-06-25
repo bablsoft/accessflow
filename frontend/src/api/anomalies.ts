@@ -4,10 +4,12 @@ import type {
   AnomalyListFilters,
   AnomalyPage,
   BehaviorAnomaly,
+  MyAnomalyFilters,
 } from '@/types/api';
 
 const ADMIN_BASE = '/api/v1/admin/anomalies';
 const BADGE_BASE = '/api/v1/anomalies/badge';
+const MINE_BASE = '/api/v1/anomalies/mine';
 
 export const anomalyKeys = {
   all: ['anomalies'] as const,
@@ -16,6 +18,7 @@ export const anomalyKeys = {
   details: () => ['anomalies', 'detail'] as const,
   detail: (id: string) => ['anomalies', 'detail', id] as const,
   badge: (datasourceId?: string) => ['anomalies', 'badge', datasourceId ?? 'all'] as const,
+  mine: (filters: MyAnomalyFilters) => ['anomalies', 'mine', filters] as const,
 };
 
 export async function listAnomalies(filters: AnomalyListFilters = {}): Promise<AnomalyPage> {
@@ -51,5 +54,26 @@ export async function fetchAnomalyBadge(datasourceId?: string): Promise<AnomalyB
   const params: Record<string, string> = {};
   if (datasourceId) params.datasourceId = datasourceId;
   const { data } = await apiClient.get<AnomalyBadge>(BADGE_BASE, { params });
+  return data;
+}
+
+// ----- self-scoped: the caller's own anomalies (AF-498 dashboard widget) -----
+
+export async function listMyAnomalies(filters: MyAnomalyFilters = {}): Promise<AnomalyPage> {
+  const params: Record<string, string | number> = {};
+  if (typeof filters.page === 'number') params.page = filters.page;
+  if (typeof filters.size === 'number') params.size = filters.size;
+  if (filters.status) params.status = filters.status;
+  const { data } = await apiClient.get<AnomalyPage>(MINE_BASE, { params });
+  return data;
+}
+
+export async function acknowledgeMyAnomaly(id: string): Promise<BehaviorAnomaly> {
+  const { data } = await apiClient.post<BehaviorAnomaly>(`${MINE_BASE}/${id}/acknowledge`);
+  return data;
+}
+
+export async function dismissMyAnomaly(id: string): Promise<BehaviorAnomaly> {
+  const { data } = await apiClient.post<BehaviorAnomaly>(`${MINE_BASE}/${id}/dismiss`);
   return data;
 }

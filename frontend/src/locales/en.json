@@ -67,7 +67,8 @@
     "langfuse": "Langfuse",
     "connectors": "Connectors",
     "anomalies": "Anomalies",
-    "break_glass": "Break-glass log"
+    "break_glass": "Break-glass log",
+    "dashboard": "Dashboard"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -326,7 +327,9 @@
     "organization_generic": "Could not save the organization. Please try again.",
     "collaboration_forbidden": "You can't collaborate on this query.",
     "comment_not_found": "Comment not found.",
-    "collaboration_generic": "Something went wrong with the comment."
+    "collaboration_generic": "Something went wrong with the comment.",
+    "dashboard_suggestion_not_found": "Optimization suggestion not found",
+    "dashboard_generic": "Something went wrong on the dashboard"
   },
   "editor": {
     "text_to_sql": {
@@ -2452,5 +2455,58 @@
     "blocked": "Notifications are blocked in your browser settings",
     "permission_required": "Allow notifications to enable push approvals",
     "error": "Couldn't update push approvals"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Your pending approvals, query trends, AI suggestions and anomalies at a glance",
+    "customize": "Customize",
+    "weekly_digest": "Weekly email digest",
+    "export": "Export this week",
+    "export_pdf": "Export as PDF",
+    "export_csv": "Export as CSV",
+    "export_failed": "Export failed",
+    "collapse": "Collapse widget",
+    "expand": "Expand widget",
+    "drag_handle": "Reorder the {{title}} widget",
+    "summary": {
+      "pending_approvals": "Pending approvals",
+      "open_queries": "Open queries",
+      "open_anomalies": "Open anomalies",
+      "open_suggestions": "Open suggestions"
+    },
+    "widgets": {
+      "pendingApprovals": "Pending approvals",
+      "recentQueries": "My recent queries",
+      "trends": "Query trends",
+      "suggestions": "AI optimization suggestions",
+      "anomalies": "Anomaly alerts"
+    },
+    "pending": {
+      "empty": "Nothing awaiting your review",
+      "review": "Review"
+    },
+    "recent": {
+      "empty": "You haven't submitted any queries yet",
+      "view": "View"
+    },
+    "trends": {
+      "empty": "No query activity in this period",
+      "status_title": "Queries by status",
+      "risk_title": "Queries by risk level",
+      "axis_date": "Date",
+      "axis_count": "Queries"
+    },
+    "suggestions": {
+      "empty": "No optimization suggestions right now",
+      "open_in_editor": "Open in editor",
+      "dismiss": "Dismiss suggestion",
+      "dismissed": "Suggestion dismissed"
+    },
+    "anomalies": {
+      "empty": "No anomalies flagged on your activity",
+      "acknowledge": "Acknowledge",
+      "dismiss": "Dismiss anomaly",
+      "score": "Score"
+    }
   }
 }

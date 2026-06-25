@@ -884,6 +884,45 @@ clear — a DB read already exposes far more, and the self-approval / step-up gu
 Indexes: `UNIQUE(endpoint)`; `(user_id)`; `(organization_id)`. A `404`/`410` from the push service
 prunes the row (the subscription expired).
 
+## dashboard_suggestion_state
+
+Per-item lifecycle override for a personalized-dashboard AI optimization suggestion (AF-498, Flyway
+V98). Owned by the `dashboard` module. A suggestion is implicitly `OPEN`; a row exists **only** when the
+user diverged from that default (DISMISSED or APPLIED) for a specific `(ai_analysis_id, suggestion_index)`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL FK → `organizations(id)` ON DELETE CASCADE |
+| `user_id` | UUID NOT NULL FK → `users(id)` ON DELETE CASCADE |
+| `ai_analysis_id` | UUID NOT NULL FK → `ai_analyses(id)` ON DELETE CASCADE |
+| `suggestion_index` | INTEGER NOT NULL — index into the analysis's `optimizations[]` array |
+| `status` | ENUM `dashboard_suggestion_status`: `OPEN` \| `APPLIED` \| `DISMISSED` |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+| `version` | BIGINT — optimistic lock |
+
+Indexes: `UNIQUE(organization_id, user_id, ai_analysis_id, suggestion_index)`. The enum type is named
+`dashboard_suggestion_status` (distinct from the table name — in Postgres a table and a type share one
+namespace).
+
+## dashboard_digest_subscription
+
+A user's opt-in for the scheduled weekly-digest email (AF-498, Flyway V98). One row per user. Owned by
+the `dashboard` module; `WeeklyDigestJob` stamps `last_sent_at` so the digest fires at most once per the
+configured period regardless of poll cadence or restarts.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `user_id` | UUID NOT NULL `UNIQUE` FK → `users(id)` ON DELETE CASCADE |
+| `organization_id` | UUID NOT NULL FK → `organizations(id)` ON DELETE CASCADE |
+| `enabled` | BOOLEAN NOT NULL DEFAULT false |
+| `last_sent_at` | TIMESTAMPTZ nullable |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+| `version` | BIGINT — optimistic lock |
+
+Indexes: `UNIQUE(user_id)`; partial `(last_sent_at) WHERE enabled = true` for the job's "due" scan.
+
 ## push_vapid_config
 
 The single deployment-level VAPID keypair used to sign Web Push requests (AF-444, Flyway V96). One

@@ -94,7 +94,7 @@ test.describe('OAuth2 login via mock provider', () => {
     // /login/oauth2/code/oidc → success handler → /auth/oauth/callback?code=…
     // → OAuthCallbackPage exchanges the code → /editor. Generous timeout
     // because the JWK lookup adds a hop the first time.
-    await page.waitForURL('**/editor', { timeout: 30_000 });
+    await page.waitForURL('**/dashboard', { timeout: 30_000 });
 
     const storedEmail = await getAuthEmail(page);
     expect(storedEmail).toBe(OAUTH_EXPECTED_EMAIL);

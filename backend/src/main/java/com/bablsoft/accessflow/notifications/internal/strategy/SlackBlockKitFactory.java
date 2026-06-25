@@ -80,6 +80,9 @@ class SlackBlockKitFactory {
     }
 
     private static SectionBlock summarySection(NotificationContext ctx) {
+        if (ctx.digest() != null) {
+            return digestSection(ctx.digest());
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -102,6 +105,16 @@ class SlackBlockKitFactory {
                     : ctx.anomalyFeature();
             fields.add(mrkdwn("*Anomaly:*\n" + anomaly));
         }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    private static SectionBlock digestSection(com.bablsoft.accessflow.notifications.internal.WeeklyDigestData d) {
+        var fields = new ArrayList<TextObject>();
+        fields.add(mrkdwn("*Week:*\n" + d.weekStart() + " – " + d.weekEnd()));
+        fields.add(mrkdwn("*Queries this week:*\n" + d.totalQueries()));
+        fields.add(mrkdwn("*Pending approvals:*\n" + d.pendingApprovals()));
+        fields.add(mrkdwn("*Open anomalies:*\n" + d.openAnomalies()));
+        fields.add(mrkdwn("*Open suggestions:*\n" + d.openSuggestions()));
         return SectionBlock.builder().fields(fields).build();
     }
 
@@ -162,6 +175,7 @@ class SlackBlockKitFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
+            case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

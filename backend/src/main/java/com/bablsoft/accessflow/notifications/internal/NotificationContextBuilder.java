@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import lombok.RequiredArgsConstructor;
@@ -114,9 +115,9 @@ class NotificationContextBuilder {
                     .toList();
             case TEST -> submitter != null ? List.of(toRecipient(submitter)) : List.of();
             // Access (JIT) events are not query-backed; they are handled by AccessNotificationListener.
-            // Anomaly events are not query-backed either; they are built via buildAnomaly(...).
+            // Anomaly events are built via buildAnomaly(...); weekly digests via buildWeeklyDigest(...).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED -> List.of();
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST -> List.of();
         };
     }
 
@@ -158,7 +159,44 @@ class NotificationContextBuilder {
                 view.score(),
                 view.observedValue(),
                 view.baselineMean(),
-                anomalyUserLabel(view)));
+                anomalyUserLabel(view),
+                null));
+    }
+
+    /**
+     * Builds the context for the opt-in weekly dashboard digest (AF-498). Not query-backed: the single
+     * recipient is the digest owner, and the digest counts ride on {@link WeeklyDigestData}. Returns
+     * empty when the user no longer exists.
+     */
+    Optional<NotificationContext> buildWeeklyDigest(WeeklyDigestReadyEvent event) {
+        var user = userQueryService.findById(event.userId()).orElse(null);
+        if (user == null || !user.active()) {
+            return Optional.empty();
+        }
+        var locale = localizationConfigService.getOrDefault(event.organizationId()).defaultLanguage();
+        var digest = new WeeklyDigestData(event.weekStart(), event.weekEnd(), event.totalQueries(),
+                event.pendingApprovals(), event.openAnomalies(), event.openSuggestions());
+        return Optional.of(new NotificationContext(
+                NotificationEventType.WEEKLY_DIGEST,
+                event.organizationId(),
+                null, null, null, null, null, null, null, null, null, null,
+                user.id(),
+                user.email(),
+                user.displayName(),
+                null, null, null, null,
+                buildDashboardUrl(),
+                List.of(toRecipient(user)),
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                digest));
+    }
+
+    private URI buildDashboardUrl() {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/dashboard");
     }
 
     private static String anomalyUserLabel(BehaviorAnomalyView view) {

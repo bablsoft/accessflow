@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.weekly_digest.heading}">Your weekly AccessFlow digest</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+        table.metrics { border-collapse: collapse; margin: 12px 0; }
+        table.metrics td { padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        table.metrics td.value { text-align: right; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.weekly_digest.heading}">Your weekly AccessFlow digest</h2>
+    <p th:text="#{notification.email.weekly_digest.intro}">Here is a summary of your activity this week.</p>
+    <p class="meta">
+        <span th:text="${digestWeekStart}">—</span> &ndash; <span th:text="${digestWeekEnd}">—</span>
+    </p>
+    <table class="metrics">
+        <tr>
+            <td th:text="#{notification.email.weekly_digest.total_queries}">Queries submitted this week</td>
+            <td class="value" th:text="${digestTotalQueries} ?: 0">0</td>
+        </tr>
+        <tr>
+            <td th:text="#{notification.email.weekly_digest.pending_approvals}">Pending approvals awaiting you</td>
+            <td class="value" th:text="${digestPendingApprovals} ?: 0">0</td>
+        </tr>
+        <tr>
+            <td th:text="#{notification.email.weekly_digest.open_anomalies}">Open anomaly alerts</td>
+            <td class="value" th:text="${digestOpenAnomalies} ?: 0">0</td>
+        </tr>
+        <tr>
+            <td th:text="#{notification.email.weekly_digest.open_suggestions}">Open optimization suggestions</td>
+            <td class="value" th:text="${digestOpenSuggestions} ?: 0">0</td>
+        </tr>
+    </table>
+    <p>
+        <a class="btn" th:href="${dashboardUrl}" th:text="#{notification.email.weekly_digest.cta}">Open your dashboard</a>
+    </p>
+</body>
+</html>

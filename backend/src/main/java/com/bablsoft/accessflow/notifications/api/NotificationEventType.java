@@ -13,5 +13,6 @@ public enum NotificationEventType {
     ACCESS_GRANT_REVOKED,
     ANOMALY_DETECTED,
     BREAK_GLASS_EXECUTED,
+    WEEKLY_DIGEST,
     TEST
 }

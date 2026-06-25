@@ -46,7 +46,7 @@ test('login, transparent token refresh on 401, and logout', async ({ page }) => 
   await page.locator('#login-password').fill(ADMIN_PASSWORD);
   await page.locator('button[type="submit"]').click();
 
-  await page.waitForURL('**/editor', { timeout: 15_000 });
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 
   const afterLogin = await getAuthState(page);
   expect(afterLogin.accessToken).toBeTruthy();

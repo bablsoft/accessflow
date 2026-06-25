@@ -1958,6 +1958,15 @@ Paginated queue of access requests the caller can currently act on, self-request
 | `GET` | `/admin/anomalies/{id}` | Get a single behavioural anomaly *(AUDITOR or ADMIN)* |
 | `POST` | `/admin/anomalies/{id}/acknowledge` | Acknowledge an open anomaly *(ADMIN only)* |
 | `POST` | `/admin/anomalies/{id}/dismiss` | Dismiss an anomaly as a false positive *(ADMIN only)* |
+| `GET` | `/dashboard/summary` | Self-scoped dashboard summary — counts + recent lists (AF-498) *(any authenticated user)* |
+| `GET` | `/dashboard/my-query-trends` | Self-scoped status/risk query trend series (AF-498) *(any authenticated user)* |
+| `GET` | `/dashboard/suggestions` | The caller's AI optimization-suggestion backlog (AF-498) *(any authenticated user)* |
+| `POST` | `/dashboard/suggestions/{id}/dismiss` | Dismiss a suggestion from the caller's backlog (AF-498) *(any authenticated user)* |
+| `GET` / `PUT` | `/dashboard/digest-subscription` | Read / toggle the caller's weekly-digest opt-in (AF-498) *(any authenticated user)* |
+| `GET` | `/dashboard/summary/export` | Signed PDF/CSV weekly-summary export (AF-498) *(any authenticated user)* |
+| `GET` | `/anomalies/mine` | The caller's own behavioural anomalies (AF-498) *(any authenticated user)* |
+| `POST` | `/anomalies/mine/{id}/acknowledge` | Acknowledge one of the caller's own anomalies (AF-498) *(any authenticated user)* |
+| `POST` | `/anomalies/mine/{id}/dismiss` | Dismiss one of the caller's own anomalies (AF-498) *(any authenticated user)* |
 | `GET` | `/admin/break-glass` | List break-glass events with filters (status, datasource, user, date range), newest first (AF-385) *(AUDITOR or ADMIN)* |
 | `GET` | `/admin/break-glass/{id}` | Get a single break-glass event *(AUDITOR or ADMIN)* |
 | `POST` | `/admin/break-glass/{id}/acknowledge` | Acknowledge (reconcile) a pending break-glass event; optional `{ "comment": "…" }`. The submitter cannot acknowledge their own event (403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`); already-reviewed is 409 `BREAK_GLASS_ALREADY_REVIEWED` *(ADMIN only)* |
@@ -2780,6 +2789,31 @@ The period is validated: `from`/`to` are required, `from` must be on or before `
 ```
 
 An auditor verifies a downloaded export offline with the public key: `openssl dgst -sha256 -verify key.pem -signature sig.bin report.pdf`.
+
+### Personalized Dashboard (`/dashboard`) *(any authenticated user)* — AF-498
+
+Self-scoped aggregations for the current user's personalized home. Every endpoint is bound to the
+caller's own data (`isAuthenticated()`); no admin role is required.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/dashboard/summary` | Headline counts (pending approvals as reviewer, open queries by status, open anomalies, open suggestions) + short recent lists |
+| `GET` | `/dashboard/my-query-trends?from&to` | Day-bucketed status- and risk-level trend series over the caller's own queries (defaults to `now-30d … now`) |
+| `GET` | `/dashboard/suggestions` | The caller's OPEN AI optimization-suggestion backlog (derived from their analyses' `optimizations[]`) |
+| `POST` | `/dashboard/suggestions/{id}/dismiss` | Dismiss a suggestion (`id` = `{aiAnalysisId}:{index}`); `204`, or `404 DASHBOARD_SUGGESTION_NOT_FOUND` for an unknown/unowned id |
+| `GET` | `/dashboard/digest-subscription` | The caller's weekly-digest opt-in state (`{ enabled, last_sent_at }`) |
+| `PUT` | `/dashboard/digest-subscription` | Enable/disable the weekly email digest (`{ enabled: bool }`) |
+| `GET` | `/dashboard/summary/export?week&format` | Digitally-signed PDF/CSV of the week's summary; sets `X-AccessFlow-Signature` / `-Signature-Algorithm` / `-Content-SHA256`, audited `DASHBOARD_SUMMARY_EXPORTED` |
+
+`format` is `PDF` or `CSV`; `week` is any date in the target ISO week (defaults to the current week).
+
+The current user's **own** anomalies (self-scoped, distinct from the admin `/admin/anomalies` surface):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/anomalies/mine?status&page&size` | The caller's own behavioural anomalies (optionally filtered by status) |
+| `POST` | `/anomalies/mine/{id}/acknowledge` | Acknowledge one of the caller's own OPEN anomalies (`404` if not owned, `409` if not OPEN) |
+| `POST` | `/anomalies/mine/{id}/dismiss` | Dismiss one of the caller's own anomalies (`404` if not owned, `409` if already dismissed) |
 
 ### Behavioural Anomaly Detection (UBA) — AF-383
 

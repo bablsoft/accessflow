@@ -430,3 +430,20 @@ export function routingPolicyErrorMessage(err: unknown): string {
   if (err instanceof Error && err.message) return err.message;
   return i18n.t('errors.routing_policy_generic');
 }
+
+// Dashboard self-service errors (AF-498): suggestion dismissal + own-anomaly acknowledge/dismiss.
+// Anomaly transition/not-found details come straight from the backend's localized ProblemDetail.
+export function dashboardErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    if (body?.error === 'DASHBOARD_SUGGESTION_NOT_FOUND') {
+      return i18n.t('errors.dashboard_suggestion_not_found');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.dashboard_generic');
+}

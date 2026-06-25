@@ -215,7 +215,7 @@ test.describe('forgot-password → reset-password full flow', () => {
     await page.locator('#login-email').fill(ADMIN_EMAIL);
     await page.locator('#login-password').fill(NEW_PASSWORD);
     await page.locator('button[type="submit"]').click();
-    await page.waitForURL('**/editor', { timeout: 15_000 });
+    await page.waitForURL('**/dashboard', { timeout: 15_000 });
   });
 
   // ── 4. Replay a used token — server rejects, UI surfaces the invalid-link alert ─

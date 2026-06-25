@@ -101,6 +101,10 @@ com.bablsoft.accessflow/
 ├── compliance/     # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459)
 │   ├── api/
 │   └── internal/
+├── dashboard/      # Personalized self-scoped dashboard: summary, query trends, AI-suggestion backlog, weekly digest/export (AF-498)
+│   ├── api/
+│   ├── events/
+│   └── internal/
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -238,6 +242,8 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
 | `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service (default: `PT1M`). |
 | `ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AccessGrantExpiryJob` (the `access` module) scans for `APPROVED` JIT access grants past their `expires_at` and revokes the materialised permission (default: `PT5M`). |
+| `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `WeeklyDigestJob` (the `dashboard` module, AF-498) wakes to scan for users opted into the weekly digest (default: `P1D`). |
+| `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD` | ISO-8601 duration. Minimum gap between digests for a given user — the job sends at most once per period regardless of poll cadence or restarts (default: `P7D`). |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
@@ -520,6 +526,7 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | @ant-design/charts | 2.x | Admin dashboard charts (AI analyses history) |
 | @xyflow/react | 12.x | ER diagram on `DatasourceSettingsPage` |
 | dagre | 0.8.x | Auto-layout for the ER diagram graph |
+| @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities | 6.x / 10.x / 3.x | Drag-and-drop reorder of personalized dashboard widgets (AF-498) |
 | CodeMirror + @codemirror/lang-sql | 6.x | SQL editor (PostgreSQL/MySQL dialects) |
 | @codemirror/lang-javascript + @codemirror/lang-json | 6.x | MongoDB query highlighting — shell (JS) and JSON-command modes |
 | @codemirror/merge | 6.x | Side-by-side Git-style diff for saved-query version history (AF-442) |
@@ -594,6 +601,7 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 ```
 /login                         → LoginPage
 /auth/saml/callback            → SamlCallbackPage
+/dashboard                     → DashboardPage  (default post-login home for non-auditor roles)
 /editor                        → QueryEditorPage
 /queries                       → QueryListPage
 /queries/:id                   → QueryDetailPage

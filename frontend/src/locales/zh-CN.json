@@ -67,7 +67,8 @@
     "connectors": "连接器",
     "auditor": "合规报告",
     "anomalies": "异常",
-    "break_glass": "Break-glass 日志"
+    "break_glass": "Break-glass 日志",
+    "dashboard": "仪表板"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -326,7 +327,9 @@
     "organization_generic": "无法保存组织。请重试。",
     "collaboration_forbidden": "您无法协作处理此查询。",
     "comment_not_found": "未找到评论。",
-    "collaboration_generic": "评论出现问题。"
+    "collaboration_generic": "评论出现问题。",
+    "dashboard_suggestion_not_found": "未找到优化建议",
+    "dashboard_generic": "仪表板发生错误"
   },
   "editor": {
     "text_to_sql": {
@@ -2452,5 +2455,58 @@
     "blocked": "通知已在浏览器设置中被阻止",
     "permission_required": "请允许通知以启用推送审批",
     "error": "无法更新推送审批"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "subtitle": "一目了然地查看您的待批准项、查询趋势、AI 建议和异常",
+    "customize": "自定义",
+    "weekly_digest": "每周邮件摘要",
+    "export": "导出本周",
+    "export_pdf": "导出为 PDF",
+    "export_csv": "导出为 CSV",
+    "export_failed": "导出失败",
+    "collapse": "收起小部件",
+    "expand": "展开小部件",
+    "drag_handle": "重新排序 {{title}} 小部件",
+    "summary": {
+      "pending_approvals": "待批准",
+      "open_queries": "进行中的查询",
+      "open_anomalies": "未处理的异常",
+      "open_suggestions": "未处理的建议"
+    },
+    "widgets": {
+      "pendingApprovals": "待批准",
+      "recentQueries": "我最近的查询",
+      "trends": "查询趋势",
+      "suggestions": "AI 优化建议",
+      "anomalies": "异常告警"
+    },
+    "pending": {
+      "empty": "没有等待您审核的内容",
+      "review": "审核"
+    },
+    "recent": {
+      "empty": "您还没有提交任何查询",
+      "view": "查看"
+    },
+    "trends": {
+      "empty": "此期间没有查询活动",
+      "status_title": "按状态分类的查询",
+      "risk_title": "按风险级别分类的查询",
+      "axis_date": "日期",
+      "axis_count": "查询数"
+    },
+    "suggestions": {
+      "empty": "目前没有优化建议",
+      "open_in_editor": "在编辑器中打开",
+      "dismiss": "忽略建议",
+      "dismissed": "已忽略建议"
+    },
+    "anomalies": {
+      "empty": "您的活动中未发现异常",
+      "acknowledge": "确认",
+      "dismiss": "忽略异常",
+      "score": "分数"
+    }
   }
 }

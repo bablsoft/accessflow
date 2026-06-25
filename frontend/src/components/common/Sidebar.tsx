@@ -22,6 +22,7 @@ import {
   CloseOutlined,
   BarChartOutlined,
   DashboardOutlined,
+  HomeOutlined,
   KeyOutlined,
   UnlockOutlined,
   LineChartOutlined,
@@ -77,6 +78,7 @@ export function Sidebar({
       id: 'workflow',
       label: t('nav.group_workflow'),
       items: [
+        { id: 'dashboard', to: '/dashboard', label: t('nav.dashboard'), icon: <HomeOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN', 'AUDITOR'] },
         { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },

@@ -20,6 +20,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
 | `ANOMALY_DETECTED` | `BehaviorAnomalyDetectionJob` flags a behavioural anomaly (UBA, AF-383) | All ADMIN users in the org plus the flagged user. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `BREAK_GLASS_EXECUTED` | A break-glass / emergency-access query executes, bypassing review (AF-385) | All active ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
+| `WEEKLY_DIGEST` | `WeeklyDigestJob` fires for a user opted into the weekly dashboard digest (AF-498) | The single opted-in user (digest owner). Delivered via the user's email + active org chat channels (Email/Slack/Discord/Teams/Telegram); PagerDuty treats it as not-applicable (never pages). | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | Execution completes successfully | Query submitter | deferred — proxy executor not implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -61,6 +62,7 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/query-review-timeout.html` — `REVIEW_TIMEOUT` (auto-rejection prompted by `QueryTimeoutJob`; renders an explicit explanatory banner with the configured `approval_timeout_hours` and an amber accent so the submitter can visually distinguish it from a reviewer rejection)
 - `email/anomaly-detected.html` — `ANOMALY_DETECTED`
 - `email/break-glass-executed.html` — `BREAK_GLASS_EXECUTED` (AF-385; red emergency banner, the executing user, datasource, and SQL preview, with a CTA to the executed query / break-glass log)
+- `email/weekly-digest.html` — `WEEKLY_DIGEST` (AF-498; the week range, the four headline metrics — queries submitted, pending approvals, open anomalies, open suggestions — and a CTA to the dashboard)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)

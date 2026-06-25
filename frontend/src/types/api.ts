@@ -2010,3 +2010,97 @@ export interface CreateCommentInput {
   anchor_snapshot?: string | null;
   body: string;
 }
+
+// ----- Personalized dashboard (AF-498) -----
+
+export interface DashboardStatusCount {
+  status: QueryStatus;
+  count: number;
+}
+
+export interface DashboardRecentQuery {
+  id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  query_type: QueryType;
+  status: QueryStatus;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  ai_failed: boolean;
+  created_at: string;
+}
+
+export interface DashboardPendingApproval {
+  query_request_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  submitted_by_email: string | null;
+  query_type: QueryType;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  current_stage: number;
+  created_at: string;
+}
+
+export interface DashboardSummary {
+  pending_approvals_count: number;
+  open_queries_count: number;
+  open_anomalies_count: number;
+  open_suggestions_count: number;
+  status_counts: DashboardStatusCount[];
+  recent_queries: DashboardRecentQuery[];
+  recent_pending_approvals: DashboardPendingApproval[];
+}
+
+export interface DashboardStatusBucket {
+  date: string;
+  status: QueryStatus;
+  count: number;
+}
+
+export interface DashboardRiskBucket {
+  date: string;
+  risk_level: RiskLevel;
+  count: number;
+}
+
+export interface MyQueryTrends {
+  status_by_day: DashboardStatusBucket[];
+  risk_by_day: DashboardRiskBucket[];
+}
+
+export interface MyQueryTrendsFilters {
+  from?: string;
+  to?: string;
+}
+
+export interface DashboardSuggestion {
+  id: string;
+  ai_analysis_id: string;
+  index: number;
+  query_request_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  db_type: DbType;
+  risk_level: RiskLevel;
+  type: OptimizationType;
+  title: string;
+  rationale: string;
+  sql: string;
+  analyzed_at: string;
+}
+
+export interface DashboardSuggestions {
+  suggestions: DashboardSuggestion[];
+}
+
+export interface DigestSubscription {
+  enabled: boolean;
+  last_sent_at: string | null;
+}
+
+export interface MyAnomalyFilters {
+  page?: number;
+  size?: number;
+  status?: BehaviorAnomalyStatus;
+}

@@ -67,7 +67,8 @@
     "connectors": "Conectores",
     "auditor": "Informes de cumplimiento",
     "anomalies": "Anomalías",
-    "break_glass": "Registro break-glass"
+    "break_glass": "Registro break-glass",
+    "dashboard": "Panel"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -326,7 +327,9 @@
     "organization_generic": "No se pudo guardar la organización. Inténtalo de nuevo.",
     "collaboration_forbidden": "No puedes colaborar en esta consulta.",
     "comment_not_found": "Comentario no encontrado.",
-    "collaboration_generic": "Algo salió mal con el comentario."
+    "collaboration_generic": "Algo salió mal con el comentario.",
+    "dashboard_suggestion_not_found": "Sugerencia de optimización no encontrada",
+    "dashboard_generic": "Algo salió mal en el panel"
   },
   "editor": {
     "text_to_sql": {
@@ -2452,5 +2455,58 @@
     "blocked": "Las notificaciones están bloqueadas en la configuración del navegador",
     "permission_required": "Permite las notificaciones para activar las aprobaciones push",
     "error": "No se pudieron actualizar las aprobaciones push"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "subtitle": "Tus aprobaciones pendientes, tendencias de consultas, sugerencias de IA y anomalías de un vistazo",
+    "customize": "Personalizar",
+    "weekly_digest": "Resumen semanal por correo",
+    "export": "Exportar esta semana",
+    "export_pdf": "Exportar como PDF",
+    "export_csv": "Exportar como CSV",
+    "export_failed": "La exportación falló",
+    "collapse": "Contraer widget",
+    "expand": "Expandir widget",
+    "drag_handle": "Reordenar el widget {{title}}",
+    "summary": {
+      "pending_approvals": "Aprobaciones pendientes",
+      "open_queries": "Consultas abiertas",
+      "open_anomalies": "Anomalías abiertas",
+      "open_suggestions": "Sugerencias abiertas"
+    },
+    "widgets": {
+      "pendingApprovals": "Aprobaciones pendientes",
+      "recentQueries": "Mis consultas recientes",
+      "trends": "Tendencias de consultas",
+      "suggestions": "Sugerencias de optimización de IA",
+      "anomalies": "Alertas de anomalías"
+    },
+    "pending": {
+      "empty": "No hay nada esperando tu revisión",
+      "review": "Revisar"
+    },
+    "recent": {
+      "empty": "Aún no has enviado ninguna consulta",
+      "view": "Ver"
+    },
+    "trends": {
+      "empty": "Sin actividad de consultas en este período",
+      "status_title": "Consultas por estado",
+      "risk_title": "Consultas por nivel de riesgo",
+      "axis_date": "Fecha",
+      "axis_count": "Consultas"
+    },
+    "suggestions": {
+      "empty": "No hay sugerencias de optimización ahora mismo",
+      "open_in_editor": "Abrir en el editor",
+      "dismiss": "Descartar sugerencia",
+      "dismissed": "Sugerencia descartada"
+    },
+    "anomalies": {
+      "empty": "No se han detectado anomalías en tu actividad",
+      "acknowledge": "Reconocer",
+      "dismiss": "Descartar anomalía",
+      "score": "Puntuación"
+    }
   }
 }

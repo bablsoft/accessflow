@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/authStore';
 import { resolveRouteGuard } from '@/utils/routeGuard';
 import { homePathForRole } from '@/utils/homePath';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
+const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
 import { ReviewQueuePage } from '@/pages/reviews/ReviewQueuePage';
@@ -138,6 +139,14 @@ export function App() {
         >
           <Route path="/" element={<Navigate to={home} replace />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/dashboard"
+            element={
+              <Suspense fallback={null}>
+                <DashboardPage />
+              </Suspense>
+            }
+          />
           <Route path="/editor" element={<QueryEditorPage />} />
           <Route path="/access-requests" element={<RequestAccessPage />} />
           <Route path="/queries" element={<QueryListPage />} />

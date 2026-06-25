@@ -54,6 +54,48 @@ describe('api/anomalies', () => {
       expect(anomalyKeys.detail('an-1')).toEqual(['anomalies', 'detail', 'an-1']);
       expect(anomalyKeys.badge('ds-1')).toEqual(['anomalies', 'badge', 'ds-1']);
       expect(anomalyKeys.badge()).toEqual(['anomalies', 'badge', 'all']);
+      expect(anomalyKeys.mine({ status: 'OPEN' })).toEqual([
+        'anomalies',
+        'mine',
+        { status: 'OPEN' },
+      ]);
+    });
+  });
+
+  describe('listMyAnomalies', () => {
+    it('GETs the self-scoped endpoint with status + paging params', async () => {
+      get.mockResolvedValueOnce({
+        data: { content: [anomalyFixture], page: 0, size: 10, total_elements: 1, total_pages: 1 },
+      });
+      const result = await anomaliesApi.listMyAnomalies({ page: 0, size: 10, status: 'OPEN' });
+      expect(get).toHaveBeenCalledWith('/api/v1/anomalies/mine', {
+        params: { page: 0, size: 10, status: 'OPEN' },
+      });
+      expect(result.content).toHaveLength(1);
+    });
+
+    it('GETs with no params by default', async () => {
+      get.mockResolvedValueOnce({
+        data: { content: [], page: 0, size: 20, total_elements: 0, total_pages: 0 },
+      });
+      await anomaliesApi.listMyAnomalies();
+      expect(get).toHaveBeenCalledWith('/api/v1/anomalies/mine', { params: {} });
+    });
+  });
+
+  describe('acknowledgeMyAnomaly / dismissMyAnomaly', () => {
+    it('POSTs to the self-scoped acknowledge endpoint', async () => {
+      post.mockResolvedValueOnce({ data: { ...anomalyFixture, status: 'ACKNOWLEDGED' } });
+      const result = await anomaliesApi.acknowledgeMyAnomaly('an-1');
+      expect(post).toHaveBeenCalledWith('/api/v1/anomalies/mine/an-1/acknowledge');
+      expect(result.status).toBe('ACKNOWLEDGED');
+    });
+
+    it('POSTs to the self-scoped dismiss endpoint', async () => {
+      post.mockResolvedValueOnce({ data: { ...anomalyFixture, status: 'DISMISSED' } });
+      const result = await anomaliesApi.dismissMyAnomaly('an-1');
+      expect(post).toHaveBeenCalledWith('/api/v1/anomalies/mine/an-1/dismiss');
+      expect(result.status).toBe('DISMISSED');
     });
   });
 

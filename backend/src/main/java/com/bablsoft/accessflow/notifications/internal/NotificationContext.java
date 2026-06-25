@@ -52,7 +52,8 @@ public record NotificationContext(
         Double anomalyScore,
         Double anomalyObservedValue,
         Double anomalyBaselineMean,
-        String anomalyUserLabel) {
+        String anomalyUserLabel,
+        WeeklyDigestData digest) {
 
     /** Backward-compatible constructor for the query / access notification paths (no anomaly fields). */
     public NotificationContext(
@@ -84,6 +85,6 @@ public record NotificationContext(
                 sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
                 submittedByUserId, submitterEmail, submitterDisplayName, justification,
                 reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
-                occurredAt, locale, approvalTimeoutHours, null, null, null, null, null, null);
+                occurredAt, locale, approvalTimeoutHours, null, null, null, null, null, null, null);
     }
 }

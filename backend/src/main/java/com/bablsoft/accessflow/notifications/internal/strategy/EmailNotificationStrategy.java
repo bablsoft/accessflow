@@ -152,6 +152,15 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("anomalyObservedValue", ctx.anomalyObservedValue());
         context.setVariable("anomalyBaselineMean", ctx.anomalyBaselineMean());
         context.setVariable("anomalyUserLabel", ctx.anomalyUserLabel());
+        var digest = ctx.digest();
+        context.setVariable("digestWeekStart", digest != null ? digest.weekStart() : null);
+        context.setVariable("digestWeekEnd", digest != null ? digest.weekEnd() : null);
+        context.setVariable("digestTotalQueries", digest != null ? digest.totalQueries() : null);
+        context.setVariable("digestPendingApprovals", digest != null ? digest.pendingApprovals() : null);
+        context.setVariable("digestOpenAnomalies", digest != null ? digest.openAnomalies() : null);
+        context.setVariable("digestOpenSuggestions", digest != null ? digest.openSuggestions() : null);
+        context.setVariable("dashboardUrl",
+                ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
         return templateEngine.process(template, context);
     }
 
@@ -164,6 +173,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case ANOMALY_DETECTED -> "email/anomaly-detected";
             case BREAK_GLASS_EXECUTED -> "email/break-glass-executed";
+            case WEEKLY_DIGEST -> "email/weekly-digest";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
@@ -188,6 +198,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
             case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";
             case BREAK_GLASS_EXECUTED -> "notification.email.subject.break_glass_executed";
+            case WEEKLY_DIGEST -> "notification.email.subject.weekly_digest";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";

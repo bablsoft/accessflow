@@ -67,7 +67,8 @@
     "connectors": "Konnektoren",
     "auditor": "Compliance-Berichte",
     "anomalies": "Anomalien",
-    "break_glass": "Break-Glass-Protokoll"
+    "break_glass": "Break-Glass-Protokoll",
+    "dashboard": "Dashboard"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -326,7 +327,9 @@
     "organization_generic": "Die Organisation konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "collaboration_forbidden": "Sie können an dieser Abfrage nicht mitarbeiten.",
     "comment_not_found": "Kommentar nicht gefunden.",
-    "collaboration_generic": "Beim Kommentar ist ein Fehler aufgetreten."
+    "collaboration_generic": "Beim Kommentar ist ein Fehler aufgetreten.",
+    "dashboard_suggestion_not_found": "Optimierungsvorschlag nicht gefunden",
+    "dashboard_generic": "Im Dashboard ist ein Fehler aufgetreten"
   },
   "editor": {
     "text_to_sql": {
@@ -2452,5 +2455,58 @@
     "blocked": "Benachrichtigungen sind in den Browsereinstellungen blockiert",
     "permission_required": "Benachrichtigungen zulassen, um Push-Freigaben zu aktivieren",
     "error": "Push-Freigaben konnten nicht aktualisiert werden"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Ihre ausstehenden Genehmigungen, Abfragetrends, KI-Vorschläge und Anomalien auf einen Blick",
+    "customize": "Anpassen",
+    "weekly_digest": "Wöchentliche E-Mail-Zusammenfassung",
+    "export": "Diese Woche exportieren",
+    "export_pdf": "Als PDF exportieren",
+    "export_csv": "Als CSV exportieren",
+    "export_failed": "Export fehlgeschlagen",
+    "collapse": "Widget einklappen",
+    "expand": "Widget ausklappen",
+    "drag_handle": "Widget {{title}} neu anordnen",
+    "summary": {
+      "pending_approvals": "Ausstehende Genehmigungen",
+      "open_queries": "Offene Abfragen",
+      "open_anomalies": "Offene Anomalien",
+      "open_suggestions": "Offene Vorschläge"
+    },
+    "widgets": {
+      "pendingApprovals": "Ausstehende Genehmigungen",
+      "recentQueries": "Meine letzten Abfragen",
+      "trends": "Abfragetrends",
+      "suggestions": "KI-Optimierungsvorschläge",
+      "anomalies": "Anomaliewarnungen"
+    },
+    "pending": {
+      "empty": "Nichts wartet auf Ihre Prüfung",
+      "review": "Prüfen"
+    },
+    "recent": {
+      "empty": "Sie haben noch keine Abfragen eingereicht",
+      "view": "Anzeigen"
+    },
+    "trends": {
+      "empty": "Keine Abfrageaktivität in diesem Zeitraum",
+      "status_title": "Abfragen nach Status",
+      "risk_title": "Abfragen nach Risikostufe",
+      "axis_date": "Datum",
+      "axis_count": "Abfragen"
+    },
+    "suggestions": {
+      "empty": "Derzeit keine Optimierungsvorschläge",
+      "open_in_editor": "Im Editor öffnen",
+      "dismiss": "Vorschlag verwerfen",
+      "dismissed": "Vorschlag verworfen"
+    },
+    "anomalies": {
+      "empty": "Keine Anomalien in Ihrer Aktivität erkannt",
+      "acknowledge": "Bestätigen",
+      "dismiss": "Anomalie verwerfen",
+      "score": "Wert"
+    }
   }
 }
