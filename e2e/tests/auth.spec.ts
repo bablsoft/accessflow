@@ -39,7 +39,7 @@ async function getAuthState(
 // Single sequential test — auth state lives in the page (in-memory Zustand store +
 // HttpOnly refresh cookie), so we keep one page alive across all three scenarios.
 test('login, transparent token refresh on 401, and logout', async ({ page }) => {
-  // ── 1. Login redirects to /editor and a protected endpoint returns 200 ───────────
+  // ── 1. Login redirects to /dashboard and a protected endpoint returns 200 ───────────
   await page.goto('/login');
 
   await page.locator('#login-email').fill(ADMIN_EMAIL);
