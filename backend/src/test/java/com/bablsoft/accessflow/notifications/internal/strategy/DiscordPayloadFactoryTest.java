@@ -70,6 +70,36 @@ class DiscordPayloadFactoryTest {
         assertThat(body).contains("AI Flagged High-Risk Query");
     }
 
+    @Test
+    void weeklyDigestRendersDigestFields() {
+        var body = factory.buildEventBody(digestCtx(),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("Weekly Digest")
+                .contains("Queries this week")
+                .contains("Pending approvals")
+                .contains("Open anomalies")
+                .contains("Open suggestions")
+                .contains("https://app.example.com/dashboard");
+    }
+
+    private static NotificationContext digestCtx() {
+        return new NotificationContext(
+                NotificationEventType.WEEKLY_DIGEST,
+                UUID.randomUUID(),
+                null, null, null, null, null, null, null, null, null, null,
+                UUID.randomUUID(), "user@example.com", "User",
+                null, null, null, null,
+                URI.create("https://app.example.com/dashboard"),
+                List.of(),
+                Instant.parse("2026-06-25T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                new com.bablsoft.accessflow.notifications.internal.WeeklyDigestData(
+                        java.time.LocalDate.of(2026, 6, 22), java.time.LocalDate.of(2026, 6, 29),
+                        5, 2, 1, 3));
+    }
+
     private static NotificationContext ctx(NotificationEventType eventType, Integer approvalTimeoutHours) {
         return new NotificationContext(
                 eventType,

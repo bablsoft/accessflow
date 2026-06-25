@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -405,6 +407,34 @@ class NotificationContextBuilderTest {
                 .orElseThrow();
 
         assertThat(ctx.locale()).isNull();
+    }
+
+    @Test
+    void buildWeeklyDigestResolvesOwnerRecipientAndCarriesCounts() {
+        var userId = UUID.randomUUID();
+        when(userQuery.findById(userId))
+                .thenReturn(Optional.of(user(userId, "me@example.com", UserRoleType.ANALYST)));
+        var event = new WeeklyDigestReadyEvent(orgId, userId,
+                LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 5, 2, 1, 3);
+
+        var ctx = builder.buildWeeklyDigest(event).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.WEEKLY_DIGEST);
+        assertThat(ctx.recipients()).extracting(RecipientView::email).containsExactly("me@example.com");
+        assertThat(ctx.reviewUrl().toString()).isEqualTo("https://app.example.test/dashboard");
+        assertThat(ctx.digest().totalQueries()).isEqualTo(5);
+        assertThat(ctx.digest().pendingApprovals()).isEqualTo(2);
+        assertThat(ctx.digest().openAnomalies()).isEqualTo(1);
+        assertThat(ctx.digest().openSuggestions()).isEqualTo(3);
+    }
+
+    @Test
+    void buildWeeklyDigestEmptyWhenUserMissingOrInactive() {
+        var userId = UUID.randomUUID();
+        when(userQuery.findById(userId)).thenReturn(Optional.empty());
+        var event = new WeeklyDigestReadyEvent(orgId, userId,
+                LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 0, 0, 0, 0);
+        assertThat(builder.buildWeeklyDigest(event)).isEmpty();
     }
 
     private QueryRequestSnapshot snapshot() {
