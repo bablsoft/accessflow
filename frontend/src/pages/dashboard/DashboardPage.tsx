@@ -42,18 +42,40 @@ import {
   usePreferencesStore,
   type DashboardWidgetId,
 } from '@/store/preferencesStore';
+import { useAuthStore } from '@/store/authStore';
 import { dashboardErrorMessage } from '@/utils/apiErrors';
-import type { DashboardSummary } from '@/types/api';
+import type { DashboardSummary, Role } from '@/types/api';
+
+// Each widget is shown only to the roles for which it is meaningful (mirrors the sidebar nav model):
+// a non-reviewer never sees the reviewer queue, a non-admin never sees anomalies, etc.
+const WIDGET_ROLES: Record<DashboardWidgetId, Role[]> = {
+  pendingApprovals: ['REVIEWER', 'ADMIN'],
+  recentQueries: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
+  trends: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
+  suggestions: ['ANALYST', 'REVIEWER', 'ADMIN'],
+  anomalies: ['ADMIN'],
+};
+
+function widgetAllowed(id: DashboardWidgetId, role: Role | undefined): boolean {
+  return role != null && WIDGET_ROLES[id].includes(role);
+}
 
 export default function DashboardPage() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
+  const role = useAuthStore((s) => s.user?.role);
   const widgets = usePreferencesStore((s) => s.dashboardWidgets);
   const toggleVisibility = usePreferencesStore((s) => s.toggleWidgetVisibility);
   const toggleCollapsed = usePreferencesStore((s) => s.toggleWidgetCollapsed);
   const reorderWidgets = usePreferencesStore((s) => s.reorderWidgets);
+
+  // Only the widgets the current role can actually use are eligible for the layout.
+  const availableIds = useMemo<DashboardWidgetId[]>(
+    () => DASHBOARD_WIDGET_IDS.filter((id) => widgetAllowed(id, role)),
+    [role],
+  );
 
   const summaryQuery = useQuery({
     queryKey: dashboardKeys.summary(),
@@ -88,14 +110,15 @@ export default function DashboardPage() {
     onError: () => message.error(t('dashboard.export_failed')),
   });
 
-  // Reconcile persisted order/visibility with the known widget set (forward-compatible: a widget
-  // unknown to the persisted prefs is appended and shown by default).
+  // Reconcile persisted order/visibility with the role-available widget set (forward-compatible: a
+  // widget unknown to the persisted prefs is appended and shown by default; widgets the role can't
+  // use are dropped entirely).
   const orderedIds = useMemo<DashboardWidgetId[]>(() => {
-    const known = new Set(DASHBOARD_WIDGET_IDS);
-    const fromPrefs = widgets.order.filter((id) => known.has(id));
-    const missing = DASHBOARD_WIDGET_IDS.filter((id) => !fromPrefs.includes(id));
+    const available = new Set(availableIds);
+    const fromPrefs = widgets.order.filter((id) => available.has(id));
+    const missing = availableIds.filter((id) => !fromPrefs.includes(id));
     return [...fromPrefs, ...missing];
-  }, [widgets.order]);
+  }, [widgets.order, availableIds]);
 
   const isVisible = (id: DashboardWidgetId) =>
     widgets.visible.includes(id) || !widgets.order.includes(id);
@@ -118,7 +141,7 @@ export default function DashboardPage() {
   const visibleIds = orderedIds.filter(isVisible);
 
   const customizeMenu = {
-    items: DASHBOARD_WIDGET_IDS.map((id) => ({
+    items: availableIds.map((id) => ({
       key: id,
       label: (
         <Checkbox
@@ -183,7 +206,7 @@ export default function DashboardPage() {
         }
       />
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px' }}>
-        <SummaryCounts summary={summary} loading={summaryQuery.isLoading} />
+        <SummaryCounts summary={summary} loading={summaryQuery.isLoading} available={availableIds} />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
             <Space orientation="vertical" size={16} style={{ width: '100%', marginTop: 16 }}>
@@ -241,20 +264,27 @@ function renderWidget(
 function SummaryCounts({
   summary,
   loading,
+  available,
 }: {
   summary: DashboardSummary | undefined;
   loading: boolean;
+  available: DashboardWidgetId[];
 }) {
   const { t } = useTranslation();
   if (loading || !summary) {
     return <Skeleton active paragraph={{ rows: 1 }} />;
   }
-  const cards: Array<{ key: string; label: string; value: number }> = [
-    { key: 'pending', label: t('dashboard.summary.pending_approvals'), value: summary.pending_approvals_count },
-    { key: 'open', label: t('dashboard.summary.open_queries'), value: summary.open_queries_count },
-    { key: 'anomalies', label: t('dashboard.summary.open_anomalies'), value: summary.open_anomalies_count },
-    { key: 'suggestions', label: t('dashboard.summary.open_suggestions'), value: summary.open_suggestions_count },
+  // Each stat card is tied to a widget so it only shows when that widget is available to the role.
+  const allCards: Array<{ key: string; widget: DashboardWidgetId; label: string; value: number }> = [
+    { key: 'pending', widget: 'pendingApprovals', label: t('dashboard.summary.pending_approvals'), value: summary.pending_approvals_count },
+    { key: 'open', widget: 'recentQueries', label: t('dashboard.summary.open_queries'), value: summary.open_queries_count },
+    { key: 'anomalies', widget: 'anomalies', label: t('dashboard.summary.open_anomalies'), value: summary.open_anomalies_count },
+    { key: 'suggestions', widget: 'suggestions', label: t('dashboard.summary.open_suggestions'), value: summary.open_suggestions_count },
   ];
+  const cards = allCards.filter((c) => available.includes(c.widget));
+  if (cards.length === 0) {
+    return null;
+  }
   return (
     <div
       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}

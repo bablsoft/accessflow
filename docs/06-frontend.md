@@ -301,11 +301,15 @@ The `AUDITOR` role is read-only and has no personal query workflow, so `homePath
 ### DashboardPage *(any authenticated user)* — AF-498
 
 The personalized home at `/dashboard` (lazy-loaded; nav entry at the top of the **Workflow** group; the
-default post-login landing for non-auditor roles). The header shows four headline stat cards (pending
+default post-login landing for non-auditor roles). The header shows headline stat cards (pending
 approvals, open queries, open anomalies, open suggestions) over a customizable, drag-sortable column of
-widgets. The four core widgets — **Pending approvals**, **My recent queries** (+ status/risk trend
-sparklines via `@ant-design/charts`), **AI optimization suggestions** (dismissable, with "open in editor"),
-and **Anomaly alerts** (acknowledge/dismiss) — read from the self-scoped `api/dashboard.ts` (summary +
+widgets. Widgets (and their matching stat cards) are **role-gated** to what the current user can
+actually use, mirroring the sidebar nav model — **Pending approvals** shows only for `REVIEWER`/`ADMIN`,
+**My recent queries** / **Query trends** for any query-submitting role, **AI optimization suggestions**
+for editor-capable roles (`ANALYST`/`REVIEWER`/`ADMIN`), and **Anomaly alerts** for `ADMIN`. The core
+widgets — **Pending approvals**, **My recent queries** (+ status/risk trend sparklines via
+`@ant-design/charts`), **AI optimization suggestions** (dismissable, with "open in editor"), and
+**Anomaly alerts** (acknowledge/dismiss) — read from the self-scoped `api/dashboard.ts` (summary +
 trends + suggestions) and `api/anomalies.ts` (`/anomalies/mine`) via TanStack Query, each with a
 `Skeleton` while loading and a per-widget `EmptyState`. Widget show/hide, collapse, and **drag-and-drop
 reorder** (`@dnd-kit`) persist in `preferencesStore.dashboardWidgets` (`{ visible[], order[], collapsed{} }`,

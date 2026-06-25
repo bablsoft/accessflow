@@ -52,7 +52,26 @@ vi.mock('@ant-design/charts', () => ({
   Line: ({ data }: { data: unknown[] }) => <div data-testid="ant-line-chart" data-points={data.length} />,
 }));
 
+import { useAuthStore } from '@/store/authStore';
+import type { Role } from '@/types/api';
+
 const { default: DashboardPage } = await import('./DashboardPage');
+
+function setRole(role: Role) {
+  useAuthStore.setState({
+    user: {
+      id: 'u-1',
+      email: 'me@x.io',
+      display_name: 'Me',
+      role,
+      auth_provider: 'LOCAL',
+      totp_enabled: false,
+      platform_admin: false,
+      preferred_language: null,
+    },
+    accessToken: 'token',
+  });
+}
 
 function summary(): DashboardSummary {
   return {
@@ -121,6 +140,8 @@ describe('DashboardPage', () => {
     URL.revokeObjectURL = vi.fn();
     // Reset persisted widget prefs so all widgets show.
     localStorage.clear();
+    // ADMIN sees every widget (role gating, AF-498).
+    setRole('ADMIN');
   });
 
   it('renders the summary counts and the four core widgets', async () => {
@@ -132,6 +153,19 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-widget-recentQueries')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-suggestions')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-anomalies')).toBeInTheDocument();
+  });
+
+  it('hides widgets the role cannot use (ANALYST sees no pending-approvals or anomalies)', async () => {
+    setRole('ANALYST');
+    renderPage();
+    // Wait for the summary to load (a stat card available to ANALYST appears).
+    await waitFor(() => expect(screen.getByTestId('dashboard-stat-open')).toBeInTheDocument());
+    expect(screen.getByTestId('dashboard-widget-recentQueries')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-suggestions')).toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-widget-pendingApprovals')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-widget-anomalies')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-stat-pending')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-stat-anomalies')).not.toBeInTheDocument();
   });
 
   it('toggles the weekly digest opt-in', async () => {
