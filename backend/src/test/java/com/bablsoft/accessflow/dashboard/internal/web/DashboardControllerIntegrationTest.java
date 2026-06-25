@@ -233,8 +233,12 @@ class DashboardControllerIntegrationTest {
         a.setFailed(false);
         aiAnalysisRepository.save(a);
 
-        q.setAiAnalysisId(a.getId());
-        queryRequestRepository.save(q);
+        // Re-read before the ai_analysis_id back-link update so the @Version (updated_at) carries the
+        // DB-stored, microsecond-truncated value — the in-memory nanosecond Instant trips optimistic
+        // locking on platforms (Linux CI) whose Instant.now() has sub-microsecond precision.
+        var managed = queryRequestRepository.findById(q.getId()).orElseThrow();
+        managed.setAiAnalysisId(a.getId());
+        queryRequestRepository.save(managed);
         return a.getId();
     }
 

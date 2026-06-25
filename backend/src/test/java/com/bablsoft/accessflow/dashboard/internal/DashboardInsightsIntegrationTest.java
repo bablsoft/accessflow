@@ -113,15 +113,13 @@ class DashboardInsightsIntegrationTest {
         var a = saveQuery(QueryStatus.EXECUTED);
         var analysisA = saveAnalysis(a, RiskLevel.HIGH, false,
                 "[{\"type\":\"INDEX\",\"title\":\"Add idx\",\"rationale\":\"speed\",\"sql\":\"CREATE INDEX\"}]");
-        a.setAiAnalysisId(analysisA.getId());
-        queryRequestRepository.save(a);
+        linkAnalysis(a.getId(), analysisA.getId());
         // Query B: PENDING_REVIEW, no analysis.
         saveQuery(QueryStatus.PENDING_REVIEW);
         // Query C: PENDING_AI, failed analysis (excluded from risk + optimizations).
         var c = saveQuery(QueryStatus.PENDING_AI);
         var analysisC = saveAnalysis(c, RiskLevel.CRITICAL, true, "[{\"type\":\"REWRITE\"}]");
-        c.setAiAnalysisId(analysisC.getId());
-        queryRequestRepository.save(c);
+        linkAnalysis(c.getId(), analysisC.getId());
 
         Map<QueryStatus, Long> counts = insights.statusCounts(org.getId(), user.getId()).stream()
                 .collect(Collectors.toMap(MyQueryStatusCount::status, MyQueryStatusCount::count));
@@ -191,6 +189,15 @@ class DashboardInsightsIntegrationTest {
         q.setStatus(status);
         q.setCreatedAt(IN_WEEK);
         return queryRequestRepository.save(q);
+    }
+
+    // Re-read before the ai_analysis_id back-link update so the @Version (updated_at) carries the
+    // DB-stored, microsecond-truncated value — the in-memory nanosecond Instant trips optimistic
+    // locking on platforms (Linux CI) whose Instant.now() has sub-microsecond precision.
+    private void linkAnalysis(UUID queryRequestId, UUID analysisId) {
+        var managed = queryRequestRepository.findById(queryRequestId).orElseThrow();
+        managed.setAiAnalysisId(analysisId);
+        queryRequestRepository.save(managed);
     }
 
     private AiAnalysisEntity saveAnalysis(QueryRequestEntity q, RiskLevel risk, boolean failed,
