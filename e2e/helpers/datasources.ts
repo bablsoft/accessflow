@@ -906,7 +906,10 @@ export async function exportAttestationEvidenceCsvViaApi(
 ): Promise<{ contentType: string; body: string }> {
   const res = await request.get(
     `${apiBase()}/api/v1/admin/attestation-campaigns/${id}/evidence.csv`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+    // Accept text/csv to match the endpoint's `produces` (the request context's default
+    // Accept: application/json would otherwise fail content negotiation); browsers / curl /
+    // the frontend's axios all send */* and work the same way.
+    { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/csv' } },
   );
   if (!res.ok()) {
     throw new Error(`Export attestation evidence failed: ${res.status()} ${await res.text()}`);
