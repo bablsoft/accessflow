@@ -56,6 +56,17 @@ class TelegramMessageFactory {
             }
             return sb.toString();
         }
+        if (ctx.attestationCampaignId() != null) {
+            appendField(sb, "Campaign", nullToDash(ctx.attestationCampaignName()));
+            if (ctx.attestationDueAt() != null) {
+                appendField(sb, "Due", ctx.attestationDueAt().toString());
+            }
+            if (ctx.reviewUrl() != null) {
+                sb.append("\n[").append(escape("Open recertification queue")).append("](")
+                        .append(escapeUrl(ctx.reviewUrl().toString())).append(")");
+            }
+            return sb.toString();
+        }
         appendField(sb, "Datasource", nullToDash(ctx.datasourceName()));
         appendField(sb, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -98,6 +109,7 @@ class TelegramMessageFactory {
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
+            case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

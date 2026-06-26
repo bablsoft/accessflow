@@ -74,6 +74,18 @@ class DiscordPayloadFactory {
             embed.put("fields", fields);
             return embed;
         }
+        if (ctx.attestationCampaignId() != null) {
+            addField(fields, "Campaign", nullToDash(ctx.attestationCampaignName()));
+            if (ctx.attestationDueAt() != null) {
+                addField(fields, "Due", ctx.attestationDueAt().toString());
+            }
+            if (ctx.reviewUrl() != null) {
+                addField(fields, "Review URL", ctx.reviewUrl().toString());
+                embed.put("url", ctx.reviewUrl().toString());
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         addField(fields, "Datasource", nullToDash(ctx.datasourceName()));
         addField(fields, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -125,6 +137,7 @@ class DiscordPayloadFactory {
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
+            case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

@@ -14,5 +14,6 @@ public enum NotificationEventType {
     ANOMALY_DETECTED,
     BREAK_GLASS_EXECUTED,
     WEEKLY_DIGEST,
+    ATTESTATION_CAMPAIGN_OPENED,
     TEST
 }

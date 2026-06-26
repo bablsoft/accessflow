@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
@@ -97,6 +98,17 @@ class NotificationListener {
             dispatcher.dispatchWeeklyDigest(event);
         } catch (RuntimeException ex) {
             log.error("Notification dispatch failed for weekly digest of user {}", event.userId(), ex);
+        }
+    }
+
+    @ApplicationModuleListener
+    void onAttestationCampaignOpened(AttestationCampaignOpenedEvent event) {
+        try {
+            dispatcher.dispatchAttestationCampaignOpened(event.campaignId(),
+                    event.organizationId());
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for attestation campaign {}",
+                    event.campaignId(), ex);
         }
     }
 

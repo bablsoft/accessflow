@@ -68,7 +68,9 @@
     "auditor": "Rapports de conformité",
     "anomalies": "Anomalies",
     "break_glass": "Journal break-glass",
-    "dashboard": "Tableau de bord"
+    "dashboard": "Tableau de bord",
+    "attestation": "Attestation",
+    "attestation_reviews": "Revues d’attestation"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -241,7 +243,15 @@
       "bot_token_max": "Le jeton du bot doit comporter au maximum 512 caractères",
       "signing_secret_required": "Le secret de signature est obligatoire",
       "signing_secret_max": "Le secret de signature doit comporter au maximum 255 caractères"
-    }
+    },
+    "attestation_name_required": "Le nom est requis",
+    "attestation_name_size": "Le nom doit comporter entre 3 et 100 caractères",
+    "attestation_description_max": "La description doit comporter au plus 2000 caractères",
+    "attestation_scope_required": "La portée est requise",
+    "attestation_datasource_required": "Une source de données est requise pour les campagnes par source de données",
+    "attestation_scheduled_open_required": "L’heure d’ouverture planifiée est requise",
+    "attestation_due_required": "L’heure d’échéance est requise",
+    "attestation_due_after_open": "L’heure d’échéance doit être postérieure à l’ouverture planifiée"
   },
   "errors": {
     "auth_invalid": "E-mail ou mot de passe invalide.",
@@ -2234,6 +2244,25 @@
       "WEIGHTED_AVERAGE": "Moyenne pondérée",
       "MAX_RISK": "Risque le plus élevé",
       "MAJORITY": "Vote majoritaire"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "Planifiée",
+      "OPEN": "Ouverte",
+      "CLOSED": "Clôturée",
+      "CANCELLED": "Annulée"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "Organisation",
+      "DATASOURCE": "Source de données"
+    },
+    "attestation_item_decision": {
+      "PENDING": "En attente",
+      "CERTIFIED": "Certifié",
+      "REVOKED": "Révoqué"
+    },
+    "attestation_pending_default": {
+      "KEEP": "Conserver l’accès",
+      "REVOKE": "Révoquer l’accès"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "Accuser réception",
       "dismiss": "Ignorer l'anomalie",
       "score": "Score"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "Campagnes d’attestation",
+      "subtitle": "Recertification périodique des accès",
+      "subtitle_count_one": "{{count}} campagne",
+      "subtitle_count_other": "{{count}} campagnes",
+      "create": "Créer une campagne",
+      "empty_title": "Aucune campagne d’attestation",
+      "empty_description": "Créez une campagne pour recertifier les accès.",
+      "load_error": "Impossible de charger les campagnes",
+      "filter_all_statuses": "Tous les statuts",
+      "col_name": "Nom",
+      "col_scope": "Portée",
+      "col_status": "Statut",
+      "col_due": "Échéance",
+      "col_items": "Éléments",
+      "col_actions": "Actions",
+      "view": "Voir"
+    },
+    "create": {
+      "modal_title": "Créer une campagne d’attestation",
+      "submit": "Créer une campagne",
+      "success": "Campagne créée",
+      "label_name": "Nom",
+      "label_description": "Description",
+      "label_scope": "Portée",
+      "label_datasource": "Source de données",
+      "label_pending_default": "Valeur par défaut des éléments en attente",
+      "pending_default_help": "Comment les éléments non décidés sont résolus à la clôture de la campagne.",
+      "label_scheduled_open_at": "Ouverture planifiée",
+      "label_due_at": "Échéance",
+      "datasource_placeholder": "Sélectionner une source de données"
+    },
+    "detail": {
+      "subtitle": "Détail de la campagne",
+      "back": "Retour aux campagnes",
+      "load_error": "Impossible de charger la campagne",
+      "open_now": "Ouvrir maintenant",
+      "open_success": "Campagne ouverte",
+      "cancel": "Annuler la campagne",
+      "cancel_success": "Campagne annulée",
+      "cancel_confirm_title": "Annuler cette campagne ?",
+      "cancel_confirm_body": "L’annulation d’une campagne planifiée est irréversible.",
+      "export_evidence": "Exporter les preuves",
+      "export_failed": "Impossible d’exporter les preuves",
+      "export_truncated": "L’export des preuves a été tronqué à la limite de lignes.",
+      "section_scope": "Portée",
+      "section_due": "Échéance",
+      "section_total": "Éléments au total",
+      "section_pending": "En attente",
+      "section_certified": "Certifiés",
+      "section_revoked": "Révoqués",
+      "items_title": "Éléments",
+      "items_empty": "Cette campagne n’a pas encore d’éléments.",
+      "col_subject": "Sujet",
+      "col_capabilities": "Capacités",
+      "col_decision": "Décision",
+      "col_decided_at": "Décidé",
+      "cap_read": "Lecture",
+      "cap_write": "Écriture",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "Accès d’urgence"
+    },
+    "worklist": {
+      "title": "Revues d’attestation",
+      "subtitle": "Certifier ou révoquer les accès en revue",
+      "empty_title": "Rien à examiner",
+      "empty_description": "Vous n’avez aucun élément d’attestation en attente de décision.",
+      "load_error": "Impossible de charger la liste de travail",
+      "col_subject": "Sujet",
+      "col_datasource": "Source de données",
+      "col_capabilities": "Capacités",
+      "col_decision": "Décision",
+      "col_actions": "Actions",
+      "certify": "Certifier",
+      "revoke": "Révoquer",
+      "on_certify": "Accès certifié",
+      "on_revoke": "Accès révoqué",
+      "revoke_modal_title": "Révoquer l’accès",
+      "revoke_modal_placeholder": "Motif de la révocation de cet accès (obligatoire)",
+      "revoke_modal_confirm": "Révoquer",
+      "comment_required": "Un commentaire est requis pour révoquer.",
+      "bulk": {
+        "action_bar_count_one": "{{count}} sélectionné",
+        "action_bar_count_other": "{{count}} sélectionnés",
+        "certify_selected": "Certifier la sélection",
+        "revoke_selected": "Révoquer la sélection",
+        "clear_selection": "Effacer",
+        "modal_title_certify": "Certifier les éléments sélectionnés",
+        "modal_title_revoke": "Révoquer les éléments sélectionnés",
+        "modal_subtitle_one": "Appliquer cette décision à {{count}} élément.",
+        "modal_subtitle_other": "Appliquer cette décision à {{count}} éléments.",
+        "comment_placeholder": "Commentaire appliqué à chaque élément sélectionné",
+        "toast_summary_one": "{{count}} décidé · {{failure}} échec",
+        "toast_summary_other": "{{count}} décidés · {{failure}} échecs",
+        "toast_partial": "{{success}} décidés · {{failure}} échecs",
+        "row_status_forbidden": "Non autorisé",
+        "row_status_invalid_state": "Plus ouvert",
+        "row_status_not_found": "Introuvable"
+      }
     }
   }
 }

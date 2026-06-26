@@ -68,7 +68,9 @@
     "auditor": "合规报告",
     "anomalies": "异常",
     "break_glass": "Break-glass 日志",
-    "dashboard": "仪表板"
+    "dashboard": "仪表板",
+    "attestation": "认证",
+    "attestation_reviews": "认证审核"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -241,7 +243,15 @@
       "bot_token_max": "机器人令牌最多 512 个字符",
       "signing_secret_required": "签名密钥为必填项",
       "signing_secret_max": "签名密钥最多 255 个字符"
-    }
+    },
+    "attestation_name_required": "名称为必填项",
+    "attestation_name_size": "名称必须为 3-100 个字符",
+    "attestation_description_max": "描述最多 2000 个字符",
+    "attestation_scope_required": "范围为必填项",
+    "attestation_datasource_required": "数据源范围的活动需要指定数据源",
+    "attestation_scheduled_open_required": "计划开放时间为必填项",
+    "attestation_due_required": "截止时间为必填项",
+    "attestation_due_after_open": "截止时间必须晚于计划开放时间"
   },
   "errors": {
     "auth_invalid": "邮箱或密码不正确。",
@@ -2234,6 +2244,25 @@
       "WEIGHTED_AVERAGE": "加权平均",
       "MAX_RISK": "最高风险",
       "MAJORITY": "多数投票"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "已计划",
+      "OPEN": "进行中",
+      "CLOSED": "已关闭",
+      "CANCELLED": "已取消"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "组织",
+      "DATASOURCE": "数据源"
+    },
+    "attestation_item_decision": {
+      "PENDING": "待定",
+      "CERTIFIED": "已认证",
+      "REVOKED": "已撤销"
+    },
+    "attestation_pending_default": {
+      "KEEP": "保留访问",
+      "REVOKE": "撤销访问"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "确认",
       "dismiss": "忽略异常",
       "score": "分数"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "认证活动",
+      "subtitle": "定期访问重新认证",
+      "subtitle_count_one": "{{count}} 个活动",
+      "subtitle_count_other": "{{count}} 个活动",
+      "create": "创建活动",
+      "empty_title": "暂无认证活动",
+      "empty_description": "创建活动以重新认证访问权限。",
+      "load_error": "无法加载活动",
+      "filter_all_statuses": "所有状态",
+      "col_name": "名称",
+      "col_scope": "范围",
+      "col_status": "状态",
+      "col_due": "截止",
+      "col_items": "条目",
+      "col_actions": "操作",
+      "view": "查看"
+    },
+    "create": {
+      "modal_title": "创建认证活动",
+      "submit": "创建活动",
+      "success": "活动已创建",
+      "label_name": "名称",
+      "label_description": "描述",
+      "label_scope": "范围",
+      "label_datasource": "数据源",
+      "label_pending_default": "待定项默认处理",
+      "pending_default_help": "活动关闭时如何处理未决定的条目。",
+      "label_scheduled_open_at": "计划开放时间",
+      "label_due_at": "截止时间",
+      "datasource_placeholder": "选择数据源"
+    },
+    "detail": {
+      "subtitle": "活动详情",
+      "back": "返回活动列表",
+      "load_error": "无法加载活动",
+      "open_now": "立即开放",
+      "open_success": "活动已开放",
+      "cancel": "取消活动",
+      "cancel_success": "活动已取消",
+      "cancel_confirm_title": "取消此活动？",
+      "cancel_confirm_body": "取消已计划的活动无法撤销。",
+      "export_evidence": "导出证据",
+      "export_failed": "无法导出证据",
+      "export_truncated": "证据导出已在行数上限处截断。",
+      "section_scope": "范围",
+      "section_due": "截止",
+      "section_total": "条目总数",
+      "section_pending": "待定",
+      "section_certified": "已认证",
+      "section_revoked": "已撤销",
+      "items_title": "条目",
+      "items_empty": "此活动暂无条目。",
+      "col_subject": "对象",
+      "col_capabilities": "权限",
+      "col_decision": "决定",
+      "col_decided_at": "决定时间",
+      "cap_read": "读取",
+      "cap_write": "写入",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "紧急访问"
+    },
+    "worklist": {
+      "title": "认证审核",
+      "subtitle": "认证或撤销审核中的访问权限",
+      "empty_title": "没有需要审核的内容",
+      "empty_description": "您没有待决定的认证条目。",
+      "load_error": "无法加载工作列表",
+      "col_subject": "对象",
+      "col_datasource": "数据源",
+      "col_capabilities": "权限",
+      "col_decision": "决定",
+      "col_actions": "操作",
+      "certify": "认证",
+      "revoke": "撤销",
+      "on_certify": "访问已认证",
+      "on_revoke": "访问已撤销",
+      "revoke_modal_title": "撤销访问",
+      "revoke_modal_placeholder": "撤销此访问的原因（必填）",
+      "revoke_modal_confirm": "撤销",
+      "comment_required": "撤销需要填写备注。",
+      "bulk": {
+        "action_bar_count_one": "已选 {{count}} 项",
+        "action_bar_count_other": "已选 {{count}} 项",
+        "certify_selected": "认证所选",
+        "revoke_selected": "撤销所选",
+        "clear_selection": "清除",
+        "modal_title_certify": "认证所选条目",
+        "modal_title_revoke": "撤销所选条目",
+        "modal_subtitle_one": "将此决定应用于 {{count}} 个条目。",
+        "modal_subtitle_other": "将此决定应用于 {{count}} 个条目。",
+        "comment_placeholder": "将应用于每个所选条目的备注",
+        "toast_summary_one": "{{count}} 项已决定 · {{failure}} 项失败",
+        "toast_summary_other": "{{count}} 项已决定 · {{failure}} 项失败",
+        "toast_partial": "{{success}} 项已决定 · {{failure}} 项失败",
+        "row_status_forbidden": "不允许",
+        "row_status_invalid_state": "已不再开放",
+        "row_status_not_found": "未找到"
+      }
     }
   }
 }

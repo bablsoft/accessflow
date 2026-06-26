@@ -1446,6 +1446,70 @@ Tracing and prompt fetch are **best-effort and non-blocking** — a Langfuse out
 
 ---
 
+## attestation_campaign
+
+A recurring access-recertification campaign (AF-384, Flyway V99). Owned by the `attestation` module.
+A campaign snapshots the organization's (or a single datasource's) standing
+`datasource_user_permissions` grants into `attestation_item` rows at open time; reviewers certify or
+revoke each; at the due date `AttestationCampaignCloseJob` applies `pending_default` to anything still
+`PENDING`. `organization_id` / `datasource_id` / `created_by` are bare UUIDs (no FK), like
+`break_glass_events` / `query_snapshots`, so a campaign survives the deletion of its source rows.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL (bare) |
+| `name` | TEXT NOT NULL |
+| `description` | TEXT nullable |
+| `scope` | ENUM `attestation_campaign_scope`: `ORGANIZATION` \| `DATASOURCE` |
+| `datasource_id` | UUID nullable (bare) — NOT NULL iff `scope=DATASOURCE` (app-enforced) |
+| `status` | ENUM `attestation_campaign_status`: `SCHEDULED` \| `OPEN` \| `CLOSED` \| `CANCELLED`; DEFAULT `SCHEDULED` |
+| `pending_default` | ENUM `attestation_pending_default`: `KEEP` \| `REVOKE`; DEFAULT `KEEP` |
+| `scheduled_open_at` | TIMESTAMPTZ NOT NULL |
+| `due_at` | TIMESTAMPTZ NOT NULL |
+| `opened_at` / `closed_at` | TIMESTAMPTZ nullable |
+| `total_items` | INT NOT NULL DEFAULT 0 |
+| `created_by` | UUID NOT NULL (bare) |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+Indexes: `(organization_id, status, created_at DESC)`; partial `(scheduled_open_at) WHERE
+status='SCHEDULED'` (open-job scan); partial `(due_at) WHERE status='OPEN'` (close-job scan).
+State machine: `SCHEDULED → OPEN → CLOSED`; `SCHEDULED → CANCELLED`.
+
+## attestation_item
+
+One access grant under review — a frozen snapshot of a `datasource_user_permissions` row at campaign
+open (AF-384, Flyway V99). The denormalized permission columns + `permission_snapshot` JSONB preserve
+the exact grant shape for evidence even after the permission is revoked or deleted. `permission_id` is
+a **bare** reference (no FK) used only as the revoke target.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `campaign_id` | UUID NOT NULL FK → `attestation_campaign(id)` ON DELETE CASCADE (the only real FK) |
+| `organization_id` | UUID NOT NULL (bare) |
+| `permission_id` | UUID NOT NULL (bare) — the snapshotted grant; tolerated as already-gone on revoke |
+| `datasource_id` / `datasource_name` | UUID / TEXT NOT NULL — denormalized |
+| `subject_user_id` / `subject_user_email` | UUID / TEXT NOT NULL — the grant holder |
+| `subject_user_display_name` | TEXT nullable |
+| `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false |
+| `permission_expires_at` / `permission_created_at` | TIMESTAMPTZ nullable |
+| `permission_snapshot` | JSONB NOT NULL — full serialized `DatasourcePermissionView` |
+| `decision` | ENUM `attestation_item_decision`: `PENDING` \| `CERTIFIED` \| `REVOKED`; DEFAULT `PENDING` |
+| `close_reason` | ENUM `attestation_item_close_reason`: `REVIEWER` \| `AUTO_DEFAULT_KEEP` \| `AUTO_DEFAULT_REVOKE`; nullable |
+| `decided_by` | UUID nullable (bare) — null for the end-of-campaign automatic default |
+| `decided_at` | TIMESTAMPTZ nullable |
+| `decision_comment` | TEXT nullable |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+Constraints: `UNIQUE(campaign_id, permission_id)` (open-idempotency backstop); indexes
+`(campaign_id, decision)` (worklist + close sweep) and `(organization_id, subject_user_id)`. Item
+state machine: `PENDING → CERTIFIED` \| `PENDING → REVOKED` (terminal; idempotent replay).
+
+---
+
 ## Database Indexes (Key)
 
 ```sql

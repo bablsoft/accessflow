@@ -1,5 +1,7 @@
 import type {
   AccessGrantStatus,
+  AttestationCampaignStatus,
+  AttestationItemDecision,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
   QueryStatus,
@@ -39,6 +41,34 @@ export const accessGrantStatusColor = (status: AccessGrantStatus): ColorTriple =
     case 'REVOKED':
     case 'CANCELLED':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+export const attestationCampaignStatusColor = (
+  status: AttestationCampaignStatus,
+): ColorTriple => {
+  switch (status) {
+    case 'SCHEDULED':
+      return { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' };
+    case 'OPEN':
+      return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+    case 'CLOSED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'CANCELLED':
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+export const attestationItemDecisionColor = (
+  decision: AttestationItemDecision,
+): ColorTriple => {
+  switch (decision) {
+    case 'PENDING':
+      return { fg: 'var(--status-info)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)' };
+    case 'CERTIFIED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'REVOKED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
   }
 };
 

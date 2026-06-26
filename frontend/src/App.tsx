@@ -65,6 +65,9 @@ const OrganizationDetailPage = lazy(() =>
   import('@/pages/admin/OrganizationDetailPage').then((m) => ({ default: m.OrganizationDetailPage })),
 );
 const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPage'));
+const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
+const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
+const AttestationWorklistPage = lazy(() => import('@/pages/reviews/AttestationWorklistPage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -170,6 +173,16 @@ export function App() {
             }
           />
           <Route
+            path="/reviews/attestations"
+            element={
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <AttestationWorklistPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/admin/access-requests"
             element={
               <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
@@ -254,6 +267,26 @@ export function App() {
             element={
               <AuthGuard requireRole="ADMIN">
                 <RoutingPoliciesPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/attestation"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <CampaignListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/attestation/:id"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <CampaignDetailPage />
+                </Suspense>
               </AuthGuard>
             }
           />

@@ -2104,3 +2104,100 @@ export interface MyAnomalyFilters {
   size?: number;
   status?: BehaviorAnomalyStatus;
 }
+
+// --- Access recertification / attestation campaigns (AF-384) ---
+
+export type AttestationCampaignStatus = 'SCHEDULED' | 'OPEN' | 'CLOSED' | 'CANCELLED';
+
+export type AttestationCampaignScope = 'ORGANIZATION' | 'DATASOURCE';
+
+export type AttestationItemDecision = 'PENDING' | 'CERTIFIED' | 'REVOKED';
+
+export type AttestationItemCloseReason = 'REVIEWER' | 'AUTO_DEFAULT_KEEP' | 'AUTO_DEFAULT_REVOKE';
+
+export type AttestationPendingDefault = 'KEEP' | 'REVOKE';
+
+export interface AttestationCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: AttestationCampaignScope;
+  datasource_id: string | null;
+  datasource_name: string | null;
+  status: AttestationCampaignStatus;
+  pending_default: AttestationPendingDefault;
+  scheduled_open_at: string;
+  due_at: string;
+  opened_at: string | null;
+  closed_at: string | null;
+  total_items: number;
+  pending_items: number;
+  certified_items: number;
+  revoked_items: number;
+  created_by: string;
+  created_at: string;
+}
+
+export type AttestationCampaignPage = PageEnvelope<AttestationCampaign>;
+
+export interface AttestationItem {
+  id: string;
+  campaign_id: string;
+  permission_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  subject_user_id: string;
+  subject_user_email: string;
+  subject_user_display_name: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  can_break_glass: boolean;
+  permission_expires_at: string | null;
+  permission_created_at: string;
+  decision: AttestationItemDecision;
+  close_reason: AttestationItemCloseReason | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_comment: string | null;
+  created_at: string;
+}
+
+export type AttestationItemPage = PageEnvelope<AttestationItem>;
+
+export interface CreateAttestationCampaignRequest {
+  name: string;
+  description?: string | null;
+  scope: AttestationCampaignScope;
+  datasource_id?: string | null;
+  pending_default?: AttestationPendingDefault | null;
+  scheduled_open_at: string;
+  due_at: string;
+}
+
+export interface AttestationDecisionResponse {
+  item_id: string;
+  decision: AttestationItemDecision;
+  was_idempotent_replay: boolean;
+}
+
+export type AttestationBulkRowStatus = 'SUCCESS' | 'FORBIDDEN' | 'INVALID_STATE' | 'NOT_FOUND';
+
+export interface AttestationBulkRow {
+  item_id: string;
+  status: AttestationBulkRowStatus;
+  decision: AttestationItemDecision | null;
+  was_idempotent_replay: boolean;
+  error_code: string | null;
+  error_message: string | null;
+}
+
+export interface BulkAttestationDecisionRequest {
+  item_ids: string[];
+  decision: Extract<AttestationItemDecision, 'CERTIFIED' | 'REVOKED'>;
+  comment?: string | null;
+}
+
+export interface BulkAttestationDecisionResponse {
+  results: AttestationBulkRow[];
+}

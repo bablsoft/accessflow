@@ -68,7 +68,9 @@
     "auditor": "Compliance-Berichte",
     "anomalies": "Anomalien",
     "break_glass": "Break-Glass-Protokoll",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "attestation": "Attestierung",
+    "attestation_reviews": "Attestierungs-Reviews"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -241,7 +243,15 @@
       "bot_token_max": "Bot-Token darf höchstens 512 Zeichen lang sein",
       "signing_secret_required": "Signing-Secret ist erforderlich",
       "signing_secret_max": "Signing-Secret darf höchstens 255 Zeichen lang sein"
-    }
+    },
+    "attestation_name_required": "Name ist erforderlich",
+    "attestation_name_size": "Der Name muss 3-100 Zeichen lang sein",
+    "attestation_description_max": "Die Beschreibung darf höchstens 2000 Zeichen lang sein",
+    "attestation_scope_required": "Geltungsbereich ist erforderlich",
+    "attestation_datasource_required": "Für datenquellenbezogene Kampagnen ist eine Datenquelle erforderlich",
+    "attestation_scheduled_open_required": "Geplante Öffnungszeit ist erforderlich",
+    "attestation_due_required": "Fälligkeitszeit ist erforderlich",
+    "attestation_due_after_open": "Die Fälligkeitszeit muss nach der geplanten Öffnungszeit liegen"
   },
   "errors": {
     "auth_invalid": "Ungültige E-Mail oder ungültiges Passwort.",
@@ -2234,6 +2244,25 @@
       "WEIGHTED_AVERAGE": "Gewichteter Durchschnitt",
       "MAX_RISK": "Höchstes Risiko",
       "MAJORITY": "Mehrheitsentscheidung"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "Geplant",
+      "OPEN": "Offen",
+      "CLOSED": "Abgeschlossen",
+      "CANCELLED": "Abgebrochen"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "Organisation",
+      "DATASOURCE": "Datenquelle"
+    },
+    "attestation_item_decision": {
+      "PENDING": "Ausstehend",
+      "CERTIFIED": "Bestätigt",
+      "REVOKED": "Widerrufen"
+    },
+    "attestation_pending_default": {
+      "KEEP": "Zugriff behalten",
+      "REVOKE": "Zugriff widerrufen"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "Bestätigen",
       "dismiss": "Anomalie verwerfen",
       "score": "Wert"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "Attestierungskampagnen",
+      "subtitle": "Regelmäßige Rezertifizierung von Zugriffen",
+      "subtitle_count_one": "{{count}} Kampagne",
+      "subtitle_count_other": "{{count}} Kampagnen",
+      "create": "Kampagne erstellen",
+      "empty_title": "Keine Attestierungskampagnen",
+      "empty_description": "Erstellen Sie eine Kampagne, um Zugriffe zu rezertifizieren.",
+      "load_error": "Kampagnen konnten nicht geladen werden",
+      "filter_all_statuses": "Alle Status",
+      "col_name": "Name",
+      "col_scope": "Geltungsbereich",
+      "col_status": "Status",
+      "col_due": "Fällig",
+      "col_items": "Einträge",
+      "col_actions": "Aktionen",
+      "view": "Anzeigen"
+    },
+    "create": {
+      "modal_title": "Attestierungskampagne erstellen",
+      "submit": "Kampagne erstellen",
+      "success": "Kampagne erstellt",
+      "label_name": "Name",
+      "label_description": "Beschreibung",
+      "label_scope": "Geltungsbereich",
+      "label_datasource": "Datenquelle",
+      "label_pending_default": "Standard für offene Einträge",
+      "pending_default_help": "Wie unentschiedene Einträge beim Abschluss aufgelöst werden.",
+      "label_scheduled_open_at": "Geplante Öffnung",
+      "label_due_at": "Fällig",
+      "datasource_placeholder": "Datenquelle auswählen"
+    },
+    "detail": {
+      "subtitle": "Kampagnendetails",
+      "back": "Zurück zu Kampagnen",
+      "load_error": "Kampagne konnte nicht geladen werden",
+      "open_now": "Jetzt öffnen",
+      "open_success": "Kampagne geöffnet",
+      "cancel": "Kampagne abbrechen",
+      "cancel_success": "Kampagne abgebrochen",
+      "cancel_confirm_title": "Diese Kampagne abbrechen?",
+      "cancel_confirm_body": "Das Abbrechen einer geplanten Kampagne kann nicht rückgängig gemacht werden.",
+      "export_evidence": "Nachweise exportieren",
+      "export_failed": "Nachweise konnten nicht exportiert werden",
+      "export_truncated": "Der Nachweis-Export wurde an der Zeilengrenze gekürzt.",
+      "section_scope": "Geltungsbereich",
+      "section_due": "Fällig",
+      "section_total": "Einträge gesamt",
+      "section_pending": "Ausstehend",
+      "section_certified": "Bestätigt",
+      "section_revoked": "Widerrufen",
+      "items_title": "Einträge",
+      "items_empty": "Diese Kampagne hat noch keine Einträge.",
+      "col_subject": "Betroffener",
+      "col_capabilities": "Berechtigungen",
+      "col_decision": "Entscheidung",
+      "col_decided_at": "Entschieden",
+      "cap_read": "Lesen",
+      "cap_write": "Schreiben",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "Notfallzugriff"
+    },
+    "worklist": {
+      "title": "Attestierungs-Reviews",
+      "subtitle": "Geprüfte Zugriffe bestätigen oder widerrufen",
+      "empty_title": "Nichts zu prüfen",
+      "empty_description": "Sie haben keine offenen Attestierungseinträge.",
+      "load_error": "Arbeitsliste konnte nicht geladen werden",
+      "col_subject": "Betroffener",
+      "col_datasource": "Datenquelle",
+      "col_capabilities": "Berechtigungen",
+      "col_decision": "Entscheidung",
+      "col_actions": "Aktionen",
+      "certify": "Bestätigen",
+      "revoke": "Widerrufen",
+      "on_certify": "Zugriff bestätigt",
+      "on_revoke": "Zugriff widerrufen",
+      "revoke_modal_title": "Zugriff widerrufen",
+      "revoke_modal_placeholder": "Grund für den Widerruf dieses Zugriffs (erforderlich)",
+      "revoke_modal_confirm": "Widerrufen",
+      "comment_required": "Für den Widerruf ist ein Kommentar erforderlich.",
+      "bulk": {
+        "action_bar_count_one": "{{count}} ausgewählt",
+        "action_bar_count_other": "{{count}} ausgewählt",
+        "certify_selected": "Auswahl bestätigen",
+        "revoke_selected": "Auswahl widerrufen",
+        "clear_selection": "Leeren",
+        "modal_title_certify": "Ausgewählte Einträge bestätigen",
+        "modal_title_revoke": "Ausgewählte Einträge widerrufen",
+        "modal_subtitle_one": "Diese Entscheidung auf {{count}} Eintrag anwenden.",
+        "modal_subtitle_other": "Diese Entscheidung auf {{count}} Einträge anwenden.",
+        "comment_placeholder": "Kommentar, der für jeden ausgewählten Eintrag gilt",
+        "toast_summary_one": "{{count}} entschieden · {{failure}} fehlgeschlagen",
+        "toast_summary_other": "{{count}} entschieden · {{failure}} fehlgeschlagen",
+        "toast_partial": "{{success}} entschieden · {{failure}} fehlgeschlagen",
+        "row_status_forbidden": "Nicht erlaubt",
+        "row_status_invalid_state": "Nicht mehr offen",
+        "row_status_not_found": "Nicht gefunden"
+      }
     }
   }
 }

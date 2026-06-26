@@ -68,7 +68,9 @@
     "auditor": "Отчёты о соответствии",
     "anomalies": "Аномалии",
     "break_glass": "Журнал break-glass",
-    "dashboard": "Панель"
+    "dashboard": "Панель",
+    "attestation": "Аттестация",
+    "attestation_reviews": "Проверки аттестации"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -241,7 +243,15 @@
       "bot_token_max": "Токен бота должен содержать не более 512 символов",
       "signing_secret_required": "Подписывающий секрет обязателен",
       "signing_secret_max": "Подписывающий секрет должен содержать не более 255 символов"
-    }
+    },
+    "attestation_name_required": "Название обязательно",
+    "attestation_name_size": "Название должно содержать от 3 до 100 символов",
+    "attestation_description_max": "Описание не должно превышать 2000 символов",
+    "attestation_scope_required": "Область обязательна",
+    "attestation_datasource_required": "Для кампаний с областью «источник данных» требуется источник данных",
+    "attestation_scheduled_open_required": "Время запланированного открытия обязательно",
+    "attestation_due_required": "Срок обязателен",
+    "attestation_due_after_open": "Срок должен быть позже запланированного открытия"
   },
   "errors": {
     "auth_invalid": "Неверный адрес или пароль.",
@@ -2234,6 +2244,25 @@
       "WEIGHTED_AVERAGE": "Взвешенное среднее",
       "MAX_RISK": "Максимальный риск",
       "MAJORITY": "Голосование большинством"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "Запланирована",
+      "OPEN": "Открыта",
+      "CLOSED": "Закрыта",
+      "CANCELLED": "Отменена"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "Организация",
+      "DATASOURCE": "Источник данных"
+    },
+    "attestation_item_decision": {
+      "PENDING": "Ожидает",
+      "CERTIFIED": "Подтверждён",
+      "REVOKED": "Отозван"
+    },
+    "attestation_pending_default": {
+      "KEEP": "Сохранить доступ",
+      "REVOKE": "Отозвать доступ"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "Подтвердить",
       "dismiss": "Отклонить аномалию",
       "score": "Оценка"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "Кампании аттестации",
+      "subtitle": "Периодическая ресертификация доступа",
+      "subtitle_count_one": "{{count}} кампания",
+      "subtitle_count_other": "{{count}} кампаний",
+      "create": "Создать кампанию",
+      "empty_title": "Нет кампаний аттестации",
+      "empty_description": "Создайте кампанию, чтобы пересертифицировать доступ.",
+      "load_error": "Не удалось загрузить кампании",
+      "filter_all_statuses": "Все статусы",
+      "col_name": "Название",
+      "col_scope": "Область",
+      "col_status": "Статус",
+      "col_due": "Срок",
+      "col_items": "Элементы",
+      "col_actions": "Действия",
+      "view": "Просмотр"
+    },
+    "create": {
+      "modal_title": "Создать кампанию аттестации",
+      "submit": "Создать кампанию",
+      "success": "Кампания создана",
+      "label_name": "Название",
+      "label_description": "Описание",
+      "label_scope": "Область",
+      "label_datasource": "Источник данных",
+      "label_pending_default": "Действие по умолчанию для ожидающих",
+      "pending_default_help": "Как разрешаются нерешённые элементы при закрытии кампании.",
+      "label_scheduled_open_at": "Запланированное открытие",
+      "label_due_at": "Срок",
+      "datasource_placeholder": "Выберите источник данных"
+    },
+    "detail": {
+      "subtitle": "Сведения о кампании",
+      "back": "Назад к кампаниям",
+      "load_error": "Не удалось загрузить кампанию",
+      "open_now": "Открыть сейчас",
+      "open_success": "Кампания открыта",
+      "cancel": "Отменить кампанию",
+      "cancel_success": "Кампания отменена",
+      "cancel_confirm_title": "Отменить эту кампанию?",
+      "cancel_confirm_body": "Отмену запланированной кампании нельзя отменить.",
+      "export_evidence": "Экспорт доказательств",
+      "export_failed": "Не удалось экспортировать доказательства",
+      "export_truncated": "Экспорт доказательств усечён по лимиту строк.",
+      "section_scope": "Область",
+      "section_due": "Срок",
+      "section_total": "Всего элементов",
+      "section_pending": "Ожидают",
+      "section_certified": "Подтверждено",
+      "section_revoked": "Отозвано",
+      "items_title": "Элементы",
+      "items_empty": "В этой кампании пока нет элементов.",
+      "col_subject": "Субъект",
+      "col_capabilities": "Права",
+      "col_decision": "Решение",
+      "col_decided_at": "Решено",
+      "cap_read": "Чтение",
+      "cap_write": "Запись",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "Экстренный доступ"
+    },
+    "worklist": {
+      "title": "Проверки аттестации",
+      "subtitle": "Подтвердите или отзовите доступ на проверке",
+      "empty_title": "Нечего проверять",
+      "empty_description": "У вас нет элементов аттестации, ожидающих решения.",
+      "load_error": "Не удалось загрузить рабочий список",
+      "col_subject": "Субъект",
+      "col_datasource": "Источник данных",
+      "col_capabilities": "Права",
+      "col_decision": "Решение",
+      "col_actions": "Действия",
+      "certify": "Подтвердить",
+      "revoke": "Отозвать",
+      "on_certify": "Доступ подтверждён",
+      "on_revoke": "Доступ отозван",
+      "revoke_modal_title": "Отозвать доступ",
+      "revoke_modal_placeholder": "Причина отзыва этого доступа (обязательно)",
+      "revoke_modal_confirm": "Отозвать",
+      "comment_required": "Для отзыва требуется комментарий.",
+      "bulk": {
+        "action_bar_count_one": "{{count}} выбран",
+        "action_bar_count_other": "{{count}} выбрано",
+        "certify_selected": "Подтвердить выбранные",
+        "revoke_selected": "Отозвать выбранные",
+        "clear_selection": "Очистить",
+        "modal_title_certify": "Подтвердить выбранные элементы",
+        "modal_title_revoke": "Отозвать выбранные элементы",
+        "modal_subtitle_one": "Применить это решение к {{count}} элементу.",
+        "modal_subtitle_other": "Применить это решение к {{count}} элементам.",
+        "comment_placeholder": "Комментарий, который применится к каждому выбранному элементу",
+        "toast_summary_one": "{{count}} решено · {{failure}} с ошибкой",
+        "toast_summary_other": "{{count}} решено · {{failure}} с ошибкой",
+        "toast_partial": "{{success}} решено · {{failure}} с ошибкой",
+        "row_status_forbidden": "Не разрешено",
+        "row_status_invalid_state": "Больше не открыто",
+        "row_status_not_found": "Не найдено"
+      }
     }
   }
 }

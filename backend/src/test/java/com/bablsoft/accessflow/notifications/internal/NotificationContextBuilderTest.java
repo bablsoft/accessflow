@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignSummary;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -49,6 +51,7 @@ class NotificationContextBuilderTest {
     private UserQueryService userQuery;
     private LocalizationConfigService localizationConfig;
     private BehaviorAnomalyLookupService behaviorAnomalyLookup;
+    private AttestationCampaignLookupService attestationLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -65,13 +68,15 @@ class NotificationContextBuilderTest {
         userQuery = mock(UserQueryService.class);
         localizationConfig = mock(LocalizationConfigService.class);
         behaviorAnomalyLookup = mock(BehaviorAnomalyLookupService.class);
+        attestationLookup = mock(AttestationCampaignLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
                 null,
                 null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup, props);
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
+                attestationLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -314,7 +319,8 @@ class NotificationContextBuilderTest {
                 null,
                 null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
-                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup, props);
+                aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
+                attestationLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())
@@ -435,6 +441,36 @@ class NotificationContextBuilderTest {
         var event = new WeeklyDigestReadyEvent(orgId, userId,
                 LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 0, 0, 0, 0);
         assertThat(builder.buildWeeklyDigest(event)).isEmpty();
+    }
+
+    @Test
+    void buildAttestationCampaignResolvesRecipientsAndFields() {
+        var campaignId = UUID.randomUUID();
+        var recipientId = UUID.randomUUID();
+        when(attestationLookup.findSummary(campaignId)).thenReturn(Optional.of(
+                new AttestationCampaignSummary(campaignId, orgId, "Q3 review",
+                        Instant.parse("2026-07-08T00:00:00Z"))));
+        when(attestationLookup.findRecipientUserIds(campaignId))
+                .thenReturn(java.util.Set.of(recipientId));
+        when(userQuery.findById(recipientId)).thenReturn(Optional.of(
+                user(recipientId, "rev@example.com", UserRoleType.REVIEWER)));
+        when(localizationConfig.getOrDefault(orgId)).thenReturn(
+                new LocalizationConfigView(orgId, List.of("en"), "en", "en"));
+
+        var ctx = builder.buildAttestationCampaign(campaignId, orgId).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.ATTESTATION_CAMPAIGN_OPENED);
+        assertThat(ctx.attestationCampaignName()).isEqualTo("Q3 review");
+        assertThat(ctx.attestationDueAt()).isEqualTo(Instant.parse("2026-07-08T00:00:00Z"));
+        assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(recipientId);
+        assertThat(ctx.reviewUrl().toString()).endsWith("/reviews/attestations");
+    }
+
+    @Test
+    void buildAttestationCampaignEmptyWhenCampaignMissing() {
+        var campaignId = UUID.randomUUID();
+        when(attestationLookup.findSummary(campaignId)).thenReturn(Optional.empty());
+        assertThat(builder.buildAttestationCampaign(campaignId, orgId)).isEmpty();
     }
 
     private QueryRequestSnapshot snapshot() {

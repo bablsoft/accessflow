@@ -241,8 +241,21 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 | Configure OAuth providers | — | — | — | ✓ | — |
 | View compliance reports (`/admin/compliance/*`, AF-459) | — | — | — | ✓ | ✓ |
 | Export signed compliance reports (PDF/CSV) | — | — | — | ✓ | ✓ |
+| Manage recertification campaigns (create/open/cancel, AF-384) | — | — | — | ✓ | — |
+| Certify / revoke attestation items | — | — | ✓ | ✓ | — |
+| Attest own access grant | — | — | — | — | — |
+| Export attestation evidence CSV | — | — | — | ✓ | ✓ |
 
 **Key rule:** A user can never approve their own query request, regardless of role.
+
+**Access recertification (AF-384):** an `ADMIN` creates, opens, cancels, and exports evidence for
+attestation campaigns; a `REVIEWER` or `ADMIN` certifies/revokes the individual items they are
+eligible for (eligibility derives from the datasource's reviewers, falling back to org admins). A
+reviewer can **never attest their own grant** — the self-review block is enforced in
+`DefaultAttestationReviewService` at the service layer (403 `ATTESTATION_REVIEWER_NOT_ELIGIBLE`),
+exactly as the query-review and access-request self-approval blocks are. A `REVOKE` decision (or the
+end-of-campaign `REVOKE` default) hard-deletes the materialised `datasource_user_permissions` row via
+the existing permission-revoke service. Evidence CSV export is additionally available to `AUDITOR`.
 
 **AUDITOR (AF-459)** is a dedicated **read-only compliance role**. It is granted *only* the
 compliance-reporting endpoints (`/api/v1/admin/compliance/*`, gated `hasAnyRole('AUDITOR','ADMIN')`)

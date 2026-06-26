@@ -105,6 +105,10 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/
+├── attestation/    # Access recertification: scheduled attestation campaigns over standing grants, certify/revoke worklist, CSV evidence (AF-384)
+│   ├── api/
+│   ├── events/
+│   └── internal/
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -244,6 +248,9 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AccessGrantExpiryJob` (the `access` module) scans for `APPROVED` JIT access grants past their `expires_at` and revokes the materialised permission (default: `PT5M`). |
 | `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `WeeklyDigestJob` (the `dashboard` module, AF-498) wakes to scan for users opted into the weekly digest (default: `P1D`). |
 | `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD` | ISO-8601 duration. Minimum gap between digests for a given user — the job sends at most once per period regardless of poll cadence or restarts (default: `P7D`). |
+| `ACCESSFLOW_ATTESTATION_OPEN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignOpenJob` (the `attestation` module, AF-384) scans for `SCHEDULED` campaigns past their `scheduled_open_at` and opens them — snapshotting current grants into items (default `PT5M`). |
+| `ACCESSFLOW_ATTESTATION_CLOSE_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignCloseJob` scans for `OPEN` campaigns past their `due_at` and closes them, applying each campaign's pending-default (`KEEP`/`REVOKE`) to still-PENDING items (default `PT5M`). |
+| `ACCESSFLOW_ATTESTATION_MAX_EVIDENCE_ROWS` | Hard cap on item rows written into a single attestation evidence CSV export; beyond it the export is flagged truncated (default `50000`). |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
@@ -606,9 +613,12 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 /queries                       → QueryListPage
 /queries/:id                   → QueryDetailPage
 /reviews                       → ReviewQueuePage
+/reviews/attestations          → AttestationWorklistPage
 /datasources                   → DatasourceListPage
 /datasources/:id/settings      → DatasourceSettingsPage
 /admin/users                   → UsersPage
+/admin/attestation             → CampaignListPage
+/admin/attestation/:id         → CampaignDetailPage
 /admin/audit-log               → AuditLogPage
 /admin/ai-configs              → AiConfigListPage
 /admin/ai-configs/new          → AiConfigCreateWizardPage
