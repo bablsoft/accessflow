@@ -50,7 +50,8 @@ class DefaultAttestationReviewService implements AttestationReviewService {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var pageable = AttestationPageAdapter.toSpringPageable(pageRequest);
-        var page = itemRepository.findPendingForOpenCampaigns(context.organizationId(), pageable);
+        var page = itemRepository.findItemsByCampaignStatusAndDecision(context.organizationId(),
+                AttestationCampaignStatus.OPEN, AttestationItemDecision.PENDING, pageable);
         var visible = page.getContent().stream()
                 .filter(item -> isEligible(context, item))
                 .map(AttestationViewMapper::toItemView)

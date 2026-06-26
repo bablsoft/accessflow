@@ -90,7 +90,8 @@ class DefaultAttestationReviewServiceTest {
         var mine = item(reviewerId);
         var eligibleItem = item(subjectId);
         eligibleItem.setId(UUID.randomUUID());
-        when(itemRepository.findPendingForOpenCampaigns(eq(orgId), any()))
+        when(itemRepository.findItemsByCampaignStatusAndDecision(eq(orgId),
+                eq(AttestationCampaignStatus.OPEN), eq(AttestationItemDecision.PENDING), any()))
                 .thenReturn(new PageImpl<>(List.of(mine, eligibleItem)));
         when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
                 .thenReturn(Optional.of(Set.of(reviewerId)));

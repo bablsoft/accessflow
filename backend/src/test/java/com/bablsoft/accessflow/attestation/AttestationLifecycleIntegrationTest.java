@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.attestation.api.AttestationCampaignScope;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationEvidenceExportService;
 import com.bablsoft.accessflow.attestation.api.AttestationItemDecision;
+import com.bablsoft.accessflow.attestation.api.AttestationItemView;
 import com.bablsoft.accessflow.attestation.api.AttestationLifecycleService;
 import com.bablsoft.accessflow.attestation.api.AttestationPendingDefault;
 import com.bablsoft.accessflow.attestation.api.AttestationReviewService;
@@ -204,6 +205,26 @@ class AttestationLifecycleIntegrationTest {
                 Integer.class);
         assertThat(openedAudits).isEqualTo(1);
         assertThat(closedAudits).isEqualTo(1);
+    }
+
+    @Test
+    void worklistListsPendingItemsForEligibleAdminReviewer() {
+        var now = Instant.now();
+        var campaign = adminService.create(new CreateAttestationCampaignCommand(
+                organization.getId(), admin.getId(), "Worklist review", null,
+                AttestationCampaignScope.DATASOURCE, datasource.getId(),
+                AttestationPendingDefault.KEEP, now, now.plus(7, ChronoUnit.DAYS)));
+        adminService.openNow(campaign.id(), organization.getId());
+
+        // The reviewer worklist (cross-join query + eligibility + self-review filter) must surface
+        // both PENDING items to the admin reviewer, who is not the subject of either grant and is
+        // eligible by admin-fallback (the datasource has no scoped reviewers).
+        var reviewer = new ReviewerContext(admin.getId(), organization.getId(), UserRoleType.ADMIN);
+        var worklist = reviewService.listPendingForReviewer(reviewer, PageRequest.of(0, 50));
+
+        assertThat(worklist.content())
+                .extracting(AttestationItemView::subjectUserEmail)
+                .containsExactlyInAnyOrder(subjectA.getEmail(), subjectB.getEmail());
     }
 
     @Test

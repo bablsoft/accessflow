@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation.internal.persistence.repo;
 
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationItemDecision;
 import com.bablsoft.accessflow.attestation.internal.persistence.entity.AttestationItemEntity;
 import jakarta.persistence.LockModeType;
@@ -37,20 +38,24 @@ public interface AttestationItemRepository
     boolean existsByCampaignIdAndPermissionId(UUID campaignId, UUID permissionId);
 
     /**
-     * PENDING items belonging to OPEN campaigns in the organization — the reviewer worklist before
-     * per-item eligibility + self-review filtering. Implicit cross join (the FK lives in
-     * {@code campaign_id}; campaigns and items have no JPA association).
+     * Items in a given decision state belonging to campaigns in a given status in the organization —
+     * the reviewer worklist (pass OPEN + PENDING) before per-item eligibility + self-review filtering.
+     * Implicit cross join (the FK lives in {@code campaign_id}; campaigns and items have no JPA
+     * association). The status/decision are bound parameters, not inline enum literals — Hibernate
+     * casts an inline PG-enum literal to a type named after the Java class (which does not exist),
+     * whereas a bound parameter is cast correctly by {@code PostgreSQLEnumJdbcType}.
      */
     @Query(value = "select i from AttestationItemEntity i, AttestationCampaignEntity c "
             + "where i.campaignId = c.id and c.organizationId = :orgId "
-            + "and c.status = com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus.OPEN "
-            + "and i.decision = com.bablsoft.accessflow.attestation.api.AttestationItemDecision.PENDING",
+            + "and c.status = :campaignStatus and i.decision = :itemDecision",
             countQuery = "select count(i) from AttestationItemEntity i, AttestationCampaignEntity c "
             + "where i.campaignId = c.id and c.organizationId = :orgId "
-            + "and c.status = com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus.OPEN "
-            + "and i.decision = com.bablsoft.accessflow.attestation.api.AttestationItemDecision.PENDING")
-    Page<AttestationItemEntity> findPendingForOpenCampaigns(@Param("orgId") UUID orgId,
-                                                            Pageable pageable);
+            + "and c.status = :campaignStatus and i.decision = :itemDecision")
+    Page<AttestationItemEntity> findItemsByCampaignStatusAndDecision(
+            @Param("orgId") UUID orgId,
+            @Param("campaignStatus") AttestationCampaignStatus campaignStatus,
+            @Param("itemDecision") AttestationItemDecision itemDecision,
+            Pageable pageable);
 
     @Query("select distinct i.datasourceId from AttestationItemEntity i where i.campaignId = :id")
     List<UUID> findDistinctDatasourceIdsByCampaignId(@Param("id") UUID campaignId);
