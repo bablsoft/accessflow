@@ -302,6 +302,13 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- AF-500: OpenAPI schema parsing for API Access Governance connectors. -->
+        <dependency>
+            <groupId>io.swagger.parser.v3</groupId>
+            <artifactId>swagger-parser</artifactId>
+            <version>2.1.22</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

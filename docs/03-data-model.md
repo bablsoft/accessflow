@@ -1510,6 +1510,69 @@ state machine: `PENDING → CERTIFIED` \| `PENDING → REVOKED` (terminal; idemp
 
 ---
 
+## api_connectors (AF-500)
+
+Governed outbound API targets, per organization. Enums (`snake_case`, no `_enum` suffix):
+`api_protocol` (`REST`/`SOAP`/`GRAPHQL`/`GRPC`), `api_auth_method`
+(`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID (no FK), org-scoped. |
+| `name` | VARCHAR(255) | Unique per org (`uq_api_connectors_org_name`). |
+| `protocol` | `api_protocol` | |
+| `base_url` | TEXT | |
+| `default_headers` | JSONB | Object merged into every outbound call. Default `{}`. |
+| `timeout_ms` | INTEGER | Per-call timeout. Default 30000. |
+| `tls_verify` | BOOLEAN | Default true. |
+| `auth_method` | `api_auth_method` | Default `NONE`. |
+| `auth_credentials_encrypted` | TEXT | AES-256-GCM ciphertext of the auth secret map. `@JsonIgnore`; never serialized. |
+| `review_plan_id` / `ai_config_id` | UUID | Bare UUIDs into core. |
+| `ai_analysis_enabled` / `text_to_api_enabled` | BOOLEAN | |
+| `require_review_reads` / `require_review_writes` | BOOLEAN | Map safe vs mutating methods to review. |
+| `max_response_bytes` | BIGINT | Response-size cap. Default 1 MiB. |
+| `is_active` | BOOLEAN | Default true. |
+| `created_at` | TIMESTAMPTZ | |
+
+## api_schemas (AF-500)
+
+Uploaded schema documents per connector; the normalized operation catalog is cached on the row.
+Enum `api_schema_type` (`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
+| `schema_type` | `api_schema_type` | |
+| `raw_content` / `source_url` | TEXT | One of: uploaded body or fetched URL. |
+| `parsed_operations` | JSONB | Cached `ApiOperation[]` (operationId, verb, path, summary, write). Default `[]`. |
+| `operation_count` | INTEGER | |
+| `created_at` | TIMESTAMPTZ | |
+
+## api_connector_user_permissions (AF-500)
+
+Per-user, per-connector grants — how an admin shares governed connectivity with the team. Mirrors
+`datasource_user_permissions`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. Unique with `user_id`. |
+| `user_id` | UUID | Bare UUID. |
+| `can_read` / `can_write` / `can_break_glass` | BOOLEAN | |
+| `expires_at` | TIMESTAMPTZ | JIT expiry (nullable). |
+| `allowed_operations` | TEXT[] | Operation-id subset the user may call (null = all). |
+| `restricted_response_fields` | TEXT[] | Dot-paths masked in responses for this user. |
+| `created_by` | UUID | |
+| `created_at` | TIMESTAMPTZ | |
+
+> The governed-call tables (`api_requests`, `api_review_decisions`, `api_routing_policies`, plus the
+> `ai_analyses` / `break_glass_events` extension that keys an analysis/event to an API request) land
+> with the request-pipeline follow-up.
+
+---
+
 ## Database Indexes (Key)
 
 ```sql
