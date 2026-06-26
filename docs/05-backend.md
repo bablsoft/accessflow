@@ -1775,6 +1775,18 @@ User-managed API keys live alongside the rest of authentication in the **`securi
 
 The full REST contract is in `docs/04-api-spec.md` → "API Keys".
 
+## API Access Governance (apigov module, AF-500)
+
+The **`apigov/` module** governs outbound API calls (REST / SOAP / GraphQL / gRPC) with the same
+review/approval/audit model as a database query. The foundation shipped today: connector
+management (CRUD + encrypted auth secret + test-connection probe), schema ingestion (OpenAPI via
+swagger-parser; GraphQL/proto/WSDL via dependency-free parsers behind the `ApiSchemaParser` SPI)
+producing a normalized operation catalog with read/write classification, and per-user
+"share-with-team" permissions. Cross-module references are bare UUIDs (like `access`); the
+`apigov.api` package is JDK + project types only. The governed-call pipeline (submit → AI risk →
+routing → review → guarded execution + response masking, text-to-API, break-glass, scheduled
+execution) is a follow-up. Full design: [docs/17-api-governance.md](17-api-governance.md).
+
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`

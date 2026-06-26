@@ -1,0 +1,306 @@
+package com.bablsoft.accessflow.apigov.internal;
+
+import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorView;
+import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
+import com.bablsoft.accessflow.apigov.api.CreateApiConnectorCommand;
+import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
+import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
+import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
+import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaRepository;
+import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.UserNotFoundException;
+import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserView;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class DefaultApiConnectorAdminService implements ApiConnectorAdminService {
+
+    private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() {
+    };
+
+    private final ApiConnectorRepository connectorRepository;
+    private final ApiSchemaRepository schemaRepository;
+    private final ApiConnectorUserPermissionRepository permissionRepository;
+    private final CredentialEncryptionService encryptionService;
+    private final UserQueryService userQueryService;
+    private final ApiConnectorProber prober;
+    private final ObjectMapper objectMapper;
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ApiConnectorView> listForAdmin(UUID organizationId, PageRequest pageRequest) {
+        var page = connectorRepository.findByOrganizationId(organizationId, toPageable(pageRequest));
+        return toPageResponse(page.map(this::toView));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<ApiConnectorView> listForUser(UUID organizationId, UUID userId,
+                                                      PageRequest pageRequest) {
+        var now = Instant.now();
+        var granted = permissionRepository.findByUserId(userId).stream()
+                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(now))
+                .map(ApiConnectorUserPermissionEntity::getConnectorId)
+                .distinct()
+                .toList();
+        var views = granted.stream()
+                .map(id -> connectorRepository.findByIdAndOrganizationId(id, organizationId))
+                .flatMap(Optional::stream)
+                .filter(ApiConnectorEntity::isActive)
+                .map(this::toView)
+                .toList();
+        return new PageResponse<>(views, 0, Math.max(views.size(), 1), views.size(), 1);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiConnectorView getForAdmin(UUID id, UUID organizationId) {
+        return toView(require(id, organizationId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiConnectorView getForUser(UUID id, UUID organizationId, UUID userId) {
+        var connector = require(id, organizationId);
+        var permission = permissionRepository.findByConnectorIdAndUserId(id, userId)
+                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(Instant.now()))
+                .orElseThrow(() -> new ApiConnectorNotFoundException(id));
+        if (!permission.isCanRead() && !permission.isCanWrite()) {
+            throw new ApiConnectorNotFoundException(id);
+        }
+        return toView(connector);
+    }
+
+    @Override
+    @Transactional
+    public ApiConnectorView create(CreateApiConnectorCommand command) {
+        if (connectorRepository.existsByOrganizationIdAndName(command.organizationId(), command.name())) {
+            throw new DuplicateApiConnectorNameException(command.name());
+        }
+        var entity = new ApiConnectorEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(command.organizationId());
+        entity.setName(command.name());
+        entity.setProtocol(command.protocol());
+        entity.setBaseUrl(command.baseUrl());
+        entity.setDefaultHeaders(writeJson(command.defaultHeaders()));
+        entity.setTimeoutMs(command.timeoutMs() != null ? command.timeoutMs() : 30000);
+        entity.setTlsVerify(command.tlsVerify() == null || command.tlsVerify());
+        entity.setAuthMethod(command.authMethod() != null ? command.authMethod() : ApiAuthMethod.NONE);
+        entity.setAuthCredentialsEncrypted(encryptCredentials(command.authMethod(), command.credentials()));
+        entity.setReviewPlanId(command.reviewPlanId());
+        entity.setAiAnalysisEnabled(command.aiAnalysisEnabled() == null || command.aiAnalysisEnabled());
+        entity.setAiConfigId(command.aiConfigId());
+        entity.setTextToApiEnabled(Boolean.TRUE.equals(command.textToApiEnabled()));
+        entity.setRequireReviewReads(Boolean.TRUE.equals(command.requireReviewReads()));
+        entity.setRequireReviewWrites(command.requireReviewWrites() == null || command.requireReviewWrites());
+        entity.setMaxResponseBytes(command.maxResponseBytes() != null ? command.maxResponseBytes() : 1048576L);
+        entity.setActive(true);
+        return toView(connectorRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public ApiConnectorView update(UUID id, UUID organizationId, UpdateApiConnectorCommand command) {
+        var entity = require(id, organizationId);
+        if (command.name() != null && !command.name().equals(entity.getName())) {
+            if (connectorRepository.existsByOrganizationIdAndName(organizationId, command.name())) {
+                throw new DuplicateApiConnectorNameException(command.name());
+            }
+            entity.setName(command.name());
+        }
+        if (command.baseUrl() != null) {
+            entity.setBaseUrl(command.baseUrl());
+        }
+        if (command.defaultHeaders() != null) {
+            entity.setDefaultHeaders(writeJson(command.defaultHeaders()));
+        }
+        if (command.timeoutMs() != null) {
+            entity.setTimeoutMs(command.timeoutMs());
+        }
+        if (command.tlsVerify() != null) {
+            entity.setTlsVerify(command.tlsVerify());
+        }
+        if (command.authMethod() != null) {
+            entity.setAuthMethod(command.authMethod());
+        }
+        if (command.credentials() != null) {
+            entity.setAuthCredentialsEncrypted(encryptCredentials(entity.getAuthMethod(), command.credentials()));
+        }
+        if (command.reviewPlanId() != null) {
+            entity.setReviewPlanId(command.reviewPlanId());
+        }
+        if (command.aiAnalysisEnabled() != null) {
+            entity.setAiAnalysisEnabled(command.aiAnalysisEnabled());
+        }
+        if (command.aiConfigId() != null) {
+            entity.setAiConfigId(command.aiConfigId());
+        }
+        if (command.textToApiEnabled() != null) {
+            entity.setTextToApiEnabled(command.textToApiEnabled());
+        }
+        if (command.requireReviewReads() != null) {
+            entity.setRequireReviewReads(command.requireReviewReads());
+        }
+        if (command.requireReviewWrites() != null) {
+            entity.setRequireReviewWrites(command.requireReviewWrites());
+        }
+        if (command.maxResponseBytes() != null) {
+            entity.setMaxResponseBytes(command.maxResponseBytes());
+        }
+        if (command.active() != null) {
+            entity.setActive(command.active());
+        }
+        return toView(connectorRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public void delete(UUID id, UUID organizationId) {
+        var entity = require(id, organizationId);
+        connectorRepository.delete(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiConnectionTestResult test(UUID id, UUID organizationId) {
+        var entity = require(id, organizationId);
+        return prober.probe(entity.getProtocol(), entity.getBaseUrl(), entity.getTimeoutMs());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ApiConnectorPermissionView> listPermissions(UUID connectorId, UUID organizationId) {
+        require(connectorId, organizationId);
+        return permissionRepository.findByConnectorId(connectorId).stream()
+                .map(this::toPermissionView)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ApiConnectorPermissionView grantPermission(UUID connectorId, UUID organizationId,
+                                                      UUID grantedByUserId,
+                                                      GrantApiConnectorPermissionCommand command) {
+        require(connectorId, organizationId);
+        var target = userQueryService.findById(command.userId())
+                .filter(u -> organizationId.equals(u.organizationId()))
+                .orElseThrow(() -> new UserNotFoundException(command.userId()));
+        var entity = permissionRepository.findByConnectorIdAndUserId(connectorId, command.userId())
+                .orElseGet(() -> {
+                    var fresh = new ApiConnectorUserPermissionEntity();
+                    fresh.setId(UUID.randomUUID());
+                    fresh.setConnectorId(connectorId);
+                    fresh.setUserId(command.userId());
+                    fresh.setCreatedBy(grantedByUserId);
+                    return fresh;
+                });
+        entity.setCanRead(command.canRead());
+        entity.setCanWrite(command.canWrite());
+        entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setExpiresAt(command.expiresAt());
+        entity.setAllowedOperations(toArray(command.allowedOperations()));
+        entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
+        return toPermissionView(permissionRepository.save(entity), target);
+    }
+
+    @Override
+    @Transactional
+    public void revokePermission(UUID connectorId, UUID organizationId, UUID permissionId) {
+        require(connectorId, organizationId);
+        var entity = permissionRepository.findById(permissionId)
+                .filter(p -> p.getConnectorId().equals(connectorId))
+                .orElseThrow(() -> new ApiConnectorPermissionNotFoundException(permissionId));
+        permissionRepository.delete(entity);
+    }
+
+    private ApiConnectorEntity require(UUID id, UUID organizationId) {
+        return connectorRepository.findByIdAndOrganizationId(id, organizationId)
+                .orElseThrow(() -> new ApiConnectorNotFoundException(id));
+    }
+
+    private ApiConnectorView toView(ApiConnectorEntity e) {
+        boolean hasCredentials = e.getAuthMethod() != ApiAuthMethod.NONE
+                && e.getAuthCredentialsEncrypted() != null && !e.getAuthCredentialsEncrypted().isBlank();
+        boolean schemaPresent = schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(e.getId()).isPresent();
+        return new ApiConnectorView(
+                e.getId(), e.getOrganizationId(), e.getName(), e.getProtocol(), e.getBaseUrl(),
+                readJson(e.getDefaultHeaders()), e.getTimeoutMs(), e.isTlsVerify(), e.getAuthMethod(),
+                hasCredentials, e.getReviewPlanId(), e.isAiAnalysisEnabled(), e.getAiConfigId(),
+                e.isTextToApiEnabled(), e.isRequireReviewReads(), e.isRequireReviewWrites(),
+                e.getMaxResponseBytes(), e.isActive(), schemaPresent, e.getCreatedAt());
+    }
+
+    private ApiConnectorPermissionView toPermissionView(ApiConnectorUserPermissionEntity e) {
+        var user = userQueryService.findById(e.getUserId()).orElse(null);
+        return toPermissionView(e, user);
+    }
+
+    private ApiConnectorPermissionView toPermissionView(ApiConnectorUserPermissionEntity e, UserView user) {
+        return new ApiConnectorPermissionView(
+                e.getId(), e.getConnectorId(), e.getUserId(),
+                user != null ? user.email() : null,
+                user != null ? user.displayName() : null,
+                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.getExpiresAt(),
+                e.getAllowedOperations() != null ? List.of(e.getAllowedOperations()) : List.of(),
+                e.getRestrictedResponseFields() != null ? List.of(e.getRestrictedResponseFields()) : List.of(),
+                e.getCreatedAt());
+    }
+
+    private String encryptCredentials(ApiAuthMethod method, Map<String, String> credentials) {
+        if (method == null || method == ApiAuthMethod.NONE || credentials == null || credentials.isEmpty()) {
+            return null;
+        }
+        return encryptionService.encrypt(writeJson(credentials));
+    }
+
+    private String writeJson(Map<String, String> map) {
+        return objectMapper.writeValueAsString(map == null ? Map.of() : map);
+    }
+
+    private Map<String, String> readJson(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        return objectMapper.readValue(json, MAP_TYPE);
+    }
+
+    private static String[] toArray(List<String> list) {
+        return list == null || list.isEmpty() ? null : list.toArray(String[]::new);
+    }
+
+    private static Pageable toPageable(PageRequest pageRequest) {
+        return org.springframework.data.domain.PageRequest.of(pageRequest.page(), pageRequest.size());
+    }
+
+    private static <T> PageResponse<T> toPageResponse(Page<T> page) {
+        return new PageResponse<>(page.getContent(), page.getNumber(),
+                page.getSize() <= 0 ? 1 : page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+}

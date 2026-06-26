@@ -4329,9 +4329,60 @@ never a silent mutation of the query under review.
 | `503` | Service Unavailable — connection pool initialization failed |
 | `504` | Gateway Timeout — query exceeded `accessflow.proxy.execution.statement-timeout` |
 
+## API Access Governance (AF-500)
+
+Governs outbound API targets (REST / SOAP / GraphQL / gRPC) with the same review/approval/audit
+machinery as a database query. This section covers the **connector + schema + permission**
+foundation; the governed-call pipeline (`/api/v1/api-requests/**` submit → AI risk → review →
+execute, text-to-API, break-glass) lands in a follow-up and will be documented here when it does.
+
+### Connectors
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api-connectors` | List connectors. Admins see all org connectors; other roles see only connectors they hold an active permission on. Paginated. |
+| `GET` | `/api-connectors/{id}` | Get one connector (admin: any; others: must be granted). Secrets never returned — only `authMethod` + `hasCredentials`. |
+| `POST` | `/api-connectors` | **Admin.** Create a connector (`201`). Auth secret (if any) is AES-256-GCM encrypted at rest. |
+| `PUT` | `/api-connectors/{id}` | **Admin.** Update a connector. Omitting `credentials` leaves the stored secret unchanged. |
+| `DELETE` | `/api-connectors/{id}` | **Admin.** Delete a connector (`204`), cascading its schemas and permissions. |
+| `POST` | `/api-connectors/{id}/test` | **Admin.** Probe connectivity to the base URL (HTTP for REST/SOAP/GraphQL, TCP for gRPC). |
+
+`CreateApiConnectorRequest` fields: `name` (3–255, required), `protocol`
+(`REST`/`SOAP`/`GRAPHQL`/`GRPC`, required), `baseUrl` (≤2048, required), `defaultHeaders` (map),
+`timeoutMs` (≥1), `tlsVerify`, `authMethod`
+(`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
+`credentials` (map, write-only), `reviewPlanId`, `aiAnalysisEnabled`, `aiConfigId`,
+`textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1).
+
+### Schemas & operations
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`, `rawContent`, optional `sourceUrl`). Parses immediately into a normalized operation catalog; `422` on parse failure. |
+| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). |
+| `DELETE` | `/api-connectors/{id}/schemas/{schemaId}` | **Admin.** Delete a schema (`204`). |
+| `GET` | `/api-connectors/{id}/operations` | The normalized operation catalog from the connector's latest schema — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification). |
+
+### Permissions ("share with team")
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api-connectors/{id}/permissions` | **Admin.** List per-user grants on the connector. |
+| `POST` | `/api-connectors/{id}/permissions` | **Admin.** Grant/update a user's access (`201`): `userId`, `canRead`, `canWrite`, `canBreakGlass`, `expiresAt` (JIT), `allowedOperations` (subset), `restrictedResponseFields` (dot-paths masked in responses). |
+| `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
+
 ## Error Codes (`error` property on `ProblemDetail`)
 
 The following codes are returned in addition to the per-endpoint codes documented above:
+
+| `error` | Status | Meaning |
+|---------|--------|---------|
+| `API_CONNECTOR_NOT_FOUND` | 404 | Unknown connector id, or not accessible to the caller. |
+| `API_CONNECTOR_DUPLICATE_NAME` | 409 | A connector with that name already exists in the org. |
+| `API_SCHEMA_NOT_FOUND` | 404 | Unknown schema id for the connector. |
+| `API_SCHEMA_PARSE_ERROR` | 422 | The uploaded schema could not be parsed (`reason` carries detail). |
+| `API_PERMISSION_NOT_FOUND` | 404 | Unknown connector-permission id. |
+| `API_CONNECTION_TEST_FAILED` | 502 | The connectivity probe failed (`reason` carries detail). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|
