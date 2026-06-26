@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.realtime.internal;
 import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
 import com.bablsoft.accessflow.access.events.AccessRequestStatusChangedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
+import com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -55,6 +57,7 @@ class RealtimeEventDispatcher {
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserNotificationLookupService userNotificationLookupService;
     private final AccessRequestLookupService accessRequestLookupService;
+    private final AttestationCampaignLookupService attestationCampaignLookupService;
     private final Clock clock;
 
     @Autowired
@@ -66,10 +69,12 @@ class RealtimeEventDispatcher {
                             DatasourceAdminService datasourceAdminService,
                             AiAnalysisLookupService aiAnalysisLookupService,
                             UserNotificationLookupService userNotificationLookupService,
-                            AccessRequestLookupService accessRequestLookupService) {
+                            AccessRequestLookupService accessRequestLookupService,
+                            AttestationCampaignLookupService attestationCampaignLookupService) {
         this(sessionRegistry, objectMapper, queryRequestLookupService, reviewPlanLookupService,
                 userQueryService, datasourceAdminService, aiAnalysisLookupService,
-                userNotificationLookupService, accessRequestLookupService, Clock.systemUTC());
+                userNotificationLookupService, accessRequestLookupService,
+                attestationCampaignLookupService, Clock.systemUTC());
     }
 
     // Package-private constructor for tests that need a fixed clock.
@@ -82,6 +87,7 @@ class RealtimeEventDispatcher {
                             AiAnalysisLookupService aiAnalysisLookupService,
                             UserNotificationLookupService userNotificationLookupService,
                             AccessRequestLookupService accessRequestLookupService,
+                            AttestationCampaignLookupService attestationCampaignLookupService,
                             Clock clock) {
         this.sessionRegistry = sessionRegistry;
         this.objectMapper = objectMapper;
@@ -92,6 +98,7 @@ class RealtimeEventDispatcher {
         this.aiAnalysisLookupService = aiAnalysisLookupService;
         this.userNotificationLookupService = userNotificationLookupService;
         this.accessRequestLookupService = accessRequestLookupService;
+        this.attestationCampaignLookupService = attestationCampaignLookupService;
         this.clock = clock;
     }
 
@@ -291,6 +298,30 @@ class RealtimeEventDispatcher {
                     .filter(UserView::active)
                     .forEach(u -> recipients.add(u.id()));
             recipients.add(event.userId());
+            for (var userId : recipients) {
+                sessionRegistry.sendToUser(userId, envelope);
+            }
+        });
+    }
+
+    @ApplicationModuleListener
+    void onAttestationCampaignOpened(AttestationCampaignOpenedEvent event) {
+        safe("attestation.campaign_opened", event.campaignId(), () -> {
+            var summary = attestationCampaignLookupService.findSummary(event.campaignId())
+                    .orElse(null);
+            if (summary == null) {
+                return;
+            }
+            var recipients = attestationCampaignLookupService
+                    .findRecipientUserIds(event.campaignId());
+            if (recipients.isEmpty()) {
+                return;
+            }
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("campaign_id", summary.id().toString());
+            data.put("name", summary.name());
+            data.put("due_at", summary.dueAt() != null ? summary.dueAt().toString() : null);
+            var envelope = serialize("attestation.campaign_opened", data);
             for (var userId : recipients) {
                 sessionRegistry.sendToUser(userId, envelope);
             }

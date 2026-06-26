@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.realtime.internal;
 
 import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -63,6 +64,7 @@ class RealtimeEventDispatcherTest {
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock UserNotificationLookupService userNotificationLookupService;
     @Mock AccessRequestLookupService accessRequestLookupService;
+    @Mock AttestationCampaignLookupService attestationCampaignLookupService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-07T10:00:00Z"),
@@ -81,7 +83,7 @@ class RealtimeEventDispatcherTest {
         dispatcher = new RealtimeEventDispatcher(sessionRegistry, objectMapper,
                 queryRequestLookupService, reviewPlanLookupService, userQueryService,
                 datasourceAdminService, aiAnalysisLookupService, userNotificationLookupService,
-                accessRequestLookupService, clock);
+                accessRequestLookupService, attestationCampaignLookupService, clock);
     }
 
     @Test
@@ -287,6 +289,38 @@ class RealtimeEventDispatcherTest {
 
         dispatcher.onQueryExecuted(new QueryExecutedEvent(queryId, 1L, 1L, QueryStatus.EXECUTED));
         // No exception thrown — registry never called because the snapshot lookup failed.
+        verifyNoInteractions(sessionRegistry);
+    }
+
+    @Test
+    void onAttestationCampaignOpenedFansOutToRecipients() throws Exception {
+        var campaignId = UUID.randomUUID();
+        var recipientId = UUID.randomUUID();
+        when(attestationCampaignLookupService.findSummary(campaignId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.attestation.api.AttestationCampaignSummary(
+                        campaignId, organizationId, "Q3 review",
+                        Instant.parse("2026-07-08T00:00:00Z"))));
+        when(attestationCampaignLookupService.findRecipientUserIds(campaignId))
+                .thenReturn(java.util.Set.of(recipientId));
+
+        dispatcher.onAttestationCampaignOpened(
+                new com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent(
+                        campaignId, organizationId));
+
+        var envelope = captureEnvelope(recipientId);
+        assertThat(envelope.get("event").asText()).isEqualTo("attestation.campaign_opened");
+        var data = envelope.get("data");
+        assertThat(data.get("campaign_id").asText()).isEqualTo(campaignId.toString());
+        assertThat(data.get("name").asText()).isEqualTo("Q3 review");
+    }
+
+    @Test
+    void onAttestationCampaignOpenedSkipsWhenCampaignMissing() {
+        var campaignId = UUID.randomUUID();
+        when(attestationCampaignLookupService.findSummary(campaignId)).thenReturn(Optional.empty());
+        dispatcher.onAttestationCampaignOpened(
+                new com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent(
+                        campaignId, organizationId));
         verifyNoInteractions(sessionRegistry);
     }
 

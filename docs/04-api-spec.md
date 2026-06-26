@@ -1931,6 +1931,79 @@ Paginated queue of access requests the caller can currently act on, self-request
 
 ---
 
+## Attestation / Recertification Endpoints (AF-384)
+
+Recurring access-recertification campaigns. A campaign snapshots the current standing
+`datasource_user_permissions` grants into per-grant **items** at open time; reviewers certify or
+revoke each item; at the due date a scheduled job closes the campaign and applies the per-campaign
+default (`KEEP` / `REVOKE`) to anything still `PENDING`. A `REVOKE` decision routes through the
+existing permission-revoke service (hard-deletes the grant). Item snapshots are denormalized so the
+evidence record survives even after the underlying permission is revoked or deleted.
+
+### Campaign management *(ADMIN)* — base `/admin/attestation-campaigns`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/attestation-campaigns?status=&page=&size=` | List campaigns, optionally filtered by `status` (`SCHEDULED`/`OPEN`/`CLOSED`/`CANCELLED`) |
+| `POST` | `/admin/attestation-campaigns` | Create a `SCHEDULED` campaign → `201` |
+| `GET` | `/admin/attestation-campaigns/{id}` | Get a campaign with its item-decision breakdown |
+| `GET` | `/admin/attestation-campaigns/{id}/items?page=&size=` | List the items (snapshotted grants) |
+| `POST` | `/admin/attestation-campaigns/{id}/open` | Open a `SCHEDULED` campaign immediately (snapshots grants); idempotent → `200` |
+| `POST` | `/admin/attestation-campaigns/{id}/cancel` | Cancel a `SCHEDULED` campaign → `204` |
+| `GET` | `/admin/attestation-campaigns/{id}/evidence.csv` | Export attestation evidence as CSV *(ADMIN or AUDITOR)*; `Content-Disposition: attachment`, header `X-AccessFlow-Export-Truncated` |
+
+**POST `/admin/attestation-campaigns` — Request Body**
+
+```json
+{
+  "name": "Q3 standing-access review",
+  "description": "Quarterly SOC2 recertification",
+  "scope": "DATASOURCE",
+  "datasource_id": "5c61f240-1144-4a84-b670-f13d66278f19",
+  "pending_default": "KEEP",
+  "scheduled_open_at": "2026-07-01T00:00:00Z",
+  "due_at": "2026-07-08T00:00:00Z"
+}
+```
+
+`scope` is `ORGANIZATION` (snapshots every active datasource's grants; `datasource_id` must be
+omitted) or `DATASOURCE` (`datasource_id` required). `pending_default` defaults to `KEEP`. Bean
+Validation: `name` 3–100 chars, `description` ≤ 2000, `due_at` after `scheduled_open_at`,
+`datasource_id` required iff `scope=DATASOURCE`.
+
+### Reviewer worklist *(REVIEWER / ADMIN)* — base `/reviews/attestations`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/reviews/attestations/items?page=&size=` | Items the caller can act on across OPEN campaigns (eligibility + self-review filtered) |
+| `POST` | `/reviews/attestations/items/{itemId}/certify` | Certify an item — access retained; body `{ "comment": "…" }` (optional) |
+| `POST` | `/reviews/attestations/items/{itemId}/revoke` | Revoke an item — removes the grant; body `{ "comment": "…" }` (**required**) |
+| `POST` | `/reviews/attestations/items/bulk` | Apply one decision (`CERTIFIED`/`REVOKED`) to many items; per-row independent outcomes |
+
+Reviewer eligibility derives from the item's datasource reviewers (`datasource_reviewers`, resolved
+via `ReviewerEligibilityService`), falling back to active org admins when a datasource has none.
+**Self-review is unconditionally blocked**: a reviewer can never attest their own grant (enforced at
+the service layer). `POST /items/bulk` request body: `{ "item_ids": [...], "decision": "CERTIFIED",
+"comment": "…" }` (max 100 ids); the response carries a `results` array with a per-row `status`
+(`SUCCESS`/`FORBIDDEN`/`INVALID_STATE`/`NOT_FOUND`).
+
+### Attestation Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure (name length, missing dates, non-terminal bulk decision) |
+| 400 | `ATTESTATION_INVALID_SCOPE` | Scope and `datasource_id` selection are inconsistent |
+| 403 | `ATTESTATION_REVIEWER_NOT_ELIGIBLE` | Caller is the subject of the grant, or not an eligible reviewer |
+| 404 | `ATTESTATION_CAMPAIGN_NOT_FOUND` | Campaign does not exist or belongs to another org |
+| 404 | `ATTESTATION_ITEM_NOT_FOUND` | Item does not exist or belongs to another org |
+| 409 | `ATTESTATION_CAMPAIGN_INVALID_STATE` | Action attempted in a forbidden state (e.g. cancel a non-SCHEDULED campaign, act on an item of a non-OPEN campaign) |
+
+New audit actions: `ATTESTATION_CAMPAIGN_OPENED`, `ATTESTATION_CAMPAIGN_CLOSED`,
+`ATTESTATION_CAMPAIGN_CANCELLED`, `ATTESTATION_ITEM_CERTIFIED`, `ATTESTATION_ITEM_REVOKED`,
+`ATTESTATION_EVIDENCE_EXPORTED`.
+
+---
+
 ## Admin Endpoints
 
 | Method | Path | Description |
@@ -4197,6 +4270,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `collab.denied` | A `collab.join` was rejected (not an authorized co-author, or the query is not in a co-authorable state) | `query_id`, `reason` |
 | `collab.comment` | An inline comment thread on a query changed (created/replied/resolved/reopened) — clients refetch | `query_id`, `comment_id`, `change_type`, `actor_id` |
 | `anomaly.detected` | A behavioural anomaly was flagged (UBA, AF-383) — pushed to org admins and the subject user | `anomaly_id`, `user_id`, `datasource_id`, `feature`, `score` |
+| `attestation.campaign_opened` | An access-recertification campaign opened (AF-384) — pushed to its eligible reviewers and org admins | `campaign_id`, `name`, `due_at` |
 
 ### Collaboration protocol (bidirectional — AF-441)
 

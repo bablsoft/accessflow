@@ -53,7 +53,10 @@ public record NotificationContext(
         Double anomalyObservedValue,
         Double anomalyBaselineMean,
         String anomalyUserLabel,
-        WeeklyDigestData digest) {
+        WeeklyDigestData digest,
+        UUID attestationCampaignId,
+        String attestationCampaignName,
+        Instant attestationDueAt) {
 
     /** Backward-compatible constructor for the query / access notification paths (no anomaly fields). */
     public NotificationContext(
@@ -85,6 +88,49 @@ public record NotificationContext(
                 sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
                 submittedByUserId, submitterEmail, submitterDisplayName, justification,
                 reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
-                occurredAt, locale, approvalTimeoutHours, null, null, null, null, null, null, null);
+                occurredAt, locale, approvalTimeoutHours, null, null, null, null, null, null, null,
+                null, null, null);
+    }
+
+    /** Compatibility constructor for the anomaly / weekly-digest paths (no attestation fields). */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                null, null, null);
     }
 }

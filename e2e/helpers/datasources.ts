@@ -422,16 +422,23 @@ export async function approveQueryViaApi(
   }
 }
 
+export interface GrantedPermission {
+  id: string;
+  user_id: string;
+  user_email: string;
+}
+
 // POST /api/v1/datasources/{id}/permissions — grants a user access to a
 // datasource. Requires an ADMIN token. Specs that need a non-admin submitter to
-// query a datasource must grant at least can_read first.
+// query a datasource must grant at least can_read first. Returns the created
+// permission so callers can assert on it later (e.g. attestation revoke).
 export async function grantPermissionViaApi(
   request: APIRequestContext,
   adminAccessToken: string,
   datasourceId: string,
   userId: string,
   opts: { canRead?: boolean; canWrite?: boolean; canDdl?: boolean; canBreakGlass?: boolean } = {},
-): Promise<void> {
+): Promise<GrantedPermission> {
   const res = await request.post(
     `${apiBase()}/api/v1/datasources/${datasourceId}/permissions`,
     {
@@ -448,6 +455,26 @@ export async function grantPermissionViaApi(
   if (!res.ok()) {
     throw new Error(`Grant permission failed: ${res.status()} ${await res.text()}`);
   }
+  return (await res.json()) as GrantedPermission;
+}
+
+// GET /api/v1/datasources/{id}/permissions — returns the live permission grants
+// on a datasource. Used by the attestation spec to assert a revoked grant is
+// gone after a reviewer revokes the corresponding item.
+export async function listPermissionsViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+): Promise<GrantedPermission[]> {
+  const res = await request.get(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/permissions`,
+    { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`List permissions failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { content: GrantedPermission[] };
+  return body.content;
 }
 
 export interface CreatedMaskingPolicy {
@@ -588,6 +615,28 @@ export async function inviteUserViaApi(
     throw new Error(`Invite user failed: ${res.status()} ${await res.text()}`);
   }
   return (await res.json()) as InvitedUser;
+}
+
+// GET /api/v1/admin/users — finds a provisioned user by email so callers can
+// resolve the UUID needed for permission grants after invite + accept. Requires
+// an ADMIN token. Mirrors the inline `userLookup` in row-security-policies.spec.
+export async function findUserByEmailViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  email: string,
+): Promise<InvitedUser> {
+  const res = await request.get(`${apiBase()}/api/v1/admin/users?size=200`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List users failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { content: InvitedUser[] };
+  const found = body.content.find((u) => u.email === email);
+  if (!found) {
+    throw new Error(`User ${email} not found after invitation`);
+  }
+  return found;
 }
 
 // POST /api/v1/auth/invitations/{token}/accept — public endpoint, no auth. The
@@ -755,4 +804,115 @@ export async function waitForInviteToken(
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`Timed out waiting for invitation email: ${lastError}`);
+}
+
+// ── Attestation campaigns (AF-384) ──────────────────────────────────────────
+
+export interface CreatedAttestationCampaign {
+  id: string;
+  name: string;
+  status: string;
+  scope: string;
+  total_items: number;
+}
+
+export interface AttestationItemSummary {
+  id: string;
+  subject_user_email: string;
+  permission_id: string;
+  decision: string;
+}
+
+// POST /api/v1/admin/attestation-campaigns — creates a SCHEDULED campaign.
+// Requires an ADMIN token. Defaults to an ORGANIZATION scope; pass scope
+// 'DATASOURCE' together with datasourceId to scope it to one datasource. The
+// scheduled-open / due timestamps default to now-ish / +14d so a freshly
+// created campaign can be opened immediately.
+export async function createAttestationCampaignViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  opts: {
+    name: string;
+    scope?: 'ORGANIZATION' | 'DATASOURCE';
+    datasourceId?: string;
+    pendingDefault?: 'KEEP' | 'REVOKE';
+    scheduledOpenAt?: string;
+    dueAt?: string;
+    description?: string;
+  },
+): Promise<CreatedAttestationCampaign> {
+  const now = Date.now();
+  const body = {
+    name: opts.name,
+    description: opts.description ?? 'created by helpers/datasources.ts for e2e',
+    scope: opts.scope ?? 'ORGANIZATION',
+    datasource_id: opts.scope === 'DATASOURCE' ? (opts.datasourceId ?? null) : null,
+    pending_default: opts.pendingDefault ?? 'KEEP',
+    scheduled_open_at: opts.scheduledOpenAt ?? new Date(now + 60_000).toISOString(),
+    due_at: opts.dueAt ?? new Date(now + 14 * 86_400_000).toISOString(),
+  };
+  const res = await request.post(`${apiBase()}/api/v1/admin/attestation-campaigns`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: body,
+  });
+  if (!res.ok()) {
+    throw new Error(`Create attestation campaign failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedAttestationCampaign;
+}
+
+// POST /api/v1/admin/attestation-campaigns/{id}/open — opens a SCHEDULED
+// campaign immediately, snapshotting matching grants into items. Idempotent.
+export async function openAttestationCampaignViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  id: string,
+): Promise<CreatedAttestationCampaign> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/admin/attestation-campaigns/${id}/open`,
+    { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`Open attestation campaign failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedAttestationCampaign;
+}
+
+// GET /api/v1/admin/attestation-campaigns/{id}/items — lists the snapshotted
+// items of a campaign (ADMIN token).
+export async function listAttestationItemsViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  id: string,
+): Promise<AttestationItemSummary[]> {
+  const res = await request.get(
+    `${apiBase()}/api/v1/admin/attestation-campaigns/${id}/items?size=100`,
+    { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`List attestation items failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { content: AttestationItemSummary[] };
+  return body.content;
+}
+
+// GET /api/v1/admin/attestation-campaigns/{id}/evidence.csv — fetches the CSV
+// evidence export as text (ADMIN or AUDITOR token). Returns the raw body so the
+// spec can assert it contains the subject emails.
+export async function exportAttestationEvidenceCsvViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<{ contentType: string; body: string }> {
+  const res = await request.get(
+    `${apiBase()}/api/v1/admin/attestation-campaigns/${id}/evidence.csv`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`Export attestation evidence failed: ${res.status()} ${await res.text()}`);
+  }
+  return {
+    contentType: res.headers()['content-type'] ?? '',
+    body: await res.text(),
+  };
 }

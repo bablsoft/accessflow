@@ -83,6 +83,9 @@ class SlackBlockKitFactory {
         if (ctx.digest() != null) {
             return digestSection(ctx.digest());
         }
+        if (ctx.attestationCampaignId() != null) {
+            return attestationSection(ctx);
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -104,6 +107,15 @@ class SlackBlockKitFactory {
                     ? ctx.anomalyFeature() + " (score " + ctx.anomalyScore() + ")"
                     : ctx.anomalyFeature();
             fields.add(mrkdwn("*Anomaly:*\n" + anomaly));
+        }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    private static SectionBlock attestationSection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        fields.add(mrkdwn("*Campaign:*\n" + nullToDash(ctx.attestationCampaignName())));
+        if (ctx.attestationDueAt() != null) {
+            fields.add(mrkdwn("*Due:*\n" + ctx.attestationDueAt()));
         }
         return SectionBlock.builder().fields(fields).build();
     }
@@ -176,6 +188,7 @@ class SlackBlockKitFactory {
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
+            case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

@@ -13,7 +13,8 @@ export type WsEventName =
   | 'collab.sync'
   | 'collab.awareness'
   | 'collab.denied'
-  | 'collab.comment';
+  | 'collab.comment'
+  | 'attestation.campaign_opened';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
 
@@ -102,6 +103,13 @@ export interface WsEventPayloadMap {
     change_type: CommentChangeType;
     actor_id: string;
   };
+  // Fired when an admin opens an attestation campaign (AF-384). Delivered only to the
+  // campaign's eligible reviewers; carries the campaign id + name for toasts/invalidation.
+  'attestation.campaign_opened': {
+    campaign_id: string;
+    name: string;
+    due_at: string | null;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -131,4 +139,5 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'collab.awareness',
   'collab.denied',
   'collab.comment',
+  'attestation.campaign_opened',
 ];

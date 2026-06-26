@@ -30,6 +30,8 @@ import {
   BankOutlined,
   AuditOutlined,
   WarningOutlined,
+  FileProtectOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -82,6 +84,7 @@ export function Sidebar({
         { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
+        { id: 'attestation-reviews', to: '/reviews/attestations', label: t('nav.attestation_reviews'), icon: <CheckSquareOutlined />, roles: ['REVIEWER', 'ADMIN'] },
         { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
       ],
     },
@@ -104,6 +107,7 @@ export function Sidebar({
         { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
         { id: 'routing-policies', to: '/admin/routing-policies', label: t('nav.routing_policies'), icon: <NodeIndexOutlined />, roles: ['ADMIN'] },
         { id: 'data-classifications', to: '/admin/data-classifications', label: t('nav.data_classifications'), icon: <TagsOutlined />, roles: ['ADMIN'] },
+        { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <FileProtectOutlined />, roles: ['ADMIN'] },
         { id: 'break-glass', to: '/admin/break-glass', label: t('nav.break_glass'), icon: <ThunderboltOutlined />, roles: ['AUDITOR', 'ADMIN'] },
         { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
         { id: 'auditor', to: '/admin/auditor', label: t('nav.auditor'), icon: <AuditOutlined />, roles: ['AUDITOR', 'ADMIN'] },

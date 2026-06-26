@@ -69,6 +69,22 @@ class MsTeamsPayloadFactory {
             }
             return card;
         }
+        if (ctx.attestationCampaignId() != null) {
+            facts.add(fact("Campaign", nullToDash(ctx.attestationCampaignName())));
+            if (ctx.attestationDueAt() != null) {
+                facts.add(fact("Due", ctx.attestationDueAt().toString()));
+            }
+            body.add(factSet(facts));
+            card.put("body", body);
+            if (ctx.reviewUrl() != null) {
+                var action = new LinkedHashMap<String, Object>();
+                action.put("type", "Action.OpenUrl");
+                action.put("title", "Open recertification queue");
+                action.put("url", ctx.reviewUrl().toString());
+                card.put("actions", List.of(action));
+            }
+            return card;
+        }
         facts.add(fact("Datasource", nullToDash(ctx.datasourceName())));
         facts.add(fact("Submitted by", nullToDash(ctx.submitterEmail())));
         if (ctx.queryType() != null) {
@@ -169,6 +185,7 @@ class MsTeamsPayloadFactory {
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
+            case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
         };

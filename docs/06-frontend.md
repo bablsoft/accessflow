@@ -633,6 +633,7 @@ for deployment recipes (Docker Compose, Helm).
 /queries/:id                        → QueryDetailPage
 /reviews                            → ReviewQueuePage (header carries the **Enable push approvals** toggle — AF-444)
 /reviews/:id/decide                 → PushDecidePage (lazy; REVIEWER/ADMIN — one-tap push decide landing with step-up auth, AF-444)
+/reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384)
 /profile                            → ProfilePage
 
 /datasources                        → DatasourceListPage
@@ -645,6 +646,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/audit-log                    → AuditLogPage
 /admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
 /admin/anomalies                    → AnomaliesPage (lazy; AUDITOR or ADMIN — behavioural anomaly detection / UBA, AF-383)
+/admin/attestation                  → CampaignListPage (lazy; ADMIN — access-recertification campaign list + create, AF-384)
+/admin/attestation/:id              → CampaignDetailPage (lazy; ADMIN — campaign items + open/cancel + evidence CSV export, AF-384)
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor + RAG section)
 /admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt + RAG knowledge base)

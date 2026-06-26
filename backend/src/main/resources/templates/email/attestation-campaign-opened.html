@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.attestation_campaign_opened.title}">Access recertification campaign opened</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+        .banner { padding: 10px 12px; border-left: 3px solid #2b6cb0; background: #ebf8ff; color: #2a4365; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.attestation_campaign_opened.heading}">An access recertification campaign is open</h2>
+    <p class="banner" th:text="#{notification.email.attestation_campaign_opened.body}">
+        You have access grants to review. Certify the ones still needed and revoke the rest before the due date.
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.attestation_campaign_opened.campaign_label}">Campaign:</strong>
+        <span th:text="${attestationCampaignName} ?: '—'">—</span>
+    </p>
+    <p class="meta" th:if="${attestationDueAt != null}">
+        <strong th:text="#{notification.email.attestation_campaign_opened.due_label}">Due:</strong>
+        <span th:text="${attestationDueAt}">—</span>
+    </p>
+    <p>
+        <a class="btn" th:href="${attestationUrl}" th:text="#{notification.email.attestation_campaign_opened.cta}">Open recertification queue</a>
+    </p>
+</body>
+</html>

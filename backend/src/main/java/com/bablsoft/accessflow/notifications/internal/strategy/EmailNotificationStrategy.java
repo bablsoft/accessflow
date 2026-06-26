@@ -161,6 +161,10 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("digestOpenSuggestions", digest != null ? digest.openSuggestions() : null);
         context.setVariable("dashboardUrl",
                 ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
+        context.setVariable("attestationCampaignName", ctx.attestationCampaignName());
+        context.setVariable("attestationDueAt", ctx.attestationDueAt());
+        context.setVariable("attestationUrl",
+                ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
         return templateEngine.process(template, context);
     }
 
@@ -174,6 +178,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case ANOMALY_DETECTED -> "email/anomaly-detected";
             case BREAK_GLASS_EXECUTED -> "email/break-glass-executed";
             case WEEKLY_DIGEST -> "email/weekly-digest";
+            case ATTESTATION_CAMPAIGN_OPENED -> "email/attestation-campaign-opened";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
@@ -183,9 +188,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
 
     private String subject(NotificationContext ctx) {
         var key = subjectKey(ctx.eventType());
-        var args = ctx.eventType() == NotificationEventType.TEST
-                ? null
-                : new Object[]{ctx.datasourceName()};
+        var args = switch (ctx.eventType()) {
+            case TEST -> null;
+            case ATTESTATION_CAMPAIGN_OPENED -> new Object[]{ctx.attestationCampaignName()};
+            default -> new Object[]{ctx.datasourceName()};
+        };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
     }
 
@@ -199,6 +206,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";
             case BREAK_GLASS_EXECUTED -> "notification.email.subject.break_glass_executed";
             case WEEKLY_DIGEST -> "notification.email.subject.weekly_digest";
+            case ATTESTATION_CAMPAIGN_OPENED ->
+                    "notification.email.subject.attestation_campaign_opened";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";

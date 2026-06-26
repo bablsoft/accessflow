@@ -68,7 +68,9 @@
     "auditor": "Համապատասխանության հաշվետվություններ",
     "anomalies": "Անոմալիաներ",
     "break_glass": "Break-glass մատյան",
-    "dashboard": "Վահանակ"
+    "dashboard": "Վահանակ",
+    "attestation": "Հաստատում",
+    "attestation_reviews": "Հաստատման ստուգումներ"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -241,7 +243,15 @@
       "bot_token_max": "Բոտի թոքենը պետք է լինի առավելագույնը 512 նիշ",
       "signing_secret_required": "Ստորագրման գաղտնիքը պարտադիր է",
       "signing_secret_max": "Ստորագրման գաղտնիքը պետք է լինի առավելագույնը 255 նիշ"
-    }
+    },
+    "attestation_name_required": "Անվանումը պարտադիր է",
+    "attestation_name_size": "Անվանումը պետք է լինի 3-100 նիշ",
+    "attestation_description_max": "Նկարագրությունը պետք է լինի առավելագույնը 2000 նիշ",
+    "attestation_scope_required": "Շրջանակը պարտադիր է",
+    "attestation_datasource_required": "Տվյալների աղբյուրով արշավների համար անհրաժեշտ է տվյալների աղբյուր",
+    "attestation_scheduled_open_required": "Պլանավորված բացման ժամը պարտադիր է",
+    "attestation_due_required": "Վերջնաժամկետը պարտադիր է",
+    "attestation_due_after_open": "Վերջնաժամկետը պետք է լինի պլանավորված բացումից հետո"
   },
   "errors": {
     "auth_invalid": "Անվավեր էլ. փոստ կամ գաղտնաբառ։",
@@ -2234,6 +2244,25 @@
       "WEIGHTED_AVERAGE": "Կշռված միջին",
       "MAX_RISK": "Ամենաբարձր ռիսկ",
       "MAJORITY": "Մեծամասնության քվե"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "Պլանավորված",
+      "OPEN": "Բաց",
+      "CLOSED": "Փակ",
+      "CANCELLED": "Չեղարկված"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "Կազմակերպություն",
+      "DATASOURCE": "Տվյալների աղբյուր"
+    },
+    "attestation_item_decision": {
+      "PENDING": "Սպասման մեջ",
+      "CERTIFIED": "Հաստատված",
+      "REVOKED": "Չեղարկված"
+    },
+    "attestation_pending_default": {
+      "KEEP": "Պահպանել մուտքը",
+      "REVOKE": "Չեղարկել մուտքը"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "Հաստատել",
       "dismiss": "Մերժել անոմալիան",
       "score": "Միավոր"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "Հաստատման արշավներ",
+      "subtitle": "Մուտքերի պարբերական վերահաստատում",
+      "subtitle_count_one": "{{count}} արշավ",
+      "subtitle_count_other": "{{count}} արշավ",
+      "create": "Ստեղծել արշավ",
+      "empty_title": "Հաստատման արշավներ չկան",
+      "empty_description": "Ստեղծեք արշավ՝ մուտքերը վերահաստատելու համար։",
+      "load_error": "Չհաջողվեց բեռնել արշավները",
+      "filter_all_statuses": "Բոլոր կարգավիճակները",
+      "col_name": "Անվանում",
+      "col_scope": "Շրջանակ",
+      "col_status": "Կարգավիճակ",
+      "col_due": "Վերջնաժամկետ",
+      "col_items": "Տարրեր",
+      "col_actions": "Գործողություններ",
+      "view": "Դիտել"
+    },
+    "create": {
+      "modal_title": "Ստեղծել հաստատման արշավ",
+      "submit": "Ստեղծել արշավ",
+      "success": "Արշավը ստեղծվեց",
+      "label_name": "Անվանում",
+      "label_description": "Նկարագրություն",
+      "label_scope": "Շրջանակ",
+      "label_datasource": "Տվյալների աղբյուր",
+      "label_pending_default": "Սպասվող տարրերի լռելյայն վարքը",
+      "pending_default_help": "Ինչպես են լուծվում չորոշված տարրերը արշավի փակման ժամանակ։",
+      "label_scheduled_open_at": "Պլանավորված բացում",
+      "label_due_at": "Վերջնաժամկետ",
+      "datasource_placeholder": "Ընտրեք տվյալների աղբյուր"
+    },
+    "detail": {
+      "subtitle": "Արշավի մանրամասներ",
+      "back": "Վերադառնալ արշավներ",
+      "load_error": "Չհաջողվեց բեռնել արշավը",
+      "open_now": "Բացել հիմա",
+      "open_success": "Արշավը բացվեց",
+      "cancel": "Չեղարկել արշավը",
+      "cancel_success": "Արշավը չեղարկվեց",
+      "cancel_confirm_title": "Չեղարկե՞լ այս արշավը",
+      "cancel_confirm_body": "Պլանավորված արշավի չեղարկումը հնարավոր չէ հետարկել։",
+      "export_evidence": "Արտահանել ապացույցները",
+      "export_failed": "Չհաջողվեց արտահանել ապացույցները",
+      "export_truncated": "Ապացույցների արտահանումը կրճատվեց տողերի սահմանին։",
+      "section_scope": "Շրջանակ",
+      "section_due": "Վերջնաժամկետ",
+      "section_total": "Տարրերն ընդհանուր",
+      "section_pending": "Սպասման մեջ",
+      "section_certified": "Հաստատված",
+      "section_revoked": "Չեղարկված",
+      "items_title": "Տարրեր",
+      "items_empty": "Այս արշավը դեռ տարրեր չունի։",
+      "col_subject": "Սուբյեկտ",
+      "col_capabilities": "Հնարավորություններ",
+      "col_decision": "Որոշում",
+      "col_decided_at": "Որոշվել է",
+      "cap_read": "Կարդալ",
+      "cap_write": "Գրել",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "Արտակարգ մուտք"
+    },
+    "worklist": {
+      "title": "Հաստատման ստուգումներ",
+      "subtitle": "Հաստատել կամ չեղարկել ստուգման ենթակա մուտքերը",
+      "empty_title": "Ստուգելու բան չկա",
+      "empty_description": "Դուք չունեք որոշման սպասող հաստատման տարրեր։",
+      "load_error": "Չհաջողվեց բեռնել աշխատանքային ցուցակը",
+      "col_subject": "Սուբյեկտ",
+      "col_datasource": "Տվյալների աղբյուր",
+      "col_capabilities": "Հնարավորություններ",
+      "col_decision": "Որոշում",
+      "col_actions": "Գործողություններ",
+      "certify": "Հաստատել",
+      "revoke": "Չեղարկել",
+      "on_certify": "Մուտքը հաստատվեց",
+      "on_revoke": "Մուտքը չեղարկվեց",
+      "revoke_modal_title": "Չեղարկել մուտքը",
+      "revoke_modal_placeholder": "Այս մուտքը չեղարկելու պատճառը (պարտադիր)",
+      "revoke_modal_confirm": "Չեղարկել",
+      "comment_required": "Չեղարկման համար անհրաժեշտ է մեկնաբանություն։",
+      "bulk": {
+        "action_bar_count_one": "{{count}} ընտրված",
+        "action_bar_count_other": "{{count}} ընտրված",
+        "certify_selected": "Հաստատել ընտրվածները",
+        "revoke_selected": "Չեղարկել ընտրվածները",
+        "clear_selection": "Մաքրել",
+        "modal_title_certify": "Հաստատել ընտրված տարրերը",
+        "modal_title_revoke": "Չեղարկել ընտրված տարրերը",
+        "modal_subtitle_one": "Կիրառել այս որոշումը {{count}} տարրի վրա։",
+        "modal_subtitle_other": "Կիրառել այս որոշումը {{count}} տարրի վրա։",
+        "comment_placeholder": "Մեկնաբանություն, որը կկիրառվի յուրաքանչյուր ընտրված տարրի վրա",
+        "toast_summary_one": "{{count}} որոշվեց · {{failure}} ձախողվեց",
+        "toast_summary_other": "{{count}} որոշվեց · {{failure}} ձախողվեց",
+        "toast_partial": "{{success}} որոշվեց · {{failure}} ձախողվեց",
+        "row_status_forbidden": "Չթույլատրված",
+        "row_status_invalid_state": "Այլևս բաց չէ",
+        "row_status_not_found": "Չի գտնվել"
+      }
     }
   }
 }

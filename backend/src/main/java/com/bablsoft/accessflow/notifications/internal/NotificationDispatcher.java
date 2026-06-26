@@ -90,6 +90,17 @@ class NotificationDispatcher {
         deliver(NotificationEventType.WEEKLY_DIGEST, contextOpt.get());
     }
 
+    /** Dispatch a freshly-opened attestation campaign (AF-384) — non-query-backed; fans out to all
+     *  active org channels, mirroring {@code ANOMALY_DETECTED}. */
+    void dispatchAttestationCampaignOpened(UUID campaignId, UUID organizationId) {
+        var contextOpt = contextBuilder.buildAttestationCampaign(campaignId, organizationId);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping ATTESTATION_CAMPAIGN_OPENED for unknown campaign {}", campaignId);
+            return;
+        }
+        deliver(NotificationEventType.ATTESTATION_CAMPAIGN_OPENED, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -193,7 +204,8 @@ class NotificationDispatcher {
         if (eventType == NotificationEventType.AI_HIGH_RISK
                 || eventType == NotificationEventType.ANOMALY_DETECTED
                 || eventType == NotificationEventType.BREAK_GLASS_EXECUTED
-                || eventType == NotificationEventType.WEEKLY_DIGEST) {
+                || eventType == NotificationEventType.WEEKLY_DIGEST
+                || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

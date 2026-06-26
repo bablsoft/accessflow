@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
+import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -43,6 +44,7 @@ class NotificationContextBuilder {
     private final UserQueryService userQueryService;
     private final LocalizationConfigService localizationConfigService;
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
+    private final AttestationCampaignLookupService attestationCampaignLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -117,7 +119,8 @@ class NotificationContextBuilder {
             // Access (JIT) events are not query-backed; they are handled by AccessNotificationListener.
             // Anomaly events are built via buildAnomaly(...); weekly digests via buildWeeklyDigest(...).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST -> List.of();
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST,
+                 ATTESTATION_CAMPAIGN_OPENED -> List.of();
         };
     }
 
@@ -160,7 +163,8 @@ class NotificationContextBuilder {
                 view.observedValue(),
                 view.baselineMean(),
                 anomalyUserLabel(view),
-                null));
+                null,
+                null, null, null));
     }
 
     /**
@@ -190,7 +194,47 @@ class NotificationContextBuilder {
                 locale,
                 null,
                 null, null, null, null, null, null,
-                digest));
+                digest,
+                null, null, null));
+    }
+
+    /**
+     * Builds the context for a freshly-opened attestation campaign (AF-384). Not query-backed: the
+     * campaign fields carry the signal, recipients are the eligible reviewers plus active org admins
+     * resolved by the attestation module. Returns empty when the campaign no longer exists.
+     */
+    Optional<NotificationContext> buildAttestationCampaign(UUID campaignId, UUID organizationId) {
+        var summary = attestationCampaignLookupService.findSummary(campaignId).orElse(null);
+        if (summary == null) {
+            return Optional.empty();
+        }
+        var recipientIds = attestationCampaignLookupService.findRecipientUserIds(campaignId);
+        var recipients = recipientIds.stream()
+                .map(userQueryService::findById)
+                .flatMap(Optional::stream)
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
+        var locale = localizationConfigService.getOrDefault(organizationId).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.ATTESTATION_CAMPAIGN_OPENED,
+                organizationId,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
+                buildAttestationUrl(),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                summary.id(), summary.name(), summary.dueAt()));
+    }
+
+    private URI buildAttestationUrl() {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/reviews/attestations");
     }
 
     private URI buildDashboardUrl() {

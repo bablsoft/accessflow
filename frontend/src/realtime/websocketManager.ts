@@ -218,6 +218,10 @@ class WebSocketManager {
           });
         }
         break;
+      case 'attestation.campaign_opened':
+        this.queryClient.invalidateQueries({ queryKey: ['attestation', 'worklist'] });
+        this.queryClient.invalidateQueries({ queryKey: ['attestation', 'campaigns'] });
+        break;
     }
   }
 }

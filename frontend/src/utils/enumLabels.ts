@@ -2,6 +2,10 @@ import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
   AiProvider,
+  AttestationCampaignScope,
+  AttestationCampaignStatus,
+  AttestationItemDecision,
+  AttestationPendingDefault,
   AuthProvider,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
@@ -259,6 +263,50 @@ export const weekdayLabel = (t: TFunction, v: Weekday): string =>
 
 export const conditionOperandLabel = (t: TFunction, v: RoutingConditionOperand): string =>
   t(`enums.condition_operand.${v}` as const);
+
+// ── Attestation campaigns (AF-384) ─────────────────────────────────────────────
+export const ATTESTATION_CAMPAIGN_STATUSES: readonly AttestationCampaignStatus[] = [
+  'SCHEDULED',
+  'OPEN',
+  'CLOSED',
+  'CANCELLED',
+] as const;
+
+export const attestationCampaignStatusLabel = (
+  t: TFunction,
+  v: AttestationCampaignStatus,
+): string => t(`enums.attestation_campaign_status.${v}` as const);
+
+export const ATTESTATION_CAMPAIGN_SCOPES: readonly AttestationCampaignScope[] = [
+  'ORGANIZATION',
+  'DATASOURCE',
+] as const;
+
+export const attestationCampaignScopeLabel = (
+  t: TFunction,
+  v: AttestationCampaignScope,
+): string => t(`enums.attestation_campaign_scope.${v}` as const);
+
+export const ATTESTATION_ITEM_DECISIONS: readonly AttestationItemDecision[] = [
+  'PENDING',
+  'CERTIFIED',
+  'REVOKED',
+] as const;
+
+export const attestationItemDecisionLabel = (
+  t: TFunction,
+  v: AttestationItemDecision,
+): string => t(`enums.attestation_item_decision.${v}` as const);
+
+export const ATTESTATION_PENDING_DEFAULTS: readonly AttestationPendingDefault[] = [
+  'KEEP',
+  'REVOKE',
+] as const;
+
+export const attestationPendingDefaultLabel = (
+  t: TFunction,
+  v: AttestationPendingDefault,
+): string => t(`enums.attestation_pending_default.${v}` as const);
 
 export interface EnumOption<V extends string> {
   value: V;

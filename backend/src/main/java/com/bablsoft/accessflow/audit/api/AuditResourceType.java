@@ -37,7 +37,9 @@ public enum AuditResourceType {
     COMPLIANCE_REPORT("compliance_report"),
     BEHAVIOR_ANOMALY("behavior_anomaly"),
     BREAK_GLASS_EVENT("break_glass_event"),
-    DASHBOARD_SUMMARY("dashboard_summary");
+    DASHBOARD_SUMMARY("dashboard_summary"),
+    ATTESTATION_CAMPAIGN("attestation_campaign"),
+    ATTESTATION_ITEM("attestation_item");
 
     private final String dbValue;
 

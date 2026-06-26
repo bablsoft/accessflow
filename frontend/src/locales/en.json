@@ -68,7 +68,9 @@
     "connectors": "Connectors",
     "anomalies": "Anomalies",
     "break_glass": "Break-glass log",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "attestation": "Attestation",
+    "attestation_reviews": "Attestation reviews"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -241,7 +243,15 @@
       "bot_token_max": "Bot token must be at most 512 characters",
       "signing_secret_required": "Signing secret is required",
       "signing_secret_max": "Signing secret must be at most 255 characters"
-    }
+    },
+    "attestation_name_required": "Name is required",
+    "attestation_name_size": "Name must be 3-100 characters",
+    "attestation_description_max": "Description must be at most 2000 characters",
+    "attestation_scope_required": "Scope is required",
+    "attestation_datasource_required": "A datasource is required for datasource-scoped campaigns",
+    "attestation_scheduled_open_required": "Scheduled open time is required",
+    "attestation_due_required": "Due time is required",
+    "attestation_due_after_open": "Due time must be after the scheduled open time"
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -2258,6 +2268,25 @@
     "break_glass_status": {
       "PENDING_REVIEW": "Pending review",
       "REVIEWED": "Reviewed"
+    },
+    "attestation_campaign_status": {
+      "SCHEDULED": "Scheduled",
+      "OPEN": "Open",
+      "CLOSED": "Closed",
+      "CANCELLED": "Cancelled"
+    },
+    "attestation_campaign_scope": {
+      "ORGANIZATION": "Organization",
+      "DATASOURCE": "Datasource"
+    },
+    "attestation_item_decision": {
+      "PENDING": "Pending",
+      "CERTIFIED": "Certified",
+      "REVOKED": "Revoked"
+    },
+    "attestation_pending_default": {
+      "KEEP": "Keep access",
+      "REVOKE": "Revoke access"
     }
   },
   "access": {
@@ -2507,6 +2536,108 @@
       "acknowledge": "Acknowledge",
       "dismiss": "Dismiss anomaly",
       "score": "Score"
+    }
+  },
+  "attestation": {
+    "list": {
+      "title": "Attestation campaigns",
+      "subtitle": "Periodic access-recertification reviews",
+      "subtitle_count_one": "{{count}} campaign",
+      "subtitle_count_other": "{{count}} campaigns",
+      "create": "Create campaign",
+      "empty_title": "No attestation campaigns",
+      "empty_description": "Create a campaign to start recertifying access grants.",
+      "load_error": "Could not load campaigns",
+      "filter_all_statuses": "All statuses",
+      "col_name": "Name",
+      "col_scope": "Scope",
+      "col_status": "Status",
+      "col_due": "Due",
+      "col_items": "Items",
+      "col_actions": "Actions",
+      "view": "View"
+    },
+    "create": {
+      "modal_title": "Create attestation campaign",
+      "submit": "Create campaign",
+      "success": "Campaign created",
+      "label_name": "Name",
+      "label_description": "Description",
+      "label_scope": "Scope",
+      "label_datasource": "Datasource",
+      "label_pending_default": "Pending default",
+      "pending_default_help": "How undecided items are resolved when the campaign closes.",
+      "label_scheduled_open_at": "Scheduled open",
+      "label_due_at": "Due",
+      "datasource_placeholder": "Select a datasource"
+    },
+    "detail": {
+      "subtitle": "Campaign detail",
+      "back": "Back to campaigns",
+      "load_error": "Could not load campaign",
+      "open_now": "Open now",
+      "open_success": "Campaign opened",
+      "cancel": "Cancel campaign",
+      "cancel_success": "Campaign cancelled",
+      "cancel_confirm_title": "Cancel this campaign?",
+      "cancel_confirm_body": "Cancelling a scheduled campaign cannot be undone.",
+      "export_evidence": "Export evidence",
+      "export_failed": "Could not export evidence",
+      "export_truncated": "Evidence export was truncated at the row cap.",
+      "section_scope": "Scope",
+      "section_due": "Due",
+      "section_total": "Total items",
+      "section_pending": "Pending",
+      "section_certified": "Certified",
+      "section_revoked": "Revoked",
+      "items_title": "Items",
+      "items_empty": "This campaign has no items yet.",
+      "col_subject": "Subject",
+      "col_capabilities": "Capabilities",
+      "col_decision": "Decision",
+      "col_decided_at": "Decided",
+      "cap_read": "Read",
+      "cap_write": "Write",
+      "cap_ddl": "DDL",
+      "cap_break_glass": "Break-glass"
+    },
+    "worklist": {
+      "title": "Attestation reviews",
+      "subtitle": "Certify or revoke access grants under review",
+      "empty_title": "Nothing to review",
+      "empty_description": "You have no attestation items awaiting a decision.",
+      "load_error": "Could not load worklist",
+      "col_subject": "Subject",
+      "col_datasource": "Datasource",
+      "col_capabilities": "Capabilities",
+      "col_decision": "Decision",
+      "col_actions": "Actions",
+      "certify": "Certify",
+      "revoke": "Revoke",
+      "on_certify": "Access certified",
+      "on_revoke": "Access revoked",
+      "revoke_modal_title": "Revoke access",
+      "revoke_modal_placeholder": "Reason for revoking this access (required)",
+      "revoke_modal_confirm": "Revoke",
+      "comment_required": "A comment is required to revoke.",
+      "bulk": {
+        "action_bar_count_one": "{{count}} selected",
+        "action_bar_count_other": "{{count}} selected",
+        "certify_selected": "Certify selected",
+        "revoke_selected": "Revoke selected",
+        "clear_selection": "Clear",
+        "modal_title_certify": "Certify selected items",
+        "modal_title_revoke": "Revoke selected items",
+        "modal_subtitle_one": "Apply this decision to {{count}} item.",
+        "modal_subtitle_other": "Apply this decision to {{count}} items.",
+        "comment_placeholder": "Comment that will apply to every selected item",
+        "toast_summary_one": "{{count}} decided · {{failure}} failed",
+        "toast_summary_other": "{{count}} decided · {{failure}} failed",
+        "toast_partial": "{{success}} decided · {{failure}} failed",
+        "row_status_forbidden": "Not allowed",
+        "row_status_invalid_state": "No longer open",
+        "row_status_not_found": "Not found"
+      }
     }
   }
 }

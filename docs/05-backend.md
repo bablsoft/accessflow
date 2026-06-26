@@ -942,10 +942,50 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
 | `BehaviorAnomalyDetectionJob` | ai | `behaviorAnomalyDetectionJob` | `accessflow.ai.anomaly.detection-poll-interval` | `PT15M` |
 | `WeeklyDigestJob` | dashboard | `weeklyDigestJob` | `accessflow.dashboard.weekly-digest.poll-interval` | `P1D` |
+| `AttestationCampaignOpenJob` | attestation | `attestationCampaignOpenJob` | `accessflow.attestation.open-poll-interval` | `PT5M` |
+| `AttestationCampaignCloseJob` | attestation | `attestationCampaignCloseJob` | `accessflow.attestation.close-poll-interval` | `PT5M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
 `AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
+
+`AttestationCampaignOpenJob` / `AttestationCampaignCloseJob` drive recertification campaigns (AF-384) — see [§ Access recertification campaigns](#access-recertification-campaigns-af-384). The open job scans `SCHEDULED` campaigns past `scheduled_open_at`; the close job scans `OPEN` campaigns past `due_at`. Both delegate to the idempotent `AttestationLifecycleService` and swallow per-campaign `RuntimeException`s. System-driven `ATTESTATION_CAMPAIGN_OPENED` / `_CLOSED` and the auto-default item audits are written inline by the lifecycle service (no reverse `audit → attestation` dependency).
+
+### Access recertification campaigns (AF-384)
+
+The `attestation` module adds recurring **access-recertification campaigns** so datasource owners
+periodically attest "these users still need this access" — the access-governance control SOX / SOC2 /
+ISO 27001 auditors require. It depends only on the `core.api`, `audit.api`, and `scheduling.api`
+exposed interfaces.
+
+**Open (snapshot).** `AttestationLifecycleService.openCampaign` (idempotent, row-locked, one
+transaction) flips `SCHEDULED → OPEN` and snapshots the current standing grants into
+`attestation_item` rows: a `DATASOURCE`-scoped campaign reads
+`DatasourceAdminService.listPermissions(datasourceId, orgId)`; an `ORGANIZATION`-scoped one iterates
+every active datasource (`DatasourceLookupService.findActiveRefsByOrganization`). Each item
+denormalizes the grant (subject, capabilities, expiry) plus a full `permission_snapshot` JSONB so the
+evidence survives even after the grant is revoked/deleted. A `UNIQUE(campaign_id, permission_id)`
+constraint backstops a re-run. It then publishes `AttestationCampaignOpenedEvent`, consumed by the
+`notifications` module (`ATTESTATION_CAMPAIGN_OPENED` multi-channel fan-out to eligible reviewers +
+admins) and the `realtime` module (`attestation.campaign_opened` WebSocket event).
+
+**Review.** `AttestationReviewService` mirrors the query review queue: reviewers `certify`/`revoke`
+each item, with bulk support (per-row independent, non-transactional). Eligibility derives from the
+item's datasource reviewers via `ReviewerEligibilityService.findEligibleReviewerIds`, falling back to
+active org admins when a datasource has none. **Self-review is unconditionally blocked** at the
+service layer — a reviewer can never attest their own grant. A `REVOKE` decision routes through
+`DatasourceAdminService.revokePermission` (hard-delete), tolerating an already-absent permission
+(an out-of-band admin/JIT revoke is treated as a successful `REVOKED` — the intent is met).
+
+**Close.** `AttestationCampaignCloseJob` closes `OPEN` campaigns past `due_at`:
+`AttestationLifecycleService.closeCampaign` (idempotent) sweeps every still-`PENDING` item per the
+campaign's `pending_default` — `REVOKE` revokes the grant, `KEEP` certifies it — recording each as
+`AUTO_DEFAULT_REVOKE` / `AUTO_DEFAULT_KEEP`.
+
+**Evidence.** `AttestationEvidenceExportService` streams a CSV of every item (subject, capabilities,
+decision, who decided, when), capped at `accessflow.attestation.max-evidence-rows` (default 50000;
+beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) writes an
+`ATTESTATION_EVIDENCE_EXPORTED` audit row.
 
 `ScheduledQueryRunJob` implements query scheduling (AF-345): a submitter may include `scheduled_for` on `POST /queries` to defer execution. The query still goes through the normal AI / review flow; once it reaches `APPROVED`, the job picks it up at the next tick where `scheduled_for ≤ now()` and calls `QueryLifecycleService.executeScheduled(id)`. That method bypasses the per-user ownership guard (the actor is the scheduler, not a request principal), records the submitter as the audit actor, and tags the audit metadata with `"trigger": "scheduled"`. The job is idempotent — if the query is no longer `APPROVED` (manual execute / cancel raced the tick), the lifecycle service logs and returns without firing.
 
