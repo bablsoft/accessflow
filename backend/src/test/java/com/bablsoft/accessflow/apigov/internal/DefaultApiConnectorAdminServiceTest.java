@@ -38,6 +38,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -56,6 +57,7 @@ class DefaultApiConnectorAdminServiceTest {
     private DefaultApiConnectorAdminService service;
 
     private final UUID orgId = UUID.randomUUID();
+    private final UUID userId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -107,6 +109,72 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThat(view.hasCredentials()).isFalse();
         verify(encryptionService, never()).encrypt(any());
+    }
+
+    @Test
+    void listForAdminMapsPage() {
+        var entity = persistedConnector();
+        when(connectorRepository.findByOrganizationId(eq(orgId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(entity)));
+
+        var page = service.listForAdmin(orgId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).name()).isEqualTo("Stripe");
+    }
+
+    @Test
+    void listForUserReturnsOnlyGrantedActiveNonExpiredConnectors() {
+        var entity = persistedConnector();
+        var perm = new ApiConnectorUserPermissionEntity();
+        perm.setConnectorId(entity.getId());
+        perm.setExpiresAt(null);
+        var expired = new ApiConnectorUserPermissionEntity();
+        expired.setConnectorId(UUID.randomUUID());
+        expired.setExpiresAt(java.time.Instant.now().minusSeconds(60));
+        when(permissionRepository.findByUserId(userId)).thenReturn(List.of(perm, expired));
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+
+        var page = service.listForUser(orgId, userId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).id()).isEqualTo(entity.getId());
+    }
+
+    @Test
+    void getForUserReturnsWhenPermissionGrantsRead() {
+        var entity = persistedConnector();
+        var perm = new ApiConnectorUserPermissionEntity();
+        perm.setConnectorId(entity.getId());
+        perm.setUserId(userId);
+        perm.setCanRead(true);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.of(perm));
+
+        assertThat(service.getForUser(entity.getId(), orgId, userId).id()).isEqualTo(entity.getId());
+    }
+
+    @Test
+    void getForUserThrowsWhenNoPermission() {
+        var entity = persistedConnector();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getForUser(entity.getId(), orgId, userId))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
+    }
+
+    @Test
+    void getForUserThrowsWhenPermissionGrantsNeitherReadNorWrite() {
+        var entity = persistedConnector();
+        var perm = new ApiConnectorUserPermissionEntity();
+        perm.setConnectorId(entity.getId());
+        perm.setUserId(userId);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.of(perm));
+
+        assertThatThrownBy(() -> service.getForUser(entity.getId(), orgId, userId))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
     }
 
     @Test
