@@ -2201,3 +2201,216 @@ export interface BulkAttestationDecisionRequest {
 export interface BulkAttestationDecisionResponse {
   results: AttestationBulkRow[];
 }
+
+// ── API Access Governance (AF-500) ──────────────────────────────────────────
+
+export type ApiProtocol = 'REST' | 'SOAP' | 'GRAPHQL' | 'GRPC';
+export type ApiAuthMethod =
+  | 'NONE'
+  | 'API_KEY'
+  | 'BEARER_TOKEN'
+  | 'BASIC'
+  | 'OAUTH2_CLIENT_CREDENTIALS'
+  | 'CUSTOM_HEADER'
+  | 'MTLS';
+export type ApiSchemaType = 'OPENAPI' | 'WSDL' | 'GRAPHQL_SDL' | 'GRPC_PROTO';
+
+export interface ApiConnector {
+  id: string;
+  name: string;
+  protocol: ApiProtocol;
+  base_url: string;
+  default_headers: Record<string, string>;
+  timeout_ms: number;
+  tls_verify: boolean;
+  auth_method: ApiAuthMethod;
+  has_credentials: boolean;
+  review_plan_id: string | null;
+  ai_analysis_enabled: boolean;
+  ai_config_id: string | null;
+  text_to_api_enabled: boolean;
+  require_review_reads: boolean;
+  require_review_writes: boolean;
+  max_response_bytes: number;
+  active: boolean;
+  schema_present: boolean;
+  created_at: string;
+}
+
+export interface ApiConnectorPage {
+  content: ApiConnector[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export interface CreateApiConnectorInput {
+  name: string;
+  protocol: ApiProtocol;
+  base_url: string;
+  default_headers?: Record<string, string>;
+  timeout_ms?: number;
+  tls_verify?: boolean;
+  auth_method?: ApiAuthMethod;
+  credentials?: Record<string, string>;
+  review_plan_id?: string | null;
+  ai_analysis_enabled?: boolean;
+  ai_config_id?: string | null;
+  text_to_api_enabled?: boolean;
+  require_review_reads?: boolean;
+  require_review_writes?: boolean;
+  max_response_bytes?: number;
+}
+
+export type UpdateApiConnectorInput = Partial<CreateApiConnectorInput> & { active?: boolean };
+
+export interface ApiConnectionTestResult {
+  success: boolean;
+  message: string | null;
+}
+
+export interface ApiConnectorPermission {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  user_display_name: string | null;
+  can_read: boolean;
+  can_write: boolean;
+  can_break_glass: boolean;
+  expires_at: string | null;
+  allowed_operations: string[];
+  restricted_response_fields: string[];
+  created_at: string;
+}
+
+export interface GrantApiConnectorPermissionInput {
+  user_id: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_break_glass: boolean;
+  expires_at?: string | null;
+  allowed_operations?: string[];
+  restricted_response_fields?: string[];
+}
+
+export interface ApiSchema {
+  id: string;
+  schema_type: ApiSchemaType;
+  source_url: string | null;
+  operation_count: number;
+  created_at: string;
+}
+
+export interface UploadApiSchemaInput {
+  schema_type: ApiSchemaType;
+  raw_content: string;
+  source_url?: string | null;
+}
+
+export interface ApiOperation {
+  operation_id: string;
+  verb: string;
+  path: string;
+  summary: string | null;
+  write: boolean;
+}
+
+export interface ApiReviewDecision {
+  id: string;
+  reviewer_id: string;
+  decision: 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
+  comment: string | null;
+  stage: number;
+  decided_at: string;
+}
+
+export interface ApiRequest {
+  id: string;
+  connector_id: string;
+  connector_name: string | null;
+  submitted_by: string;
+  operation_id: string | null;
+  verb: string;
+  request_path: string;
+  write: boolean;
+  status: QueryStatus;
+  submission_reason: SubmissionReason;
+  justification: string | null;
+  ai_analysis_id: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  ai_summary: string | null;
+  scheduled_for: string | null;
+  response_status_code: number | null;
+  response_duration_ms: number | null;
+  response_bytes: number | null;
+  response_truncated: boolean;
+  response_snapshot: string | null;
+  error_message: string | null;
+  created_at: string;
+  decisions: ApiReviewDecision[];
+}
+
+export interface ApiRequestPage {
+  content: ApiRequest[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export interface SubmitApiRequestInput {
+  connector_id: string;
+  operation_id?: string | null;
+  verb: string;
+  request_path: string;
+  request_headers?: Record<string, string>;
+  request_body?: string | null;
+  justification?: string | null;
+  scheduled_for?: string | null;
+  submission_reason?: SubmissionReason;
+}
+
+export interface ApiAiPreview {
+  risk_score: number;
+  risk_level: RiskLevel;
+  summary: string;
+  issues: string[];
+}
+
+export interface GeneratedApiCall {
+  draft: string;
+}
+
+export interface PendingApiReview {
+  api_request_id: string;
+  connector_id: string;
+  connector_name: string | null;
+  submitted_by_user_id: string;
+  verb: string;
+  request_path: string;
+  write: boolean;
+  justification: string | null;
+  ai_analysis_id: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  ai_summary: string | null;
+  current_stage: number;
+  created_at: string;
+}
+
+export interface PendingApiReviewPage {
+  content: PendingApiReview[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
+}
+
+export interface ApiDecisionResponse {
+  decision_id: string;
+  decision: 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
+  resulting_status: QueryStatus;
+  was_idempotent_replay: boolean;
+}

@@ -68,6 +68,12 @@ const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPa
 const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
 const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
 const AttestationWorklistPage = lazy(() => import('@/pages/reviews/AttestationWorklistPage'));
+const ApiConnectorsListPage = lazy(() => import('@/pages/apigov/ApiConnectorsListPage'));
+const ApiConnectorSettingsPage = lazy(() => import('@/pages/apigov/ApiConnectorSettingsPage'));
+const ApiEditorPage = lazy(() => import('@/pages/apigov/ApiEditorPage'));
+const ApiRequestsListPage = lazy(() => import('@/pages/apigov/ApiRequestsListPage'));
+const ApiRequestDetailPage = lazy(() => import('@/pages/apigov/ApiRequestDetailPage'));
+const ApiReviewQueuePage = lazy(() => import('@/pages/apigov/ApiReviewQueuePage'));
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -151,6 +157,60 @@ export function App() {
             }
           />
           <Route path="/editor" element={<QueryEditorPage />} />
+          <Route
+            path="/api-editor"
+            element={
+              <Suspense fallback={null}>
+                <ApiEditorPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/api-requests"
+            element={
+              <Suspense fallback={null}>
+                <ApiRequestsListPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/api-requests/:id"
+            element={
+              <Suspense fallback={null}>
+                <ApiRequestDetailPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/api-reviews"
+            element={
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <ApiReviewQueuePage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/api-connectors"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <ApiConnectorsListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/api-connectors/:id/settings"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <ApiConnectorSettingsPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
           <Route path="/access-requests" element={<RequestAccessPage />} />
           <Route path="/queries" element={<QueryListPage />} />
           <Route path="/queries/:id" element={<QueryDetailPage />} />

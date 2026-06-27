@@ -204,3 +204,32 @@ describe('enumOptions', () => {
     expect(enumOptions([] as readonly Role[], roleLabel, t)).toEqual([]);
   });
 });
+
+import {
+  API_AUTH_METHODS,
+  API_PROTOCOLS,
+  API_SCHEMA_TYPES,
+  apiAuthMethodLabel,
+  apiProtocolLabel,
+  apiSchemaTypeLabel,
+} from '../enumLabels';
+
+describe('API governance enum labels (AF-500)', () => {
+  it('maps API protocols to their translations', () => {
+    expect(apiProtocolLabel(t, 'REST')).toBe('REST');
+    expect(apiProtocolLabel(t, 'GRAPHQL')).toBe('GraphQL');
+    expect(API_PROTOCOLS).toContain('GRPC');
+  });
+
+  it('maps API auth methods to their translations', () => {
+    expect(apiAuthMethodLabel(t, 'NONE')).toBe('None');
+    expect(apiAuthMethodLabel(t, 'BEARER_TOKEN')).toBe('Bearer Token');
+    expect(API_AUTH_METHODS).toContain('MTLS');
+  });
+
+  it('maps API schema types to their translations', () => {
+    expect(apiSchemaTypeLabel(t, 'OPENAPI')).toBe('OpenAPI');
+    expect(apiSchemaTypeLabel(t, 'GRPC_PROTO')).toBe('gRPC Proto');
+    expect(API_SCHEMA_TYPES).toHaveLength(4);
+  });
+});
