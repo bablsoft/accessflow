@@ -10,11 +10,12 @@ It lives in the `apigov` Spring Modulith module (`com.bablsoft.accessflow.apigov
 routing policy, audit log, credential encryption, JIT/break-glass permission model) rather than
 reinventing them.
 
-> **Delivery status.** This chapter currently documents the **foundation**: connector management,
-> schema ingestion + operation catalog, and per-user permissions ("share with team"). The
-> governed-call **pipeline** (submit → AI risk → routing → human review → guarded execution with
-> response masking + snapshot, text-to-API, break-glass, scheduled execution) is the larger half of
-> the epic and lands in a follow-up; its sections here are marked _(planned)_.
+> **Delivery status.** Both halves are now implemented: the **foundation** (connector management,
+> schema ingestion + operation catalog, per-user permissions) and the governed-call **pipeline**
+> (submit → AI risk → routing → human review → guarded execution with response masking + snapshot,
+> text-to-API, break-glass, scheduled execution). The gRPC connector accepts registration, schema
+> upload, and review, but **call execution** for gRPC is not yet wired (REST / SOAP / GraphQL execute
+> over the JDK HTTP client); a gRPC execution attempt returns a clear error.
 
 ---
 
@@ -96,24 +97,55 @@ documents are rejected `422 API_SCHEMA_PARSE_ERROR`. The editor reads it via
 subset), and `restricted_response_fields` (dot-paths masked in that user's responses). Admins manage
 grants under `/api-connectors/{id}/permissions`; non-admins only see connectors they're granted.
 
-## 4. Governed-call pipeline _(planned)_
+## 4. Governed-call pipeline
 
 `api_requests` mirrors `query_requests` and reuses the `query_status` lifecycle
-(`PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED` + reject/timeout/fail/cancel). A submitted call
-is validated against the schema when present (else accepted free-form, always routed to review),
-classified read/write, AI-risk-scored (async, rate-limited, fail-safe — reusing
-`AiAnalyzerStrategy`), routed (`AUTO_APPROVE`/`AUTO_REJECT`/`REQUIRE_APPROVALS`/`ESCALATE`), and —
-once approved — executed by a per-protocol client that injects connector auth, caps the response at
-`max_response_bytes`, masks `restricted_response_fields` recursively by dot-path via `ColumnMasker`,
-and records an immutable response snapshot. **Self-approval is forbidden.** Break-glass and
-scheduled execution mirror the query path. **Text-to-API** turns plain English into a concrete call
-draft, enabled only for connectors that have a parsed schema.
+(`PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED` + reject/timeout/fail/cancel). Submit
+(`POST /api/v1/api-requests`, 202):
+
+1. **Permission + classification.** Non-admins need an active connector permission with the right
+   capability (read vs write); a call is classified write from its schema operation, else from the
+   verb (REST mutating verbs; SOAP/GraphQL/gRPC default to write = fail-safe to review).
+   `allowed_operations` scopes which operations a user may call.
+2. **Schema validation.** When the connector has a schema and an `operationId` is supplied, it must
+   exist in the catalog (else `422 API_REQUEST_VALIDATION_ERROR`). Free-form calls (no operationId)
+   are accepted and always routed to review.
+3. **AI risk.** `ApiRequestSubmittedEvent` → `ApiAnalysisListener` → `ai.api.ApiCallAnalyzer`
+   (rate-limited, async), persisting into `ai_analyses` (keyed `api_request_id`) and publishing
+   completed/failed/skipped. Failure escalates to human review — never blocks.
+4. **Routing + review.** `ApiReviewStateMachine` applies the first matching `api_routing_policies`
+   entry (`AUTO_APPROVE`/`AUTO_REJECT`/`REQUIRE_APPROVALS`/`ESCALATE`), else the connector's
+   require-review flags + review plan. `ApiReviewService` records per-stage decisions;
+   **the submitter can never self-approve**; decisions are idempotent.
+5. **Execution.** `ApiExecutionService` runs an APPROVED call (submitter-triggered
+   `POST /{id}/execute`, or the scheduled-run job at `scheduled_for`): injects connector auth +
+   default headers, caps the response at `max_response_bytes`, masks the caller's
+   `restricted_response_fields` recursively by dot-path via `ColumnMasker`, stores an immutable
+   masked response snapshot, and records EXECUTED / FAILED.
+
+**Break-glass** (`submission_reason=EMERGENCY_ACCESS`, gated by `can_break_glass`) force-approves and
+executes immediately, opens a mandatory retro-review in `break_glass_events`
+(`workflow.api.BreakGlassService.openApiBreakGlassReview`), writes a prominent
+`API_REQUEST_BREAK_GLASS_EXECUTED` audit row, and fans out to org admins. **Scheduled execution**:
+`ApiRequestRunJob` fires APPROVED requests at `scheduled_for`; `ApiRequestTimeoutJob` auto-rejects
+(TIMED_OUT) requests that sit in PENDING_REVIEW past `accessflow.apigov.review-timeout`. Both are
+`@SchedulerLock`-guarded.
+
+**Text-to-API** (`POST /api/v1/api-requests/generate`) turns plain English into a concrete call
+draft via `ApiCallAnalyzer.generateApiCall`, enabled only for connectors with a parsed schema and
+`text_to_api_enabled`. A debounced risk preview is at `POST /api/v1/api-requests/analyze`.
 
 ---
 
 ## Audit & notifications
 
-Connector/schema/permission mutations write tamper-evident `audit_log` rows via
+Every connector/schema/permission/request action writes a tamper-evident `audit_log` row via
 `audit.api.AuditLogService`: `API_CONNECTOR_CREATED`/`_UPDATED`/`_DELETED`, `API_SCHEMA_UPLOADED`/
-`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED` (resource type `API_CONNECTOR`). Request-pipeline
-audit actions and notification event types land with the pipeline follow-up.
+`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED` (resource `API_CONNECTOR`), and
+`API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`
+(resource `API_REQUEST`) — delivering the full audit of which APIs are called, how, and by whom.
+
+Notifications add `API_REQUEST_SUBMITTED`/`_APPROVED`/`_EXECUTED`/`_FAILED` event types. The
+notifications module's `ApiNotificationListener` consumes `ApiRequestReadyForReviewEvent` (alert
+reviewers + admins) and `ApiRequestDecidedEvent` (alert the submitter; break-glass executions alert
+admins), delivered as in-app + chat notifications (Slack / Discord / Teams / Telegram).

@@ -1,0 +1,35 @@
+package com.bablsoft.accessflow.apigov.api;
+
+import com.bablsoft.accessflow.core.api.DecisionType;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.UserRoleType;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/** Reviewer-facing approve/reject of governed API requests. The submitter can never self-approve. */
+public interface ApiReviewService {
+
+    PageResponse<PendingApiReview> listPending(ReviewerContext context, PageRequest pageRequest);
+
+    DecisionOutcome approve(UUID apiRequestId, ReviewerContext context, String comment);
+
+    DecisionOutcome reject(UUID apiRequestId, ReviewerContext context, String comment);
+
+    record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    }
+
+    record PendingApiReview(
+            UUID apiRequestId, UUID connectorId, String connectorName, UUID submittedByUserId,
+            String verb, String requestPath, boolean write, String justification, UUID aiAnalysisId,
+            RiskLevel aiRiskLevel, Integer aiRiskScore, String aiSummary, int currentStage,
+            Instant createdAt) {
+    }
+
+    record DecisionOutcome(UUID decisionId, DecisionType decision, QueryStatus resultingStatus,
+                           boolean wasIdempotentReplay) {
+    }
+}

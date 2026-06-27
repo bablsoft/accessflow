@@ -10,4 +10,7 @@ import java.util.UUID;
 public interface AiAnalysisLookupService {
 
     Optional<AiAnalysisSummaryView> findByQueryRequestId(UUID queryRequestId);
+
+    /** Fetch an analysis directly by its id (e.g. an API request's analysis, AF-500). */
+    Optional<AiAnalysisSummaryView> findById(UUID analysisId);
 }

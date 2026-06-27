@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanApproverRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import java.util.UUID;
 class DefaultReviewPlanLookupService implements ReviewPlanLookupService {
 
     private final DatasourceRepository datasourceRepository;
+    private final ReviewPlanRepository reviewPlanRepository;
     private final ReviewPlanApproverRepository reviewPlanApproverRepository;
 
     @Override
@@ -31,6 +33,15 @@ class DefaultReviewPlanLookupService implements ReviewPlanLookupService {
         return datasourceRepository.findById(datasourceId)
                 .map(d -> d.getReviewPlan())
                 .map(this::toSnapshot);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ReviewPlanSnapshot> findById(UUID reviewPlanId) {
+        if (reviewPlanId == null) {
+            return Optional.empty();
+        }
+        return reviewPlanRepository.findById(reviewPlanId).map(this::toSnapshot);
     }
 
     private ReviewPlanSnapshot toSnapshot(ReviewPlanEntity plan) {

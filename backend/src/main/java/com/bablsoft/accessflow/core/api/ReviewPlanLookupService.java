@@ -11,4 +11,7 @@ import java.util.UUID;
 public interface ReviewPlanLookupService {
 
     Optional<ReviewPlanSnapshot> findForDatasource(UUID datasourceId);
+
+    /** Resolve a review plan directly by its id (e.g. an API connector's review_plan_id, AF-500). */
+    Optional<ReviewPlanSnapshot> findById(UUID reviewPlanId);
 }

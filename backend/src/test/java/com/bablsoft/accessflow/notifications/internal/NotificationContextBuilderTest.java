@@ -52,6 +52,7 @@ class NotificationContextBuilderTest {
     private LocalizationConfigService localizationConfig;
     private BehaviorAnomalyLookupService behaviorAnomalyLookup;
     private AttestationCampaignLookupService attestationLookup;
+    private com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService apiRequestLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -69,6 +70,7 @@ class NotificationContextBuilderTest {
         localizationConfig = mock(LocalizationConfigService.class);
         behaviorAnomalyLookup = mock(BehaviorAnomalyLookupService.class);
         attestationLookup = mock(AttestationCampaignLookupService.class);
+        apiRequestLookup = mock(com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
@@ -76,7 +78,7 @@ class NotificationContextBuilderTest {
                 null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, props);
+                attestationLookup, apiRequestLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -320,7 +322,7 @@ class NotificationContextBuilderTest {
                 null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, props);
+                attestationLookup, apiRequestLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())

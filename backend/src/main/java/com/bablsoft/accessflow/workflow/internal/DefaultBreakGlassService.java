@@ -106,6 +106,23 @@ class DefaultBreakGlassService implements BreakGlassService {
                 outcome.rowsAffected(), outcome.durationMs());
     }
 
+    @Override
+    @Transactional
+    public UUID openApiBreakGlassReview(ApiBreakGlassReview review) {
+        var event = new BreakGlassEventEntity();
+        event.setId(UUID.randomUUID());
+        event.setApiRequestId(review.apiRequestId());
+        event.setConnectorId(review.connectorId());
+        event.setOrganizationId(review.organizationId());
+        event.setSubmittedBy(review.submitterUserId());
+        event.setJustification(review.justification() == null ? "(none)" : review.justification());
+        event.setStatus(BreakGlassStatus.PENDING_REVIEW);
+        breakGlassEventRepository.save(event);
+        log.warn("API break-glass execution by user {} on connector {} — request {}, event {}",
+                review.submitterUserId(), review.connectorId(), review.apiRequestId(), event.getId());
+        return event.getId();
+    }
+
     private DatasourceView resolveDatasource(BreakGlassInput input) {
         return input.isAdmin()
                 ? datasourceAdminService.getForAdmin(input.datasourceId(), input.organizationId())

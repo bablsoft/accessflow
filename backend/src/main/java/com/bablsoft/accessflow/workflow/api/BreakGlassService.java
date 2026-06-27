@@ -27,6 +27,22 @@ public interface BreakGlassService {
      */
     BreakGlassResult breakGlassExecute(BreakGlassInput input);
 
+    /**
+     * Opens a mandatory break-glass retro-review row for an API break-glass execution (AF-500). The
+     * apigov module persists, force-approves, and executes the API call itself; this records the
+     * {@link BreakGlassStatus#PENDING_REVIEW} event an admin must later acknowledge. Returns the
+     * event id.
+     */
+    UUID openApiBreakGlassReview(ApiBreakGlassReview review);
+
+    record ApiBreakGlassReview(
+            UUID organizationId,
+            UUID apiRequestId,
+            UUID connectorId,
+            UUID submitterUserId,
+            String justification) {
+    }
+
     record BreakGlassInput(
             UUID datasourceId,
             String sql,

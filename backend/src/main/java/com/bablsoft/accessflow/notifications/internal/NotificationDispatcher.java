@@ -101,6 +101,17 @@ class NotificationDispatcher {
         deliver(NotificationEventType.ATTESTATION_CAMPAIGN_OPENED, contextOpt.get());
     }
 
+    /** Dispatch an API-request notification (AF-500) — non-query-backed; recipients resolved by the
+     *  context builder (reviewers/admins for SUBMITTED, submitter for terminal events). */
+    void dispatchApiRequest(NotificationEventType eventType, UUID apiRequestId) {
+        var contextOpt = contextBuilder.buildApiRequest(eventType, apiRequestId);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping {} for unknown API request {}", eventType, apiRequestId);
+            return;
+        }
+        deliver(eventType, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);

@@ -987,6 +987,9 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_ATTESTATION_OPEN_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `AttestationCampaignOpenJob` (the `attestation` module, AF-384) opens `SCHEDULED` campaigns past their `scheduled_open_at`, snapshotting current grants into items. ShedLock makes this safe under horizontal scaling. |
 | `ACCESSFLOW_ATTESTATION_CLOSE_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `AttestationCampaignCloseJob` closes `OPEN` campaigns past their `due_at`, applying each campaign's pending-default to still-PENDING items. ShedLock makes this safe under horizontal scaling. |
 | `ACCESSFLOW_ATTESTATION_MAX_EVIDENCE_ROWS` | Optional | `50000` | Hard cap on item rows written into a single attestation evidence CSV export; beyond it the export is flagged truncated. |
+| `ACCESSFLOW_APIGOV_SCHEDULED_RUN_POLL_INTERVAL` | Optional | `PT1M` | ISO-8601 duration. Cadence at which `ApiRequestRunJob` (the `apigov` module, AF-500) fires `APPROVED` API requests whose `scheduled_for` has passed. ShedLock-guarded. |
+| `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` auto-rejects API requests stuck in `PENDING_REVIEW` past the review timeout. |
+| `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | Optional | `PT24H` | ISO-8601 duration. How long an API request may await review before `ApiRequestTimeoutJob` marks it `TIMED_OUT`. |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | Optional | `PT15M` | ISO-8601 duration. Smallest requestable JIT access-grant duration; enforced server-side on submit. |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | Optional | `P30D` | ISO-8601 duration. Largest requestable JIT access-grant duration. |
 | `ACCESSFLOW_PUBLIC_BASE_URL` | Optional | `http://localhost:5173` | Public base URL used in notification email links and webhook payloads |

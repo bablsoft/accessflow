@@ -1567,9 +1567,46 @@ Per-user, per-connector grants — how an admin shares governed connectivity wit
 | `created_by` | UUID | |
 | `created_at` | TIMESTAMPTZ | |
 
-> The governed-call tables (`api_requests`, `api_review_decisions`, `api_routing_policies`, plus the
-> `ai_analyses` / `break_glass_events` extension that keys an analysis/event to an API request) land
-> with the request-pipeline follow-up.
+## api_requests (AF-500)
+
+Governed API calls (migration V101), mirroring `query_requests`. Reuses the shared `query_status` /
+`submission_reason` enum types.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `connector_id` / `organization_id` / `submitted_by` | UUID | Bare UUIDs. |
+| `operation_id` | TEXT | Null for a free-form call. |
+| `verb` | VARCHAR(16) | HTTP method / GraphQL op / gRPC method. |
+| `request_path` | TEXT | |
+| `request_headers` | JSONB | Sanitized header set. |
+| `request_body` | TEXT | |
+| `is_write` | BOOLEAN | Read/write classification (drives review routing). |
+| `status` | `query_status` | Lifecycle. |
+| `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
+| `justification` / `ai_analysis_id` / `scheduled_for` / `required_approvals` | — | |
+| `response_status_code` / `response_duration_ms` / `response_bytes` / `response_truncated` | — | Execution metadata. |
+| `response_snapshot` | TEXT | Size-capped, field-masked response body (immutable). |
+| `error_message` / `submitted_ip` / `submitted_user_agent` | — | |
+| `version` | BIGINT | `@Version` optimistic lock. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+## api_review_decisions (AF-500)
+
+Per-stage reviewer decisions on an API request (mirror of `review_decisions`). `decision` reuses the
+shared `decision` enum; unique `(api_request_id, reviewer_id, stage)` backstops idempotency. FK
+`api_request_id` → `api_requests` `ON DELETE CASCADE`.
+
+## api_routing_policies (AF-500)
+
+Attribute-based routing for API calls (enum `api_routing_action`:
+`AUTO_APPROVE`/`AUTO_REJECT`/`REQUIRE_APPROVALS`/`ESCALATE`). `conditions` JSONB constrains
+`write`/`verbs`/`operations`/`minRiskLevel`; lowest `priority` wins; `connector_id` null = all.
+
+**Extensions (V101).** `ai_analyses.query_request_id` becomes nullable and `api_request_id` is added
+(CHECK exactly-one), keeping AI token-budget accounting unified. `break_glass_events` gains
+`api_request_id` + `connector_id`, and `query_request_id` / `datasource_id` become nullable, so a
+break-glass retro-review can target an API request.
 
 ---
 

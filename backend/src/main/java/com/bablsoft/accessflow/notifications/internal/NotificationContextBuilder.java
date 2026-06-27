@@ -2,6 +2,8 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
+import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
@@ -45,6 +47,7 @@ class NotificationContextBuilder {
     private final LocalizationConfigService localizationConfigService;
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final AttestationCampaignLookupService attestationCampaignLookupService;
+    private final ApiRequestNotificationLookupService apiRequestNotificationLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -118,9 +121,12 @@ class NotificationContextBuilder {
             case TEST -> submitter != null ? List.of(toRecipient(submitter)) : List.of();
             // Access (JIT) events are not query-backed; they are handled by AccessNotificationListener.
             // Anomaly events are built via buildAnomaly(...); weekly digests via buildWeeklyDigest(...).
+            // Access (JIT), anomaly, digest, attestation, and API-request events are not query-backed
+            // and are built/dispatched by their own listeners (AF-500: ApiNotificationListener).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST,
-                 ATTESTATION_CAMPAIGN_OPENED -> List.of();
+                 ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> List.of();
         };
     }
 
@@ -229,6 +235,71 @@ class NotificationContextBuilder {
                 null, null, null, null, null, null,
                 null,
                 summary.id(), summary.name(), summary.dueAt()));
+    }
+
+    /**
+     * Builds the context for an API-request notification (AF-500). Not query-backed: the connector
+     * name rides in {@code datasourceName} and the call summary in {@code justification}. SUBMITTED
+     * fans out to active reviewers + admins (excluding the submitter); APPROVED/EXECUTED/FAILED go to
+     * the submitter, except a break-glass EXECUTED which fans out to org admins.
+     */
+    Optional<NotificationContext> buildApiRequest(NotificationEventType eventType, UUID apiRequestId) {
+        var view = apiRequestNotificationLookupService.find(apiRequestId).orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var submitter = userQueryService.findById(view.submittedByUserId()).orElse(null);
+        var recipients = apiRecipients(eventType, view);
+        var locale = localizationConfigService.getOrDefault(view.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                eventType,
+                view.organizationId(),
+                apiRequestId,
+                null, null, null, null,
+                view.aiRiskLevel(),
+                view.aiRiskScore(),
+                view.aiSummary(),
+                view.connectorId(),
+                view.connectorName(),
+                view.submittedByUserId(),
+                submitter != null ? submitter.email() : null,
+                submitter != null ? submitter.displayName() : null,
+                view.verb() + " " + view.requestPath(),
+                null, null, null,
+                buildApiRequestUrl(apiRequestId),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null));
+    }
+
+    private List<RecipientView> apiRecipients(NotificationEventType eventType, ApiRequestNotificationView view) {
+        boolean breakGlassExecuted = eventType == NotificationEventType.API_REQUEST_EXECUTED
+                && view.submissionReason() == com.bablsoft.accessflow.core.api.SubmissionReason.EMERGENCY_ACCESS;
+        if (eventType == NotificationEventType.API_REQUEST_SUBMITTED || breakGlassExecuted) {
+            var roles = breakGlassExecuted
+                    ? List.of(UserRoleType.ADMIN)
+                    : List.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);
+            return roles.stream()
+                    .flatMap(r -> userQueryService.findByOrganizationAndRole(view.organizationId(), r).stream())
+                    .filter(UserView::active)
+                    .filter(u -> !u.id().equals(view.submittedByUserId()))
+                    .distinct()
+                    .map(NotificationContextBuilder::toRecipient)
+                    .toList();
+        }
+        var submitter = userQueryService.findById(view.submittedByUserId())
+                .filter(UserView::active).orElse(null);
+        return submitter != null ? List.of(toRecipient(submitter)) : List.of();
+    }
+
+    private URI buildApiRequestUrl(UUID apiRequestId) {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/api-requests/" + apiRequestId);
     }
 
     private URI buildAttestationUrl() {

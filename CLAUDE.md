@@ -109,6 +109,10 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/
+├── apigov/         # API Access Governance: govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions, submit→AI→review→execute pipeline, masking, break-glass, text-to-API (AF-500)
+│   ├── api/
+│   ├── events/
+│   └── internal/   # persistence, client (per-protocol exec + auth + prober), schema (parsers), routing, scheduled, web
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -251,6 +255,9 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_ATTESTATION_OPEN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignOpenJob` (the `attestation` module, AF-384) scans for `SCHEDULED` campaigns past their `scheduled_open_at` and opens them — snapshotting current grants into items (default `PT5M`). |
 | `ACCESSFLOW_ATTESTATION_CLOSE_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignCloseJob` scans for `OPEN` campaigns past their `due_at` and closes them, applying each campaign's pending-default (`KEEP`/`REVOKE`) to still-PENDING items (default `PT5M`). |
 | `ACCESSFLOW_ATTESTATION_MAX_EVIDENCE_ROWS` | Hard cap on item rows written into a single attestation evidence CSV export; beyond it the export is flagged truncated (default `50000`). |
+| `ACCESSFLOW_APIGOV_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestRunJob` (the `apigov` module, AF-500) scans for `APPROVED` API requests whose `scheduled_for` has been reached and executes them (default `PT1M`). |
+| `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` scans for API requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). |
+| `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | ISO-8601 duration. How long an API request may sit in `PENDING_REVIEW` before `ApiRequestTimeoutJob` auto-rejects it (default `PT24H`). |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |

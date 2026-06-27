@@ -32,9 +32,15 @@ public class AiAnalysisEntity {
     @Id
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "query_request_id", nullable = false)
+    // Nullable since AF-500 pipeline: an analysis keys off EITHER a query request OR an API request
+    // (api_request_id), enforced exactly-one by a DB CHECK. apigov is a separate module, so the API
+    // side is referenced by a bare UUID rather than a JPA relationship.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "query_request_id")
     private QueryRequestEntity queryRequest;
+
+    @Column(name = "api_request_id")
+    private UUID apiRequestId;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)

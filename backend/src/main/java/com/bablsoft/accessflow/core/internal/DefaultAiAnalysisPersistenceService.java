@@ -74,6 +74,31 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
 
     @Override
     @Transactional
+    public UUID persistForApiRequest(UUID apiRequestId, PersistAiAnalysisCommand command) {
+        var entity = new AiAnalysisEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setApiRequestId(apiRequestId);
+        entity.setAiProvider(command.aiProvider());
+        entity.setAiModel(command.aiModel());
+        entity.setRiskScore(command.riskScore());
+        entity.setRiskLevel(command.riskLevel());
+        entity.setSummary(command.summary());
+        entity.setIssues(command.issuesJson());
+        entity.setOptimizations(command.optimizationsJson());
+        entity.setMissingIndexesDetected(command.missingIndexesDetected());
+        entity.setAffectsRowEstimate(command.affectsRowEstimate());
+        entity.setPromptTokens(command.promptTokens());
+        entity.setCompletionTokens(command.completionTokens());
+        entity.setFailed(command.failed());
+        entity.setErrorMessage(command.errorMessage());
+        entity.setCreatedAt(Instant.now());
+        var saved = aiAnalysisRepository.save(entity);
+        persistModelResults(saved.getId(), command);
+        return saved.getId();
+    }
+
+    @Override
+    @Transactional
     public void deleteForQuery(UUID queryRequestId) {
         var queryRequest = queryRequestRepository.findById(queryRequestId)
                 .orElseThrow(() -> new IllegalStateException(
