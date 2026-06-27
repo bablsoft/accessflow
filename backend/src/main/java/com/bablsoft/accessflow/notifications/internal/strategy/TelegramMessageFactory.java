@@ -112,6 +112,10 @@ class TelegramMessageFactory {
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
+            case API_REQUEST_SUBMITTED -> "🔌 New API Call Awaiting Review";
+            case API_REQUEST_APPROVED -> "✅ API Call Approved";
+            case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
+            case API_REQUEST_FAILED -> "❌ API Call Failed";
         };
     }
 

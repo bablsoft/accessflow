@@ -181,8 +181,10 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case ATTESTATION_CAMPAIGN_OPENED -> "email/attestation-campaign-opened";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
+            // API-governance events (AF-500) deliver as in-app + chat notifications, not email.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> null;
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> null;
         };
     }
 
@@ -210,7 +212,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.attestation_campaign_opened";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "notification.email.subject.test";
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> "notification.email.subject.test";
         };
     }
 

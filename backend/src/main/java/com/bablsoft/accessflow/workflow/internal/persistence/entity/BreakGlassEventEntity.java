@@ -34,14 +34,22 @@ public class BreakGlassEventEntity {
     @Id
     private UUID id;
 
-    @Column(name = "query_request_id", nullable = false)
+    // Nullable since AF-500: a break-glass event targets EITHER a query request OR an API request.
+    @Column(name = "query_request_id")
     private UUID queryRequestId;
+
+    @Column(name = "api_request_id")
+    private UUID apiRequestId;
 
     @Column(name = "organization_id", nullable = false)
     private UUID organizationId;
 
-    @Column(name = "datasource_id", nullable = false)
+    // Null for API break-glass (which targets connector_id instead).
+    @Column(name = "datasource_id")
     private UUID datasourceId;
+
+    @Column(name = "connector_id")
+    private UUID connectorId;
 
     @Column(name = "submitted_by", nullable = false)
     private UUID submittedBy;

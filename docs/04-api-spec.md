@@ -4371,6 +4371,26 @@ execute, text-to-API, break-glass) lands in a follow-up and will be documented h
 | `POST` | `/api-connectors/{id}/permissions` | **Admin.** Grant/update a user's access (`201`): `userId`, `canRead`, `canWrite`, `canBreakGlass`, `expiresAt` (JIT), `allowedOperations` (subset), `restrictedResponseFields` (dot-paths masked in responses). |
 | `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
 
+### Governed API requests
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `requestBody?`, `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). Runs AI → routing → review. |
+| `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. |
+| `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. |
+| `POST` | `/api-requests/{id}/cancel` | Submitter cancels a pending (or scheduled-and-approved) request (`204`). |
+| `POST` | `/api-requests/{id}/execute` | Submitter executes an APPROVED request against the upstream target. |
+| `POST` | `/api-requests/analyze` | Debounced AI risk preview of a draft call. |
+| `POST` | `/api-requests/generate` | Text-to-API: plain English → draft call (schema connectors with `text_to_api_enabled` only). |
+
+### API reviews
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api-reviews` | **Reviewer/Admin.** List API requests awaiting review. |
+| `POST` | `/api-reviews/{id}/approve` | **Reviewer/Admin.** Approve (`{comment?}`). The submitter can never self-approve. |
+| `POST` | `/api-reviews/{id}/reject` | **Reviewer/Admin.** Reject (`{comment?}`). |
+
 ## Error Codes (`error` property on `ProblemDetail`)
 
 The following codes are returned in addition to the per-endpoint codes documented above:
@@ -4383,6 +4403,12 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_SCHEMA_PARSE_ERROR` | 422 | The uploaded schema could not be parsed (`reason` carries detail). |
 | `API_PERMISSION_NOT_FOUND` | 404 | Unknown connector-permission id. |
 | `API_CONNECTION_TEST_FAILED` | 502 | The connectivity probe failed (`reason` carries detail). |
+| `API_REQUEST_NOT_FOUND` | 404 | Unknown API request id, or not visible to the caller. |
+| `API_REQUEST_INVALID_STATE` | 409 | The request is not in a state that allows the action (`currentStatus`). |
+| `API_REQUEST_SELF_APPROVAL` | 403 | The submitter attempted to approve their own request. |
+| `API_REQUEST_PERMISSION_DENIED` | 403 | Caller lacks read/write/break-glass on the connector. |
+| `API_REQUEST_VALIDATION_ERROR` | 422 | The call failed validation against the connector schema (`reason`). |
+| `API_EXECUTION_FAILED` | 502 | The upstream API call could not be executed (`reason`). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|

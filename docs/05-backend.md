@@ -944,6 +944,8 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `WeeklyDigestJob` | dashboard | `weeklyDigestJob` | `accessflow.dashboard.weekly-digest.poll-interval` | `P1D` |
 | `AttestationCampaignOpenJob` | attestation | `attestationCampaignOpenJob` | `accessflow.attestation.open-poll-interval` | `PT5M` |
 | `AttestationCampaignCloseJob` | attestation | `attestationCampaignCloseJob` | `accessflow.attestation.close-poll-interval` | `PT5M` |
+| `ApiRequestRunJob` | apigov | `apiRequestRunJob` | `accessflow.apigov.scheduled-run-poll-interval` | `PT1M` |
+| `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1782,10 +1784,17 @@ review/approval/audit model as a database query. The foundation shipped today: c
 management (CRUD + encrypted auth secret + test-connection probe), schema ingestion (OpenAPI via
 swagger-parser; GraphQL/proto/WSDL via dependency-free parsers behind the `ApiSchemaParser` SPI)
 producing a normalized operation catalog with read/write classification, and per-user
-"share-with-team" permissions. Cross-module references are bare UUIDs (like `access`); the
-`apigov.api` package is JDK + project types only. The governed-call pipeline (submit → AI risk →
-routing → review → guarded execution + response masking, text-to-API, break-glass, scheduled
-execution) is a follow-up. Full design: [docs/17-api-governance.md](17-api-governance.md).
+"share-with-team" permissions. The governed-call pipeline is implemented end-to-end:
+submit (`POST /api/v1/api-requests`) → async rate-limited AI risk scoring (`ai.api.ApiCallAnalyzer`,
+fail-safe) → routing (`api_routing_policies`) + human review (`ApiReviewService`, self-approval
+forbidden, via `ApiReviewStateMachine`) → guarded execution (`ApiExecutionService`: connector-auth
+injection, `max_response_bytes` cap, recursive dot-path response masking via `ColumnMasker`,
+immutable masked snapshot). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
+(`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
+(`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. gRPC call
+**execution** is the one piece not yet wired (REST/SOAP/GraphQL execute over the JDK HTTP client).
+Cross-module references are bare UUIDs (like `access`); `apigov.api` is JDK + project types only.
+Full design: [docs/17-api-governance.md](17-api-governance.md).
 
 ## MCP server (mcp module)
 

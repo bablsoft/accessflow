@@ -1,0 +1,122 @@
+package com.bablsoft.accessflow.apigov.internal.persistence.entity;
+
+import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.type.SqlTypes;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "api_requests")
+@Getter
+@Setter
+@NoArgsConstructor
+public class ApiRequestEntity {
+
+    @Id
+    private UUID id;
+
+    @Column(name = "connector_id", nullable = false)
+    private UUID connectorId;
+
+    @Column(name = "organization_id", nullable = false)
+    private UUID organizationId;
+
+    @Column(name = "submitted_by", nullable = false)
+    private UUID submittedBy;
+
+    @Column(name = "operation_id", columnDefinition = "text")
+    private String operationId;
+
+    @Column(nullable = false, length = 16)
+    private String verb;
+
+    @Column(name = "request_path", nullable = false, columnDefinition = "text")
+    private String requestPath;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "request_headers", nullable = false, columnDefinition = "jsonb")
+    private String requestHeaders = "{}";
+
+    @Column(name = "request_body", columnDefinition = "text")
+    private String requestBody;
+
+    @Column(name = "is_write", nullable = false)
+    private boolean write = false;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(nullable = false, columnDefinition = "query_status")
+    private QueryStatus status = QueryStatus.PENDING_AI;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "submission_reason", nullable = false, columnDefinition = "submission_reason")
+    private SubmissionReason submissionReason = SubmissionReason.USER_SUBMITTED;
+
+    @Column(columnDefinition = "text")
+    private String justification;
+
+    @Column(name = "ai_analysis_id")
+    private UUID aiAnalysisId;
+
+    @Column(name = "scheduled_for")
+    private Instant scheduledFor;
+
+    @Column(name = "required_approvals", nullable = false)
+    private int requiredApprovals = 1;
+
+    @Column(name = "response_status_code")
+    private Integer responseStatusCode;
+
+    @Column(name = "response_duration_ms")
+    private Integer responseDurationMs;
+
+    @Column(name = "response_bytes")
+    private Long responseBytes;
+
+    @Column(name = "response_truncated", nullable = false)
+    private boolean responseTruncated = false;
+
+    @Column(name = "response_snapshot", columnDefinition = "text")
+    private String responseSnapshot;
+
+    @Column(name = "error_message", columnDefinition = "text")
+    private String errorMessage;
+
+    @Column(name = "submitted_ip", length = 45)
+    private String submittedIp;
+
+    @Column(name = "submitted_user_agent", columnDefinition = "text")
+    private String submittedUserAgent;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = Instant.now();
+    }
+}

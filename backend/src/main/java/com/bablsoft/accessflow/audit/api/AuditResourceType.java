@@ -40,7 +40,8 @@ public enum AuditResourceType {
     DASHBOARD_SUMMARY("dashboard_summary"),
     ATTESTATION_CAMPAIGN("attestation_campaign"),
     ATTESTATION_ITEM("attestation_item"),
-    API_CONNECTOR("api_connector");
+    API_CONNECTOR("api_connector"),
+    API_REQUEST("api_request");
 
     private final String dbValue;
 
