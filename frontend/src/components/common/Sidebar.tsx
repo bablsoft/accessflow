@@ -86,6 +86,9 @@ export function Sidebar({
         { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
         { id: 'attestation-reviews', to: '/reviews/attestations', label: t('nav.attestation_reviews'), icon: <CheckSquareOutlined />, roles: ['REVIEWER', 'ADMIN'] },
         { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'] },
       ],
     },
     {
@@ -93,6 +96,7 @@ export function Sidebar({
       label: t('nav.group_data'),
       items: [
         { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
+        { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, roles: ['ADMIN'] },
         { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, roles: ['ADMIN'] },
         { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
       ],

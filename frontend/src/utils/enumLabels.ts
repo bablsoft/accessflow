@@ -1,6 +1,9 @@
 import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
+  ApiAuthMethod,
+  ApiProtocol,
+  ApiSchemaType,
   AiProvider,
   AttestationCampaignScope,
   AttestationCampaignStatus,
@@ -320,3 +323,33 @@ export function enumOptions<V extends string>(
 ): EnumOption<V>[] {
   return values.map((value) => ({ value, label: label(t, value) }));
 }
+
+// ── API Access Governance (AF-500) ──────────────────────────────────────────
+
+export const API_PROTOCOLS: readonly ApiProtocol[] = ['REST', 'SOAP', 'GRAPHQL', 'GRPC'] as const;
+
+export const apiProtocolLabel = (t: TFunction, v: ApiProtocol): string =>
+  t(`enums.api_protocol.${v}` as const);
+
+export const API_AUTH_METHODS: readonly ApiAuthMethod[] = [
+  'NONE',
+  'API_KEY',
+  'BEARER_TOKEN',
+  'BASIC',
+  'OAUTH2_CLIENT_CREDENTIALS',
+  'CUSTOM_HEADER',
+  'MTLS',
+] as const;
+
+export const apiAuthMethodLabel = (t: TFunction, v: ApiAuthMethod): string =>
+  t(`enums.api_auth_method.${v}` as const);
+
+export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
+  'OPENAPI',
+  'WSDL',
+  'GRAPHQL_SDL',
+  'GRPC_PROTO',
+] as const;
+
+export const apiSchemaTypeLabel = (t: TFunction, v: ApiSchemaType): string =>
+  t(`enums.api_schema_type.${v}` as const);
