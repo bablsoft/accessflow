@@ -67,6 +67,9 @@ const OrganizationDetailPage = lazy(() =>
 const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPage'));
 const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
 const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
+const LifecyclePoliciesListPage = lazy(
+  () => import('@/pages/admin/lifecycle/LifecyclePoliciesListPage'),
+);
 const AttestationWorklistPage = lazy(() => import('@/pages/reviews/AttestationWorklistPage'));
 const ApiConnectorsListPage = lazy(() => import('@/pages/apigov/ApiConnectorsListPage'));
 const ApiConnectorSettingsPage = lazy(() => import('@/pages/apigov/ApiConnectorSettingsPage'));
@@ -346,6 +349,16 @@ export function App() {
               <AuthGuard requireRole="ADMIN">
                 <Suspense fallback={null}>
                   <CampaignDetailPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/lifecycle/policies"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <LifecyclePoliciesListPage />
                 </Suspense>
               </AuthGuard>
             }

@@ -74,7 +74,8 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Жизненный цикл данных"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -255,7 +256,20 @@
     "attestation_datasource_required": "Для кампаний с областью «источник данных» требуется источник данных",
     "attestation_scheduled_open_required": "Время запланированного открытия обязательно",
     "attestation_due_required": "Срок обязателен",
-    "attestation_due_after_open": "Срок должен быть позже запланированного открытия"
+    "attestation_due_after_open": "Срок должен быть позже запланированного открытия",
+    "lifecycle_datasource_required": "Источник данных обязателен",
+    "lifecycle_name_required": "Название обязательно",
+    "lifecycle_name_size": "Название должно содержать от 3 до 100 символов",
+    "lifecycle_description_max": "Описание не более 2000 символов",
+    "lifecycle_target_table_size": "Целевая таблица не более 255 символов",
+    "lifecycle_classification_tag_size": "Тег классификации не более 100 символов",
+    "lifecycle_timestamp_column_required": "Столбец метки времени обязателен",
+    "lifecycle_timestamp_column_size": "Столбец метки времени не более 255 символов",
+    "lifecycle_retention_window_required": "Окно хранения обязательно",
+    "lifecycle_retention_window_size": "Окно хранения не более 50 символов",
+    "lifecycle_action_required": "Действие обязательно",
+    "lifecycle_transform_required": "Для псевдонимизации требуется преобразование",
+    "lifecycle_soft_delete_column_size": "Столбец мягкого удаления не более 255 символов"
   },
   "errors": {
     "auth_invalid": "Неверный адрес или пароль.",
@@ -2306,6 +2320,30 @@
       "APPROVED": "Одобрено",
       "REJECTED": "Отклонено",
       "REQUESTED_CHANGES": "Запрошены изменения"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Полное удаление",
+      "SOFT_DELETE": "Мягкое удаление",
+      "PSEUDONYMIZE": "Псевдонимизация"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "SHA-256 с солью",
+      "FORMAT_PRESERVING": "С сохранением формата",
+      "TOKENIZATION": "Токенизация"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "ID пользователя",
+      "EMAIL": "Эл. почта",
+      "CUSTOM": "Произвольный"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Определение объёма",
+      "PENDING_REVIEW": "Ожидает проверки",
+      "APPROVED": "Одобрено",
+      "EXECUTED": "Выполнено",
+      "REJECTED": "Отклонено",
+      "FAILED": "Ошибка",
+      "CANCELLED": "Отменено"
     }
   },
   "access": {
@@ -2867,5 +2905,55 @@
       "actions": "Действия"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Политики хранения",
+      "subtitle_count_one": "{{count}} политика",
+      "subtitle_count_other": "{{count}} политик",
+      "create": "Создать политику",
+      "create_modal_title": "Создать политику хранения",
+      "create_success": "Политика создана",
+      "delete_success": "Политика удалена",
+      "delete_confirm_title": "Удалить политику?",
+      "delete_confirm_body": "Удалить навсегда политику «{{name}}»?",
+      "load_error": "Не удалось загрузить политики",
+      "empty_title": "Нет политик хранения",
+      "empty_description": "Создайте политику для автоматического удаления устаревших данных.",
+      "col_name": "Название",
+      "col_target": "Цель",
+      "col_action": "Действие",
+      "col_window": "Окно",
+      "col_enabled": "Статус",
+      "col_actions": "Действия",
+      "enabled": "Включена",
+      "disabled": "Отключена",
+      "preview": "Предпросмотр",
+      "label_datasource": "Источник данных",
+      "datasource_placeholder": "Выберите источник данных",
+      "label_name": "Название политики",
+      "label_description": "Описание",
+      "label_target_table": "Целевая таблица",
+      "target_help": "Укажите целевую таблицу и/или тег классификации.",
+      "label_target_columns": "Целевые столбцы",
+      "label_classification_tag": "Тег классификации",
+      "label_timestamp_column": "Столбец метки времени",
+      "label_retention_window": "Окно хранения",
+      "retention_window_help": "Период или длительность ISO-8601, напр. P30D или P7Y.",
+      "label_action": "Действие",
+      "label_transform": "Преобразование",
+      "label_soft_delete_column": "Столбец мягкого удаления",
+      "soft_delete_column_help": "Столбец-маркер, устанавливаемый при удалении (по умолчанию deleted_at).",
+      "label_enabled": "Включена"
+    },
+    "preview": {
+      "title": "Предпросмотр (пробный запуск)",
+      "total_one": "Оценочно {{count}} строка по целям",
+      "total_other": "Оценочно {{count}} строк по целям",
+      "col_table": "Таблица",
+      "col_method": "Метод",
+      "col_rows": "Оценка строк",
+      "unknown": "неизвестно"
+    }
   }
 }

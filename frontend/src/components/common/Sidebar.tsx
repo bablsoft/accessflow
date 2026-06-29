@@ -31,6 +31,7 @@ import {
   AuditOutlined,
   WarningOutlined,
   FileProtectOutlined,
+  FieldTimeOutlined,
   CheckSquareOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -112,6 +113,7 @@ export function Sidebar({
         { id: 'routing-policies', to: '/admin/routing-policies', label: t('nav.routing_policies'), icon: <NodeIndexOutlined />, roles: ['ADMIN'] },
         { id: 'data-classifications', to: '/admin/data-classifications', label: t('nav.data_classifications'), icon: <TagsOutlined />, roles: ['ADMIN'] },
         { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <FileProtectOutlined />, roles: ['ADMIN'] },
+        { id: 'lifecycle', to: '/admin/lifecycle/policies', label: t('nav.lifecycle'), icon: <FieldTimeOutlined />, roles: ['ADMIN'] },
         { id: 'break-glass', to: '/admin/break-glass', label: t('nav.break_glass'), icon: <ThunderboltOutlined />, roles: ['AUDITOR', 'ADMIN'] },
         { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
         { id: 'auditor', to: '/admin/auditor', label: t('nav.auditor'), icon: <AuditOutlined />, roles: ['AUDITOR', 'ADMIN'] },

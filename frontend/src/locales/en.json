@@ -74,7 +74,8 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Data Lifecycle"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -255,7 +256,20 @@
     "attestation_datasource_required": "A datasource is required for datasource-scoped campaigns",
     "attestation_scheduled_open_required": "Scheduled open time is required",
     "attestation_due_required": "Due time is required",
-    "attestation_due_after_open": "Due time must be after the scheduled open time"
+    "attestation_due_after_open": "Due time must be after the scheduled open time",
+    "lifecycle_datasource_required": "Datasource is required",
+    "lifecycle_name_required": "Name is required",
+    "lifecycle_name_size": "Name must be 3–100 characters",
+    "lifecycle_description_max": "Description must be at most 2,000 characters",
+    "lifecycle_target_table_size": "Target table must be at most 255 characters",
+    "lifecycle_classification_tag_size": "Classification tag must be at most 100 characters",
+    "lifecycle_timestamp_column_required": "Timestamp column is required",
+    "lifecycle_timestamp_column_size": "Timestamp column must be at most 255 characters",
+    "lifecycle_retention_window_required": "Retention window is required",
+    "lifecycle_retention_window_size": "Retention window must be at most 50 characters",
+    "lifecycle_action_required": "Action is required",
+    "lifecycle_transform_required": "Transform is required for pseudonymize",
+    "lifecycle_soft_delete_column_size": "Soft-delete column must be at most 255 characters"
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -2330,6 +2344,30 @@
       "APPROVED": "Approved",
       "REJECTED": "Rejected",
       "REQUESTED_CHANGES": "Changes requested"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Hard delete",
+      "SOFT_DELETE": "Soft delete",
+      "PSEUDONYMIZE": "Pseudonymize"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "Salted SHA-256",
+      "FORMAT_PRESERVING": "Format-preserving",
+      "TOKENIZATION": "Tokenization"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "User ID",
+      "EMAIL": "Email",
+      "CUSTOM": "Custom"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Detecting scope",
+      "PENDING_REVIEW": "Pending review",
+      "APPROVED": "Approved",
+      "EXECUTED": "Executed",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed",
+      "CANCELLED": "Cancelled"
     }
   },
   "access": {
@@ -2867,5 +2905,55 @@
       "actions": "Actions"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Retention Policies",
+      "subtitle_count_one": "{{count}} policy",
+      "subtitle_count_other": "{{count}} policies",
+      "create": "Create policy",
+      "create_modal_title": "Create Retention Policy",
+      "create_success": "Policy created",
+      "delete_success": "Policy deleted",
+      "delete_confirm_title": "Delete policy?",
+      "delete_confirm_body": "Permanently delete the policy \"{{name}}\"?",
+      "load_error": "Could not load policies",
+      "empty_title": "No retention policies",
+      "empty_description": "Create a policy to retire aged data automatically.",
+      "col_name": "Name",
+      "col_target": "Target",
+      "col_action": "Action",
+      "col_window": "Window",
+      "col_enabled": "Status",
+      "col_actions": "Actions",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "preview": "Preview",
+      "label_datasource": "Datasource",
+      "datasource_placeholder": "Select a datasource",
+      "label_name": "Policy name",
+      "label_description": "Description",
+      "label_target_table": "Target table",
+      "target_help": "Provide a target table and/or a classification tag.",
+      "label_target_columns": "Target columns",
+      "label_classification_tag": "Classification tag",
+      "label_timestamp_column": "Timestamp column",
+      "label_retention_window": "Retention window",
+      "retention_window_help": "ISO-8601 period or duration, e.g. P30D or P7Y.",
+      "label_action": "Action",
+      "label_transform": "Transform",
+      "label_soft_delete_column": "Soft-delete column",
+      "soft_delete_column_help": "Marker column set on delete (default deleted_at).",
+      "label_enabled": "Enabled"
+    },
+    "preview": {
+      "title": "Dry-run preview",
+      "total_one": "{{count}} row estimated across targets",
+      "total_other": "{{count}} rows estimated across targets",
+      "col_table": "Table",
+      "col_method": "Method",
+      "col_rows": "Est. rows",
+      "unknown": "unknown"
+    }
   }
 }

@@ -4,6 +4,10 @@ import type {
   ApiAuthMethod,
   ApiProtocol,
   ApiSchemaType,
+  ErasureStatus,
+  LifecycleAction,
+  LifecycleSubjectType,
+  LifecycleTransform,
   Oauth2GrantType,
   Oauth2ClientAuth,
   AiProvider,
@@ -376,3 +380,45 @@ export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
 
 export const apiSchemaTypeLabel = (t: TFunction, v: ApiSchemaType): string =>
   t(`enums.api_schema_type.${v}` as const);
+
+// ── Data Lifecycle Manager (AF-499) ──────────────────────────────────────────
+
+export const LIFECYCLE_ACTIONS: readonly LifecycleAction[] = [
+  'HARD_DELETE',
+  'SOFT_DELETE',
+  'PSEUDONYMIZE',
+] as const;
+
+export const lifecycleActionLabel = (t: TFunction, v: LifecycleAction): string =>
+  t(`enums.lifecycle_action.${v}` as const);
+
+export const LIFECYCLE_TRANSFORMS: readonly LifecycleTransform[] = [
+  'SHA256_SALTED',
+  'FORMAT_PRESERVING',
+  'TOKENIZATION',
+] as const;
+
+export const lifecycleTransformLabel = (t: TFunction, v: LifecycleTransform): string =>
+  t(`enums.lifecycle_transform.${v}` as const);
+
+export const LIFECYCLE_SUBJECT_TYPES: readonly LifecycleSubjectType[] = [
+  'USER_ID',
+  'EMAIL',
+  'CUSTOM',
+] as const;
+
+export const lifecycleSubjectTypeLabel = (t: TFunction, v: LifecycleSubjectType): string =>
+  t(`enums.lifecycle_subject_type.${v}` as const);
+
+export const ERASURE_STATUSES: readonly ErasureStatus[] = [
+  'PENDING_SCOPE_AI',
+  'PENDING_REVIEW',
+  'APPROVED',
+  'EXECUTED',
+  'REJECTED',
+  'FAILED',
+  'CANCELLED',
+] as const;
+
+export const erasureStatusLabel = (t: TFunction, v: ErasureStatus): string =>
+  t(`enums.erasure_status.${v}` as const);

@@ -74,7 +74,8 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Daten-Lebenszyklus"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -255,7 +256,20 @@
     "attestation_datasource_required": "Für datenquellenbezogene Kampagnen ist eine Datenquelle erforderlich",
     "attestation_scheduled_open_required": "Geplante Öffnungszeit ist erforderlich",
     "attestation_due_required": "Fälligkeitszeit ist erforderlich",
-    "attestation_due_after_open": "Die Fälligkeitszeit muss nach der geplanten Öffnungszeit liegen"
+    "attestation_due_after_open": "Die Fälligkeitszeit muss nach der geplanten Öffnungszeit liegen",
+    "lifecycle_datasource_required": "Datenquelle ist erforderlich",
+    "lifecycle_name_required": "Name ist erforderlich",
+    "lifecycle_name_size": "Der Name muss 3–100 Zeichen lang sein",
+    "lifecycle_description_max": "Die Beschreibung darf höchstens 2.000 Zeichen lang sein",
+    "lifecycle_target_table_size": "Die Zieltabelle darf höchstens 255 Zeichen lang sein",
+    "lifecycle_classification_tag_size": "Das Klassifizierungs-Tag darf höchstens 100 Zeichen lang sein",
+    "lifecycle_timestamp_column_required": "Zeitstempelspalte ist erforderlich",
+    "lifecycle_timestamp_column_size": "Die Zeitstempelspalte darf höchstens 255 Zeichen lang sein",
+    "lifecycle_retention_window_required": "Aufbewahrungsfenster ist erforderlich",
+    "lifecycle_retention_window_size": "Das Aufbewahrungsfenster darf höchstens 50 Zeichen lang sein",
+    "lifecycle_action_required": "Aktion ist erforderlich",
+    "lifecycle_transform_required": "Transformation ist für Pseudonymisierung erforderlich",
+    "lifecycle_soft_delete_column_size": "Die Soft-Delete-Spalte darf höchstens 255 Zeichen lang sein"
   },
   "errors": {
     "auth_invalid": "Ungültige E-Mail oder ungültiges Passwort.",
@@ -2306,6 +2320,30 @@
       "APPROVED": "Genehmigt",
       "REJECTED": "Abgelehnt",
       "REQUESTED_CHANGES": "Änderungen angefordert"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Endgültig löschen",
+      "SOFT_DELETE": "Soft-Delete",
+      "PSEUDONYMIZE": "Pseudonymisieren"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "Gesalzenes SHA-256",
+      "FORMAT_PRESERVING": "Formaterhaltend",
+      "TOKENIZATION": "Tokenisierung"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "Benutzer-ID",
+      "EMAIL": "E-Mail",
+      "CUSTOM": "Benutzerdefiniert"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Umfang wird erkannt",
+      "PENDING_REVIEW": "Prüfung ausstehend",
+      "APPROVED": "Genehmigt",
+      "EXECUTED": "Ausgeführt",
+      "REJECTED": "Abgelehnt",
+      "FAILED": "Fehlgeschlagen",
+      "CANCELLED": "Abgebrochen"
     }
   },
   "access": {
@@ -2867,5 +2905,55 @@
       "actions": "Aktionen"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Aufbewahrungsrichtlinien",
+      "subtitle_count_one": "{{count}} Richtlinie",
+      "subtitle_count_other": "{{count}} Richtlinien",
+      "create": "Richtlinie erstellen",
+      "create_modal_title": "Aufbewahrungsrichtlinie erstellen",
+      "create_success": "Richtlinie erstellt",
+      "delete_success": "Richtlinie gelöscht",
+      "delete_confirm_title": "Richtlinie löschen?",
+      "delete_confirm_body": "Die Richtlinie „{{name}}“ dauerhaft löschen?",
+      "load_error": "Richtlinien konnten nicht geladen werden",
+      "empty_title": "Keine Aufbewahrungsrichtlinien",
+      "empty_description": "Erstellen Sie eine Richtlinie, um veraltete Daten automatisch zu entfernen.",
+      "col_name": "Name",
+      "col_target": "Ziel",
+      "col_action": "Aktion",
+      "col_window": "Fenster",
+      "col_enabled": "Status",
+      "col_actions": "Aktionen",
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert",
+      "preview": "Vorschau",
+      "label_datasource": "Datenquelle",
+      "datasource_placeholder": "Datenquelle auswählen",
+      "label_name": "Richtlinienname",
+      "label_description": "Beschreibung",
+      "label_target_table": "Zieltabelle",
+      "target_help": "Geben Sie eine Zieltabelle und/oder ein Klassifizierungs-Tag an.",
+      "label_target_columns": "Zielspalten",
+      "label_classification_tag": "Klassifizierungs-Tag",
+      "label_timestamp_column": "Zeitstempelspalte",
+      "label_retention_window": "Aufbewahrungsfenster",
+      "retention_window_help": "ISO-8601-Zeitraum oder -Dauer, z. B. P30D oder P7Y.",
+      "label_action": "Aktion",
+      "label_transform": "Transformation",
+      "label_soft_delete_column": "Soft-Delete-Spalte",
+      "soft_delete_column_help": "Markerspalte beim Löschen gesetzt (Standard deleted_at).",
+      "label_enabled": "Aktiviert"
+    },
+    "preview": {
+      "title": "Probelauf-Vorschau",
+      "total_one": "{{count}} Zeile über Ziele geschätzt",
+      "total_other": "{{count}} Zeilen über Ziele geschätzt",
+      "col_table": "Tabelle",
+      "col_method": "Methode",
+      "col_rows": "Gesch. Zeilen",
+      "unknown": "unbekannt"
+    }
   }
 }
