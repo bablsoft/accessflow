@@ -42,7 +42,7 @@ test('admin creates an API connector and uploads an OpenAPI schema', async ({ pa
   await page.getByLabel('Base URL').fill('https://petstore.example.com');
   // AI analysis is on by default, so an AI config must be assigned (#512). Pick the seeded one.
   await page.getByLabel('AI config').click();
-  await page.getByRole('option', { name: /e2e-mock-openai/ }).click();
+  await page.getByTitle(/e2e-mock-openai/).click();
   const createResponse = page.waitForResponse(
     (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/api-connectors') && r.ok(),
   );

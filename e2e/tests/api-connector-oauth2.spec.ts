@@ -46,7 +46,7 @@ test('admin creates an OAuth2 client-credentials connector and test-connection f
 
   // AI analysis is on by default → an AI config is required (#512). Pick the seeded one.
   await page.getByLabel('AI config').click();
-  await page.getByRole('option', { name: /e2e-mock-openai/ }).click();
+  await page.getByTitle(/e2e-mock-openai/).click();
 
   const createResponse = page.waitForResponse(
     (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/api-connectors') && r.ok(),
