@@ -13,7 +13,7 @@
       this one JAR) pin this version + the SHA-256 of the shaded JAR; bump them together whenever the
       engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow Elasticsearch Query Engine</name>
