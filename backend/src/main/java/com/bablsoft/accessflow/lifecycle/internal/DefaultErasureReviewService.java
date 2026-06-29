@@ -48,7 +48,8 @@ class DefaultErasureReviewService implements ErasureReviewService {
         entity.setStatus(ErasureStatus.APPROVED);
         var saved = repository.save(entity);
         eventPublisher.publishEvent(new ErasureRequestApprovedEvent(
-                saved.getId(), saved.getOrganizationId(), reviewer.reviewerId()));
+                saved.getId(), saved.getOrganizationId(), reviewer.reviewerId(),
+                saved.getRequestedBy()));
         return mapper.toView(saved);
     }
 

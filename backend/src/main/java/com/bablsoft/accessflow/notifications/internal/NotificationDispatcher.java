@@ -101,6 +101,16 @@ class NotificationDispatcher {
         deliver(NotificationEventType.ATTESTATION_CAMPAIGN_OPENED, contextOpt.get());
     }
 
+    /** Dispatch an approved-erasure notification to the submitter (AF-499). */
+    void dispatchErasureApproved(UUID organizationId, UUID requestedBy) {
+        var contextOpt = contextBuilder.buildLifecycleErasure(organizationId, requestedBy);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping ERASURE_APPROVED for unknown/inactive submitter {}", requestedBy);
+            return;
+        }
+        deliver(NotificationEventType.ERASURE_APPROVED, contextOpt.get());
+    }
+
     /** Dispatch an API-request notification (AF-500) — non-query-backed; recipients resolved by the
      *  context builder (reviewers/admins for SUBMITTED, submitter for terminal events). */
     void dispatchApiRequest(NotificationEventType eventType, UUID apiRequestId) {

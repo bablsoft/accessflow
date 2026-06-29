@@ -471,6 +471,29 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void buildLifecycleErasureNotifiesActiveSubmitter() {
+        var submitter = UUID.randomUUID();
+        when(userQuery.findById(submitter)).thenReturn(Optional.of(
+                user(submitter, "subject@example.com", UserRoleType.ANALYST)));
+        when(localizationConfig.getOrDefault(orgId)).thenReturn(
+                new LocalizationConfigView(orgId, List.of("en"), "en", "en"));
+
+        var ctx = builder.buildLifecycleErasure(orgId, submitter).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.ERASURE_APPROVED);
+        assertThat(ctx.recipients()).extracting(RecipientView::userId).containsExactly(submitter);
+        assertThat(ctx.queryRequestId()).isNull();
+    }
+
+    @Test
+    void buildLifecycleErasureEmptyWhenSubmitterUnknown() {
+        var submitter = UUID.randomUUID();
+        when(userQuery.findById(submitter)).thenReturn(Optional.empty());
+
+        assertThat(builder.buildLifecycleErasure(orgId, submitter)).isEmpty();
+    }
+
+    @Test
     void buildAttestationCampaignEmptyWhenCampaignMissing() {
         var campaignId = UUID.randomUUID();
         when(attestationLookup.findSummary(campaignId)).thenReturn(Optional.empty());

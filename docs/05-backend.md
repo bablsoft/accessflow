@@ -1055,8 +1055,12 @@ compliance suite: `DefaultComplianceReportService` reads `lifecycle_runs` over t
 deletion-history rows to the existing signed PDF/CSV export. Served at
 `GET /admin/compliance/reports/retention-adherence` (+ the generic signed `…/export?type=…`).
 
-**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`) and lifecycle notifications are part
-of the same epic.
+**Lifecycle notifications.** Approving an erasure publishes `ErasureRequestApprovedEvent`; the
+notifications module's `NotificationListener` consumes it and dispatches an `ERASURE_APPROVED`
+notification to the submitter over their chat + in-app channels (`buildLifecycleErasure` resolves the
+submitter as the recipient). notifications → lifecycle.events only (acyclic).
+
+**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`) is the remaining epic item.
 
 ---
 

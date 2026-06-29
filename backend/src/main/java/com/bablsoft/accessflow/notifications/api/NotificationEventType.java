@@ -20,5 +20,8 @@ public enum NotificationEventType {
     API_REQUEST_EXECUTED,
     API_REQUEST_FAILED,
     API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+
+    ERASURE_APPROVED,
+
     TEST
 }
