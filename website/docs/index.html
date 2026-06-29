@@ -195,6 +195,7 @@
             <a href="#cfg-roles">User roles &amp; RBAC</a>
             <a href="#cfg-groups">User groups</a>
             <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-api-connectors">API connectors</a>
             <a href="#cfg-connectors">Connectors</a>
             <a href="#cfg-drivers">Custom JDBC drivers</a>
             <a href="#cfg-review-plans">Review plans</a>
@@ -1108,6 +1109,40 @@
             <li><strong>Neo4j:</strong> <code>ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT</code>
               (<code>PT10S</code>), <code>…_MAX_CONNECTION_POOL_SIZE</code> (<code>100</code>).</li>
           </ul>
+
+          <h3 id="cfg-api-connectors">API connectors</h3>
+          <p>
+            <strong>What it is.</strong> API Access Governance lets you govern outbound <strong>API</strong>
+            calls — REST, SOAP, GraphQL, and gRPC — with the same review, approval, and audit machinery
+            as a database query. An <em>API connector</em> (<code>/api-connectors</code>) is a registered
+            API target: a base URL, a protocol, and an authentication method.
+          </p>
+          <p>
+            <strong>Configure it (admin).</strong> Create a connector with a base URL, protocol, and an
+            auth method — <em>None</em>, <em>API key</em>, <em>Bearer token</em>, <em>Basic</em>,
+            <em>OAuth2 client-credentials</em>, <em>Custom header</em>, or <em>mTLS</em>. Secrets are
+            AES-256-GCM encrypted at rest and never returned. Optionally upload a schema
+            (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>); AccessFlow parses it into a
+            normalized operation catalog with read/write classification. Set the review plan, AI-analysis
+            toggle + AI config, text-to-API toggle, require-review-on-reads/writes, and the max response
+            size. A <em>Test connection</em> button probes reachability.
+          </p>
+          <p>
+            <strong>Share with the team.</strong> Grant per-user access on a connector
+            (<em>can read</em> / <em>can write</em> / <em>can break-glass</em>, an optional expiry, an
+            allowed-operations subset, and response fields to mask). Users see only the connectors they
+            are granted.
+          </p>
+          <p>
+            <strong>Use it.</strong> In the <em>API editor</em> (<code>/api-editor</code>) a user picks a
+            connector, selects an operation from the schema (or writes a free-form method + path + body),
+            sees a debounced AI risk preview, and submits. Plain-English <em>text-to-API</em> drafts a
+            call for schema-backed connectors. Every call flows through AI risk scoring → routing →
+            human review (no self-approval) → guarded execution that injects the connector's auth, caps
+            and field-masks the response, and stores an immutable response snapshot. Break-glass and
+            scheduled execution mirror the query path. <em>Note: gRPC connectors register and review
+            today; gRPC call execution is a follow-up — REST/SOAP/GraphQL execute fully.</em>
+          </p>
 
           <h3 id="cfg-connectors">Connectors</h3>
           <p>

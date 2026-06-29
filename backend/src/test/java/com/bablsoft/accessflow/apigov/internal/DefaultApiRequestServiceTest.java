@@ -169,4 +169,83 @@ class DefaultApiRequestServiceTest {
         assertThatThrownBy(() -> service.cancel(e.getId(), orgId, userId))
                 .isInstanceOf(ApiRequestPermissionException.class);
     }
+
+    private ApiRequestEntity persisted(QueryStatus status) {
+        var e = new ApiRequestEntity();
+        e.setId(UUID.randomUUID());
+        e.setConnectorId(connectorId);
+        e.setOrganizationId(orgId);
+        e.setSubmittedBy(userId);
+        e.setVerb("GET");
+        e.setRequestPath("/x");
+        e.setStatus(status);
+        return e;
+    }
+
+    @Test
+    void listForUserMapsPage() {
+        when(requestRepository.findByOrganizationIdAndSubmittedBy(eqp(orgId), eqp(userId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(persisted(QueryStatus.PENDING_AI))));
+        lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
+
+        var page = service.listForUser(orgId, userId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).connectorName()).isEqualTo("Stripe");
+    }
+
+    @Test
+    void listForAdminMapsPage() {
+        when(requestRepository.findByOrganizationId(eqp(orgId), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(persisted(QueryStatus.APPROVED))));
+        lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
+
+        var page = service.listForAdmin(orgId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+    }
+
+    @Test
+    void getDeniesNonOwnerNonAdmin() {
+        var e = persisted(QueryStatus.PENDING_AI);
+        e.setSubmittedBy(UUID.randomUUID());
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.get(e.getId(), orgId, userId, false))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException.class);
+    }
+
+    @Test
+    void getReturnsDetailForOwner() {
+        var e = persisted(QueryStatus.EXECUTED);
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
+
+        var view = service.get(e.getId(), orgId, userId, false);
+
+        assertThat(view.id()).isEqualTo(e.getId());
+        assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void executeDelegatesToExecutionServiceAndAudits() {
+        var e = persisted(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+        var executed = persisted(QueryStatus.EXECUTED);
+        executed.setId(e.getId());
+        when(executionService.execute(e.getId())).thenReturn(executed);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
+
+        var view = service.execute(e.getId(), orgId, userId, false);
+
+        assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
+        verify(executionService).execute(e.getId());
+        verify(auditLogService).record(any());
+    }
+
+    private static <T> T eqp(T value) {
+        return org.mockito.ArgumentMatchers.eq(value);
+    }
 }
