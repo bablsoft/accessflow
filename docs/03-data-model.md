@@ -1617,6 +1617,52 @@ break-glass retro-review can target an API request.
 
 ---
 
+## Data Lifecycle Manager (AF-499)
+
+The `lifecycle` module (migration **V103**) adds retention + right-to-erasure governance. New enums
+(`snake_case`, no `_enum` suffix): `lifecycle_action` (`HARD_DELETE`/`SOFT_DELETE`/`PSEUDONYMIZE`),
+`lifecycle_transform` (`SHA256_SALTED`/`FORMAT_PRESERVING`/`TOKENIZATION`), `lifecycle_subject_type`
+(`USER_ID`/`EMAIL`/`CUSTOM`), `erasure_status`
+(`PENDING_SCOPE_AI`/`PENDING_REVIEW`/`APPROVED`/`EXECUTED`/`REJECTED`/`FAILED`/`CANCELLED`),
+`erasure_decision` (`APPROVED`/`REJECTED`), `lifecycle_run_kind`
+(`RETENTION_POLICY`/`ERASURE_REQUEST`), `lifecycle_run_status`
+(`STAGED`/`EXECUTING`/`COMPLETED`/`FAILED`).
+
+### retention_policies
+
+Per-datasource, admin-defined retention rule. Targets a `target_table` and/or `classification_tag`
+(at least one required, app-enforced) plus an optional `target_columns text[]`; a `retention_window`
+(ISO-8601 period/duration) measured against `timestamp_column`; an `action` (with `transform_type`
+required only for `PSEUDONYMIZE`, and an optional `soft_delete_column`); `enabled`. UUID PK,
+`@Version`, `organization_id`/`datasource_id`/`created_by` are bare UUIDs (no FK). Indexed by org,
+by enabled+org+datasource (scan job), and by datasource (proxy directive resolution).
+
+### deletion_requests
+
+A right-to-erasure request keyed on a `subject_identifier` + `subject_type`, flowing the
+`erasure_status` state machine. Holds the nullable `ai_scope_analysis_id`, an immutable
+`scope_snapshot` JSONB, `estimated_rows`/`affected_rows`, `executed_at`, `failure_reason`. Indexed by
+org+status and a partial `PENDING_REVIEW` index for the review queue.
+
+### deletion_request_decisions
+
+Approval-chain rows (mirrors `access_grant_decision`): `request_id` FK (cascade), `reviewer_id`,
+`stage`, `decision` (`erasure_decision`), `comment`, with `UNIQUE(request_id, reviewer_id, stage)`.
+
+### lifecycle_runs
+
+Execution ledger backing the activity view + compliance report: `kind`, one of
+`policy_id`/`deletion_request_id`, `status` (`lifecycle_run_status`), `action`, `matched_tables`
+JSONB, `affected_rows`, `method`, `started_at`/`finished_at`. Indexed by org+created and a partial
+`STAGED` index for the scan job.
+
+### lifecycle_salt
+
+Per-org pseudonymization salt: `organization_id` PK, `salt_encrypted` (AES-256-GCM via
+`CredentialEncryptionService`, never serialized), `version` + `rotated_at` for rotation.
+
+---
+
 ## Database Indexes (Key)
 
 ```sql
