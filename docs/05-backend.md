@@ -954,6 +954,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ApiRequestRunJob` | apigov | `apiRequestRunJob` | `accessflow.apigov.scheduled-run-poll-interval` | `PT1M` |
 | `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
 | `RetentionPolicyScanJob` | lifecycle | `retentionPolicyScanJob` | `accessflow.lifecycle.policy-scan-interval` | `PT1H` |
+| `ErasureExecutionJob` | lifecycle | `erasureExecutionJob` | `accessflow.lifecycle.erasure-execution-interval` | `PT1M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1060,7 +1061,18 @@ notifications module's `NotificationListener` consumes it and dispatches an `ERA
 notification to the submitter over their chat + in-app channels (`buildLifecycleErasure` resolves the
 submitter as the recipient). notifications → lifecycle.events only (acyclic).
 
-**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`) is the remaining epic item.
+**Approved-erasure execution.** `ErasureExecutionJob` (clustered-safe; see
+[§ Scheduled jobs](#scheduled-jobs-and-clustering)) picks up `APPROVED` requests and runs
+`ErasureExecutionService.execute`: for each table in the immutable scope snapshot it issues a
+governed `DELETE FROM <table>` through `proxy.api.QueryExecutor`, scoping it to the subject with a
+**parameter-bound** `RowSecurityDirective` (`<subjectColumn> = <subjectIdentifier>` — the value is
+bound, never concatenated; the table is validated as a simple identifier). The datasource's
+`SOFT_DELETE` policies turn matching DELETEs into marker updates automatically (reusing the proxy
+rewrite). It writes a `lifecycle_runs` row + a tamper-evident `DATA_ERASURE_COMPLETED`
+proof-of-deletion audit row (affected rows, tables, method), then transitions the request to
+`EXECUTED` (or `FAILED` with the offending tables). Per-table failures are isolated so one bad table
+fails only that request. The subject-linking column is currently derived from `subject_type`
+(`EMAIL`→`email`, `USER_ID`→`user_id`); AI-assisted per-table column detection is a follow-up.
 
 ---
 

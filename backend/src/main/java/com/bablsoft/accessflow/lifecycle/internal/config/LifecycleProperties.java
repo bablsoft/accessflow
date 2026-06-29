@@ -13,11 +13,14 @@ import java.time.Duration;
  * </ul>
  */
 @ConfigurationProperties("accessflow.lifecycle")
-public record LifecycleProperties(Duration policyScanInterval) {
+public record LifecycleProperties(Duration policyScanInterval, Duration erasureExecutionInterval) {
 
     public LifecycleProperties {
         if (policyScanInterval == null) {
             policyScanInterval = Duration.ofHours(1);
+        }
+        if (erasureExecutionInterval == null) {
+            erasureExecutionInterval = Duration.ofMinutes(1);
         }
     }
 }
