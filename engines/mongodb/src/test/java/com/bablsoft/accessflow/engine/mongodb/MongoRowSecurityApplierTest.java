@@ -50,6 +50,16 @@ class MongoRowSecurityApplierTest {
     }
 
     @Test
+    void isNullOperatorMatchesNullOrMissingField() {
+        var command = parser.parseCommand("db.users.find({})");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "users", "deleted_at",
+                RowSecurityOperator.IS_NULL, List.of());
+        var applied = applier.apply(command, List.of(directive));
+        assertThat(applied.command().filter()).isEqualTo(new Document("deleted_at", null));
+        assertThat(applied.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
     void emptyValueListProducesDenyAll() {
         var command = parser.parseCommand("db.users.find({})");
         var directive = new RowSecurityDirective(UUID.randomUUID(), "users", "tenant",

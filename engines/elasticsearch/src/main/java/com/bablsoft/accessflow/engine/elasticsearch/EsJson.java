@@ -93,6 +93,15 @@ final class EsJson {
         return q;
     }
 
+    /** {@code {"exists":{"field":<field>}}} — matches documents that have a non-null value. */
+    static ObjectNode exists(String field) {
+        var inner = object();
+        inner.put("field", field);
+        var q = object();
+        q.set("exists", inner);
+        return q;
+    }
+
     static ObjectNode range(String field, String op, Object value) {
         var bounds = object();
         bounds.set(op, valueNode(value));

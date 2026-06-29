@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import tools.jackson.databind.JsonNode;
 
@@ -72,12 +73,17 @@ class EsRowSecurityApplier {
     private static JsonNode toClause(RowSecurityDirective directive) {
         var field = directive.columnName();
         var values = directive.values();
+        if (directive.operator() == RowSecurityOperator.IS_NULL) {
+            // Soft-delete read filter (AF-499): ES stores no nulls, so "is null" == field absent.
+            return EsJson.not(EsJson.exists(field));
+        }
         if (values.isEmpty()) {
             // Fail-closed: a query that matches no document.
             return EsJson.notMatchAll();
         }
         var first = values.get(0);
         return switch (directive.operator()) {
+            case IS_NULL -> EsJson.not(EsJson.exists(field)); // unreachable (handled above)
             case EQUALS -> EsJson.term(field, first);
             case NOT_EQUALS -> EsJson.not(EsJson.term(field, first));
             case LESS_THAN -> EsJson.range(field, "lt", first);

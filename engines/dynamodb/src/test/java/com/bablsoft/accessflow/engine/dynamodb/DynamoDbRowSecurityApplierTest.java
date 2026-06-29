@@ -43,6 +43,18 @@ class DynamoDbRowSecurityApplierTest {
     }
 
     @Test
+    void isNullOperatorSplicesIsMissingWithoutParameter() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\"");
+        var applied = applier.apply(statement,
+                List.of(directive("Music", "deleted_at", RowSecurityOperator.IS_NULL)));
+        assertThat(applied.statement())
+                .isEqualTo("SELECT * FROM \"Music\" WHERE (\"deleted_at\" IS MISSING)");
+        assertThat(applied.parameters()).isEmpty();
+        assertThat(applied.denyAll()).isFalse();
+        assertThat(applied.appliedPolicyIds()).hasSize(1);
+    }
+
+    @Test
     void andsIntoExistingWhereClause() {
         var statement = parser.parseStatement("SELECT * FROM \"Music\" WHERE g = 'rock'");
         var applied = applier.apply(statement,
