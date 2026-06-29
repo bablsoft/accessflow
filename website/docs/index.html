@@ -1882,6 +1882,28 @@ APPROVED → FAILED (execution error)</pre>
             default <code>P1D</code>) and <code>ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD</code> (minimum
             gap between digests per user, default <code>P7D</code>).
           </p>
+
+          <h3 id="cfg-lifecycle">Data lifecycle &amp; right-to-erasure</h3>
+          <p>
+            <strong>Admin.</strong> Define <strong>retention policies</strong> at
+            <code>/admin/lifecycle/policies</code> — per datasource, target a table / column set /
+            classification tag with a retention window (ISO-8601, e.g. <code>P30D</code> or
+            <code>P7Y</code>) and an action: <strong>hard-delete</strong>, <strong>soft-delete</strong>,
+            or <strong>pseudonymize</strong> (salted SHA-256 / format-preserving / tokenization). A
+            <strong>dry-run preview</strong> reports the impact (matched tables, estimated rows, method)
+            without executing. The scan job stages eligible work; tune it with
+            <code>ACCESSFLOW_LIFECYCLE_POLICY_SCAN_INTERVAL</code> (default <code>PT1H</code>).
+          </p>
+          <p>
+            Any user can file a <strong>right-to-erasure</strong> request at
+            <code>/lifecycle/erasure</code> by subject identifier; an admin reviews and approves it at
+            <code>/admin/lifecycle/erasure</code> (the submitter can never approve their own). Approved
+            requests are executed through the proxy — soft-deleted rows vanish from reads,
+            <code>DELETE</code>s become marker updates, aged PII resolves to an irreversible salted hash
+            at read time — with tamper-evident <strong>proof-of-deletion</strong> audit records and a
+            retention-adherence compliance export. Tune the executor with
+            <code>ACCESSFLOW_LIFECYCLE_ERASURE_EXECUTION_INTERVAL</code> (default <code>PT1M</code>).
+          </p>
         </section>
 
         <!-- 4b. End-user workflows -->
