@@ -1038,9 +1038,19 @@ backward-compatible extension; `TOKENIZATION` uses a `tok:`-prefixed salt to sta
 previously hashed values stay hashed). Because masking preserves row presence, counts/aggregates
 survive while PII is irreversibly transformed.
 
-**In progress.** Soft-delete WHERE injection + `DELETE → UPDATE` rewrite (`RowSecurityRewriter`),
-approved-erasure execution, the retention-adherence compliance report, and lifecycle notifications are
-part of the same epic.
+**Soft-delete enforcement (proxy-enforced).** Each enabled `SOFT_DELETE` retention policy contributes,
+through the same `LifecycleDirectiveResolutionService`, (1) a read filter — an `IS_NULL`
+`RowSecurityDirective` on the marker column (default `deleted_at`, overridable per policy) merged into
+the row-security predicates so soft-deleted rows are invisible to SELECT/UPDATE/DELETE — and (2) a
+`SoftDeleteDirective` carried on the `QueryExecutionRequest`. The `RowSecurityRewriter` rewrites a plain
+`DELETE FROM t [WHERE …]` against a soft-delete target into `UPDATE t SET <marker> = CURRENT_TIMESTAMP …`
+before injecting the row-security predicates (so the soft-delete `UPDATE` is itself scoped to live
+rows); `DELETE … USING` / multi-table deletes are rejected fail-closed
+(`UnrewritableRowSecurityException`, 422). `IS_NULL` is a new unary `RowSecurityOperator` that binds no
+parameter — it is never persisted by row-security policies, only synthesised here.
+
+**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`), the retention-adherence compliance
+report, and lifecycle notifications are part of the same epic.
 
 ---
 

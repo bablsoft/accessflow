@@ -2,6 +2,9 @@ package com.bablsoft.accessflow.lifecycle.internal;
 
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.SoftDeleteDirective;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleAction;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleTransform;
@@ -46,6 +49,35 @@ class DefaultLifecycleDirectiveResolutionService implements LifecycleDirectiveRe
             }
         }
         return directives;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RowSecurityDirective> resolveSoftDeleteFilters(UUID organizationId, UUID datasourceId) {
+        return softDeletePolicies(datasourceId).stream()
+                .map(p -> new RowSecurityDirective(p.getId(), p.getTargetTable(), markerColumn(p),
+                        RowSecurityOperator.IS_NULL, List.of()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SoftDeleteDirective> resolveSoftDeletes(UUID organizationId, UUID datasourceId) {
+        return softDeletePolicies(datasourceId).stream()
+                .map(p -> new SoftDeleteDirective(p.getId(), p.getTargetTable(), markerColumn(p)))
+                .toList();
+    }
+
+    private List<RetentionPolicyEntity> softDeletePolicies(UUID datasourceId) {
+        return policyRepository.findAllByDatasourceIdAndEnabledTrue(datasourceId).stream()
+                .filter(p -> p.getAction() == LifecycleAction.SOFT_DELETE
+                        && p.getTargetTable() != null && !p.getTargetTable().isBlank())
+                .toList();
+    }
+
+    private static String markerColumn(RetentionPolicyEntity policy) {
+        var marker = policy.getSoftDeleteColumn();
+        return marker == null || marker.isBlank() ? "deleted_at" : marker;
     }
 
     private static boolean needsSalt(List<RetentionPolicyEntity> policies) {

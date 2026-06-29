@@ -172,13 +172,21 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .resolveColumnMasks(query.organizationId(), query.datasourceId());
             var columnMasks = Stream.concat(maskingDirectives.stream(), lifecycleMasks.stream())
                     .toList();
-            var rowSecurityPredicates = rowSecurityResolutionService
+            var policyPredicates = rowSecurityResolutionService
                     .resolveApplicable(query.organizationId(), query.datasourceId(),
                             query.submittedByUserId())
                     .stream()
                     .map(p -> new RowSecurityDirective(p.policyId(), p.tableRef(), p.columnName(),
                             p.operator(), p.values()))
                     .toList();
+            // Soft-delete (AF-499): read filters (marker IS NULL) join the row-security predicates;
+            // the soft-delete directives drive the DELETE → UPDATE rewrite in the proxy.
+            var softDeleteFilters = lifecycleDirectiveResolutionService
+                    .resolveSoftDeleteFilters(query.organizationId(), query.datasourceId());
+            var rowSecurityPredicates = Stream.concat(policyPredicates.stream(),
+                    softDeleteFilters.stream()).toList();
+            var softDeletes = lifecycleDirectiveResolutionService
+                    .resolveSoftDeletes(query.organizationId(), query.datasourceId());
             var dbType = datasourceLookupService.findById(query.datasourceId())
                     .map(DatasourceConnectionDescriptor::dbType)
                     .orElse(DbType.POSTGRESQL);
@@ -186,7 +194,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
                     restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
-                    parsed.statements()));
+                    parsed.statements(), softDeletes));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;

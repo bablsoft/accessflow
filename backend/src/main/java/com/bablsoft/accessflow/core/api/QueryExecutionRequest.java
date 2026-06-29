@@ -16,7 +16,8 @@ public record QueryExecutionRequest(
         List<ColumnMaskDirective> columnMasks,
         List<RowSecurityDirective> rowSecurityPredicates,
         boolean transactional,
-        List<String> statements) {
+        List<String> statements,
+        List<SoftDeleteDirective> softDeleteDirectives) {
 
     public QueryExecutionRequest {
         Objects.requireNonNull(datasourceId, "datasourceId");
@@ -38,6 +39,8 @@ public record QueryExecutionRequest(
         statements = statements == null || statements.isEmpty()
                 ? List.of(sql)
                 : List.copyOf(statements);
+        softDeleteDirectives = softDeleteDirectives == null
+                ? List.of() : List.copyOf(softDeleteDirectives);
         if (transactional) {
             if (queryType != QueryType.INSERT
                     && queryType != QueryType.UPDATE
@@ -57,14 +60,25 @@ public record QueryExecutionRequest(
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                List.of(), List.of(), List.of(), false, null);
+                List.of(), List.of(), List.of(), false, null, List.of());
+    }
+
+    /** Backward-compatible constructor without soft-delete directives (defaults to none). */
+    public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
+                                 Integer maxRowsOverride, Duration statementTimeoutOverride,
+                                 List<String> restrictedColumns, List<ColumnMaskDirective> columnMasks,
+                                 List<RowSecurityDirective> rowSecurityPredicates,
+                                 boolean transactional, List<String> statements) {
+        this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
+                restrictedColumns, columnMasks, rowSecurityPredicates, transactional, statements,
+                List.of());
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
                                  Integer maxRowsOverride, Duration statementTimeoutOverride,
                                  List<String> restrictedColumns) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                restrictedColumns, List.of(), List.of(), false, null);
+                restrictedColumns, List.of(), List.of(), false, null, List.of());
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
@@ -72,6 +86,6 @@ public record QueryExecutionRequest(
                                  List<String> restrictedColumns, boolean transactional,
                                  List<String> statements) {
         this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
-                restrictedColumns, List.of(), List.of(), transactional, statements);
+                restrictedColumns, List.of(), List.of(), transactional, statements, List.of());
     }
 }

@@ -105,7 +105,8 @@ class DefaultQueryExecutor implements QueryExecutor {
         if (request.transactional()) {
             return executeTransactional(request, effectiveTimeout, start);
         }
-        var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates());
+        var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates(),
+                request.softDeleteDirectives());
         try (Connection connection = routingResolver.acquire(request.datasourceId(),
                 request.queryType())) {
             connection.setReadOnly(request.queryType() == QueryType.SELECT);
@@ -154,7 +155,7 @@ class DefaultQueryExecutor implements QueryExecutor {
                 request.datasourceId(), sql, QueryType.SELECT,
                 request.maxRowsOverride(), request.statementTimeoutOverride(),
                 request.restrictedColumns(), request.columnMasks(),
-                request.rowSecurityPredicates(), false, null));
+                request.rowSecurityPredicates(), false, null, java.util.List.of()));
     }
 
     @Override
@@ -209,7 +210,7 @@ class DefaultQueryExecutor implements QueryExecutor {
             try {
                 for (String stmtSql : request.statements()) {
                     var rewrite = rowSecurityRewriter.rewrite(stmtSql,
-                            request.rowSecurityPredicates());
+                            request.rowSecurityPredicates(), request.softDeleteDirectives());
                     appliedPolicyIds.addAll(rewrite.appliedPolicyIds());
                     try (PreparedStatement statement = connection.prepareStatement(rewrite.sql())) {
                         statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));

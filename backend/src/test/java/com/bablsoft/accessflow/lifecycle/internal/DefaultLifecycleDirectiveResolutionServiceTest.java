@@ -99,6 +99,33 @@ class DefaultLifecycleDirectiveResolutionServiceTest {
     }
 
     @Test
+    void softDeleteFiltersAndDirectivesUseMarkerColumn() {
+        var withMarker = policy(LifecycleAction.SOFT_DELETE, null, "orders");
+        withMarker.setSoftDeleteColumn("archived_at");
+        var defaultMarker = policy(LifecycleAction.SOFT_DELETE, null, "events");
+        when(policyRepository.findAllByDatasourceIdAndEnabledTrue(DS))
+                .thenReturn(List.of(withMarker, defaultMarker));
+
+        var filters = service.resolveSoftDeleteFilters(ORG, DS);
+        assertThat(filters).extracting(f -> f.tableRef() + ":" + f.columnName() + ":" + f.operator())
+                .containsExactlyInAnyOrder("orders:archived_at:IS_NULL", "events:deleted_at:IS_NULL");
+        assertThat(filters).allSatisfy(f -> assertThat(f.values()).isEmpty());
+
+        var directives = service.resolveSoftDeletes(ORG, DS);
+        assertThat(directives).extracting(d -> d.tableRef() + ":" + d.markerColumn())
+                .containsExactlyInAnyOrder("orders:archived_at", "events:deleted_at");
+    }
+
+    @Test
+    void softDeleteIgnoresNonSoftDeletePolicies() {
+        when(policyRepository.findAllByDatasourceIdAndEnabledTrue(DS)).thenReturn(List.of(
+                policy(LifecycleAction.HARD_DELETE, null, "orders"),
+                policy(LifecycleAction.PSEUDONYMIZE, LifecycleTransform.FORMAT_PRESERVING, "u", "c")));
+        assertThat(service.resolveSoftDeleteFilters(ORG, DS)).isEmpty();
+        assertThat(service.resolveSoftDeletes(ORG, DS)).isEmpty();
+    }
+
+    @Test
     void skipsPseudonymizeWithNoColumns() {
         var p = policy(LifecycleAction.PSEUDONYMIZE, LifecycleTransform.SHA256_SALTED, "t");
         p.setTargetColumns(new String[0]);

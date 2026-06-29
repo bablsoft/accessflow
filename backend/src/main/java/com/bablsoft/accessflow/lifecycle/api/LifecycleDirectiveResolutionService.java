@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.lifecycle.api;
 
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SoftDeleteDirective;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,4 +19,16 @@ import java.util.UUID;
 public interface LifecycleDirectiveResolutionService {
 
     List<ColumnMaskDirective> resolveColumnMasks(UUID organizationId, UUID datasourceId);
+
+    /**
+     * Read-side soft-delete filters: an {@code IS_NULL} predicate on each enabled {@code SOFT_DELETE}
+     * policy's marker column, so soft-deleted rows are invisible to SELECT/UPDATE/DELETE.
+     */
+    List<RowSecurityDirective> resolveSoftDeleteFilters(UUID organizationId, UUID datasourceId);
+
+    /**
+     * Write-side soft-delete rewrite signals: each enabled {@code SOFT_DELETE} policy turns a
+     * {@code DELETE} against its table into an {@code UPDATE … SET marker = CURRENT_TIMESTAMP}.
+     */
+    List<SoftDeleteDirective> resolveSoftDeletes(UUID organizationId, UUID datasourceId);
 }

@@ -64,7 +64,7 @@ class DefaultQueryDryRunService implements QueryDryRunService {
                 .toList();
 
         var request = new QueryExecutionRequest(datasourceId, sql, parsed.type(), null, null,
-                List.of(), List.of(), rowSecurityPredicates, false, null);
+                List.of(), List.of(), rowSecurityPredicates, false, null, List.of());
         var result = queryExecutor.dryRun(request);
 
         // 5. Localize the unsupported reason for engines that cannot produce a plan.
