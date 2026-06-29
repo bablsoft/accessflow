@@ -498,6 +498,35 @@ Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](0
 
 ---
 
+## API Access Governance security (AF-500)
+
+The `apigov` module governs outbound API calls (REST / SOAP / GraphQL / gRPC) with the same security
+posture as the query proxy:
+
+- **Auth-secret encryption.** A connector's auth material is supplied as a credential map
+  (API key, bearer token, basic user/pass, OAuth2 client-credentials, custom header, or mTLS),
+  serialized and AES-256-GCM encrypted via `CredentialEncryptionService` into
+  `api_connectors.auth_credentials_encrypted`. The column is `@JsonIgnore`; read DTOs expose only
+  `auth_method` + a `has_credentials` boolean — the secret is never returned. It is decrypted only
+  inside `ApiExecutionService` at call time and passed straight to the outbound HTTP client.
+- **Supported auth methods** (`api_auth_method`): `NONE`, `API_KEY`, `BEARER_TOKEN`, `BASIC`,
+  `OAUTH2_CLIENT_CREDENTIALS` (token fetched from the configured token endpoint per call),
+  `CUSTOM_HEADER`, `MTLS` (registration/schema supported; client-cert execution wiring is a
+  documented follow-up).
+- **Response-field masking.** Per-user `restricted_response_fields` (dot-paths) are redacted from the
+  JSON response recursively (including through arrays and nested objects) via the shared
+  `ColumnMasker` (FULL strategy) before the response snapshot is persisted — the unmasked body is
+  never stored. Mirrors the query masking model and is keyed on the submitter.
+- **Response-size cap.** The executor reads at most `max_response_bytes` and flags `truncated`,
+  bounding memory and exfiltration blast radius.
+- **A submitter can never approve their own API request.** Enforced in `DefaultApiReviewService`
+  (`SelfApprovalNotAllowedException`, 403), exactly like the query-review / JIT / break-glass blocks.
+- **Break-glass parity.** Emergency access requires a per-user/per-connector `can_break_glass` grant
+  (required for everyone, including admins), executes immediately through all guards, writes a
+  prominent `API_REQUEST_BREAK_GLASS_EXECUTED` audit row, and opens a mandatory retro-review.
+
+---
+
 ## Custom JDBC Driver Trust Boundary
 
 Admin-uploaded JDBC driver JARs (see [`docs/05-backend.md`](05-backend.md#admin-uploaded-drivers-94--142)) live on the AccessFlow filesystem unencrypted. The trust anchors are:

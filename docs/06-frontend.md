@@ -428,6 +428,26 @@ polling.
 
 ---
 
+## API Access Governance pages (AF-500)
+
+The `apigov` UI lives under `src/pages/apigov/` with API modules `src/api/apiConnectors.ts` and
+`src/api/apiRequests.ts` (TanStack Query key factories mirroring `queries.ts`/`datasources.ts`),
+types in `src/types/api.ts`, and protocol/auth/schema-type enum labels in `src/utils/enumLabels.ts`
+(`apiProtocolLabel` / `apiAuthMethodLabel` / `apiSchemaTypeLabel`). All visible strings are `t()`-keyed
+under `apiGov.*` in every registered locale.
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/api-connectors` | `ApiConnectorsListPage` | Admin list of connectors (protocol / auth / active) with Skeleton + EmptyState; "New connector" CTA. |
+| `/api-connectors/:id/settings` | `ApiConnectorSettingsPage` | Create/edit form (protocol, base URL, auth method + credential fields, governance toggles), schema upload + parsed-operation explorer, and the per-user "Share with team" permission grants (`can_read`/`can_write`/`can_break_glass`/`expires_at`/`allowed_operations`/`restricted_response_fields`). AntD `Form`; validation parity with the backend DTOs. |
+| `/api-editor` | `ApiEditorPage` | Connector picker → operation `Select` from the parsed catalog (or free-form verb + path + body when no operation is chosen) → debounced AI risk preview (`POST /api-requests/analyze`, `RiskBadge`) → submit. A "describe the call in plain English" text-to-API box (`POST /api-requests/generate`) shows only when the connector has a schema and `text_to_api_enabled`. |
+| `/api-requests` | `ApiRequestsListPage` | The caller's API requests (status, connector, verb/path, risk) with detail drill-in. |
+| `/api-requests/:id` | `ApiRequestDetailPage` | Request detail: status timeline, AI risk, review decisions, and the size-capped, field-masked response snapshot once executed. |
+| `/api-reviews` | `ApiReviewQueuePage` | Reviewer/admin queue of API requests awaiting review; approve/reject (self-approval blocked server-side). |
+
+Navigation entries are added to `components/common/Sidebar.tsx` (Data group: connectors; Workflow
+group: API editor / requests / reviews), role-gated like the rest of the nav.
+
 ## SQL Editor Component
 
 Built on **CodeMirror 6** (`@codemirror/lang-sql`).
