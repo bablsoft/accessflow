@@ -28,7 +28,7 @@ public final class ColumnMasker {
         return switch (strategy) {
             case FULL -> FULL_MASK;
             case PARTIAL -> partial(raw, params);
-            case HASH -> hash(raw);
+            case HASH -> hash(raw, params);
             case EMAIL -> email(raw);
             case FORMAT_PRESERVING -> formatPreserving(raw);
         };
@@ -60,10 +60,14 @@ public final class ColumnMasker {
         }
     }
 
-    private static String hash(String raw) {
+    private static String hash(String raw, Map<String, String> params) {
+        // Optional per-org salt (lifecycle pseudonymization, AF-499). Absent → today's plain digest,
+        // so existing HASH masking policies are unchanged.
+        var salt = params == null ? null : params.get("salt");
+        var input = salt == null || salt.isBlank() ? raw : salt + raw;
         try {
             var digest = MessageDigest.getInstance("SHA-256")
-                    .digest(raw.getBytes(StandardCharsets.UTF_8));
+                    .digest(input.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException ex) {
             // SHA-256 is mandated by the JDK spec; this branch is unreachable in practice.

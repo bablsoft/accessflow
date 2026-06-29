@@ -1021,11 +1021,26 @@ carrying a `lifecycle_transform`). CRUD lives at `/api/v1/lifecycle/policies` (`
 (matched tables, best-effort estimated rows via `proxy.api.QueryDryRunService`, method) without
 executing. `RetentionPolicyScanJob` stages eligible runs (see [§ Scheduled jobs](#scheduled-jobs-and-clustering)).
 
-**Right-to-erasure (in progress).** `deletion_requests` flow an erasure state machine
+**Right-to-erasure.** `deletion_requests` flow an erasure state machine
 (`PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED`, + `REJECTED`/`FAILED`/`CANCELLED`) mirroring
-the query-review lifecycle, with AI-assisted scope detection and human approval (submitter can never
-self-approve). Proxy soft-delete/pseudonymization enforcement, the retention-adherence compliance
-report, and lifecycle notifications are part of the same epic.
+the query-review lifecycle, with async scope detection (`ErasureScopeAnalyzer`, the AI plug-in point)
+and human approval (submitter can never self-approve).
+
+**Read-time pseudonymization (proxy-enforced).** `LifecycleDirectiveResolutionService`
+(`lifecycle.api`, depended on by `workflow`) turns each enabled `PSEUDONYMIZE` retention policy into
+post-fetch `ColumnMaskDirective`s — one per target column — which `DefaultQueryLifecycleService` merges
+alongside the masking-policy directives before execution, so the shared `core.api.ColumnMasker`
+applies them. The `LifecycleTransform` maps onto the masker: `SHA256_SALTED` / `TOKENIZATION` → a
+salted SHA-256 (the per-org salt is added via a new optional `salt` param on the `HASH` strategy — a
+backward-compatible extension; `TOKENIZATION` uses a `tok:`-prefixed salt to stay distinguishable),
+`FORMAT_PRESERVING` → the format-preserving strategy. The per-org salt is owned by `LifecycleSaltService`
+(lazily created, AES-256-GCM encrypted in `lifecycle_salt`, rotatable — rotation bumps `version` while
+previously hashed values stay hashed). Because masking preserves row presence, counts/aggregates
+survive while PII is irreversibly transformed.
+
+**In progress.** Soft-delete WHERE injection + `DELETE → UPDATE` rewrite (`RowSecurityRewriter`),
+approved-erasure execution, the retention-adherence compliance report, and lifecycle notifications are
+part of the same epic.
 
 ---
 

@@ -61,6 +61,22 @@ class ColumnMaskerTest {
     }
 
     @Test
+    void hashWithSaltIsDeterministicAndDiffersFromUnsalted() {
+        var salted = ColumnMasker.apply(MaskingStrategy.HASH, "secret", Map.of("salt", "pepper"));
+        var saltedAgain = ColumnMasker.apply(MaskingStrategy.HASH, "secret", Map.of("salt", "pepper"));
+        var unsalted = ColumnMasker.apply(MaskingStrategy.HASH, "secret", Map.of());
+        assertThat(salted).isEqualTo(saltedAgain).hasSize(64).isNotEqualTo(unsalted);
+        // Salt prepended: equals SHA-256 of "peppersecret".
+        assertThat(salted).isEqualTo(ColumnMasker.apply(MaskingStrategy.HASH, "peppersecret", Map.of()));
+    }
+
+    @Test
+    void hashWithBlankSaltFallsBackToPlain() {
+        assertThat(ColumnMasker.apply(MaskingStrategy.HASH, "secret", Map.of("salt", " ")))
+                .isEqualTo(ColumnMasker.apply(MaskingStrategy.HASH, "secret", Map.of()));
+    }
+
+    @Test
     void emailPreservesFirstCharAndDomain() {
         assertThat(ColumnMasker.apply(MaskingStrategy.EMAIL, "jane.doe@example.com", Map.of()))
                 .isEqualTo("j***@example.com");
