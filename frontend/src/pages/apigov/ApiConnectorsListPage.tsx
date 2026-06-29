@@ -19,7 +19,14 @@ import {
   apiProtocolLabel,
   enumOptions,
 } from '@/utils/enumLabels';
-import type { ApiConnector, ApiProtocol, ApiAuthMethod } from '@/types/api';
+import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
+import type {
+  ApiConnector,
+  ApiProtocol,
+  ApiAuthMethod,
+  CreateApiConnectorInput,
+  Oauth2GrantType,
+} from '@/types/api';
 
 export default function ApiConnectorsListPage() {
   const { t } = useTranslation();
@@ -27,12 +34,9 @@ export default function ApiConnectorsListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form] = Form.useForm<{
-    name: string;
-    protocol: ApiProtocol;
-    base_url: string;
-    auth_method: ApiAuthMethod;
-  }>();
+  const [form] = Form.useForm<CreateApiConnectorInput>();
+  const authMethod = Form.useWatch('auth_method', form) as ApiAuthMethod | undefined;
+  const grantType = Form.useWatch('oauth2_grant_type', form) as Oauth2GrantType | undefined;
 
   const connectorsQuery = useQuery({
     queryKey: apiConnectorKeys.list({ size: 100 }),
@@ -167,7 +171,12 @@ export default function ApiConnectorsListPage() {
         <Form
           form={form}
           layout="vertical"
-          initialValues={{ protocol: 'REST', auth_method: 'NONE' }}
+          initialValues={{
+            protocol: 'REST',
+            auth_method: 'NONE',
+            oauth2_grant_type: 'CLIENT_CREDENTIALS',
+            oauth2_client_auth: 'CLIENT_SECRET_BASIC',
+          }}
           onFinish={(values) => createMutation.mutate(values)}
         >
           <Form.Item
@@ -200,6 +209,9 @@ export default function ApiConnectorsListPage() {
           <Form.Item name="auth_method" label={t('apiGov.connectors.authMethod')}>
             <Select options={enumOptions(API_AUTH_METHODS, apiAuthMethodLabel, t)} />
           </Form.Item>
+          {authMethod === 'OAUTH2_CLIENT_CREDENTIALS' && (
+            <Oauth2ConnectorFields grantType={grantType} />
+          )}
         </Form>
       </Modal>
     </div>

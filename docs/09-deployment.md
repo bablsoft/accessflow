@@ -990,6 +990,10 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_APIGOV_SCHEDULED_RUN_POLL_INTERVAL` | Optional | `PT1M` | ISO-8601 duration. Cadence at which `ApiRequestRunJob` (the `apigov` module, AF-500) fires `APPROVED` API requests whose `scheduled_for` has passed. ShedLock-guarded. |
 | `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` auto-rejects API requests stuck in `PENDING_REVIEW` past the review timeout. |
 | `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | Optional | `PT24H` | ISO-8601 duration. How long an API request may await review before `ApiRequestTimeoutJob` marks it `TIMED_OUT`. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_CACHE_SKEW` | Optional | `PT30S` | ISO-8601 duration (#506). Safety skew subtracted from a fetched OAuth2 token's `expires_in` before caching it in Redis (`apigov:oauth2:token:<connectorId>`), so it refreshes a little before the upstream actually expires it. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_REQUEST_TIMEOUT` | Optional | `PT10S` | ISO-8601 duration (#506). Connect/read timeout for the `apigovOAuth2RestClient` that posts to a connector's OAuth2 token endpoint. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FALLBACK_TTL` | Optional | `PT60S` | ISO-8601 duration (#506). Cache TTL used when a token response omits `expires_in`. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FAILURE_ALERT_THRESHOLD` | Optional | `3` | Consecutive token-fetch failures for a connector before an `API_CONNECTOR_OAUTH2_TOKEN_FAILED` admin alert fires (#506). |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | Optional | `PT15M` | ISO-8601 duration. Smallest requestable JIT access-grant duration; enforced server-side on submit. |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | Optional | `P30D` | ISO-8601 duration. Largest requestable JIT access-grant duration. |
 | `ACCESSFLOW_PUBLIC_BASE_URL` | Optional | `http://localhost:5173` | Public base URL used in notification email links and webhook payloads |

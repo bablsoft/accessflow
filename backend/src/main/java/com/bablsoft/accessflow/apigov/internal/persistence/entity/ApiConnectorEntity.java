@@ -2,6 +2,8 @@ package com.bablsoft.accessflow.apigov.internal.persistence.entity;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
+import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
+import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,6 +64,43 @@ public class ApiConnectorEntity {
     @JsonIgnore
     @Column(name = "auth_credentials_encrypted", columnDefinition = "text")
     private String authCredentialsEncrypted;
+
+    @Column(name = "oauth2_token_uri", columnDefinition = "text")
+    private String oauth2TokenUri;
+
+    @Column(name = "oauth2_client_id", columnDefinition = "text")
+    private String oauth2ClientId;
+
+    @JsonIgnore
+    @Column(name = "oauth2_client_secret_encrypted", columnDefinition = "text")
+    private String oauth2ClientSecretEncrypted;
+
+    @Column(name = "oauth2_scopes", columnDefinition = "text")
+    private String oauth2Scopes;
+
+    @Column(name = "oauth2_audience", columnDefinition = "text")
+    private String oauth2Audience;
+
+    @JsonIgnore
+    @Column(name = "oauth2_refresh_token_encrypted", columnDefinition = "text")
+    private String oauth2RefreshTokenEncrypted;
+
+    @Column(name = "oauth2_username", columnDefinition = "text")
+    private String oauth2Username;
+
+    @JsonIgnore
+    @Column(name = "oauth2_password_encrypted", columnDefinition = "text")
+    private String oauth2PasswordEncrypted;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "oauth2_grant_type", nullable = false, columnDefinition = "oauth2_grant_type")
+    private Oauth2GrantType oauth2GrantType = Oauth2GrantType.CLIENT_CREDENTIALS;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "oauth2_client_auth", nullable = false, columnDefinition = "oauth2_client_auth")
+    private Oauth2ClientAuth oauth2ClientAuth = Oauth2ClientAuth.CLIENT_SECRET_BASIC;
 
     @Column(name = "review_plan_id")
     private UUID reviewPlanId;

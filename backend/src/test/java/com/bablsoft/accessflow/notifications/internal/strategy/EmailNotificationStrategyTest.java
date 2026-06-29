@@ -125,6 +125,14 @@ class EmailNotificationStrategyTest {
     }
 
     @Test
+    void deliverUsesConnectorTokenFailedTemplate() {
+        var ctx = ctx(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, List.of(
+                new RecipientView(UUID.randomUUID(), "admin@example.com", "Admin")));
+        strategy.deliver(ctx, channel());
+        verify(templateEngine).process(eq("email/api-connector-token-failed"), any());
+    }
+
+    @Test
     void deliverUsesRejectedTemplateForRejectedEvent() {
         var ctx = ctx(NotificationEventType.QUERY_REJECTED, List.of(
                 new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));

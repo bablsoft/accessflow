@@ -4345,7 +4345,7 @@ execute, text-to-API, break-glass) lands in a follow-up and will be documented h
 | `POST` | `/api-connectors` | **Admin.** Create a connector (`201`). Auth secret (if any) is AES-256-GCM encrypted at rest. |
 | `PUT` | `/api-connectors/{id}` | **Admin.** Update a connector. Omitting `credentials` leaves the stored secret unchanged. |
 | `DELETE` | `/api-connectors/{id}` | **Admin.** Delete a connector (`204`), cascading its schemas and permissions. |
-| `POST` | `/api-connectors/{id}/test` | **Admin.** Probe connectivity to the base URL (HTTP for REST/SOAP/GraphQL, TCP for gRPC). |
+| `POST` | `/api-connectors/{id}/test` | **Admin.** Probe connectivity to the base URL (HTTP for REST/SOAP/GraphQL, TCP for gRPC). For `OAUTH2_CLIENT_CREDENTIALS` connectors it also performs a live token fetch and reports a misconfiguration. |
 
 `CreateApiConnectorRequest` fields: `name` (3–255, required), `protocol`
 (`REST`/`SOAP`/`GRAPHQL`/`GRPC`, required), `baseUrl` (≤2048, required), `defaultHeaders` (map),
@@ -4353,6 +4353,17 @@ execute, text-to-API, break-glass) lands in a follow-up and will be documented h
 (`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
 `credentials` (map, write-only), `reviewPlanId`, `aiAnalysisEnabled`, `aiConfigId`,
 `textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1).
+
+**Outbound OAuth2 token sourcing (#506).** When `authMethod = OAUTH2_CLIENT_CREDENTIALS`, the
+create/update requests also accept (no new endpoints): `oauth2TokenUri` (≤2048), `oauth2ClientId`
+(≤512), `oauth2ClientSecret` (≤1024, **write-only**), `oauth2Scopes` (≤1024), `oauth2Audience`
+(≤512), `oauth2RefreshToken` (≤4096, **write-only**), `oauth2Username` (≤255), `oauth2Password`
+(≤1024, **write-only**), `oauth2GrantType` (`CLIENT_CREDENTIALS`/`REFRESH_TOKEN`/`PASSWORD`, default
+`CLIENT_CREDENTIALS`), `oauth2ClientAuth` (`CLIENT_SECRET_BASIC`/`CLIENT_SECRET_POST`, default
+`CLIENT_SECRET_BASIC`). On update, omitting a `*Secret`/`*RefreshToken`/`*Password` field leaves the
+stored value unchanged. The read view returns the non-secret config plus the booleans
+`oauth2ClientSecretConfigured`, `oauth2RefreshTokenConfigured`, `oauth2PasswordConfigured` — the
+secrets themselves are never returned.
 
 ### Schemas & operations
 

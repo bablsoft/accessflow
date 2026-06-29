@@ -57,10 +57,43 @@ to review), and `max_response_bytes` (response-size cap).
 
 **Test connection** (`POST /api-connectors/{id}/test`) probes reachability without invoking an
 operation: an HTTP GET to the base URL for REST/SOAP/GraphQL (any HTTP response = reachable), a TCP
-connect for gRPC. No connector auth is injected.
+connect for gRPC. No connector auth is injected — **except** for `OAUTH2_CLIENT_CREDENTIALS`
+connectors, where the test additionally performs a live token fetch so a misconfigured token
+endpoint / credentials surface at setup time.
 
 CRUD is admin-gated and org-scoped; every mutation writes an audit row
 (`API_CONNECTOR_CREATED`/`_UPDATED`/`_DELETED`).
+
+### OAuth2 token sourcing (AF-500 / #506)
+
+When `auth_method = OAUTH2_CLIENT_CREDENTIALS`, AccessFlow obtains the outbound access token itself
+rather than relying on a hand-pasted bearer token. The connector row carries the (returnable)
+non-secret config — `oauth2_token_uri`, `oauth2_client_id`, `oauth2_scopes`, `oauth2_audience`,
+`oauth2_username`, plus the `oauth2_grant_type` and `oauth2_client_auth` enums — and the AES-256-GCM
+encrypted, `@JsonIgnore`, never-returned secrets `oauth2_client_secret_encrypted`,
+`oauth2_refresh_token_encrypted`, and `oauth2_password_encrypted` (read views expose only
+`oauth2_*_configured` booleans).
+
+- **Grant types** (`oauth2_grant_type`): `CLIENT_CREDENTIALS` (M2M, default), `REFRESH_TOKEN`
+  (exchange a stored long-lived refresh token), and `PASSWORD` (resource-owner — needs
+  `oauth2_username` + `oauth2_password`).
+- **Client authentication** (`oauth2_client_auth`): `CLIENT_SECRET_BASIC` (HTTP Basic header with
+  URL-encoded `client_id:client_secret`, the RFC 6749 §2.3.1 default) or `CLIENT_SECRET_POST`
+  (credentials in the form body). An optional `oauth2_audience` (Auth0-style) is added when set.
+- **Caching & refresh.** `ConnectorOAuth2TokenService` posts the configured grant to
+  `oauth2_token_uri` via a dedicated `apigovOAuth2RestClient`, parses `access_token` / `expires_in` /
+  `token_type`, and caches the token (AES-GCM encrypted) in Redis under
+  `apigov:oauth2:token:<connectorId>` with TTL = `expires_in − skew` (floored at ≥ `PT10S`; a
+  fallback TTL is used when `expires_in` is absent). The token is reused across calls and refreshed
+  on expiry or on a single upstream `401` (evict → re-fetch → retry once).
+- **Fail-safe.** Any token-fetch failure (missing config, non-2xx, transport error, missing
+  `access_token`) raises an execution error → the governed request goes `FAILED` with a clear message;
+  the token, client secret, refresh token, and password are never logged, audited, or returned. A
+  real network fetch writes one `API_CONNECTOR_OAUTH2_TOKEN_REFRESHED` audit row (never on a cache
+  hit). Repeated consecutive failures crossing
+  `accessflow.apigov.oauth2-token-failure-alert-threshold` publish an
+  `API_CONNECTOR_OAUTH2_TOKEN_FAILED` notification fanned out to org admins (the connector is
+  effectively down).
 
 ## 2. Schema ingestion & operation catalog
 

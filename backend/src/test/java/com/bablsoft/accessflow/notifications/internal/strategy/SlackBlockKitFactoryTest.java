@@ -55,6 +55,13 @@ class SlackBlockKitFactoryTest {
     }
 
     @Test
+    void connectorTokenFailureHasHeader() {
+        var payload = factory.buildEventPayload(
+                ctxWith(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED), "#ops");
+        assertThat(payload.getText()).contains("API Connector Token Failure");
+    }
+
+    @Test
     void buildBlocksWithActionButtonsAddsApproveAndReject() {
         var ctx = ctxWith(NotificationEventType.QUERY_SUBMITTED);
 

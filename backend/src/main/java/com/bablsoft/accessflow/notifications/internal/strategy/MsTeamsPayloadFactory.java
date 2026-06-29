@@ -192,6 +192,7 @@ class MsTeamsPayloadFactory {
             case API_REQUEST_APPROVED -> "✅ API Call Approved";
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
+            case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
         };
     }
 

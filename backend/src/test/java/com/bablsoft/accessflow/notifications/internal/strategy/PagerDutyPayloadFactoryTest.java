@@ -73,6 +73,20 @@ class PagerDutyPayloadFactoryTest {
     }
 
     @Test
+    void connectorTokenFailureSummaryMentionsConnector() {
+        var ctx = sampleContext(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, null);
+        var config = new PagerDutyChannelConfig("k", PagerDutySeverity.ERROR,
+                EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));
+
+        var tree = objectMapper.readTree(factory.buildEventBody(ctx, config));
+
+        assertThat(tree.get("payload").get("summary").asString())
+                .contains("OAuth2 token fetch repeatedly failing");
+        assertThat(tree.get("payload").get("class").asString())
+                .isEqualTo("API_CONNECTOR_OAUTH2_TOKEN_FAILED");
+    }
+
+    @Test
     void buildTestBodyUsesFixedDedupKeyAndInfoSeverity() {
         var config = new PagerDutyChannelConfig("R0UT1NGKEY", PagerDutySeverity.CRITICAL,
                 EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));

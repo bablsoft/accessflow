@@ -2292,6 +2292,15 @@
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
       "GRPC_PROTO": "gRPC Proto"
+    },
+    "oauth2_grant_type": {
+      "CLIENT_CREDENTIALS": "Учётные данные клиента",
+      "REFRESH_TOKEN": "Токен обновления",
+      "PASSWORD": "Пароль (владелец ресурса)"
+    },
+    "oauth2_client_auth": {
+      "CLIENT_SECRET_BASIC": "Секрет клиента (заголовок Basic)",
+      "CLIENT_SECRET_POST": "Секрет клиента (тело POST)"
     }
   },
   "access": {
@@ -2705,7 +2714,20 @@
       "credentials": "Credentials",
       "nameRequired": "Connector name is required",
       "baseUrlRequired": "Base URL is required",
-      "protocolRequired": "Protocol is required"
+      "protocolRequired": "Protocol is required",
+      "oauth2TokenUri": "URL конечной точки токена",
+      "oauth2ClientId": "Идентификатор клиента",
+      "oauth2ClientSecret": "Секрет клиента",
+      "oauth2Scopes": "Области (scopes)",
+      "oauth2Audience": "Audience",
+      "oauth2RefreshToken": "Токен обновления",
+      "oauth2Username": "Имя пользователя",
+      "oauth2Password": "Пароль",
+      "oauth2GrantType": "Тип гранта",
+      "oauth2ClientAuth": "Аутентификация клиента",
+      "oauth2Configured": "Настроено",
+      "oauth2SecretHint": "Оставьте пустым, чтобы сохранить текущее значение",
+      "oauth2TokenUriRequired": "URL конечной точки токена обязателен"
     },
     "settings": {
       "title": "Connector settings",

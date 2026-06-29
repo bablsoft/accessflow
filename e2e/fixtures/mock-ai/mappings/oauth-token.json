@@ -1,0 +1,21 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "method": "POST",
+        "urlPattern": "/oauth/token.*"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "access_token": "mock-oauth2-access-token-af506",
+          "token_type": "Bearer",
+          "expires_in": 3600
+        }
+      }
+    }
+  ]
+}

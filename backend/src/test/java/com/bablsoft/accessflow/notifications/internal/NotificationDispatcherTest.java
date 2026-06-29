@@ -254,6 +254,35 @@ class NotificationDispatcherTest {
                 .thenReturn(Optional.of(sampleContext()));
     }
 
+    @Test
+    void dispatchApiConnectorUsesAllActiveOrgChannels() {
+        var connectorId = UUID.randomUUID();
+        when(contextBuilder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId))
+                .thenReturn(Optional.of(sampleContextWithRecipients(
+                        NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, List.of())));
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of(emailCh));
+
+        dispatcher.dispatchApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
+
+        verify(emailStrategy).deliver(any(), eq(emailCh));
+        verify(channelRepository, never())
+                .findAllByOrganizationIdAndIdInAndActiveTrue(any(), any());
+    }
+
+    @Test
+    void dispatchApiConnectorUnknownShortCircuits() {
+        var connectorId = UUID.randomUUID();
+        when(contextBuilder.buildApiConnector(any(), eq(connectorId))).thenReturn(Optional.empty());
+
+        dispatcher.dispatchApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
+
+        verify(emailStrategy, never()).deliver(any(), any());
+    }
+
     private NotificationContext sampleContextWithRecipients(NotificationEventType type,
                                                             List<RecipientView> recipients) {
         return new NotificationContext(

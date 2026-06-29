@@ -53,6 +53,14 @@ class DiscordPayloadFactoryTest {
     }
 
     @Test
+    void connectorTokenFailureHasTitle() {
+        var body = factory.buildEventBody(
+                ctx(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, null),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("API Connector Token Failure");
+    }
+
+    @Test
     void reviewTimeoutIncludesAutoRejectedAfter() {
         var ctx = ctx(NotificationEventType.REVIEW_TIMEOUT, 24);
         var body = factory.buildEventBody(ctx,

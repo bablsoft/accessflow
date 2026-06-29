@@ -1514,7 +1514,10 @@ state machine: `PENDING → CERTIFIED` \| `PENDING → REVOKED` (terminal; idemp
 
 Governed outbound API targets, per organization. Enums (`snake_case`, no `_enum` suffix):
 `api_protocol` (`REST`/`SOAP`/`GRAPHQL`/`GRPC`), `api_auth_method`
-(`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`).
+(`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
+plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
+(`CLIENT_CREDENTIALS`/`REFRESH_TOKEN`/`PASSWORD`) and `oauth2_client_auth`
+(`CLIENT_SECRET_BASIC`/`CLIENT_SECRET_POST`).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -1527,7 +1530,11 @@ Governed outbound API targets, per organization. Enums (`snake_case`, no `_enum`
 | `timeout_ms` | INTEGER | Per-call timeout. Default 30000. |
 | `tls_verify` | BOOLEAN | Default true. |
 | `auth_method` | `api_auth_method` | Default `NONE`. |
-| `auth_credentials_encrypted` | TEXT | AES-256-GCM ciphertext of the auth secret map. `@JsonIgnore`; never serialized. |
+| `auth_credentials_encrypted` | TEXT | AES-256-GCM ciphertext of the auth secret map (API_KEY/BEARER/BASIC/CUSTOM_HEADER). `@JsonIgnore`; never serialized. |
+| `oauth2_token_uri` / `oauth2_client_id` / `oauth2_scopes` / `oauth2_audience` / `oauth2_username` | TEXT | Outbound OAuth2 non-secret config (#506), nullable, returnable in GET. |
+| `oauth2_client_secret_encrypted` / `oauth2_refresh_token_encrypted` / `oauth2_password_encrypted` | TEXT | AES-256-GCM ciphertext of the outbound OAuth2 secrets. `@JsonIgnore`; never serialized (read views expose `oauth2_*_configured` booleans). |
+| `oauth2_grant_type` | `oauth2_grant_type` | Default `CLIENT_CREDENTIALS`. |
+| `oauth2_client_auth` | `oauth2_client_auth` | Default `CLIENT_SECRET_BASIC`. |
 | `review_plan_id` / `ai_config_id` | UUID | Bare UUIDs into core. |
 | `ai_analysis_enabled` / `text_to_api_enabled` | BOOLEAN | |
 | `require_review_reads` / `require_review_writes` | BOOLEAN | Map safe vs mutating methods to review. |

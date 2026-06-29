@@ -510,9 +510,18 @@ posture as the query proxy:
   `auth_method` + a `has_credentials` boolean — the secret is never returned. It is decrypted only
   inside `ApiExecutionService` at call time and passed straight to the outbound HTTP client.
 - **Supported auth methods** (`api_auth_method`): `NONE`, `API_KEY`, `BEARER_TOKEN`, `BASIC`,
-  `OAUTH2_CLIENT_CREDENTIALS` (token fetched from the configured token endpoint per call),
-  `CUSTOM_HEADER`, `MTLS` (registration/schema supported; client-cert execution wiring is a
-  documented follow-up).
+  `OAUTH2_CLIENT_CREDENTIALS`, `CUSTOM_HEADER`, `MTLS` (registration/schema supported; client-cert
+  execution wiring is a documented follow-up).
+- **Outbound OAuth2 token sourcing (#506).** For `OAUTH2_CLIENT_CREDENTIALS` connectors, AccessFlow
+  fetches/caches/refreshes the upstream access token itself (grant types `CLIENT_CREDENTIALS` /
+  `REFRESH_TOKEN` / `PASSWORD`; client auth `CLIENT_SECRET_BASIC` / `CLIENT_SECRET_POST`). The client
+  secret, refresh token, and resource-owner password are AES-256-GCM encrypted at rest in dedicated
+  `oauth2_*_encrypted` columns (`@JsonIgnore`, never returned — only `oauth2_*_configured` booleans
+  are). The fetched access token is cached **encrypted** in Redis
+  (`apigov:oauth2:token:<connectorId>`) with TTL = `expires_in − skew` and refreshed on expiry or a
+  single upstream `401`. The token, secret, refresh token, and password are **never logged, audited,
+  or serialized**; a real token fetch records only an `API_CONNECTOR_OAUTH2_TOKEN_REFRESHED` audit
+  row (grant type only, no token).
 - **Response-field masking.** Per-user `restricted_response_fields` (dot-paths) are redacted from the
   JSON response recursively (including through arrays and nested objects) via the shared
   `ColumnMasker` (FULL strategy) before the response snapshot is persisted — the unmasked body is

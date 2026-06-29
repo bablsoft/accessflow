@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -50,6 +51,14 @@ class ApiNotificationListenerTest {
     void failedMapsToFailedEvent() {
         listener.onDecided(new ApiRequestDecidedEvent(requestId, QueryStatus.FAILED, "boom"));
         verify(dispatcher).dispatchApiRequest(NotificationEventType.API_REQUEST_FAILED, requestId);
+    }
+
+    @Test
+    void connectorTokenFailureNotifiesConnectorEvent() {
+        var connectorId = UUID.randomUUID();
+        listener.onConnectorTokenFailure(new ApiConnectorTokenFailureEvent(connectorId, UUID.randomUUID()));
+        verify(dispatcher).dispatchApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId);
     }
 
     @Test

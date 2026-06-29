@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.api_connector_token_failed.title}">API connector token failure</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #c53030; color: #fff; text-decoration: none; border-radius: 4px; }
+        .alert-banner { padding: 10px 12px; border-left: 3px solid #c53030; background: #fff5f5; color: #742a2a; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.api_connector_token_failed.heading}">API connector token failure</h2>
+    <p class="alert-banner" th:text="#{notification.email.api_connector_token_failed.body}">
+        AccessFlow could not obtain an OAuth2 access token for this connector after repeated attempts.
+        Governed calls through it will fail until the token configuration is fixed.
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.api_connector_token_failed.connector_label}">Connector:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span>
+    </p>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.api_connector_token_failed.cta}">Open connector settings</a>
+    </p>
+</body>
+</html>

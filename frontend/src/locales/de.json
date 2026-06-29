@@ -2292,6 +2292,15 @@
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
       "GRPC_PROTO": "gRPC Proto"
+    },
+    "oauth2_grant_type": {
+      "CLIENT_CREDENTIALS": "Client Credentials",
+      "REFRESH_TOKEN": "Refresh-Token",
+      "PASSWORD": "Passwort (Resource Owner)"
+    },
+    "oauth2_client_auth": {
+      "CLIENT_SECRET_BASIC": "Client-Secret (Basic-Header)",
+      "CLIENT_SECRET_POST": "Client-Secret (POST-Body)"
     }
   },
   "access": {
@@ -2705,7 +2714,20 @@
       "credentials": "Credentials",
       "nameRequired": "Connector name is required",
       "baseUrlRequired": "Base URL is required",
-      "protocolRequired": "Protocol is required"
+      "protocolRequired": "Protocol is required",
+      "oauth2TokenUri": "Token-Endpunkt-URL",
+      "oauth2ClientId": "Client-ID",
+      "oauth2ClientSecret": "Client-Secret",
+      "oauth2Scopes": "Scopes",
+      "oauth2Audience": "Audience",
+      "oauth2RefreshToken": "Refresh-Token",
+      "oauth2Username": "Benutzername",
+      "oauth2Password": "Passwort",
+      "oauth2GrantType": "Grant-Typ",
+      "oauth2ClientAuth": "Client-Authentifizierung",
+      "oauth2Configured": "Konfiguriert",
+      "oauth2SecretHint": "Leer lassen, um den gespeicherten Wert beizubehalten",
+      "oauth2TokenUriRequired": "Token-Endpunkt-URL ist erforderlich"
     },
     "settings": {
       "title": "Connector settings",
