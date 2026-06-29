@@ -4,6 +4,8 @@ import type {
   ApiAuthMethod,
   ApiProtocol,
   ApiSchemaType,
+  Oauth2GrantType,
+  Oauth2ClientAuth,
   AiProvider,
   AttestationCampaignScope,
   AttestationCampaignStatus,
@@ -343,6 +345,23 @@ export const API_AUTH_METHODS: readonly ApiAuthMethod[] = [
 
 export const apiAuthMethodLabel = (t: TFunction, v: ApiAuthMethod): string =>
   t(`enums.api_auth_method.${v}` as const);
+
+export const OAUTH2_GRANT_TYPES: readonly Oauth2GrantType[] = [
+  'CLIENT_CREDENTIALS',
+  'REFRESH_TOKEN',
+  'PASSWORD',
+] as const;
+
+export const oauth2GrantTypeLabel = (t: TFunction, v: Oauth2GrantType): string =>
+  t(`enums.oauth2_grant_type.${v}` as const);
+
+export const OAUTH2_CLIENT_AUTHS: readonly Oauth2ClientAuth[] = [
+  'CLIENT_SECRET_BASIC',
+  'CLIENT_SECRET_POST',
+] as const;
+
+export const oauth2ClientAuthLabel = (t: TFunction, v: Oauth2ClientAuth): string =>
+  t(`enums.oauth2_client_auth.${v}` as const);
 
 export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
   'OPENAPI',

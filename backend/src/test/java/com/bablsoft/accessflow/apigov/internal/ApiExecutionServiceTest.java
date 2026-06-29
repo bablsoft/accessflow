@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
@@ -44,6 +45,7 @@ class ApiExecutionServiceTest {
     @Mock private ApiConnectorUserPermissionRepository permissionRepository;
     @Mock private CredentialEncryptionService encryptionService;
     @Mock private ApiConnectorAuthApplier authApplier;
+    @Mock private ConnectorOAuth2TokenService oauth2TokenService;
     @Mock private ApiCallExecutor executor;
     @Mock private ApiResponseMasker responseMasker;
     @Mock private ApiRequestStateService stateService;
@@ -58,8 +60,8 @@ class ApiExecutionServiceTest {
     @BeforeEach
     void setUp() {
         service = new ApiExecutionService(requestRepository, connectorRepository, permissionRepository,
-                encryptionService, authApplier, executor, responseMasker, stateService, eventPublisher,
-                JsonMapper.builder().build());
+                encryptionService, authApplier, oauth2TokenService, executor, responseMasker, stateService,
+                eventPublisher, JsonMapper.builder().build());
     }
 
     private ApiRequestEntity approved() {
@@ -148,5 +150,108 @@ class ApiExecutionServiceTest {
 
         verify(encryptionService).decrypt("ENC");
         verify(stateService).apply(entity, QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void oauth2InjectsBearerFromTokenServiceWithoutCallingApplier() {
+        var entity = approved();
+        var c = connector();
+        c.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(oauth2TokenService.accessToken(c)).thenReturn("tok-1");
+        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
+                anyLong(), any())).thenReturn(new ApiCallResult(200, 5, 2, false, "{}"));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("{}");
+
+        service.execute(requestId);
+
+        verify(oauth2TokenService).accessToken(c);
+        verify(authApplier, org.mockito.Mockito.never()).authHeaders(any(), any(), anyInt());
+        verify(stateService).apply(entity, QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void oauth2Upstream401EvictsRefreshesAndRetriesOnce() {
+        var entity = approved();
+        var c = connector();
+        c.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(oauth2TokenService.accessToken(c)).thenReturn("stale");
+        when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
+        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
+                anyLong(), any()))
+                .thenReturn(new ApiCallResult(401, 5, 0, false, ""))
+                .thenReturn(new ApiCallResult(200, 6, 2, false, "{}"));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("{}");
+
+        var result = service.execute(requestId);
+
+        verify(oauth2TokenService).evict(connectorId);
+        verify(oauth2TokenService).fetchFresh(c);
+        verify(executor, org.mockito.Mockito.times(2)).execute(any(), anyString(), anyString(), anyString(),
+                any(), any(), anyInt(), anyLong(), any());
+        assertThat(result.getResponseStatusCode()).isEqualTo(200);
+        verify(stateService).apply(entity, QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void oauth2SecondConsecutive401RecordsFailedWithoutThirdCall() {
+        var entity = approved();
+        var c = connector();
+        c.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(oauth2TokenService.accessToken(c)).thenReturn("stale");
+        when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
+        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
+                anyLong(), any())).thenReturn(new ApiCallResult(401, 5, 0, false, ""));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("");
+
+        var result = service.execute(requestId);
+
+        verify(executor, org.mockito.Mockito.times(2)).execute(any(), anyString(), anyString(), anyString(),
+                any(), any(), anyInt(), anyLong(), any());
+        assertThat(result.getResponseStatusCode()).isEqualTo(401);
+        verify(stateService).apply(entity, QueryStatus.EXECUTED);
+    }
+
+    @Test
+    void nonOauth2_401IsNotRetried() {
+        var entity = approved();
+        var c = connector();
+        c.setAuthMethod(ApiAuthMethod.BEARER_TOKEN);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
+                anyLong(), any())).thenReturn(new ApiCallResult(401, 5, 0, false, ""));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("");
+
+        service.execute(requestId);
+
+        verify(oauth2TokenService, org.mockito.Mockito.never()).fetchFresh(any());
+        verify(executor, org.mockito.Mockito.times(1)).execute(any(), anyString(), anyString(), anyString(),
+                any(), any(), anyInt(), anyLong(), any());
+    }
+
+    @Test
+    void oauth2TokenFetchFailureRecordsFailed() {
+        var entity = approved();
+        var c = connector();
+        c.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(oauth2TokenService.accessToken(c)).thenThrow(new ApiExecutionException("token boom"));
+
+        var result = service.execute(requestId);
+
+        assertThat(result.getErrorMessage()).isEqualTo("token boom");
+        verify(stateService).apply(entity, QueryStatus.FAILED);
     }
 }

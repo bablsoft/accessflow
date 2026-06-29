@@ -258,6 +258,10 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_APIGOV_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestRunJob` (the `apigov` module, AF-500) scans for `APPROVED` API requests whose `scheduled_for` has been reached and executes them (default `PT1M`). |
 | `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` scans for API requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). |
 | `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | ISO-8601 duration. How long an API request may sit in `PENDING_REVIEW` before `ApiRequestTimeoutJob` auto-rejects it (default `PT24H`). |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_CACHE_SKEW` | ISO-8601 duration (#506). Safety skew subtracted from a fetched outbound-OAuth2 token's `expires_in` before `ConnectorOAuth2TokenService` caches it in Redis (`apigov:oauth2:token:<connectorId>`) (default `PT30S`). Binds `accessflow.apigov.oauth2-token-cache-skew`. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_REQUEST_TIMEOUT` | ISO-8601 duration (#506). Connect/read timeout for the `apigovOAuth2RestClient` posting to a connector's OAuth2 token endpoint (default `PT10S`). Binds `accessflow.apigov.oauth2-token-request-timeout`. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FALLBACK_TTL` | ISO-8601 duration (#506). Cache TTL used when a token response omits `expires_in` (default `PT60S`). Binds `accessflow.apigov.oauth2-token-fallback-ttl`. |
+| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FAILURE_ALERT_THRESHOLD` | Consecutive outbound-OAuth2 token-fetch failures for a connector before an `API_CONNECTOR_OAUTH2_TOKEN_FAILED` admin notification fires (#506; default `3`). Binds `accessflow.apigov.oauth2-token-failure-alert-threshold`. |
 | `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
 | `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
 | `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |

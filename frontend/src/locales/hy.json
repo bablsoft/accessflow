@@ -2292,6 +2292,15 @@
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
       "GRPC_PROTO": "gRPC Proto"
+    },
+    "oauth2_grant_type": {
+      "CLIENT_CREDENTIALS": "Հաճախորդի հավատարմագրեր",
+      "REFRESH_TOKEN": "Թարմացման token",
+      "PASSWORD": "Գաղտնաբառ (ռեսուրսի սեփականատեր)"
+    },
+    "oauth2_client_auth": {
+      "CLIENT_SECRET_BASIC": "Client secret (Basic վերնագիր)",
+      "CLIENT_SECRET_POST": "Client secret (POST մարմին)"
     }
   },
   "access": {
@@ -2705,7 +2714,20 @@
       "credentials": "Credentials",
       "nameRequired": "Connector name is required",
       "baseUrlRequired": "Base URL is required",
-      "protocolRequired": "Protocol is required"
+      "protocolRequired": "Protocol is required",
+      "oauth2TokenUri": "Token-ի վերջնակետի URL",
+      "oauth2ClientId": "Client ID",
+      "oauth2ClientSecret": "Client secret",
+      "oauth2Scopes": "Scope-եր",
+      "oauth2Audience": "Audience",
+      "oauth2RefreshToken": "Refresh token",
+      "oauth2Username": "Օգտանուն",
+      "oauth2Password": "Գաղտնաբառ",
+      "oauth2GrantType": "Grant տեսակ",
+      "oauth2ClientAuth": "Client նույնականացում",
+      "oauth2Configured": "Կարգավորված է",
+      "oauth2SecretHint": "Թողեք դատարկ՝ պահպանված արժեքը պահելու համար",
+      "oauth2TokenUriRequired": "Token-ի վերջնակետի URL-ը պարտադիր է"
     },
     "settings": {
       "title": "Connector settings",

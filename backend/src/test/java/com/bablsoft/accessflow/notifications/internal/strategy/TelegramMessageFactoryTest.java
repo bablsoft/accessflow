@@ -58,6 +58,13 @@ class TelegramMessageFactoryTest {
     }
 
     @Test
+    void connectorTokenFailureHeaderUsed() {
+        var body = factory.buildEventBody(
+                ctx(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, null), "-100");
+        assertThat(body).contains("API Connector Token Failure");
+    }
+
+    @Test
     void weeklyDigestRendersMetricsAndDashboardLink() {
         var body = factory.buildEventBody(digestCtx(), "-100");
         assertThat(body).contains("Weekly Digest")

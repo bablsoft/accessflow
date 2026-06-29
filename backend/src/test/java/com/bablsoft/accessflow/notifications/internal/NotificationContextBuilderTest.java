@@ -53,6 +53,7 @@ class NotificationContextBuilderTest {
     private BehaviorAnomalyLookupService behaviorAnomalyLookup;
     private AttestationCampaignLookupService attestationLookup;
     private com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService apiRequestLookup;
+    private com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService apiConnectorLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -71,6 +72,7 @@ class NotificationContextBuilderTest {
         behaviorAnomalyLookup = mock(BehaviorAnomalyLookupService.class);
         attestationLookup = mock(AttestationCampaignLookupService.class);
         apiRequestLookup = mock(com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService.class);
+        apiConnectorLookup = mock(com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
@@ -78,7 +80,7 @@ class NotificationContextBuilderTest {
                 null);
         builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -322,7 +324,7 @@ class NotificationContextBuilderTest {
                 null);
         var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())
@@ -479,6 +481,30 @@ class NotificationContextBuilderTest {
         return new QueryRequestSnapshot(queryId, datasourceId, orgId, submitterId,
                 "SELECT 1", QueryType.SELECT, false, QueryStatus.PENDING_REVIEW, null,
                 null, null, false);
+    }
+
+    @Test
+    void buildApiConnectorTargetsActiveAdminsWithConnectorUrl() {
+        var connectorId = UUID.randomUUID();
+        when(apiConnectorLookup.find(connectorId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationView(connectorId, orgId, "Stripe")));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN)));
+
+        var ctx = builder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId).orElseThrow();
+
+        assertThat(ctx.datasourceName()).isEqualTo("Stripe");
+        assertThat(ctx.recipients()).extracting(RecipientView::email).contains("admin@example.com");
+        assertThat(ctx.reviewUrl().toString()).contains("/api-connectors/" + connectorId);
+    }
+
+    @Test
+    void buildApiConnectorEmptyWhenUnknown() {
+        var connectorId = UUID.randomUUID();
+        when(apiConnectorLookup.find(connectorId)).thenReturn(Optional.empty());
+        assertThat(builder.buildApiConnector(
+                NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, connectorId)).isEmpty();
     }
 
     private UserView user(UUID id, String email, UserRoleType role) {

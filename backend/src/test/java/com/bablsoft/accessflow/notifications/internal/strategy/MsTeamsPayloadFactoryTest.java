@@ -65,6 +65,13 @@ class MsTeamsPayloadFactoryTest {
     }
 
     @Test
+    void connectorTokenFailureHeaderIsUsed() {
+        var ctx = ctx(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED, null);
+        var body = factory.buildEventBody(ctx);
+        assertThat(body).contains("API Connector Token Failure");
+    }
+
+    @Test
     void weeklyDigestRendersFactsAndDashboardAction() {
         var body = factory.buildEventBody(digestCtx());
         assertThat(body).contains("Weekly Digest")

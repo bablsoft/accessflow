@@ -179,9 +179,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case BREAK_GLASS_EXECUTED -> "email/break-glass-executed";
             case WEEKLY_DIGEST -> "email/weekly-digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "email/attestation-campaign-opened";
+            // A connector whose OAuth2 token keeps failing is effectively down — alert admins by email.
+            case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "email/api-connector-token-failed";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
-            // API-governance events (AF-500) deliver as in-app + chat notifications, not email.
+            // API-request events (AF-500) deliver as in-app + chat notifications, not email.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
                  API_REQUEST_EXECUTED, API_REQUEST_FAILED -> null;
@@ -210,6 +212,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case WEEKLY_DIGEST -> "notification.email.subject.weekly_digest";
             case ATTESTATION_CAMPAIGN_OPENED ->
                     "notification.email.subject.attestation_campaign_opened";
+            case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
+                    "notification.email.subject.api_connector_token_failed";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,

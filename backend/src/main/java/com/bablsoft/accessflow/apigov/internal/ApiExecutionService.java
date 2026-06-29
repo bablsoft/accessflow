@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
@@ -46,6 +47,7 @@ public class ApiExecutionService {
     private final ApiConnectorUserPermissionRepository permissionRepository;
     private final CredentialEncryptionService encryptionService;
     private final ApiConnectorAuthApplier authApplier;
+    private final ConnectorOAuth2TokenService oauth2TokenService;
     private final ApiCallExecutor executor;
     private final ApiResponseMasker responseMasker;
     private final ApiRequestStateService stateService;
@@ -84,11 +86,35 @@ public class ApiExecutionService {
     }
 
     private ApiCallResult invoke(ApiConnectorEntity connector, ApiRequestEntity request) {
+        var oauth2 = connector.getAuthMethod() == ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS;
+        var bearer = oauth2 ? oauth2TokenService.accessToken(connector) : null;
+        var result = executeCall(connector, request, buildHeaders(connector, request, bearer));
+        // Outbound 401 on an OAuth2 connector likely means a stale cached token — evict, refresh, and
+        // retry exactly once. Static-credential methods surface a 401 as-is (it's a real auth error).
+        if (oauth2 && result.statusCode() == 401) {
+            oauth2TokenService.evict(connector.getId());
+            var refreshed = oauth2TokenService.fetchFresh(connector);
+            return executeCall(connector, request, buildHeaders(connector, request, refreshed));
+        }
+        return result;
+    }
+
+    private Map<String, String> buildHeaders(ApiConnectorEntity connector, ApiRequestEntity request,
+                                             String bearerToken) {
         var headers = new LinkedHashMap<String, String>();
         headers.putAll(readMap(connector.getDefaultHeaders()));
         headers.putAll(readMap(request.getRequestHeaders()));
-        headers.putAll(authApplier.authHeaders(connector.getAuthMethod(),
-                decryptCredentials(connector), connector.getTimeoutMs()));
+        if (bearerToken != null) {
+            headers.put("Authorization", "Bearer " + bearerToken);
+        } else {
+            headers.putAll(authApplier.authHeaders(connector.getAuthMethod(),
+                    decryptCredentials(connector), connector.getTimeoutMs()));
+        }
+        return headers;
+    }
+
+    private ApiCallResult executeCall(ApiConnectorEntity connector, ApiRequestEntity request,
+                                      Map<String, String> headers) {
         return executor.execute(connector.getProtocol(), connector.getBaseUrl(), request.getVerb(),
                 request.getRequestPath(), headers, request.getRequestBody(), connector.getTimeoutMs(),
                 connector.getMaxResponseBytes(), request.getOperationId());

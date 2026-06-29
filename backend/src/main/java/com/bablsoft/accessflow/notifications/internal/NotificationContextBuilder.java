@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
@@ -48,6 +49,7 @@ class NotificationContextBuilder {
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final AttestationCampaignLookupService attestationCampaignLookupService;
     private final ApiRequestNotificationLookupService apiRequestNotificationLookupService;
+    private final ApiConnectorNotificationLookupService apiConnectorNotificationLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -126,7 +128,8 @@ class NotificationContextBuilder {
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST,
                  ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
-                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> List.of();
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED,
+                 API_CONNECTOR_OAUTH2_TOKEN_FAILED -> List.of();
         };
     }
 
@@ -300,6 +303,47 @@ class NotificationContextBuilder {
         var base = properties.publicBaseUrl().toString();
         var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         return URI.create(trimmed + "/api-requests/" + apiRequestId);
+    }
+
+    /**
+     * Builds the context for a connector-scoped OAuth2 token-failure alert (AF-500 / #506). Not
+     * query-backed: the connector name rides in {@code datasourceName} and the connector id in
+     * {@code datasourceId}. Recipients are the organization's active ADMINs (the connector is
+     * effectively down). Returns empty when the connector no longer exists.
+     */
+    Optional<NotificationContext> buildApiConnector(NotificationEventType eventType, UUID connectorId) {
+        var view = apiConnectorNotificationLookupService.find(connectorId).orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var recipients = userQueryService
+                .findByOrganizationAndRole(view.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
+        var locale = localizationConfigService.getOrDefault(view.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                eventType,
+                view.organizationId(),
+                null, null, null, null, null, null, null, null,
+                connectorId,
+                view.name(),
+                null, null, null, null, null, null, null,
+                buildApiConnectorUrl(connectorId),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null));
+    }
+
+    private URI buildApiConnectorUrl(UUID connectorId) {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/api-connectors/" + connectorId + "/settings");
     }
 
     private URI buildAttestationUrl() {

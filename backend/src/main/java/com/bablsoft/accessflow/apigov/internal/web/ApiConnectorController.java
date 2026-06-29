@@ -64,7 +64,9 @@ class ApiConnectorController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Create an API connector")
+    @Operation(summary = "Create an API connector "
+            + "(OAuth2 token-sourcing fields apply when auth_method=OAUTH2_CLIENT_CREDENTIALS; "
+            + "secrets are write-only and never returned)")
     @ApiResponse(responseCode = "201", description = "Connector created")
     @ApiResponse(responseCode = "409", description = "A connector with this name already exists")
     ApiConnectorResponse create(@Valid @RequestBody CreateApiConnectorRequest body,
@@ -79,7 +81,9 @@ class ApiConnectorController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Update an API connector")
+    @Operation(summary = "Update an API connector "
+            + "(omit an OAuth2 secret field to leave the stored value unchanged; "
+            + "changing OAuth2 config evicts any cached access token)")
     @ApiResponse(responseCode = "200", description = "Connector updated")
     @ApiResponse(responseCode = "404", description = "Connector not found")
     @ApiResponse(responseCode = "409", description = "A connector with this name already exists")
@@ -107,7 +111,8 @@ class ApiConnectorController {
 
     @PostMapping("/{id}/test")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Probe connectivity to the connector's base URL")
+    @Operation(summary = "Probe connectivity to the connector's base URL "
+            + "(for OAUTH2_CLIENT_CREDENTIALS connectors this also exercises the token fetch)")
     @ApiResponse(responseCode = "200", description = "Probe result")
     @ApiResponse(responseCode = "404", description = "Connector not found")
     ApiConnectionTestResponse test(@PathVariable UUID id, Authentication authentication) {

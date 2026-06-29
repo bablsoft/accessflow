@@ -276,6 +276,16 @@ accessflow:
     datasource:
       username: ${AUDIT_DB_USER:accessflow_audit}
       password: ${AUDIT_DB_PASSWORD:accessflow_audit}
+  apigov:
+    # Outbound OAuth2 token sourcing for API connectors (#506). Per-connector token endpoint,
+    # credentials, scopes, grant type and client-auth live on the api_connectors row; these are the
+    # deployment-wide knobs: a safety skew subtracted from the token's expires_in before caching, a
+    # fallback TTL used when the token response omits expires_in, the token-endpoint HTTP timeout, and
+    # the consecutive-failure count at which a connector-down alert fires to org admins.
+    oauth2-token-cache-skew: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_CACHE_SKEW:PT30S}
+    oauth2-token-request-timeout: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_REQUEST_TIMEOUT:PT10S}
+    oauth2-token-fallback-ttl: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FALLBACK_TTL:PT60S}
+    oauth2-token-failure-alert-threshold: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FAILURE_ALERT_THRESHOLD:3}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

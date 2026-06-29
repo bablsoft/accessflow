@@ -5,7 +5,9 @@ import java.util.UUID;
 
 /**
  * Update command for an API connector. {@code credentials} is null when the caller leaves the stored
- * secret unchanged; a non-null (possibly empty) map replaces it.
+ * secret unchanged; a non-null (possibly empty) map replaces it. Likewise each OAuth2 secret
+ * ({@code oauth2ClientSecret}, {@code oauth2RefreshToken}, {@code oauth2Password}) is null to leave
+ * the stored value unchanged.
  */
 public record UpdateApiConnectorCommand(
         String name,
@@ -15,6 +17,16 @@ public record UpdateApiConnectorCommand(
         Boolean tlsVerify,
         ApiAuthMethod authMethod,
         Map<String, String> credentials,
+        String oauth2TokenUri,
+        String oauth2ClientId,
+        String oauth2ClientSecret,
+        String oauth2Scopes,
+        String oauth2Audience,
+        String oauth2RefreshToken,
+        String oauth2Username,
+        String oauth2Password,
+        Oauth2GrantType oauth2GrantType,
+        Oauth2ClientAuth oauth2ClientAuth,
         UUID reviewPlanId,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,

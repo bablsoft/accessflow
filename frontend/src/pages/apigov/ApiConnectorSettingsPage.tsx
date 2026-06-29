@@ -16,12 +16,21 @@ import {
   updateApiConnector,
   uploadApiSchema,
 } from '@/api/apiConnectors';
-import { API_SCHEMA_TYPES, apiSchemaTypeLabel, enumOptions } from '@/utils/enumLabels';
+import {
+  API_AUTH_METHODS,
+  API_SCHEMA_TYPES,
+  apiAuthMethodLabel,
+  apiSchemaTypeLabel,
+  enumOptions,
+} from '@/utils/enumLabels';
+import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
 import type {
+  ApiAuthMethod,
   ApiConnectorPermission,
   ApiOperation,
   ApiSchema,
   ApiSchemaType,
+  Oauth2GrantType,
   UpdateApiConnectorInput,
 } from '@/types/api';
 
@@ -60,6 +69,9 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
+  const [form] = Form.useForm();
+  const authMethod = Form.useWatch('auth_method', form) as ApiAuthMethod | undefined;
+  const grantType = Form.useWatch('oauth2_grant_type', form) as Oauth2GrantType | undefined;
   const connectorQuery = useQuery({
     queryKey: apiConnectorKeys.detail(connectorId),
     queryFn: () => getApiConnector(connectorId),
@@ -76,6 +88,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   const c = connectorQuery.data;
   return (
     <Form
+      form={form}
       layout="vertical"
       style={{ maxWidth: 560 }}
       initialValues={{
@@ -83,6 +96,14 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         base_url: c.base_url,
         timeout_ms: c.timeout_ms,
         max_response_bytes: c.max_response_bytes,
+        auth_method: c.auth_method,
+        oauth2_token_uri: c.oauth2_token_uri ?? undefined,
+        oauth2_client_id: c.oauth2_client_id ?? undefined,
+        oauth2_scopes: c.oauth2_scopes ?? undefined,
+        oauth2_audience: c.oauth2_audience ?? undefined,
+        oauth2_username: c.oauth2_username ?? undefined,
+        oauth2_grant_type: c.oauth2_grant_type,
+        oauth2_client_auth: c.oauth2_client_auth,
         ai_analysis_enabled: c.ai_analysis_enabled,
         text_to_api_enabled: c.text_to_api_enabled,
         require_review_reads: c.require_review_reads,
@@ -97,6 +118,17 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
       <Form.Item name="base_url" label={t('apiGov.connectors.baseUrl')} rules={[{ required: true, max: 2048 }]}>
         <Input />
       </Form.Item>
+      <Form.Item name="auth_method" label={t('apiGov.connectors.authMethod')}>
+        <Select options={enumOptions(API_AUTH_METHODS, apiAuthMethodLabel, t)} />
+      </Form.Item>
+      {authMethod === 'OAUTH2_CLIENT_CREDENTIALS' && (
+        <Oauth2ConnectorFields
+          grantType={grantType ?? c.oauth2_grant_type}
+          clientSecretConfigured={c.oauth2_client_secret_configured}
+          refreshTokenConfigured={c.oauth2_refresh_token_configured}
+          passwordConfigured={c.oauth2_password_configured}
+        />
+      )}
       <Form.Item name="timeout_ms" label={t('apiGov.connectors.timeoutMs')} rules={[{ type: 'number', min: 1 }]}>
         <InputNumber style={{ width: '100%' }} />
       </Form.Item>

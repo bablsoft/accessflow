@@ -56,7 +56,12 @@ class ApiConnectorControllerTest {
 
     private ApiConnectorView view() {
         return new ApiConnectorView(connectorId, orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
-                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, true, null, true, null, false, false,
+                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, true,
+                null, null, null, null, null,
+                com.bablsoft.accessflow.apigov.api.Oauth2GrantType.CLIENT_CREDENTIALS,
+                com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth.CLIENT_SECRET_BASIC,
+                false, false, false,
+                null, true, null, false, false,
                 true, 2048L, true, false, Instant.now());
     }
 
@@ -94,8 +99,9 @@ class ApiConnectorControllerTest {
     void createReturnsResponseAndAudits() {
         when(service.create(any())).thenReturn(view());
         var body = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
-                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"), null, true, null,
-                false, false, true, 2048L);
+                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"),
+                null, null, null, null, null, null, null, null, null, null,
+                null, true, null, false, false, true, 2048L);
 
         var response = controller.create(body, auth(UserRoleType.ADMIN), auditContext);
 
@@ -106,8 +112,9 @@ class ApiConnectorControllerTest {
     @Test
     void updateAudits() {
         when(service.update(eq(connectorId), eq(orgId), any())).thenReturn(view());
-        var body = new UpdateApiConnectorRequest("Stripe", null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+        var body = new UpdateApiConnectorRequest("Stripe", null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
 
         controller.update(connectorId, body, auth(UserRoleType.ADMIN), auditContext);
 

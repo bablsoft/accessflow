@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -10,7 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Fans out API-governance notifications (AF-500): a ready-for-review request alerts reviewers/admins;
- * an approved/executed/failed request alerts the submitter (break-glass executions alert admins).
+ * an approved/executed/failed request alerts the submitter (break-glass executions alert admins);
+ * a repeated OAuth2 token-fetch failure alerts org admins (the connector is effectively down).
  * Delivery is best-effort and never blocks the request flow.
  */
 @Component
@@ -30,6 +32,12 @@ class ApiNotificationListener {
         if (type != null) {
             dispatcher.dispatchApiRequest(type, event.apiRequestId());
         }
+    }
+
+    @ApplicationModuleListener
+    void onConnectorTokenFailure(ApiConnectorTokenFailureEvent event) {
+        dispatcher.dispatchApiConnector(NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+                event.connectorId());
     }
 
     private static NotificationEventType mapStatus(QueryStatus status) {

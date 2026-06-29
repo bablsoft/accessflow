@@ -2292,6 +2292,15 @@
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
       "GRPC_PROTO": "gRPC Proto"
+    },
+    "oauth2_grant_type": {
+      "CLIENT_CREDENTIALS": "Identifiants client",
+      "REFRESH_TOKEN": "Jeton de rafraîchissement",
+      "PASSWORD": "Mot de passe (propriétaire de la ressource)"
+    },
+    "oauth2_client_auth": {
+      "CLIENT_SECRET_BASIC": "Secret client (en-tête Basic)",
+      "CLIENT_SECRET_POST": "Secret client (corps POST)"
     }
   },
   "access": {
@@ -2705,7 +2714,20 @@
       "credentials": "Credentials",
       "nameRequired": "Connector name is required",
       "baseUrlRequired": "Base URL is required",
-      "protocolRequired": "Protocol is required"
+      "protocolRequired": "Protocol is required",
+      "oauth2TokenUri": "URL du point de terminaison de jeton",
+      "oauth2ClientId": "Identifiant client",
+      "oauth2ClientSecret": "Secret client",
+      "oauth2Scopes": "Scopes",
+      "oauth2Audience": "Audience",
+      "oauth2RefreshToken": "Jeton de rafraîchissement",
+      "oauth2Username": "Nom d'utilisateur",
+      "oauth2Password": "Mot de passe",
+      "oauth2GrantType": "Type d'octroi",
+      "oauth2ClientAuth": "Authentification du client",
+      "oauth2Configured": "Configuré",
+      "oauth2SecretHint": "Laisser vide pour conserver la valeur enregistrée",
+      "oauth2TokenUriRequired": "L'URL du point de terminaison de jeton est requise"
     },
     "settings": {
       "title": "Connector settings",

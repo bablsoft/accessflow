@@ -2214,6 +2214,8 @@ export type ApiAuthMethod =
   | 'CUSTOM_HEADER'
   | 'MTLS';
 export type ApiSchemaType = 'OPENAPI' | 'WSDL' | 'GRAPHQL_SDL' | 'GRPC_PROTO';
+export type Oauth2GrantType = 'CLIENT_CREDENTIALS' | 'REFRESH_TOKEN' | 'PASSWORD';
+export type Oauth2ClientAuth = 'CLIENT_SECRET_BASIC' | 'CLIENT_SECRET_POST';
 
 export interface ApiConnector {
   id: string;
@@ -2225,6 +2227,16 @@ export interface ApiConnector {
   tls_verify: boolean;
   auth_method: ApiAuthMethod;
   has_credentials: boolean;
+  oauth2_token_uri: string | null;
+  oauth2_client_id: string | null;
+  oauth2_scopes: string | null;
+  oauth2_audience: string | null;
+  oauth2_username: string | null;
+  oauth2_grant_type: Oauth2GrantType;
+  oauth2_client_auth: Oauth2ClientAuth;
+  oauth2_client_secret_configured: boolean;
+  oauth2_refresh_token_configured: boolean;
+  oauth2_password_configured: boolean;
   review_plan_id: string | null;
   ai_analysis_enabled: boolean;
   ai_config_id: string | null;
@@ -2254,6 +2266,16 @@ export interface CreateApiConnectorInput {
   tls_verify?: boolean;
   auth_method?: ApiAuthMethod;
   credentials?: Record<string, string>;
+  oauth2_token_uri?: string | null;
+  oauth2_client_id?: string | null;
+  oauth2_client_secret?: string | null;
+  oauth2_scopes?: string | null;
+  oauth2_audience?: string | null;
+  oauth2_refresh_token?: string | null;
+  oauth2_username?: string | null;
+  oauth2_password?: string | null;
+  oauth2_grant_type?: Oauth2GrantType;
+  oauth2_client_auth?: Oauth2ClientAuth;
   review_plan_id?: string | null;
   ai_analysis_enabled?: boolean;
   ai_config_id?: string | null;

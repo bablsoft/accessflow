@@ -209,9 +209,13 @@ import {
   API_AUTH_METHODS,
   API_PROTOCOLS,
   API_SCHEMA_TYPES,
+  OAUTH2_CLIENT_AUTHS,
+  OAUTH2_GRANT_TYPES,
   apiAuthMethodLabel,
   apiProtocolLabel,
   apiSchemaTypeLabel,
+  oauth2ClientAuthLabel,
+  oauth2GrantTypeLabel,
 } from '../enumLabels';
 
 describe('API governance enum labels (AF-500)', () => {
@@ -231,5 +235,21 @@ describe('API governance enum labels (AF-500)', () => {
     expect(apiSchemaTypeLabel(t, 'OPENAPI')).toBe('OpenAPI');
     expect(apiSchemaTypeLabel(t, 'GRPC_PROTO')).toBe('gRPC Proto');
     expect(API_SCHEMA_TYPES).toHaveLength(4);
+  });
+
+  it('maps OAuth2 grant types to their translations', () => {
+    expect(OAUTH2_GRANT_TYPES).toEqual(['CLIENT_CREDENTIALS', 'REFRESH_TOKEN', 'PASSWORD']);
+    expect(oauth2GrantTypeLabel(t, 'CLIENT_CREDENTIALS')).toBe('Client Credentials');
+    expect(oauth2GrantTypeLabel(t, 'REFRESH_TOKEN')).toBe('Refresh Token');
+    for (const v of OAUTH2_GRANT_TYPES) {
+      expect(oauth2GrantTypeLabel(t, v)).not.toBe(`enums.oauth2_grant_type.${v}`);
+    }
+  });
+
+  it('maps OAuth2 client-auth methods to their translations', () => {
+    expect(OAUTH2_CLIENT_AUTHS).toEqual(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST']);
+    for (const v of OAUTH2_CLIENT_AUTHS) {
+      expect(oauth2ClientAuthLabel(t, v)).not.toBe(`enums.oauth2_client_auth.${v}`);
+    }
   });
 });

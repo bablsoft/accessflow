@@ -2292,6 +2292,15 @@
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
       "GRPC_PROTO": "gRPC Proto"
+    },
+    "oauth2_grant_type": {
+      "CLIENT_CREDENTIALS": "客户端凭据",
+      "REFRESH_TOKEN": "刷新令牌",
+      "PASSWORD": "密码（资源所有者）"
+    },
+    "oauth2_client_auth": {
+      "CLIENT_SECRET_BASIC": "客户端密钥（Basic 头）",
+      "CLIENT_SECRET_POST": "客户端密钥（POST 正文）"
     }
   },
   "access": {
@@ -2705,7 +2714,20 @@
       "credentials": "Credentials",
       "nameRequired": "Connector name is required",
       "baseUrlRequired": "Base URL is required",
-      "protocolRequired": "Protocol is required"
+      "protocolRequired": "Protocol is required",
+      "oauth2TokenUri": "令牌端点 URL",
+      "oauth2ClientId": "客户端 ID",
+      "oauth2ClientSecret": "客户端密钥",
+      "oauth2Scopes": "作用域",
+      "oauth2Audience": "受众",
+      "oauth2RefreshToken": "刷新令牌",
+      "oauth2Username": "用户名",
+      "oauth2Password": "密码",
+      "oauth2GrantType": "授权类型",
+      "oauth2ClientAuth": "客户端认证",
+      "oauth2Configured": "已配置",
+      "oauth2SecretHint": "留空以保留已保存的值",
+      "oauth2TokenUriRequired": "令牌端点 URL 为必填项"
     },
     "settings": {
       "title": "Connector settings",

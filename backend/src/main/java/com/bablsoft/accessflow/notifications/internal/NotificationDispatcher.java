@@ -112,6 +112,17 @@ class NotificationDispatcher {
         deliver(eventType, contextOpt.get());
     }
 
+    /** Dispatch a connector-scoped OAuth2 token-failure alert (AF-500 / #506) — fans out to all
+     *  active org channels (the connector is effectively down); recipients are active org admins. */
+    void dispatchApiConnector(NotificationEventType eventType, UUID connectorId) {
+        var contextOpt = contextBuilder.buildApiConnector(eventType, connectorId);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping {} for unknown connector {}", eventType, connectorId);
+            return;
+        }
+        deliver(eventType, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -216,7 +227,8 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.ANOMALY_DETECTED
                 || eventType == NotificationEventType.BREAK_GLASS_EXECUTED
                 || eventType == NotificationEventType.WEEKLY_DIGEST
-                || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED) {
+                || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED
+                || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

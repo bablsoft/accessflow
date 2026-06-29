@@ -117,10 +117,12 @@ class PagerDutyPayloadFactory {
     }
 
     private static String dedupKey(NotificationContext ctx) {
-        // queryRequestId is null for non-query events (anomalies); fall back to the anomaly id so each
-        // anomaly is its own PagerDuty incident rather than all collapsing into one.
+        // queryRequestId is null for non-query events (anomalies, connector-scoped alerts); fall back to
+        // the anomaly id, then the connector id (carried in datasourceId), so each subject is its own
+        // PagerDuty incident rather than all collapsing into one.
         var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
-                : ctx.anomalyId() != null ? ctx.anomalyId() : "none";
+                : ctx.anomalyId() != null ? ctx.anomalyId()
+                : ctx.datasourceId() != null ? ctx.datasourceId() : "none";
         return "accessflow-" + ctx.organizationId() + "-" + subject;
     }
 
@@ -139,6 +141,8 @@ class PagerDutyPayloadFactory {
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
             case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             case BREAK_GLASS_EXECUTED -> "AccessFlow: break-glass query executed on " + datasource;
+            case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
+                    "AccessFlow: OAuth2 token fetch repeatedly failing for connector " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;
         };
     }

@@ -4,10 +4,13 @@ import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.CreateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
 import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
+import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
+import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -22,6 +25,7 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.MessageSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -38,6 +42,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -53,6 +58,8 @@ class DefaultApiConnectorAdminServiceTest {
     @Mock private CredentialEncryptionService encryptionService;
     @Mock private UserQueryService userQueryService;
     @Mock private ApiConnectorProber prober;
+    @Mock private ConnectorOAuth2TokenService oauth2TokenService;
+    @Mock private MessageSource messageSource;
 
     private DefaultApiConnectorAdminService service;
 
@@ -62,8 +69,8 @@ class DefaultApiConnectorAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiConnectorAdminService(connectorRepository, schemaRepository,
-                permissionRepository, encryptionService, userQueryService, prober,
-                JsonMapper.builder().build());
+                permissionRepository, encryptionService, userQueryService, prober, oauth2TokenService,
+                messageSource, JsonMapper.builder().build());
         lenient().when(schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(any()))
                 .thenReturn(Optional.empty());
     }
@@ -71,7 +78,9 @@ class DefaultApiConnectorAdminServiceTest {
     private CreateApiConnectorCommand createCommand() {
         return new CreateApiConnectorCommand(orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
                 Map.of("X-Env", "test"), 5000, true, ApiAuthMethod.BEARER_TOKEN,
-                Map.of("token", "sk_live_secret"), null, true, null, false, false, true, 2048L);
+                Map.of("token", "sk_live_secret"),
+                null, null, null, null, null, null, null, null, null, null,
+                null, true, null, false, false, true, 2048L);
     }
 
     @Test
@@ -101,7 +110,9 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void createWithNoneAuthStoresNoCredentials() {
         var cmd = new CreateApiConnectorCommand(orgId, "Open", ApiProtocol.REST, "https://x", null, null,
-                null, ApiAuthMethod.NONE, null, null, null, null, null, null, null, null);
+                null, ApiAuthMethod.NONE, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Open")).thenReturn(false);
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -194,20 +205,112 @@ class DefaultApiConnectorAdminServiceTest {
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed", null,
-                null, null, null, null, null, null, null, null, null, null, null, null, false));
+                null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, false));
 
         assertThat(view.name()).isEqualTo("Renamed");
         assertThat(view.active()).isFalse();
     }
 
     @Test
-    void deleteRemovesConnector() {
+    void deleteRemovesConnectorAndEvictsToken() {
         var entity = persistedConnector();
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
 
         service.delete(entity.getId(), orgId);
 
         verify(connectorRepository).delete(entity);
+        verify(oauth2TokenService).evict(entity.getId());
+    }
+
+    @Test
+    void createEncryptsOauth2SecretsAndExposesNonSecretConfig() {
+        var cmd = new CreateApiConnectorCommand(orgId, "Okta API", ApiProtocol.REST, "https://api",
+                null, null, null, ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS, null,
+                "https://idp/token", "client-1", "secret-1", "read write", "aud-1", null, null, null,
+                Oauth2GrantType.CLIENT_CREDENTIALS, Oauth2ClientAuth.CLIENT_SECRET_POST,
+                null, true, null, false, false, true, 2048L);
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Okta API")).thenReturn(false);
+        when(encryptionService.encrypt("secret-1")).thenReturn("ENC-SECRET");
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.create(cmd);
+
+        assertThat(view.oauth2TokenUri()).isEqualTo("https://idp/token");
+        assertThat(view.oauth2ClientId()).isEqualTo("client-1");
+        assertThat(view.oauth2Scopes()).isEqualTo("read write");
+        assertThat(view.oauth2Audience()).isEqualTo("aud-1");
+        assertThat(view.oauth2GrantType()).isEqualTo(Oauth2GrantType.CLIENT_CREDENTIALS);
+        assertThat(view.oauth2ClientAuth()).isEqualTo(Oauth2ClientAuth.CLIENT_SECRET_POST);
+        assertThat(view.oauth2ClientSecretConfigured()).isTrue();
+        assertThat(view.oauth2RefreshTokenConfigured()).isFalse();
+        assertThat(view.oauth2PasswordConfigured()).isFalse();
+        verify(encryptionService).encrypt("secret-1");
+    }
+
+    @Test
+    void updateReEncryptsOauth2SecretAndEvictsToken() {
+        var entity = persistedConnector();
+        entity.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("new-secret")).thenReturn("ENC2");
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null,
+                null, null, "new-secret", null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+        service.update(entity.getId(), orgId, cmd);
+
+        verify(encryptionService).encrypt("new-secret");
+        verify(oauth2TokenService).evict(entity.getId());
+    }
+
+    @Test
+    void updateLeavesOauth2SecretUnchangedWhenNull() {
+        var entity = persistedConnector();
+        entity.setOauth2ClientSecretEncrypted("EXISTING");
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null,
+                "https://idp/new", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
+        service.update(entity.getId(), orgId, cmd);
+
+        assertThat(entity.getOauth2ClientSecretEncrypted()).isEqualTo("EXISTING");
+        assertThat(entity.getOauth2TokenUri()).isEqualTo("https://idp/new");
+        verify(encryptionService, never()).encrypt(any());
+    }
+
+    @Test
+    void testOauth2ExercisesFetchFreshThenProbes() {
+        var entity = persistedConnector();
+        entity.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(oauth2TokenService.fetchFresh(entity)).thenReturn("tok");
+        when(prober.probe(any(), any(), anyInt())).thenReturn(new ApiConnectionTestResult(true, "HTTP 200"));
+
+        var result = service.test(entity.getId(), orgId);
+
+        assertThat(result.success()).isTrue();
+        verify(oauth2TokenService).fetchFresh(entity);
+    }
+
+    @Test
+    void testOauth2FailureReturnsFailedResult() {
+        var entity = persistedConnector();
+        entity.setAuthMethod(ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(oauth2TokenService.fetchFresh(entity)).thenThrow(new ApiExecutionException("bad token"));
+        when(messageSource.getMessage(eq("apigov.test.oauth2_failed"), any(), any()))
+                .thenReturn("OAuth2 token fetch failed: bad token");
+
+        var result = service.test(entity.getId(), orgId);
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.message()).contains("bad token");
+        verify(prober, never()).probe(any(), any(), anyInt());
     }
 
     @Test
