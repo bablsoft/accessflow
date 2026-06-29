@@ -70,17 +70,37 @@ class ApiRequestControllerTest {
     }
 
     @Test
-    void listUsesAdminListingForAdmin() {
-        when(requestService.listForAdmin(eq(orgId), any())).thenReturn(new PageResponse<>(List.of(view()), 0, 20, 1, 1));
-        var page = controller.list(auth(UserRoleType.ADMIN), Pageable.ofSize(20));
+    void listForAdminPassesNullSubmitterAndForwardsFilters() {
+        when(requestService.list(any(), any())).thenReturn(new PageResponse<>(List.of(view()), 0, 20, 1, 1));
+        var from = Instant.parse("2026-01-01T00:00:00Z");
+
+        var page = controller.list(auth(UserRoleType.ADMIN), Pageable.ofSize(20), QueryStatus.APPROVED,
+                connectorId, "get", from, null);
+
         assertThat(page.content()).hasSize(1);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.apigov.api.ApiRequestListFilter.class);
+        verify(requestService).list(captor.capture(), any());
+        var filter = captor.getValue();
+        assertThat(filter.organizationId()).isEqualTo(orgId);
+        assertThat(filter.submittedByUserId()).isNull();
+        assertThat(filter.connectorId()).isEqualTo(connectorId);
+        assertThat(filter.status()).isEqualTo(QueryStatus.APPROVED);
+        assertThat(filter.verb()).isEqualTo("GET");
+        assertThat(filter.from()).isEqualTo(from);
     }
 
     @Test
-    void listUsesUserListingForNonAdmin() {
-        when(requestService.listForUser(eq(orgId), eq(userId), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
-        controller.list(auth(UserRoleType.ANALYST), Pageable.ofSize(20));
-        verify(requestService).listForUser(eq(orgId), eq(userId), any());
+    void listForNonAdminScopesToOwnSubmissions() {
+        when(requestService.list(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        controller.list(auth(UserRoleType.ANALYST), Pageable.ofSize(20), null, null, null, null, null);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.apigov.api.ApiRequestListFilter.class);
+        verify(requestService).list(captor.capture(), any());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(userId);
+        assertThat(captor.getValue().verb()).isNull();
     }
 
     @Test

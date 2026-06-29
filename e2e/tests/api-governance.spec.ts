@@ -40,6 +40,9 @@ test('admin creates an API connector and uploads an OpenAPI schema', async ({ pa
   await page.getByRole('button', { name: /New connector/i }).click();
   await page.getByLabel('Name', { exact: true }).fill(CONNECTOR_NAME);
   await page.getByLabel('Base URL').fill('https://petstore.example.com');
+  // AI analysis is on by default, so an AI config must be assigned (#512). Pick the seeded one.
+  await page.getByLabel('AI config').click();
+  await page.getByRole('option', { name: /e2e-mock-openai/ }).click();
   const createResponse = page.waitForResponse(
     (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/api-connectors') && r.ok(),
   );
@@ -66,4 +69,19 @@ test('admin creates an API connector and uploads an OpenAPI schema', async ({ pa
   // Connector appears in the list with a present schema
   await page.goto('/api-connectors');
   await expect(page.getByText(CONNECTOR_NAME)).toBeVisible();
+});
+
+test('API Requests and API Reviews pages render their filter bars (#512)', async ({ page }) => {
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  // API Requests list: aligned with Query History — search + status/connector/verb/risk filters.
+  await page.goto('/api-requests');
+  await expect(page.getByPlaceholder('Search by ID, connector, path')).toBeVisible();
+  await expect(page.getByText('All statuses')).toBeVisible();
+  await expect(page.getByText('All methods')).toBeVisible();
+
+  // API Reviews queue: same filter pattern (connector/verb/risk + search).
+  await page.goto('/api-reviews');
+  await expect(page.getByPlaceholder('Search by connector, path')).toBeVisible();
+  await expect(page.getByText('All connectors')).toBeVisible();
 });

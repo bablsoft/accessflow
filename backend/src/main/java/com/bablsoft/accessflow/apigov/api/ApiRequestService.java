@@ -14,9 +14,11 @@ public interface ApiRequestService {
 
     ApiRequestSubmissionResult submit(SubmitApiRequestCommand command);
 
-    PageResponse<ApiRequestView> listForUser(UUID organizationId, UUID userId, PageRequest pageRequest);
-
-    PageResponse<ApiRequestView> listForAdmin(UUID organizationId, PageRequest pageRequest);
+    /**
+     * Lists governed API requests matching {@code filter}. Admins pass a filter with a {@code null}
+     * {@code submittedByUserId} to see the whole organization; everyone else sets it to their own id.
+     */
+    PageResponse<ApiRequestView> list(ApiRequestListFilter filter, PageRequest pageRequest);
 
     ApiRequestView get(UUID id, UUID organizationId, UUID userId, boolean admin);
 

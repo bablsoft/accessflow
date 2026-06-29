@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
+import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
@@ -125,15 +126,9 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<ApiRequestView> listForUser(UUID organizationId, UUID userId, PageRequest pageRequest) {
-        return toPage(requestRepository.findByOrganizationIdAndSubmittedBy(organizationId, userId,
+    public PageResponse<ApiRequestView> list(ApiRequestListFilter filter, PageRequest pageRequest) {
+        return toPage(requestRepository.findAll(ApiRequestSpecifications.forFilter(filter),
                 toPageable(pageRequest)));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public PageResponse<ApiRequestView> listForAdmin(UUID organizationId, PageRequest pageRequest) {
-        return toPage(requestRepository.findByOrganizationId(organizationId, toPageable(pageRequest)));
     }
 
     @Override

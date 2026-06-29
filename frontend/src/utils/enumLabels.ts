@@ -26,6 +26,7 @@ import type {
   QueryTemplateChangeType,
   QueryType,
   RagStoreType,
+  ReviewDecisionType,
   RiskLevel,
   Role,
   RoutingAction,
@@ -84,6 +85,9 @@ export const optimizationTypeLabel = (t: TFunction, v: OptimizationType): string
 
 export const submissionReasonLabel = (t: TFunction, v: SubmissionReason): string =>
   t(`enums.submission_reason.${v}` as const);
+
+export const reviewDecisionTypeLabel = (t: TFunction, v: ReviewDecisionType): string =>
+  t(`enums.decision_type.${v}` as const);
 
 export const commentStatusLabel = (t: TFunction, v: CommentStatus): string =>
   t(`enums.comment_status.${v}` as const);

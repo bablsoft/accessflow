@@ -9,6 +9,7 @@ import {
   commentStatusLabel,
   optimizationTypeLabel,
   queryTemplateChangeLabel,
+  reviewDecisionTypeLabel,
   submissionReasonLabel,
 } from './enumLabels';
 
@@ -43,6 +44,16 @@ describe('submissionReasonLabel', () => {
     expect(submissionReasonLabel(t, 'AI_SUGGESTION')).toBe('enums.submission_reason.AI_SUGGESTION');
     expect(submissionReasonLabel(t, 'EMERGENCY_ACCESS')).toBe(
       'enums.submission_reason.EMERGENCY_ACCESS',
+    );
+  });
+});
+
+describe('reviewDecisionTypeLabel', () => {
+  it('maps each review decision to its enum translation key', () => {
+    expect(reviewDecisionTypeLabel(t, 'APPROVED')).toBe('enums.decision_type.APPROVED');
+    expect(reviewDecisionTypeLabel(t, 'REJECTED')).toBe('enums.decision_type.REJECTED');
+    expect(reviewDecisionTypeLabel(t, 'REQUESTED_CHANGES')).toBe(
+      'enums.decision_type.REQUESTED_CHANGES',
     );
   });
 });

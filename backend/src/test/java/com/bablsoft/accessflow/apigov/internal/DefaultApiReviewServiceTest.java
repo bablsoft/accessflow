@@ -133,17 +133,21 @@ class DefaultApiReviewServiceTest {
     }
 
     @Test
-    void listPendingExcludesOwnRequests() {
-        var mine = pending();
+    void listPendingMapsPageFromSpecification() {
+        // Self-exclusion + connector/verb narrowing live in the JPA Specification (covered by
+        // ApiRequestSpecificationsTest); here we just verify the spec-backed page maps to views.
         var other = pending();
         other.setId(UUID.randomUUID());
         other.setSubmittedBy(UUID.randomUUID());
-        mine.setSubmittedBy(reviewerId);
-        when(requestRepository.findByOrganizationIdAndStatus(eq(orgId), eq(QueryStatus.PENDING_REVIEW), any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(mine, other)));
+        when(requestRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<ApiRequestEntity>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(other)));
         lenient().when(connectorRepository.findById(any())).thenReturn(Optional.empty());
 
-        var page = service.listPending(reviewer(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+        var filter = new com.bablsoft.accessflow.apigov.api.ApiReviewService.PendingApiReviewFilter(null, null);
+        var page = service.listPending(reviewer(), filter,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).submittedByUserId()).isEqualTo(other.getSubmittedBy());

@@ -38,14 +38,13 @@ public class DefaultApiReviewService implements ApiReviewService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<PendingApiReview> listPending(ReviewerContext context, PageRequest pageRequest) {
-        var page = requestRepository.findByOrganizationIdAndStatus(context.organizationId(),
-                QueryStatus.PENDING_REVIEW,
+    public PageResponse<PendingApiReview> listPending(ReviewerContext context,
+                                                      PendingApiReviewFilter filter, PageRequest pageRequest) {
+        var spec = ApiRequestSpecifications.forPendingReview(context.organizationId(), context.userId(),
+                filter.connectorId(), filter.verb());
+        var page = requestRepository.findAll(spec,
                 org.springframework.data.domain.PageRequest.of(pageRequest.page(), pageRequest.size()));
-        var content = page.getContent().stream()
-                .filter(r -> !r.getSubmittedBy().equals(context.userId()))
-                .map(this::toPending)
-                .toList();
+        var content = page.getContent().stream().map(this::toPending).toList();
         return new PageResponse<>(content, page.getNumber(), page.getSize() <= 0 ? 1 : page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }

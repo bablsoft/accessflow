@@ -2301,6 +2301,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "Client secret (Basic վերնագիր)",
       "CLIENT_SECRET_POST": "Client secret (POST մարմին)"
+    },
+    "decision_type": {
+      "APPROVED": "Հաստատված",
+      "REJECTED": "Մերժված",
+      "REQUESTED_CHANGES": "Փոփոխություններ պահանջված"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "Client նույնականացում",
       "oauth2Configured": "Կարգավորված է",
       "oauth2SecretHint": "Թողեք դատարկ՝ պահպանված արժեքը պահելու համար",
-      "oauth2TokenUriRequired": "Token-ի վերջնակետի URL-ը պարտադիր է"
+      "oauth2TokenUriRequired": "Token-ի վերջնակետի URL-ը պարտադիր է",
+      "aiConfig": "AI կարգավորում",
+      "aiConfigPlaceholder": "Ընտրեք AI կարգավորում",
+      "aiConfigRequired": "Ընտրեք AI կարգավորում, երբ միացված է AI վերլուծությունը կամ տեքստ-դեպի-API-ն",
+      "addAiConfig": "Ավելացնել AI կարգավորում"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "Հետևել կառավարվող API կանչերին",
+      "id": "ID",
+      "actions": "Գործողություններ",
+      "searchPlaceholder": "Որոնել ըստ ID-ի, կոնեկտորի, ուղու",
+      "filterAllStatuses": "Բոլոր կարգավիճակները",
+      "filterAllConnectors": "Բոլոր կոնեկտորները",
+      "filterAllVerbs": "Բոլոր մեթոդները",
+      "filterAllRisk": "Բոլոր ռիսկերը",
+      "countLabel": "{{filtered}} {{total}}-ից",
+      "scheduledFor": "Նախատեսված է {{when}}-ին",
+      "scheduledForAria": "Նախատեսված",
+      "submissionReason": "Ներկայացման պատճառ",
+      "aiSummary": "AI ամփոփում",
+      "error": "Սխալ",
+      "decision": "Որոշում",
+      "stage": "Փուլ",
+      "comment": "Մեկնաբանություն",
+      "decidedAt": "Որոշվել է",
+      "scheduled": "Նախատեսված",
+      "truncated": "Կրճատված",
+      "notFound": "Հարցումը չի գտնվել"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "Հաստատել կամ մերժել կառավարվող API կանչերը",
+      "searchPlaceholder": "Որոնել ըստ կոնեկտորի, ուղու",
+      "actions": "Գործողություններ"
     },
     "error": "Something went wrong"
   }

@@ -13,13 +13,18 @@ import java.util.UUID;
 /** Reviewer-facing approve/reject of governed API requests. The submitter can never self-approve. */
 public interface ApiReviewService {
 
-    PageResponse<PendingApiReview> listPending(ReviewerContext context, PageRequest pageRequest);
+    PageResponse<PendingApiReview> listPending(ReviewerContext context, PendingApiReviewFilter filter,
+                                               PageRequest pageRequest);
 
     DecisionOutcome approve(UUID apiRequestId, ReviewerContext context, String comment);
 
     DecisionOutcome reject(UUID apiRequestId, ReviewerContext context, String comment);
 
     record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    }
+
+    /** Optional narrowing of the pending-review queue. Both fields are nullable / AND-combined. */
+    record PendingApiReviewFilter(UUID connectorId, String verb) {
     }
 
     record PendingApiReview(

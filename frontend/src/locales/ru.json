@@ -2301,6 +2301,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "Секрет клиента (заголовок Basic)",
       "CLIENT_SECRET_POST": "Секрет клиента (тело POST)"
+    },
+    "decision_type": {
+      "APPROVED": "Одобрено",
+      "REJECTED": "Отклонено",
+      "REQUESTED_CHANGES": "Запрошены изменения"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "Аутентификация клиента",
       "oauth2Configured": "Настроено",
       "oauth2SecretHint": "Оставьте пустым, чтобы сохранить текущее значение",
-      "oauth2TokenUriRequired": "URL конечной точки токена обязателен"
+      "oauth2TokenUriRequired": "URL конечной точки токена обязателен",
+      "aiConfig": "Конфигурация ИИ",
+      "aiConfigPlaceholder": "Выберите конфигурацию ИИ",
+      "aiConfigRequired": "Выберите конфигурацию ИИ, когда включён анализ ИИ или текст-в-API",
+      "addAiConfig": "Добавить конфигурацию ИИ"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "Отслеживание управляемых API-вызовов",
+      "id": "ID",
+      "actions": "Действия",
+      "searchPlaceholder": "Поиск по ID, коннектору, пути",
+      "filterAllStatuses": "Все статусы",
+      "filterAllConnectors": "Все коннекторы",
+      "filterAllVerbs": "Все методы",
+      "filterAllRisk": "Все риски",
+      "countLabel": "{{filtered}} из {{total}}",
+      "scheduledFor": "Запланировано на {{when}}",
+      "scheduledForAria": "Запланировано",
+      "submissionReason": "Причина отправки",
+      "aiSummary": "Сводка ИИ",
+      "error": "Ошибка",
+      "decision": "Решение",
+      "stage": "Этап",
+      "comment": "Комментарий",
+      "decidedAt": "Решено",
+      "scheduled": "Запланировано",
+      "truncated": "Усечено",
+      "notFound": "Запрос не найден"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "Одобрение или отклонение управляемых API-вызовов",
+      "searchPlaceholder": "Поиск по коннектору, пути",
+      "actions": "Действия"
     },
     "error": "Something went wrong"
   }

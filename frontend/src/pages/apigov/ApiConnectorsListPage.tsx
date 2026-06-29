@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Form, Input, Modal, Select, Table, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Select, Switch, Table, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,9 +12,11 @@ import {
   listApiConnectors,
   testApiConnector,
 } from '@/api/apiConnectors';
+import { aiConfigKeys, listAiConfigs } from '@/api/admin';
 import {
   API_AUTH_METHODS,
   API_PROTOCOLS,
+  aiProviderLabel,
   apiAuthMethodLabel,
   apiProtocolLabel,
   enumOptions,
@@ -37,10 +39,18 @@ export default function ApiConnectorsListPage() {
   const [form] = Form.useForm<CreateApiConnectorInput>();
   const authMethod = Form.useWatch('auth_method', form) as ApiAuthMethod | undefined;
   const grantType = Form.useWatch('oauth2_grant_type', form) as Oauth2GrantType | undefined;
+  const aiAnalysisEnabled = Form.useWatch('ai_analysis_enabled', form) as boolean | undefined;
+  const textToApiEnabled = Form.useWatch('text_to_api_enabled', form) as boolean | undefined;
+  const aiRequired = aiAnalysisEnabled === true || textToApiEnabled === true;
 
   const connectorsQuery = useQuery({
     queryKey: apiConnectorKeys.list({ size: 100 }),
     queryFn: () => listApiConnectors({ size: 100 }),
+  });
+
+  const aiConfigsQuery = useQuery({
+    queryKey: aiConfigKeys.lists(),
+    queryFn: listAiConfigs,
   });
 
   const createMutation = useMutation({
@@ -176,6 +186,9 @@ export default function ApiConnectorsListPage() {
             auth_method: 'NONE',
             oauth2_grant_type: 'CLIENT_CREDENTIALS',
             oauth2_client_auth: 'CLIENT_SECRET_BASIC',
+            ai_analysis_enabled: true,
+            text_to_api_enabled: false,
+            ai_config_id: null,
           }}
           onFinish={(values) => createMutation.mutate(values)}
         >
@@ -212,6 +225,41 @@ export default function ApiConnectorsListPage() {
           {authMethod === 'OAUTH2_CLIENT_CREDENTIALS' && (
             <Oauth2ConnectorFields grantType={grantType} />
           )}
+          <Form.Item
+            name="ai_analysis_enabled"
+            label={t('apiGov.connectors.aiAnalysis')}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="text_to_api_enabled"
+            label={t('apiGov.connectors.textToApi')}
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="ai_config_id"
+            label={t('apiGov.connectors.aiConfig')}
+            dependencies={['ai_analysis_enabled', 'text_to_api_enabled']}
+            rules={[{ required: aiRequired, message: t('apiGov.connectors.aiConfigRequired') }]}
+            extra={
+              <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
+                {t('apiGov.connectors.addAiConfig')}
+              </a>
+            }
+          >
+            <Select
+              allowClear
+              disabled={!aiRequired}
+              placeholder={t('apiGov.connectors.aiConfigPlaceholder')}
+              options={(aiConfigsQuery.data ?? []).map((c) => ({
+                value: c.id,
+                label: `${c.name} · ${aiProviderLabel(t, c.provider)}`,
+              }))}
+            />
+          </Form.Item>
         </Form>
       </Modal>
     </div>

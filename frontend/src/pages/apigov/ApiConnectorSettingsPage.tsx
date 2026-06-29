@@ -16,9 +16,11 @@ import {
   updateApiConnector,
   uploadApiSchema,
 } from '@/api/apiConnectors';
+import { aiConfigKeys, listAiConfigs } from '@/api/admin';
 import {
   API_AUTH_METHODS,
   API_SCHEMA_TYPES,
+  aiProviderLabel,
   apiAuthMethodLabel,
   apiSchemaTypeLabel,
   enumOptions,
@@ -72,9 +74,16 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   const [form] = Form.useForm();
   const authMethod = Form.useWatch('auth_method', form) as ApiAuthMethod | undefined;
   const grantType = Form.useWatch('oauth2_grant_type', form) as Oauth2GrantType | undefined;
+  const aiAnalysisEnabled = Form.useWatch('ai_analysis_enabled', form) as boolean | undefined;
+  const textToApiEnabled = Form.useWatch('text_to_api_enabled', form) as boolean | undefined;
+  const aiRequired = aiAnalysisEnabled === true || textToApiEnabled === true;
   const connectorQuery = useQuery({
     queryKey: apiConnectorKeys.detail(connectorId),
     queryFn: () => getApiConnector(connectorId),
+  });
+  const aiConfigsQuery = useQuery({
+    queryKey: aiConfigKeys.lists(),
+    queryFn: listAiConfigs,
   });
   const mutation = useMutation({
     mutationFn: (input: UpdateApiConnectorInput) => updateApiConnector(connectorId, input),
@@ -105,6 +114,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         oauth2_grant_type: c.oauth2_grant_type,
         oauth2_client_auth: c.oauth2_client_auth,
         ai_analysis_enabled: c.ai_analysis_enabled,
+        ai_config_id: c.ai_config_id ?? null,
         text_to_api_enabled: c.text_to_api_enabled,
         require_review_reads: c.require_review_reads,
         require_review_writes: c.require_review_writes,
@@ -140,6 +150,27 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
       </Form.Item>
       <Form.Item name="text_to_api_enabled" label={t('apiGov.connectors.textToApi')} valuePropName="checked">
         <Switch />
+      </Form.Item>
+      <Form.Item
+        name="ai_config_id"
+        label={t('apiGov.connectors.aiConfig')}
+        dependencies={['ai_analysis_enabled', 'text_to_api_enabled']}
+        rules={[{ required: aiRequired, message: t('apiGov.connectors.aiConfigRequired') }]}
+        extra={
+          <a href="/admin/ai-configs/new" target="_blank" rel="noopener noreferrer">
+            {t('apiGov.connectors.addAiConfig')}
+          </a>
+        }
+      >
+        <Select
+          allowClear
+          disabled={!aiRequired}
+          placeholder={t('apiGov.connectors.aiConfigPlaceholder')}
+          options={(aiConfigsQuery.data ?? []).map((cfg) => ({
+            value: cfg.id,
+            label: `${cfg.name} · ${aiProviderLabel(t, cfg.provider)}`,
+          }))}
+        />
       </Form.Item>
       <Form.Item name="require_review_reads" label={t('apiGov.connectors.requireReviewReads')} valuePropName="checked">
         <Switch />

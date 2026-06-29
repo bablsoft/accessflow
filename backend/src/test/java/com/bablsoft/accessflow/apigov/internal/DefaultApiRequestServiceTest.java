@@ -183,26 +183,19 @@ class DefaultApiRequestServiceTest {
     }
 
     @Test
-    void listForUserMapsPage() {
-        when(requestRepository.findByOrganizationIdAndSubmittedBy(eqp(orgId), eqp(userId), any()))
+    void listMapsPageWithSpecification() {
+        when(requestRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<ApiRequestEntity>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(persisted(QueryStatus.PENDING_AI))));
         lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
 
-        var page = service.listForUser(orgId, userId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+        var filter = new com.bablsoft.accessflow.apigov.api.ApiRequestListFilter(orgId, userId, null, null,
+                null, null, null);
+        var page = service.list(filter, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).connectorName()).isEqualTo("Stripe");
-    }
-
-    @Test
-    void listForAdminMapsPage() {
-        when(requestRepository.findByOrganizationId(eqp(orgId), any()))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(persisted(QueryStatus.APPROVED))));
-        lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
-
-        var page = service.listForAdmin(orgId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
-
-        assertThat(page.content()).hasSize(1);
     }
 
     @Test
@@ -243,9 +236,5 @@ class DefaultApiRequestServiceTest {
         assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
         verify(executionService).execute(e.getId());
         verify(auditLogService).record(any());
-    }
-
-    private static <T> T eqp(T value) {
-        return org.mockito.ArgumentMatchers.eq(value);
     }
 }

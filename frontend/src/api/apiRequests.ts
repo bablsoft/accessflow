@@ -6,6 +6,7 @@ import type {
   ApiRequestPage,
   GeneratedApiCall,
   PendingApiReviewPage,
+  QueryStatus,
   SubmitApiRequestInput,
 } from '@/types/api';
 
@@ -15,6 +16,18 @@ const REVIEW_BASE = '/api/v1/api-reviews';
 export interface ApiRequestListFilters {
   page?: number;
   size?: number;
+  status?: QueryStatus;
+  connector_id?: string;
+  verb?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface ApiReviewListFilters {
+  page?: number;
+  size?: number;
+  connector_id?: string;
+  verb?: string;
 }
 
 export const apiRequestKeys = {
@@ -23,13 +36,18 @@ export const apiRequestKeys = {
   list: (filters: ApiRequestListFilters) => ['api-requests', 'list', filters] as const,
   details: () => ['api-requests', 'detail'] as const,
   detail: (id: string) => ['api-requests', 'detail', id] as const,
-  reviewQueue: (filters: ApiRequestListFilters) => ['api-reviews', 'queue', filters] as const,
+  reviewQueue: (filters: ApiReviewListFilters) => ['api-reviews', 'queue', filters] as const,
 };
 
 export async function listApiRequests(filters: ApiRequestListFilters = {}): Promise<ApiRequestPage> {
-  const params: Record<string, number> = {};
+  const params: Record<string, string | number> = {};
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
+  if (filters.status) params.status = filters.status;
+  if (filters.connector_id) params.connector_id = filters.connector_id;
+  if (filters.verb) params.verb = filters.verb;
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
   const { data } = await apiClient.get<ApiRequestPage>(BASE, { params });
   return data;
 }
@@ -75,11 +93,13 @@ export async function generateApiCall(input: {
 }
 
 export async function listPendingApiReviews(
-  filters: ApiRequestListFilters = {},
+  filters: ApiReviewListFilters = {},
 ): Promise<PendingApiReviewPage> {
-  const params: Record<string, number> = {};
+  const params: Record<string, string | number> = {};
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
+  if (filters.connector_id) params.connector_id = filters.connector_id;
+  if (filters.verb) params.verb = filters.verb;
   const { data } = await apiClient.get<PendingApiReviewPage>(REVIEW_BASE, { params });
   return data;
 }
