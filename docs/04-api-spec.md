@@ -2033,6 +2033,7 @@ New audit actions: `ATTESTATION_CAMPAIGN_OPENED`, `ATTESTATION_CAMPAIGN_CLOSED`,
 | `POST` | `/admin/anomalies/{id}/dismiss` | Dismiss an anomaly as a false positive *(ADMIN only)* |
 | `GET` | `/dashboard/summary` | Self-scoped dashboard summary — counts + recent lists (AF-498) *(any authenticated user)* |
 | `GET` | `/dashboard/my-query-trends` | Self-scoped status/risk query trend series (AF-498) *(any authenticated user)* |
+| `GET` | `/dashboard/my-api-request-trends` | Self-scoped status/risk API-request trend series (AF-500) *(any authenticated user)* |
 | `GET` | `/dashboard/suggestions` | The caller's AI optimization-suggestion backlog (AF-498) *(any authenticated user)* |
 | `POST` | `/dashboard/suggestions/{id}/dismiss` | Dismiss a suggestion from the caller's backlog (AF-498) *(any authenticated user)* |
 | `GET` / `PUT` | `/dashboard/digest-subscription` | Read / toggle the caller's weekly-digest opt-in (AF-498) *(any authenticated user)* |
@@ -2870,8 +2871,9 @@ caller's own data (`isAuthenticated()`); no admin role is required.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/dashboard/summary` | Headline counts (pending approvals as reviewer, open queries by status, open anomalies, open suggestions) + short recent lists |
+| `GET` | `/dashboard/summary` | Headline counts (pending approvals as reviewer, open queries by status, open anomalies, open suggestions, **open API requests, pending API approvals** — AF-500) + short recent lists (incl. `recent_api_requests` / `recent_pending_api_approvals`) |
 | `GET` | `/dashboard/my-query-trends?from&to` | Day-bucketed status- and risk-level trend series over the caller's own queries (defaults to `now-30d … now`) |
+| `GET` | `/dashboard/my-api-request-trends?from&to` | Day-bucketed status- and risk-level trend series over the caller's own governed API requests (AF-500; defaults to `now-30d … now`) |
 | `GET` | `/dashboard/suggestions` | The caller's OPEN AI optimization-suggestion backlog (derived from their analyses' `optimizations[]`) |
 | `POST` | `/dashboard/suggestions/{id}/dismiss` | Dismiss a suggestion (`id` = `{aiAnalysisId}:{index}`); `204`, or `404 DASHBOARD_SUGGESTION_NOT_FOUND` for an unknown/unowned id |
 | `GET` | `/dashboard/digest-subscription` | The caller's weekly-digest opt-in state (`{ enabled, last_sent_at }`) |

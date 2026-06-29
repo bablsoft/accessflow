@@ -2,6 +2,14 @@ package com.bablsoft.accessflow.dashboard.internal;
 
 import com.bablsoft.accessflow.ai.api.AnomalyBadgeView;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
+import com.bablsoft.accessflow.apigov.api.ApiRequestService;
+import com.bablsoft.accessflow.apigov.api.ApiRequestView;
+import com.bablsoft.accessflow.apigov.api.ApiReviewService;
+import com.bablsoft.accessflow.apigov.api.ApiReviewService.PendingApiReview;
+import com.bablsoft.accessflow.apigov.api.MyApiRequestInsightsLookupService;
+import com.bablsoft.accessflow.apigov.api.MyApiRequestStatusCount;
+import com.bablsoft.accessflow.apigov.api.MyApiRequestTrendsRaw;
 import com.bablsoft.accessflow.core.api.MyQueryInsightsLookupService;
 import com.bablsoft.accessflow.core.api.MyQueryStatusCount;
 import com.bablsoft.accessflow.core.api.MyQueryTrendsRaw;
@@ -13,6 +21,7 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService.PendingReview;
@@ -44,10 +53,15 @@ class DefaultDashboardServiceTest {
     private final MyQueryInsightsLookupService insights = mock(MyQueryInsightsLookupService.class);
     private final BehaviorAnomalyLookupService anomalyLookup = mock(BehaviorAnomalyLookupService.class);
     private final DashboardSuggestionService suggestionService = mock(DashboardSuggestionService.class);
+    private final MyApiRequestInsightsLookupService apiInsights =
+            mock(MyApiRequestInsightsLookupService.class);
+    private final ApiRequestService apiRequestService = mock(ApiRequestService.class);
+    private final ApiReviewService apiReviewService = mock(ApiReviewService.class);
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final DefaultDashboardService service = new DefaultDashboardService(
-            reviewService, queryLookup, insights, anomalyLookup, suggestionService, clock);
+            reviewService, queryLookup, insights, anomalyLookup, suggestionService,
+            apiInsights, apiRequestService, apiReviewService, clock);
 
     private QueryListItemView query() {
         return new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "DB", USER,
@@ -59,6 +73,28 @@ class DefaultDashboardServiceTest {
         return new PendingReview(UUID.randomUUID(), UUID.randomUUID(), "DB", UUID.randomUUID(),
                 "s@x.io", "SELECT 1", QueryType.SELECT, "why", UUID.randomUUID(), RiskLevel.HIGH,
                 80, "summary", 1, NOW);
+    }
+
+    private ApiRequestView apiRequest() {
+        return new ApiRequestView(UUID.randomUUID(), UUID.randomUUID(), "Conn", USER, "GetThing",
+                "GET", "/v1/things", false, QueryStatus.PENDING_REVIEW, SubmissionReason.USER_SUBMITTED,
+                "why", UUID.randomUUID(), RiskLevel.LOW, 10, "ok", null, null, null, null, false,
+                null, null, NOW, List.of());
+    }
+
+    private PendingApiReview pendingApi() {
+        return new PendingApiReview(UUID.randomUUID(), UUID.randomUUID(), "Conn", UUID.randomUUID(),
+                "POST", "/v1/things", true, "why", UUID.randomUUID(), RiskLevel.HIGH, 80, "summary",
+                1, NOW);
+    }
+
+    /** Default no-op stubs for the API-governance collaborators, overridden per test as needed. */
+    private void stubApigovEmpty() {
+        when(apiInsights.statusCounts(ORG, USER)).thenReturn(List.of());
+        when(apiRequestService.list(any(ApiRequestListFilter.class), any()))
+                .thenReturn(PageResponse.empty(0, 5));
+        when(apiReviewService.listPending(any(), any(), any()))
+                .thenReturn(PageResponse.empty(0, 5));
     }
 
     @Test
@@ -74,6 +110,14 @@ class DefaultDashboardServiceTest {
                 .thenReturn(new PageResponse<>(List.of(query()), 0, 5, 1, 1));
         when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(new AnomalyBadgeView(2, 7.0));
         when(suggestionService.countOpen(ORG, USER)).thenReturn(5L);
+        when(apiInsights.statusCounts(ORG, USER)).thenReturn(List.of(
+                new MyApiRequestStatusCount(QueryStatus.PENDING_REVIEW, 3),
+                new MyApiRequestStatusCount(QueryStatus.APPROVED, 1),
+                new MyApiRequestStatusCount(QueryStatus.EXECUTED, 6))); // terminal — not open
+        when(apiRequestService.list(any(ApiRequestListFilter.class), any()))
+                .thenReturn(new PageResponse<>(List.of(apiRequest()), 0, 5, 1, 1));
+        when(apiReviewService.listPending(any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(pendingApi()), 0, 5, 2, 1));
 
         var summary = service.summary(ORG, USER, UserRoleType.REVIEWER);
 
@@ -81,8 +125,12 @@ class DefaultDashboardServiceTest {
         assertThat(summary.openQueriesCount()).isEqualTo(7); // 2 + 1 + 4, EXECUTED excluded
         assertThat(summary.openAnomaliesCount()).isEqualTo(2);
         assertThat(summary.openSuggestionsCount()).isEqualTo(5);
+        assertThat(summary.openApiRequestsCount()).isEqualTo(4); // 3 + 1, EXECUTED excluded
+        assertThat(summary.pendingApiApprovalsCount()).isEqualTo(2);
         assertThat(summary.recentQueries()).hasSize(1);
         assertThat(summary.recentPendingApprovals()).hasSize(1);
+        assertThat(summary.recentApiRequests()).hasSize(1);
+        assertThat(summary.recentPendingApiApprovals()).hasSize(1);
     }
 
     @Test
@@ -94,6 +142,7 @@ class DefaultDashboardServiceTest {
                 .thenReturn(PageResponse.empty(0, 5));
         when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
+        stubApigovEmpty();
 
         service.summary(ORG, USER, UserRoleType.ANALYST);
 
@@ -133,5 +182,48 @@ class DefaultDashboardServiceTest {
         service.trends(ORG, USER, from, NOW);
 
         verify(insights).trends(ORG, USER, from, NOW);
+    }
+
+    @Test
+    void summaryScopesApiRequestFilterToCurrentUser() {
+        when(reviewService.listPendingForReviewer(any(), any())).thenReturn(PageResponse.empty(0, 5));
+        when(insights.statusCounts(ORG, USER)).thenReturn(List.of());
+        when(queryLookup.findForOrganization(any(QueryListFilter.class), any()))
+                .thenReturn(PageResponse.empty(0, 5));
+        when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
+        when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
+        stubApigovEmpty();
+
+        service.summary(ORG, USER, UserRoleType.ANALYST);
+
+        var captor = ArgumentCaptor.forClass(ApiRequestListFilter.class);
+        verify(apiRequestService).list(captor.capture(), any());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(USER);
+        assertThat(captor.getValue().organizationId()).isEqualTo(ORG);
+    }
+
+    @Test
+    void apiRequestTrendsAppliesDefaultWindowWhenBoundsNull() {
+        when(apiInsights.trends(eq(ORG), eq(USER), any(), any()))
+                .thenReturn(new MyApiRequestTrendsRaw(List.of(), List.of()));
+
+        service.apiRequestTrends(ORG, USER, null, null);
+
+        var from = ArgumentCaptor.forClass(Instant.class);
+        var to = ArgumentCaptor.forClass(Instant.class);
+        verify(apiInsights).trends(eq(ORG), eq(USER), from.capture(), to.capture());
+        assertThat(to.getValue()).isEqualTo(NOW);
+        assertThat(from.getValue()).isEqualTo(NOW.minus(java.time.Duration.ofDays(30)));
+    }
+
+    @Test
+    void apiRequestTrendsPassesExplicitBounds() {
+        var from = NOW.minus(java.time.Duration.ofDays(7));
+        when(apiInsights.trends(ORG, USER, from, NOW))
+                .thenReturn(new MyApiRequestTrendsRaw(List.of(), List.of()));
+
+        service.apiRequestTrends(ORG, USER, from, NOW);
+
+        verify(apiInsights).trends(ORG, USER, from, NOW);
     }
 }

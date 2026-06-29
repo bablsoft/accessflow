@@ -2544,14 +2544,19 @@
       "pending_approvals": "Aprobaciones pendientes",
       "open_queries": "Consultas abiertas",
       "open_anomalies": "Anomalías abiertas",
-      "open_suggestions": "Sugerencias abiertas"
+      "open_suggestions": "Sugerencias abiertas",
+      "open_api_requests": "Solicitudes de API abiertas",
+      "pending_api_approvals": "Aprobaciones de API pendientes"
     },
     "widgets": {
       "pendingApprovals": "Aprobaciones pendientes",
       "recentQueries": "Mis consultas recientes",
       "trends": "Tendencias de consultas",
       "suggestions": "Sugerencias de optimización de IA",
-      "anomalies": "Alertas de anomalías"
+      "anomalies": "Alertas de anomalías",
+      "recentApiRequests": "Mis solicitudes de API recientes",
+      "apiRequestTrends": "Tendencias de solicitudes de API",
+      "pendingApiApprovals": "Aprobaciones de API pendientes"
     },
     "pending": {
       "empty": "No hay nada esperando tu revisión",
@@ -2579,6 +2584,19 @@
       "acknowledge": "Reconocer",
       "dismiss": "Descartar anomalía",
       "score": "Puntuación"
+    },
+    "recent_api_requests": {
+      "empty": "Aún no has enviado ninguna solicitud de API",
+      "view": "Ver"
+    },
+    "pending_api_approvals": {
+      "empty": "No hay solicitudes de API esperando tu revisión",
+      "review": "Revisar"
+    },
+    "api_request_trends": {
+      "empty": "Sin actividad de solicitudes de API en este período",
+      "status_title": "Solicitudes de API por estado",
+      "risk_title": "Solicitudes de API por nivel de riesgo"
     }
   },
   "attestation": {

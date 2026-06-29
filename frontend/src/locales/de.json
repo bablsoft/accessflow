@@ -2544,14 +2544,19 @@
       "pending_approvals": "Ausstehende Genehmigungen",
       "open_queries": "Offene Abfragen",
       "open_anomalies": "Offene Anomalien",
-      "open_suggestions": "Offene Vorschläge"
+      "open_suggestions": "Offene Vorschläge",
+      "open_api_requests": "Offene API-Anfragen",
+      "pending_api_approvals": "Ausstehende API-Genehmigungen"
     },
     "widgets": {
       "pendingApprovals": "Ausstehende Genehmigungen",
       "recentQueries": "Meine letzten Abfragen",
       "trends": "Abfragetrends",
       "suggestions": "KI-Optimierungsvorschläge",
-      "anomalies": "Anomaliewarnungen"
+      "anomalies": "Anomaliewarnungen",
+      "recentApiRequests": "Meine letzten API-Anfragen",
+      "apiRequestTrends": "Trends der API-Anfragen",
+      "pendingApiApprovals": "Ausstehende API-Genehmigungen"
     },
     "pending": {
       "empty": "Nichts wartet auf Ihre Prüfung",
@@ -2579,6 +2584,19 @@
       "acknowledge": "Bestätigen",
       "dismiss": "Anomalie verwerfen",
       "score": "Wert"
+    },
+    "recent_api_requests": {
+      "empty": "Sie haben noch keine API-Anfragen eingereicht",
+      "view": "Anzeigen"
+    },
+    "pending_api_approvals": {
+      "empty": "Keine API-Anfragen warten auf Ihre Prüfung",
+      "review": "Prüfen"
+    },
+    "api_request_trends": {
+      "empty": "Keine API-Anfrageaktivität in diesem Zeitraum",
+      "status_title": "API-Anfragen nach Status",
+      "risk_title": "API-Anfragen nach Risikostufe"
     }
   },
   "attestation": {
