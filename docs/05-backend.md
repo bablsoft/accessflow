@@ -953,6 +953,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `AttestationCampaignCloseJob` | attestation | `attestationCampaignCloseJob` | `accessflow.attestation.close-poll-interval` | `PT5M` |
 | `ApiRequestRunJob` | apigov | `apiRequestRunJob` | `accessflow.apigov.scheduled-run-poll-interval` | `PT1M` |
 | `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
+| `RetentionPolicyScanJob` | lifecycle | `retentionPolicyScanJob` | `accessflow.lifecycle.policy-scan-interval` | `PT1H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1000,7 +1001,31 @@ beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) w
 
 `BehaviorAnomalyDetectionJob` implements behavioural anomaly detection (UBA, AF-383): each tick it advances each `(user, datasource)` baseline watermark over the configured `accessflow.ai.anomaly.lookback-window`, aggregating new windows from `audit_log` metadata (never query result data) into `behavior_baseline`, then runs statistical detection on the freshest window and inserts `behavior_anomaly` rows for out-of-pattern features. It swallows per-row `RuntimeException`s so one bad principal cannot abort the batch. See [§ Behavioural anomaly detection (UBA)](#behavioural-anomaly-detection-uba-af-383).
 
+`RetentionPolicyScanJob` implements the retention scan (AF-499, the `lifecycle` module): each tick it loads enabled `retention_policies`, computes eligibility per policy via the proxy's non-committing dry-run (`LifecyclePreviewCalculator`), and stages a `lifecycle_runs` row (`STAGED`) for each policy with eligible rows and no pending run yet. It is idempotent (a policy with an existing `STAGED` run is skipped) and swallows per-policy `RuntimeException`s so one bad policy cannot abort the batch. Each cycle publishes a `LifecycleScanCompletedEvent` consumed by the notifications module.
+
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
+
+---
+
+## Data Lifecycle Manager (AF-499)
+
+The `lifecycle` module (`com.bablsoft.accessflow.lifecycle`) governs **data lifecycle** — retention and
+right-to-erasure — atop the existing access-governance primitives. It depends only on `core.api`,
+`audit.api`, `scheduling.api`, and `proxy.api` exposed interfaces.
+
+**Retention policies.** An admin declares a per-datasource `retention_policies` row targeting a
+table / column-set / classification tag, a retention window (ISO-8601 period/duration) measured
+against a timestamp column, and an action (`HARD_DELETE` / `SOFT_DELETE` / `PSEUDONYMIZE` — the last
+carrying a `lifecycle_transform`). CRUD lives at `/api/v1/lifecycle/policies` (`RetentionPolicyService`
+→ `DefaultRetentionPolicyService`, ADMIN-gated). `POST …/{id}/preview` returns the dry-run impact
+(matched tables, best-effort estimated rows via `proxy.api.QueryDryRunService`, method) without
+executing. `RetentionPolicyScanJob` stages eligible runs (see [§ Scheduled jobs](#scheduled-jobs-and-clustering)).
+
+**Right-to-erasure (in progress).** `deletion_requests` flow an erasure state machine
+(`PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED`, + `REJECTED`/`FAILED`/`CANCELLED`) mirroring
+the query-review lifecycle, with AI-assisted scope detection and human approval (submitter can never
+self-approve). Proxy soft-delete/pseudonymization enforcement, the retention-adherence compliance
+report, and lifecycle notifications are part of the same epic.
 
 ---
 
