@@ -50,10 +50,18 @@ class ApiReviewControllerTest {
     }
 
     @Test
-    void pendingMapsPage() {
-        when(reviewService.listPending(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
-        var page = controller.pending(auth(), Pageable.ofSize(20));
+    void pendingMapsPageAndForwardsFilters() {
+        when(reviewService.listPending(any(), any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+        var connectorId = UUID.randomUUID();
+
+        var page = controller.pending(auth(), Pageable.ofSize(20), connectorId, "post");
+
         assertThat(page.content()).isEmpty();
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                ApiReviewService.PendingApiReviewFilter.class);
+        verify(reviewService).listPending(any(), captor.capture(), any());
+        assertThat(captor.getValue().connectorId()).isEqualTo(connectorId);
+        assertThat(captor.getValue().verb()).isEqualTo("POST");
     }
 
     @Test

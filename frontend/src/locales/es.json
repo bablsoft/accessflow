@@ -2301,6 +2301,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "Secreto de cliente (cabecera Basic)",
       "CLIENT_SECRET_POST": "Secreto de cliente (cuerpo POST)"
+    },
+    "decision_type": {
+      "APPROVED": "Aprobado",
+      "REJECTED": "Rechazado",
+      "REQUESTED_CHANGES": "Cambios solicitados"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "Autenticación de cliente",
       "oauth2Configured": "Configurado",
       "oauth2SecretHint": "Déjelo en blanco para mantener el valor guardado",
-      "oauth2TokenUriRequired": "La URL del endpoint de token es obligatoria"
+      "oauth2TokenUriRequired": "La URL del endpoint de token es obligatoria",
+      "aiConfig": "Configuración de IA",
+      "aiConfigPlaceholder": "Seleccione una configuración de IA",
+      "aiConfigRequired": "Seleccione una configuración de IA cuando el análisis de IA o texto a API esté habilitado",
+      "addAiConfig": "Agregar configuración de IA"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "Seguimiento de llamadas API gobernadas",
+      "id": "ID",
+      "actions": "Acciones",
+      "searchPlaceholder": "Buscar por ID, conector, ruta",
+      "filterAllStatuses": "Todos los estados",
+      "filterAllConnectors": "Todos los conectores",
+      "filterAllVerbs": "Todos los métodos",
+      "filterAllRisk": "Todos los riesgos",
+      "countLabel": "{{filtered}} de {{total}}",
+      "scheduledFor": "Programado para {{when}}",
+      "scheduledForAria": "Programado",
+      "submissionReason": "Motivo del envío",
+      "aiSummary": "Resumen de IA",
+      "error": "Error",
+      "decision": "Decisión",
+      "stage": "Etapa",
+      "comment": "Comentario",
+      "decidedAt": "Decidido el",
+      "scheduled": "Programado",
+      "truncated": "Truncado",
+      "notFound": "Solicitud no encontrada"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "Aprobar o rechazar llamadas API gobernadas",
+      "searchPlaceholder": "Buscar por conector, ruta",
+      "actions": "Acciones"
     },
     "error": "Something went wrong"
   }

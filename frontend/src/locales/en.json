@@ -2325,6 +2325,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "Client Secret (Basic header)",
       "CLIENT_SECRET_POST": "Client Secret (POST body)"
+    },
+    "decision_type": {
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "REQUESTED_CHANGES": "Changes requested"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "Client authentication",
       "oauth2Configured": "Configured",
       "oauth2SecretHint": "Leave blank to keep the stored value",
-      "oauth2TokenUriRequired": "Token endpoint URL is required"
+      "oauth2TokenUriRequired": "Token endpoint URL is required",
+      "aiConfig": "AI config",
+      "aiConfigPlaceholder": "Select an AI config",
+      "aiConfigRequired": "Select an AI config when AI analysis or text-to-API is enabled",
+      "addAiConfig": "Add AI config"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "Track governed API calls",
+      "id": "ID",
+      "actions": "Actions",
+      "searchPlaceholder": "Search by ID, connector, path",
+      "filterAllStatuses": "All statuses",
+      "filterAllConnectors": "All connectors",
+      "filterAllVerbs": "All methods",
+      "filterAllRisk": "All risk",
+      "countLabel": "{{filtered}} of {{total}}",
+      "scheduledFor": "Scheduled for {{when}}",
+      "scheduledForAria": "Scheduled",
+      "submissionReason": "Submission reason",
+      "aiSummary": "AI summary",
+      "error": "Error",
+      "decision": "Decision",
+      "stage": "Stage",
+      "comment": "Comment",
+      "decidedAt": "Decided at",
+      "scheduled": "Scheduled",
+      "truncated": "Truncated",
+      "notFound": "Request not found"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "Approve or reject governed API calls",
+      "searchPlaceholder": "Search by connector, path",
+      "actions": "Actions"
     },
     "error": "Something went wrong"
   }

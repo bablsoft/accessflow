@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
+import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,9 +19,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
@@ -49,13 +54,18 @@ class ApiRequestController {
     @GetMapping
     @Operation(summary = "List API requests (admins see all; others see their own)")
     @ApiResponse(responseCode = "200", description = "Page of requests")
-    ApiRequestPageResponse list(Authentication authentication, Pageable pageable) {
+    ApiRequestPageResponse list(Authentication authentication, Pageable pageable,
+                                @RequestParam(required = false) QueryStatus status,
+                                @RequestParam(name = "connector_id", required = false) UUID connectorId,
+                                @RequestParam(required = false) String verb,
+                                @RequestParam(required = false) Instant from,
+                                @RequestParam(required = false) Instant to) {
         var caller = claims(authentication);
         var pageRequest = SpringPageableAdapter.toPageRequest(pageable);
-        var page = isAdmin(caller)
-                ? requestService.listForAdmin(caller.organizationId(), pageRequest)
-                : requestService.listForUser(caller.organizationId(), caller.userId(), pageRequest);
-        return ApiRequestPageResponse.from(page);
+        var submittedBy = isAdmin(caller) ? null : caller.userId();
+        var filter = new ApiRequestListFilter(caller.organizationId(), submittedBy, connectorId, status,
+                normalizeVerb(verb), from, to);
+        return ApiRequestPageResponse.from(requestService.list(filter, pageRequest));
     }
 
     @GetMapping("/{id}")
@@ -110,6 +120,10 @@ class ApiRequestController {
         var draft = assistService.generate(body.connectorId(), caller.organizationId(), caller.userId(),
                 isAdmin(caller), body.prompt(), body.language());
         return GeneratedApiCallResponse.from(draft);
+    }
+
+    private static String normalizeVerb(String verb) {
+        return verb == null || verb.isBlank() ? null : verb.trim().toUpperCase(Locale.ROOT);
     }
 
     private static JwtClaims claims(Authentication authentication) {

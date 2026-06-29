@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
@@ -36,9 +38,12 @@ class ApiReviewController {
     @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
     @Operation(summary = "List API requests awaiting the caller's review")
     @ApiResponse(responseCode = "200", description = "Page of pending API reviews")
-    PendingApiReviewResponse.Page pending(Authentication authentication, Pageable pageable) {
+    PendingApiReviewResponse.Page pending(Authentication authentication, Pageable pageable,
+                                          @RequestParam(name = "connector_id", required = false) UUID connectorId,
+                                          @RequestParam(required = false) String verb) {
         var caller = claims(authentication);
-        return PendingApiReviewResponse.Page.from(reviewService.listPending(context(caller),
+        var filter = new ApiReviewService.PendingApiReviewFilter(connectorId, normalizeVerb(verb));
+        return PendingApiReviewResponse.Page.from(reviewService.listPending(context(caller), filter,
                 SpringPageableAdapter.toPageRequest(pageable)));
     }
 
@@ -70,6 +75,10 @@ class ApiReviewController {
         auditWriter.record(AuditAction.API_REQUEST_REJECTED, AuditResourceType.API_REQUEST, id, caller,
                 new HashMap<>(), auditContext);
         return ApiDecisionResponse.from(outcome);
+    }
+
+    private static String normalizeVerb(String verb) {
+        return verb == null || verb.isBlank() ? null : verb.trim().toUpperCase(Locale.ROOT);
     }
 
     private static JwtClaims claims(Authentication authentication) {

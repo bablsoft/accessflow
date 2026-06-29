@@ -2301,6 +2301,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "Client-Secret (Basic-Header)",
       "CLIENT_SECRET_POST": "Client-Secret (POST-Body)"
+    },
+    "decision_type": {
+      "APPROVED": "Genehmigt",
+      "REJECTED": "Abgelehnt",
+      "REQUESTED_CHANGES": "Änderungen angefordert"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "Client-Authentifizierung",
       "oauth2Configured": "Konfiguriert",
       "oauth2SecretHint": "Leer lassen, um den gespeicherten Wert beizubehalten",
-      "oauth2TokenUriRequired": "Token-Endpunkt-URL ist erforderlich"
+      "oauth2TokenUriRequired": "Token-Endpunkt-URL ist erforderlich",
+      "aiConfig": "KI-Konfiguration",
+      "aiConfigPlaceholder": "KI-Konfiguration auswählen",
+      "aiConfigRequired": "Wählen Sie eine KI-Konfiguration, wenn KI-Analyse oder Text-zu-API aktiviert ist",
+      "addAiConfig": "KI-Konfiguration hinzufügen"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "Verwaltete API-Aufrufe verfolgen",
+      "id": "ID",
+      "actions": "Aktionen",
+      "searchPlaceholder": "Suche nach ID, Connector, Pfad",
+      "filterAllStatuses": "Alle Status",
+      "filterAllConnectors": "Alle Connectoren",
+      "filterAllVerbs": "Alle Methoden",
+      "filterAllRisk": "Alle Risiken",
+      "countLabel": "{{filtered}} von {{total}}",
+      "scheduledFor": "Geplant für {{when}}",
+      "scheduledForAria": "Geplant",
+      "submissionReason": "Einreichungsgrund",
+      "aiSummary": "KI-Zusammenfassung",
+      "error": "Fehler",
+      "decision": "Entscheidung",
+      "stage": "Stufe",
+      "comment": "Kommentar",
+      "decidedAt": "Entschieden am",
+      "scheduled": "Geplant",
+      "truncated": "Gekürzt",
+      "notFound": "Anfrage nicht gefunden"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "Verwaltete API-Aufrufe genehmigen oder ablehnen",
+      "searchPlaceholder": "Suche nach Connector, Pfad",
+      "actions": "Aktionen"
     },
     "error": "Something went wrong"
   }

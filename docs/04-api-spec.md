@@ -4387,7 +4387,7 @@ secrets themselves are never returned.
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `requestBody?`, `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). Runs AI → routing → review. |
-| `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. |
+| `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. Optional filters: `status`, `connector_id`, `verb`, `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
 | `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. |
 | `POST` | `/api-requests/{id}/cancel` | Submitter cancels a pending (or scheduled-and-approved) request (`204`). |
 | `POST` | `/api-requests/{id}/execute` | Submitter executes an APPROVED request against the upstream target. |
@@ -4398,7 +4398,7 @@ secrets themselves are never returned.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api-reviews` | **Reviewer/Admin.** List API requests awaiting review. |
+| `GET` | `/api-reviews` | **Reviewer/Admin.** List API requests awaiting review. Paginated. Optional filters: `connector_id`, `verb`. Excludes the caller's own submissions (self-approval is forbidden). |
 | `POST` | `/api-reviews/{id}/approve` | **Reviewer/Admin.** Approve (`{comment?}`). The submitter can never self-approve. |
 | `POST` | `/api-reviews/{id}/reject` | **Reviewer/Admin.** Reject (`{comment?}`). |
 

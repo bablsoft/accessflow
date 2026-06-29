@@ -1,16 +1,26 @@
-import { App, Button, Input, Modal, Table, Tag } from 'antd';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { App, Button, Input, Modal, Select, Skeleton, Table } from 'antd';
+import type { TableColumnsType } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { RiskPill } from '@/components/common/RiskPill';
 import {
   apiRequestKeys,
   approveApiReview,
   listPendingApiReviews,
   rejectApiReview,
 } from '@/api/apiRequests';
-import { riskLevelLabel } from '@/utils/enumLabels';
-import type { PendingApiReview } from '@/types/api';
+import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
+import { enumOptions, riskLevelLabel } from '@/utils/enumLabels';
+import { timeAgo } from '@/utils/dateFormat';
+import type { PendingApiReview, RiskLevel } from '@/types/api';
+
+const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+
+const PAGE_SIZE = 20;
 
 export default function ApiReviewQueuePage() {
   const { t } = useTranslation();
@@ -21,13 +31,34 @@ export default function ApiReviewQueuePage() {
   );
   const [comment, setComment] = useState('');
 
+  const [q, setQ] = useState('');
+  const [connector, setConnector] = useState<string | 'all'>('all');
+  const [verb, setVerb] = useState<string | 'all'>('all');
+  const [risk, setRisk] = useState<RiskLevel | 'all'>('all');
+  const [page, setPage] = useState(0);
+
+  const filters = useMemo(
+    () => ({
+      connector_id: connector === 'all' ? undefined : connector,
+      verb: verb === 'all' ? undefined : verb,
+      page,
+      size: PAGE_SIZE,
+    }),
+    [connector, verb, page],
+  );
+
   const queueQuery = useQuery({
-    queryKey: apiRequestKeys.reviewQueue({ size: 100 }),
-    queryFn: () => listPendingApiReviews({ size: 100 }),
+    queryKey: apiRequestKeys.reviewQueue(filters),
+    queryFn: () => listPendingApiReviews(filters),
+  });
+
+  const connectorsQuery = useQuery({
+    queryKey: apiConnectorKeys.list({ size: 100 }),
+    queryFn: () => listApiConnectors({ size: 100 }),
   });
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: apiRequestKeys.reviewQueue({ size: 100 }) });
+    queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
 
   const decideMutation = useMutation({
     mutationFn: ({ id, kind }: { id: string; kind: 'approve' | 'reject' }) =>
@@ -41,24 +72,56 @@ export default function ApiReviewQueuePage() {
     onError: () => message.error(t('apiGov.error')),
   });
 
-  const columns = [
-    { title: t('apiGov.requests.connector'), dataIndex: 'connector_name' },
-    { title: t('apiGov.requests.verb'), dataIndex: 'verb' },
-    { title: t('apiGov.requests.path'), dataIndex: 'request_path', ellipsis: true },
+  const rows = useMemo(() => queueQuery.data?.content ?? [], [queueQuery.data]);
+
+  const filtered = useMemo(
+    () =>
+      rows.filter((r) => {
+        if (risk !== 'all' && r.ai_risk_level !== risk) return false;
+        if (q) {
+          const n = q.toLowerCase();
+          if (
+            !(r.connector_name ?? '').toLowerCase().includes(n) &&
+            !r.request_path.toLowerCase().includes(n)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      }),
+    [rows, q, risk],
+  );
+
+  const columns: TableColumnsType<PendingApiReview> = [
+    { title: t('apiGov.requests.connector'), dataIndex: 'connector_name', width: 160 },
+    { title: t('apiGov.requests.verb'), dataIndex: 'verb', width: 80, render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span> },
+    {
+      title: t('apiGov.requests.path'),
+      dataIndex: 'request_path',
+      ellipsis: true,
+      render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+    },
     {
       title: t('apiGov.reviews.risk'),
-      dataIndex: 'ai_risk_level',
-      render: (_: unknown, row: PendingApiReview) =>
-        row.ai_risk_level ? (
-          <Tag>{riskLevelLabel(t, row.ai_risk_level)} · {row.ai_risk_score ?? '—'}</Tag>
+      width: 120,
+      render: (_v, r) =>
+        r.ai_risk_level != null && r.ai_risk_score != null ? (
+          <RiskPill level={r.ai_risk_level} score={r.ai_risk_score} />
         ) : (
-          '—'
+          <span className="muted" style={{ fontSize: 11 }}>—</span>
         ),
     },
     {
-      title: t('common.approve'),
+      title: t('apiGov.requests.created'),
+      dataIndex: 'created_at',
+      width: 110,
+      render: (v: string) => <span className="muted" style={{ fontSize: 12 }}>{timeAgo(v)}</span>,
+    },
+    {
+      title: t('apiGov.reviews.actions'),
       key: 'actions',
-      render: (_: unknown, row: PendingApiReview) => (
+      width: 180,
+      render: (_v, row) => (
         <span style={{ display: 'flex', gap: 8 }}>
           <Button
             size="small"
@@ -81,16 +144,82 @@ export default function ApiReviewQueuePage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('apiGov.reviews.title')} />
-      <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
-        <Table<PendingApiReview>
-          rowKey="api_request_id"
-          loading={queueQuery.isLoading}
-          dataSource={queueQuery.data?.content ?? []}
-          columns={columns}
-          pagination={false}
-          locale={{ emptyText: t('apiGov.reviews.empty') }}
+      <PageHeader title={t('apiGov.reviews.title')} subtitle={t('apiGov.reviews.subtitle')} />
+      <div
+        style={{
+          padding: '12px 28px',
+          background: 'var(--bg-elev)',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <Input
+          prefix={<SearchOutlined style={{ color: 'var(--fg-faint)' }} />}
+          placeholder={t('apiGov.reviews.searchPlaceholder')}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          style={{ width: 240 }}
         />
+        <Select
+          value={connector}
+          onChange={(v) => { setConnector(v); setPage(0); }}
+          options={[
+            { value: 'all', label: t('apiGov.requests.filterAllConnectors') },
+            ...(connectorsQuery.data?.content ?? []).map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          style={{ width: 180 }}
+        />
+        <Select
+          value={verb}
+          onChange={(v) => { setVerb(v); setPage(0); }}
+          options={[
+            { value: 'all', label: t('apiGov.requests.filterAllVerbs') },
+            ...VERBS.map((v) => ({ value: v, label: v })),
+          ]}
+          style={{ width: 120 }}
+        />
+        <Select
+          value={risk}
+          onChange={(v) => setRisk(v)}
+          options={[
+            { value: 'all', label: t('apiGov.requests.filterAllRisk') },
+            ...enumOptions(RISKS, riskLevelLabel, t),
+          ]}
+          style={{ width: 130 }}
+        />
+        <div style={{ flex: 1 }} />
+        <span className="mono muted" style={{ fontSize: 11 }}>
+          {t('apiGov.requests.countLabel', {
+            filtered: filtered.length,
+            total: queueQuery.data?.total_elements ?? 0,
+          })}
+        </span>
+      </div>
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+        {queueQuery.isLoading ? (
+          <div style={{ padding: 16 }}>
+            <Skeleton active paragraph={{ rows: 8 }} />
+          </div>
+        ) : (
+          <Table<PendingApiReview>
+            rowKey="api_request_id"
+            dataSource={filtered}
+            columns={columns}
+            size="middle"
+            scroll={{ x: 'max-content' }}
+            locale={{ emptyText: t('apiGov.reviews.empty') }}
+            pagination={{
+              current: page + 1,
+              pageSize: PAGE_SIZE,
+              total: queueQuery.data?.total_elements ?? 0,
+              showSizeChanger: false,
+              onChange: (p) => setPage(p - 1),
+            }}
+          />
+        )}
       </div>
       <Modal
         open={decisionFor !== null}

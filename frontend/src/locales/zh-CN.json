@@ -2301,6 +2301,11 @@
     "oauth2_client_auth": {
       "CLIENT_SECRET_BASIC": "客户端密钥（Basic 头）",
       "CLIENT_SECRET_POST": "客户端密钥（POST 正文）"
+    },
+    "decision_type": {
+      "APPROVED": "已批准",
+      "REJECTED": "已拒绝",
+      "REQUESTED_CHANGES": "请求修改"
     }
   },
   "access": {
@@ -2727,7 +2732,11 @@
       "oauth2ClientAuth": "客户端认证",
       "oauth2Configured": "已配置",
       "oauth2SecretHint": "留空以保留已保存的值",
-      "oauth2TokenUriRequired": "令牌端点 URL 为必填项"
+      "oauth2TokenUriRequired": "令牌端点 URL 为必填项",
+      "aiConfig": "AI 配置",
+      "aiConfigPlaceholder": "选择 AI 配置",
+      "aiConfigRequired": "启用 AI 分析或文本转 API 时需选择 AI 配置",
+      "addAiConfig": "添加 AI 配置"
     },
     "settings": {
       "title": "Connector settings",
@@ -2802,7 +2811,28 @@
       "duration": "Duration (ms)",
       "snapshot": "Response snapshot (masked)",
       "decisions": "Review decisions",
-      "justification": "Justification"
+      "justification": "Justification",
+      "subtitle": "跟踪受治理的 API 调用",
+      "id": "ID",
+      "actions": "操作",
+      "searchPlaceholder": "按 ID、连接器、路径搜索",
+      "filterAllStatuses": "全部状态",
+      "filterAllConnectors": "全部连接器",
+      "filterAllVerbs": "全部方法",
+      "filterAllRisk": "全部风险",
+      "countLabel": "{{filtered}} / {{total}}",
+      "scheduledFor": "计划于 {{when}}",
+      "scheduledForAria": "已计划",
+      "submissionReason": "提交原因",
+      "aiSummary": "AI 摘要",
+      "error": "错误",
+      "decision": "决定",
+      "stage": "阶段",
+      "comment": "评论",
+      "decidedAt": "决定时间",
+      "scheduled": "已计划",
+      "truncated": "已截断",
+      "notFound": "未找到请求"
     },
     "reviews": {
       "title": "API Reviews",
@@ -2813,7 +2843,10 @@
       "approved": "Approved",
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
-      "risk": "Risk"
+      "risk": "Risk",
+      "subtitle": "批准或拒绝受治理的 API 调用",
+      "searchPlaceholder": "按连接器、路径搜索",
+      "actions": "操作"
     },
     "error": "Something went wrong"
   }
