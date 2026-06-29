@@ -289,6 +289,15 @@ test.describe.serial('datasource settings — config + permissions', () => {
       .filter({ hasText: ANALYST_EMAIL })
       .click();
 
+    // Toggle break-glass on. The switch is the one whose Form.Item carries the
+    // grant_perm_break_glass_label ("Can break-glass"); scope to its form item
+    // so the read/write/DDL switches aren't matched.
+    await grantDialog
+      .locator('.ant-form-item')
+      .filter({ hasText: 'Can break-glass' })
+      .getByRole('switch')
+      .click();
+
     // Submit. The modal OK button label is i18n grant_submit = "Grant access".
     const [grantResponse] = await Promise.all([
       page.waitForResponse(
@@ -300,6 +309,8 @@ test.describe.serial('datasource settings — config + permissions', () => {
       grantDialog.getByRole('button', { name: 'Grant access' }).click(),
     ]);
     expect(grantResponse.status()).toBe(201);
+    // The POST body carries the break-glass capability.
+    expect(grantResponse.request().postDataJSON().can_break_glass).toBe(true);
 
     // message.success(t('datasources.settings.grant_success')).
     await expect(page.getByText('Access granted', { exact: true })).toBeVisible({
@@ -313,6 +324,15 @@ test.describe.serial('datasource settings — config + permissions', () => {
     // the user column (label + subtitle) doesn't trip strict-mode.
     const analystRow = page.locator('.ant-table-row').filter({ hasText: ANALYST_EMAIL });
     await expect(analystRow).toHaveCount(1, { timeout: 10_000 });
+
+    // The Break-glass column shows the capability as enabled (PermCell check
+    // icon). Resolve the column index from the header so the assertion is tied
+    // to the right column, not a count of all check icons in the row.
+    const headerCells = page.locator('.ant-table-thead th');
+    const headerTexts = await headerCells.allInnerTexts();
+    const bgIndex = headerTexts.findIndex((tx) => tx.trim() === 'Break-glass');
+    expect(bgIndex).toBeGreaterThanOrEqual(0);
+    await expect(analystRow.locator('td').nth(bgIndex).locator('.anticon-check')).toBeVisible();
 
     // Tab label flips to `Permissions · 1` once the permissions query refetches.
     await expect(page.getByRole('tab', { name: /^Permissions · 1$/ })).toBeVisible({

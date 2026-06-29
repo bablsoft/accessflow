@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import '@/i18n';
-import type { Datasource } from '@/types/api';
+import type { Datasource, DatasourcePermission, User } from '@/types/api';
 
 const getDatasource = vi.fn();
 const updateDatasource = vi.fn();
@@ -13,6 +13,9 @@ const testConnection = vi.fn();
 const testReplicaConnection = vi.fn();
 const listPermissions = vi.fn();
 const deleteDatasource = vi.fn();
+const grantPermission = vi.fn();
+const getDatasourceSchema = vi.fn();
+const listUsers = vi.fn();
 
 vi.mock('@/api/datasources', () => ({
   getDatasource: (...args: unknown[]) => getDatasource(...args),
@@ -21,9 +24,9 @@ vi.mock('@/api/datasources', () => ({
   testReplicaConnection: (...args: unknown[]) => testReplicaConnection(...args),
   listPermissions: (...args: unknown[]) => listPermissions(...args),
   deleteDatasource: (...args: unknown[]) => deleteDatasource(...args),
-  grantPermission: vi.fn(),
+  grantPermission: (...args: unknown[]) => grantPermission(...args),
   revokePermission: vi.fn(),
-  getDatasourceSchema: vi.fn(),
+  getDatasourceSchema: (...args: unknown[]) => getDatasourceSchema(...args),
   datasourceKeys: {
     all: ['datasources'] as const,
     lists: () => ['datasources', 'list'] as const,
@@ -37,7 +40,7 @@ vi.mock('@/api/datasources', () => ({
 
 vi.mock('@/api/admin', () => ({
   listAiConfigs: () => Promise.resolve([]),
-  listUsers: () => Promise.resolve({ content: [], page: 0, size: 100, total_elements: 0, total_pages: 0 }),
+  listUsers: (...args: unknown[]) => listUsers(...args),
   aiConfigKeys: { all: ['aiConfig'] as const, lists: () => ['aiConfig', 'list'] as const },
   userKeys: { all: ['users'] as const, list: (_f: unknown) => ['users', 'list'] as const },
 }));
@@ -239,5 +242,137 @@ describe('DatasourceSettingsPage — read replica section', () => {
     await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
     const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
     expect(body.read_replica_jdbc_url).toBe('');
+  });
+});
+
+const analystUser: User = {
+  id: 'u-analyst',
+  email: 'analyst@example.com',
+  display_name: 'Analyst',
+  role: 'ANALYST',
+  auth_provider: 'LOCAL',
+  active: true,
+  totp_enabled: false,
+  last_login_at: null,
+  preferred_language: null,
+  created_at: '2026-05-01T00:00:00Z',
+};
+
+function basePermission(over: Partial<DatasourcePermission>): DatasourcePermission {
+  return {
+    id: 'perm-1',
+    datasource_id: 'ds-1',
+    user_id: 'u-analyst',
+    user_email: 'analyst@example.com',
+    user_display_name: 'Analyst',
+    can_read: false,
+    can_write: false,
+    can_ddl: false,
+    can_break_glass: false,
+    row_limit_override: null,
+    allowed_schemas: null,
+    allowed_tables: null,
+    restricted_columns: null,
+    expires_at: null,
+    created_by: 'admin',
+    created_at: '2026-05-01T00:00:00Z',
+    ...over,
+  };
+}
+
+async function openGrantModal() {
+  await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+  // Page-level "Grant access" button carries a + icon, so its accessible name
+  // is "plus Grant access" — match by regex.
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: /Grant access/ })).toBeInTheDocument(),
+  );
+  fireEvent.click(screen.getByRole('button', { name: /Grant access/ }));
+  const dialog = await screen.findByRole('dialog');
+  return dialog;
+}
+
+async function selectAnalyst(dialog: HTMLElement) {
+  const combobox = within(dialog).getByRole('combobox', { name: 'User' });
+  fireEvent.mouseDown(combobox);
+  fireEvent.click(await screen.findByText('Analyst (analyst@example.com)'));
+}
+
+describe('DatasourceSettingsPage — break-glass permission grant', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    getDatasource.mockResolvedValue(baseDs);
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    grantPermission.mockReset();
+    grantPermission.mockResolvedValue(basePermission({ can_read: true, can_break_glass: true }));
+    getDatasourceSchema.mockReset();
+    getDatasourceSchema.mockResolvedValue({ schemas: [] });
+    listUsers.mockReset();
+    listUsers.mockResolvedValue({
+      content: [analystUser],
+      page: 0,
+      size: 100,
+      total_elements: 1,
+      total_pages: 1,
+    });
+  });
+
+  it('defaults the break-glass switch off', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    const switches = within(dialog).getAllByRole('switch');
+    // Order: read, write, ddl, break-glass.
+    expect(switches).toHaveLength(4);
+    expect(switches[3]).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('sends can_break_glass: true when the toggle is on', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    // read defaults on; turn break-glass on.
+    fireEvent.click(within(dialog).getAllByRole('switch')[3]!);
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await waitFor(() => expect(grantPermission).toHaveBeenCalled());
+    const input = grantPermission.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input.can_break_glass).toBe(true);
+    expect(input.can_read).toBe(true);
+    expect(input.user_id).toBe('u-analyst');
+  });
+
+  it('blocks a break-glass-only grant (read/write/DDL all off)', async () => {
+    render(wrap(<DatasourceSettingsPage />));
+    const dialog = await openGrantModal();
+
+    await selectAnalyst(dialog);
+    const switches = within(dialog).getAllByRole('switch');
+    fireEvent.click(switches[0]!); // read off (default was on)
+    fireEvent.click(switches[3]!); // break-glass on
+    fireEvent.click(within(dialog).getByRole('button', { name: /Grant access/ }));
+
+    await screen.findByText('Grant at least one of read, write, or DDL.');
+    expect(grantPermission).not.toHaveBeenCalled();
+  });
+
+  it('renders the break-glass column as enabled for a break-glass permission', async () => {
+    listPermissions.mockResolvedValue([basePermission({ can_break_glass: true })]);
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Permissions/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: /Permissions/ }));
+
+    // Column header present (AntD renders a duplicate measure header with
+    // scroll={{ x }}, so there are 2 matches).
+    expect((await screen.findAllByText('Break-glass')).length).toBeGreaterThanOrEqual(1);
+    // The analyst row has exactly one "on" cell — the break-glass column —
+    // since read/write/DDL are all off. PermCell renders a check icon when on.
+    const emailCell = await screen.findByText('analyst@example.com');
+    const row = emailCell.closest('tr')!;
+    expect(within(row).getAllByRole('img', { name: 'check' })).toHaveLength(1);
   });
 });

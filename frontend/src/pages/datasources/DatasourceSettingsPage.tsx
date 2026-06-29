@@ -740,6 +740,12 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
             render: (_v, p) => <PermCell on={p.can_ddl} />,
           },
           {
+            title: t('datasources.settings.perm_col_break_glass'),
+            width: 90,
+            align: 'center',
+            render: (_v, p) => <PermCell on={p.can_break_glass} />,
+          },
+          {
             title: t('datasources.settings.perm_col_row_limit'),
             width: 110,
             render: (_v, p) =>
@@ -828,6 +834,7 @@ interface GrantFormValues {
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
+  can_break_glass: boolean;
   row_limit_override?: number | null;
   allowed_schemas?: string[];
   allowed_tables?: string[];
@@ -926,11 +933,15 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
       message.error(t('datasources.settings.grant_at_least_one_perm'));
       return;
     }
+    if (values.can_break_glass && !values.expires_at) {
+      message.warning(t('datasources.settings.grant_break_glass_no_expiry_hint'));
+    }
     const payload: CreatePermissionInput = {
       user_id: values.user_id,
       can_read: values.can_read,
       can_write: values.can_write,
       can_ddl: values.can_ddl,
+      can_break_glass: values.can_break_glass,
       row_limit_override:
         typeof values.row_limit_override === 'number' ? values.row_limit_override : null,
       allowed_schemas:
@@ -969,6 +980,7 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
           can_read: true,
           can_write: false,
           can_ddl: false,
+          can_break_glass: false,
         }}
         onFinish={onFinish}
       >
@@ -1018,6 +1030,14 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
             <Switch />
           </Form.Item>
         </div>
+        <Form.Item
+          name="can_break_glass"
+          label={t('datasources.settings.grant_perm_break_glass_label')}
+          extra={t('datasources.settings.grant_perm_break_glass_help')}
+          valuePropName="checked"
+        >
+          <Switch />
+        </Form.Item>
         <Form.Item
           name="row_limit_override"
           label={t('datasources.settings.grant_row_limit_label')}
