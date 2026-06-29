@@ -4443,8 +4443,20 @@ Admin review queue (ADMIN):
 | `POST` | `/admin/lifecycle/erasure-requests/{id}/reject` | Reject (`{comment?}`) → `REJECTED`. |
 
 State machine: `PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED` (+ `REJECTED`, `FAILED`,
-`CANCELLED`). Execution of approved requests, the proxy soft-delete/pseudonymization enforcement, and
-the retention-adherence compliance report land with the proxy-enforcement workstream.
+`CANCELLED`).
+
+### Retention-adherence compliance report
+
+A `RETENTION_ADHERENCE` report type joins the existing compliance suite (proof of data retirement over
+`lifecycle_runs`):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/compliance/reports/retention-adherence` | **Auditor/Admin.** Lifecycle runs (retention + erasure actions) over `[from, to)` on the run's `created_at`, optional `datasourceId` scope. |
+| `GET` | `/admin/compliance/reports/export?type=RETENTION_ADHERENCE&format=PDF\|CSV` | Signed PDF/CSV export (RS256 over `JWT_PRIVATE_KEY`), same as the other report types. |
+
+Rows carry `runId, datasourceId/name, kind, action, status, method, affectedRows, policyId,
+deletionRequestId, finishedAt, createdAt`.
 
 ## Error Codes (`error` property on `ProblemDetail`)
 

@@ -13,5 +13,10 @@ package com.bablsoft.accessflow.compliance.api;
  */
 public enum ComplianceReportType {
     CLASSIFIED_ACCESS,
-    REGULATORY_AUDIT_TRAIL
+    REGULATORY_AUDIT_TRAIL,
+    /**
+     * Retention-adherence / deletion-history: lifecycle runs (retention + erasure actions) over the
+     * period, for proof of data retirement (AF-499).
+     */
+    RETENTION_ADHERENCE
 }

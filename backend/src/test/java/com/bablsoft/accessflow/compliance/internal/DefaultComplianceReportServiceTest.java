@@ -48,6 +48,7 @@ class DefaultComplianceReportServiceTest {
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock UserAdminService userAdminService;
     @Mock ReviewDecisionsParser reviewDecisionsParser;
+    @Mock com.bablsoft.accessflow.lifecycle.api.LifecycleRunLookupService lifecycleRunLookupService;
 
     private DefaultComplianceReportService service;
 
@@ -63,7 +64,8 @@ class DefaultComplianceReportServiceTest {
         var clock = Clock.fixed(generatedAt, ZoneOffset.UTC);
         var properties = new ComplianceProperties(Duration.ofDays(366), 2);
         service = new DefaultComplianceReportService(snapshotService, dataClassificationAdminService,
-                datasourceAdminService, userAdminService, reviewDecisionsParser, properties, clock);
+                datasourceAdminService, userAdminService, reviewDecisionsParser,
+                lifecycleRunLookupService, properties, clock);
         lenient().when(datasourceAdminService.listForAdmin(eq(orgId), any()))
                 .thenReturn(PageResponse.empty(0, 1000));
         lenient().when(userAdminService.findByIds(eq(orgId), any()))
@@ -137,6 +139,30 @@ class DefaultComplianceReportServiceTest {
         assertThat(report.auditTrail()).hasSize(1);
         assertThat(report.auditTrail().getFirst().approvers()).hasSize(1);
         assertThat(report.auditTrail().getFirst().approvers().getFirst().email()).isEqualTo("rev@x.com");
+        assertThat(report.classifiedAccess()).isEmpty();
+    }
+
+    @Test
+    void retentionAdherenceMapsLifecycleRuns() {
+        var run = new com.bablsoft.accessflow.lifecycle.api.LifecycleRunView(
+                UUID.randomUUID(), orgId, dsId,
+                com.bablsoft.accessflow.lifecycle.api.LifecycleRunKind.RETENTION_POLICY,
+                UUID.randomUUID(), null,
+                com.bablsoft.accessflow.lifecycle.api.LifecycleRunStatus.COMPLETED,
+                com.bablsoft.accessflow.lifecycle.api.LifecycleAction.SOFT_DELETE,
+                42L, "SOFT_DELETE(deleted_at)", from, to, from);
+        when(lifecycleRunLookupService.findForPeriod(eq(orgId), eq(from), eq(to), isNull(), eq(3)))
+                .thenReturn(List.of(run));
+
+        var report = service.generate(orgId,
+                new ComplianceReportRequest(ComplianceReportType.RETENTION_ADHERENCE, from, to, null));
+
+        assertThat(report.type()).isEqualTo(ComplianceReportType.RETENTION_ADHERENCE);
+        assertThat(report.retentionAdherence()).hasSize(1);
+        assertThat(report.retentionAdherence().getFirst().affectedRows()).isEqualTo(42L);
+        assertThat(report.retentionAdherence().getFirst().action()).isEqualTo("SOFT_DELETE");
+        assertThat(report.retentionAdherence().getFirst().method()).isEqualTo("SOFT_DELETE(deleted_at)");
+        assertThat(report.auditTrail()).isEmpty();
         assertThat(report.classifiedAccess()).isEmpty();
     }
 

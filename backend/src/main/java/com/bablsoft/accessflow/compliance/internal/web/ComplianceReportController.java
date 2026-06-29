@@ -82,6 +82,22 @@ class ComplianceReportController {
         return ComplianceReportResponse.from(reportService.generate(organizationId, request));
     }
 
+    @GetMapping("/reports/retention-adherence")
+    @Operation(summary = "Retention + erasure lifecycle runs over a period (deletion history, AF-499)")
+    @ApiResponse(responseCode = "200", description = "Retention-adherence report")
+    @ApiResponse(responseCode = "400", description = "Invalid reporting period")
+    @ApiResponse(responseCode = "403", description = "Caller is not an AUDITOR or ADMIN")
+    ComplianceReportResponse retentionAdherence(
+            @Parameter(description = "Inclusive lower bound on the run's createdAt") @RequestParam Instant from,
+            @Parameter(description = "Exclusive upper bound on the run's createdAt") @RequestParam Instant to,
+            @Parameter(description = "Optional datasource scope") @RequestParam(required = false)
+            UUID datasourceId,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
+        var request = new ComplianceReportRequest(ComplianceReportType.RETENTION_ADHERENCE, from,
+                to, datasourceId);
+        return ComplianceReportResponse.from(reportService.generate(organizationId, request));
+    }
+
     @GetMapping("/reports/export")
     @Operation(summary = "Render a compliance report as a digitally-signed PDF or CSV; the export "
             + "hash is chained into the audit log")

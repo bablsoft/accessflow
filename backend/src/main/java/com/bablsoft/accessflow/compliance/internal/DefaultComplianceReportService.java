@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.compliance.api.ComplianceReportRequest;
 import com.bablsoft.accessflow.compliance.api.ComplianceReportService;
 import com.bablsoft.accessflow.compliance.api.InvalidReportPeriodException;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
+import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
 import com.bablsoft.accessflow.compliance.internal.config.ComplianceProperties;
 import com.bablsoft.accessflow.core.api.DataClassificationAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -43,6 +44,7 @@ class DefaultComplianceReportService implements ComplianceReportService {
     private final DatasourceAdminService datasourceAdminService;
     private final UserAdminService userAdminService;
     private final ReviewDecisionsParser reviewDecisionsParser;
+    private final com.bablsoft.accessflow.lifecycle.api.LifecycleRunLookupService lifecycleRunLookupService;
     private final ComplianceProperties properties;
     private final Clock clock;
 
@@ -53,7 +55,36 @@ class DefaultComplianceReportService implements ComplianceReportService {
         return switch (request.type()) {
             case CLASSIFIED_ACCESS -> classifiedAccess(organizationId, request, cap);
             case REGULATORY_AUDIT_TRAIL -> regulatoryTrail(organizationId, request, cap);
+            case RETENTION_ADHERENCE -> retentionAdherence(organizationId, request, cap);
         };
+    }
+
+    private ComplianceReport retentionAdherence(UUID organizationId, ComplianceReportRequest request,
+                                                int cap) {
+        var raw = lifecycleRunLookupService.findForPeriod(organizationId, request.from(),
+                request.to(), request.datasourceId(), cap + 1);
+        boolean truncated = raw.size() > cap;
+        var runs = truncated ? raw.subList(0, cap) : raw;
+
+        var datasourceNames = datasourceNames(organizationId);
+        var rows = new ArrayList<RetentionAdherenceReportRow>(runs.size());
+        for (var run : runs) {
+            rows.add(new RetentionAdherenceReportRow(
+                    run.id(),
+                    run.datasourceId(),
+                    datasourceNames.get(run.datasourceId()),
+                    run.kind().name(),
+                    run.action().name(),
+                    run.status().name(),
+                    run.method(),
+                    run.affectedRows(),
+                    run.policyId(),
+                    run.deletionRequestId(),
+                    run.finishedAt(),
+                    run.createdAt()));
+        }
+        return new ComplianceReport(request.type(), organizationId, request.from(), request.to(),
+                Instant.now(clock), request.datasourceId(), List.of(), List.of(), rows, truncated);
     }
 
     private ComplianceReport classifiedAccess(UUID organizationId, ComplianceReportRequest request,
@@ -69,7 +100,7 @@ class DefaultComplianceReportService implements ComplianceReportService {
         var rows = ClassificationJoiner.join(snapshots, classifications, emails, datasourceNames);
 
         return new ComplianceReport(request.type(), organizationId, request.from(), request.to(),
-                Instant.now(clock), request.datasourceId(), rows, List.of(), truncated);
+                Instant.now(clock), request.datasourceId(), rows, List.of(), List.of(), truncated);
     }
 
     private ComplianceReport regulatoryTrail(UUID organizationId, ComplianceReportRequest request,
@@ -97,7 +128,7 @@ class DefaultComplianceReportService implements ComplianceReportService {
         }
 
         return new ComplianceReport(request.type(), organizationId, request.from(), request.to(),
-                Instant.now(clock), request.datasourceId(), List.of(), rows, truncated);
+                Instant.now(clock), request.datasourceId(), List.of(), rows, List.of(), truncated);
     }
 
     private void validatePeriod(ComplianceReportRequest request) {

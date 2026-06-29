@@ -1049,8 +1049,14 @@ rows); `DELETE … USING` / multi-table deletes are rejected fail-closed
 (`UnrewritableRowSecurityException`, 422). `IS_NULL` is a new unary `RowSecurityOperator` that binds no
 parameter — it is never persisted by row-security policies, only synthesised here.
 
-**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`), the retention-adherence compliance
-report, and lifecycle notifications are part of the same epic.
+**Retention-adherence compliance report.** A `ComplianceReportType.RETENTION_ADHERENCE` joins the
+compliance suite: `DefaultComplianceReportService` reads `lifecycle_runs` over the period through the
+`lifecycle.api.LifecycleRunLookupService` (compliance → lifecycle.api, acyclic) and renders the
+deletion-history rows to the existing signed PDF/CSV export. Served at
+`GET /admin/compliance/reports/retention-adherence` (+ the generic signed `…/export?type=…`).
+
+**In progress.** Approved-erasure execution (`APPROVED → EXECUTED`) and lifecycle notifications are part
+of the same epic.
 
 ---
 
