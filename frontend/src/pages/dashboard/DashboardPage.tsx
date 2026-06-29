@@ -29,6 +29,9 @@ import { RecentQueriesWidget } from '@/components/dashboard/RecentQueriesWidget'
 import { QueryTrendsWidget } from '@/components/dashboard/QueryTrendsWidget';
 import { SuggestionBacklogWidget } from '@/components/dashboard/SuggestionBacklogWidget';
 import { AnomalyAlertsWidget } from '@/components/dashboard/AnomalyAlertsWidget';
+import { RecentApiRequestsWidget } from '@/components/dashboard/RecentApiRequestsWidget';
+import { ApiRequestTrendsWidget } from '@/components/dashboard/ApiRequestTrendsWidget';
+import { PendingApiApprovalsWidget } from '@/components/dashboard/PendingApiApprovalsWidget';
 import {
   dashboardKeys,
   exportDashboardSummary,
@@ -54,6 +57,9 @@ const WIDGET_ROLES: Record<DashboardWidgetId, Role[]> = {
   trends: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
   suggestions: ['ANALYST', 'REVIEWER', 'ADMIN'],
   anomalies: ['ADMIN'],
+  recentApiRequests: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
+  apiRequestTrends: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
+  pendingApiApprovals: ['REVIEWER', 'ADMIN'],
 };
 
 function widgetAllowed(id: DashboardWidgetId, role: Role | undefined): boolean {
@@ -235,6 +241,7 @@ function badgeFor(id: DashboardWidgetId, summary: DashboardSummary | undefined):
   if (id === 'pendingApprovals') return summary.pending_approvals_count;
   if (id === 'suggestions') return summary.open_suggestions_count;
   if (id === 'anomalies') return summary.open_anomalies_count;
+  if (id === 'pendingApiApprovals') return summary.pending_api_approvals_count;
   return undefined;
 }
 
@@ -256,6 +263,19 @@ function renderWidget(
       return <SuggestionBacklogWidget />;
     case 'anomalies':
       return <AnomalyAlertsWidget />;
+    case 'recentApiRequests':
+      return (
+        <RecentApiRequestsWidget items={summary?.recent_api_requests ?? []} loading={loading} />
+      );
+    case 'apiRequestTrends':
+      return <ApiRequestTrendsWidget />;
+    case 'pendingApiApprovals':
+      return (
+        <PendingApiApprovalsWidget
+          items={summary?.recent_pending_api_approvals ?? []}
+          loading={loading}
+        />
+      );
     default:
       return null;
   }
@@ -280,6 +300,8 @@ function SummaryCounts({
     { key: 'open', widget: 'recentQueries', label: t('dashboard.summary.open_queries'), value: summary.open_queries_count },
     { key: 'anomalies', widget: 'anomalies', label: t('dashboard.summary.open_anomalies'), value: summary.open_anomalies_count },
     { key: 'suggestions', widget: 'suggestions', label: t('dashboard.summary.open_suggestions'), value: summary.open_suggestions_count },
+    { key: 'openApiRequests', widget: 'recentApiRequests', label: t('dashboard.summary.open_api_requests'), value: summary.open_api_requests_count },
+    { key: 'pendingApiApprovals', widget: 'pendingApiApprovals', label: t('dashboard.summary.pending_api_approvals'), value: summary.pending_api_approvals_count },
   ];
   const cards = allCards.filter((c) => available.includes(c.widget));
   if (cards.length === 0) {

@@ -24,6 +24,11 @@ describe('api/dashboard', () => {
     expect(dashboardKeys.all).toEqual(['dashboard']);
     expect(dashboardKeys.summary()).toEqual(['dashboard', 'summary']);
     expect(dashboardKeys.trends({ from: 'a' })).toEqual(['dashboard', 'trends', { from: 'a' }]);
+    expect(dashboardKeys.apiRequestTrends({ from: 'a' })).toEqual([
+      'dashboard',
+      'api-request-trends',
+      { from: 'a' },
+    ]);
     expect(dashboardKeys.suggestions()).toEqual(['dashboard', 'suggestions']);
     expect(dashboardKeys.digestSubscription()).toEqual(['dashboard', 'digest-subscription']);
   });
@@ -47,6 +52,20 @@ describe('api/dashboard', () => {
     get.mockResolvedValueOnce({ data: { status_by_day: [], risk_by_day: [] } });
     await dashboardApi.fetchMyQueryTrends();
     expect(get).toHaveBeenCalledWith('/api/v1/dashboard/my-query-trends', { params: {} });
+  });
+
+  it('fetchMyApiRequestTrends passes from/to when present', async () => {
+    get.mockResolvedValueOnce({ data: { status_by_day: [], risk_by_day: [] } });
+    await dashboardApi.fetchMyApiRequestTrends({ from: '2026-06-01', to: '2026-06-30' });
+    expect(get).toHaveBeenCalledWith('/api/v1/dashboard/my-api-request-trends', {
+      params: { from: '2026-06-01', to: '2026-06-30' },
+    });
+  });
+
+  it('fetchMyApiRequestTrends omits empty params', async () => {
+    get.mockResolvedValueOnce({ data: { status_by_day: [], risk_by_day: [] } });
+    await dashboardApi.fetchMyApiRequestTrends();
+    expect(get).toHaveBeenCalledWith('/api/v1/dashboard/my-api-request-trends', { params: {} });
   });
 
   it('fetchDashboardSuggestions GETs the backlog', async () => {

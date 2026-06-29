@@ -3,6 +3,7 @@ import type {
   DashboardSuggestions,
   DashboardSummary,
   DigestSubscription,
+  MyApiRequestTrends,
   MyQueryTrends,
   MyQueryTrendsFilters,
 } from '@/types/api';
@@ -13,6 +14,8 @@ export const dashboardKeys = {
   all: ['dashboard'] as const,
   summary: () => ['dashboard', 'summary'] as const,
   trends: (filters: MyQueryTrendsFilters) => ['dashboard', 'trends', filters] as const,
+  apiRequestTrends: (filters: MyQueryTrendsFilters) =>
+    ['dashboard', 'api-request-trends', filters] as const,
   suggestions: () => ['dashboard', 'suggestions'] as const,
   digestSubscription: () => ['dashboard', 'digest-subscription'] as const,
 };
@@ -29,6 +32,18 @@ export async function fetchMyQueryTrends(
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
   const { data } = await apiClient.get<MyQueryTrends>(`${BASE}/my-query-trends`, { params });
+  return data;
+}
+
+export async function fetchMyApiRequestTrends(
+  filters: MyQueryTrendsFilters = {},
+): Promise<MyApiRequestTrends> {
+  const params: Record<string, string> = {};
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  const { data } = await apiClient.get<MyApiRequestTrends>(`${BASE}/my-api-request-trends`, {
+    params,
+  });
   return data;
 }
 

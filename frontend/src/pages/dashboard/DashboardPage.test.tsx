@@ -10,6 +10,7 @@ import type { AnomalyPage, DashboardSummary, DashboardSuggestions, DigestSubscri
 const {
   fetchSummary,
   fetchTrends,
+  fetchApiTrends,
   fetchSuggestions,
   dismissSuggestion,
   fetchDigest,
@@ -19,6 +20,7 @@ const {
 } = vi.hoisted(() => ({
   fetchSummary: vi.fn(),
   fetchTrends: vi.fn(),
+  fetchApiTrends: vi.fn(),
   fetchSuggestions: vi.fn(),
   dismissSuggestion: vi.fn(),
   fetchDigest: vi.fn(),
@@ -31,11 +33,13 @@ vi.mock('@/api/dashboard', () => ({
   dashboardKeys: {
     summary: () => ['dashboard', 'summary'],
     trends: (f: unknown) => ['dashboard', 'trends', f],
+    apiRequestTrends: (f: unknown) => ['dashboard', 'api-request-trends', f],
     suggestions: () => ['dashboard', 'suggestions'],
     digestSubscription: () => ['dashboard', 'digest-subscription'],
   },
   fetchDashboardSummary: fetchSummary,
   fetchMyQueryTrends: fetchTrends,
+  fetchMyApiRequestTrends: fetchApiTrends,
   fetchDashboardSuggestions: fetchSuggestions,
   dismissDashboardSuggestion: dismissSuggestion,
   fetchDigestSubscription: fetchDigest,
@@ -79,6 +83,8 @@ function summary(): DashboardSummary {
     open_queries_count: 7,
     open_anomalies_count: 1,
     open_suggestions_count: 2,
+    open_api_requests_count: 4,
+    pending_api_approvals_count: 5,
     status_counts: [],
     recent_queries: [
       {
@@ -106,10 +112,40 @@ function summary(): DashboardSummary {
         created_at: '2026-06-20T11:00:00Z',
       },
     ],
+    recent_api_requests: [
+      {
+        id: 'a1',
+        connector_id: 'c1',
+        connector_name: 'Payments API',
+        verb: 'GET',
+        request_path: '/v1/charges',
+        write: false,
+        status: 'PENDING_REVIEW',
+        ai_risk_level: 'LOW',
+        ai_risk_score: 12,
+        created_at: '2026-06-20T12:00:00Z',
+      },
+    ],
+    recent_pending_api_approvals: [
+      {
+        api_request_id: 'a2',
+        connector_id: 'c1',
+        connector_name: 'Payments API',
+        submitted_by_user_id: 'u-9',
+        verb: 'POST',
+        request_path: '/v1/refunds',
+        write: true,
+        ai_risk_level: 'HIGH',
+        ai_risk_score: 77,
+        current_stage: 1,
+        created_at: '2026-06-20T13:00:00Z',
+      },
+    ],
   };
 }
 
 const emptyTrends: MyQueryTrends = { status_by_day: [], risk_by_day: [] };
+const emptyApiTrends: MyQueryTrends = { status_by_day: [], risk_by_day: [] };
 const emptySuggestions: DashboardSuggestions = { suggestions: [] };
 const disabledDigest: DigestSubscription = { enabled: false, last_sent_at: null };
 const emptyMine: AnomalyPage = { content: [], page: 0, size: 10, total_elements: 0, total_pages: 0 };
@@ -130,6 +166,7 @@ describe('DashboardPage', () => {
   beforeEach(() => {
     fetchSummary.mockResolvedValue(summary());
     fetchTrends.mockResolvedValue(emptyTrends);
+    fetchApiTrends.mockResolvedValue(emptyApiTrends);
     fetchSuggestions.mockResolvedValue(emptySuggestions);
     fetchDigest.mockResolvedValue(disabledDigest);
     setDigest.mockResolvedValue({ enabled: true, last_sent_at: null });
@@ -153,6 +190,12 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-widget-recentQueries')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-suggestions')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-anomalies')).toBeInTheDocument();
+    // API Access Governance widgets + stat cards (AF-500).
+    expect(screen.getByTestId('dashboard-widget-recentApiRequests')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-apiRequestTrends')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-pendingApiApprovals')).toBeInTheDocument();
+    expect(within(screen.getByTestId('dashboard-stat-openApiRequests')).getByText('4')).toBeInTheDocument();
+    expect(within(screen.getByTestId('dashboard-stat-pendingApiApprovals')).getByText('5')).toBeInTheDocument();
   });
 
   it('hides widgets the role cannot use (ANALYST sees no pending-approvals or anomalies)', async () => {
@@ -166,6 +209,12 @@ describe('DashboardPage', () => {
     expect(screen.queryByTestId('dashboard-widget-anomalies')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dashboard-stat-pending')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dashboard-stat-anomalies')).not.toBeInTheDocument();
+    // API request read widgets are available to ANALYST; the reviewer-only one is not.
+    expect(screen.getByTestId('dashboard-widget-recentApiRequests')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-apiRequestTrends')).toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-widget-pendingApiApprovals')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-stat-openApiRequests')).toBeInTheDocument();
+    expect(screen.queryByTestId('dashboard-stat-pendingApiApprovals')).not.toBeInTheDocument();
   });
 
   it('toggles the weekly digest opt-in', async () => {

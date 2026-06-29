@@ -37,6 +37,11 @@ test.describe.serial('/dashboard personalized home', () => {
     await expect(page.getByTestId('dashboard-widget-trends')).toBeVisible();
     await expect(page.getByTestId('dashboard-widget-suggestions')).toBeVisible();
     await expect(page.getByTestId('dashboard-widget-anomalies')).toBeVisible();
+    // API Access Governance widgets + stat cards (AF-500).
+    await expect(page.getByTestId('dashboard-stat-openApiRequests')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-recentApiRequests')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-apiRequestTrends')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-pendingApiApprovals')).toBeVisible();
   });
 
   test('hiding a widget persists across reloads', async ({ page }) => {

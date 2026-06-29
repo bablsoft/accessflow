@@ -311,7 +311,11 @@ widgets — **Pending approvals**, **My recent queries** (+ status/risk trend sp
 `@ant-design/charts`), **AI optimization suggestions** (dismissable, with "open in editor"), and
 **Anomaly alerts** (acknowledge/dismiss) — read from the self-scoped `api/dashboard.ts` (summary +
 trends + suggestions) and `api/anomalies.ts` (`/anomalies/mine`) via TanStack Query, each with a
-`Skeleton` while loading and a per-widget `EmptyState`. Widget show/hide, collapse, and **drag-and-drop
+`Skeleton` while loading and a per-widget `EmptyState`. The API Access Governance widgets (AF-500) add
+**My recent API requests** / **API request trends** (any query-submitting role) and **Pending API
+approvals** (`REVIEWER`/`ADMIN`), plus **Open API requests** / **Pending API approvals** stat cards —
+backed by `/dashboard/summary` and `/dashboard/my-api-request-trends`, linking to `/api-requests/:id`
+and `/api-reviews`. Widget show/hide, collapse, and **drag-and-drop
 reorder** (`@dnd-kit`) persist in `preferencesStore.dashboardWidgets` (`{ visible[], order[], collapsed{} }`,
 stored in `af-preferences`). A header `Switch` toggles the opt-in weekly email digest (server-persisted via
 `GET`/`PUT /dashboard/digest-subscription`), and an **Export this week** dropdown downloads the signed

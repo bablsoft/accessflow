@@ -2042,14 +2042,45 @@ export interface DashboardPendingApproval {
   created_at: string;
 }
 
+export interface DashboardRecentApiRequest {
+  id: string;
+  connector_id: string;
+  connector_name: string | null;
+  verb: string;
+  request_path: string;
+  write: boolean;
+  status: QueryStatus;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  created_at: string;
+}
+
+export interface DashboardPendingApiApproval {
+  api_request_id: string;
+  connector_id: string;
+  connector_name: string | null;
+  submitted_by_user_id: string;
+  verb: string;
+  request_path: string;
+  write: boolean;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  current_stage: number;
+  created_at: string;
+}
+
 export interface DashboardSummary {
   pending_approvals_count: number;
   open_queries_count: number;
   open_anomalies_count: number;
   open_suggestions_count: number;
+  open_api_requests_count: number;
+  pending_api_approvals_count: number;
   status_counts: DashboardStatusCount[];
   recent_queries: DashboardRecentQuery[];
   recent_pending_approvals: DashboardPendingApproval[];
+  recent_api_requests: DashboardRecentApiRequest[];
+  recent_pending_api_approvals: DashboardPendingApiApproval[];
 }
 
 export interface DashboardStatusBucket {
@@ -2065,6 +2096,11 @@ export interface DashboardRiskBucket {
 }
 
 export interface MyQueryTrends {
+  status_by_day: DashboardStatusBucket[];
+  risk_by_day: DashboardRiskBucket[];
+}
+
+export interface MyApiRequestTrends {
   status_by_day: DashboardStatusBucket[];
   risk_by_day: DashboardRiskBucket[];
 }

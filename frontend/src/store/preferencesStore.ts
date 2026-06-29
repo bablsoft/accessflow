@@ -12,7 +12,10 @@ export type DashboardWidgetId =
   | 'recentQueries'
   | 'trends'
   | 'suggestions'
-  | 'anomalies';
+  | 'anomalies'
+  | 'recentApiRequests'
+  | 'apiRequestTrends'
+  | 'pendingApiApprovals';
 
 export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   'pendingApprovals',
@@ -20,6 +23,9 @@ export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   'trends',
   'suggestions',
   'anomalies',
+  'recentApiRequests',
+  'apiRequestTrends',
+  'pendingApiApprovals',
 ];
 
 export interface DashboardWidgetPreferences {

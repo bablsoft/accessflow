@@ -2544,14 +2544,19 @@
       "pending_approvals": "待批准",
       "open_queries": "进行中的查询",
       "open_anomalies": "未处理的异常",
-      "open_suggestions": "未处理的建议"
+      "open_suggestions": "未处理的建议",
+      "open_api_requests": "进行中的 API 请求",
+      "pending_api_approvals": "待审批的 API 请求"
     },
     "widgets": {
       "pendingApprovals": "待批准",
       "recentQueries": "我最近的查询",
       "trends": "查询趋势",
       "suggestions": "AI 优化建议",
-      "anomalies": "异常告警"
+      "anomalies": "异常告警",
+      "recentApiRequests": "我最近的 API 请求",
+      "apiRequestTrends": "API 请求趋势",
+      "pendingApiApprovals": "待审批的 API 请求"
     },
     "pending": {
       "empty": "没有等待您审核的内容",
@@ -2579,6 +2584,19 @@
       "acknowledge": "确认",
       "dismiss": "忽略异常",
       "score": "分数"
+    },
+    "recent_api_requests": {
+      "empty": "您还没有提交任何 API 请求",
+      "view": "查看"
+    },
+    "pending_api_approvals": {
+      "empty": "没有等待您审核的 API 请求",
+      "review": "审核"
+    },
+    "api_request_trends": {
+      "empty": "此期间没有 API 请求活动",
+      "status_title": "按状态分类的 API 请求",
+      "risk_title": "按风险级别分类的 API 请求"
     }
   },
   "attestation": {

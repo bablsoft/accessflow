@@ -74,6 +74,20 @@ class DashboardController {
         return MyQueryTrendsResponse.from(dashboardService.trends(organizationId, userId, from, to));
     }
 
+    @GetMapping("/my-api-request-trends")
+    @Operation(summary = "Day-bucketed status/risk trend series for the caller's own governed API requests")
+    @ApiResponse(responseCode = "200", description = "The trend series")
+    MyApiRequestTrendsResponse apiRequestTrends(
+            @Parameter(description = "Inclusive lower bound; defaults to now-30d")
+            @RequestParam(required = false) Instant from,
+            @Parameter(description = "Exclusive upper bound; defaults to now")
+            @RequestParam(required = false) Instant to,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
+            @AuthenticationPrincipal(expression = "userId") UUID userId) {
+        return MyApiRequestTrendsResponse.from(
+                dashboardService.apiRequestTrends(organizationId, userId, from, to));
+    }
+
     @GetMapping("/suggestions")
     @Operation(summary = "The caller's open AI optimization-suggestion backlog")
     @ApiResponse(responseCode = "200", description = "The backlog")

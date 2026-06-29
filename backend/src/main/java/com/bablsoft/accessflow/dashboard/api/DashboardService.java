@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.dashboard.api;
 
+import com.bablsoft.accessflow.apigov.api.MyApiRequestTrendsRaw;
 import com.bablsoft.accessflow.core.api.MyQueryTrendsRaw;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 
@@ -23,4 +24,10 @@ public interface DashboardService {
      * optional; when null they default to {@code now-30d … now}.
      */
     MyQueryTrendsRaw trends(UUID organizationId, UUID userId, Instant from, Instant to);
+
+    /**
+     * Day-bucketed status/risk trend series for the user's own governed API requests (AF-500).
+     * {@code from}/{@code to} are optional; when null they default to {@code now-30d … now}.
+     */
+    MyApiRequestTrendsRaw apiRequestTrends(UUID organizationId, UUID userId, Instant from, Instant to);
 }

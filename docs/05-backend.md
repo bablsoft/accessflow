@@ -742,10 +742,11 @@ authenticated caller's own data (no admin role required). Like `compliance`, it 
 modules' `api` packages — `workflow.api` (`ReviewService.listPendingForReviewer`), `core.api`
 (`QueryRequestLookupService` + the new self-scoped `MyQueryInsightsLookupService`), `ai.api`
 (`BehaviorAnomalyLookupService` + the new self-scoped `UserBehaviorAnomalyService`), `security.api`
-(`ExportSignatureService`), and `audit.api` (`AuditLogService` + the new `DASHBOARD_SUMMARY_EXPORTED` /
-`dashboard_summary` enum values). Nothing in those modules depends back on `dashboard`; the only new
-edge is `notifications → dashboard` (the digest event), matching the existing `notifications → ai/workflow`
-direction — so no cycle.
+(`ExportSignatureService`), `audit.api` (`AuditLogService` + the new `DASHBOARD_SUMMARY_EXPORTED` /
+`dashboard_summary` enum values), and — for API Access Governance (AF-500) — `apigov.api`
+(`MyApiRequestInsightsLookupService`, `ApiRequestService`, `ApiReviewService`). Nothing in those modules
+depends back on `dashboard`; the only new edge is `notifications → dashboard` (the digest event),
+matching the existing `notifications → ai/workflow` direction — so no cycle.
 
 - **Self-scoped reads.** `MyQueryInsightsLookupService` (`core.api`, Postgres aggregations over
   `query_requests` ⨝ `ai_analyses` filtered to `submitted_by = me`) returns day-bucketed status/risk
@@ -753,7 +754,13 @@ direction — so no cycle.
   suggestions. `UserBehaviorAnomalyService` (`ai.api`) lists / acknowledges / dismisses the caller's
   **own** anomalies, refusing another user's rows as `AnomalyNotFoundException` (never leaked). The
   `/anomalies/mine` endpoints live on the existing badge controller in the `ai` module.
-- **Summary + suggestions.** `DashboardService.summary` composes the four headline counts + short recent
+- **API request widgets (AF-500).** `MyApiRequestInsightsLookupService` (`apigov.api`, Postgres
+  aggregations over `api_requests` ⨝ `ai_analyses` filtered to `submitted_by = me`) mirrors the SQL
+  insights service: day-bucketed status/risk trend series (served at `/dashboard/my-api-request-trends`)
+  and per-status counts. `DashboardService.summary` folds in the open-API-request count (non-terminal
+  statuses), recent API requests (`ApiRequestService.list`), and the caller's pending API-approval queue
+  (`ApiReviewService.listPending` — count + recent list).
+- **Summary + suggestions.** `DashboardService.summary` composes the headline counts + short recent
   lists. `DashboardSuggestionService` parses each analysis's `optimizations[]` JSON, assigns a stable
   `{aiAnalysisId}:{index}` id, and joins it against `dashboard_suggestion_state` (a row exists only for
   diverged — DISMISSED/APPLIED — items; OPEN is the implicit default) so the backlog shows only OPEN items.

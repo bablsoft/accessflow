@@ -4,6 +4,8 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyStatus;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.BehaviorAnomalyEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.BehaviorAnomalyRepository;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
@@ -59,6 +61,7 @@ class DashboardControllerIntegrationTest {
     @Autowired QueryRequestRepository queryRequestRepository;
     @Autowired AiAnalysisRepository aiAnalysisRepository;
     @Autowired BehaviorAnomalyRepository anomalyRepository;
+    @Autowired ApiRequestRepository apiRequestRepository;
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired JwtService jwtService;
@@ -100,6 +103,9 @@ class DashboardControllerIntegrationTest {
 
     @AfterEach
     void cleanup() {
+        // api_requests carries a bare organization_id (no FK), so it is not reached by the
+        // organizations cascade — truncate it explicitly (CASCADE clears the ai_analyses back-refs).
+        jdbcTemplate.execute("TRUNCATE TABLE api_requests CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
     }
 
@@ -120,6 +126,28 @@ class DashboardControllerIntegrationTest {
     void trendsReturnsSeries() {
         seedQueryWithAnalysis(me, QueryStatus.EXECUTED);
         var result = mvc.get().uri("/api/v1/dashboard/my-query-trends")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + myToken).exchange();
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.status_by_day").asArray().isNotEmpty();
+    }
+
+    @Test
+    void summaryIncludesSelfScopedApiRequests() {
+        seedApiRequest(me, QueryStatus.PENDING_REVIEW);
+        seedApiRequest(other, QueryStatus.PENDING_REVIEW); // not mine
+
+        var result = mvc.get().uri("/api/v1/dashboard/summary")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + myToken).exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.open_api_requests_count").asNumber().isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.recent_api_requests").asArray().hasSize(1);
+    }
+
+    @Test
+    void apiRequestTrendsReturnsSeries() {
+        seedApiRequest(me, QueryStatus.EXECUTED);
+        var result = mvc.get().uri("/api/v1/dashboard/my-api-request-trends")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + myToken).exchange();
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.status_by_day").asArray().isNotEmpty();
@@ -240,6 +268,18 @@ class DashboardControllerIntegrationTest {
         managed.setAiAnalysisId(a.getId());
         queryRequestRepository.save(managed);
         return a.getId();
+    }
+
+    private UUID seedApiRequest(UserEntity submitter, QueryStatus status) {
+        var e = new ApiRequestEntity();
+        e.setId(UUID.randomUUID());
+        e.setConnectorId(UUID.randomUUID());
+        e.setOrganizationId(org.getId());
+        e.setSubmittedBy(submitter.getId());
+        e.setVerb("GET");
+        e.setRequestPath("/v1/things");
+        e.setStatus(status);
+        return apiRequestRepository.save(e).getId();
     }
 
     private UUID seedAnomaly(UserEntity user) {
