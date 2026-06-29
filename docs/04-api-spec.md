@@ -4423,8 +4423,28 @@ Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated*
 `SHA256_SALTED`/`FORMAT_PRESERVING`/`TOKENIZATION` (required iff `PSEUDONYMIZE`); `retentionWindow`
 is an ISO-8601 period (`P7Y`, `P30D`) or duration (`PT720H`).
 
-> Right-to-erasure endpoints (`/lifecycle/erasure-requests`, admin review queue) and the
-> retention-adherence compliance report are part of the same epic and documented as they land.
+### Right-to-erasure (deletion requests)
+
+Self-service (any authenticated user):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/lifecycle/erasure-requests` | Submit an erasure request. `202` (AI scope detection runs async → `PENDING_REVIEW`). Body: `{datasourceId, subjectType, subjectIdentifier, reason?}`. `subjectType` ∈ `USER_ID`/`EMAIL`/`CUSTOM`. |
+| `GET` | `/lifecycle/erasure-requests` | List the caller's own requests. Paginated. |
+| `GET` | `/lifecycle/erasure-requests/{id}` | Get one of the caller's requests. `404 DELETION_REQUEST_NOT_FOUND`. |
+| `POST` | `/lifecycle/erasure-requests/{id}/cancel` | Cancel while `PENDING_SCOPE_AI`/`PENDING_REVIEW`. `204`. `409 DELETION_REQUEST_INVALID_STATE`. |
+
+Admin review queue (ADMIN):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/lifecycle/erasure-requests` | List `PENDING_REVIEW` requests, excluding the caller's own. Paginated. |
+| `POST` | `/admin/lifecycle/erasure-requests/{id}/approve` | Approve (`{comment?}`) → `APPROVED`. The submitter can never self-approve (`403 DELETION_REQUEST_SELF_APPROVAL`). |
+| `POST` | `/admin/lifecycle/erasure-requests/{id}/reject` | Reject (`{comment?}`) → `REJECTED`. |
+
+State machine: `PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED` (+ `REJECTED`, `FAILED`,
+`CANCELLED`). Execution of approved requests, the proxy soft-delete/pseudonymization enforcement, and
+the retention-adherence compliance report land with the proxy-enforcement workstream.
 
 ## Error Codes (`error` property on `ProblemDetail`)
 

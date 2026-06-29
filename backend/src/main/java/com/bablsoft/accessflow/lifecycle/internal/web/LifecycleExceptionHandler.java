@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.lifecycle.internal.web;
 
+import com.bablsoft.accessflow.lifecycle.api.DeletionRequestInvalidStateException;
+import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
+import com.bablsoft.accessflow.lifecycle.api.ErasureSelfApprovalException;
 import com.bablsoft.accessflow.lifecycle.api.InvalidRetentionPolicyException;
 import com.bablsoft.accessflow.lifecycle.api.RetentionPolicyNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,26 @@ class LifecycleExceptionHandler {
         var pd = problem(HttpStatus.BAD_REQUEST, msg(key), "INVALID_RETENTION_POLICY");
         pd.setProperty("reason", ex.reason().name());
         return pd;
+    }
+
+    @ExceptionHandler(DeletionRequestNotFoundException.class)
+    ProblemDetail handleErasureNotFound(DeletionRequestNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.deletion_request_not_found"),
+                "DELETION_REQUEST_NOT_FOUND");
+    }
+
+    @ExceptionHandler(DeletionRequestInvalidStateException.class)
+    ProblemDetail handleErasureInvalidState(DeletionRequestInvalidStateException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.deletion_request_invalid_state"),
+                "DELETION_REQUEST_INVALID_STATE");
+        pd.setProperty("currentStatus", ex.currentStatus().name());
+        return pd;
+    }
+
+    @ExceptionHandler(ErasureSelfApprovalException.class)
+    ProblemDetail handleErasureSelfApproval(ErasureSelfApprovalException ex) {
+        return problem(HttpStatus.FORBIDDEN, msg("error.deletion_request_self_approval"),
+                "DELETION_REQUEST_SELF_APPROVAL");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {
