@@ -86,8 +86,10 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public LifecyclePreviewResult preview(UUID policyId, UUID organizationId) {
+        // No surrounding @Transactional: the calculator delegates to the proxy's dry-run, whose
+        // own datasource lookup may throw (e.g. datasource not pooled). The calculator swallows that
+        // into a best-effort -1 estimate, but a surrounding tx would already be marked rollback-only.
         return previewCalculator.preview(load(policyId, organizationId));
     }
 
