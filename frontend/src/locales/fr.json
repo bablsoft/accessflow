@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Cycle de vie des données"
+    "lifecycle": "Cycle de vie des données",
+    "request_erasure": "Demander l’effacement",
+    "erasure_review": "Revue des effacements"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "La fenêtre de rétention ne doit pas dépasser 50 caractères",
     "lifecycle_action_required": "L’action est obligatoire",
     "lifecycle_transform_required": "La transformation est requise pour la pseudonymisation",
-    "lifecycle_soft_delete_column_size": "La colonne de suppression logique ne doit pas dépasser 255 caractères"
+    "lifecycle_soft_delete_column_size": "La colonne de suppression logique ne doit pas dépasser 255 caractères",
+    "lifecycle_subject_type_required": "Le type de sujet est obligatoire",
+    "lifecycle_subject_identifier_required": "L’identifiant du sujet est obligatoire",
+    "lifecycle_subject_identifier_size": "L’identifiant du sujet ne doit pas dépasser 255 caractères",
+    "lifecycle_reason_max": "Le motif ne doit pas dépasser 2 000 caractères"
   },
   "errors": {
     "auth_invalid": "E-mail ou mot de passe invalide.",
@@ -2954,6 +2960,41 @@
       "col_method": "Méthode",
       "col_rows": "Lignes est.",
       "unknown": "inconnu"
+    },
+    "erasure": {
+      "title": "Droit à l’effacement",
+      "subtitle": "Demandez la suppression des données d’une personne concernée.",
+      "label_datasource": "Source de données",
+      "label_subject_type": "Type de sujet",
+      "label_subject_identifier": "Identifiant du sujet",
+      "label_reason": "Motif",
+      "submit": "Envoyer la demande",
+      "submit_success": "Demande d’effacement envoyée",
+      "cancel": "Annuler",
+      "cancel_success": "Demande annulée",
+      "mine_title": "Mes demandes d’effacement",
+      "mine_empty_title": "Aucune demande d’effacement",
+      "mine_empty_description": "Envoyez une demande ci-dessus pour commencer.",
+      "col_subject": "Sujet",
+      "col_status": "Statut",
+      "col_created": "Soumise"
+    },
+    "erasure_review": {
+      "title": "File de revue des effacements",
+      "subtitle_count_one": "{{count}} demande en attente de revue",
+      "subtitle_count_other": "{{count}} demandes en attente de revue",
+      "load_error": "Impossible de charger la file de revue",
+      "empty_title": "Rien à examiner",
+      "empty_description": "Les demandes d’effacement à examiner apparaissent ici.",
+      "col_requested_by": "Demandé par",
+      "approve": "Approuver",
+      "approved": "Effacement approuvé",
+      "reject": "Rejeter",
+      "rejected": "Effacement rejeté",
+      "reject_modal_title": "Rejeter la demande d’effacement",
+      "reject_comment_placeholder": "Motif facultatif du rejet…",
+      "scope_label": "Portée détectée",
+      "no_scope": "Portée pas encore détectée"
     }
   }
 }

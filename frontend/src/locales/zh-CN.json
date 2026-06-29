@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "数据生命周期"
+    "lifecycle": "数据生命周期",
+    "request_erasure": "申请删除",
+    "erasure_review": "删除审核"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "保留窗口最多 50 个字符",
     "lifecycle_action_required": "操作为必填项",
     "lifecycle_transform_required": "假名化需要指定转换方式",
-    "lifecycle_soft_delete_column_size": "软删除列最多 255 个字符"
+    "lifecycle_soft_delete_column_size": "软删除列最多 255 个字符",
+    "lifecycle_subject_type_required": "主体类型为必填项",
+    "lifecycle_subject_identifier_required": "主体标识符为必填项",
+    "lifecycle_subject_identifier_size": "主体标识符最多 255 个字符",
+    "lifecycle_reason_max": "原因最多 2,000 个字符"
   },
   "errors": {
     "auth_invalid": "邮箱或密码不正确。",
@@ -2954,6 +2960,41 @@
       "col_method": "方法",
       "col_rows": "估计行数",
       "unknown": "未知"
+    },
+    "erasure": {
+      "title": "被遗忘权",
+      "subtitle": "申请删除某数据主体的记录。",
+      "label_datasource": "数据源",
+      "label_subject_type": "主体类型",
+      "label_subject_identifier": "主体标识符",
+      "label_reason": "原因",
+      "submit": "提交申请",
+      "submit_success": "删除申请已提交",
+      "cancel": "取消",
+      "cancel_success": "申请已取消",
+      "mine_title": "我的删除申请",
+      "mine_empty_title": "暂无删除申请",
+      "mine_empty_description": "在上方提交申请以开始。",
+      "col_subject": "主体",
+      "col_status": "状态",
+      "col_created": "提交时间"
+    },
+    "erasure_review": {
+      "title": "删除审核队列",
+      "subtitle_count_one": "{{count}} 个待审核申请",
+      "subtitle_count_other": "{{count}} 个待审核申请",
+      "load_error": "无法加载审核队列",
+      "empty_title": "无待审核项",
+      "empty_description": "待审核的删除申请会显示在此处。",
+      "col_requested_by": "申请人",
+      "approve": "批准",
+      "approved": "删除已批准",
+      "reject": "拒绝",
+      "rejected": "删除已拒绝",
+      "reject_modal_title": "拒绝删除申请",
+      "reject_comment_placeholder": "拒绝原因（可选）……",
+      "scope_label": "检测到的范围",
+      "no_scope": "尚未检测到范围"
     }
   }
 }

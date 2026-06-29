@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Տվյալների կյանքի ցիկլ"
+    "lifecycle": "Տվյալների կյանքի ցիկլ",
+    "request_erasure": "Հայցել ջնջում",
+    "erasure_review": "Ջնջման վերանայում"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "Պահպանման պատուհանը առավելագույնը 50 նիշ",
     "lifecycle_action_required": "Գործողությունը պարտադիր է",
     "lifecycle_transform_required": "Կեղծանվանակալման համար փոխակերպումը պարտադիր է",
-    "lifecycle_soft_delete_column_size": "Փափուկ ջնջման սյունակը առավելագույնը 255 նիշ"
+    "lifecycle_soft_delete_column_size": "Փափուկ ջնջման սյունակը առավելագույնը 255 նիշ",
+    "lifecycle_subject_type_required": "Սուբյեկտի տեսակը պարտադիր է",
+    "lifecycle_subject_identifier_required": "Սուբյեկտի նույնացուցիչը պարտադիր է",
+    "lifecycle_subject_identifier_size": "Սուբյեկտի նույնացուցիչը առավելագույնը 255 նիշ",
+    "lifecycle_reason_max": "Պատճառը առավելագույնը 2000 նիշ"
   },
   "errors": {
     "auth_invalid": "Անվավեր էլ. փոստ կամ գաղտնաբառ։",
@@ -2954,6 +2960,41 @@
       "col_method": "Մեթոդ",
       "col_rows": "Գնահ. տողեր",
       "unknown": "անհայտ"
+    },
+    "erasure": {
+      "title": "Ջնջման իրավունք",
+      "subtitle": "Հայցեք տվյալների սուբյեկտի գրառումների ջնջումը։",
+      "label_datasource": "Տվյալների աղբյուր",
+      "label_subject_type": "Սուբյեկտի տեսակ",
+      "label_subject_identifier": "Սուբյեկտի նույնացուցիչ",
+      "label_reason": "Պատճառ",
+      "submit": "Ուղարկել հարցումը",
+      "submit_success": "Ջնջման հարցումը ուղարկվեց",
+      "cancel": "Չեղարկել",
+      "cancel_success": "Հարցումը չեղարկվեց",
+      "mine_title": "Իմ ջնջման հարցումները",
+      "mine_empty_title": "Ջնջման հարցումներ չկան",
+      "mine_empty_description": "Սկսելու համար վերևում ուղարկեք հարցում։",
+      "col_subject": "Սուբյեկտ",
+      "col_status": "Կարգավիճակ",
+      "col_created": "Ուղարկված"
+    },
+    "erasure_review": {
+      "title": "Ջնջման վերանայման հերթ",
+      "subtitle_count_one": "{{count}} հարցում սպասում է վերանայման",
+      "subtitle_count_other": "{{count}} հարցում սպասում է վերանայման",
+      "load_error": "Չհաջողվեց բեռնել վերանայման հերթը",
+      "empty_title": "Վերանայելու բան չկա",
+      "empty_description": "Վերանայման սպասող ջնջման հարցումները հայտնվում են այստեղ։",
+      "col_requested_by": "Հայցողը",
+      "approve": "Հաստատել",
+      "approved": "Ջնջումը հաստատվեց",
+      "reject": "Մերժել",
+      "rejected": "Ջնջումը մերժվեց",
+      "reject_modal_title": "Մերժել ջնջման հարցումը",
+      "reject_comment_placeholder": "Մերժման ոչ պարտադիր պատճառ…",
+      "scope_label": "Հայտնաբերված շրջանակ",
+      "no_scope": "Շրջանակը դեռ հայտնաբերված չէ"
     }
   }
 }

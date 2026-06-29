@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Data Lifecycle"
+    "lifecycle": "Data Lifecycle",
+    "request_erasure": "Request erasure",
+    "erasure_review": "Erasure review"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "Retention window must be at most 50 characters",
     "lifecycle_action_required": "Action is required",
     "lifecycle_transform_required": "Transform is required for pseudonymize",
-    "lifecycle_soft_delete_column_size": "Soft-delete column must be at most 255 characters"
+    "lifecycle_soft_delete_column_size": "Soft-delete column must be at most 255 characters",
+    "lifecycle_subject_type_required": "Subject type is required",
+    "lifecycle_subject_identifier_required": "Subject identifier is required",
+    "lifecycle_subject_identifier_size": "Subject identifier must be at most 255 characters",
+    "lifecycle_reason_max": "Reason must be at most 2,000 characters"
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -2954,6 +2960,41 @@
       "col_method": "Method",
       "col_rows": "Est. rows",
       "unknown": "unknown"
+    },
+    "erasure": {
+      "title": "Right to Erasure",
+      "subtitle": "Request deletion of a data subject’s records.",
+      "label_datasource": "Datasource",
+      "label_subject_type": "Subject type",
+      "label_subject_identifier": "Subject identifier",
+      "label_reason": "Reason",
+      "submit": "Submit request",
+      "submit_success": "Erasure request submitted",
+      "cancel": "Cancel",
+      "cancel_success": "Request cancelled",
+      "mine_title": "My erasure requests",
+      "mine_empty_title": "No erasure requests",
+      "mine_empty_description": "Submit a request above to get started.",
+      "col_subject": "Subject",
+      "col_status": "Status",
+      "col_created": "Submitted"
+    },
+    "erasure_review": {
+      "title": "Erasure Review Queue",
+      "subtitle_count_one": "{{count}} request awaiting review",
+      "subtitle_count_other": "{{count}} requests awaiting review",
+      "load_error": "Could not load the review queue",
+      "empty_title": "Nothing to review",
+      "empty_description": "Erasure requests awaiting review appear here.",
+      "col_requested_by": "Requested by",
+      "approve": "Approve",
+      "approved": "Erasure approved",
+      "reject": "Reject",
+      "rejected": "Erasure rejected",
+      "reject_modal_title": "Reject erasure request",
+      "reject_comment_placeholder": "Optional reason for rejecting…",
+      "scope_label": "Detected scope",
+      "no_scope": "Scope not yet detected"
     }
   }
 }

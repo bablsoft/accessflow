@@ -919,3 +919,71 @@ export async function exportAttestationEvidenceCsvViaApi(
     body: await res.text(),
   };
 }
+
+// ── Data Lifecycle Manager (AF-499) ──────────────────────────────────────────
+
+export interface CreatedRetentionPolicy {
+  id: string;
+  name: string;
+  action: string;
+}
+
+// POST /api/v1/lifecycle/policies — admin-only retention policy.
+export async function createRetentionPolicyViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    name?: string;
+    targetTable?: string;
+    timestampColumn?: string;
+    retentionWindow?: string;
+    action?: 'HARD_DELETE' | 'SOFT_DELETE' | 'PSEUDONYMIZE';
+  } = {},
+): Promise<CreatedRetentionPolicy> {
+  const res = await request.post(`${apiBase()}/api/v1/lifecycle/policies`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: {
+      datasource_id: datasourceId,
+      name: opts.name ?? `E2E Retention ${Date.now()}`,
+      target_table: opts.targetTable ?? 'orders',
+      timestamp_column: opts.timestampColumn ?? 'created_at',
+      retention_window: opts.retentionWindow ?? 'P30D',
+      action: opts.action ?? 'HARD_DELETE',
+      enabled: true,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Create retention policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedRetentionPolicy;
+}
+
+export interface CreatedErasureRequest {
+  id: string;
+  subject_identifier: string;
+  status: string;
+}
+
+// POST /api/v1/lifecycle/erasure-requests — self-service erasure request.
+export async function submitErasureViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  datasourceId: string,
+  subjectIdentifier: string,
+  reason = 'GDPR right to erasure',
+): Promise<CreatedErasureRequest> {
+  const res = await request.post(`${apiBase()}/api/v1/lifecycle/erasure-requests`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: {
+      datasource_id: datasourceId,
+      subject_type: 'EMAIL',
+      subject_identifier: subjectIdentifier,
+      reason,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Submit erasure failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedErasureRequest;
+}

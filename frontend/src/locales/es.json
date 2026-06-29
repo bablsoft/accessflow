@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Ciclo de vida de datos"
+    "lifecycle": "Ciclo de vida de datos",
+    "request_erasure": "Solicitar borrado",
+    "erasure_review": "Revisión de borrado"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "La ventana de retención debe tener como máximo 50 caracteres",
     "lifecycle_action_required": "La acción es obligatoria",
     "lifecycle_transform_required": "La transformación es obligatoria para seudonimizar",
-    "lifecycle_soft_delete_column_size": "La columna de borrado lógico debe tener como máximo 255 caracteres"
+    "lifecycle_soft_delete_column_size": "La columna de borrado lógico debe tener como máximo 255 caracteres",
+    "lifecycle_subject_type_required": "El tipo de sujeto es obligatorio",
+    "lifecycle_subject_identifier_required": "El identificador del sujeto es obligatorio",
+    "lifecycle_subject_identifier_size": "El identificador del sujeto debe tener como máximo 255 caracteres",
+    "lifecycle_reason_max": "El motivo debe tener como máximo 2.000 caracteres"
   },
   "errors": {
     "auth_invalid": "Correo electrónico o contraseña no válidos.",
@@ -2954,6 +2960,41 @@
       "col_method": "Método",
       "col_rows": "Filas est.",
       "unknown": "desconocido"
+    },
+    "erasure": {
+      "title": "Derecho al olvido",
+      "subtitle": "Solicite la eliminación de los registros de un interesado.",
+      "label_datasource": "Fuente de datos",
+      "label_subject_type": "Tipo de sujeto",
+      "label_subject_identifier": "Identificador del sujeto",
+      "label_reason": "Motivo",
+      "submit": "Enviar solicitud",
+      "submit_success": "Solicitud de borrado enviada",
+      "cancel": "Cancelar",
+      "cancel_success": "Solicitud cancelada",
+      "mine_title": "Mis solicitudes de borrado",
+      "mine_empty_title": "Sin solicitudes de borrado",
+      "mine_empty_description": "Envíe una solicitud arriba para empezar.",
+      "col_subject": "Sujeto",
+      "col_status": "Estado",
+      "col_created": "Enviada"
+    },
+    "erasure_review": {
+      "title": "Cola de revisión de borrado",
+      "subtitle_count_one": "{{count}} solicitud pendiente de revisión",
+      "subtitle_count_other": "{{count}} solicitudes pendientes de revisión",
+      "load_error": "No se pudo cargar la cola de revisión",
+      "empty_title": "Nada que revisar",
+      "empty_description": "Las solicitudes de borrado pendientes de revisión aparecen aquí.",
+      "col_requested_by": "Solicitado por",
+      "approve": "Aprobar",
+      "approved": "Borrado aprobado",
+      "reject": "Rechazar",
+      "rejected": "Borrado rechazado",
+      "reject_modal_title": "Rechazar solicitud de borrado",
+      "reject_comment_placeholder": "Motivo opcional del rechazo…",
+      "scope_label": "Alcance detectado",
+      "no_scope": "Alcance aún no detectado"
     }
   }
 }

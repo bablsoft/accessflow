@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Daten-Lebenszyklus"
+    "lifecycle": "Daten-Lebenszyklus",
+    "request_erasure": "Löschung anfordern",
+    "erasure_review": "Löschprüfung"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "Das Aufbewahrungsfenster darf höchstens 50 Zeichen lang sein",
     "lifecycle_action_required": "Aktion ist erforderlich",
     "lifecycle_transform_required": "Transformation ist für Pseudonymisierung erforderlich",
-    "lifecycle_soft_delete_column_size": "Die Soft-Delete-Spalte darf höchstens 255 Zeichen lang sein"
+    "lifecycle_soft_delete_column_size": "Die Soft-Delete-Spalte darf höchstens 255 Zeichen lang sein",
+    "lifecycle_subject_type_required": "Betroffenentyp ist erforderlich",
+    "lifecycle_subject_identifier_required": "Betroffenenkennung ist erforderlich",
+    "lifecycle_subject_identifier_size": "Die Betroffenenkennung darf höchstens 255 Zeichen lang sein",
+    "lifecycle_reason_max": "Der Grund darf höchstens 2.000 Zeichen lang sein"
   },
   "errors": {
     "auth_invalid": "Ungültige E-Mail oder ungültiges Passwort.",
@@ -2954,6 +2960,41 @@
       "col_method": "Methode",
       "col_rows": "Gesch. Zeilen",
       "unknown": "unbekannt"
+    },
+    "erasure": {
+      "title": "Recht auf Löschung",
+      "subtitle": "Beantragen Sie die Löschung der Daten einer betroffenen Person.",
+      "label_datasource": "Datenquelle",
+      "label_subject_type": "Betroffenentyp",
+      "label_subject_identifier": "Betroffenenkennung",
+      "label_reason": "Grund",
+      "submit": "Anfrage senden",
+      "submit_success": "Löschanfrage gesendet",
+      "cancel": "Abbrechen",
+      "cancel_success": "Anfrage abgebrochen",
+      "mine_title": "Meine Löschanfragen",
+      "mine_empty_title": "Keine Löschanfragen",
+      "mine_empty_description": "Senden Sie oben eine Anfrage, um zu beginnen.",
+      "col_subject": "Betroffener",
+      "col_status": "Status",
+      "col_created": "Gesendet"
+    },
+    "erasure_review": {
+      "title": "Löschprüfungs-Warteschlange",
+      "subtitle_count_one": "{{count}} Anfrage zur Prüfung",
+      "subtitle_count_other": "{{count}} Anfragen zur Prüfung",
+      "load_error": "Prüfungs-Warteschlange konnte nicht geladen werden",
+      "empty_title": "Nichts zu prüfen",
+      "empty_description": "Zu prüfende Löschanfragen erscheinen hier.",
+      "col_requested_by": "Angefordert von",
+      "approve": "Genehmigen",
+      "approved": "Löschung genehmigt",
+      "reject": "Ablehnen",
+      "rejected": "Löschung abgelehnt",
+      "reject_modal_title": "Löschanfrage ablehnen",
+      "reject_comment_placeholder": "Optionaler Grund für die Ablehnung…",
+      "scope_label": "Erkannter Umfang",
+      "no_scope": "Umfang noch nicht erkannt"
     }
   }
 }

@@ -75,7 +75,9 @@
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
     "apiReviews": "API Reviews",
-    "lifecycle": "Жизненный цикл данных"
+    "lifecycle": "Жизненный цикл данных",
+    "request_erasure": "Запросить удаление",
+    "erasure_review": "Проверка удаления"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -269,7 +271,11 @@
     "lifecycle_retention_window_size": "Окно хранения не более 50 символов",
     "lifecycle_action_required": "Действие обязательно",
     "lifecycle_transform_required": "Для псевдонимизации требуется преобразование",
-    "lifecycle_soft_delete_column_size": "Столбец мягкого удаления не более 255 символов"
+    "lifecycle_soft_delete_column_size": "Столбец мягкого удаления не более 255 символов",
+    "lifecycle_subject_type_required": "Тип субъекта обязателен",
+    "lifecycle_subject_identifier_required": "Идентификатор субъекта обязателен",
+    "lifecycle_subject_identifier_size": "Идентификатор субъекта не более 255 символов",
+    "lifecycle_reason_max": "Причина не более 2000 символов"
   },
   "errors": {
     "auth_invalid": "Неверный адрес или пароль.",
@@ -2954,6 +2960,41 @@
       "col_method": "Метод",
       "col_rows": "Оценка строк",
       "unknown": "неизвестно"
+    },
+    "erasure": {
+      "title": "Право на удаление",
+      "subtitle": "Запросите удаление данных субъекта.",
+      "label_datasource": "Источник данных",
+      "label_subject_type": "Тип субъекта",
+      "label_subject_identifier": "Идентификатор субъекта",
+      "label_reason": "Причина",
+      "submit": "Отправить запрос",
+      "submit_success": "Запрос на удаление отправлен",
+      "cancel": "Отменить",
+      "cancel_success": "Запрос отменён",
+      "mine_title": "Мои запросы на удаление",
+      "mine_empty_title": "Нет запросов на удаление",
+      "mine_empty_description": "Отправьте запрос выше, чтобы начать.",
+      "col_subject": "Субъект",
+      "col_status": "Статус",
+      "col_created": "Отправлено"
+    },
+    "erasure_review": {
+      "title": "Очередь проверки удаления",
+      "subtitle_count_one": "{{count}} запрос на проверку",
+      "subtitle_count_other": "{{count}} запросов на проверку",
+      "load_error": "Не удалось загрузить очередь проверки",
+      "empty_title": "Нечего проверять",
+      "empty_description": "Здесь появляются запросы на удаление, ожидающие проверки.",
+      "col_requested_by": "Запросил",
+      "approve": "Одобрить",
+      "approved": "Удаление одобрено",
+      "reject": "Отклонить",
+      "rejected": "Удаление отклонено",
+      "reject_modal_title": "Отклонить запрос на удаление",
+      "reject_comment_placeholder": "Необязательная причина отклонения…",
+      "scope_label": "Обнаруженный объём",
+      "no_scope": "Объём ещё не определён"
     }
   }
 }
