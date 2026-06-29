@@ -1121,11 +1121,17 @@
             <strong>Configure it (admin).</strong> Create a connector with a base URL, protocol, and an
             auth method — <em>None</em>, <em>API key</em>, <em>Bearer token</em>, <em>Basic</em>,
             <em>OAuth2 client-credentials</em>, <em>Custom header</em>, or <em>mTLS</em>. Secrets are
-            AES-256-GCM encrypted at rest and never returned. Optionally upload a schema
+            AES-256-GCM encrypted at rest and never returned. For <em>OAuth2 client-credentials</em>,
+            AccessFlow fetches, caches, and refreshes the upstream access token itself — configure the
+            token endpoint, client ID/secret, scopes, audience, grant type (client-credentials,
+            refresh-token, or resource-owner password), and client-auth method (Basic header or POST
+            body); the token is reused across calls and refreshed on expiry or a 401, so no token needs
+            to be pasted by hand. Optionally upload a schema
             (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>); AccessFlow parses it into a
             normalized operation catalog with read/write classification. Set the review plan, AI-analysis
             toggle + AI config, text-to-API toggle, require-review-on-reads/writes, and the max response
-            size. A <em>Test connection</em> button probes reachability.
+            size. A <em>Test connection</em> button probes reachability (and, for OAuth2 connectors,
+            exercises the token fetch).
           </p>
           <p>
             <strong>Share with the team.</strong> Grant per-user access on a connector
