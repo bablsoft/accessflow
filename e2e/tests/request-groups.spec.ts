@@ -58,15 +58,15 @@ async function pickDatasourceForStep(
   // down to our datasource so the option is rendered before we click it.
   const combo = card.getByRole('combobox').first();
   await combo.click();
+  // Type the full name to filter the (virtualized, org-wide) list down to our datasource, then
+  // select the highlighted match with Enter. Clicking the option is unreliable here: AntD's
+  // rc-virtual-list renders a hidden duplicate "measure" node, so a text locator resolves to two
+  // elements (one invisible). Enter sidesteps both the strict-mode and visibility issues.
   await combo.fill(ds.name);
-  // AntD's virtualized list can transiently render the matched option twice while filtering, so
-  // scope to the first match to avoid a strict-mode violation.
-  await page
-    .locator('.ant-select-item-option')
-    .filter({ hasText: ds.name })
-    .first()
-    .click();
-  await page.keyboard.press('Escape');
+  await expect(
+    page.locator('.ant-select-item-option').filter({ hasText: ds.name }).first(),
+  ).toBeAttached();
+  await combo.press('Enter');
 }
 
 // Approve the group through a reviewer token that is NOT the submitter (self-approval is blocked).
