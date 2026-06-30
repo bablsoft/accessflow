@@ -59,7 +59,13 @@ async function pickDatasourceForStep(
   const combo = card.getByRole('combobox').first();
   await combo.click();
   await combo.fill(ds.name);
-  await page.locator('.ant-select-item-option').filter({ hasText: ds.name }).click();
+  // AntD's virtualized list can transiently render the matched option twice while filtering, so
+  // scope to the first match to avoid a strict-mode violation.
+  await page
+    .locator('.ant-select-item-option')
+    .filter({ hasText: ds.name })
+    .first()
+    .click();
   await page.keyboard.press('Escape');
 }
 
