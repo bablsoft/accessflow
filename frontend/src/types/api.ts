@@ -2591,3 +2591,128 @@ export interface SubmitErasureRequest {
   subject_identifier: string;
   reason?: string | null;
 }
+
+// ── Request Groups: chaining & grouping (AF-501) ──────────────────────────────
+
+export type RequestGroupStatus =
+  | 'DRAFT'
+  | 'PENDING_AI'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'EXECUTING'
+  | 'EXECUTED'
+  | 'REJECTED'
+  | 'TIMED_OUT'
+  | 'PARTIALLY_EXECUTED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export type RequestGroupItemStatus =
+  | 'PENDING'
+  | 'EXECUTED'
+  | 'FAILED'
+  | 'SKIPPED'
+  | 'CANCELLED';
+
+export type RequestGroupTargetKind = 'QUERY' | 'API_CALL';
+
+export interface RequestGroupItem {
+  id: string;
+  sequence_order: number;
+  target_kind: RequestGroupTargetKind;
+  datasource_id: string | null;
+  datasource_name: string | null;
+  sql_text: string | null;
+  query_type: QueryType | null;
+  transactional: boolean | null;
+  api_connector_id: string | null;
+  api_connector_name: string | null;
+  operation_id: string | null;
+  verb: string | null;
+  request_path: string | null;
+  ai_analysis_id: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  status: RequestGroupItemStatus;
+  response_status_code: number | null;
+  rows_affected: number | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  executed_at: string | null;
+}
+
+export interface RequestGroup {
+  id: string;
+  organization_id: string;
+  submitted_by_user_id: string;
+  submitted_by_display_name: string | null;
+  name: string;
+  description: string | null;
+  status: RequestGroupStatus;
+  continue_on_error: boolean;
+  scheduled_for: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  required_approvals: number | null;
+  current_review_stage: number | null;
+  error_message: string | null;
+  execution_started_at: string | null;
+  execution_completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items: RequestGroupItem[];
+}
+
+export type RequestGroupPage = PaginatedResponse<RequestGroup>;
+
+export interface RequestGroupItemBody {
+  target_kind: RequestGroupTargetKind;
+  datasource_id?: string | null;
+  sql_text?: string | null;
+  transactional?: boolean | null;
+  api_connector_id?: string | null;
+  operation_id?: string | null;
+  verb?: string | null;
+  request_path?: string | null;
+  request_headers?: Record<string, string>;
+  query_params?: Record<string, string>;
+  body_type?: ApiBodyType;
+  request_content_type?: string | null;
+  request_body?: string | null;
+  form_fields?: ApiFormField[];
+  binary_filename?: string | null;
+}
+
+export interface SaveRequestGroupInput {
+  name: string;
+  description?: string | null;
+  continue_on_error: boolean;
+  items: RequestGroupItemBody[];
+}
+
+export interface SubmitRequestGroupInput {
+  break_glass: boolean;
+  scheduled_for?: string | null;
+}
+
+export interface PendingGroupReview {
+  request_group_id: string;
+  name: string;
+  submitted_by_user_id: string;
+  submitted_by_display_name: string | null;
+  member_count: number;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  current_stage: number;
+  required_approvals: number;
+  created_at: string;
+}
+
+export type PendingGroupReviewPage = PaginatedResponse<PendingGroupReview>;
+
+export interface GroupDecision {
+  decision_id: string;
+  decision: 'APPROVED' | 'REJECTED';
+  resulting_status: RequestGroupStatus;
+  idempotent_replay: boolean;
+}

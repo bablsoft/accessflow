@@ -1,4 +1,10 @@
-import type { QueryStatus, RiskLevel, UserNotificationEventType } from './api';
+import type {
+  QueryStatus,
+  RequestGroupItemStatus,
+  RequestGroupStatus,
+  RiskLevel,
+  UserNotificationEventType,
+} from './api';
 
 export type WsEventName =
   | 'query.status_changed'
@@ -14,7 +20,9 @@ export type WsEventName =
   | 'collab.awareness'
   | 'collab.denied'
   | 'collab.comment'
-  | 'attestation.campaign_opened';
+  | 'attestation.campaign_opened'
+  | 'request_group.status_changed'
+  | 'request_group.item_executed';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
 
@@ -110,6 +118,19 @@ export interface WsEventPayloadMap {
     name: string;
     due_at: string | null;
   };
+  // Fired whenever a request group transitions state (AF-501).
+  'request_group.status_changed': {
+    request_group_id: string;
+    old_status: RequestGroupStatus;
+    new_status: RequestGroupStatus;
+  };
+  // Fired per member as the executor advances through an approved group's ordered sequence (AF-501).
+  'request_group.item_executed': {
+    request_group_id: string;
+    item_id: string;
+    sequence_order: number;
+    status: RequestGroupItemStatus;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -140,4 +161,6 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'collab.denied',
   'collab.comment',
   'attestation.campaign_opened',
+  'request_group.status_changed',
+  'request_group.item_executed',
 ];

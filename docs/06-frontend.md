@@ -127,6 +127,11 @@ accessflow-ui/
 │   │   ├── reviews/
 │   │   │   └── ReviewQueuePage.tsx   # Pending reviews for current reviewer
 │   │   │
+│   │   ├── requestGroups/            # Grouped requests (chaining — AF-501)
+│   │   │   ├── GroupBuilderPage.tsx        # Build + reorder + submit a bundle
+│   │   │   ├── RequestGroupListPage.tsx    # Grouped-request history
+│   │   │   └── RequestGroupDetailPage.tsx  # Ordered step progress (live)
+│   │   │
 │   │   ├── datasources/
 │   │   │   ├── DatasourceListPage.tsx
 │   │   │   ├── DatasourceCreateWizardPage.tsx  # Multi-step create flow with type selection
@@ -452,6 +457,27 @@ under `apiGov.*` in every registered locale.
 Navigation entries are added to `components/common/Sidebar.tsx` (Data group: connectors; Workflow
 group: API editor / requests / reviews), role-gated like the rest of the nav.
 
+## Request chaining & grouping pages (AF-501)
+
+The grouped-request UI lives under `src/pages/requestGroups/` with the API module
+`src/api/requestGroups.ts` (TanStack Query key factories mirroring `queries.ts`/`apiRequests.ts`),
+types (`RequestGroup`, `RequestGroupItem`, the three enums) in `src/types/api.ts`, and enum labels
+`requestGroupStatusLabel` / `requestGroupItemStatusLabel` / `targetKindLabel` in
+`src/utils/enumLabels.ts`. All visible strings are `t()`-keyed under `requestGroups.*` in every
+registered locale.
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/request-groups/new` | `GroupBuilderPage` | Build a bundle: add steps — each a **datasource + embedded query editor** (reusing `QueryEditorPage` components) **or** a **connector + embedded API editor** (reusing the AF-500 API composer) — drag-reorder the steps with `@dnd-kit` (already used for dashboard widgets), a per-step **AI risk preview** + an **aggregate risk badge** (max of members), a `continueOnError` toggle, an optional scheduled-run `DatePicker`, then submit the whole bundle. Only datasources/connectors the user is permitted to use are selectable; validation parity with the backend DTOs. |
+| `/request-groups` | `RequestGroupListPage` | The caller's grouped-request history (admins see all) — filter bar (status), `StatusPill`, server-side pagination, row click → detail. Skeleton + EmptyState. |
+| `/request-groups/:id` | `RequestGroupDetailPage` | Status (`StatusPill`) + aggregate `RiskPill`, and the **ordered step-by-step progress** (running / done / failed / skipped) updating live via the `request_group.status_changed` / `request_group.item_executed` WebSocket events; each step shows its target, per-member risk, and result snapshot. Submitter actions: cancel (pending / scheduled-approved), execute (approved). |
+
+The **review queue** shows a group as **one expandable element** — the members and their per-member
+risk inside; the reviewer acts once per stage on the bundle (optimistic approve/reject like the existing
+queue). `useWebSocket` maps `request_group.status_changed` / `request_group.item_executed` to
+`queryClient.invalidateQueries`. Navigation entries are added to `components/common/Sidebar.tsx`
+(Workflow group: grouped requests), role-gated like the rest of the nav.
+
 ## SQL Editor Component
 
 Built on **CodeMirror 6** (`@codemirror/lang-sql`).
@@ -658,6 +684,9 @@ for deployment recipes (Docker Compose, Helm).
 /reviews                            → ReviewQueuePage (header carries the **Enable push approvals** toggle — AF-444)
 /reviews/:id/decide                 → PushDecidePage (lazy; REVIEWER/ADMIN — one-tap push decide landing with step-up auth, AF-444)
 /reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384)
+/request-groups                     → RequestGroupListPage (lazy; grouped-request history — AF-501)
+/request-groups/new                 → GroupBuilderPage (lazy; build + reorder + submit a grouped request — AF-501)
+/request-groups/:id                 → RequestGroupDetailPage (lazy; ordered step-by-step progress, live via WebSocket — AF-501)
 /profile                            → ProfilePage
 
 /datasources                        → DatasourceListPage

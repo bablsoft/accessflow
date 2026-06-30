@@ -4273,6 +4273,8 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `collab.comment` | An inline comment thread on a query changed (created/replied/resolved/reopened) — clients refetch | `query_id`, `comment_id`, `change_type`, `actor_id` |
 | `anomaly.detected` | A behavioural anomaly was flagged (UBA, AF-383) — pushed to org admins and the subject user | `anomaly_id`, `user_id`, `datasource_id`, `feature`, `score` |
 | `attestation.campaign_opened` | An access-recertification campaign opened (AF-384) — pushed to its eligible reviewers and org admins | `campaign_id`, `name`, `due_at` |
+| `request_group.status_changed` | A grouped request (AF-501) changed status — pushed to the submitter, and to eligible reviewers when it becomes ready for review | `group_id`, `old_status`, `new_status` |
+| `request_group.item_executed` | A member of a grouped request finished executing (AF-501) — drives the live ordered-progress view | `group_id`, `item_id`, `sequence_order`, `item_status` |
 
 ### Collaboration protocol (bidirectional — AF-441)
 
@@ -4407,6 +4409,41 @@ secrets themselves are never returned.
 | `GET` | `/api-reviews` | **Reviewer/Admin.** List API requests awaiting review. Paginated. Optional filters: `connector_id`, `verb`. Excludes the caller's own submissions (self-approval is forbidden). |
 | `POST` | `/api-reviews/{id}/approve` | **Reviewer/Admin.** Approve (`{comment?}`). The submitter can never self-approve. |
 | `POST` | `/api-reviews/{id}/reject` | **Reviewer/Admin.** Reject (`{comment?}`). |
+
+## Request chaining & grouping (AF-501)
+
+Base path `/api/v1/request-groups`. Bundles several **query** members (across possibly different
+datasources) and **API-call** members (AF-500 connectors) into one **grouped request** that is
+reviewed, approved, and executed as a single element — then run as an **ordered sequence** with **no
+distributed rollback** (an APPROVED group is *not* atomic; already-applied members stay). Org-scoped;
+all request DTOs use Bean Validation. Group items are self-contained (inline SQL / inline API call) and
+do not create `query_requests` / `api_requests` rows.
+
+### Grouped requests
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/request-groups` | Create a `DRAFT` group (`201`): `name` (3–255, required), `description?`, `continueOnError?` (default false), `items[]` (ordered members, ≥1). Each item: `targetKind` (`QUERY`/`API_CALL`); for `QUERY` → `datasourceId`, `sqlText`, `transactional?`; for `API_CALL` → `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?`, `bodyType?`, `requestContentType?`, `requestBody?`, `formFields?`, `binaryFilename?`. Each member is validated against the submitter's permission for its target — `403` when the submitter can't use a referenced datasource/connector. |
+| `GET` | `/request-groups` | List the caller's groups (admins see all org groups). Paginated (`page`, `size`). Optional filter: `status`. |
+| `GET` | `/request-groups/{id}` | Get a group with its ordered items (per-member status, risk, and result snapshot) + group review decisions. |
+| `PUT` | `/request-groups/{id}` | **Submitter only.** Replace a `DRAFT` group's editable fields + items (same body as create). `409` when the group is no longer `DRAFT`. |
+| `DELETE` | `/request-groups/{id}` | **Submitter only.** Delete a `DRAFT` group (`204`). |
+| `POST` | `/request-groups/{id}/submit` | Submit the bundle for governance (`202`): `{breakGlass?, scheduledFor?}`. Transitions `DRAFT → PENDING_AI`; per-member AI runs async + rate-limited + fail-safe; the aggregate group risk = **max** of members. A break-glass group requires `can_break_glass` on **every** member target. `scheduledFor` defers the ordered run until after approval. |
+| `POST` | `/request-groups/{id}/execute` | **Submitter only.** Run an `APPROVED` group's ordered sequence (`202`). On the first member failure with `continueOnError=false`, the run stops, remaining members are `SKIPPED`, and the group becomes `PARTIALLY_EXECUTED` (or `FAILED` if the first member fails); with `continueOnError=true` all members run and the group becomes `EXECUTED` with mixed item statuses. |
+| `POST` | `/request-groups/{id}/cancel` | **Submitter only.** Cancel a `PENDING_REVIEW` group, or an `APPROVED` group whose deferred (`scheduledFor`) run has not yet fired (`204`). |
+
+### Group reviews
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/request-groups/reviews` | **Reviewer/Admin.** List groups awaiting the caller's review. Paginated. Excludes the caller's own submissions (self-approval is forbidden). Eligible reviewers = the **union** of every member plan's approvers. |
+| `POST` | `/request-groups/{id}/approve` | **Reviewer/Admin.** Approve the whole group at the current stage (`{comment?}`). The group advances to `APPROVED` only when **every** member plan's per-stage `min_approvals_required` is satisfied; **the submitter can never approve their own group**. |
+| `POST` | `/request-groups/{id}/reject` | **Reviewer/Admin.** Reject the group (`{comment?}`) → `REJECTED`. |
+
+State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTING → EXECUTED`, plus `REJECTED`,
+`TIMED_OUT` (review timeout), `PARTIALLY_EXECUTED` (stopped mid-sequence), `FAILED`, and `CANCELLED`
+(submitter, pre-execution). Illegal transitions return `409`. See
+[docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
 ## Data Lifecycle Manager (AF-499)
 

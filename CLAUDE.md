@@ -113,6 +113,10 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/   # persistence, client (per-protocol exec + auth + prober), schema (parsers), routing, scheduled, web
+├── requestgroups/  # Request chaining & grouping: bundle ordered query + API-call members into one grouped request — aggregated AI/review/approval (union of approvers, satisfy every plan), ordered executor with NO distributed rollback (AF-501)
+│   ├── api/
+│   ├── events/
+│   └── internal/   # persistence, scheduled (run + timeout jobs), web
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -259,6 +263,8 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` scans for API requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). |
 | `ACCESSFLOW_LIFECYCLE_POLICY_SCAN_INTERVAL` | ISO-8601 duration. Cadence at which `RetentionPolicyScanJob` (the `lifecycle` module, AF-499) scans enabled retention policies and stages eligible `lifecycle_runs` (default `PT1H`). Binds `accessflow.lifecycle.policy-scan-interval`. |
 | `ACCESSFLOW_LIFECYCLE_ERASURE_EXECUTION_INTERVAL` | ISO-8601 duration. Cadence at which `ErasureExecutionJob` (the `lifecycle` module, AF-499) executes `APPROVED` right-to-erasure requests, transitioning them `APPROVED → EXECUTED`/`FAILED` (default `PT1M`). Binds `accessflow.lifecycle.erasure-execution-interval`. |
+| `ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledGroupRunJob` (the `requestgroups` module, AF-501) scans for `APPROVED` grouped requests whose `scheduled_for ≤ now()` and executes their ordered member sequence (default `PT1M`). Binds `accessflow.requestgroups.run-poll-interval`. |
+| `ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `GroupTimeoutJob` (the `requestgroups` module, AF-501) scans for grouped requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). Binds `accessflow.requestgroups.timeout-poll-interval`. |
 | `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | ISO-8601 duration. How long an API request may sit in `PENDING_REVIEW` before `ApiRequestTimeoutJob` auto-rejects it (default `PT24H`). |
 | `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` | Cap on the total encoded size of a submitted API request body (#517) — raw text, x-www-form-urlencoded, or the base64-decoded size of form-data / binary file parts (files ride inline as bounded base64 since AccessFlow has no object storage). Exceeding it rejects the submission with HTTP 422. Default `5242880` (5 MiB). Binds `accessflow.apigov.max-request-body-bytes`. |
 | `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_CACHE_SKEW` | ISO-8601 duration (#506). Safety skew subtracted from a fetched outbound-OAuth2 token's `expires_in` before `ConnectorOAuth2TokenService` caches it in Redis (`apigov:oauth2:token:<connectorId>`) (default `PT30S`). Binds `accessflow.apigov.oauth2-token-cache-skew`. |

@@ -81,6 +81,12 @@ const ApiEditorPage = lazy(() => import('@/pages/apigov/ApiEditorPage'));
 const ApiRequestsListPage = lazy(() => import('@/pages/apigov/ApiRequestsListPage'));
 const ApiRequestDetailPage = lazy(() => import('@/pages/apigov/ApiRequestDetailPage'));
 const ApiReviewQueuePage = lazy(() => import('@/pages/apigov/ApiReviewQueuePage'));
+const RequestGroupListPage = lazy(() => import('@/pages/requestGroups/RequestGroupListPage'));
+const GroupBuilderPage = lazy(() => import('@/pages/requestGroups/GroupBuilderPage'));
+const RequestGroupDetailPage = lazy(() => import('@/pages/requestGroups/RequestGroupDetailPage'));
+const RequestGroupReviewQueuePage = lazy(
+  () => import('@/pages/requestGroups/RequestGroupReviewQueuePage'),
+);
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -216,6 +222,40 @@ export function App() {
                   <ApiConnectorSettingsPage />
                 </Suspense>
               </AuthGuard>
+            }
+          />
+          <Route
+            path="/request-groups"
+            element={
+              <Suspense fallback={null}>
+                <RequestGroupListPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/request-groups/new"
+            element={
+              <Suspense fallback={null}>
+                <GroupBuilderPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/request-groups/reviews"
+            element={
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+                <Suspense fallback={null}>
+                  <RequestGroupReviewQueuePage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/request-groups/:id"
+            element={
+              <Suspense fallback={null}>
+                <RequestGroupDetailPage />
+              </Suspense>
             }
           />
           <Route path="/access-requests" element={<RequestAccessPage />} />

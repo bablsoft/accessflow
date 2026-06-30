@@ -25,4 +25,12 @@ public interface AiAnalysisPersistenceService {
      * failed.
      */
     void deleteForQuery(UUID queryRequestId);
+
+    /**
+     * Persist an AI analysis row keyed to a request-group member (AF-501). Stored in the same
+     * {@code ai_analyses} table (keeping per-org token-budget accounting unified) with
+     * {@code request_group_item_id} set instead of {@code query_request_id} / {@code api_request_id}.
+     * Returns the new analysis id; the caller stores it on the group item.
+     */
+    UUID persistForGroupItem(UUID requestGroupItemId, PersistAiAnalysisCommand command);
 }

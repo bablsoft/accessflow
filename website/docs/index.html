@@ -217,6 +217,7 @@
             <h5>End-user workflows</h5>
             <a href="#flow-submit">Submitting a query</a>
             <a href="#flow-schedule">Scheduling a query</a>
+            <a href="#flow-request-groups">Request chaining &amp; grouping</a>
             <a href="#flow-review">Reviewing &amp; bulk approval</a>
             <a href="#flow-diff">Comparing repeated runs</a>
 
@@ -2029,6 +2030,49 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption><code>/editor</code> → <em>Scheduled execution</em> row → date picker. Leave blank for immediate execution.</figcaption>
           </figure>
+
+          <h3 id="flow-request-groups">Request chaining &amp; grouping</h3>
+          <p>
+            A single real task often spans several steps across systems — a schema change on
+            PostgreSQL, a follow-up update on MongoDB, then a REST call downstream. The
+            <strong>group builder</strong> at <code>/request-groups/new</code> bundles those steps
+            into one <strong>grouped request</strong> that is reviewed and approved as a single
+            element, then executed as an <strong>ordered sequence</strong>. Add steps — each a
+            <em>query</em> against a datasource <strong>or</strong> an <em>API call</em> against a
+            governed connector — drag-reorder them, and watch a per-step AI risk preview plus an
+            aggregate risk badge. You can only add a member targeting a datasource / connector you're
+            permitted to use; a break-glass group requires <code>can_break_glass</code> on
+            <strong>every</strong> member target.
+          </p>
+          <p>
+            The group is reviewed as one element: the required approvers are the <strong>union</strong>
+            across all member plans, and the group reaches <code>APPROVED</code> only when
+            <strong>every</strong> member plan's per-stage approval requirement is satisfied — no
+            member's policy is weakened by bundling, and you can never approve your own group.
+            Reviewers see it as one expandable element in their queue. On execute, members run in
+            <code>sequence_order</code>; on the first failure (with <em>continue-on-error</em> off) the
+            run stops, the remaining members are <code>SKIPPED</code>, and the group becomes
+            <code>PARTIALLY_EXECUTED</code> (or <code>FAILED</code> if the first member fails). With
+            <em>continue-on-error</em> on, all members run and the group is <code>EXECUTED</code> with
+            mixed per-member outcomes.
+          </p>
+          <p>
+            <strong>There is no distributed rollback.</strong> An approved group is <em>not</em>
+            atomic — already-applied members stay (you cannot roll back a committed Postgres DDL
+            because a later Mongo write failed). The detail page at <code>/request-groups/:id</code>
+            shows ordered step-by-step progress (running / done / failed / skipped) live over the
+            WebSocket, and each member records its own snapshot + audit row alongside the group-level
+            audit.
+          </p>
+          <p>
+            <strong>Operator env vars.</strong> A scheduled group runs at its
+            <code>scheduled_for</code> time via <code>ScheduledGroupRunJob</code> (cadence
+            <code>ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL</code>, default <code>PT1M</code>); a
+            group left awaiting review past the review timeout is auto-rejected to
+            <code>TIMED_OUT</code> by <code>GroupTimeoutJob</code> (cadence
+            <code>ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).
+            Both are clustered-safe (ShedLock).
+          </p>
 
           <h3 id="flow-review">Reviewing &amp; bulk approval</h3>
           <p>

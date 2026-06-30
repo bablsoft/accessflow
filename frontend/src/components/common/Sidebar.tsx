@@ -33,6 +33,7 @@ import {
   FileProtectOutlined,
   FieldTimeOutlined,
   CheckSquareOutlined,
+  BlockOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { Role } from '@/types/api';
@@ -88,6 +89,8 @@ export function Sidebar({
         { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'] },
+        { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
+        { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'] },
         { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'request-erasure', to: '/lifecycle/erasure', label: t('nav.request_erasure'), icon: <FieldTimeOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
         { id: 'attestation-reviews', to: '/reviews/attestations', label: t('nav.attestation_reviews'), icon: <CheckSquareOutlined />, roles: ['REVIEWER', 'ADMIN'] },
