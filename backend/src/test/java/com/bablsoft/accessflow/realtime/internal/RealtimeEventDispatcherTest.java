@@ -24,6 +24,10 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
+import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
+import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
+import com.bablsoft.accessflow.requestgroups.events.RequestGroupItemExecutedEvent;
+import com.bablsoft.accessflow.requestgroups.events.RequestGroupStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
 import com.bablsoft.accessflow.notifications.api.UserNotificationView;
@@ -100,6 +104,35 @@ class RealtimeEventDispatcherTest {
         assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
         assertThat(data.get("old_status").asText()).isEqualTo("PENDING_AI");
         assertThat(data.get("new_status").asText()).isEqualTo("PENDING_REVIEW");
+    }
+
+    @Test
+    void onRequestGroupStatusChangedSendsEnvelopeToSubmitter() throws Exception {
+        var groupId = UUID.randomUUID();
+        dispatcher.onRequestGroupStatusChanged(new RequestGroupStatusChangedEvent(groupId, submitterId,
+                RequestGroupStatus.PENDING_REVIEW, RequestGroupStatus.APPROVED));
+
+        var envelope = captureEnvelope(submitterId);
+        assertThat(envelope.get("event").asText()).isEqualTo("request_group.status_changed");
+        var data = envelope.get("data");
+        assertThat(data.get("request_group_id").asText()).isEqualTo(groupId.toString());
+        assertThat(data.get("old_status").asText()).isEqualTo("PENDING_REVIEW");
+        assertThat(data.get("new_status").asText()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void onRequestGroupItemExecutedSendsStepProgressToSubmitter() throws Exception {
+        var groupId = UUID.randomUUID();
+        var itemId = UUID.randomUUID();
+        dispatcher.onRequestGroupItemExecuted(new RequestGroupItemExecutedEvent(groupId, itemId,
+                submitterId, 2, RequestGroupItemStatus.EXECUTED));
+
+        var envelope = captureEnvelope(submitterId);
+        assertThat(envelope.get("event").asText()).isEqualTo("request_group.item_executed");
+        var data = envelope.get("data");
+        assertThat(data.get("item_id").asText()).isEqualTo(itemId.toString());
+        assertThat(data.get("sequence_order").asInt()).isEqualTo(2);
+        assertThat(data.get("status").asText()).isEqualTo("EXECUTED");
     }
 
     @Test

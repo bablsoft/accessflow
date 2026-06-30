@@ -145,4 +145,34 @@ class GroupExecutionServiceTest {
         service.execute(group.getId(), null, "manual");
         verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
     }
+
+    @Test
+    void runsQueryMemberThroughProxyExecutor() {
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setGroupId(group.getId());
+        item.setSequenceOrder(0);
+        item.setTargetKind(RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(UUID.randomUUID());
+        item.setSqlText("SELECT 1");
+        item.setQueryType(com.bablsoft.accessflow.core.api.QueryType.SELECT);
+        var items = new ArrayList<>(List.of(item));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(items);
+        when(permissionLookupService.findFor(any(), any())).thenReturn(java.util.Optional.empty());
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(rowSecurityResolutionService.resolveApplicable(any(), any(), any())).thenReturn(List.of());
+        when(datasourceLookupService.findById(any())).thenReturn(java.util.Optional.empty());
+        when(queryParser.parse(any(), any()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.SqlParseResult(
+                        com.bablsoft.accessflow.core.api.QueryType.SELECT, "SELECT 1"));
+        when(queryExecutor.execute(any())).thenReturn(
+                new com.bablsoft.accessflow.core.api.SelectExecutionResult(
+                        List.of(), List.of(), 7L, false, java.time.Duration.ofMillis(3)));
+
+        service.execute(group.getId(), null, "manual");
+
+        assertThat(item.getStatus()).isEqualTo(RequestGroupItemStatus.EXECUTED);
+        assertThat(item.getRowsAffected()).isEqualTo(7L);
+        verify(stateService).apply(group, RequestGroupStatus.EXECUTED);
+    }
 }

@@ -93,4 +93,41 @@ class GroupReviewPlanResolverTest {
         assertThat(resolution.requiredApprovals()).isZero();
         assertThat(resolution.eligibleRoles()).containsExactly(UserRoleType.ADMIN);
     }
+
+    @Test
+    void apiMemberResolvesConnectorReviewPlan() {
+        var connectorId = UUID.randomUUID();
+        var planId = UUID.randomUUID();
+        var apiItem = new RequestGroupItemEntity();
+        apiItem.setId(UUID.randomUUID());
+        apiItem.setTargetKind(RequestGroupTargetKind.API_CALL);
+        apiItem.setApiConnectorId(connectorId);
+        var connectorView = org.mockito.Mockito.mock(
+                com.bablsoft.accessflow.apigov.api.ApiConnectorView.class);
+        when(connectorView.reviewPlanId()).thenReturn(planId);
+        when(apiConnectorAdminService.getForAdmin(connectorId, group.getOrganizationId()))
+                .thenReturn(connectorView);
+        when(reviewPlanLookupService.findById(planId))
+                .thenReturn(Optional.of(plan(1, new ApproverRule(null, UserRoleType.REVIEWER, 1))));
+
+        var resolution = resolver.resolve(group, List.of(apiItem));
+
+        assertThat(resolution.requiresHumanApproval()).isTrue();
+        assertThat(resolution.eligibleRoles()).contains(UserRoleType.REVIEWER, UserRoleType.ADMIN);
+    }
+
+    @Test
+    void propagatesWhenConnectorLookupFails() {
+        var connectorId = UUID.randomUUID();
+        var apiItem = new RequestGroupItemEntity();
+        apiItem.setId(UUID.randomUUID());
+        apiItem.setTargetKind(RequestGroupTargetKind.API_CALL);
+        apiItem.setApiConnectorId(connectorId);
+        when(apiConnectorAdminService.getForAdmin(connectorId, group.getOrganizationId()))
+                .thenThrow(new RuntimeException("gone"));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> resolver.resolve(group, List.of(apiItem)))
+                .isInstanceOf(RuntimeException.class);
+    }
 }

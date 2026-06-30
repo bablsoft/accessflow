@@ -135,4 +135,75 @@ class DefaultGroupReviewServiceTest {
         assertThat(outcome.resultingStatus()).isEqualTo(RequestGroupStatus.REJECTED);
         verify(stateService).apply(group, RequestGroupStatus.REJECTED);
     }
+
+    @Test
+    void listPendingMapsGroupsToPendingReviews() {
+        group.setName("bundle");
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of(new com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity()));
+        when(userQueryService.findById(submitterId)).thenReturn(java.util.Optional.empty());
+
+        var page = service.listPending(adminContext(), com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).name()).isEqualTo("bundle");
+        assertThat(page.content().get(0).memberCount()).isEqualTo(1);
+    }
+
+    @Test
+    void nonAdminReviewerEligibleByRoleCanApprove() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of());
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(), java.util.Set.of(UserRoleType.REVIEWER)));
+        when(decisionRepository.findByRequestGroupIdAndReviewerIdAndStage(group.getId(), reviewerId, 1))
+                .thenReturn(Optional.empty());
+        when(decisionRepository.save(any())).thenAnswer(inv -> {
+            GroupReviewDecisionEntity d = inv.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+        when(decisionRepository.countByRequestGroupIdAndStageAndDecision(group.getId(), 1,
+                DecisionType.APPROVED)).thenReturn(1L);
+
+        var outcome = service.approve(group.getId(), reviewerContext, "ok");
+
+        assertThat(outcome.resultingStatus()).isEqualTo(RequestGroupStatus.APPROVED);
+    }
+
+    @Test
+    void ineligibleReviewerIsRejected() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of());
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(), java.util.Set.of(UserRoleType.ADMIN)));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> service.approve(group.getId(), reviewerContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class);
+    }
+
+    @Test
+    void approveOnNonPendingGroupThrows() {
+        group.setStatus(RequestGroupStatus.APPROVED);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> service.approve(group.getId(), adminContext(), "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException.class);
+    }
 }
