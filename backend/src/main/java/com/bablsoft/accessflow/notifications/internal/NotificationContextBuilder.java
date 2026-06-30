@@ -129,8 +129,32 @@ class NotificationContextBuilder {
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST,
                  ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
                  API_REQUEST_EXECUTED, API_REQUEST_FAILED,
-                 API_CONNECTOR_OAUTH2_TOKEN_FAILED -> List.of();
+                 API_CONNECTOR_OAUTH2_TOKEN_FAILED, ERASURE_APPROVED -> List.of();
         };
+    }
+
+    /**
+     * Builds the context for an approved data-erasure request (AF-499). Not query-backed: every
+     * query field is null; the single recipient is the submitter so they learn their request was
+     * approved. Returns empty when the submitter is unknown/inactive.
+     */
+    Optional<NotificationContext> buildLifecycleErasure(UUID organizationId, UUID requestedBy) {
+        var submitter = userQueryService.findById(requestedBy)
+                .filter(UserView::active)
+                .orElse(null);
+        if (submitter == null) {
+            return Optional.empty();
+        }
+        var locale = localizationConfigService.getOrDefault(organizationId).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.ERASURE_APPROVED,
+                organizationId,
+                null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                List.of(toRecipient(submitter)),
+                Instant.now(),
+                locale,
+                null));
     }
 
     /**

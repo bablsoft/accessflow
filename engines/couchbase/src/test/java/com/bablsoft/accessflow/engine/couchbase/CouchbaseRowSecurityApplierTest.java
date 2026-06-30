@@ -37,6 +37,15 @@ class CouchbaseRowSecurityApplierTest {
     }
 
     @Test
+    void isNullOperatorSplicesUnaryIsNull() {
+        var applied = apply("SELECT * FROM users",
+                directive("users", "deleted_at", RowSecurityOperator.IS_NULL, List.of()));
+        assertThat(applied.sql()).contains("IS NULL");
+        assertThat(applied.parameters()).isEmpty();
+        assertThat(applied.appliedPolicyIds()).hasSize(1);
+    }
+
+    @Test
     void nonMatchingDirectiveIsANoop() {
         var applied = apply("SELECT * FROM users",
                 directive("orders", "region", RowSecurityOperator.EQUALS, List.of("emea")));

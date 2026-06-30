@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
+import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -27,6 +28,7 @@ class ComplianceCsvWriter {
         switch (report.type()) {
             case CLASSIFIED_ACCESS -> writeClassifiedAccess(sb, report.classifiedAccess());
             case REGULATORY_AUDIT_TRAIL -> writeAuditTrail(sb, report.auditTrail());
+            case RETENTION_ADHERENCE -> writeRetentionAdherence(sb, report.retentionAdherence());
         }
         return sb.toString().getBytes(UTF_8);
     }
@@ -62,6 +64,27 @@ class ComplianceCsvWriter {
                     nullToEmpty(row.sqlText()),
                     formatApprovers(row.approvers()),
                     str(row.executedAt())));
+        }
+    }
+
+    private void writeRetentionAdherence(StringBuilder sb, List<RetentionAdherenceReportRow> rows) {
+        writeRow(sb, List.of("run_id", "datasource_id", "datasource_name", "kind", "action",
+                "status", "method", "affected_rows", "policy_id", "deletion_request_id",
+                "finished_at", "created_at"));
+        for (var row : rows) {
+            writeRow(sb, List.of(
+                    str(row.runId()),
+                    str(row.datasourceId()),
+                    nullToEmpty(row.datasourceName()),
+                    nullToEmpty(row.kind()),
+                    nullToEmpty(row.action()),
+                    nullToEmpty(row.status()),
+                    nullToEmpty(row.method()),
+                    str(row.affectedRows()),
+                    str(row.policyId()),
+                    str(row.deletionRequestId()),
+                    str(row.finishedAt()),
+                    str(row.createdAt())));
         }
     }
 

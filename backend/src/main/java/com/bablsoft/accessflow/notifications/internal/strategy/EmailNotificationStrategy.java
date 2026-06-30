@@ -186,7 +186,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // API-request events (AF-500) deliver as in-app + chat notifications, not email.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
-                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> null;
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED, ERASURE_APPROVED -> null;
         };
     }
 
@@ -217,7 +217,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
-                 API_REQUEST_EXECUTED, API_REQUEST_FAILED -> "notification.email.subject.test";
+                 API_REQUEST_EXECUTED, API_REQUEST_FAILED, ERASURE_APPROVED ->
+                    "notification.email.subject.test";
         };
     }
 

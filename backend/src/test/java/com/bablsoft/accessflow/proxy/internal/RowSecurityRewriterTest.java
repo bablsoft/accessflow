@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.proxy.internal;
 
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SoftDeleteDirective;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
@@ -271,5 +272,80 @@ class RowSecurityRewriterTest {
         assertThatThrownBy(() -> rewriter.rewrite(sql, List.of(directives)))
                 .isInstanceOf(UnrewritableRowSecurityException.class)
                 .hasMessage(expectedKey);
+    }
+
+    // ---- soft delete (AF-499) -------------------------------------------------------------------
+
+    private static SoftDeleteDirective soft(String table, String marker) {
+        return new SoftDeleteDirective(UUID.randomUUID(), table, marker);
+    }
+
+    private static RowSecurityDirective isNull(String table, String column) {
+        return new RowSecurityDirective(UUID.randomUUID(), table, column, RowSecurityOperator.IS_NULL,
+                List.of());
+    }
+
+    @Test
+    void isNullFilterBarrierWrapsSelect() {
+        var result = rewriter.rewrite("SELECT id FROM orders",
+                List.of(isNull("orders", "deleted_at")));
+        assertThat(result.sql()).contains("deleted_at IS NULL");
+        assertThat(result.binds()).isEmpty();
+        assertThat(result.appliedPolicyIds()).hasSize(1);
+    }
+
+    @Test
+    void isNullFilterAndedIntoUpdate() {
+        var result = rewriter.rewrite("UPDATE orders SET total = 0 WHERE id = 1",
+                List.of(isNull("orders", "deleted_at")));
+        assertThat(result.sql()).contains("deleted_at IS NULL").contains("AND");
+        assertThat(result.binds()).isEmpty();
+    }
+
+    @Test
+    void deleteOnSoftDeleteTargetBecomesUpdate() {
+        var result = rewriter.rewrite("DELETE FROM orders WHERE id = 5",
+                List.of(isNull("orders", "deleted_at")), List.of(soft("orders", "deleted_at")));
+        assertThat(result.sql()).startsWith("UPDATE orders SET deleted_at = CURRENT_TIMESTAMP");
+        assertThat(result.sql()).contains("deleted_at IS NULL");
+        assertThat(result.appliedPolicyIds()).isNotEmpty();
+    }
+
+    @Test
+    void deleteWithoutWhereBecomesUpdateScopedToLiveRows() {
+        var result = rewriter.rewrite("DELETE FROM orders",
+                List.of(isNull("orders", "deleted_at")), List.of(soft("orders", "deleted_at")));
+        assertThat(result.sql()).startsWith("UPDATE orders SET deleted_at = CURRENT_TIMESTAMP");
+        assertThat(result.sql()).contains("WHERE").contains("deleted_at IS NULL");
+    }
+
+    @Test
+    void softDeleteUsesConfiguredMarkerColumn() {
+        var result = rewriter.rewrite("DELETE FROM orders WHERE id = 5", List.of(),
+                List.of(soft("orders", "archived_at")));
+        assertThat(result.sql()).contains("SET archived_at = CURRENT_TIMESTAMP");
+    }
+
+    @Test
+    void deleteUsingOnSoftDeleteTargetIsRejected() {
+        assertThatThrownBy(() -> rewriter.rewrite(
+                "DELETE FROM orders USING customers WHERE orders.cust_id = customers.id",
+                List.of(), List.of(soft("orders", "deleted_at"))))
+                .isInstanceOf(UnrewritableRowSecurityException.class);
+    }
+
+    @Test
+    void softDeleteOnUnrelatedTableLeavesDeleteUnchanged() {
+        var sql = "DELETE FROM audit_log WHERE id = 5";
+        var result = rewriter.rewrite(sql, List.of(), List.of(soft("orders", "deleted_at")));
+        assertThat(result.sql()).isEqualTo(sql);
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void noDirectivesAndNoSoftDeletesIsNoOp() {
+        var sql = "DELETE FROM orders WHERE id = 5";
+        var result = rewriter.rewrite(sql, List.of(), List.of());
+        assertThat(result.sql()).isEqualTo(sql);
     }
 }

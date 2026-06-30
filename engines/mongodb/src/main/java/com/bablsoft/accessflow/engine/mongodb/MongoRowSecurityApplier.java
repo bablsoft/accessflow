@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.mongodb;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.bson.Document;
 
@@ -70,12 +71,17 @@ class MongoRowSecurityApplier {
     private static Document toFragment(RowSecurityDirective directive) {
         var field = directive.columnName();
         var values = directive.values();
+        if (directive.operator() == RowSecurityOperator.IS_NULL) {
+            // Soft-delete read filter (AF-499): match documents whose field is null or absent.
+            return new Document(field, null);
+        }
         if (values.isEmpty()) {
             // Fail-closed: a predicate no document can satisfy (every document has an _id).
             return new Document(field, new Document("$exists", false));
         }
         var first = values.get(0);
         return switch (directive.operator()) {
+            case IS_NULL -> new Document(field, null); // unreachable (handled above)
             case EQUALS -> new Document(field, first);
             case NOT_EQUALS -> new Document(field, new Document("$ne", first));
             case LESS_THAN -> new Document(field, new Document("$lt", first));

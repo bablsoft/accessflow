@@ -67,6 +67,13 @@ const OrganizationDetailPage = lazy(() =>
 const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPage'));
 const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
 const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
+const LifecyclePoliciesListPage = lazy(
+  () => import('@/pages/admin/lifecycle/LifecyclePoliciesListPage'),
+);
+const ErasureReviewQueuePage = lazy(
+  () => import('@/pages/admin/lifecycle/ErasureReviewQueuePage'),
+);
+const ErasureSubmitPage = lazy(() => import('@/pages/lifecycle/ErasureSubmitPage'));
 const AttestationWorklistPage = lazy(() => import('@/pages/reviews/AttestationWorklistPage'));
 const ApiConnectorsListPage = lazy(() => import('@/pages/apigov/ApiConnectorsListPage'));
 const ApiConnectorSettingsPage = lazy(() => import('@/pages/apigov/ApiConnectorSettingsPage'));
@@ -348,6 +355,34 @@ export function App() {
                   <CampaignDetailPage />
                 </Suspense>
               </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/lifecycle/policies"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <LifecyclePoliciesListPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/lifecycle/erasure"
+            element={
+              <AuthGuard requireRole="ADMIN">
+                <Suspense fallback={null}>
+                  <ErasureReviewQueuePage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/lifecycle/erasure"
+            element={
+              <Suspense fallback={null}>
+                <ErasureSubmitPage />
+              </Suspense>
             }
           />
           <Route

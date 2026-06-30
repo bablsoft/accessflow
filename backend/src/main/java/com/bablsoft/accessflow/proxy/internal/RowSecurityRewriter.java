@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.proxy.internal;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.SoftDeleteDirective;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import lombok.RequiredArgsConstructor;
 import net.sf.jsqlparser.JSQLParserException;
@@ -15,6 +16,7 @@ import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
 import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
 import net.sf.jsqlparser.expression.operators.relational.InExpression;
+import net.sf.jsqlparser.expression.operators.relational.IsNullExpression;
 import net.sf.jsqlparser.expression.operators.relational.MinorThan;
 import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
 import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
@@ -72,25 +74,83 @@ class RowSecurityRewriter {
     }
 
     RewriteResult rewrite(String sql, List<RowSecurityDirective> directives) {
-        if (directives == null || directives.isEmpty()) {
+        return rewrite(sql, directives, List.of());
+    }
+
+    RewriteResult rewrite(String sql, List<RowSecurityDirective> directives,
+                          List<SoftDeleteDirective> softDeletes) {
+        var rowSecurity = directives == null ? List.<RowSecurityDirective>of() : directives;
+        var soft = softDeletes == null ? List.<SoftDeleteDirective>of() : softDeletes;
+        if (rowSecurity.isEmpty() && soft.isEmpty()) {
             return RewriteResult.noop(sql);
         }
         var statement = parse(sql);
         var binds = new ArrayList<Object>();
         var applied = new LinkedHashSet<UUID>();
+        // Soft-delete (AF-499): a DELETE against a soft-delete target becomes UPDATE … SET marker =
+        // CURRENT_TIMESTAMP. The matching IS_NULL row-security directive (resolved alongside) then
+        // scopes the UPDATE to rows not already soft-deleted.
+        if (statement instanceof Delete delete) {
+            var match = matchingSoftDelete(delete.getTable(), soft);
+            if (match != null) {
+                statement = toSoftDeleteUpdate(delete, match);
+                applied.add(match.policyId());
+            }
+        }
         switch (statement) {
-            case Select select -> rewriteSelect(select, directives, binds, applied);
-            case Update update -> rewriteDml(update.getTable(), update, directives, binds, applied,
+            case Select select -> rewriteSelect(select, rowSecurity, binds, applied);
+            case Update update -> rewriteDml(update.getTable(), update, rowSecurity, binds, applied,
                     update::getWhere, update::setWhere);
-            case Delete delete -> rewriteDml(delete.getTable(), delete, directives, binds, applied,
+            case Delete delete -> rewriteDml(delete.getTable(), delete, rowSecurity, binds, applied,
                     delete::getWhere, delete::setWhere);
-            case Insert insert -> rejectInsertOnPolicied(insert, directives);
+            case Insert insert -> rejectInsertOnPolicied(insert, rowSecurity);
             default -> { /* DDL / OTHER: row security does not apply (no rows read/affected). */ }
         }
         if (applied.isEmpty()) {
             return RewriteResult.noop(sql);
         }
         return new RewriteResult(statement.toString(), binds, applied);
+    }
+
+    // ---- soft delete ----------------------------------------------------------------------------
+
+    private SoftDeleteDirective matchingSoftDelete(Table target, List<SoftDeleteDirective> softDeletes) {
+        if (target == null || softDeletes.isEmpty()) {
+            return null;
+        }
+        var schema = SqlParserServiceImpl.normalizeIdentifier(target.getSchemaName());
+        var name = SqlParserServiceImpl.normalizeIdentifier(target.getName());
+        for (var sd : softDeletes) {
+            if (matchesRef(sd.tableRef(), schema, name)) {
+                return sd;
+            }
+        }
+        return null;
+    }
+
+    private Update toSoftDeleteUpdate(Delete delete, SoftDeleteDirective directive) {
+        // Only a plain DELETE FROM t [WHERE …] is convertible; DELETE … USING / multi-table joins
+        // would change semantics when expressed as an UPDATE, so reject them fail-closed.
+        if ((delete.getJoins() != null && !delete.getJoins().isEmpty())
+                || (delete.getUsingList() != null && !delete.getUsingList().isEmpty())) {
+            throw reject("error.row_security_dml_join_unsupported");
+        }
+        var update = new Update();
+        update.setTable(delete.getTable());
+        update.addUpdateSet(new Column(directive.markerColumn()), nowExpression());
+        if (delete.getWhere() != null) {
+            update.setWhere(delete.getWhere());
+        }
+        return update;
+    }
+
+    private Expression nowExpression() {
+        try {
+            return CCJSqlParserUtil.parseExpression("CURRENT_TIMESTAMP");
+        } catch (JSQLParserException ex) {
+            // CURRENT_TIMESTAMP is standard SQL and always parses; unreachable in practice.
+            throw new IllegalStateException("CURRENT_TIMESTAMP did not parse", ex);
+        }
     }
 
     // ---- SELECT ---------------------------------------------------------------------------------
@@ -262,6 +322,9 @@ class RowSecurityRewriter {
     // ---- predicate building ---------------------------------------------------------------------
 
     private Expression predicate(Column column, RowSecurityDirective directive, List<Object> binds) {
+        if (directive.operator() == RowSecurityOperator.IS_NULL) {
+            return new IsNullExpression(column); // unary; binds nothing (soft-delete read filter)
+        }
         var values = directive.values();
         if (values.isEmpty()) {
             return alwaysFalse(); // fail-closed: unresolvable variable / empty list → no rows
@@ -294,6 +357,7 @@ class RowSecurityRewriter {
             case GREATER_THAN -> new GreaterThan(column, value);
             case GREATER_THAN_OR_EQUAL -> new GreaterThanEquals(column, value);
             case IN, NOT_IN -> throw new IllegalStateException("multi-value operator " + operator);
+            case IS_NULL -> throw new IllegalStateException("IS_NULL handled before comparison");
         };
     }
 
@@ -316,7 +380,11 @@ class RowSecurityRewriter {
     }
 
     private static boolean matches(RowSecurityDirective directive, String schema, String name) {
-        var ref = SqlParserServiceImpl.normalizeIdentifier(directive.tableRef());
+        return matchesRef(directive.tableRef(), schema, name);
+    }
+
+    private static boolean matchesRef(String tableRef, String schema, String name) {
+        var ref = SqlParserServiceImpl.normalizeIdentifier(tableRef);
         var dot = ref.lastIndexOf('.');
         var policyName = dot < 0 ? ref : ref.substring(dot + 1);
         var policySchema = dot < 0 ? "" : ref.substring(0, dot);

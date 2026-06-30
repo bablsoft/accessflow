@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
+import com.bablsoft.accessflow.lifecycle.events.ErasureRequestApprovedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.workflow.events.BreakGlassExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
@@ -109,6 +110,15 @@ class NotificationListener {
         } catch (RuntimeException ex) {
             log.error("Notification dispatch failed for attestation campaign {}",
                     event.campaignId(), ex);
+        }
+    }
+
+    @ApplicationModuleListener
+    void onErasureApproved(ErasureRequestApprovedEvent event) {
+        try {
+            dispatcher.dispatchErasureApproved(event.organizationId(), event.requestedBy());
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for approved erasure {}", event.requestId(), ex);
         }
     }
 

@@ -485,6 +485,23 @@ Routing policies (see [docs/05-backend.md → "Policy-as-code routing engine"](0
 - **Audit.** A matched `ESCALATE` / `REQUIRE_APPROVALS` policy records its id, resolved
   `effective_min_approvals`, and reason on the `QUERY_REVIEW_REQUESTED` audit row.
 
+### Lifecycle pseudonymization & salt rotation (AF-499)
+
+A `PSEUDONYMIZE` retention policy applies an **irreversible** read-time transform to its target
+columns, enforced through the same post-fetch `ColumnMasker` as masking policies (the proxy returns
+transformed values; the raw data is never sent over the wire).
+
+- **Per-org salt.** `SHA256_SALTED` / `TOKENIZATION` transforms are salted with a per-organization
+  secret held in `lifecycle_salt`, **AES-256-GCM encrypted** at rest (`CredentialEncryptionService`)
+  and `@JsonIgnore`d — it is never serialized in any response. The plaintext salt is only ever passed
+  to the masker as a transform parameter.
+- **Rotation is one-way.** `LifecycleSaltService.rotate` issues a fresh salt and bumps `version`;
+  values already hashed under a previous salt **stay hashed** and cannot be recovered — that
+  irreversibility is the point. Rotating changes the digest of future reads, not the meaning of past
+  ones.
+- **Forget-but-keep-aggregates.** Pseudonymization preserves row presence, so counts and aggregates
+  survive while the PII itself is irreversibly transformed.
+
 ---
 
 ## Database Credential Security

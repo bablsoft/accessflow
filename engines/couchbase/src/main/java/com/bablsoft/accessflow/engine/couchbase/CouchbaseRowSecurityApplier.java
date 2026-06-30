@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.couchbase;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.engine.couchbase.SqlPlusPlusTokenizer.Kind;
 import com.bablsoft.accessflow.engine.couchbase.SqlPlusPlusTokenizer.Token;
@@ -100,13 +101,18 @@ class CouchbaseRowSecurityApplier {
     private static String toFragment(RowSecurityDirective directive, String qualifier,
                                      Map<String, Object> parameters) {
         var values = directive.values();
+        var column = escapeIdent(qualifier) + "." + escapeIdent(directive.columnName());
+        if (directive.operator() == RowSecurityOperator.IS_NULL) {
+            // Soft-delete read filter (AF-499): N1QL IS NULL, no bound parameter.
+            return column + " IS NULL";
+        }
         if (values.isEmpty()) {
             // Fail-closed: an unresolvable variable / empty list yields no rows.
             return "FALSE";
         }
-        var column = escapeIdent(qualifier) + "." + escapeIdent(directive.columnName());
         var paramName = PARAM_PREFIX + parameters.size();
         return switch (directive.operator()) {
+            case IS_NULL -> column + " IS NULL"; // unreachable (handled above)
             case EQUALS -> bindScalar(column, "=", paramName, values, parameters);
             case NOT_EQUALS -> bindScalar(column, "!=", paramName, values, parameters);
             case LESS_THAN -> bindScalar(column, "<", paramName, values, parameters);

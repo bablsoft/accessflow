@@ -74,7 +74,10 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Ciclo de vida de datos",
+    "request_erasure": "Solicitar borrado",
+    "erasure_review": "Revisión de borrado"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -255,7 +258,24 @@
     "attestation_datasource_required": "Se requiere una fuente de datos para las campañas con alcance de fuente de datos",
     "attestation_scheduled_open_required": "La hora de apertura programada es obligatoria",
     "attestation_due_required": "La hora de vencimiento es obligatoria",
-    "attestation_due_after_open": "La hora de vencimiento debe ser posterior a la apertura programada"
+    "attestation_due_after_open": "La hora de vencimiento debe ser posterior a la apertura programada",
+    "lifecycle_datasource_required": "La fuente de datos es obligatoria",
+    "lifecycle_name_required": "El nombre es obligatorio",
+    "lifecycle_name_size": "El nombre debe tener entre 3 y 100 caracteres",
+    "lifecycle_description_max": "La descripción debe tener como máximo 2.000 caracteres",
+    "lifecycle_target_table_size": "La tabla objetivo debe tener como máximo 255 caracteres",
+    "lifecycle_classification_tag_size": "La etiqueta de clasificación debe tener como máximo 100 caracteres",
+    "lifecycle_timestamp_column_required": "La columna de marca de tiempo es obligatoria",
+    "lifecycle_timestamp_column_size": "La columna de marca de tiempo debe tener como máximo 255 caracteres",
+    "lifecycle_retention_window_required": "La ventana de retención es obligatoria",
+    "lifecycle_retention_window_size": "La ventana de retención debe tener como máximo 50 caracteres",
+    "lifecycle_action_required": "La acción es obligatoria",
+    "lifecycle_transform_required": "La transformación es obligatoria para seudonimizar",
+    "lifecycle_soft_delete_column_size": "La columna de borrado lógico debe tener como máximo 255 caracteres",
+    "lifecycle_subject_type_required": "El tipo de sujeto es obligatorio",
+    "lifecycle_subject_identifier_required": "El identificador del sujeto es obligatorio",
+    "lifecycle_subject_identifier_size": "El identificador del sujeto debe tener como máximo 255 caracteres",
+    "lifecycle_reason_max": "El motivo debe tener como máximo 2.000 caracteres"
   },
   "errors": {
     "auth_invalid": "Correo electrónico o contraseña no válidos.",
@@ -2306,6 +2326,30 @@
       "APPROVED": "Aprobado",
       "REJECTED": "Rechazado",
       "REQUESTED_CHANGES": "Cambios solicitados"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Eliminación definitiva",
+      "SOFT_DELETE": "Borrado lógico",
+      "PSEUDONYMIZE": "Seudonimizar"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "SHA-256 con sal",
+      "FORMAT_PRESERVING": "Conserva el formato",
+      "TOKENIZATION": "Tokenización"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "ID de usuario",
+      "EMAIL": "Correo electrónico",
+      "CUSTOM": "Personalizado"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Detectando alcance",
+      "PENDING_REVIEW": "Pendiente de revisión",
+      "APPROVED": "Aprobado",
+      "EXECUTED": "Ejecutado",
+      "REJECTED": "Rechazado",
+      "FAILED": "Fallido",
+      "CANCELLED": "Cancelado"
     }
   },
   "access": {
@@ -2867,5 +2911,90 @@
       "actions": "Acciones"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Políticas de retención",
+      "subtitle_count_one": "{{count}} política",
+      "subtitle_count_other": "{{count}} políticas",
+      "create": "Crear política",
+      "create_modal_title": "Crear política de retención",
+      "create_success": "Política creada",
+      "delete_success": "Política eliminada",
+      "delete_confirm_title": "¿Eliminar política?",
+      "delete_confirm_body": "¿Eliminar permanentemente la política «{{name}}»?",
+      "load_error": "No se pudieron cargar las políticas",
+      "empty_title": "Sin políticas de retención",
+      "empty_description": "Cree una política para retirar datos antiguos automáticamente.",
+      "col_name": "Nombre",
+      "col_target": "Objetivo",
+      "col_action": "Acción",
+      "col_window": "Ventana",
+      "col_enabled": "Estado",
+      "col_actions": "Acciones",
+      "enabled": "Activada",
+      "disabled": "Desactivada",
+      "preview": "Vista previa",
+      "label_datasource": "Fuente de datos",
+      "datasource_placeholder": "Seleccione una fuente de datos",
+      "label_name": "Nombre de la política",
+      "label_description": "Descripción",
+      "label_target_table": "Tabla objetivo",
+      "target_help": "Indique una tabla objetivo y/o una etiqueta de clasificación.",
+      "label_target_columns": "Columnas objetivo",
+      "label_classification_tag": "Etiqueta de clasificación",
+      "label_timestamp_column": "Columna de marca de tiempo",
+      "label_retention_window": "Ventana de retención",
+      "retention_window_help": "Período o duración ISO-8601, p. ej. P30D o P7Y.",
+      "label_action": "Acción",
+      "label_transform": "Transformación",
+      "label_soft_delete_column": "Columna de borrado lógico",
+      "soft_delete_column_help": "Columna marcadora establecida al eliminar (por defecto deleted_at).",
+      "label_enabled": "Activada"
+    },
+    "preview": {
+      "title": "Vista previa de simulación",
+      "total_one": "{{count}} fila estimada en los objetivos",
+      "total_other": "{{count}} filas estimadas en los objetivos",
+      "col_table": "Tabla",
+      "col_method": "Método",
+      "col_rows": "Filas est.",
+      "unknown": "desconocido"
+    },
+    "erasure": {
+      "title": "Derecho al olvido",
+      "subtitle": "Solicite la eliminación de los registros de un interesado.",
+      "label_datasource": "Fuente de datos",
+      "label_subject_type": "Tipo de sujeto",
+      "label_subject_identifier": "Identificador del sujeto",
+      "label_reason": "Motivo",
+      "submit": "Enviar solicitud",
+      "submit_success": "Solicitud de borrado enviada",
+      "cancel": "Cancelar",
+      "cancel_success": "Solicitud cancelada",
+      "mine_title": "Mis solicitudes de borrado",
+      "mine_empty_title": "Sin solicitudes de borrado",
+      "mine_empty_description": "Envíe una solicitud arriba para empezar.",
+      "col_subject": "Sujeto",
+      "col_status": "Estado",
+      "col_created": "Enviada"
+    },
+    "erasure_review": {
+      "title": "Cola de revisión de borrado",
+      "subtitle_count_one": "{{count}} solicitud pendiente de revisión",
+      "subtitle_count_other": "{{count}} solicitudes pendientes de revisión",
+      "load_error": "No se pudo cargar la cola de revisión",
+      "empty_title": "Nada que revisar",
+      "empty_description": "Las solicitudes de borrado pendientes de revisión aparecen aquí.",
+      "col_requested_by": "Solicitado por",
+      "approve": "Aprobar",
+      "approved": "Borrado aprobado",
+      "reject": "Rechazar",
+      "rejected": "Borrado rechazado",
+      "reject_modal_title": "Rechazar solicitud de borrado",
+      "reject_comment_placeholder": "Motivo opcional del rechazo…",
+      "scope_label": "Alcance detectado",
+      "no_scope": "Alcance aún no detectado"
+    }
   }
 }

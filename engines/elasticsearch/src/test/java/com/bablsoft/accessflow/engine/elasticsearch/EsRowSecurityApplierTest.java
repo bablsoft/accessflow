@@ -55,6 +55,12 @@ class EsRowSecurityApplierTest {
     }
 
     @Test
+    void isNullMapsToMustNotExists() {
+        assertThat(filterJson(RowSecurityOperator.IS_NULL))
+                .isEqualTo("{\"bool\":{\"must_not\":{\"exists\":{\"field\":\"tenant\"}}}}");
+    }
+
+    @Test
     void combinesMultipleDirectivesAsSeparateFilterClauses() {
         var applied = applySearch(
                 directive(RowSecurityOperator.EQUALS, "acme"),

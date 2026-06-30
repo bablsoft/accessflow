@@ -110,6 +110,7 @@ class TelegramMessageFactory {
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";
+            case ERASURE_APPROVED -> "🗑️ Data Erasure Approved";
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED -> "🔐 Access Request";
             case API_REQUEST_SUBMITTED -> "🔌 New API Call Awaiting Review";

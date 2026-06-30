@@ -23,6 +23,7 @@ public record ComplianceReportResponse(
         UUID datasourceId,
         List<ClassifiedAccessRow> classifiedAccess,
         List<RegulatoryAuditTrailRow> auditTrail,
+        List<RetentionAdherenceRow> retentionAdherence,
         int rowCount,
         boolean truncated) {
 
@@ -58,6 +59,21 @@ public record ComplianceReportResponse(
             Instant executedAt) {
     }
 
+    public record RetentionAdherenceRow(
+            UUID runId,
+            UUID datasourceId,
+            String datasourceName,
+            String kind,
+            String action,
+            String status,
+            String method,
+            long affectedRows,
+            UUID policyId,
+            UUID deletionRequestId,
+            Instant finishedAt,
+            Instant createdAt) {
+    }
+
     public static ComplianceReportResponse from(ComplianceReport report) {
         var classified = report.classifiedAccess().stream()
                 .map(r -> new ClassifiedAccessRow(
@@ -79,8 +95,14 @@ public record ComplianceReportResponse(
                                 .toList(),
                         r.executedAt()))
                 .toList();
+        var retention = report.retentionAdherence().stream()
+                .map(r -> new RetentionAdherenceRow(
+                        r.runId(), r.datasourceId(), r.datasourceName(), r.kind(), r.action(),
+                        r.status(), r.method(), r.affectedRows(), r.policyId(),
+                        r.deletionRequestId(), r.finishedAt(), r.createdAt()))
+                .toList();
         return new ComplianceReportResponse(report.type(), report.organizationId(),
                 report.periodFrom(), report.periodTo(), report.generatedAt(), report.datasourceId(),
-                classified, trail, report.rowCount(), report.truncated());
+                classified, trail, retention, report.rowCount(), report.truncated());
     }
 }

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.dynamodb;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.engine.dynamodb.PartiQlTokenizer.Kind;
 import com.bablsoft.accessflow.engine.dynamodb.PartiQlTokenizer.Token;
@@ -61,6 +62,11 @@ class DynamoDbRowSecurityApplier {
         boolean denyAll = false;
         for (var directive : matching) {
             policyIds.add(directive.policyId());
+            if (directive.operator() == RowSecurityOperator.IS_NULL) {
+                // Soft-delete read filter (AF-499): PartiQL IS MISSING matches items lacking the attr.
+                fragments.add(escapeIdent(directive.columnName()) + " IS MISSING");
+                continue;
+            }
             if (directive.values().isEmpty()) {
                 denyAll = true;
                 continue;
@@ -82,6 +88,7 @@ class DynamoDbRowSecurityApplier {
     private static String toFragment(RowSecurityDirective directive, List<Object> parameters) {
         var column = escapeIdent(directive.columnName());
         return switch (directive.operator()) {
+            case IS_NULL -> column + " IS MISSING"; // unreachable (handled in apply loop)
             case EQUALS -> bind(column, "=", directive.values().get(0), parameters);
             case NOT_EQUALS -> bind(column, "<>", directive.values().get(0), parameters);
             case LESS_THAN -> bind(column, "<", directive.values().get(0), parameters);

@@ -2472,3 +2472,101 @@ export interface ApiDecisionResponse {
   resulting_status: QueryStatus;
   was_idempotent_replay: boolean;
 }
+
+// ── Data Lifecycle Manager (AF-499) ──────────────────────────────────────────
+
+export type LifecycleAction = 'HARD_DELETE' | 'SOFT_DELETE' | 'PSEUDONYMIZE';
+export type LifecycleTransform = 'SHA256_SALTED' | 'FORMAT_PRESERVING' | 'TOKENIZATION';
+export type LifecycleSubjectType = 'USER_ID' | 'EMAIL' | 'CUSTOM';
+export type ErasureStatus =
+  | 'PENDING_SCOPE_AI'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'EXECUTED'
+  | 'REJECTED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+export interface RetentionPolicy {
+  id: string;
+  organization_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  name: string;
+  description: string | null;
+  target_table: string | null;
+  target_columns: string[];
+  classification_tag: string | null;
+  timestamp_column: string;
+  retention_window: string;
+  action: LifecycleAction;
+  transform_type: LifecycleTransform | null;
+  soft_delete_column: string | null;
+  enabled: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RetentionPolicyPage = PageEnvelope<RetentionPolicy>;
+
+export interface CreateRetentionPolicyRequest {
+  datasource_id: string;
+  name: string;
+  description?: string | null;
+  target_table?: string | null;
+  target_columns?: string[];
+  classification_tag?: string | null;
+  timestamp_column: string;
+  retention_window: string;
+  action: LifecycleAction;
+  transform_type?: LifecycleTransform | null;
+  soft_delete_column?: string | null;
+  enabled?: boolean;
+}
+
+export type UpdateRetentionPolicyRequest = Omit<CreateRetentionPolicyRequest, 'datasource_id'>;
+
+export interface LifecyclePreviewTableImpact {
+  table: string | null;
+  columns: string[];
+  estimated_rows: number;
+  method: string;
+}
+
+export interface LifecyclePreviewResponse {
+  action: LifecycleAction;
+  transform_type: LifecycleTransform | null;
+  total_estimated_rows: number;
+  tables: LifecyclePreviewTableImpact[];
+}
+
+export interface ErasureRequest {
+  id: string;
+  organization_id: string;
+  datasource_id: string;
+  datasource_name: string | null;
+  subject_type: LifecycleSubjectType;
+  subject_identifier: string;
+  status: ErasureStatus;
+  reason: string | null;
+  requested_by: string;
+  requested_by_email: string | null;
+  ai_scope_analysis_id: string | null;
+  scope_snapshot: string | null;
+  estimated_rows: number | null;
+  affected_rows: number | null;
+  executed_at: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ErasureRequestPage = PageEnvelope<ErasureRequest>;
+
+export interface SubmitErasureRequest {
+  datasource_id: string;
+  subject_type: LifecycleSubjectType;
+  subject_identifier: string;
+  reason?: string | null;
+}

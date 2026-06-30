@@ -74,7 +74,10 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Տվյալների կյանքի ցիկլ",
+    "request_erasure": "Հայցել ջնջում",
+    "erasure_review": "Ջնջման վերանայում"
   },
   "auth": {
     "session_expired": "Նիստի ժամկետը լրացել է",
@@ -255,7 +258,24 @@
     "attestation_datasource_required": "Տվյալների աղբյուրով արշավների համար անհրաժեշտ է տվյալների աղբյուր",
     "attestation_scheduled_open_required": "Պլանավորված բացման ժամը պարտադիր է",
     "attestation_due_required": "Վերջնաժամկետը պարտադիր է",
-    "attestation_due_after_open": "Վերջնաժամկետը պետք է լինի պլանավորված բացումից հետո"
+    "attestation_due_after_open": "Վերջնաժամկետը պետք է լինի պլանավորված բացումից հետո",
+    "lifecycle_datasource_required": "Տվյալների աղբյուրը պարտադիր է",
+    "lifecycle_name_required": "Անունը պարտադիր է",
+    "lifecycle_name_size": "Անունը պետք է լինի 3–100 նիշ",
+    "lifecycle_description_max": "Նկարագրությունը առավելագույնը 2000 նիշ",
+    "lifecycle_target_table_size": "Թիրախ աղյուսակը առավելագույնը 255 նիշ",
+    "lifecycle_classification_tag_size": "Դասակարգման պիտակը առավելագույնը 100 նիշ",
+    "lifecycle_timestamp_column_required": "Ժամանակի դրոշմի սյունակը պարտադիր է",
+    "lifecycle_timestamp_column_size": "Ժամանակի դրոշմի սյունակը առավելագույնը 255 նիշ",
+    "lifecycle_retention_window_required": "Պահպանման պատուհանը պարտադիր է",
+    "lifecycle_retention_window_size": "Պահպանման պատուհանը առավելագույնը 50 նիշ",
+    "lifecycle_action_required": "Գործողությունը պարտադիր է",
+    "lifecycle_transform_required": "Կեղծանվանակալման համար փոխակերպումը պարտադիր է",
+    "lifecycle_soft_delete_column_size": "Փափուկ ջնջման սյունակը առավելագույնը 255 նիշ",
+    "lifecycle_subject_type_required": "Սուբյեկտի տեսակը պարտադիր է",
+    "lifecycle_subject_identifier_required": "Սուբյեկտի նույնացուցիչը պարտադիր է",
+    "lifecycle_subject_identifier_size": "Սուբյեկտի նույնացուցիչը առավելագույնը 255 նիշ",
+    "lifecycle_reason_max": "Պատճառը առավելագույնը 2000 նիշ"
   },
   "errors": {
     "auth_invalid": "Անվավեր էլ. փոստ կամ գաղտնաբառ։",
@@ -2306,6 +2326,30 @@
       "APPROVED": "Հաստատված",
       "REJECTED": "Մերժված",
       "REQUESTED_CHANGES": "Փոփոխություններ պահանջված"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Կոշտ ջնջում",
+      "SOFT_DELETE": "Փափուկ ջնջում",
+      "PSEUDONYMIZE": "Կեղծանվանակալում"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "Աղակալած SHA-256",
+      "FORMAT_PRESERVING": "Ձևաչափ պահպանող",
+      "TOKENIZATION": "Թոքենացում"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "Օգտատիրոջ ID",
+      "EMAIL": "Էլ. փոստ",
+      "CUSTOM": "Հատուկ"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Շրջանակի որոշում",
+      "PENDING_REVIEW": "Սպասում է վերանայման",
+      "APPROVED": "Հաստատված",
+      "EXECUTED": "Կատարված",
+      "REJECTED": "Մերժված",
+      "FAILED": "Ձախողված",
+      "CANCELLED": "Չեղարկված"
     }
   },
   "access": {
@@ -2867,5 +2911,90 @@
       "actions": "Գործողություններ"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Պահպանման քաղաքականություններ",
+      "subtitle_count_one": "{{count}} քաղաքականություն",
+      "subtitle_count_other": "{{count}} քաղաքականություն",
+      "create": "Ստեղծել քաղաքականություն",
+      "create_modal_title": "Ստեղծել պահպանման քաղաքականություն",
+      "create_success": "Քաղաքականությունը ստեղծվեց",
+      "delete_success": "Քաղաքականությունը ջնջվեց",
+      "delete_confirm_title": "Ջնջե՞լ քաղաքականությունը",
+      "delete_confirm_body": "Ընդմիշտ ջնջե՞լ «{{name}}» քաղաքականությունը",
+      "load_error": "Չհաջողվեց բեռնել քաղաքականությունները",
+      "empty_title": "Պահպանման քաղաքականություններ չկան",
+      "empty_description": "Ստեղծեք քաղաքականություն՝ հնացած տվյալները ավտոմատ հեռացնելու համար։",
+      "col_name": "Անուն",
+      "col_target": "Թիրախ",
+      "col_action": "Գործողություն",
+      "col_window": "Պատուհան",
+      "col_enabled": "Կարգավիճակ",
+      "col_actions": "Գործողություններ",
+      "enabled": "Միացված",
+      "disabled": "Անջատված",
+      "preview": "Նախադիտում",
+      "label_datasource": "Տվյալների աղբյուր",
+      "datasource_placeholder": "Ընտրեք տվյալների աղբյուր",
+      "label_name": "Քաղաքականության անուն",
+      "label_description": "Նկարագրություն",
+      "label_target_table": "Թիրախ աղյուսակ",
+      "target_help": "Նշեք թիրախ աղյուսակ և/կամ դասակարգման պիտակ։",
+      "label_target_columns": "Թիրախ սյունակներ",
+      "label_classification_tag": "Դասակարգման պիտակ",
+      "label_timestamp_column": "Ժամանակի դրոշմի սյունակ",
+      "label_retention_window": "Պահպանման պատուհան",
+      "retention_window_help": "ISO-8601 ժամանակահատված կամ տևողություն, օր. P30D կամ P7Y։",
+      "label_action": "Գործողություն",
+      "label_transform": "Փոխակերպում",
+      "label_soft_delete_column": "Փափուկ ջնջման սյունակ",
+      "soft_delete_column_help": "Ջնջման ժամանակ սահմանվող նշիչ սյունակ (լռելյայն deleted_at)։",
+      "label_enabled": "Միացված"
+    },
+    "preview": {
+      "title": "Փորձնական նախադիտում",
+      "total_one": "Թիրախներում գնահատվում է {{count}} տող",
+      "total_other": "Թիրախներում գնահատվում է {{count}} տող",
+      "col_table": "Աղյուսակ",
+      "col_method": "Մեթոդ",
+      "col_rows": "Գնահ. տողեր",
+      "unknown": "անհայտ"
+    },
+    "erasure": {
+      "title": "Ջնջման իրավունք",
+      "subtitle": "Հայցեք տվյալների սուբյեկտի գրառումների ջնջումը։",
+      "label_datasource": "Տվյալների աղբյուր",
+      "label_subject_type": "Սուբյեկտի տեսակ",
+      "label_subject_identifier": "Սուբյեկտի նույնացուցիչ",
+      "label_reason": "Պատճառ",
+      "submit": "Ուղարկել հարցումը",
+      "submit_success": "Ջնջման հարցումը ուղարկվեց",
+      "cancel": "Չեղարկել",
+      "cancel_success": "Հարցումը չեղարկվեց",
+      "mine_title": "Իմ ջնջման հարցումները",
+      "mine_empty_title": "Ջնջման հարցումներ չկան",
+      "mine_empty_description": "Սկսելու համար վերևում ուղարկեք հարցում։",
+      "col_subject": "Սուբյեկտ",
+      "col_status": "Կարգավիճակ",
+      "col_created": "Ուղարկված"
+    },
+    "erasure_review": {
+      "title": "Ջնջման վերանայման հերթ",
+      "subtitle_count_one": "{{count}} հարցում սպասում է վերանայման",
+      "subtitle_count_other": "{{count}} հարցում սպասում է վերանայման",
+      "load_error": "Չհաջողվեց բեռնել վերանայման հերթը",
+      "empty_title": "Վերանայելու բան չկա",
+      "empty_description": "Վերանայման սպասող ջնջման հարցումները հայտնվում են այստեղ։",
+      "col_requested_by": "Հայցողը",
+      "approve": "Հաստատել",
+      "approved": "Ջնջումը հաստատվեց",
+      "reject": "Մերժել",
+      "rejected": "Ջնջումը մերժվեց",
+      "reject_modal_title": "Մերժել ջնջման հարցումը",
+      "reject_comment_placeholder": "Մերժման ոչ պարտադիր պատճառ…",
+      "scope_label": "Հայտնաբերված շրջանակ",
+      "no_scope": "Շրջանակը դեռ հայտնաբերված չէ"
+    }
   }
 }

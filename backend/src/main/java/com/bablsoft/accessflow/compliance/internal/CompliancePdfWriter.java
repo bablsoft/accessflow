@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.compliance.api.ClassifiedAccessReportRow;
 import com.bablsoft.accessflow.compliance.api.ComplianceReport;
 import com.bablsoft.accessflow.compliance.api.MatchedClassification;
 import com.bablsoft.accessflow.compliance.api.RegulatoryAuditTrailRow;
+import com.bablsoft.accessflow.compliance.api.RetentionAdherenceReportRow;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -50,6 +51,7 @@ class CompliancePdfWriter {
             switch (report.type()) {
                 case CLASSIFIED_ACCESS -> drawClassifiedAccess(canvas, report.classifiedAccess());
                 case REGULATORY_AUDIT_TRAIL -> drawAuditTrail(canvas, report.auditTrail());
+                case RETENTION_ADHERENCE -> drawRetentionAdherence(canvas, report.retentionAdherence());
             }
             canvas.close();
             doc.save(out);
@@ -63,6 +65,7 @@ class CompliancePdfWriter {
         var title = switch (report.type()) {
             case CLASSIFIED_ACCESS -> "Compliance Report - Classified Data Access";
             case REGULATORY_AUDIT_TRAIL -> "Compliance Report - Regulatory Audit Trail";
+            case RETENTION_ADHERENCE -> "Compliance Report - Retention Adherence";
         };
         c.text(bold, TITLE_SIZE, MARGIN, title);
         c.advance(TITLE_SIZE + 6f);
@@ -100,6 +103,22 @@ class CompliancePdfWriter {
                     str(row.executedAt()), nullToEmpty(row.datasourceName()),
                     nullToEmpty(row.submitterEmail()), str(row.queryType()),
                     nullToEmpty(row.sqlText()), formatApprovers(row.approvers())));
+        }
+        drawTable(c, headers, weights, data);
+    }
+
+    private void drawRetentionAdherence(Canvas c, List<RetentionAdherenceReportRow> rows)
+            throws IOException {
+        var headers = List.of("Created At", "Datasource", "Kind", "Action", "Status", "Method",
+                "Rows");
+        float[] weights = {2f, 2.5f, 1.5f, 1.5f, 1.5f, 2.5f, 1f};
+        var data = new ArrayList<List<String>>();
+        for (var row : rows) {
+            data.add(List.of(
+                    str(row.createdAt()), nullToEmpty(row.datasourceName()),
+                    nullToEmpty(row.kind()), nullToEmpty(row.action()),
+                    nullToEmpty(row.status()), nullToEmpty(row.method()),
+                    str(row.affectedRows())));
         }
         drawTable(c, headers, weights, data);
     }

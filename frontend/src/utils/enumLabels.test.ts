@@ -7,6 +7,10 @@ import {
   anomalyStatusLabel,
   breakGlassStatusLabel,
   commentStatusLabel,
+  erasureStatusLabel,
+  lifecycleActionLabel,
+  lifecycleSubjectTypeLabel,
+  lifecycleTransformLabel,
   optimizationTypeLabel,
   queryTemplateChangeLabel,
   reviewDecisionTypeLabel,
@@ -80,5 +84,16 @@ describe('anomalyStatusLabel', () => {
     expect(anomalyStatusLabel(t, 'OPEN')).toBe('enums.behavior_anomaly_status.OPEN');
     expect(anomalyStatusLabel(t, 'ACKNOWLEDGED')).toBe('enums.behavior_anomaly_status.ACKNOWLEDGED');
     expect(anomalyStatusLabel(t, 'DISMISSED')).toBe('enums.behavior_anomaly_status.DISMISSED');
+  });
+});
+
+describe('lifecycle enum labels', () => {
+  it('maps lifecycle action / transform / subject-type / erasure status to enum keys', () => {
+    expect(lifecycleActionLabel(t, 'SOFT_DELETE')).toBe('enums.lifecycle_action.SOFT_DELETE');
+    expect(lifecycleTransformLabel(t, 'SHA256_SALTED')).toBe(
+      'enums.lifecycle_transform.SHA256_SALTED',
+    );
+    expect(lifecycleSubjectTypeLabel(t, 'EMAIL')).toBe('enums.lifecycle_subject_type.EMAIL');
+    expect(erasureStatusLabel(t, 'PENDING_REVIEW')).toBe('enums.erasure_status.PENDING_REVIEW');
   });
 });

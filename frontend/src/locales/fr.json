@@ -74,7 +74,10 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews"
+    "apiReviews": "API Reviews",
+    "lifecycle": "Cycle de vie des données",
+    "request_erasure": "Demander l’effacement",
+    "erasure_review": "Revue des effacements"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -255,7 +258,24 @@
     "attestation_datasource_required": "Une source de données est requise pour les campagnes par source de données",
     "attestation_scheduled_open_required": "L’heure d’ouverture planifiée est requise",
     "attestation_due_required": "L’heure d’échéance est requise",
-    "attestation_due_after_open": "L’heure d’échéance doit être postérieure à l’ouverture planifiée"
+    "attestation_due_after_open": "L’heure d’échéance doit être postérieure à l’ouverture planifiée",
+    "lifecycle_datasource_required": "La source de données est obligatoire",
+    "lifecycle_name_required": "Le nom est obligatoire",
+    "lifecycle_name_size": "Le nom doit comporter 3 à 100 caractères",
+    "lifecycle_description_max": "La description ne doit pas dépasser 2 000 caractères",
+    "lifecycle_target_table_size": "La table cible ne doit pas dépasser 255 caractères",
+    "lifecycle_classification_tag_size": "L’étiquette de classification ne doit pas dépasser 100 caractères",
+    "lifecycle_timestamp_column_required": "La colonne d’horodatage est obligatoire",
+    "lifecycle_timestamp_column_size": "La colonne d’horodatage ne doit pas dépasser 255 caractères",
+    "lifecycle_retention_window_required": "La fenêtre de rétention est obligatoire",
+    "lifecycle_retention_window_size": "La fenêtre de rétention ne doit pas dépasser 50 caractères",
+    "lifecycle_action_required": "L’action est obligatoire",
+    "lifecycle_transform_required": "La transformation est requise pour la pseudonymisation",
+    "lifecycle_soft_delete_column_size": "La colonne de suppression logique ne doit pas dépasser 255 caractères",
+    "lifecycle_subject_type_required": "Le type de sujet est obligatoire",
+    "lifecycle_subject_identifier_required": "L’identifiant du sujet est obligatoire",
+    "lifecycle_subject_identifier_size": "L’identifiant du sujet ne doit pas dépasser 255 caractères",
+    "lifecycle_reason_max": "Le motif ne doit pas dépasser 2 000 caractères"
   },
   "errors": {
     "auth_invalid": "E-mail ou mot de passe invalide.",
@@ -2306,6 +2326,30 @@
       "APPROVED": "Approuvé",
       "REJECTED": "Rejeté",
       "REQUESTED_CHANGES": "Modifications demandées"
+    },
+    "lifecycle_action": {
+      "HARD_DELETE": "Suppression définitive",
+      "SOFT_DELETE": "Suppression logique",
+      "PSEUDONYMIZE": "Pseudonymiser"
+    },
+    "lifecycle_transform": {
+      "SHA256_SALTED": "SHA-256 salé",
+      "FORMAT_PRESERVING": "Préservant le format",
+      "TOKENIZATION": "Tokenisation"
+    },
+    "lifecycle_subject_type": {
+      "USER_ID": "ID utilisateur",
+      "EMAIL": "E-mail",
+      "CUSTOM": "Personnalisé"
+    },
+    "erasure_status": {
+      "PENDING_SCOPE_AI": "Détection de la portée",
+      "PENDING_REVIEW": "En attente de revue",
+      "APPROVED": "Approuvé",
+      "EXECUTED": "Exécuté",
+      "REJECTED": "Rejeté",
+      "FAILED": "Échoué",
+      "CANCELLED": "Annulé"
     }
   },
   "access": {
@@ -2867,5 +2911,90 @@
       "actions": "Actions"
     },
     "error": "Something went wrong"
+  },
+  "lifecycle": {
+    "policies": {
+      "title": "Politiques de rétention",
+      "subtitle_count_one": "{{count}} politique",
+      "subtitle_count_other": "{{count}} politiques",
+      "create": "Créer une politique",
+      "create_modal_title": "Créer une politique de rétention",
+      "create_success": "Politique créée",
+      "delete_success": "Politique supprimée",
+      "delete_confirm_title": "Supprimer la politique ?",
+      "delete_confirm_body": "Supprimer définitivement la politique « {{name}} » ?",
+      "load_error": "Impossible de charger les politiques",
+      "empty_title": "Aucune politique de rétention",
+      "empty_description": "Créez une politique pour retirer automatiquement les données anciennes.",
+      "col_name": "Nom",
+      "col_target": "Cible",
+      "col_action": "Action",
+      "col_window": "Fenêtre",
+      "col_enabled": "Statut",
+      "col_actions": "Actions",
+      "enabled": "Activée",
+      "disabled": "Désactivée",
+      "preview": "Aperçu",
+      "label_datasource": "Source de données",
+      "datasource_placeholder": "Sélectionnez une source de données",
+      "label_name": "Nom de la politique",
+      "label_description": "Description",
+      "label_target_table": "Table cible",
+      "target_help": "Indiquez une table cible et/ou une étiquette de classification.",
+      "label_target_columns": "Colonnes cibles",
+      "label_classification_tag": "Étiquette de classification",
+      "label_timestamp_column": "Colonne d’horodatage",
+      "label_retention_window": "Fenêtre de rétention",
+      "retention_window_help": "Période ou durée ISO-8601, p. ex. P30D ou P7Y.",
+      "label_action": "Action",
+      "label_transform": "Transformation",
+      "label_soft_delete_column": "Colonne de suppression logique",
+      "soft_delete_column_help": "Colonne marqueur définie à la suppression (par défaut deleted_at).",
+      "label_enabled": "Activée"
+    },
+    "preview": {
+      "title": "Aperçu à blanc",
+      "total_one": "{{count}} ligne estimée sur les cibles",
+      "total_other": "{{count}} lignes estimées sur les cibles",
+      "col_table": "Table",
+      "col_method": "Méthode",
+      "col_rows": "Lignes est.",
+      "unknown": "inconnu"
+    },
+    "erasure": {
+      "title": "Droit à l’effacement",
+      "subtitle": "Demandez la suppression des données d’une personne concernée.",
+      "label_datasource": "Source de données",
+      "label_subject_type": "Type de sujet",
+      "label_subject_identifier": "Identifiant du sujet",
+      "label_reason": "Motif",
+      "submit": "Envoyer la demande",
+      "submit_success": "Demande d’effacement envoyée",
+      "cancel": "Annuler",
+      "cancel_success": "Demande annulée",
+      "mine_title": "Mes demandes d’effacement",
+      "mine_empty_title": "Aucune demande d’effacement",
+      "mine_empty_description": "Envoyez une demande ci-dessus pour commencer.",
+      "col_subject": "Sujet",
+      "col_status": "Statut",
+      "col_created": "Soumise"
+    },
+    "erasure_review": {
+      "title": "File de revue des effacements",
+      "subtitle_count_one": "{{count}} demande en attente de revue",
+      "subtitle_count_other": "{{count}} demandes en attente de revue",
+      "load_error": "Impossible de charger la file de revue",
+      "empty_title": "Rien à examiner",
+      "empty_description": "Les demandes d’effacement à examiner apparaissent ici.",
+      "col_requested_by": "Demandé par",
+      "approve": "Approuver",
+      "approved": "Effacement approuvé",
+      "reject": "Rejeter",
+      "rejected": "Effacement rejeté",
+      "reject_modal_title": "Rejeter la demande d’effacement",
+      "reject_comment_placeholder": "Motif facultatif du rejet…",
+      "scope_label": "Portée détectée",
+      "no_scope": "Portée pas encore détectée"
+    }
   }
 }

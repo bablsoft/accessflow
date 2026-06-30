@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
+import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -51,6 +52,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.Set;
 import java.util.UUID;
 
@@ -69,6 +71,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final RowSecurityResolutionService rowSecurityResolutionService;
+    private final LifecycleDirectiveResolutionService lifecycleDirectiveResolutionService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final AuditLogService auditLogService;
@@ -156,20 +159,34 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                     .findFor(query.submittedByUserId(), query.datasourceId())
                     .map(p -> p.restrictedColumns())
                     .orElse(List.of());
-            var columnMasks = maskingPolicyResolutionService
+            var maskingDirectives = maskingPolicyResolutionService
                     .resolveApplicable(query.organizationId(), query.datasourceId(),
                             query.submittedByUserId())
                     .stream()
                     .map(m -> new ColumnMaskDirective(m.columnRef(), m.strategy(), m.params(),
                             m.policyId()))
                     .toList();
-            var rowSecurityPredicates = rowSecurityResolutionService
+            // Read-time pseudonymization (AF-499): enabled PSEUDONYMIZE retention policies contribute
+            // additional column-mask directives, applied post-fetch by the same masker.
+            var lifecycleMasks = lifecycleDirectiveResolutionService
+                    .resolveColumnMasks(query.organizationId(), query.datasourceId());
+            var columnMasks = Stream.concat(maskingDirectives.stream(), lifecycleMasks.stream())
+                    .toList();
+            var policyPredicates = rowSecurityResolutionService
                     .resolveApplicable(query.organizationId(), query.datasourceId(),
                             query.submittedByUserId())
                     .stream()
                     .map(p -> new RowSecurityDirective(p.policyId(), p.tableRef(), p.columnName(),
                             p.operator(), p.values()))
                     .toList();
+            // Soft-delete (AF-499): read filters (marker IS NULL) join the row-security predicates;
+            // the soft-delete directives drive the DELETE → UPDATE rewrite in the proxy.
+            var softDeleteFilters = lifecycleDirectiveResolutionService
+                    .resolveSoftDeleteFilters(query.organizationId(), query.datasourceId());
+            var rowSecurityPredicates = Stream.concat(policyPredicates.stream(),
+                    softDeleteFilters.stream()).toList();
+            var softDeletes = lifecycleDirectiveResolutionService
+                    .resolveSoftDeletes(query.organizationId(), query.datasourceId());
             var dbType = datasourceLookupService.findById(query.datasourceId())
                     .map(DatasourceConnectionDescriptor::dbType)
                     .orElse(DbType.POSTGRESQL);
@@ -177,7 +194,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
                     restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
-                    parsed.statements()));
+                    parsed.statements(), softDeletes));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;

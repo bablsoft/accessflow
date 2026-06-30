@@ -672,6 +672,9 @@ for deployment recipes (Docker Compose, Helm).
 /admin/anomalies                    → AnomaliesPage (lazy; AUDITOR or ADMIN — behavioural anomaly detection / UBA, AF-383)
 /admin/attestation                  → CampaignListPage (lazy; ADMIN — access-recertification campaign list + create, AF-384)
 /admin/attestation/:id              → CampaignDetailPage (lazy; ADMIN — campaign items + open/cancel + evidence CSV export, AF-384)
+/admin/lifecycle/policies           → LifecyclePoliciesListPage (lazy; ADMIN — retention-policy list + create + delete + dry-run preview, AF-499)
+/admin/lifecycle/erasure            → ErasureReviewQueuePage (lazy; ADMIN — right-to-erasure review queue, optimistic approve/reject + scope snapshot, AF-499)
+/lifecycle/erasure                  → ErasureSubmitPage (lazy; any authenticated — self-service erasure request submit + my-requests list with cancel, AF-499)
 /admin/ai-configs                   → AiConfigListPage
 /admin/ai-configs/new               → AiConfigCreateWizardPage (3-step wizard; connection step includes the optional system-prompt editor + RAG section)
 /admin/ai-configs/:id               → AiConfigEditPage (edit connection + the per-config system prompt + RAG knowledge base)

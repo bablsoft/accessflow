@@ -953,6 +953,8 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `AttestationCampaignCloseJob` | attestation | `attestationCampaignCloseJob` | `accessflow.attestation.close-poll-interval` | `PT5M` |
 | `ApiRequestRunJob` | apigov | `apiRequestRunJob` | `accessflow.apigov.scheduled-run-poll-interval` | `PT1M` |
 | `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
+| `RetentionPolicyScanJob` | lifecycle | `retentionPolicyScanJob` | `accessflow.lifecycle.policy-scan-interval` | `PT1H` |
+| `ErasureExecutionJob` | lifecycle | `erasureExecutionJob` | `accessflow.lifecycle.erasure-execution-interval` | `PT1M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1000,7 +1002,77 @@ beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) w
 
 `BehaviorAnomalyDetectionJob` implements behavioural anomaly detection (UBA, AF-383): each tick it advances each `(user, datasource)` baseline watermark over the configured `accessflow.ai.anomaly.lookback-window`, aggregating new windows from `audit_log` metadata (never query result data) into `behavior_baseline`, then runs statistical detection on the freshest window and inserts `behavior_anomaly` rows for out-of-pattern features. It swallows per-row `RuntimeException`s so one bad principal cannot abort the batch. See [§ Behavioural anomaly detection (UBA)](#behavioural-anomaly-detection-uba-af-383).
 
+`RetentionPolicyScanJob` implements the retention scan (AF-499, the `lifecycle` module): each tick it loads enabled `retention_policies`, computes eligibility per policy via the proxy's non-committing dry-run (`LifecyclePreviewCalculator`), and stages a `lifecycle_runs` row (`STAGED`) for each policy with eligible rows and no pending run yet. It is idempotent (a policy with an existing `STAGED` run is skipped) and swallows per-policy `RuntimeException`s so one bad policy cannot abort the batch. Each cycle publishes a `LifecycleScanCompletedEvent` consumed by the notifications module.
+
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
+
+---
+
+## Data Lifecycle Manager (AF-499)
+
+The `lifecycle` module (`com.bablsoft.accessflow.lifecycle`) governs **data lifecycle** — retention and
+right-to-erasure — atop the existing access-governance primitives. It depends only on `core.api`,
+`audit.api`, `scheduling.api`, and `proxy.api` exposed interfaces.
+
+**Retention policies.** An admin declares a per-datasource `retention_policies` row targeting a
+table / column-set / classification tag, a retention window (ISO-8601 period/duration) measured
+against a timestamp column, and an action (`HARD_DELETE` / `SOFT_DELETE` / `PSEUDONYMIZE` — the last
+carrying a `lifecycle_transform`). CRUD lives at `/api/v1/lifecycle/policies` (`RetentionPolicyService`
+→ `DefaultRetentionPolicyService`, ADMIN-gated). `POST …/{id}/preview` returns the dry-run impact
+(matched tables, best-effort estimated rows via `proxy.api.QueryDryRunService`, method) without
+executing. `RetentionPolicyScanJob` stages eligible runs (see [§ Scheduled jobs](#scheduled-jobs-and-clustering)).
+
+**Right-to-erasure.** `deletion_requests` flow an erasure state machine
+(`PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED`, + `REJECTED`/`FAILED`/`CANCELLED`) mirroring
+the query-review lifecycle, with async scope detection (`ErasureScopeAnalyzer`, the AI plug-in point)
+and human approval (submitter can never self-approve).
+
+**Read-time pseudonymization (proxy-enforced).** `LifecycleDirectiveResolutionService`
+(`lifecycle.api`, depended on by `workflow`) turns each enabled `PSEUDONYMIZE` retention policy into
+post-fetch `ColumnMaskDirective`s — one per target column — which `DefaultQueryLifecycleService` merges
+alongside the masking-policy directives before execution, so the shared `core.api.ColumnMasker`
+applies them. The `LifecycleTransform` maps onto the masker: `SHA256_SALTED` / `TOKENIZATION` → a
+salted SHA-256 (the per-org salt is added via a new optional `salt` param on the `HASH` strategy — a
+backward-compatible extension; `TOKENIZATION` uses a `tok:`-prefixed salt to stay distinguishable),
+`FORMAT_PRESERVING` → the format-preserving strategy. The per-org salt is owned by `LifecycleSaltService`
+(lazily created, AES-256-GCM encrypted in `lifecycle_salt`, rotatable — rotation bumps `version` while
+previously hashed values stay hashed). Because masking preserves row presence, counts/aggregates
+survive while PII is irreversibly transformed.
+
+**Soft-delete enforcement (proxy-enforced).** Each enabled `SOFT_DELETE` retention policy contributes,
+through the same `LifecycleDirectiveResolutionService`, (1) a read filter — an `IS_NULL`
+`RowSecurityDirective` on the marker column (default `deleted_at`, overridable per policy) merged into
+the row-security predicates so soft-deleted rows are invisible to SELECT/UPDATE/DELETE — and (2) a
+`SoftDeleteDirective` carried on the `QueryExecutionRequest`. The `RowSecurityRewriter` rewrites a plain
+`DELETE FROM t [WHERE …]` against a soft-delete target into `UPDATE t SET <marker> = CURRENT_TIMESTAMP …`
+before injecting the row-security predicates (so the soft-delete `UPDATE` is itself scoped to live
+rows); `DELETE … USING` / multi-table deletes are rejected fail-closed
+(`UnrewritableRowSecurityException`, 422). `IS_NULL` is a new unary `RowSecurityOperator` that binds no
+parameter — it is never persisted by row-security policies, only synthesised here.
+
+**Retention-adherence compliance report.** A `ComplianceReportType.RETENTION_ADHERENCE` joins the
+compliance suite: `DefaultComplianceReportService` reads `lifecycle_runs` over the period through the
+`lifecycle.api.LifecycleRunLookupService` (compliance → lifecycle.api, acyclic) and renders the
+deletion-history rows to the existing signed PDF/CSV export. Served at
+`GET /admin/compliance/reports/retention-adherence` (+ the generic signed `…/export?type=…`).
+
+**Lifecycle notifications.** Approving an erasure publishes `ErasureRequestApprovedEvent`; the
+notifications module's `NotificationListener` consumes it and dispatches an `ERASURE_APPROVED`
+notification to the submitter over their chat + in-app channels (`buildLifecycleErasure` resolves the
+submitter as the recipient). notifications → lifecycle.events only (acyclic).
+
+**Approved-erasure execution.** `ErasureExecutionJob` (clustered-safe; see
+[§ Scheduled jobs](#scheduled-jobs-and-clustering)) picks up `APPROVED` requests and runs
+`ErasureExecutionService.execute`: for each table in the immutable scope snapshot it issues a
+governed `DELETE FROM <table>` through `proxy.api.QueryExecutor`, scoping it to the subject with a
+**parameter-bound** `RowSecurityDirective` (`<subjectColumn> = <subjectIdentifier>` — the value is
+bound, never concatenated; the table is validated as a simple identifier). The datasource's
+`SOFT_DELETE` policies turn matching DELETEs into marker updates automatically (reusing the proxy
+rewrite). It writes a `lifecycle_runs` row + a tamper-evident `DATA_ERASURE_COMPLETED`
+proof-of-deletion audit row (affected rows, tables, method), then transitions the request to
+`EXECUTED` (or `FAILED` with the offending tables). Per-table failures are isolated so one bad table
+fails only that request. The subject-linking column is currently derived from `subject_type`
+(`EMAIL`→`email`, `USER_ID`→`user_id`); AI-assisted per-table column detection is a follow-up.
 
 ---
 

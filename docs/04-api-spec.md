@@ -4404,6 +4404,60 @@ secrets themselves are never returned.
 | `POST` | `/api-reviews/{id}/approve` | **Reviewer/Admin.** Approve (`{comment?}`). The submitter can never self-approve. |
 | `POST` | `/api-reviews/{id}/reject` | **Reviewer/Admin.** Reject (`{comment?}`). |
 
+## Data Lifecycle Manager (AF-499)
+
+Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated** and org-scoped.
+
+### Retention policies
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/lifecycle/policies` | **Admin.** List retention policies. Paginated (`page`, `size`). |
+| `GET` | `/lifecycle/policies/{id}` | **Admin.** Get a single policy. `404 RETENTION_POLICY_NOT_FOUND`. |
+| `POST` | `/lifecycle/policies` | **Admin.** Create a policy. `201`. Body: `{datasourceId, name, description?, targetTable?, targetColumns?, classificationTag?, timestampColumn, retentionWindow, action, transformType?, softDeleteColumn?, enabled?}`. `400 INVALID_RETENTION_POLICY` (`reason`: `NO_TARGET`/`TRANSFORM_REQUIRED`/`TRANSFORM_NOT_ALLOWED`/`INVALID_WINDOW`). |
+| `PUT` | `/lifecycle/policies/{id}` | **Admin.** Update a policy. `200`. Same body (no `datasourceId`). |
+| `DELETE` | `/lifecycle/policies/{id}` | **Admin.** Delete a policy. `204`. |
+| `POST` | `/lifecycle/policies/{id}/preview` | **Admin.** Dry-run impact (matched tables, best-effort estimated rows via the proxy's non-committing dry-run, method) **without executing**. `200`. |
+
+`action` ∈ `HARD_DELETE`/`SOFT_DELETE`/`PSEUDONYMIZE`; `transformType` ∈
+`SHA256_SALTED`/`FORMAT_PRESERVING`/`TOKENIZATION` (required iff `PSEUDONYMIZE`); `retentionWindow`
+is an ISO-8601 period (`P7Y`, `P30D`) or duration (`PT720H`).
+
+### Right-to-erasure (deletion requests)
+
+Self-service (any authenticated user):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/lifecycle/erasure-requests` | Submit an erasure request. `202` (AI scope detection runs async → `PENDING_REVIEW`). Body: `{datasourceId, subjectType, subjectIdentifier, reason?}`. `subjectType` ∈ `USER_ID`/`EMAIL`/`CUSTOM`. |
+| `GET` | `/lifecycle/erasure-requests` | List the caller's own requests. Paginated. |
+| `GET` | `/lifecycle/erasure-requests/{id}` | Get one of the caller's requests. `404 DELETION_REQUEST_NOT_FOUND`. |
+| `POST` | `/lifecycle/erasure-requests/{id}/cancel` | Cancel while `PENDING_SCOPE_AI`/`PENDING_REVIEW`. `204`. `409 DELETION_REQUEST_INVALID_STATE`. |
+
+Admin review queue (ADMIN):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/lifecycle/erasure-requests` | List `PENDING_REVIEW` requests, excluding the caller's own. Paginated. |
+| `POST` | `/admin/lifecycle/erasure-requests/{id}/approve` | Approve (`{comment?}`) → `APPROVED`. The submitter can never self-approve (`403 DELETION_REQUEST_SELF_APPROVAL`). |
+| `POST` | `/admin/lifecycle/erasure-requests/{id}/reject` | Reject (`{comment?}`) → `REJECTED`. |
+
+State machine: `PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED` (+ `REJECTED`, `FAILED`,
+`CANCELLED`).
+
+### Retention-adherence compliance report
+
+A `RETENTION_ADHERENCE` report type joins the existing compliance suite (proof of data retirement over
+`lifecycle_runs`):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/compliance/reports/retention-adherence` | **Auditor/Admin.** Lifecycle runs (retention + erasure actions) over `[from, to)` on the run's `created_at`, optional `datasourceId` scope. |
+| `GET` | `/admin/compliance/reports/export?type=RETENTION_ADHERENCE&format=PDF\|CSV` | Signed PDF/CSV export (RS256 over `JWT_PRIVATE_KEY`), same as the other report types. |
+
+Rows carry `runId, datasourceId/name, kind, action, status, method, affectedRows, policyId,
+deletionRequestId, finishedAt, createdAt`.
+
 ## Error Codes (`error` property on `ProblemDetail`)
 
 The following codes are returned in addition to the per-endpoint codes documented above:

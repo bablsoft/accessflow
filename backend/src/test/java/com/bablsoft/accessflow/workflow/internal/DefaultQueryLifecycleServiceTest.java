@@ -85,6 +85,7 @@ class DefaultQueryLifecycleServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock MaskingPolicyResolutionService maskingPolicyResolutionService;
     @Mock RowSecurityResolutionService rowSecurityResolutionService;
+    @Mock com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService lifecycleDirectiveResolutionService;
     @Mock AiAnalysisLookupService aiAnalysisLookupService;
     @Mock AiAnalysisPersistenceService aiAnalysisPersistenceService;
     @Mock AuditLogService auditLogService;
@@ -112,6 +113,7 @@ class DefaultQueryLifecycleServiceTest {
                 permissionLookupService,
                 maskingPolicyResolutionService,
                 rowSecurityResolutionService,
+                lifecycleDirectiveResolutionService,
                 aiAnalysisLookupService,
                 aiAnalysisPersistenceService,
                 auditLogService,

@@ -41,7 +41,9 @@ public enum AuditResourceType {
     ATTESTATION_CAMPAIGN("attestation_campaign"),
     ATTESTATION_ITEM("attestation_item"),
     API_CONNECTOR("api_connector"),
-    API_REQUEST("api_request");
+    API_REQUEST("api_request"),
+    RETENTION_POLICY("retention_policy"),
+    DELETION_REQUEST("deletion_request");
 
     private final String dbValue;
 
