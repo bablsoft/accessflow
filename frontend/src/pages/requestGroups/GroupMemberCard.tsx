@@ -90,6 +90,8 @@ export function GroupMemberCard({
               <Select
                 style={{ width: '100%' }}
                 disabled={readOnly}
+                showSearch
+                optionFilterProp="label"
                 placeholder={t('requestGroups.builder.selectDatasource')}
                 value={member.datasourceId ?? undefined}
                 onChange={(v) => onChange({ ...member, datasourceId: v })}
@@ -120,6 +122,8 @@ export function GroupMemberCard({
               <Select
                 style={{ width: '100%' }}
                 disabled={readOnly}
+                showSearch
+                optionFilterProp="label"
                 placeholder={t('requestGroups.builder.selectConnector')}
                 value={member.connectorId ?? undefined}
                 onChange={(v) => onChange({ ...member, connectorId: v })}

@@ -54,7 +54,11 @@ async function pickDatasourceForStep(
   ds: CreatedDatasource,
 ): Promise<void> {
   const card = page.getByTestId(`group-member-${stepIndex}`);
-  await card.getByRole('combobox').first().click();
+  // The datasource Select is searchable: type the name to filter the (virtualized, org-wide) list
+  // down to our datasource so the option is rendered before we click it.
+  const combo = card.getByRole('combobox').first();
+  await combo.click();
+  await combo.fill(ds.name);
   await page.locator('.ant-select-item-option').filter({ hasText: ds.name }).click();
   await page.keyboard.press('Escape');
 }
