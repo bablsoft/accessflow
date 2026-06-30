@@ -56,17 +56,26 @@ async function pickDatasourceForStep(
   const card = page.getByTestId(`group-member-${stepIndex}`);
   // The datasource Select is searchable: type the name to filter the (virtualized, org-wide) list
   // down to our datasource so the option is rendered before we click it.
-  const combo = card.getByRole('combobox').first();
-  await combo.click();
-  // Type the full name to filter the (virtualized, org-wide) list down to our datasource, then
-  // select the highlighted match with Enter. Clicking the option is unreliable here: AntD's
-  // rc-virtual-list renders a hidden duplicate "measure" node, so a text locator resolves to two
-  // elements (one invisible). Enter sidesteps both the strict-mode and visibility issues.
-  await combo.fill(ds.name);
-  await expect(
-    page.locator('.ant-select-item-option').filter({ hasText: ds.name }).first(),
-  ).toBeAttached();
-  await combo.press('Enter');
+  // The datasource Select carries showSearch + optionFilterProp="label". The e2e org accumulates
+  // dozens of datasources, which AntD virtualizes, so the desired option is only DOM-resident after
+  // typing the label narrows the list. Mirror the proven helper in admin-audit-log.spec.ts: fill the
+  // wrapper's search input, then click the exact-label option.
+  const select = card.locator('.ant-select').first();
+  await select.scrollIntoViewIfNeeded();
+  await select.click();
+  const input = select.locator('input');
+  await input.fill(ds.name);
+  // Wait for the filtered option to render in the open dropdown, then keyboard-select it. Clicking
+  // the row is unreliable: AntD's rc-virtual-list renders a hidden duplicate "measure" node, and for
+  // a lower card the dropdown is still animating into place (Playwright reports "not stable"). Enter
+  // selects the highlighted match cleanly.
+  await page
+    .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')
+    .filter({ hasText: new RegExp(`^${ds.name}$`) })
+    .first()
+    .waitFor();
+  await input.press('ArrowDown');
+  await input.press('Enter');
 }
 
 // Approve the group through a reviewer token that is NOT the submitter (self-approval is blocked).

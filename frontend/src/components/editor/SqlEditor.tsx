@@ -57,6 +57,13 @@ export function SqlEditor({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
 
+  // The editor view is rebuilt only on schema/dbType/syntax/readOnly changes, so its update
+  // listener would otherwise close over a stale `onChange`. Route every change through a ref so the
+  // listener always invokes the latest callback — critical when the parent's onChange spreads other
+  // live state (e.g. a request-group member's datasourceId) that a stale closure would clobber.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -129,7 +136,7 @@ export function SqlEditor({
       ]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
-          onChange(update.state.doc.toString());
+          onChangeRef.current(update.state.doc.toString());
         }
       }),
       EditorView.editable.of(!readOnly),
