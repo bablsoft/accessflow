@@ -150,7 +150,7 @@ test.describe('request groups (AF-501)', () => {
     // Builder: add two database-query steps.
     await page.goto('/request-groups/new');
     const groupName = `E2E Group ${Date.now()}`;
-    await page.getByLabel('Name', { exact: true }).fill(groupName);
+    await page.locator('#group-name-input').fill(groupName);
 
     const addStep = page.getByRole('button', { name: 'Add step' });
     await addStep.click();

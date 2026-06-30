@@ -181,6 +181,7 @@ export default function GroupBuilderPage() {
                 help={name && !nameValid ? t('requestGroups.builder.nameRule') : undefined}
               >
                 <Input
+                  id="group-name-input"
                   value={name}
                   maxLength={255}
                   onChange={(e) => setName(e.target.value)}
