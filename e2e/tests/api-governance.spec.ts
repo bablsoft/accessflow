@@ -99,10 +99,11 @@ test('API editor shows the Postman-style composer and scheduling (#517)', async 
   await expect(page.getByRole('tab', { name: 'Headers' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Body' })).toBeVisible();
 
-  // Body tab offers the raw / form-data / x-www-form-urlencoded / binary modes.
+  // Body tab offers the raw / form-data / x-www-form-urlencoded / binary modes. AntD button-style
+  // radios hide the underlying <input>, so assert the visible option labels instead of the role.
   await page.getByRole('tab', { name: 'Body' }).click();
-  await expect(page.getByRole('radio', { name: 'Form data' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'Binary' })).toBeVisible();
+  await expect(page.getByText('Form data', { exact: true })).toBeVisible();
+  await expect(page.getByText('Binary', { exact: true })).toBeVisible();
 
   // Scheduled-run control is present.
   await expect(page.getByText('Schedule for later')).toBeVisible();
