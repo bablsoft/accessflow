@@ -65,5 +65,7 @@ test('admin configures connector masking policy and classification tag', async (
   );
   await page.getByRole('button', { name: 'Save' }).click();
   await classificationCreate;
-  await expect(page.getByText('user.card')).toBeVisible();
+  // `user.card` now appears in the classification tag table, its derivation-preview suggestion, and
+  // the auto-derived masking policy — AntD keeps prior tab panels mounted — so scope to the first.
+  await expect(page.getByText('user.card').first()).toBeVisible();
 });
