@@ -16,6 +16,7 @@ public record CreateApiConnectorCommand(
         ApiProtocol protocol,
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         Integer timeoutMs,
         Boolean tlsVerify,
         ApiAuthMethod authMethod,

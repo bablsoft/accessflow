@@ -95,7 +95,7 @@ class DefaultDashboardService implements DashboardService {
                 .sum();
 
         List<ApiRequestView> recentApiRequests = apiRequestService.list(
-                new ApiRequestListFilter(organizationId, userId, null, null, null, null, null),
+                new ApiRequestListFilter(organizationId, userId, null, null, null, null, null, null, null),
                 PageRequest.of(0, RECENT_LIMIT)).content();
 
         var pendingApi = apiReviewService.listPending(

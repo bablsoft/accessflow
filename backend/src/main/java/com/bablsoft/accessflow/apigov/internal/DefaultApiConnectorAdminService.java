@@ -117,6 +117,9 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setProtocol(command.protocol());
         entity.setBaseUrl(command.baseUrl());
         entity.setDefaultHeaders(writeJson(command.defaultHeaders()));
+        if (command.traceHeaderMapping() != null) {
+            entity.setTraceHeaderMapping(writeJson(command.traceHeaderMapping()));
+        }
         entity.setTimeoutMs(command.timeoutMs() != null ? command.timeoutMs() : 30000);
         entity.setTlsVerify(command.tlsVerify() == null || command.tlsVerify());
         entity.setAuthMethod(command.authMethod() != null ? command.authMethod() : ApiAuthMethod.NONE);
@@ -159,6 +162,9 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         }
         if (command.defaultHeaders() != null) {
             entity.setDefaultHeaders(writeJson(command.defaultHeaders()));
+        }
+        if (command.traceHeaderMapping() != null) {
+            entity.setTraceHeaderMapping(writeJson(command.traceHeaderMapping()));
         }
         if (command.timeoutMs() != null) {
             entity.setTimeoutMs(command.timeoutMs());
@@ -313,7 +319,8 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         boolean schemaPresent = schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(e.getId()).isPresent();
         return new ApiConnectorView(
                 e.getId(), e.getOrganizationId(), e.getName(), e.getProtocol(), e.getBaseUrl(),
-                readJson(e.getDefaultHeaders()), e.getTimeoutMs(), e.isTlsVerify(), e.getAuthMethod(),
+                readJson(e.getDefaultHeaders()), readJson(e.getTraceHeaderMapping()),
+                e.getTimeoutMs(), e.isTlsVerify(), e.getAuthMethod(),
                 hasCredentials, e.getOauth2TokenUri(), e.getOauth2ClientId(), e.getOauth2Scopes(),
                 e.getOauth2Audience(), e.getOauth2Username(), e.getOauth2GrantType(), e.getOauth2ClientAuth(),
                 configured(e.getOauth2ClientSecretEncrypted()), configured(e.getOauth2RefreshTokenEncrypted()),

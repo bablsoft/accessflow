@@ -2350,6 +2350,13 @@
       "REJECTED": "Abgelehnt",
       "FAILED": "Fehlgeschlagen",
       "CANCELLED": "Abgebrochen"
+    },
+    "api_body_type": {
+      "NONE": "Keiner",
+      "RAW": "Roh",
+      "FORM_DATA": "Formulardaten",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Binär"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "Standard-Header",
+      "defaultHeadersHint": "Werden in jeden verwalteten Aufruf eingefügt",
+      "traceHeaderMapping": "Trace-Context-Header",
+      "traceHeaderMappingHint": "Header-Namen, die den W3C-Trace-Context übertragen",
+      "schemaSource": "Schema-Quelle",
+      "schemaSourcePaste": "Einfügen",
+      "schemaSourceUpload": "Datei hochladen",
+      "schemaSourceUrl": "Von URL",
+      "schemaUrl": "Schema-URL",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Geben Sie eine Schema-URL ein",
+      "schemaFile": "Schema-Datei",
+      "schemaFileRequired": "Wählen Sie eine Schema-Datei"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Parameter",
+      "tabHeaders": "Header",
+      "tabBody": "Body",
+      "queryParams": "Abfrageparameter",
+      "requestHeaders": "Anfrage-Header",
+      "defaultHeaders": "Standard-Header des Connectors",
+      "defaultHeadersHint": "Vom Administrator festgelegt und bei jedem Aufruf gesendet",
+      "contentType": "Inhaltstyp",
+      "bodyTypeLabel": "Body-Typ",
+      "formFields": "Formularfelder",
+      "addRow": "Hinzufügen",
+      "addFile": "Datei hinzufügen",
+      "keyPlaceholder": "Schlüssel",
+      "valuePlaceholder": "Wert",
+      "fieldTypeText": "Text",
+      "fieldTypeFile": "Datei",
+      "chooseFile": "Datei auswählen",
+      "binaryFile": "Binärdatei",
+      "fileTooLarge": "Die Datei überschreitet die maximale Größe von {{maxMb}} MB",
+      "searchOperation": "Operationen suchen…",
+      "scheduleFor": "Für später planen",
+      "scheduleHint": "Leer lassen, um direkt nach der Genehmigung auszuführen",
+      "scheduleInPast": "Die geplante Zeit muss in der Zukunft liegen"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Entschieden am",
       "scheduled": "Geplant",
       "truncated": "Gekürzt",
-      "notFound": "Anfrage nicht gefunden"
+      "notFound": "Anfrage nicht gefunden",
+      "submitter": "Einreicher",
+      "filterAllSubmitters": "Alle Einreicher",
+      "traceId": "Trace-ID",
+      "spanId": "Span-ID",
+      "filterTraceId": "Trace-ID",
+      "filterSpanId": "Span-ID",
+      "downloadResponse": "Vollständige Antwort herunterladen",
+      "downloadFailed": "Antwort konnte nicht heruntergeladen werden"
     },
     "reviews": {
       "title": "API Reviews",

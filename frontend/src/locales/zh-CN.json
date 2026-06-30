@@ -2350,6 +2350,13 @@
       "REJECTED": "已拒绝",
       "FAILED": "失败",
       "CANCELLED": "已取消"
+    },
+    "api_body_type": {
+      "NONE": "无",
+      "RAW": "原始",
+      "FORM_DATA": "表单数据",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "二进制"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "默认标头",
+      "defaultHeadersHint": "合并到每个受管调用中",
+      "traceHeaderMapping": "追踪上下文标头",
+      "traceHeaderMappingHint": "承载 W3C 追踪上下文的标头名称",
+      "schemaSource": "模式来源",
+      "schemaSourcePaste": "粘贴",
+      "schemaSourceUpload": "上传文件",
+      "schemaSourceUrl": "从 URL",
+      "schemaUrl": "模式 URL",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "请输入模式 URL",
+      "schemaFile": "模式文件",
+      "schemaFileRequired": "请选择模式文件"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "参数",
+      "tabHeaders": "标头",
+      "tabBody": "正文",
+      "queryParams": "查询参数",
+      "requestHeaders": "请求标头",
+      "defaultHeaders": "连接器默认标头",
+      "defaultHeadersHint": "由管理员设置，并在每次调用时发送",
+      "contentType": "内容类型",
+      "bodyTypeLabel": "正文类型",
+      "formFields": "表单字段",
+      "addRow": "添加",
+      "addFile": "添加文件",
+      "keyPlaceholder": "键",
+      "valuePlaceholder": "值",
+      "fieldTypeText": "文本",
+      "fieldTypeFile": "文件",
+      "chooseFile": "选择文件",
+      "binaryFile": "二进制文件",
+      "fileTooLarge": "文件超过 {{maxMb}} MB 的最大限制",
+      "searchOperation": "搜索操作…",
+      "scheduleFor": "安排稍后执行",
+      "scheduleHint": "留空则在批准后立即执行",
+      "scheduleInPast": "计划时间必须是将来的时间"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "决定时间",
       "scheduled": "已计划",
       "truncated": "已截断",
-      "notFound": "未找到请求"
+      "notFound": "未找到请求",
+      "submitter": "提交者",
+      "filterAllSubmitters": "所有提交者",
+      "traceId": "追踪 ID",
+      "spanId": "Span ID",
+      "filterTraceId": "追踪 ID",
+      "filterSpanId": "Span ID",
+      "downloadResponse": "下载完整响应",
+      "downloadFailed": "无法下载响应"
     },
     "reviews": {
       "title": "API Reviews",

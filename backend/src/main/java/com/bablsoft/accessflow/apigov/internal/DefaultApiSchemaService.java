@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
@@ -16,6 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +32,8 @@ public class DefaultApiSchemaService implements ApiSchemaService {
 
     private static final TypeReference<List<ApiOperation>> OPS_TYPE = new TypeReference<>() {
     };
+    private static final long MAX_FETCH_BYTES = 5L * 1024 * 1024;
+    private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(15);
 
     private final ApiConnectorRepository connectorRepository;
     private final ApiSchemaRepository schemaRepository;
@@ -36,12 +45,14 @@ public class DefaultApiSchemaService implements ApiSchemaService {
     public ApiSchemaView upload(UUID connectorId, UUID organizationId, ApiSchemaType schemaType,
                                 String rawContent, String sourceUrl) {
         requireConnector(connectorId, organizationId);
-        var operations = parserRegistry.parse(schemaType, rawContent);
+        var content = (rawContent == null || rawContent.isBlank()) && sourceUrl != null && !sourceUrl.isBlank()
+                ? fetch(sourceUrl) : rawContent;
+        var operations = parserRegistry.parse(schemaType, content);
         var entity = new ApiSchemaEntity();
         entity.setId(UUID.randomUUID());
         entity.setConnectorId(connectorId);
         entity.setSchemaType(schemaType);
-        entity.setRawContent(rawContent);
+        entity.setRawContent(content);
         entity.setSourceUrl(sourceUrl);
         entity.setParsedOperations(objectMapper.writeValueAsString(operations));
         entity.setOperationCount(operations.size());
@@ -73,6 +84,36 @@ public class DefaultApiSchemaService implements ApiSchemaService {
         return schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(connectorId)
                 .map(s -> objectMapper.<List<ApiOperation>>readValue(s.getParsedOperations(), OPS_TYPE))
                 .orElseGet(List::of);
+    }
+
+    private String fetch(String sourceUrl) {
+        URI uri;
+        try {
+            uri = URI.create(sourceUrl);
+        } catch (IllegalArgumentException ex) {
+            throw new ApiSchemaFetchException("Invalid schema URL");
+        }
+        var scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+            throw new ApiSchemaFetchException("Schema URL must be http(s)");
+        }
+        try (var client = HttpClient.newBuilder().connectTimeout(FETCH_TIMEOUT).build()) {
+            var request = HttpRequest.newBuilder(uri).timeout(FETCH_TIMEOUT).GET().build();
+            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() / 100 != 2) {
+                throw new ApiSchemaFetchException("Schema URL returned HTTP " + response.statusCode());
+            }
+            byte[] body = response.body() != null ? response.body() : new byte[0];
+            if (body.length > MAX_FETCH_BYTES) {
+                throw new ApiSchemaFetchException("Fetched schema exceeds the maximum allowed size");
+            }
+            return new String(body, StandardCharsets.UTF_8);
+        } catch (java.io.IOException ex) {
+            throw new ApiSchemaFetchException("Could not fetch schema: " + ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new ApiSchemaFetchException("Schema fetch interrupted");
+        }
     }
 
     private void requireConnector(UUID connectorId, UUID organizationId) {

@@ -74,14 +74,36 @@ test('admin creates an API connector and uploads an OpenAPI schema', async ({ pa
 test('API Requests and API Reviews pages render their filter bars (#512)', async ({ page }) => {
   await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-  // API Requests list: aligned with Query History — search + status/connector/verb/risk filters.
+  // API Requests list: aligned with Query History — search + status/connector/verb/risk filters,
+  // plus the submitter column and trace/span id filters (#517).
   await page.goto('/api-requests');
   await expect(page.getByPlaceholder('Search by ID, connector, path')).toBeVisible();
   await expect(page.getByText('All statuses')).toBeVisible();
   await expect(page.getByText('All methods')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Submitter' })).toBeVisible();
+  await expect(page.getByLabel('Trace ID')).toBeVisible();
+  await expect(page.getByLabel('Span ID')).toBeVisible();
 
   // API Reviews queue: same filter pattern (connector/verb/risk + search).
   await page.goto('/api-reviews');
   await expect(page.getByPlaceholder('Search by connector, path')).toBeVisible();
   await expect(page.getByText('All connectors')).toBeVisible();
+});
+
+test('API editor shows the Postman-style composer and scheduling (#517)', async ({ page }) => {
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  await page.goto('/api-editor');
+  // The request composer exposes Params / Headers / Body tabs.
+  await expect(page.getByRole('tab', { name: 'Params' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Headers' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Body' })).toBeVisible();
+
+  // Body tab offers the raw / form-data / x-www-form-urlencoded / binary modes.
+  await page.getByRole('tab', { name: 'Body' }).click();
+  await expect(page.getByRole('radio', { name: 'Form data' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Binary' })).toBeVisible();
+
+  // Scheduled-run control is present.
+  await expect(page.getByText('Schedule for later')).toBeVisible();
 });

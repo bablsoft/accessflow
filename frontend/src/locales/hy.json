@@ -2350,6 +2350,13 @@
       "REJECTED": "Մերժված",
       "FAILED": "Ձախողված",
       "CANCELLED": "Չեղարկված"
+    },
+    "api_body_type": {
+      "NONE": "Չկա",
+      "RAW": "Հում",
+      "FORM_DATA": "Ձևի տվյալներ",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Երկուական"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "Լռելյայն վերնագրեր",
+      "defaultHeadersHint": "Միավորվում են յուրաքանչյուր կառավարվող կանչի մեջ",
+      "traceHeaderMapping": "Հետագծման համատեքստի վերնագրեր",
+      "traceHeaderMappingHint": "Վերնագրերի անունները, որոնք կրում են W3C հետագծման համատեքստը",
+      "schemaSource": "Սխեմայի աղբյուր",
+      "schemaSourcePaste": "Տեղադրել",
+      "schemaSourceUpload": "Վերբեռնել ֆայլ",
+      "schemaSourceUrl": "URL-ից",
+      "schemaUrl": "Սխեմայի URL",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Մուտքագրեք սխեմայի URL",
+      "schemaFile": "Սխեմայի ֆայլ",
+      "schemaFileRequired": "Ընտրեք սխեմայի ֆայլ"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Պարամետրեր",
+      "tabHeaders": "Վերնագրեր",
+      "tabBody": "Մարմին",
+      "queryParams": "Հարցման պարամետրեր",
+      "requestHeaders": "Հարցման վերնագրեր",
+      "defaultHeaders": "Միակցիչի լռելյայն վերնագրեր",
+      "defaultHeadersHint": "Սահմանված է ադմինի կողմից և ուղարկվում է յուրաքանչյուր կանչի հետ",
+      "contentType": "Բովանդակության տեսակ",
+      "bodyTypeLabel": "Մարմնի տեսակ",
+      "formFields": "Ձևի դաշտեր",
+      "addRow": "Ավելացնել",
+      "addFile": "Ավելացնել ֆայլ",
+      "keyPlaceholder": "Բանալի",
+      "valuePlaceholder": "Արժեք",
+      "fieldTypeText": "Տեքստ",
+      "fieldTypeFile": "Ֆայլ",
+      "chooseFile": "Ընտրել ֆայլ",
+      "binaryFile": "Երկուական ֆայլ",
+      "fileTooLarge": "Ֆայլը գերազանցում է {{maxMb}} ՄԲ առավելագույն չափը",
+      "searchOperation": "Որոնել գործողություններ…",
+      "scheduleFor": "Պլանավորել ավելի ուշ",
+      "scheduleHint": "Թողեք դատարկ՝ հաստատումից անմիջապես հետո կատարելու համար",
+      "scheduleInPast": "Պլանավորված ժամանակը պետք է լինի ապագայում"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Որոշվել է",
       "scheduled": "Նախատեսված",
       "truncated": "Կրճատված",
-      "notFound": "Հարցումը չի գտնվել"
+      "notFound": "Հարցումը չի գտնվել",
+      "submitter": "Ներկայացնող",
+      "filterAllSubmitters": "Բոլոր ներկայացնողները",
+      "traceId": "Հետագծի ID",
+      "spanId": "Span ID",
+      "filterTraceId": "Հետագծի ID",
+      "filterSpanId": "Span ID",
+      "downloadResponse": "Ներբեռնել ամբողջ պատասխանը",
+      "downloadFailed": "Չհաջողվեց ներբեռնել պատասխանը"
     },
     "reviews": {
       "title": "API Reviews",

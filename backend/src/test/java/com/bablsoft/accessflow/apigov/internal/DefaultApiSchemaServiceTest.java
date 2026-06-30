@@ -67,6 +67,56 @@ class DefaultApiSchemaServiceTest {
     }
 
     @Test
+    void uploadFetchesFromSourceUrlWhenRawContentBlank() throws Exception {
+        connectorExists();
+        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), eq("fetched-spec")))
+                .thenReturn(List.of(new ApiOperation("listPets", "GET", "/pets", null, false, null, null)));
+        when(schemaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        var server = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/spec", exchange -> {
+            byte[] body = "fetched-spec".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/spec";
+            var view = service.upload(connectorId, orgId, ApiSchemaType.OPENAPI, null, url);
+            assertThat(view.operationCount()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void uploadRejectsNonHttpSourceUrl() {
+        connectorExists();
+        assertThatThrownBy(() -> service.upload(connectorId, orgId, ApiSchemaType.OPENAPI, null, "ftp://x/s"))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException.class);
+    }
+
+    @Test
+    void uploadFetchFailsOnNon2xx() throws Exception {
+        connectorExists();
+        var server = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/spec", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var url = "http://127.0.0.1:" + server.getAddress().getPort() + "/spec";
+            assertThatThrownBy(() -> service.upload(connectorId, orgId, ApiSchemaType.OPENAPI, null, url))
+                    .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException.class);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void uploadRejectsUnknownConnector() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.empty());
 

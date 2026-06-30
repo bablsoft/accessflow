@@ -13,6 +13,7 @@ public record UpdateApiConnectorCommand(
         String name,
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         Integer timeoutMs,
         Boolean tlsVerify,
         ApiAuthMethod authMethod,

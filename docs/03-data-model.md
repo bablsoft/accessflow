@@ -1527,6 +1527,7 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `protocol` | `api_protocol` | |
 | `base_url` | TEXT | |
 | `default_headers` | JSONB | Object merged into every outbound call. Default `{}`. |
+| `trace_header_mapping` | JSONB | Admin-renamable header keys that carry the W3C trace context (#517, AF-517). Default `{"traceparent":"traceparent","tracestate":"tracestate"}`. |
 | `timeout_ms` | INTEGER | Per-call timeout. Default 30000. |
 | `tls_verify` | BOOLEAN | Default true. |
 | `auth_method` | `api_auth_method` | Default `NONE`. |
@@ -1587,13 +1588,20 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 | `verb` | VARCHAR(16) | HTTP method / GraphQL op / gRPC method. |
 | `request_path` | TEXT | |
 | `request_headers` | JSONB | Sanitized header set. |
-| `request_body` | TEXT | |
+| `request_body` | TEXT | Raw text, or the base64 of a binary/file body (#517). |
+| `body_type` | `api_body_type` | How the body is composed (#517, AF-517): `NONE` / `RAW` / `FORM_DATA` / `FORM_URLENCODED` / `BINARY`. Default `RAW`. |
+| `request_content_type` | TEXT | Content-Type for a `RAW` body (#517). |
+| `query_params` | JSONB | Key/value query parameters appended to the URL (#517). Default `{}`. |
+| `form_fields` | JSONB | `[{key,type(TEXT\|FILE),value,filename,contentType}]` for `FORM_DATA` / `FORM_URLENCODED` bodies; file parts carry base64 (#517). Default `[]`. |
+| `binary_filename` | TEXT | Filename of a `BINARY` body (#517). |
 | `is_write` | BOOLEAN | Read/write classification (drives review routing). |
 | `status` | `query_status` | Lifecycle. |
 | `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
 | `justification` / `ai_analysis_id` / `scheduled_for` / `required_approvals` | — | |
+| `trace_id` / `span_id` | TEXT | W3C trace context ids generated at submit, propagated as `traceparent` on execution, and filterable (#517, AF-517). Indexed `(organization_id, trace_id)` and `(organization_id, span_id)`. |
 | `response_status_code` / `response_duration_ms` / `response_bytes` / `response_truncated` | — | Execution metadata. |
 | `response_snapshot` | TEXT | Size-capped, field-masked response body (immutable). |
+| `response_content_type` | TEXT | Upstream `Content-Type` of the captured response — lets the stored snapshot be downloaded in its correct format (#517). |
 | `error_message` / `submitted_ip` / `submitted_user_agent` | — | |
 | `version` | BIGINT | `@Version` optimistic lock. |
 | `created_at` / `updated_at` | TIMESTAMPTZ | |

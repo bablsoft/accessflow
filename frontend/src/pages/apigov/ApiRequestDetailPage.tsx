@@ -1,5 +1,6 @@
 import { App, Button, Card, Descriptions, Empty, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,7 @@ import { RiskPill } from '@/components/common/RiskPill';
 import {
   apiRequestKeys,
   cancelApiRequest,
+  downloadApiResponse,
   executeApiRequest,
   getApiRequest,
 } from '@/api/apiRequests';
@@ -50,6 +52,21 @@ export default function ApiRequestDetailPage() {
       refresh();
     },
     onError: () => message.error(t('apiGov.error')),
+  });
+
+  const downloadMutation = useMutation({
+    mutationFn: () => downloadApiResponse(id),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    onError: () => message.error(t('apiGov.requests.downloadFailed')),
   });
 
   const request = requestQuery.data;
@@ -125,9 +142,24 @@ export default function ApiRequestDetailPage() {
                       ),
                   },
                   {
+                    key: 'submitter',
+                    label: t('apiGov.requests.submitter'),
+                    children: request.submitted_by_email ?? request.submitted_by,
+                  },
+                  {
                     key: 'reason',
                     label: t('apiGov.requests.submissionReason'),
                     children: submissionReasonLabel(t, request.submission_reason),
+                  },
+                  {
+                    key: 'trace',
+                    label: t('apiGov.requests.traceId'),
+                    children: <span className="mono" style={{ fontSize: 12 }}>{request.trace_id ?? '—'}</span>,
+                  },
+                  {
+                    key: 'span',
+                    label: t('apiGov.requests.spanId'),
+                    children: <span className="mono" style={{ fontSize: 12 }}>{request.span_id ?? '—'}</span>,
                   },
                   {
                     key: 'code',
@@ -192,7 +224,19 @@ export default function ApiRequestDetailPage() {
               <Card
                 size="small"
                 title={t('apiGov.requests.snapshot')}
-                extra={request.response_truncated ? <Tag color="orange">{t('apiGov.requests.truncated')}</Tag> : null}
+                extra={
+                  <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                    {request.response_truncated && <Tag color="orange">{t('apiGov.requests.truncated')}</Tag>}
+                    <Button
+                      size="small"
+                      icon={<DownloadOutlined />}
+                      loading={downloadMutation.isPending}
+                      onClick={() => downloadMutation.mutate()}
+                    >
+                      {t('apiGov.requests.downloadResponse')}
+                    </Button>
+                  </span>
+                }
               >
                 <pre
                   style={{

@@ -39,6 +39,8 @@ export default function ApiRequestsListPage() {
   const [connector, setConnector] = useState<string | 'all'>('all');
   const [verb, setVerb] = useState<string | 'all'>('all');
   const [risk, setRisk] = useState<RiskLevel | 'all'>('all');
+  const [traceId, setTraceId] = useState('');
+  const [spanId, setSpanId] = useState('');
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [page, setPage] = useState(0);
 
@@ -47,12 +49,14 @@ export default function ApiRequestsListPage() {
       status: status === 'all' ? undefined : status,
       connector_id: connector === 'all' ? undefined : connector,
       verb: verb === 'all' ? undefined : verb,
+      trace_id: traceId.trim() || undefined,
+      span_id: spanId.trim() || undefined,
       from: range?.[0] ? range[0].toISOString() : undefined,
       to: range?.[1] ? range[1].endOf('day').toISOString() : undefined,
       page,
       size: PAGE_SIZE,
     }),
-    [status, connector, verb, range, page],
+    [status, connector, verb, traceId, spanId, range, page],
   );
 
   const requestsQuery = useQuery({
@@ -98,6 +102,7 @@ export default function ApiRequestsListPage() {
           if (
             !r.id.toLowerCase().includes(n) &&
             !(r.connector_name ?? '').toLowerCase().includes(n) &&
+            !(r.submitted_by_email ?? '').toLowerCase().includes(n) &&
             !r.request_path.toLowerCase().includes(n)
           ) {
             return false;
@@ -154,6 +159,14 @@ export default function ApiRequestsListPage() {
         ) : (
           <span className="muted" style={{ fontSize: 11 }}>—</span>
         ),
+    },
+    {
+      title: t('apiGov.requests.submitter'),
+      width: 160,
+      ellipsis: true,
+      render: (_v, r) => (
+        <span style={{ fontSize: 12 }}>{r.submitted_by_email ?? r.submitted_by.slice(0, 8)}</span>
+      ),
     },
     {
       title: t('apiGov.requests.created'),
@@ -251,6 +264,20 @@ export default function ApiRequestsListPage() {
             ...enumOptions(RISKS, riskLevelLabel, t),
           ]}
           style={{ width: 130 }}
+        />
+        <Input
+          placeholder={t('apiGov.requests.filterTraceId')}
+          value={traceId}
+          onChange={(e) => { setTraceId(e.target.value); setPage(0); }}
+          style={{ width: 150 }}
+          aria-label={t('apiGov.requests.traceId')}
+        />
+        <Input
+          placeholder={t('apiGov.requests.filterSpanId')}
+          value={spanId}
+          onChange={(e) => { setSpanId(e.target.value); setPage(0); }}
+          style={{ width: 130 }}
+          aria-label={t('apiGov.requests.spanId')}
         />
         <DatePicker.RangePicker
           value={range as [Dayjs | null, Dayjs | null]}

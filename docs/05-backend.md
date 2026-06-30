@@ -1875,6 +1875,23 @@ immutable masked snapshot). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`)
 Cross-module references are bare UUIDs (like `access`); `apigov.api` is JDK + project types only.
 Full design: [docs/17-api-governance.md](17-api-governance.md).
 
+**Request composition (AF-517, #517).** A submitted call is composed like a Postman request:
+`query_params` (percent-encoded onto the URL), per-request `request_headers` merged over the
+connector's admin-defined `default_headers` (shown read-only in the editor), and a `body_type`
+(`NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY`) the `ApiCallExecutor` turns into a body —
+`RAW` text with its `request_content_type`, a URL-encoded form, a hand-built `multipart/form-data`
+body (text + base64-decoded file parts), or a base64-decoded binary. Files ride **inline as bounded
+base64** (no object storage); the total encoded body is capped by
+`ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (422 when exceeded). **W3C trace context:** a `trace_id` +
+`span_id` are generated at submit and injected on execution as a `traceparent` header under the
+connector's admin-renamable `trace_header_mapping`; both are filterable on the list. **Response
+download:** the executor captures the upstream `Content-Type` into `response_content_type`, and
+`GET /api-requests/{id}/response` streams the stored (masked, capped) snapshot as an attachment in
+its correct format. **Schema URL fetch:** `DefaultApiSchemaService.upload` fetches `sourceUrl` (http(s),
+bounded size/timeout) when `rawContent` is blank — a third ingestion mode alongside paste and file
+upload — raising `ApiSchemaFetchException` (422 `API_SCHEMA_FETCH_ERROR`) on failure. The submitter's
+email is resolved via `core.api.UserQueryService` for the list/detail submitter column.
+
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`

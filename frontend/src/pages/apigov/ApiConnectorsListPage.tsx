@@ -22,6 +22,8 @@ import {
   enumOptions,
 } from '@/utils/enumLabels';
 import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
+import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
+import { pairsToRecord, type KeyValuePair } from '@/utils/apiRequestComposition';
 import type {
   ApiConnector,
   ApiProtocol,
@@ -36,6 +38,7 @@ export default function ApiConnectorsListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [headers, setHeaders] = useState<KeyValuePair[]>([]);
   const [form] = Form.useForm<CreateApiConnectorInput>();
   const authMethod = Form.useWatch('auth_method', form) as ApiAuthMethod | undefined;
   const grantType = Form.useWatch('oauth2_grant_type', form) as Oauth2GrantType | undefined;
@@ -59,6 +62,7 @@ export default function ApiConnectorsListPage() {
       message.success(t('apiGov.connectors.created'));
       setOpen(false);
       form.resetFields();
+      setHeaders([]);
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.lists() });
       navigate(`/api-connectors/${created.id}/settings`);
     },
@@ -190,7 +194,9 @@ export default function ApiConnectorsListPage() {
             text_to_api_enabled: false,
             ai_config_id: null,
           }}
-          onFinish={(values) => createMutation.mutate(values)}
+          onFinish={(values) =>
+            createMutation.mutate({ ...values, default_headers: pairsToRecord(headers) })
+          }
         >
           <Form.Item
             name="name"
@@ -225,6 +231,9 @@ export default function ApiConnectorsListPage() {
           {authMethod === 'OAUTH2_CLIENT_CREDENTIALS' && (
             <Oauth2ConnectorFields grantType={grantType} />
           )}
+          <Form.Item label={t('apiGov.settings.defaultHeaders')} extra={t('apiGov.settings.defaultHeadersHint')}>
+            <KeyValueEditor pairs={headers} onChange={setHeaders} />
+          </Form.Item>
           <Form.Item
             name="ai_analysis_enabled"
             label={t('apiGov.connectors.aiAnalysis')}

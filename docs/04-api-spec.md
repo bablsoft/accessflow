@@ -4351,10 +4351,13 @@ execute, text-to-API, break-glass) lands in a follow-up and will be documented h
 
 `CreateApiConnectorRequest` fields: `name` (3–255, required), `protocol`
 (`REST`/`SOAP`/`GRAPHQL`/`GRPC`, required), `baseUrl` (≤2048, required), `defaultHeaders` (map),
-`timeoutMs` (≥1), `tlsVerify`, `authMethod`
+`traceHeaderMapping` (map — header keys carrying the W3C trace context, #517; default
+`{"traceparent":"traceparent","tracestate":"tracestate"}`), `timeoutMs` (≥1), `tlsVerify`,
+`authMethod`
 (`NONE`/`API_KEY`/`BEARER_TOKEN`/`BASIC`/`OAUTH2_CLIENT_CREDENTIALS`/`CUSTOM_HEADER`/`MTLS`),
 `credentials` (map, write-only), `reviewPlanId`, `aiAnalysisEnabled`, `aiConfigId`,
-`textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1).
+`textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1). The read
+view also returns `defaultHeaders` + `traceHeaderMapping`.
 
 **Outbound OAuth2 token sourcing (#506).** When `authMethod = OAUTH2_CLIENT_CREDENTIALS`, the
 create/update requests also accept (no new endpoints): `oauth2TokenUri` (≤2048), `oauth2ClientId`
@@ -4371,7 +4374,7 @@ secrets themselves are never returned.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`, `rawContent`, optional `sourceUrl`). Parses immediately into a normalized operation catalog; `422` on parse failure. |
+| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. |
 | `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). |
 | `DELETE` | `/api-connectors/{id}/schemas/{schemaId}` | **Admin.** Delete a schema (`204`). |
 | `GET` | `/api-connectors/{id}/operations` | The normalized operation catalog from the connector's latest schema — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification). |
@@ -4388,9 +4391,10 @@ secrets themselves are never returned.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `requestBody?`, `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). Runs AI → routing → review. |
-| `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. Optional filters: `status`, `connector_id`, `verb`, `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
+| `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?` (#517), `bodyType?` (`NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY`, default `RAW`; #517), `requestContentType?` (for `RAW`), `requestBody?` (raw text or base64 for `BINARY`), `formFields?` (`[{key,type,value,filename,contentType}]` for form bodies; file parts base64), `binaryFilename?`, `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). The total encoded body is capped by `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (`422` when exceeded). A W3C `trace_id`/`span_id` is generated. Runs AI → routing → review. |
+| `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. Optional filters: `status`, `connector_id`, `verb`, `submitted_by` (admin-only, #517), `trace_id`, `span_id` (#517), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). The response carries `submittedByEmail`, `bodyType`, `traceId`, `spanId`, and `responseContentType`. |
 | `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. |
+| `GET` | `/api-requests/{id}/response` | Download the full stored (masked, size-capped) response snapshot as an attachment in its captured `Content-Type` (#517). Same ownership guard as the detail endpoint; `409` if no response is stored. |
 | `POST` | `/api-requests/{id}/cancel` | Submitter cancels a pending (or scheduled-and-approved) request (`204`). |
 | `POST` | `/api-requests/{id}/execute` | Submitter executes an APPROVED request against the upstream target. |
 | `POST` | `/api-requests/analyze` | Debounced AI risk preview of a draft call. |
@@ -4468,6 +4472,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_CONNECTOR_DUPLICATE_NAME` | 409 | A connector with that name already exists in the org. |
 | `API_SCHEMA_NOT_FOUND` | 404 | Unknown schema id for the connector. |
 | `API_SCHEMA_PARSE_ERROR` | 422 | The uploaded schema could not be parsed (`reason` carries detail). |
+| `API_SCHEMA_FETCH_ERROR` | 422 | The schema could not be fetched from `sourceUrl` (#517; `reason` carries detail). |
 | `API_PERMISSION_NOT_FOUND` | 404 | Unknown connector-permission id. |
 | `API_CONNECTION_TEST_FAILED` | 502 | The connectivity probe failed (`reason` carries detail). |
 | `API_REQUEST_NOT_FOUND` | 404 | Unknown API request id, or not visible to the caller. |

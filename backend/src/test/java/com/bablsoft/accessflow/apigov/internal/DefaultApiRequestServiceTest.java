@@ -1,8 +1,12 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
+import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
@@ -16,6 +20,8 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +55,7 @@ class DefaultApiRequestServiceTest {
     @Mock private ApiExecutionService executionService;
     @Mock private BreakGlassService breakGlassService;
     @Mock private AiAnalysisLookupService aiAnalysisLookupService;
+    @Mock private UserQueryService userQueryService;
     @Mock private AuditLogService auditLogService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -62,8 +69,10 @@ class DefaultApiRequestServiceTest {
     void setUp() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
-                aiAnalysisLookupService, auditLogService, eventPublisher, JsonMapper.builder().build());
+                aiAnalysisLookupService, userQueryService, new ApigovRequestProperties(5_242_880L),
+                auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
+        lenient().when(userQueryService.findById(any())).thenReturn(Optional.empty());
     }
 
     private ApiConnectorEntity connector() {
@@ -88,7 +97,8 @@ class DefaultApiRequestServiceTest {
 
     private SubmitApiRequestCommand cmd(String verb, SubmissionReason reason) {
         return new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, verb, "/charges",
-                null, "{}", "need", null, reason, "1.2.3.4", "ua");
+                null, null, ApiBodyType.RAW, "application/json", "{}", null, null, "need", null, reason,
+                "1.2.3.4", "ua");
     }
 
     @Test
@@ -191,7 +201,7 @@ class DefaultApiRequestServiceTest {
         lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
 
         var filter = new com.bablsoft.accessflow.apigov.api.ApiRequestListFilter(orgId, userId, null, null,
-                null, null, null);
+                null, null, null, null, null);
         var page = service.list(filter, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
         assertThat(page.content()).hasSize(1);
@@ -236,5 +246,88 @@ class DefaultApiRequestServiceTest {
         assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
         verify(executionService).execute(e.getId());
         verify(auditLogService).record(any());
+    }
+
+    @Test
+    void submitGeneratesTraceAndSpanIds() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        var captor = org.mockito.ArgumentCaptor.forClass(ApiRequestEntity.class);
+        when(requestRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
+
+        service.submit(cmd("POST", SubmissionReason.USER_SUBMITTED));
+
+        assertThat(captor.getValue().getTraceId()).hasSize(32);
+        assertThat(captor.getValue().getSpanId()).hasSize(16);
+    }
+
+    @Test
+    void submitRejectsBodyOverSizeCap() {
+        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
+                decisionRepository, schemaService, stateService, executionService, breakGlassService,
+                aiAnalysisLookupService, userQueryService, new ApigovRequestProperties(4L),
+                auditLogService, eventPublisher, JsonMapper.builder().build());
+        lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        var command = new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, "POST", "/charges",
+                null, null, ApiBodyType.RAW, "text/plain", "way too long", List.of(), null, "need", null,
+                SubmissionReason.USER_SUBMITTED, "1.2.3.4", "ua");
+
+        assertThatThrownBy(() -> service.submit(command)).isInstanceOf(ApiRequestValidationException.class);
+        verify(requestRepository, never()).save(any());
+    }
+
+    @Test
+    void listResolvesSubmitterEmail() {
+        when(requestRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<ApiRequestEntity>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(persisted(QueryStatus.PENDING_AI))));
+        lenient().when(connectorRepository.findById(any())).thenReturn(Optional.of(connector()));
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(new UserView(userId, "u@test.io",
+                "User", null, orgId, true, null, null, null, "en", false, null)));
+
+        var filter = new com.bablsoft.accessflow.apigov.api.ApiRequestListFilter(orgId, userId, null, null,
+                null, null, null, null, null);
+        var page = service.list(filter, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content().get(0).submittedByEmail()).isEqualTo("u@test.io");
+    }
+
+    @Test
+    void downloadResponseReturnsSnapshotWithContentType() {
+        var e = persisted(QueryStatus.EXECUTED);
+        e.setResponseSnapshot("{\"ok\":true}");
+        e.setResponseContentType("application/json");
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        var payload = service.downloadResponse(e.getId(), orgId, userId, false);
+
+        assertThat(new String(payload.content(), java.nio.charset.StandardCharsets.UTF_8)).contains("ok");
+        assertThat(payload.contentType()).isEqualTo("application/json");
+        assertThat(payload.filename()).endsWith(".json");
+    }
+
+    @Test
+    void downloadResponseWithoutSnapshotIsRejected() {
+        var e = persisted(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, false))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException.class);
+    }
+
+    @Test
+    void downloadResponseDeniesNonOwnerNonAdmin() {
+        var e = persisted(QueryStatus.EXECUTED);
+        e.setSubmittedBy(UUID.randomUUID());
+        e.setResponseSnapshot("x");
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+
+        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, false))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException.class);
     }
 }

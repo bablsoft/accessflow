@@ -1126,12 +1126,14 @@
             token endpoint, client ID/secret, scopes, audience, grant type (client-credentials,
             refresh-token, or resource-owner password), and client-auth method (Basic header or POST
             body); the token is reused across calls and refreshed on expiry or a 401, so no token needs
-            to be pasted by hand. Optionally upload a schema
-            (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>); AccessFlow parses it into a
-            normalized operation catalog with read/write classification. Set the review plan, AI-analysis
-            toggle + AI config, text-to-API toggle, require-review-on-reads/writes, and the max response
-            size. A <em>Test connection</em> button probes reachability (and, for OAuth2 connectors,
-            exercises the token fetch).
+            to be pasted by hand. Define <em>default headers</em> sent on every governed call (users see
+            them but cannot change them) and, optionally, rename the <em>trace-context header</em> keys
+            AccessFlow uses to propagate W3C <code>traceparent</code>. Optionally upload a schema
+            (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>) by pasting it, uploading a file, or
+            pointing at a URL to fetch; AccessFlow parses it into a normalized operation catalog with
+            read/write classification. Set the review plan, AI-analysis toggle + AI config, text-to-API
+            toggle, require-review-on-reads/writes, and the max response size. A <em>Test connection</em>
+            button probes reachability (and, for OAuth2 connectors, exercises the token fetch).
           </p>
           <p>
             <strong>Share with the team.</strong> Grant per-user access on a connector
@@ -1141,13 +1143,18 @@
           </p>
           <p>
             <strong>Use it.</strong> In the <em>API editor</em> (<code>/api-editor</code>) a user picks a
-            connector, selects an operation from the schema (or writes a free-form method + path + body),
-            sees a debounced AI risk preview, and submits. Plain-English <em>text-to-API</em> drafts a
-            call for schema-backed connectors. Every call flows through AI risk scoring → routing →
-            human review (no self-approval) → guarded execution that injects the connector's auth, caps
-            and field-masks the response, and stores an immutable response snapshot. Break-glass and
-            scheduled execution mirror the query path. <em>Note: gRPC connectors register and review
-            today; gRPC call execution is a follow-up — REST/SOAP/GraphQL execute fully.</em>
+            connector, searches the operation catalog (or writes a free-form method + path), and composes
+            the call like Postman — query parameters, custom headers (over the connector's read-only
+            default headers), and a body that can be raw, <code>x-www-form-urlencoded</code>, multipart
+            form-data, or a binary file upload. A user can schedule the call for later, sees a debounced
+            AI risk preview, and submits. Plain-English <em>text-to-API</em> drafts a call for
+            schema-backed connectors. Every call flows through AI risk scoring → routing → human review
+            (no self-approval) → guarded execution that injects the connector's auth and a W3C
+            <code>traceparent</code>, caps and field-masks the response, and stores an immutable response
+            snapshot. The full stored response can be downloaded in its original format, and the request
+            list is filterable by submitter, trace id, and span id. Break-glass and scheduled execution
+            mirror the query path. <em>Note: gRPC connectors register and review today; gRPC call
+            execution is a follow-up — REST/SOAP/GraphQL execute fully.</em>
           </p>
 
           <h3 id="cfg-connectors">Connectors</h3>

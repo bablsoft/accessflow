@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import type {
   AccessGrantStatus,
   ApiAuthMethod,
+  ApiBodyType,
   ApiProtocol,
   ApiSchemaType,
   ErasureStatus,
@@ -380,6 +381,17 @@ export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
 
 export const apiSchemaTypeLabel = (t: TFunction, v: ApiSchemaType): string =>
   t(`enums.api_schema_type.${v}` as const);
+
+export const API_BODY_TYPES: readonly ApiBodyType[] = [
+  'NONE',
+  'RAW',
+  'FORM_DATA',
+  'FORM_URLENCODED',
+  'BINARY',
+] as const;
+
+export const apiBodyTypeLabel = (t: TFunction, v: ApiBodyType): string =>
+  t(`enums.api_body_type.${v}` as const);
 
 // ── Data Lifecycle Manager (AF-499) ──────────────────────────────────────────
 

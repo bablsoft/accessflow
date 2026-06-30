@@ -19,6 +19,9 @@ export interface ApiRequestListFilters {
   status?: QueryStatus;
   connector_id?: string;
   verb?: string;
+  submitted_by?: string;
+  trace_id?: string;
+  span_id?: string;
   from?: string;
   to?: string;
 }
@@ -46,10 +49,28 @@ export async function listApiRequests(filters: ApiRequestListFilters = {}): Prom
   if (filters.status) params.status = filters.status;
   if (filters.connector_id) params.connector_id = filters.connector_id;
   if (filters.verb) params.verb = filters.verb;
+  if (filters.submitted_by) params.submitted_by = filters.submitted_by;
+  if (filters.trace_id) params.trace_id = filters.trace_id;
+  if (filters.span_id) params.span_id = filters.span_id;
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
   const { data } = await apiClient.get<ApiRequestPage>(BASE, { params });
   return data;
+}
+
+export interface ApiResponseDownload {
+  blob: Blob;
+  filename: string;
+  contentType: string;
+}
+
+export async function downloadApiResponse(id: string): Promise<ApiResponseDownload> {
+  const response = await apiClient.get(`${BASE}/${id}/response`, { responseType: 'blob' });
+  const disposition = String(response.headers['content-disposition'] ?? '');
+  const match = /filename="?([^"]+)"?/.exec(disposition);
+  const filename = match?.[1] ?? `api-response-${id}`;
+  const contentType = String(response.headers['content-type'] ?? 'application/octet-stream');
+  return { blob: response.data as Blob, filename, contentType };
 }
 
 export async function getApiRequest(id: string): Promise<ApiRequest> {

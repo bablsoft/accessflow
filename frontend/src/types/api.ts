@@ -2252,6 +2252,15 @@ export type ApiAuthMethod =
 export type ApiSchemaType = 'OPENAPI' | 'WSDL' | 'GRAPHQL_SDL' | 'GRPC_PROTO';
 export type Oauth2GrantType = 'CLIENT_CREDENTIALS' | 'REFRESH_TOKEN' | 'PASSWORD';
 export type Oauth2ClientAuth = 'CLIENT_SECRET_BASIC' | 'CLIENT_SECRET_POST';
+export type ApiBodyType = 'NONE' | 'RAW' | 'FORM_DATA' | 'FORM_URLENCODED' | 'BINARY';
+
+export interface ApiFormField {
+  key: string;
+  type: 'TEXT' | 'FILE';
+  value: string;
+  filename?: string | null;
+  content_type?: string | null;
+}
 
 export interface ApiConnector {
   id: string;
@@ -2259,6 +2268,7 @@ export interface ApiConnector {
   protocol: ApiProtocol;
   base_url: string;
   default_headers: Record<string, string>;
+  trace_header_mapping: Record<string, string>;
   timeout_ms: number;
   tls_verify: boolean;
   auth_method: ApiAuthMethod;
@@ -2298,6 +2308,7 @@ export interface CreateApiConnectorInput {
   protocol: ApiProtocol;
   base_url: string;
   default_headers?: Record<string, string>;
+  trace_header_mapping?: Record<string, string>;
   timeout_ms?: number;
   tls_verify?: boolean;
   auth_method?: ApiAuthMethod;
@@ -2388,6 +2399,7 @@ export interface ApiRequest {
   connector_id: string;
   connector_name: string | null;
   submitted_by: string;
+  submitted_by_email: string | null;
   operation_id: string | null;
   verb: string;
   request_path: string;
@@ -2399,12 +2411,16 @@ export interface ApiRequest {
   ai_risk_level: RiskLevel | null;
   ai_risk_score: number | null;
   ai_summary: string | null;
+  body_type: ApiBodyType | null;
   scheduled_for: string | null;
+  trace_id: string | null;
+  span_id: string | null;
   response_status_code: number | null;
   response_duration_ms: number | null;
   response_bytes: number | null;
   response_truncated: boolean;
   response_snapshot: string | null;
+  response_content_type: string | null;
   error_message: string | null;
   created_at: string;
   decisions: ApiReviewDecision[];
@@ -2424,7 +2440,12 @@ export interface SubmitApiRequestInput {
   verb: string;
   request_path: string;
   request_headers?: Record<string, string>;
+  query_params?: Record<string, string>;
+  body_type?: ApiBodyType;
+  request_content_type?: string | null;
   request_body?: string | null;
+  form_fields?: ApiFormField[];
+  binary_filename?: string | null;
   justification?: string | null;
   scheduled_for?: string | null;
   submission_reason?: SubmissionReason;

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiRequestView;
 import com.bablsoft.accessflow.apigov.api.ApiReviewDecisionView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -15,6 +16,7 @@ public record ApiRequestResponse(
         UUID connectorId,
         String connectorName,
         UUID submittedBy,
+        String submittedByEmail,
         String operationId,
         String verb,
         String requestPath,
@@ -26,21 +28,26 @@ public record ApiRequestResponse(
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
         String aiSummary,
+        ApiBodyType bodyType,
         Instant scheduledFor,
+        String traceId,
+        String spanId,
         Integer responseStatusCode,
         Integer responseDurationMs,
         Long responseBytes,
         boolean responseTruncated,
         String responseSnapshot,
+        String responseContentType,
         String errorMessage,
         Instant createdAt,
         List<ApiReviewDecisionView> decisions) {
 
     static ApiRequestResponse from(ApiRequestView v) {
         return new ApiRequestResponse(v.id(), v.connectorId(), v.connectorName(), v.submittedBy(),
-                v.operationId(), v.verb(), v.requestPath(), v.write(), v.status(), v.submissionReason(),
-                v.justification(), v.aiAnalysisId(), v.aiRiskLevel(), v.aiRiskScore(), v.aiSummary(),
-                v.scheduledFor(), v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(),
-                v.responseTruncated(), v.responseSnapshot(), v.errorMessage(), v.createdAt(), v.decisions());
+                v.submittedByEmail(), v.operationId(), v.verb(), v.requestPath(), v.write(), v.status(),
+                v.submissionReason(), v.justification(), v.aiAnalysisId(), v.aiRiskLevel(), v.aiRiskScore(),
+                v.aiSummary(), v.bodyType(), v.scheduledFor(), v.traceId(), v.spanId(),
+                v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(), v.responseTruncated(),
+                v.responseSnapshot(), v.responseContentType(), v.errorMessage(), v.createdAt(), v.decisions());
     }
 }

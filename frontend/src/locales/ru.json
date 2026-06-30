@@ -2350,6 +2350,13 @@
       "REJECTED": "Отклонено",
       "FAILED": "Ошибка",
       "CANCELLED": "Отменено"
+    },
+    "api_body_type": {
+      "NONE": "Нет",
+      "RAW": "Сырой",
+      "FORM_DATA": "Данные формы",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Двоичный"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "Стандартные заголовки",
+      "defaultHeadersHint": "Добавляются к каждому управляемому вызову",
+      "traceHeaderMapping": "Заголовки контекста трассировки",
+      "traceHeaderMappingHint": "Имена заголовков, несущих контекст трассировки W3C",
+      "schemaSource": "Источник схемы",
+      "schemaSourcePaste": "Вставить",
+      "schemaSourceUpload": "Загрузить файл",
+      "schemaSourceUrl": "Из URL",
+      "schemaUrl": "URL схемы",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Введите URL схемы",
+      "schemaFile": "Файл схемы",
+      "schemaFileRequired": "Выберите файл схемы"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Параметры",
+      "tabHeaders": "Заголовки",
+      "tabBody": "Тело",
+      "queryParams": "Параметры запроса",
+      "requestHeaders": "Заголовки запроса",
+      "defaultHeaders": "Стандартные заголовки коннектора",
+      "defaultHeadersHint": "Заданы администратором и отправляются при каждом вызове",
+      "contentType": "Тип содержимого",
+      "bodyTypeLabel": "Тип тела",
+      "formFields": "Поля формы",
+      "addRow": "Добавить",
+      "addFile": "Добавить файл",
+      "keyPlaceholder": "Ключ",
+      "valuePlaceholder": "Значение",
+      "fieldTypeText": "Текст",
+      "fieldTypeFile": "Файл",
+      "chooseFile": "Выбрать файл",
+      "binaryFile": "Двоичный файл",
+      "fileTooLarge": "Файл превышает максимальный размер {{maxMb}} МБ",
+      "searchOperation": "Поиск операций…",
+      "scheduleFor": "Запланировать на потом",
+      "scheduleHint": "Оставьте пустым для запуска сразу после одобрения",
+      "scheduleInPast": "Запланированное время должно быть в будущем"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Решено",
       "scheduled": "Запланировано",
       "truncated": "Усечено",
-      "notFound": "Запрос не найден"
+      "notFound": "Запрос не найден",
+      "submitter": "Отправитель",
+      "filterAllSubmitters": "Все отправители",
+      "traceId": "ID трассировки",
+      "spanId": "ID спана",
+      "filterTraceId": "ID трассировки",
+      "filterSpanId": "ID спана",
+      "downloadResponse": "Скачать полный ответ",
+      "downloadFailed": "Не удалось скачать ответ"
     },
     "reviews": {
       "title": "API Reviews",

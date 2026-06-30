@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClient;
  * {@code @Primary}) so it does not collide with {@code notificationsRestClient}.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ApigovOAuth2Properties.class)
+@EnableConfigurationProperties({ApigovOAuth2Properties.class, ApigovRequestProperties.class})
 class ApigovConfiguration {
 
     @Bean

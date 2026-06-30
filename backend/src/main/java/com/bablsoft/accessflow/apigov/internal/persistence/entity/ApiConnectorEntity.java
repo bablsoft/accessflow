@@ -50,6 +50,10 @@ public class ApiConnectorEntity {
     @Column(name = "default_headers", nullable = false, columnDefinition = "jsonb")
     private String defaultHeaders = "{}";
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "trace_header_mapping", nullable = false, columnDefinition = "jsonb")
+    private String traceHeaderMapping = "{\"traceparent\":\"traceparent\",\"tracestate\":\"tracestate\"}";
+
     @Column(name = "timeout_ms", nullable = false)
     private int timeoutMs = 30000;
 

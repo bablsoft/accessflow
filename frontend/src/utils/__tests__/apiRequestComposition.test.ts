@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest';
+import {
+  compositionToSubmit,
+  emptyComposition,
+  fileToBase64,
+  pairsToRecord,
+  recordToPairs,
+  type ApiRequestComposition,
+} from '../apiRequestComposition';
+
+describe('pairsToRecord / recordToPairs', () => {
+  it('drops blank-key rows and trims keys', () => {
+    expect(
+      pairsToRecord([
+        { key: ' X-A ', value: '1' },
+        { key: '', value: 'ignored' },
+        { key: '   ', value: 'ignored' },
+      ]),
+    ).toEqual({ 'X-A': '1' });
+  });
+
+  it('round-trips a record into pairs', () => {
+    expect(recordToPairs({ a: '1', b: '2' })).toEqual([
+      { key: 'a', value: '1' },
+      { key: 'b', value: '2' },
+    ]);
+    expect(recordToPairs(null)).toEqual([]);
+    expect(recordToPairs(undefined)).toEqual([]);
+  });
+});
+
+describe('compositionToSubmit', () => {
+  const base = (over: Partial<ApiRequestComposition>): ApiRequestComposition => ({
+    ...emptyComposition,
+    ...over,
+  });
+
+  it('emits raw body with its content type and no form fields', () => {
+    const out = compositionToSubmit(
+      base({
+        bodyType: 'RAW',
+        contentType: 'application/json',
+        rawBody: '{"x":1}',
+        queryParams: [{ key: 'q', value: '1' }],
+        headers: [{ key: 'X-H', value: 'v' }],
+      }),
+    );
+    expect(out.body_type).toBe('RAW');
+    expect(out.request_body).toBe('{"x":1}');
+    expect(out.request_content_type).toBe('application/json');
+    expect(out.form_fields).toEqual([]);
+    expect(out.query_params).toEqual({ q: '1' });
+    expect(out.request_headers).toEqual({ 'X-H': 'v' });
+    expect(out.binary_filename).toBeNull();
+  });
+
+  it('maps form-data fields including a file part', () => {
+    const out = compositionToSubmit(
+      base({
+        bodyType: 'FORM_DATA',
+        formFields: [
+          { key: 'name', type: 'TEXT', value: 'v' },
+          { key: '', type: 'TEXT', value: 'dropped' },
+          { key: 'doc', type: 'FILE', value: 'AAA=', filename: 'a.txt', content_type: 'text/plain' },
+        ],
+      }),
+    );
+    expect(out.request_content_type).toBeNull();
+    expect(out.request_body).toBeNull();
+    expect(out.form_fields).toEqual([
+      { key: 'name', type: 'TEXT', value: 'v', filename: null, content_type: null },
+      { key: 'doc', type: 'FILE', value: 'AAA=', filename: 'a.txt', content_type: 'text/plain' },
+    ]);
+  });
+
+  it('emits binary base64 + filename', () => {
+    const out = compositionToSubmit(
+      base({ bodyType: 'BINARY', binaryBase64: 'QklO', binaryFilename: 'f.bin' }),
+    );
+    expect(out.request_body).toBe('QklO');
+    expect(out.binary_filename).toBe('f.bin');
+    expect(out.form_fields).toEqual([]);
+  });
+
+  it('empty raw body collapses to null', () => {
+    expect(compositionToSubmit(base({ bodyType: 'RAW', rawBody: '' })).request_body).toBeNull();
+  });
+});
+
+describe('fileToBase64', () => {
+  it('strips the data-url prefix', async () => {
+    const file = new File(['hi'], 'hi.txt', { type: 'text/plain' });
+    const base64 = await fileToBase64(file);
+    expect(atob(base64)).toBe('hi');
+  });
+});

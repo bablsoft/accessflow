@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
@@ -60,6 +61,14 @@ class ApiGovExceptionHandlerTest {
         var pd = handler.handleSchemaParse(new ApiSchemaParseException("bad doc"));
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
         assertThat(pd.getProperties()).containsEntry("reason", "bad doc");
+    }
+
+    @Test
+    void schemaFetchIs422WithReason() {
+        var pd = handler.handleSchemaFetch(new ApiSchemaFetchException("404"));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_FETCH_ERROR");
+        assertThat(pd.getProperties()).containsEntry("reason", "404");
     }
 
     @Test

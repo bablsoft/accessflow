@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
@@ -9,10 +11,12 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestSubmissionResult;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
+import com.bablsoft.accessflow.apigov.api.ApiResponsePayload;
 import com.bablsoft.accessflow.apigov.api.ApiReviewDecisionView;
 import com.bablsoft.accessflow.apigov.api.ApiRequestView;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
@@ -31,6 +35,8 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -40,7 +46,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +70,8 @@ public class DefaultApiRequestService implements ApiRequestService {
     private final ApiExecutionService executionService;
     private final BreakGlassService breakGlassService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
+    private final UserQueryService userQueryService;
+    private final ApigovRequestProperties requestProperties;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
@@ -78,6 +88,8 @@ public class DefaultApiRequestService implements ApiRequestService {
         boolean breakGlass = command.submissionReason() == SubmissionReason.EMERGENCY_ACCESS;
         var permission = enforcePermission(connector, command, write, breakGlass);
         validateAgainstSchema(connector, command);
+        var bodyType = command.bodyType() == null ? ApiBodyType.RAW : command.bodyType();
+        enforceBodySize(bodyType, command);
 
         var entity = new ApiRequestEntity();
         entity.setId(UUID.randomUUID());
@@ -88,7 +100,14 @@ public class DefaultApiRequestService implements ApiRequestService {
         entity.setVerb(command.verb());
         entity.setRequestPath(command.requestPath());
         entity.setRequestHeaders(writeJson(command.requestHeaders()));
+        entity.setQueryParams(writeJson(command.queryParams()));
+        entity.setBodyType(bodyType);
+        entity.setRequestContentType(command.requestContentType());
         entity.setRequestBody(command.requestBody());
+        entity.setFormFields(writeFormFields(command.formFields()));
+        entity.setBinaryFilename(command.binaryFilename());
+        entity.setTraceId(TraceContext.newTraceId());
+        entity.setSpanId(TraceContext.newSpanId());
         entity.setWrite(write);
         entity.setJustification(command.justification());
         entity.setScheduledFor(command.scheduledFor());
@@ -262,6 +281,8 @@ public class DefaultApiRequestService implements ApiRequestService {
     private ApiRequestView buildView(ApiRequestEntity e, boolean detail) {
         var connectorName = connectorRepository.findById(e.getConnectorId())
                 .map(ApiConnectorEntity::getName).orElse(null);
+        var submitterEmail = userQueryService.findById(e.getSubmittedBy())
+                .map(UserView::email).orElse(null);
         var summary = e.getAiAnalysisId() != null
                 ? aiAnalysisLookupService.findById(e.getAiAnalysisId()).orElse(null) : null;
         List<ApiReviewDecisionView> decisions = detail
@@ -271,14 +292,99 @@ public class DefaultApiRequestService implements ApiRequestService {
                         .toList()
                 : List.of();
         return new ApiRequestView(e.getId(), e.getConnectorId(), connectorName, e.getSubmittedBy(),
-                e.getOperationId(), e.getVerb(), e.getRequestPath(), e.isWrite(), e.getStatus(),
-                e.getSubmissionReason(), e.getJustification(), e.getAiAnalysisId(),
+                submitterEmail, e.getOperationId(), e.getVerb(), e.getRequestPath(), e.isWrite(),
+                e.getStatus(), e.getSubmissionReason(), e.getJustification(), e.getAiAnalysisId(),
                 summary != null ? summary.riskLevel() : null,
                 summary != null ? summary.riskScore() : null,
                 summary != null ? summary.summary() : null,
-                e.getScheduledFor(), e.getResponseStatusCode(), e.getResponseDurationMs(),
+                e.getBodyType(), e.getScheduledFor(), e.getTraceId(), e.getSpanId(),
+                e.getResponseStatusCode(), e.getResponseDurationMs(),
                 e.getResponseBytes(), e.isResponseTruncated(), detail ? e.getResponseSnapshot() : null,
-                e.getErrorMessage(), e.getCreatedAt(), decisions);
+                e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId, boolean admin) {
+        var entity = require(id, organizationId);
+        if (!admin && !entity.getSubmittedBy().equals(userId)) {
+            throw new ApiRequestNotFoundException(id);
+        }
+        var snapshot = entity.getResponseSnapshot();
+        if (snapshot == null) {
+            throw new IllegalApiRequestStateException(entity.getStatus(), "API request has no stored response");
+        }
+        var contentType = entity.getResponseContentType() != null && !entity.getResponseContentType().isBlank()
+                ? entity.getResponseContentType() : "application/octet-stream";
+        var filename = "api-response-" + entity.getId() + extensionFor(contentType);
+        return new ApiResponsePayload(snapshot.getBytes(StandardCharsets.UTF_8), contentType, filename);
+    }
+
+    private static String extensionFor(String contentType) {
+        var ct = contentType.toLowerCase();
+        if (ct.contains("json")) {
+            return ".json";
+        }
+        if (ct.contains("xml")) {
+            return ".xml";
+        }
+        if (ct.contains("html")) {
+            return ".html";
+        }
+        if (ct.contains("csv")) {
+            return ".csv";
+        }
+        if (ct.contains("text/")) {
+            return ".txt";
+        }
+        return ".bin";
+    }
+
+    private void enforceBodySize(ApiBodyType bodyType, SubmitApiRequestCommand command) {
+        long bytes = switch (bodyType) {
+            case NONE -> 0L;
+            case RAW -> command.requestBody() == null ? 0L
+                    : command.requestBody().getBytes(StandardCharsets.UTF_8).length;
+            case BINARY -> decodedLength(command.requestBody());
+            case FORM_URLENCODED, FORM_DATA -> formFieldsSize(command.formFields());
+        };
+        if (bytes > requestProperties.maxRequestBodyBytes()) {
+            throw new ApiRequestValidationException("Request body exceeds the maximum allowed size of "
+                    + requestProperties.maxRequestBodyBytes() + " bytes");
+        }
+    }
+
+    private static long formFieldsSize(List<ApiFormField> fields) {
+        if (fields == null) {
+            return 0L;
+        }
+        long total = 0L;
+        for (var field : fields) {
+            if (field == null) {
+                continue;
+            }
+            if (field.type() == ApiFormField.ApiFormFieldType.FILE) {
+                total += decodedLength(field.value());
+            } else if (field.value() != null) {
+                total += field.value().getBytes(StandardCharsets.UTF_8).length;
+            }
+        }
+        return total;
+    }
+
+    private static long decodedLength(String base64) {
+        if (base64 == null || base64.isBlank()) {
+            return 0L;
+        }
+        try {
+            return Base64.getDecoder().decode(base64.strip()).length;
+        } catch (IllegalArgumentException ex) {
+            throw new ApiRequestValidationException("Request body is not valid base64");
+        }
+    }
+
+    private String writeFormFields(List<ApiFormField> fields) {
+        return objectMapper.writeValueAsString(fields == null ? List.of() : fields);
     }
 
     private String writeJson(Map<String, String> map) {
