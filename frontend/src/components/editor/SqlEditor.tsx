@@ -62,7 +62,9 @@ export function SqlEditor({
   // listener always invokes the latest callback — critical when the parent's onChange spreads other
   // live state (e.g. a request-group member's datasourceId) that a stale closure would clobber.
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   useEffect(() => {
     if (!containerRef.current) return;
