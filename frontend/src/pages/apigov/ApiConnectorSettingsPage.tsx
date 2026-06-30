@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { App, Button, Form, Input, InputNumber, Segmented, Select, Switch, Table, Tabs, Tag, Upload } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,7 +17,7 @@ import {
   updateApiConnector,
   uploadApiSchema,
 } from '@/api/apiConnectors';
-import { aiConfigKeys, listAiConfigs } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
 import {
   API_AUTH_METHODS,
   API_SCHEMA_TYPES,
@@ -41,6 +41,7 @@ import type {
   ApiSchemaType,
   Oauth2GrantType,
   UpdateApiConnectorInput,
+  User,
 } from '@/types/api';
 
 export default function ApiConnectorSettingsPage() {
@@ -375,6 +376,18 @@ function PermissionsTab({ connectorId }: { connectorId: string }) {
     queryKey: apiConnectorKeys.permissions(connectorId),
     queryFn: () => listApiConnectorPermissions(connectorId),
   });
+  const usersQuery = useQuery({
+    queryKey: userKeys.list({ size: 100 }),
+    queryFn: () => listUsers({ size: 100 }),
+  });
+  const taken = useMemo(
+    () => new Set((permsQuery.data ?? []).map((p) => p.user_id)),
+    [permsQuery.data],
+  );
+  const eligible: User[] = useMemo(
+    () => (usersQuery.data?.content ?? []).filter((u) => u.active && !taken.has(u.id)),
+    [usersQuery.data, taken],
+  );
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: apiConnectorKeys.permissions(connectorId) });
   const grantMutation = useMutation({
@@ -404,7 +417,22 @@ function PermissionsTab({ connectorId }: { connectorId: string }) {
         onFinish={(values) => grantMutation.mutate(values)}
       >
         <Form.Item name="user_id" rules={[{ required: true, message: t('apiGov.settings.userRequired') }]}>
-          <Input placeholder={t('apiGov.settings.user')} style={{ width: 280 }} />
+          <Select<string>
+            showSearch
+            optionFilterProp="label"
+            placeholder={t('apiGov.settings.userPlaceholder')}
+            style={{ width: 280 }}
+            loading={usersQuery.isLoading}
+            notFoundContent={
+              usersQuery.isLoading
+                ? t('apiGov.settings.userLoading')
+                : t('apiGov.settings.userEmpty')
+            }
+            options={eligible.map((u) => ({
+              value: u.id,
+              label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
+            }))}
+          />
         </Form.Item>
         <Form.Item name="can_read" label={t('apiGov.settings.canRead')} valuePropName="checked">
           <Switch size="small" />
