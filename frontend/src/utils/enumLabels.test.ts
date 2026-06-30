@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
   ANOMALY_STATUSES,
+  API_MASKING_MATCHER_TYPES,
   BREAK_GLASS_STATUSES,
   OPTIMIZATION_TYPES,
   anomalyStatusLabel,
+  apiMaskingMatcherTypeLabel,
   breakGlassStatusLabel,
   commentStatusLabel,
   erasureStatusLabel,
@@ -18,6 +20,17 @@ import {
 } from './enumLabels';
 
 const t = ((key: string) => key) as unknown as TFunction;
+
+describe('apiMaskingMatcherTypeLabel', () => {
+  it('exposes every matcher type', () => {
+    expect(API_MASKING_MATCHER_TYPES).toEqual(['SCHEMA_FIELD', 'JSON_PATH', 'XML_PATH', 'REGEX']);
+  });
+  it('maps each matcher type to its enum translation key', () => {
+    for (const v of API_MASKING_MATCHER_TYPES) {
+      expect(apiMaskingMatcherTypeLabel(t, v)).toBe(`enums.api_masking_matcher_type.${v}`);
+    }
+  });
+});
 
 describe('commentStatusLabel', () => {
   it('maps each comment status to its enum translation key', () => {

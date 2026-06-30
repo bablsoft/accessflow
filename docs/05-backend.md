@@ -1882,6 +1882,18 @@ full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), schedu
 Cross-module references are bare UUIDs (like `access`); `apigov.api` is JDK + project types only.
 Full design: [docs/17-api-governance.md](17-api-governance.md).
 
+**Masking & classification (AF-518).** Connector-level response governance mirroring datasource
+dynamic masking (AF-381) + classification tagging (AF-447), adapted to non-tabular bodies. A
+masking policy / classification tag targets a field by `api_masking_matcher_type`
+(`SCHEMA_FIELD`/`JSON_PATH`/`XML_PATH`/`REGEX`). `ApiConnectorMaskingResolutionService` resolves the
+policies that apply to a submitter (reveal precedence via `core.api.UserQueryService` +
+`UserGroupService`); `ApiExecutionService` merges them with the legacy `restricted_response_fields`
+and `ApiResponseMasker.mask(body, contentType, masks)` applies them (strategy-aware JSON dot-path /
+XPath / regex masking, reusing `ColumnMasker`) once, before the snapshot is stored — applied policy
+ids land in the `API_REQUEST_EXECUTED` audit metadata. Classification tags auto-derive a masking
+policy (`ApiConnectorClassificationDefaults`) and raise the apigov analyzer's risk
+(`ApiConnectorClassificationRiskBooster`, applied in `ApiAnalysisListener`, fail-safe).
+
 **Request composition (AF-517, #517).** A submitted call is composed like a Postman request:
 `query_params` (percent-encoded onto the URL), per-request `request_headers` merged over the
 connector's admin-defined `default_headers` (shown read-only in the editor), and a `body_type`

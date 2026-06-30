@@ -1,9 +1,13 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorClassificationTagNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
+import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorClassificationTagException;
+import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorMaskingPolicyException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
@@ -123,6 +127,30 @@ class ApiGovExceptionHandler {
         var pd = problem(HttpStatus.BAD_GATEWAY, msg("error.api_execution_failed"), "API_EXECUTION_FAILED");
         pd.setProperty("reason", ex.getMessage());
         return pd;
+    }
+
+    @ExceptionHandler(ApiConnectorMaskingPolicyNotFoundException.class)
+    ProblemDetail handleMaskingPolicyNotFound(ApiConnectorMaskingPolicyNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.api_masking_policy_not_found"),
+                "API_MASKING_POLICY_NOT_FOUND");
+    }
+
+    @ExceptionHandler(IllegalApiConnectorMaskingPolicyException.class)
+    ProblemDetail handleIllegalMaskingPolicy(IllegalApiConnectorMaskingPolicyException ex) {
+        // Message resolved at the throw site via MessageSource — see DefaultApiConnectorMaskingAdminService.
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_MASKING_POLICY");
+    }
+
+    @ExceptionHandler(ApiConnectorClassificationTagNotFoundException.class)
+    ProblemDetail handleClassificationTagNotFound(ApiConnectorClassificationTagNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.api_classification_tag_not_found"),
+                "API_CLASSIFICATION_TAG_NOT_FOUND");
+    }
+
+    @ExceptionHandler(IllegalApiConnectorClassificationTagException.class)
+    ProblemDetail handleIllegalClassificationTag(IllegalApiConnectorClassificationTagException ex) {
+        // Message resolved at the throw site via MessageSource — see DefaultApiConnectorClassificationService.
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_CLASSIFICATION_TAG");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {

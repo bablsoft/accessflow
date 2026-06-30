@@ -109,7 +109,7 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/
-├── apigov/         # API Access Governance: govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions, submit→AI→review→execute pipeline, masking, break-glass, text-to-API (AF-500)
+├── apigov/         # API Access Governance: govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions, submit→AI→review→execute pipeline, masking, break-glass, text-to-API (AF-500); connector-level response masking policies + data-classification tags with auto-derived masking & AI-risk bump (schema-field/JSON-path/XML-path/regex matchers — AF-518)
 │   ├── api/
 │   ├── events/
 │   └── internal/   # persistence, client (per-protocol exec + auth + prober), schema (parsers), routing, scheduled, web

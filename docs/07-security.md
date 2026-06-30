@@ -409,6 +409,29 @@ value-rendering control, not an access boundary:
   entry would apply to the same column; a `restricted_columns` entry with no covering policy is
   unchanged (backward compatible).
 
+### API connector response masking & classification (AF-518)
+
+`api_connector_masking_policy` brings the same model to API-connector responses (the apigov module),
+adapted to non-tabular bodies — same trust posture, a defense-in-depth value-rendering control, not
+an access boundary.
+
+- **Matcher types.** A policy targets a response field by `api_masking_matcher_type`: `SCHEMA_FIELD`
+  (operation + field via the parsed catalog, resolved to a JSON dot-path), `JSON_PATH` (dot-path into
+  a JSON body), `XML_PATH` (XPath into an XML/SOAP body, evaluated with an XXE-hardened parser), or
+  `REGEX` (regex over a JSON/text body; first capture group or whole match masked). Strategies and
+  `reveal_to_*` semantics are identical to AF-381 (no implicit ADMIN bypass; keyed on the call
+  **submitter**).
+- **No unmasked persistence.** Resolved policies are merged with the legacy per-permission
+  `restricted_response_fields` and applied by `ApiResponseMasker` (reusing `ColumnMasker`) **once**,
+  before the immutable response snapshot is stored — the raw body never persists.
+- **Audit.** The ids of the policies that applied are recorded in the `API_REQUEST_EXECUTED` audit
+  metadata (`appliedMaskingPolicyIds`). Policy/tag mutations emit
+  `API_CONNECTOR_MASKING_POLICY_CREATED/UPDATED/DELETED` and
+  `API_CONNECTOR_CLASSIFICATION_TAG_ADDED/REMOVED` audit actions.
+- **Classification.** `api_connector_classification_tag` tags a field with
+  PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE; tagging auto-derives a masking policy and raises the apigov
+  AI analyzer's risk for calls to the operation (fail-safe, never lowers the LLM verdict).
+
 ### Row-level security policies (AF-380)
 
 `row_security_policy` rows filter **which rows** a submitter can see (SELECT) or change (UPDATE/DELETE)

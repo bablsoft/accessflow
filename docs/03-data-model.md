@@ -1574,9 +1574,62 @@ Per-user, per-connector grants — how an admin shares governed connectivity wit
 | `can_read` / `can_write` / `can_break_glass` | BOOLEAN | |
 | `expires_at` | TIMESTAMPTZ | JIT expiry (nullable). |
 | `allowed_operations` | TEXT[] | Operation-id subset the user may call (null = all). |
-| `restricted_response_fields` | TEXT[] | Dot-paths masked in responses for this user. |
+| `restricted_response_fields` | TEXT[] | Dot-paths masked in responses for this user (legacy FULL masks; merged with `api_connector_masking_policy` since AF-518). |
 | `created_by` | UUID | |
 | `created_at` | TIMESTAMPTZ | |
+
+## api_connector_masking_policy (AF-518)
+
+Per-connector response-masking policies (migration V108), mirroring `masking_policy` (AF-381) adapted
+to non-tabular API responses. A submitter in any reveal list sees the unmasked value.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID. |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
+| `matcher_type` | ENUM `api_masking_matcher_type`: `SCHEMA_FIELD` \| `JSON_PATH` \| `XML_PATH` \| `REGEX` | How `field_ref` targets the field. |
+| `operation_id` | TEXT | Required for `SCHEMA_FIELD` (validated in the service); null otherwise. |
+| `field_ref` | TEXT | The schema field / JSON dot-path / XPath / regex. |
+| `strategy` | ENUM `masking_strategy` | Reused from AF-381. |
+| `strategy_params` | JSONB | Strategy tuning (e.g. `visible_suffix`). Default `{}`. |
+| `reveal_to_roles` | TEXT[] | |
+| `reveal_to_group_ids` | UUID[] | |
+| `reveal_to_user_ids` | UUID[] | |
+| `enabled` | BOOLEAN | Default `true`. |
+| `version` | BIGINT | Optimistic lock. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+Index `idx_api_masking_policy_connector_enabled (organization_id, connector_id, enabled)` backs the
+per-execution resolution scan.
+
+**`api_masking_matcher_type` values:** `SCHEMA_FIELD` (operation + field via the parsed catalog,
+resolved to a JSON dot-path), `JSON_PATH` (dot-path into a JSON body, descending arrays), `XML_PATH`
+(XPath into an XML/SOAP body, XXE-hardened), `REGEX` (regex over a JSON/text body; first capture
+group or whole match masked).
+
+## api_connector_classification_tag (AF-518)
+
+Per-connector data-classification tags (migration V108), mirroring `data_classification_tag`
+(AF-447). One row per (object, classification).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID. |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
+| `operation_id` | TEXT | Null = a connector-level tag (no derived masking). |
+| `field_ref` | TEXT | The schema field / JSON path / XPath / regex. |
+| `matcher_type` | ENUM `api_masking_matcher_type` | |
+| `classification` | ENUM `data_classification` | Reused from AF-447. |
+| `note` | TEXT | Optional. |
+| `version` | BIGINT | Optimistic lock. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+Unique index `uq_api_classification_tag_object_class (organization_id, connector_id,
+COALESCE(operation_id,''), field_ref, classification)` (COALESCE collapses NULL so duplicate
+connector-level tags are rejected too). Tagging a field auto-derives a masking policy and raises the
+apigov AI analyzer's risk for calls to the operation.
 
 ## api_requests (AF-500)
 

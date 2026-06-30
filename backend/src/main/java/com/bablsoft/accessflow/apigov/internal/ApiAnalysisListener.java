@@ -42,6 +42,7 @@ class ApiAnalysisListener {
     private final ApiSchemaService schemaService;
     private final ApiCallAnalyzer apiCallAnalyzer;
     private final AiAnalysisPersistenceService persistenceService;
+    private final ApiConnectorClassificationRiskBooster classificationRiskBooster;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -58,10 +59,13 @@ class ApiAnalysisListener {
         }
         try {
             var schemaContext = renderSchema(connector, request.getOrganizationId());
-            var result = apiCallAnalyzer.analyzeApiCall(new ApiCallAnalyzer.ApiCallAnalysisInput(
+            var analyzed = apiCallAnalyzer.analyzeApiCall(new ApiCallAnalyzer.ApiCallAnalysisInput(
                     request.getOrganizationId(), connector.getAiConfigId(), connector.getProtocol().name(),
                     request.getVerb(), request.getRequestPath(), request.getRequestBody(),
                     schemaContext, null));
+            // AF-518: raise risk when the called operation references a data-classified field.
+            var result = classificationRiskBooster.boost(analyzed, request.getOrganizationId(),
+                    connector.getId(), request.getOperationId());
             var analysisId = persistenceService.persistForApiRequest(request.getId(), toCommand(result));
             request.setAiAnalysisId(analysisId);
             requestRepository.save(request);

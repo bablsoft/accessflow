@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -20,6 +21,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -143,6 +145,11 @@ public class ApiRequestEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
+
+    // AF-518: connector masking policy ids applied to the stored response snapshot. Transient — not
+    // persisted on api_requests; surfaced from the executor to the API_REQUEST_EXECUTED audit row.
+    @Transient
+    private List<UUID> appliedMaskingPolicyIds = List.of();
 
     @PreUpdate
     void onUpdate() {
