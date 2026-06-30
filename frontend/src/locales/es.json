@@ -2350,6 +2350,13 @@
       "REJECTED": "Rechazado",
       "FAILED": "Fallido",
       "CANCELLED": "Cancelado"
+    },
+    "api_body_type": {
+      "NONE": "Ninguno",
+      "RAW": "Sin formato",
+      "FORM_DATA": "Datos de formulario",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Binario"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "Encabezados predeterminados",
+      "defaultHeadersHint": "Se incluyen en cada llamada gobernada",
+      "traceHeaderMapping": "Encabezados de contexto de traza",
+      "traceHeaderMappingHint": "Nombres de encabezado que transportan el contexto de traza W3C",
+      "schemaSource": "Origen del esquema",
+      "schemaSourcePaste": "Pegar",
+      "schemaSourceUpload": "Subir archivo",
+      "schemaSourceUrl": "Desde URL",
+      "schemaUrl": "URL del esquema",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Introduzca una URL de esquema",
+      "schemaFile": "Archivo de esquema",
+      "schemaFileRequired": "Elija un archivo de esquema"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Parámetros",
+      "tabHeaders": "Encabezados",
+      "tabBody": "Cuerpo",
+      "queryParams": "Parámetros de consulta",
+      "requestHeaders": "Encabezados de la solicitud",
+      "defaultHeaders": "Encabezados predeterminados del conector",
+      "defaultHeadersHint": "Definidos por un administrador y enviados en cada llamada",
+      "contentType": "Tipo de contenido",
+      "bodyTypeLabel": "Tipo de cuerpo",
+      "formFields": "Campos del formulario",
+      "addRow": "Añadir",
+      "addFile": "Añadir archivo",
+      "keyPlaceholder": "Clave",
+      "valuePlaceholder": "Valor",
+      "fieldTypeText": "Texto",
+      "fieldTypeFile": "Archivo",
+      "chooseFile": "Elegir archivo",
+      "binaryFile": "Archivo binario",
+      "fileTooLarge": "El archivo supera el tamaño máximo de {{maxMb}} MB",
+      "searchOperation": "Buscar operaciones…",
+      "scheduleFor": "Programar para más tarde",
+      "scheduleHint": "Déjelo vacío para ejecutar justo después de la aprobación",
+      "scheduleInPast": "La hora programada debe ser futura"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Decidido el",
       "scheduled": "Programado",
       "truncated": "Truncado",
-      "notFound": "Solicitud no encontrada"
+      "notFound": "Solicitud no encontrada",
+      "submitter": "Remitente",
+      "filterAllSubmitters": "Todos los remitentes",
+      "traceId": "ID de traza",
+      "spanId": "ID de span",
+      "filterTraceId": "ID de traza",
+      "filterSpanId": "ID de span",
+      "downloadResponse": "Descargar respuesta completa",
+      "downloadFailed": "No se pudo descargar la respuesta"
     },
     "reviews": {
       "title": "API Reviews",

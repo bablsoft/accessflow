@@ -15,6 +15,7 @@ public record ApiConnectorView(
         ApiProtocol protocol,
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         int timeoutMs,
         boolean tlsVerify,
         ApiAuthMethod authMethod,

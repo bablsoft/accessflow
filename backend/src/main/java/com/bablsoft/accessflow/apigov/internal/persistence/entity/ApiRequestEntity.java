@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.persistence.entity;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import jakarta.persistence.Column;
@@ -56,6 +57,25 @@ public class ApiRequestEntity {
     @Column(name = "request_body", columnDefinition = "text")
     private String requestBody;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "body_type", nullable = false, columnDefinition = "api_body_type")
+    private ApiBodyType bodyType = ApiBodyType.RAW;
+
+    @Column(name = "request_content_type", columnDefinition = "text")
+    private String requestContentType;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "query_params", nullable = false, columnDefinition = "jsonb")
+    private String queryParams = "{}";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "form_fields", nullable = false, columnDefinition = "jsonb")
+    private String formFields = "[]";
+
+    @Column(name = "binary_filename", columnDefinition = "text")
+    private String binaryFilename;
+
     @Column(name = "is_write", nullable = false)
     private boolean write = false;
 
@@ -95,6 +115,15 @@ public class ApiRequestEntity {
 
     @Column(name = "response_snapshot", columnDefinition = "text")
     private String responseSnapshot;
+
+    @Column(name = "response_content_type", columnDefinition = "text")
+    private String responseContentType;
+
+    @Column(name = "trace_id", columnDefinition = "text")
+    private String traceId;
+
+    @Column(name = "span_id", columnDefinition = "text")
+    private String spanId;
 
     @Column(name = "error_message", columnDefinition = "text")
     private String errorMessage;

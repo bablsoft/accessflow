@@ -31,6 +31,12 @@ final class ApiRequestSpecifications {
             if (filter.verb() != null && !filter.verb().isBlank()) {
                 predicates.add(cb.equal(root.get("verb"), filter.verb()));
             }
+            if (filter.traceId() != null && !filter.traceId().isBlank()) {
+                predicates.add(cb.equal(root.get("traceId"), filter.traceId().trim()));
+            }
+            if (filter.spanId() != null && !filter.spanId().isBlank()) {
+                predicates.add(cb.equal(root.get("spanId"), filter.spanId().trim()));
+            }
             if (filter.from() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filter.from()));
             }

@@ -16,6 +16,7 @@ public record UpdateApiConnectorRequest(
         @Size(max = 2048, message = "{validation.api_connector.base_url.size}")
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         @Min(value = 1, message = "{validation.api_connector.timeout.min}")
         Integer timeoutMs,
         Boolean tlsVerify,
@@ -50,8 +51,8 @@ public record UpdateApiConnectorRequest(
         Boolean active) {
 
     UpdateApiConnectorCommand toCommand() {
-        return new UpdateApiConnectorCommand(name, baseUrl, defaultHeaders, timeoutMs, tlsVerify,
-                authMethod, credentials, oauth2TokenUri, oauth2ClientId, oauth2ClientSecret,
+        return new UpdateApiConnectorCommand(name, baseUrl, defaultHeaders, traceHeaderMapping, timeoutMs,
+                tlsVerify, authMethod, credentials, oauth2TokenUri, oauth2ClientId, oauth2ClientSecret,
                 oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username, oauth2Password,
                 oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled, aiConfigId,
                 textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes, active);

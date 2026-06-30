@@ -2350,6 +2350,13 @@
       "REJECTED": "Rejeté",
       "FAILED": "Échoué",
       "CANCELLED": "Annulé"
+    },
+    "api_body_type": {
+      "NONE": "Aucun",
+      "RAW": "Brut",
+      "FORM_DATA": "Données de formulaire",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Binaire"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "En-têtes par défaut",
+      "defaultHeadersHint": "Ajoutés à chaque appel gouverné",
+      "traceHeaderMapping": "En-têtes de contexte de trace",
+      "traceHeaderMappingHint": "Noms d'en-tête qui portent le contexte de trace W3C",
+      "schemaSource": "Source du schéma",
+      "schemaSourcePaste": "Coller",
+      "schemaSourceUpload": "Téléverser un fichier",
+      "schemaSourceUrl": "Depuis une URL",
+      "schemaUrl": "URL du schéma",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Saisissez une URL de schéma",
+      "schemaFile": "Fichier de schéma",
+      "schemaFileRequired": "Choisissez un fichier de schéma"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Paramètres",
+      "tabHeaders": "En-têtes",
+      "tabBody": "Corps",
+      "queryParams": "Paramètres de requête",
+      "requestHeaders": "En-têtes de la requête",
+      "defaultHeaders": "En-têtes par défaut du connecteur",
+      "defaultHeadersHint": "Définis par un administrateur et envoyés à chaque appel",
+      "contentType": "Type de contenu",
+      "bodyTypeLabel": "Type de corps",
+      "formFields": "Champs du formulaire",
+      "addRow": "Ajouter",
+      "addFile": "Ajouter un fichier",
+      "keyPlaceholder": "Clé",
+      "valuePlaceholder": "Valeur",
+      "fieldTypeText": "Texte",
+      "fieldTypeFile": "Fichier",
+      "chooseFile": "Choisir un fichier",
+      "binaryFile": "Fichier binaire",
+      "fileTooLarge": "Le fichier dépasse la taille maximale de {{maxMb}} Mo",
+      "searchOperation": "Rechercher des opérations…",
+      "scheduleFor": "Planifier pour plus tard",
+      "scheduleHint": "Laisser vide pour exécuter juste après l'approbation",
+      "scheduleInPast": "L'heure planifiée doit être dans le futur"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Décidé le",
       "scheduled": "Planifié",
       "truncated": "Tronqué",
-      "notFound": "Requête introuvable"
+      "notFound": "Requête introuvable",
+      "submitter": "Demandeur",
+      "filterAllSubmitters": "Tous les demandeurs",
+      "traceId": "ID de trace",
+      "spanId": "ID de span",
+      "filterTraceId": "ID de trace",
+      "filterSpanId": "ID de span",
+      "downloadResponse": "Télécharger la réponse complète",
+      "downloadFailed": "Impossible de télécharger la réponse"
     },
     "reviews": {
       "title": "API Reviews",

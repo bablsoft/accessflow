@@ -16,6 +16,7 @@ public record ApiConnectorResponse(
         ApiProtocol protocol,
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         int timeoutMs,
         boolean tlsVerify,
         ApiAuthMethod authMethod,
@@ -43,7 +44,7 @@ public record ApiConnectorResponse(
 
     static ApiConnectorResponse from(ApiConnectorView v) {
         return new ApiConnectorResponse(v.id(), v.name(), v.protocol(), v.baseUrl(), v.defaultHeaders(),
-                v.timeoutMs(), v.tlsVerify(), v.authMethod(), v.hasCredentials(),
+                v.traceHeaderMapping(), v.timeoutMs(), v.tlsVerify(), v.authMethod(), v.hasCredentials(),
                 v.oauth2TokenUri(), v.oauth2ClientId(), v.oauth2Scopes(), v.oauth2Audience(),
                 v.oauth2Username(), v.oauth2GrantType(), v.oauth2ClientAuth(),
                 v.oauth2ClientSecretConfigured(), v.oauth2RefreshTokenConfigured(),

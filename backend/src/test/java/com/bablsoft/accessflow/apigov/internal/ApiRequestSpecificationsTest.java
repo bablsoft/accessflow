@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,8 @@ class ApiRequestSpecificationsTest {
     private Path connectorIdPath;
     private Path statusPath;
     private Path verbPath;
+    private Path traceIdPath;
+    private Path spanIdPath;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +55,8 @@ class ApiRequestSpecificationsTest {
         connectorIdPath = mock(Path.class);
         statusPath = mock(Path.class);
         verbPath = mock(Path.class);
+        traceIdPath = mock(Path.class);
+        spanIdPath = mock(Path.class);
 
         when(root.get("createdAt")).thenReturn(createdAtPath);
         when(root.get("organizationId")).thenReturn(orgIdPath);
@@ -59,6 +64,8 @@ class ApiRequestSpecificationsTest {
         when(root.get("connectorId")).thenReturn(connectorIdPath);
         when(root.get("status")).thenReturn(statusPath);
         when(root.get("verb")).thenReturn(verbPath);
+        lenient().when(root.get("traceId")).thenReturn(traceIdPath);
+        lenient().when(root.get("spanId")).thenReturn(spanIdPath);
 
         when(cb.desc(any(Expression.class))).thenReturn(order);
         when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
@@ -72,7 +79,7 @@ class ApiRequestSpecificationsTest {
     void emptyFilterAddsOnlyOrgPredicateAndOrdersByCreatedAtDesc() {
         var orgId = UUID.randomUUID();
         ApiRequestSpecifications.forFilter(
-                new ApiRequestListFilter(orgId, null, null, null, null, null, null))
+                new ApiRequestListFilter(orgId, null, null, null, null, null, null, null, null))
                 .toPredicate(root, cq, cb);
 
         verify(cq).orderBy(order);
@@ -95,22 +102,35 @@ class ApiRequestSpecificationsTest {
         var to = Instant.parse("2026-02-01T00:00:00Z");
 
         ApiRequestSpecifications.forFilter(new ApiRequestListFilter(orgId, userId, connectorId,
-                QueryStatus.PENDING_REVIEW, "GET", from, to)).toPredicate(root, cq, cb);
+                QueryStatus.PENDING_REVIEW, "GET", "trace-1", "span-1", from, to)).toPredicate(root, cq, cb);
 
         verify(cb).equal(orgIdPath, orgId);
         verify(cb).equal(submittedByPath, userId);
         verify(cb).equal(connectorIdPath, connectorId);
         verify(cb).equal(statusPath, QueryStatus.PENDING_REVIEW);
         verify(cb).equal(verbPath, "GET");
+        verify(cb).equal(traceIdPath, "trace-1");
+        verify(cb).equal(spanIdPath, "span-1");
         verify(cb).greaterThanOrEqualTo(createdAtPath, from);
         verify(cb).lessThan(createdAtPath, to);
+    }
+
+    @Test
+    void blankTraceAndSpanAreIgnored() {
+        var orgId = UUID.randomUUID();
+        ApiRequestSpecifications.forFilter(
+                new ApiRequestListFilter(orgId, null, null, null, null, "  ", "", null, null))
+                .toPredicate(root, cq, cb);
+
+        verify(cb, never()).equal(eq(traceIdPath), any(Object.class));
+        verify(cb, never()).equal(eq(spanIdPath), any(Object.class));
     }
 
     @Test
     void blankVerbIsIgnored() {
         var orgId = UUID.randomUUID();
         ApiRequestSpecifications.forFilter(
-                new ApiRequestListFilter(orgId, null, null, null, "  ", null, null))
+                new ApiRequestListFilter(orgId, null, null, null, "  ", null, null, null, null))
                 .toPredicate(root, cq, cb);
 
         verify(cb, never()).equal(eq(verbPath), any(Object.class));
@@ -121,7 +141,7 @@ class ApiRequestSpecificationsTest {
         var orgId = UUID.randomUUID();
         var from = Instant.parse("2026-03-01T00:00:00Z");
         ApiRequestSpecifications.forFilter(
-                new ApiRequestListFilter(orgId, null, null, null, null, from, null))
+                new ApiRequestListFilter(orgId, null, null, null, null, null, null, from, null))
                 .toPredicate(root, cq, cb);
 
         verify(cb).greaterThanOrEqualTo(createdAtPath, from);

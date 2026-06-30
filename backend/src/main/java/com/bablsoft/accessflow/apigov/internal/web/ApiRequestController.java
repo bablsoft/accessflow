@@ -12,7 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -58,13 +62,17 @@ class ApiRequestController {
                                 @RequestParam(required = false) QueryStatus status,
                                 @RequestParam(name = "connector_id", required = false) UUID connectorId,
                                 @RequestParam(required = false) String verb,
+                                @RequestParam(name = "submitted_by", required = false) UUID submittedByParam,
+                                @RequestParam(name = "trace_id", required = false) String traceId,
+                                @RequestParam(name = "span_id", required = false) String spanId,
                                 @RequestParam(required = false) Instant from,
                                 @RequestParam(required = false) Instant to) {
         var caller = claims(authentication);
         var pageRequest = SpringPageableAdapter.toPageRequest(pageable);
-        var submittedBy = isAdmin(caller) ? null : caller.userId();
+        // Non-admins are hard-scoped to their own requests; the submitted_by filter is admin-only.
+        var submittedBy = isAdmin(caller) ? submittedByParam : caller.userId();
         var filter = new ApiRequestListFilter(caller.organizationId(), submittedBy, connectorId, status,
-                normalizeVerb(verb), from, to);
+                normalizeVerb(verb), blankToNull(traceId), blankToNull(spanId), from, to);
         return ApiRequestPageResponse.from(requestService.list(filter, pageRequest));
     }
 
@@ -76,6 +84,22 @@ class ApiRequestController {
         var caller = claims(authentication);
         return ApiRequestResponse.from(requestService.get(id, caller.organizationId(), caller.userId(),
                 isAdmin(caller)));
+    }
+
+    @GetMapping("/{id}/response")
+    @Operation(summary = "Download the full stored response snapshot in its original content type")
+    @ApiResponse(responseCode = "200", description = "Response body as an attachment")
+    @ApiResponse(responseCode = "404", description = "Request not found")
+    @ApiResponse(responseCode = "409", description = "Request has no stored response")
+    ResponseEntity<byte[]> downloadResponse(@PathVariable UUID id, Authentication authentication) {
+        var caller = claims(authentication);
+        var payload = requestService.downloadResponse(id, caller.organizationId(), caller.userId(),
+                isAdmin(caller));
+        var disposition = ContentDisposition.attachment().filename(payload.filename()).build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .contentType(parseMediaType(payload.contentType()))
+                .body(payload.content());
     }
 
     @PostMapping("/{id}/cancel")
@@ -124,6 +148,18 @@ class ApiRequestController {
 
     private static String normalizeVerb(String verb) {
         return verb == null || verb.isBlank() ? null : verb.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static MediaType parseMediaType(String contentType) {
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (RuntimeException ex) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 
     private static JwtClaims claims(Authentication authentication) {

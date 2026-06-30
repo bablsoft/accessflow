@@ -1,10 +1,13 @@
 package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
+import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallResult;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorAuthApplier;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -41,6 +44,8 @@ public class ApiExecutionService {
     private static final Logger log = LoggerFactory.getLogger(ApiExecutionService.class);
     private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() {
     };
+    private static final TypeReference<List<ApiFormField>> FORM_FIELDS_TYPE = new TypeReference<>() {
+    };
 
     private final ApiRequestRepository requestRepository;
     private final ApiConnectorRepository connectorRepository;
@@ -71,6 +76,7 @@ public class ApiExecutionService {
             request.setResponseBytes(result.bytes());
             request.setResponseTruncated(result.truncated());
             request.setResponseSnapshot(masked);
+            request.setResponseContentType(result.contentType());
             request.setErrorMessage(null);
             stateService.apply(request, QueryStatus.EXECUTED);
             eventPublisher.publishEvent(new ApiRequestDecidedEvent(request.getId(), QueryStatus.EXECUTED, null));
@@ -104,6 +110,7 @@ public class ApiExecutionService {
         var headers = new LinkedHashMap<String, String>();
         headers.putAll(readMap(connector.getDefaultHeaders()));
         headers.putAll(readMap(request.getRequestHeaders()));
+        applyTraceHeaders(headers, connector, request);
         if (bearerToken != null) {
             headers.put("Authorization", "Bearer " + bearerToken);
         } else {
@@ -113,11 +120,37 @@ public class ApiExecutionService {
         return headers;
     }
 
+    private void applyTraceHeaders(Map<String, String> headers, ApiConnectorEntity connector,
+                                   ApiRequestEntity request) {
+        if (request.getTraceId() == null || request.getSpanId() == null) {
+            return;
+        }
+        var mapping = readMap(connector.getTraceHeaderMapping());
+        var traceparentHeader = mapping.getOrDefault("traceparent", "traceparent");
+        if (traceparentHeader != null && !traceparentHeader.isBlank()) {
+            headers.put(traceparentHeader, TraceContext.traceparent(request.getTraceId(), request.getSpanId()));
+        }
+    }
+
     private ApiCallResult executeCall(ApiConnectorEntity connector, ApiRequestEntity request,
                                       Map<String, String> headers) {
-        return executor.execute(connector.getProtocol(), connector.getBaseUrl(), request.getVerb(),
-                request.getRequestPath(), headers, request.getRequestBody(), connector.getTimeoutMs(),
-                connector.getMaxResponseBytes(), request.getOperationId());
+        return executor.execute(new ApiCallRequest(connector.getProtocol(), connector.getBaseUrl(),
+                request.getVerb(), request.getRequestPath(), headers, readMap(request.getQueryParams()),
+                request.getBodyType() == null ? ApiBodyType.RAW : request.getBodyType(),
+                request.getRequestBody(), request.getRequestContentType(), readFormFields(request.getFormFields()),
+                request.getBinaryFilename(), connector.getTimeoutMs(), connector.getMaxResponseBytes(),
+                request.getOperationId()));
+    }
+
+    private List<ApiFormField> readFormFields(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, FORM_FIELDS_TYPE);
+        } catch (RuntimeException ex) {
+            return List.of();
+        }
     }
 
     private Map<String, String> decryptCredentials(ApiConnectorEntity connector) {

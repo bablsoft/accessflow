@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
@@ -63,6 +64,14 @@ class ApiGovExceptionHandler {
     ProblemDetail handleSchemaParse(ApiSchemaParseException ex) {
         var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.api_schema_parse"),
                 "API_SCHEMA_PARSE_ERROR");
+        pd.setProperty("reason", ex.getMessage());
+        return pd;
+    }
+
+    @ExceptionHandler(ApiSchemaFetchException.class)
+    ProblemDetail handleSchemaFetch(ApiSchemaFetchException ex) {
+        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.api_schema_fetch"),
+                "API_SCHEMA_FETCH_ERROR");
         pd.setProperty("reason", ex.getMessage());
         return pd;
     }

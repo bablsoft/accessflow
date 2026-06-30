@@ -286,6 +286,10 @@ accessflow:
     oauth2-token-request-timeout: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_REQUEST_TIMEOUT:PT10S}
     oauth2-token-fallback-ttl: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FALLBACK_TTL:PT60S}
     oauth2-token-failure-alert-threshold: ${ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FAILURE_ALERT_THRESHOLD:3}
+    # Caps the total encoded size of a submitted API request body (raw text, x-www-form-urlencoded,
+    # or the base64-decoded size of form-data / binary file parts). Files ride inline as bounded
+    # base64 since AccessFlow has no object storage. Exceeding it rejects the submission with 422.
+    max-request-body-bytes: ${ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES:5242880}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

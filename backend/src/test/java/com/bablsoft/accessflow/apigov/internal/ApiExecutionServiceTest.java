@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
+import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallResult;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorAuthApplier;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -30,9 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -91,8 +89,7 @@ class ApiExecutionServiceTest {
         when(stateService.require(requestId)).thenReturn(entity);
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenReturn(new ApiCallResult(200, 12, 42, false, "{\"ssn\":\"x\"}"));
+        when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(200, 12, 42, false, "{\"ssn\":\"x\"}", "application/json"));
         var perm = new ApiConnectorUserPermissionEntity();
         perm.setRestrictedResponseFields(new String[]{"ssn"});
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.of(perm));
@@ -107,14 +104,36 @@ class ApiExecutionServiceTest {
     }
 
     @Test
+    void executeInjectsTraceparentAndStoresResponseContentType() {
+        var entity = approved();
+        entity.setTraceId("0af7651916cd43dd8448eb211c80319c");
+        entity.setSpanId("b7ad6b7169203331");
+        var c = connector();
+        c.setTraceHeaderMapping("{\"traceparent\":\"traceparent\"}");
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        var captor = org.mockito.ArgumentCaptor.forClass(ApiCallRequest.class);
+        when(executor.execute(captor.capture()))
+                .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("{}");
+
+        var result = service.execute(requestId);
+
+        assertThat(captor.getValue().headers()).containsEntry("traceparent",
+                "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
+        assertThat(result.getResponseContentType()).isEqualTo("application/json");
+    }
+
+    @Test
     void executeFailureRecordsFailed() {
         var entity = approved();
         when(stateService.require(requestId)).thenReturn(entity);
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         lenient().when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
         lenient().when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenThrow(new ApiExecutionException("boom"));
+        when(executor.execute(any(ApiCallRequest.class))).thenThrow(new ApiExecutionException("boom"));
 
         var result = service.execute(requestId);
 
@@ -141,8 +160,7 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(encryptionService.decrypt("ENC")).thenReturn("{\"token\":\"t\"}");
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of("Authorization", "Bearer t"));
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenReturn(new ApiCallResult(204, 5, 0, false, ""));
+        when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(204, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any())).thenReturn("");
 
@@ -160,8 +178,7 @@ class ApiExecutionServiceTest {
         when(stateService.require(requestId)).thenReturn(entity);
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(oauth2TokenService.accessToken(c)).thenReturn("tok-1");
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenReturn(new ApiCallResult(200, 5, 2, false, "{}"));
+        when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(200, 5, 2, false, "{}", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any())).thenReturn("{}");
 
@@ -181,10 +198,9 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(oauth2TokenService.accessToken(c)).thenReturn("stale");
         when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any()))
-                .thenReturn(new ApiCallResult(401, 5, 0, false, ""))
-                .thenReturn(new ApiCallResult(200, 6, 2, false, "{}"));
+        when(executor.execute(any(ApiCallRequest.class)))
+                .thenReturn(new ApiCallResult(401, 5, 0, false, "", null))
+                .thenReturn(new ApiCallResult(200, 6, 2, false, "{}", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any())).thenReturn("{}");
 
@@ -192,8 +208,7 @@ class ApiExecutionServiceTest {
 
         verify(oauth2TokenService).evict(connectorId);
         verify(oauth2TokenService).fetchFresh(c);
-        verify(executor, org.mockito.Mockito.times(2)).execute(any(), anyString(), anyString(), anyString(),
-                any(), any(), anyInt(), anyLong(), any());
+        verify(executor, org.mockito.Mockito.times(2)).execute(any(ApiCallRequest.class));
         assertThat(result.getResponseStatusCode()).isEqualTo(200);
         verify(stateService).apply(entity, QueryStatus.EXECUTED);
     }
@@ -207,15 +222,13 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(oauth2TokenService.accessToken(c)).thenReturn("stale");
         when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenReturn(new ApiCallResult(401, 5, 0, false, ""));
+        when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any())).thenReturn("");
 
         var result = service.execute(requestId);
 
-        verify(executor, org.mockito.Mockito.times(2)).execute(any(), anyString(), anyString(), anyString(),
-                any(), any(), anyInt(), anyLong(), any());
+        verify(executor, org.mockito.Mockito.times(2)).execute(any(ApiCallRequest.class));
         assertThat(result.getResponseStatusCode()).isEqualTo(401);
         verify(stateService).apply(entity, QueryStatus.EXECUTED);
     }
@@ -228,16 +241,14 @@ class ApiExecutionServiceTest {
         when(stateService.require(requestId)).thenReturn(entity);
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
-        when(executor.execute(any(), anyString(), anyString(), anyString(), any(), any(), anyInt(),
-                anyLong(), any())).thenReturn(new ApiCallResult(401, 5, 0, false, ""));
+        when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any())).thenReturn("");
 
         service.execute(requestId);
 
         verify(oauth2TokenService, org.mockito.Mockito.never()).fetchFresh(any());
-        verify(executor, org.mockito.Mockito.times(1)).execute(any(), anyString(), anyString(), anyString(),
-                any(), any(), anyInt(), anyLong(), any());
+        verify(executor, org.mockito.Mockito.times(1)).execute(any(ApiCallRequest.class));
     }
 
     @Test

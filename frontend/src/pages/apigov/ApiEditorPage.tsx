@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Card, Input, Select, Space, Tag } from 'antd';
+import { App, Button, Card, DatePicker, Input, Select, Space, Tag } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { apiConnectorKeys, listApiConnectors, listApiOperations } from '@/api/apiConnectors';
-import {
-  analyzeApiCall,
-  generateApiCall,
-  submitApiRequest,
-} from '@/api/apiRequests';
+import { analyzeApiCall, generateApiCall, submitApiRequest } from '@/api/apiRequests';
 import { riskLevelLabel } from '@/utils/enumLabels';
+import { ApiRequestComposer } from '@/components/apigov/ApiRequestComposer';
+import {
+  compositionToSubmit,
+  emptyComposition,
+  type ApiRequestComposition,
+} from '@/utils/apiRequestComposition';
 
 export default function ApiEditorPage() {
   const { t } = useTranslation();
@@ -21,9 +24,10 @@ export default function ApiEditorPage() {
   const [operationId, setOperationId] = useState<string>();
   const [verb, setVerb] = useState('GET');
   const [path, setPath] = useState('');
-  const [body, setBody] = useState('');
   const [justification, setJustification] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
+  const [composition, setComposition] = useState<ApiRequestComposition>(emptyComposition);
 
   const connectorsQuery = useQuery({
     queryKey: apiConnectorKeys.list({ size: 100 }),
@@ -40,6 +44,16 @@ export default function ApiEditorPage() {
     enabled: !!connectorId && !!connector?.schema_present,
   });
 
+  const sortedOperations = useMemo(
+    () =>
+      [...(operationsQuery.data ?? [])].sort(
+        (a, b) => a.verb.localeCompare(b.verb) || a.path.localeCompare(b.path),
+      ),
+    [operationsQuery.data],
+  );
+
+  const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
+
   const analyzeMutation = useMutation({
     mutationFn: () =>
       analyzeApiCall({
@@ -47,7 +61,7 @@ export default function ApiEditorPage() {
         operation_id: operationId ?? null,
         verb,
         request_path: path,
-        request_body: body || null,
+        request_body: compositionToSubmit(composition).request_body,
       }),
     onError: () => message.error(t('apiGov.error')),
   });
@@ -55,22 +69,25 @@ export default function ApiEditorPage() {
   const generateMutation = useMutation({
     mutationFn: () => generateApiCall({ connector_id: connectorId as string, prompt }),
     onSuccess: (result) => {
-      setBody(result.draft);
+      setComposition((c) => ({ ...c, bodyType: 'RAW', rawBody: result.draft }));
       message.success(t('apiGov.editor.generated'));
     },
     onError: () => message.error(t('apiGov.error')),
   });
 
   const submitMutation = useMutation({
-    mutationFn: () =>
-      submitApiRequest({
+    mutationFn: () => {
+      const parts = compositionToSubmit(composition);
+      return submitApiRequest({
         connector_id: connectorId as string,
         operation_id: operationId ?? null,
         verb,
         request_path: path,
-        request_body: body || null,
         justification: justification || null,
-      }),
+        scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
+        ...parts,
+      });
+    },
     onSuccess: (created) => {
       message.success(t('apiGov.editor.submitted'));
       navigate(`/api-requests/${created.id}`);
@@ -106,17 +123,19 @@ export default function ApiEditorPage() {
               <Select
                 style={{ width: '100%' }}
                 allowClear
-                placeholder={t('apiGov.editor.freeForm')}
+                showSearch
+                optionFilterProp="label"
+                placeholder={t('apiGov.editor.searchOperation')}
                 value={operationId}
                 onChange={(v) => {
                   setOperationId(v);
-                  const op = operationsQuery.data?.find((o) => o.operation_id === v);
+                  const op = sortedOperations.find((o) => o.operation_id === v);
                   if (op) {
                     setVerb(op.verb);
                     setPath(op.path);
                   }
                 }}
-                options={(operationsQuery.data ?? []).map((o) => ({
+                options={sortedOperations.map((o) => ({
                   value: o.operation_id,
                   label: `${o.verb} ${o.path}${o.write ? ' (write)' : ''}`,
                 }))}
@@ -139,9 +158,25 @@ export default function ApiEditorPage() {
             />
           </Space.Compact>
 
+          <ApiRequestComposer
+            value={composition}
+            onChange={setComposition}
+            defaultHeaders={connector?.default_headers ?? {}}
+            onTooLarge={() => message.error(t('apiGov.editor.fileTooLarge', { maxMb: 5 }))}
+          />
+
           <label>
-            <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.body')}</div>
-            <Input.TextArea rows={8} value={body} onChange={(e) => setBody(e.target.value)} />
+            <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.scheduleFor')}</div>
+            <DatePicker
+              showTime
+              style={{ width: '100%' }}
+              format="YYYY-MM-DD HH:mm"
+              value={scheduledFor}
+              onChange={setScheduledFor}
+            />
+            <div className="muted" style={{ marginTop: 4, color: scheduleInPast ? 'var(--af-error)' : undefined }}>
+              {scheduleInPast ? t('apiGov.editor.scheduleInPast') : t('apiGov.editor.scheduleHint')}
+            </div>
           </label>
 
           <label>
@@ -161,7 +196,7 @@ export default function ApiEditorPage() {
               type="primary"
               onClick={() => submitMutation.mutate()}
               loading={submitMutation.isPending}
-              disabled={!connectorId || !verb || !path}
+              disabled={!connectorId || !verb || !path || scheduleInPast}
             >
               {t('apiGov.editor.submit')}
             </Button>

@@ -27,4 +27,11 @@ public interface ApiRequestService {
 
     /** Submitter triggers execution of an APPROVED request (synchronous; deferred runs use the job). */
     ApiRequestView execute(UUID id, UUID organizationId, UUID userId, boolean admin);
+
+    /**
+     * Returns the stored (masked, size-capped) response snapshot of an executed request for download,
+     * together with its captured content type and a suggested filename. Same ownership guard as
+     * {@link #get}.
+     */
+    ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId, boolean admin);
 }

@@ -56,7 +56,7 @@ class ApiConnectorControllerTest {
 
     private ApiConnectorView view() {
         return new ApiConnectorView(connectorId, orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
-                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, true,
+                Map.of(), Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, true,
                 null, null, null, null, null,
                 com.bablsoft.accessflow.apigov.api.Oauth2GrantType.CLIENT_CREDENTIALS,
                 com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth.CLIENT_SECRET_BASIC,
@@ -99,7 +99,7 @@ class ApiConnectorControllerTest {
     void createReturnsResponseAndAudits() {
         when(service.create(any())).thenReturn(view());
         var body = new CreateApiConnectorRequest("Stripe", ApiProtocol.REST, "https://api.stripe.com",
-                Map.of(), 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"),
+                Map.of(), null, 5000, true, ApiAuthMethod.BEARER_TOKEN, Map.of("token", "x"),
                 null, null, null, null, null, null, null, null, null, null,
                 null, true, null, false, false, true, 2048L);
 
@@ -112,9 +112,9 @@ class ApiConnectorControllerTest {
     @Test
     void updateAudits() {
         when(service.update(eq(connectorId), eq(orgId), any())).thenReturn(view());
-        var body = new UpdateApiConnectorRequest("Stripe", null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+        var body = new UpdateApiConnectorRequest("Stripe",
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         controller.update(connectorId, body, auth(UserRoleType.ADMIN), auditContext);
 

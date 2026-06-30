@@ -16,6 +16,8 @@ public record ApiRequestListFilter(
         UUID connectorId,
         QueryStatus status,
         String verb,
+        String traceId,
+        String spanId,
         Instant from,
         Instant to) {
 }

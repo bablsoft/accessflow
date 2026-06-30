@@ -2374,6 +2374,13 @@
       "REJECTED": "Rejected",
       "FAILED": "Failed",
       "CANCELLED": "Cancelled"
+    },
+    "api_body_type": {
+      "NONE": "None",
+      "RAW": "Raw",
+      "FORM_DATA": "Form data",
+      "FORM_URLENCODED": "x-www-form-urlencoded",
+      "BINARY": "Binary"
     }
   },
   "access": {
@@ -2830,7 +2837,20 @@
       "revoked": "Permission revoked",
       "userRequired": "A user is required",
       "noPermissions": "No permissions granted yet",
-      "noOperations": "No operations — upload a schema"
+      "noOperations": "No operations — upload a schema",
+      "defaultHeaders": "Default headers",
+      "defaultHeadersHint": "Merged into every governed call",
+      "traceHeaderMapping": "Trace context headers",
+      "traceHeaderMappingHint": "Header names that carry the W3C trace context",
+      "schemaSource": "Schema source",
+      "schemaSourcePaste": "Paste",
+      "schemaSourceUpload": "Upload file",
+      "schemaSourceUrl": "From URL",
+      "schemaUrl": "Schema URL",
+      "schemaUrlPlaceholder": "https://example.com/openapi.json",
+      "schemaUrlRequired": "Enter a schema URL",
+      "schemaFile": "Schema file",
+      "schemaFileRequired": "Choose a schema file"
     },
     "editor": {
       "title": "API Editor",
@@ -2851,7 +2871,30 @@
       "textToApi": "Describe the call in plain English",
       "generate": "Generate",
       "generated": "Draft generated",
-      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled"
+      "textToApiHint": "Available when the connector has a schema and text-to-API is enabled",
+      "tabParams": "Params",
+      "tabHeaders": "Headers",
+      "tabBody": "Body",
+      "queryParams": "Query parameters",
+      "requestHeaders": "Request headers",
+      "defaultHeaders": "Connector default headers",
+      "defaultHeadersHint": "Set by an admin and sent on every call",
+      "contentType": "Content type",
+      "bodyTypeLabel": "Body type",
+      "formFields": "Form fields",
+      "addRow": "Add",
+      "addFile": "Add file",
+      "keyPlaceholder": "Key",
+      "valuePlaceholder": "Value",
+      "fieldTypeText": "Text",
+      "fieldTypeFile": "File",
+      "chooseFile": "Choose file",
+      "binaryFile": "Binary file",
+      "fileTooLarge": "File exceeds the maximum size of {{maxMb}} MB",
+      "searchOperation": "Search operations…",
+      "scheduleFor": "Schedule for later",
+      "scheduleHint": "Leave empty to run right after approval",
+      "scheduleInPast": "Scheduled time must be in the future"
     },
     "requests": {
       "title": "API Requests",
@@ -2894,7 +2937,15 @@
       "decidedAt": "Decided at",
       "scheduled": "Scheduled",
       "truncated": "Truncated",
-      "notFound": "Request not found"
+      "notFound": "Request not found",
+      "submitter": "Submitter",
+      "filterAllSubmitters": "All submitters",
+      "traceId": "Trace ID",
+      "spanId": "Span ID",
+      "filterTraceId": "Trace ID",
+      "filterSpanId": "Span ID",
+      "downloadResponse": "Download full response",
+      "downloadFailed": "Could not download the response"
     },
     "reviews": {
       "title": "API Reviews",

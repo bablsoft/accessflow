@@ -77,7 +77,7 @@ class DefaultApiConnectorAdminServiceTest {
 
     private CreateApiConnectorCommand createCommand() {
         return new CreateApiConnectorCommand(orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
-                Map.of("X-Env", "test"), 5000, true, ApiAuthMethod.BEARER_TOKEN,
+                Map.of("X-Env", "test"), null, 5000, true, ApiAuthMethod.BEARER_TOKEN,
                 Map.of("token", "sk_live_secret"),
                 null, null, null, null, null, null, null, null, null, null,
                 null, true, null, false, false, true, 2048L);
@@ -110,7 +110,7 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void createWithNoneAuthStoresNoCredentials() {
         var cmd = new CreateApiConnectorCommand(orgId, "Open", ApiProtocol.REST, "https://x", null, null,
-                null, ApiAuthMethod.NONE, null,
+                null, null, ApiAuthMethod.NONE, null,
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null);
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Open")).thenReturn(false);
@@ -204,10 +204,9 @@ class DefaultApiConnectorAdminServiceTest {
         when(connectorRepository.existsByOrganizationIdAndName(orgId, "Renamed")).thenReturn(false);
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed", null,
-                null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, false));
+        var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed",
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, false));
 
         assertThat(view.name()).isEqualTo("Renamed");
         assertThat(view.active()).isFalse();
@@ -227,7 +226,7 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void createEncryptsOauth2SecretsAndExposesNonSecretConfig() {
         var cmd = new CreateApiConnectorCommand(orgId, "Okta API", ApiProtocol.REST, "https://api",
-                null, null, null, ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS, null,
+                null, null, null, null, ApiAuthMethod.OAUTH2_CLIENT_CREDENTIALS, null,
                 "https://idp/token", "client-1", "secret-1", "read write", "aud-1", null, null, null,
                 Oauth2GrantType.CLIENT_CREDENTIALS, Oauth2ClientAuth.CLIENT_SECRET_POST,
                 null, true, null, false, false, true, 2048L);
@@ -257,7 +256,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(encryptionService.encrypt("new-secret")).thenReturn("ENC2");
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null,
+        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, "new-secret", null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
@@ -273,7 +272,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
         when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null,
+        var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 "https://idp/new", null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);

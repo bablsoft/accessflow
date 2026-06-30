@@ -23,6 +23,7 @@ public record CreateApiConnectorRequest(
         @Size(max = 2048, message = "{validation.api_connector.base_url.size}")
         String baseUrl,
         Map<String, String> defaultHeaders,
+        Map<String, String> traceHeaderMapping,
         @Min(value = 1, message = "{validation.api_connector.timeout.min}")
         Integer timeoutMs,
         Boolean tlsVerify,
@@ -57,7 +58,7 @@ public record CreateApiConnectorRequest(
 
     CreateApiConnectorCommand toCommand(UUID organizationId) {
         return new CreateApiConnectorCommand(organizationId, name, protocol, baseUrl, defaultHeaders,
-                timeoutMs, tlsVerify, authMethod, credentials, oauth2TokenUri, oauth2ClientId,
+                traceHeaderMapping, timeoutMs, tlsVerify, authMethod, credentials, oauth2TokenUri, oauth2ClientId,
                 oauth2ClientSecret, oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username,
                 oauth2Password, oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled,
                 aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes);

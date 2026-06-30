@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Select, Switch, Table, Tabs, Tag } from 'antd';
+import { useEffect, useState } from 'react';
+import { App, Button, Form, Input, InputNumber, Segmented, Select, Switch, Table, Tabs, Tag, Upload } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,12 @@ import {
   enumOptions,
 } from '@/utils/enumLabels';
 import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
+import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
+import {
+  pairsToRecord,
+  recordToPairs,
+  type KeyValuePair,
+} from '@/utils/apiRequestComposition';
 import type {
   ApiAuthMethod,
   ApiConnectorPermission,
@@ -81,6 +88,14 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
     queryKey: apiConnectorKeys.detail(connectorId),
     queryFn: () => getApiConnector(connectorId),
   });
+  const [headers, setHeaders] = useState<KeyValuePair[]>([]);
+  const [traceMapping, setTraceMapping] = useState<KeyValuePair[]>([]);
+  useEffect(() => {
+    if (connectorQuery.data) {
+      setHeaders(recordToPairs(connectorQuery.data.default_headers));
+      setTraceMapping(recordToPairs(connectorQuery.data.trace_header_mapping));
+    }
+  }, [connectorQuery.data]);
   const aiConfigsQuery = useQuery({
     queryKey: aiConfigKeys.lists(),
     queryFn: listAiConfigs,
@@ -120,7 +135,13 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         require_review_writes: c.require_review_writes,
         active: c.active,
       }}
-      onFinish={(values) => mutation.mutate(values)}
+      onFinish={(values) =>
+        mutation.mutate({
+          ...values,
+          default_headers: pairsToRecord(headers),
+          trace_header_mapping: pairsToRecord(traceMapping),
+        })
+      }
     >
       <Form.Item name="name" label={t('apiGov.connectors.name')} rules={[{ required: true, min: 3, max: 255 }]}>
         <Input />
@@ -139,6 +160,12 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
           passwordConfigured={c.oauth2_password_configured}
         />
       )}
+      <Form.Item label={t('apiGov.settings.defaultHeaders')} extra={t('apiGov.settings.defaultHeadersHint')}>
+        <KeyValueEditor pairs={headers} onChange={setHeaders} />
+      </Form.Item>
+      <Form.Item label={t('apiGov.settings.traceHeaderMapping')} extra={t('apiGov.settings.traceHeaderMappingHint')}>
+        <KeyValueEditor pairs={traceMapping} onChange={setTraceMapping} />
+      </Form.Item>
       <Form.Item name="timeout_ms" label={t('apiGov.connectors.timeoutMs')} rules={[{ type: 'number', min: 1 }]}>
         <InputNumber style={{ width: '100%' }} />
       </Form.Item>
@@ -193,7 +220,10 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [schemaType, setSchemaType] = useState<ApiSchemaType>('OPENAPI');
+  const [source, setSource] = useState<'paste' | 'upload' | 'url'>('paste');
   const [content, setContent] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const schemasQuery = useQuery({
     queryKey: apiConnectorKeys.schemas(connectorId),
     queryFn: () => listApiSchemas(connectorId),
@@ -204,14 +234,23 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connectorId) });
   };
   const uploadMutation = useMutation({
-    mutationFn: () => uploadApiSchema(connectorId, { schema_type: schemaType, raw_content: content }),
+    mutationFn: () =>
+      uploadApiSchema(connectorId, {
+        schema_type: schemaType,
+        raw_content: source === 'url' ? '' : content,
+        source_url: source === 'url' ? sourceUrl.trim() : null,
+      }),
     onSuccess: () => {
       message.success(t('apiGov.settings.uploaded'));
       setContent('');
+      setFileName('');
+      setSourceUrl('');
       invalidate();
     },
     onError: () => message.error(t('apiGov.error')),
   });
+  const canUpload =
+    source === 'url' ? !!sourceUrl.trim() : source === 'upload' ? !!content : !!content.trim();
   const deleteMutation = useMutation({
     mutationFn: (schemaId: string) => deleteApiSchema(connectorId, schemaId),
     onSuccess: () => {
@@ -228,16 +267,51 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         onChange={setSchemaType}
         options={enumOptions(API_SCHEMA_TYPES, apiSchemaTypeLabel, t)}
       />
-      <Input.TextArea
-        rows={8}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder={t('apiGov.settings.schemaContent')}
+      <Segmented
+        value={source}
+        onChange={(v) => setSource(v as 'paste' | 'upload' | 'url')}
+        options={[
+          { value: 'paste', label: t('apiGov.settings.schemaSourcePaste') },
+          { value: 'upload', label: t('apiGov.settings.schemaSourceUpload') },
+          { value: 'url', label: t('apiGov.settings.schemaSourceUrl') },
+        ]}
       />
+      {source === 'paste' && (
+        <Input.TextArea
+          rows={8}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={t('apiGov.settings.schemaContent')}
+        />
+      )}
+      {source === 'upload' && (
+        <Upload
+          maxCount={1}
+          showUploadList={false}
+          accept=".json,.yaml,.yml,.wsdl,.xml,.graphql,.graphqls,.proto"
+          beforeUpload={(file) => {
+            void file.text().then((text) => {
+              setContent(text);
+              setFileName(file.name);
+            });
+            return false;
+          }}
+        >
+          <Button icon={<UploadOutlined />}>{fileName || t('apiGov.settings.schemaFile')}</Button>
+        </Upload>
+      )}
+      {source === 'url' && (
+        <Input
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+          placeholder={t('apiGov.settings.schemaUrlPlaceholder')}
+          aria-label={t('apiGov.settings.schemaUrl')}
+        />
+      )}
       <Button
         type="primary"
         style={{ alignSelf: 'flex-start' }}
-        disabled={!content.trim()}
+        disabled={!canUpload}
         loading={uploadMutation.isPending}
         onClick={() => uploadMutation.mutate()}
       >

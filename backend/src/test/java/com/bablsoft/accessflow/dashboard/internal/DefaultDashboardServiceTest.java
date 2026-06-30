@@ -76,10 +76,11 @@ class DefaultDashboardServiceTest {
     }
 
     private ApiRequestView apiRequest() {
-        return new ApiRequestView(UUID.randomUUID(), UUID.randomUUID(), "Conn", USER, "GetThing",
+        return new ApiRequestView(UUID.randomUUID(), UUID.randomUUID(), "Conn", USER, "u@test.io", "GetThing",
                 "GET", "/v1/things", false, QueryStatus.PENDING_REVIEW, SubmissionReason.USER_SUBMITTED,
-                "why", UUID.randomUUID(), RiskLevel.LOW, 10, "ok", null, null, null, null, false,
-                null, null, NOW, List.of());
+                "why", UUID.randomUUID(), RiskLevel.LOW, 10, "ok",
+                com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, null, null, null, null, null, null, false,
+                null, null, null, NOW, List.of());
     }
 
     private PendingApiReview pendingApi() {

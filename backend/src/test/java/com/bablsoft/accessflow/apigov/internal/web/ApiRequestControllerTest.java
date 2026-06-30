@@ -52,9 +52,10 @@ class ApiRequestControllerTest {
     }
 
     private ApiRequestView view() {
-        return new ApiRequestView(requestId, connectorId, "Stripe", userId, null, "POST", "/charges",
-                true, QueryStatus.PENDING_AI, SubmissionReason.USER_SUBMITTED, "need", null, null, null,
-                null, null, null, null, null, false, null, null, Instant.now(), List.of());
+        return new ApiRequestView(requestId, connectorId, "Stripe", userId, "u@acme.test", null, "POST",
+                "/charges", true, QueryStatus.PENDING_AI, SubmissionReason.USER_SUBMITTED, "need", null, null,
+                null, null, com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, null, null, null, null, null,
+                null, false, null, null, null, Instant.now(), List.of());
     }
 
     @Test
@@ -63,7 +64,8 @@ class ApiRequestControllerTest {
         when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(false))).thenReturn(view());
 
         var response = controller.submit(new SubmitApiRequestRequest(connectorId, null, "POST", "/charges",
-                null, "{}", "need", null, null), auth(UserRoleType.ANALYST), auditContext);
+                null, null, null, null, "{}", null, null, "need", null, null),
+                auth(UserRoleType.ANALYST), auditContext);
 
         assertThat(response.id()).isEqualTo(requestId);
         verify(requestService).submit(any());
@@ -75,7 +77,7 @@ class ApiRequestControllerTest {
         var from = Instant.parse("2026-01-01T00:00:00Z");
 
         var page = controller.list(auth(UserRoleType.ADMIN), Pageable.ofSize(20), QueryStatus.APPROVED,
-                connectorId, "get", from, null);
+                connectorId, "get", null, null, null, from, null);
 
         assertThat(page.content()).hasSize(1);
         var captor = org.mockito.ArgumentCaptor.forClass(
@@ -94,7 +96,8 @@ class ApiRequestControllerTest {
     void listForNonAdminScopesToOwnSubmissions() {
         when(requestService.list(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
 
-        controller.list(auth(UserRoleType.ANALYST), Pageable.ofSize(20), null, null, null, null, null);
+        controller.list(auth(UserRoleType.ANALYST), Pageable.ofSize(20), null, null, null, null, null, null,
+                null, null);
 
         var captor = org.mockito.ArgumentCaptor.forClass(
                 com.bablsoft.accessflow.apigov.api.ApiRequestListFilter.class);
@@ -113,6 +116,20 @@ class ApiRequestControllerTest {
     void executeReturnsView() {
         when(requestService.execute(requestId, orgId, userId, false)).thenReturn(view());
         assertThat(controller.execute(requestId, auth(UserRoleType.ANALYST)).id()).isEqualTo(requestId);
+    }
+
+    @Test
+    void downloadResponseSetsContentTypeAndAttachment() {
+        when(requestService.downloadResponse(requestId, orgId, userId, false))
+                .thenReturn(new com.bablsoft.accessflow.apigov.api.ApiResponsePayload(
+                        "{\"ok\":true}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "application/json", "api-response-x.json"));
+
+        var response = controller.downloadResponse(requestId, auth(UserRoleType.ANALYST));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getHeaders().getContentType().toString()).contains("application/json");
+        assertThat(response.getHeaders().getFirst("Content-Disposition")).contains("api-response-x.json");
     }
 
     @Test
