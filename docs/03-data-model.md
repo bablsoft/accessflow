@@ -1542,7 +1542,7 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 | `review_plan_id` / `ai_config_id` | UUID | Bare UUIDs into core. |
 | `ai_analysis_enabled` / `text_to_api_enabled` | BOOLEAN | |
 | `require_review_reads` / `require_review_writes` | BOOLEAN | Map safe vs mutating methods to review. |
-| `max_response_bytes` | BIGINT | Response-size cap. Default 1 MiB. |
+| `max_response_bytes` | BIGINT | Per-connector response-size cap. Default 10 MiB (AF-521; raised from 1 MiB). Effective cap = min of this and the system-wide `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` ceiling. |
 | `is_active` | BOOLEAN | Default true. |
 | `created_at` | TIMESTAMPTZ | |
 

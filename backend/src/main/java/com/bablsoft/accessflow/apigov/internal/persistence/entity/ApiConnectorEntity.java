@@ -125,7 +125,7 @@ public class ApiConnectorEntity {
     private boolean requireReviewWrites = true;
 
     @Column(name = "max_response_bytes", nullable = false)
-    private long maxResponseBytes = 1048576L;
+    private long maxResponseBytes = 10_485_760L;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;

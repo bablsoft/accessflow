@@ -37,6 +37,7 @@ public record ApiRequestResponse(
         Long responseBytes,
         boolean responseTruncated,
         String responseSnapshot,
+        boolean responseSnapshotPreviewTruncated,
         String responseContentType,
         String errorMessage,
         Instant createdAt,
@@ -48,6 +49,7 @@ public record ApiRequestResponse(
                 v.submissionReason(), v.justification(), v.aiAnalysisId(), v.aiRiskLevel(), v.aiRiskScore(),
                 v.aiSummary(), v.bodyType(), v.scheduledFor(), v.traceId(), v.spanId(),
                 v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(), v.responseTruncated(),
-                v.responseSnapshot(), v.responseContentType(), v.errorMessage(), v.createdAt(), v.decisions());
+                v.responseSnapshot(), v.responseSnapshotPreviewTruncated(), v.responseContentType(),
+                v.errorMessage(), v.createdAt(), v.decisions());
     }
 }

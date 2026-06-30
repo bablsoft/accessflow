@@ -291,6 +291,10 @@ public class DefaultApiRequestService implements ApiRequestService {
                                 d.getComment(), d.getStage(), d.getDecidedAt()))
                         .toList()
                 : List.of();
+        var fullSnapshot = detail ? e.getResponseSnapshot() : null;
+        int previewLimit = (int) Math.min(requestProperties.responsePreviewBytes(), Integer.MAX_VALUE);
+        boolean previewTruncated = fullSnapshot != null && fullSnapshot.length() > previewLimit;
+        var snapshotPreview = previewTruncated ? fullSnapshot.substring(0, previewLimit) : fullSnapshot;
         return new ApiRequestView(e.getId(), e.getConnectorId(), connectorName, e.getSubmittedBy(),
                 submitterEmail, e.getOperationId(), e.getVerb(), e.getRequestPath(), e.isWrite(),
                 e.getStatus(), e.getSubmissionReason(), e.getJustification(), e.getAiAnalysisId(),
@@ -299,7 +303,7 @@ public class DefaultApiRequestService implements ApiRequestService {
                 summary != null ? summary.summary() : null,
                 e.getBodyType(), e.getScheduledFor(), e.getTraceId(), e.getSpanId(),
                 e.getResponseStatusCode(), e.getResponseDurationMs(),
-                e.getResponseBytes(), e.isResponseTruncated(), detail ? e.getResponseSnapshot() : null,
+                e.getResponseBytes(), e.isResponseTruncated(), snapshotPreview, previewTruncated,
                 e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions);
     }
 

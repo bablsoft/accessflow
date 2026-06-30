@@ -53,7 +53,8 @@ auth secret is supplied as a `credentials` map, serialized and **AES-256-GCM enc
 
 Governance config per connector: `review_plan_id`, `ai_analysis_enabled` + `ai_config_id`,
 `text_to_api_enabled`, `require_review_reads` / `require_review_writes` (map safe vs mutating methods
-to review), and `max_response_bytes` (response-size cap).
+to review), and `max_response_bytes` (per-connector response-size cap, default 10 MiB; the effective
+cap is the min of this and the system-wide `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` ceiling).
 
 **Test connection** (`POST /api-connectors/{id}/test`) probes reachability without invoking an
 operation: an HTTP GET to the base URL for REST/SOAP/GraphQL (any HTTP response = reachable), a TCP
@@ -152,9 +153,11 @@ grants under `/api-connectors/{id}/permissions`; non-admins only see connectors 
    **the submitter can never self-approve**; decisions are idempotent.
 5. **Execution.** `ApiExecutionService` runs an APPROVED call (submitter-triggered
    `POST /{id}/execute`, or the scheduled-run job at `scheduled_for`): injects connector auth +
-   default headers, caps the response at `max_response_bytes`, masks the caller's
-   `restricted_response_fields` recursively by dot-path via `ColumnMasker`, stores an immutable
-   masked response snapshot, and records EXECUTED / FAILED.
+   default headers, caps the response at min(`max_response_bytes`, system `max-response-bytes` ceiling)
+   with a UTF-8-safe cut, masks the caller's `restricted_response_fields` recursively by dot-path via
+   `ColumnMasker`, stores the full masked response snapshot for download, and records EXECUTED /
+   FAILED. The detail view returns a bounded inline preview (`response_preview_bytes`); the full body
+   is fetched via `GET /api-requests/{id}/response`.
 
 **Break-glass** (`submission_reason=EMERGENCY_ACCESS`, gated by `can_break_glass`) force-approves and
 executes immediately, opens a mandatory retro-review in `break_glass_events`

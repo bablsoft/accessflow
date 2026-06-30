@@ -55,7 +55,7 @@ class ApiRequestControllerTest {
         return new ApiRequestView(requestId, connectorId, "Stripe", userId, "u@acme.test", null, "POST",
                 "/charges", true, QueryStatus.PENDING_AI, SubmissionReason.USER_SUBMITTED, "need", null, null,
                 null, null, com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, null, null, null, null, null,
-                null, false, null, null, null, Instant.now(), List.of());
+                null, false, null, false, null, null, Instant.now(), List.of());
     }
 
     @Test

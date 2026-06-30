@@ -290,6 +290,13 @@ accessflow:
     # or the base64-decoded size of form-data / binary file parts). Files ride inline as bounded
     # base64 since AccessFlow has no object storage. Exceeding it rejects the submission with 422.
     max-request-body-bytes: ${ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES:5242880}
+    # System-wide hard ceiling on a stored (and therefore downloadable) API response body — the
+    # absolute backstop above any per-connector max_response_bytes. The body lives in a Postgres TEXT
+    # column and is read fully into JVM memory during the call. response-preview-bytes is how much of
+    # the stored snapshot is embedded inline in the detail view; the full body is served by the
+    # download endpoint (GET /api-requests/{id}/response).
+    max-response-bytes: ${ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES:10485760}
+    response-preview-bytes: ${ACCESSFLOW_APIGOV_RESPONSE_PREVIEW_BYTES:65536}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

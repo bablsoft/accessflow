@@ -142,7 +142,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setTextToApiEnabled(Boolean.TRUE.equals(command.textToApiEnabled()));
         entity.setRequireReviewReads(Boolean.TRUE.equals(command.requireReviewReads()));
         entity.setRequireReviewWrites(command.requireReviewWrites() == null || command.requireReviewWrites());
-        entity.setMaxResponseBytes(command.maxResponseBytes() != null ? command.maxResponseBytes() : 1048576L);
+        entity.setMaxResponseBytes(command.maxResponseBytes() != null ? command.maxResponseBytes() : 10_485_760L);
         entity.setActive(true);
         return toView(connectorRepository.save(entity));
     }

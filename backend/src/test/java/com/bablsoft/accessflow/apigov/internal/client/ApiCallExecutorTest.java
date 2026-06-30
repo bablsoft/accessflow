@@ -64,6 +64,20 @@ class ApiCallExecutorTest {
     }
 
     @Test
+    void truncationBacksOffToCompleteUtf8Boundary() throws Exception {
+        // "ab€" is 5 bytes: a, b, then € (0xE2 0x82 0xAC). A cap of 3 lands mid-€; the cut must back
+        // off to "ab" rather than leave a split character (which would decode to U+FFFD).
+        withServer("/u", exchange -> respond(exchange, 200, "ab€", "text/plain"), (base, captured) -> {
+            var result = executor.execute(request(ApiProtocol.REST, base, "GET", "/u", Map.of(), Map.of(),
+                    ApiBodyType.NONE, null, null, List.of(), 3));
+            assertThat(result.truncated()).isTrue();
+            assertThat(result.bytes()).isEqualTo(5);
+            assertThat(result.body()).isEqualTo("ab");
+            assertThat(result.body()).doesNotContain("�");
+        });
+    }
+
+    @Test
     void queryParamsAreAppendedToUrl() throws Exception {
         var capturedUri = new AtomicReference<String>();
         withServer("/q", exchange -> {

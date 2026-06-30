@@ -1,4 +1,4 @@
-import { App, Button, Card, Descriptions, Empty, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Card, Descriptions, Empty, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -238,6 +238,14 @@ export default function ApiRequestDetailPage() {
                   </span>
                 }
               >
+                {request.response_snapshot_preview_truncated && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 8 }}
+                    message={t('apiGov.requests.previewTruncated')}
+                  />
+                )}
                 <pre
                   style={{
                     background: 'var(--bg-sunken)',
