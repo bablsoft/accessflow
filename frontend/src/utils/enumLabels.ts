@@ -31,6 +31,9 @@ import type {
   QueryTemplateChangeType,
   QueryType,
   RagStoreType,
+  RequestGroupItemStatus,
+  RequestGroupStatus,
+  RequestGroupTargetKind,
   ReviewDecisionType,
   RiskLevel,
   Role,
@@ -434,3 +437,41 @@ export const ERASURE_STATUSES: readonly ErasureStatus[] = [
 
 export const erasureStatusLabel = (t: TFunction, v: ErasureStatus): string =>
   t(`enums.erasure_status.${v}` as const);
+
+// ── Request Groups: chaining & grouping (AF-501) ─────────────────────────────
+
+export const REQUEST_GROUP_STATUSES: readonly RequestGroupStatus[] = [
+  'DRAFT',
+  'PENDING_AI',
+  'PENDING_REVIEW',
+  'APPROVED',
+  'EXECUTING',
+  'EXECUTED',
+  'REJECTED',
+  'TIMED_OUT',
+  'PARTIALLY_EXECUTED',
+  'FAILED',
+  'CANCELLED',
+] as const;
+
+export const requestGroupStatusLabel = (t: TFunction, v: RequestGroupStatus): string =>
+  t(`enums.request_group_status.${v}` as const);
+
+export const REQUEST_GROUP_ITEM_STATUSES: readonly RequestGroupItemStatus[] = [
+  'PENDING',
+  'EXECUTED',
+  'FAILED',
+  'SKIPPED',
+  'CANCELLED',
+] as const;
+
+export const requestGroupItemStatusLabel = (t: TFunction, v: RequestGroupItemStatus): string =>
+  t(`enums.request_group_item_status.${v}` as const);
+
+export const REQUEST_GROUP_TARGET_KINDS: readonly RequestGroupTargetKind[] = [
+  'QUERY',
+  'API_CALL',
+] as const;
+
+export const targetKindLabel = (t: TFunction, v: RequestGroupTargetKind): string =>
+  t(`enums.request_group_target_kind.${v}` as const);

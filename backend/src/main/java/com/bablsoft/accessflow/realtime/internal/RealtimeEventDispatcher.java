@@ -21,6 +21,8 @@ import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
 import com.bablsoft.accessflow.notifications.events.UserNotificationCreatedEvent;
 import com.bablsoft.accessflow.realtime.internal.ws.SessionRegistry;
+import com.bablsoft.accessflow.requestgroups.events.RequestGroupItemExecutedEvent;
+import com.bablsoft.accessflow.requestgroups.events.RequestGroupStatusChangedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryCommentChangedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.ReviewDecisionMadeEvent;
@@ -110,6 +112,29 @@ class RealtimeEventDispatcher {
             data.put("old_status", event.oldStatus().name());
             data.put("new_status", event.newStatus().name());
             sendTo(event.submitterId(), "query.status_changed", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onRequestGroupStatusChanged(RequestGroupStatusChangedEvent event) {
+        safe("request_group.status_changed", event.requestGroupId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("request_group_id", event.requestGroupId().toString());
+            data.put("old_status", event.oldStatus().name());
+            data.put("new_status", event.newStatus().name());
+            sendTo(event.submitterId(), "request_group.status_changed", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onRequestGroupItemExecuted(RequestGroupItemExecutedEvent event) {
+        safe("request_group.item_executed", event.requestGroupId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("request_group_id", event.requestGroupId().toString());
+            data.put("item_id", event.itemId().toString());
+            data.put("sequence_order", event.sequenceOrder());
+            data.put("status", event.status().name());
+            sendTo(event.submitterId(), "request_group.item_executed", data);
         });
     }
 

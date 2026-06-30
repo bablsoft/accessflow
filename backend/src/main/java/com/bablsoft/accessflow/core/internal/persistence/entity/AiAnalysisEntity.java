@@ -42,6 +42,11 @@ public class AiAnalysisEntity {
     @Column(name = "api_request_id")
     private UUID apiRequestId;
 
+    // Nullable: an analysis may instead key off a request-group member (AF-501), enforced
+    // exactly-one with query_request_id / api_request_id by the chk_ai_analyses_target DB CHECK.
+    @Column(name = "request_group_item_id")
+    private UUID requestGroupItemId;
+
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider")

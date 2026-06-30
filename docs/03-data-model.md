@@ -611,7 +611,9 @@ Stores the result of an AI analysis run for a query request.
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
-| `query_request_id` | FK → `query_requests` |
+| `query_request_id` | FK → `query_requests` nullable (V101). |
+| `api_request_id` | FK → `api_requests` nullable (V101, AF-500). |
+| `request_group_item_id` | FK → `request_group_items` nullable (V106, AF-501). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`). |
 | `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |
@@ -1142,6 +1144,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
 | `COMPLIANCE_REPORT_EXPORTED` | AUDITOR/ADMIN exported a signed compliance report via `GET /admin/compliance/reports/export` (AF-459). Resource: `compliance_report`, no resource id. Metadata captures `report_type`, `format`, `period_from`, `period_to`, optional `datasource_id`, `row_count`, `truncated`, and the export's `content_sha256` + `signature` + `signature_algorithm` — chaining the export's hash into the tamper-evident log. |
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
+| `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
@@ -1149,7 +1152,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`.
 
 ---
 
@@ -1668,6 +1671,111 @@ JSONB, `affected_rows`, `method`, `started_at`/`finished_at`. Indexed by org+cre
 
 Per-org pseudonymization salt: `organization_id` PK, `salt_encrypted` (AES-256-GCM via
 `CredentialEncryptionService`, never serialized), `version` + `rotated_at` for rotation.
+
+---
+
+## Request chaining & grouping (AF-501)
+
+The `requestgroups` module (migration **V106**) lets a user bundle several **query** members (across
+possibly different datasources) and **API-call** members (AF-500 connectors) into one **grouped
+request** that is reviewed, approved, and executed as a single element. Group items are
+**self-contained** — they carry their own inline SQL / inline API call and do **not** create
+`query_requests` / `api_requests` rows; the **group** is the unit of AI + review + approval. New enums
+(`snake_case`, no `_enum` suffix): `request_group_status`
+(`DRAFT`/`PENDING_AI`/`PENDING_REVIEW`/`APPROVED`/`EXECUTING`/`EXECUTED`/`REJECTED`/`TIMED_OUT`/`PARTIALLY_EXECUTED`/`FAILED`/`CANCELLED`),
+`request_group_target_kind` (`QUERY`/`API_CALL`), `request_group_item_status`
+(`PENDING`/`EXECUTED`/`FAILED`/`SKIPPED`/`CANCELLED`).
+
+### request_groups
+
+Per-org grouped request. Cross-aggregate references are bare UUIDs (no JPA relationship across the
+module boundary).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID, org-scoped. |
+| `name` | VARCHAR(255) | Group title. |
+| `description` | TEXT | Submitter's justification (nullable). |
+| `status` | `request_group_status` | Group lifecycle (see state machine below). Default `DRAFT`. |
+| `submission_reason` | `submission_reason` | Reuses the shared enum; `EMERGENCY_ACCESS` = break-glass group. Default `USER_SUBMITTED`. |
+| `continue_on_error` | BOOLEAN | NOT NULL DEFAULT FALSE. When false, the ordered run stops on the first member failure (remaining members `SKIPPED`); when true, all members run and per-member outcomes are reported. |
+| `scheduled_for` | TIMESTAMPTZ | Nullable — when set, the group defers: once `APPROVED`, `ScheduledGroupRunJob` runs it at `scheduled_for ≤ now()`. |
+| `submitted_by` | UUID | FK → `users`. |
+| `ai_risk_level` | `risk_level` | Nullable — aggregate group risk = **max** of member risk levels, recomputed as analyses complete. |
+| `ai_risk_score` | INTEGER | Nullable — aggregate group risk score (max of members). |
+| `required_approvals` | INTEGER | Aggregated across member plans. |
+| `current_review_stage` | INTEGER | Current stage of the aggregated approval chain. |
+| `submitted_ip` | VARCHAR(45) | Source IP captured at submission. |
+| `submitted_user_agent` | TEXT | Submission `User-Agent`. |
+| `execution_started_at` | TIMESTAMPTZ | Nullable. |
+| `execution_completed_at` | TIMESTAMPTZ | Nullable. |
+| `error_message` | TEXT | Nullable — group-level run failure reason. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+| `version` | BIGINT | `@Version` optimistic lock. |
+
+Indexed `(organization_id, status)` and a partial `(status, scheduled_for)` for the scheduled-run scan.
+
+### request_group_items
+
+Ordered members of a group. `target_kind` selects which column family is populated; the unused family
+is null.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `group_id` | UUID | FK → `request_groups` `ON DELETE CASCADE`. |
+| `sequence_order` | INTEGER | 0-based execution order. Unique `(group_id, sequence_order)`. |
+| `target_kind` | `request_group_target_kind` | `QUERY` or `API_CALL`. |
+| `datasource_id` | UUID | **QUERY** — FK → `datasources` (nullable). |
+| `sql_text` | TEXT | **QUERY** — inline SQL/NoSQL (nullable). |
+| `query_type` | `query_type` | **QUERY** — parsed/classified type (nullable). |
+| `transactional` | BOOLEAN | **QUERY** — reuses the single-member `BEGIN…COMMIT` envelope rules. Default FALSE. |
+| `api_connector_id` | UUID | **API_CALL** — FK → `api_connectors` (nullable). |
+| `operation_id` | TEXT | **API_CALL** — null for a free-form call. |
+| `verb` | VARCHAR(16) | **API_CALL** — HTTP method / GraphQL op / gRPC method. |
+| `request_path` | TEXT | **API_CALL**. |
+| `request_headers` | JSONB | **API_CALL** — sanitized header set. |
+| `query_params` | JSONB | **API_CALL** — URL query parameters. |
+| `body_type` | `api_body_type` | **API_CALL** — `NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY` (nullable). |
+| `request_content_type` | TEXT | **API_CALL** — Content-Type for a `RAW` body. |
+| `request_body` | TEXT | **API_CALL** — raw text or base64 of a binary/file body. |
+| `form_fields` | JSONB | **API_CALL** — `[{key,type,value,filename,contentType}]` for form bodies. |
+| `binary_filename` | TEXT | **API_CALL** — filename of a `BINARY` body. |
+| `ai_analysis_id` | UUID | FK → `ai_analyses` (nullable) — per-item AI analysis. |
+| `ai_risk_level` | `risk_level` | Per-item risk (nullable). |
+| `ai_risk_score` | INTEGER | Per-item risk score (nullable). |
+| `status` | `request_group_item_status` | `PENDING`/`EXECUTED`/`FAILED`/`SKIPPED`/`CANCELLED`. Default `PENDING`. |
+| `result_snapshot` | TEXT | Size-capped, field-masked result/response body (immutable). |
+| `response_status_code` | INTEGER | API_CALL execution metadata (nullable). |
+| `rows_affected` | BIGINT | QUERY execution metadata (nullable). |
+| `error_message` | TEXT | Nullable — per-member failure reason. |
+| `duration_ms` | INTEGER | Per-member execution duration (nullable). |
+| `executed_at` | TIMESTAMPTZ | Nullable. |
+| `created_at` | TIMESTAMPTZ | |
+
+Indexed `(group_id, sequence_order)`.
+
+### group_review_decisions
+
+One decision per reviewer/stage covering the whole group (mirror of `review_decisions`). `decision`
+reuses the shared `decision` enum; unique `(request_group_id, reviewer_id, stage)` backstops
+idempotency.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `request_group_id` | UUID | FK → `request_groups` `ON DELETE CASCADE`. |
+| `reviewer_id` | UUID | FK → `users`. |
+| `decision` | `decision` | `APPROVED` \| `REJECTED` \| `REQUESTED_CHANGES`. |
+| `stage` | INTEGER | Which stage of the aggregated approval chain. |
+| `comment` | TEXT | Nullable. |
+| `decided_at` | TIMESTAMPTZ | |
+
+**Extension (V106).** `ai_analyses.request_group_item_id` (nullable UUID) is added, mirroring the
+`api_request_id` column from AF-500, and the `chk_ai_analyses_target` CHECK now enforces **exactly one**
+of (`query_request_id`, `api_request_id`, `request_group_item_id`) — keeping AI token-budget accounting
+unified across queries, API calls, and group items.
 
 ---
 

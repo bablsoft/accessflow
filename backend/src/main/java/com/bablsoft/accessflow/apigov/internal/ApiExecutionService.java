@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
+import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
@@ -39,7 +40,7 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
-public class ApiExecutionService {
+public class ApiExecutionService implements ApiInlineExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExecutionService.class);
     private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() {
@@ -89,6 +90,45 @@ public class ApiExecutionService {
                     ex.getMessage()));
             return request;
         }
+    }
+
+    @Override
+    public ApiInlineExecutionResult executeInline(ApiInlineExecutionCommand command) {
+        var connector = connectorRepository
+                .findByIdAndOrganizationId(command.connectorId(), command.organizationId())
+                .orElseThrow(() -> new ApiExecutionException("Connector no longer exists"));
+        // A detached (never-persisted) request entity reuses the full invoke() plumbing — connector
+        // auth, default + per-call headers, response cap — without touching the api_requests table.
+        var transient_ = new ApiRequestEntity();
+        transient_.setConnectorId(connector.getId());
+        transient_.setOrganizationId(command.organizationId());
+        transient_.setSubmittedBy(command.userId());
+        transient_.setOperationId(command.operationId());
+        transient_.setVerb(command.verb());
+        transient_.setRequestPath(command.requestPath());
+        transient_.setRequestHeaders(blankToJsonObject(command.requestHeadersJson()));
+        transient_.setQueryParams(blankToJsonObject(command.queryParamsJson()));
+        transient_.setBodyType(command.bodyType() == null ? ApiBodyType.RAW : command.bodyType());
+        transient_.setRequestContentType(command.requestContentType());
+        transient_.setRequestBody(command.requestBody());
+        transient_.setFormFields(command.formFieldsJson() == null || command.formFieldsJson().isBlank()
+                ? "[]" : command.formFieldsJson());
+        transient_.setBinaryFilename(command.binaryFilename());
+        try {
+            var result = invoke(connector, transient_);
+            var masked = responseMasker.mask(result.body(),
+                    restrictedFields(connector.getId(), command.userId()));
+            return new ApiInlineExecutionResult(result.statusCode() < 400, result.statusCode(),
+                    result.durationMs(), result.bytes(), result.truncated(), masked,
+                    result.contentType(), null);
+        } catch (ApiExecutionException ex) {
+            log.warn("Inline API call to connector {} failed: {}", connector.getId(), ex.getMessage());
+            return new ApiInlineExecutionResult(false, 0, null, null, false, null, null, ex.getMessage());
+        }
+    }
+
+    private static String blankToJsonObject(String json) {
+        return json == null || json.isBlank() ? "{}" : json;
     }
 
     private ApiCallResult invoke(ApiConnectorEntity connector, ApiRequestEntity request) {

@@ -553,6 +553,38 @@ posture as the query proxy:
 
 ---
 
+## Request chaining & grouping security (AF-501)
+
+The `requestgroups` module bundles several query members (across possibly different datasources) and
+API-call members (AF-500 connectors) into one grouped request. Bundling **never weakens** a member's
+security posture — every per-member control still fires, and the group aggregates them conservatively:
+
+- **Per-member permission validation at build/submit time.** Each member is validated against the
+  submitter's permission for its target — `datasource_user_permissions` for a query member,
+  `api_connector_user_permissions` (AF-500) for an API member. A user can only bundle a datasource /
+  connector they are permitted to use; an un-permitted target is rejected (403), exactly as a
+  standalone submission would be. Read/write classification is enforced per member.
+- **Break-glass requires every member target.** A break-glass group
+  (`submission_reason = EMERGENCY_ACCESS`) requires a non-expired `can_break_glass` grant on **every**
+  member target — datasources and connectors alike. A single member lacking it fails the whole group;
+  the bundle cannot be used to smuggle one un-eligible target past emergency access.
+- **Union of approvers, satisfy every plan.** The group's eligible approvers = the **union** across all
+  member plans, and the group reaches `APPROVED` only when **every** member plan's per-stage
+  `min_approvals_required` is satisfied. No member's review policy is loosened by being grouped.
+- **A submitter can never approve their own group.** Enforced at the service layer
+  (`SelfApprovalNotAllowedException`, 403), exactly like the query-review / JIT / break-glass / API
+  blocks. One decision is recorded per reviewer/stage covering the whole group.
+- **Per-member masking & row-security still apply.** Each query member resolves and applies its
+  datasource's masking + row-security directives at execution; each API member applies the connector's
+  per-user response-field masking. The group does not bypass any member's data-protection control.
+- **No distributed rollback — an APPROVED group is *not* atomic.** Members run in `sequence_order`; on
+  the first failure (with `continue_on_error=false`) the run stops and the remaining members are
+  `SKIPPED`, but **already-applied members stay** — there is no cross-target rollback (one cannot roll
+  back a committed Postgres DDL because a later Mongo write failed). This is surfaced explicitly in the
+  UI and docs so reviewers and submitters understand that approving a bundle is not a transaction.
+
+---
+
 ## Custom JDBC Driver Trust Boundary
 
 Admin-uploaded JDBC driver JARs (see [`docs/05-backend.md`](05-backend.md#admin-uploaded-drivers-94--142)) live on the AccessFlow filesystem unencrypted. The trust anchors are:

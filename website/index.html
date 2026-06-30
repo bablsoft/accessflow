@@ -412,6 +412,15 @@
             <span class="tag">Retention · soft-delete · pseudonymization · erasure workflow</span>
           </div>
 
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="9" height="5" rx="1.2"/><rect x="3.5" y="15" width="9" height="5" rx="1.2"/><path d="M8 9v6"/><path d="M12.5 6.5h5a2 2 0 0 1 2 2v9"/><path d="m17.5 15 2 2.5 2-2.5"/></svg>
+            </div>
+            <h3>Request chaining &amp; grouping</h3>
+            <p>Bundle several steps into one <strong>grouped request</strong> reviewed and approved as a single element, then executed as an <strong>ordered sequence</strong>. Members can mix <strong>queries</strong> across different datasources and <strong>API calls</strong> against governed connectors — a builder lets you add steps, drag-reorder them, and see a per-step AI risk preview plus an aggregate risk badge. Bundling never weakens a member's policy: each member is validated against your permission for its target (break-glass groups require <code>can_break_glass</code> on <strong>every</strong> target), the required approvers are the <strong>union</strong> across all member plans, and the group is approved only when <strong>every</strong> member plan is satisfied — you can never approve your own group. On execute, members run in order; on the first failure the run stops and the rest are skipped (continue-on-error runs them all instead). There is <strong>no distributed rollback</strong> — an approved group is not atomic, already-applied members stay, and that's surfaced clearly. Each member records its own snapshot + audit row alongside group-level audit and live WebSocket progress.</p>
+            <span class="tag">Grouped requests · queries + API calls · ordered execution · no distributed rollback</span>
+          </div>
+
         </div>
       </div>
     </section>
@@ -1031,6 +1040,7 @@
                 <li>Mobile PWA + one-tap push</li>
                 <li>Version history &amp; diff · dry-run sandbox · replay</li>
                 <li>Personalized dashboard &amp; weekly digest</li>
+                <li>Request chaining &amp; grouping</li>
               </ul>
             </div>
             <div class="rm-group">

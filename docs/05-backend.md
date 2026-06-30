@@ -955,6 +955,8 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
 | `RetentionPolicyScanJob` | lifecycle | `retentionPolicyScanJob` | `accessflow.lifecycle.policy-scan-interval` | `PT1H` |
 | `ErasureExecutionJob` | lifecycle | `erasureExecutionJob` | `accessflow.lifecycle.erasure-execution-interval` | `PT1M` |
+| `ScheduledGroupRunJob` | requestgroups | `scheduledGroupRunJob` | `accessflow.requestgroups.run-poll-interval` | `PT1M` |
+| `GroupTimeoutJob` | requestgroups | `groupTimeoutJob` | `accessflow.requestgroups.timeout-poll-interval` | `PT5M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1003,6 +1005,8 @@ beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) w
 `BehaviorAnomalyDetectionJob` implements behavioural anomaly detection (UBA, AF-383): each tick it advances each `(user, datasource)` baseline watermark over the configured `accessflow.ai.anomaly.lookback-window`, aggregating new windows from `audit_log` metadata (never query result data) into `behavior_baseline`, then runs statistical detection on the freshest window and inserts `behavior_anomaly` rows for out-of-pattern features. It swallows per-row `RuntimeException`s so one bad principal cannot abort the batch. See [§ Behavioural anomaly detection (UBA)](#behavioural-anomaly-detection-uba-af-383).
 
 `RetentionPolicyScanJob` implements the retention scan (AF-499, the `lifecycle` module): each tick it loads enabled `retention_policies`, computes eligibility per policy via the proxy's non-committing dry-run (`LifecyclePreviewCalculator`), and stages a `lifecycle_runs` row (`STAGED`) for each policy with eligible rows and no pending run yet. It is idempotent (a policy with an existing `STAGED` run is skipped) and swallows per-policy `RuntimeException`s so one bad policy cannot abort the batch. Each cycle publishes a `LifecycleScanCompletedEvent` consumed by the notifications module.
+
+`ScheduledGroupRunJob` / `GroupTimeoutJob` drive deferred grouped requests (AF-501, the `requestgroups` module) — see [§ Request chaining & grouping](#request-chaining--grouping-af-501). The run job scans `APPROVED` groups whose `scheduled_for ≤ now()` and executes their ordered sequence via `GroupExecutionService`; the timeout job auto-rejects `PENDING_REVIEW` groups past the review timeout to `TIMED_OUT`. Both are idempotent and swallow per-group `RuntimeException`s so one bad group cannot abort the batch.
 
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
 
@@ -1766,6 +1770,8 @@ Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so t
 | `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
 | `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
 | `notification.created`  | `UserNotificationCreatedEvent` (in `notifications/events/`) | the recipient user |
+| `request_group.status_changed` | `RequestGroupStatusChangedEvent` (in `requestgroups/events/`) | submitter; reviewers on ready-for-review |
+| `request_group.item_executed`  | `RequestGroupItemExecutedEvent` (in `requestgroups/events/`)  | submitter            |
 
 `QueryStatusChangedEvent` is published from the single chokepoint `DefaultQueryRequestStateService.transitionTo(...)` and the explicit decision/execution paths in the same service — every status mutation funnels through entity save in this service.
 
@@ -1891,6 +1897,76 @@ its correct format. **Schema URL fetch:** `DefaultApiSchemaService.upload` fetch
 bounded size/timeout) when `rawContent` is blank — a third ingestion mode alongside paste and file
 upload — raising `ApiSchemaFetchException` (422 `API_SCHEMA_FETCH_ERROR`) on failure. The submitter's
 email is resolved via `core.api.UserQueryService` for the list/detail submitter column.
+
+## Request chaining & grouping (AF-501)
+
+The **`requestgroups/` module** (`com.bablsoft.accessflow.requestgroups`, migration **V106**) lets a
+user bundle several **query** members (across possibly different datasources) and **API-call** members
+(AF-500 connectors) into one **grouped request** that is reviewed, approved, and executed as a single
+element. Group items are **self-contained** — they carry their own inline SQL / inline API call on
+`request_group_items` and do **not** create `query_requests` / `api_requests` rows. The **group** is
+the unit of AI + review + approval; members are run by a group executor. This is feasible because the
+low-level executors are row-id-free. `requestgroups.internal` depends only on the **`api`** packages of
+core / proxy / ai / apigov / audit / notifications / scheduling; `requestgroups.api` is JDK + project
+types only (enforced by `ApiPackageDependencyTest`).
+
+**Group state machine** (illegal transitions throw `IllegalRequestGroupStateException`):
+
+```
+DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTING → EXECUTED
+                                   ↘ REJECTED            (reviewer rejection)
+                                   ↘ TIMED_OUT           (review-timeout auto-reject by GroupTimeoutJob)
+                  ↘ PENDING_REVIEW or APPROVED           (routing / no-human-approval paths, group level)
+PENDING_REVIEW → CANCELLED                               (submitter)
+APPROVED       → CANCELLED                               (submitter, when scheduled_for is set and the
+                                                          deferred run has not yet fired)
+APPROVED       → EXECUTING → EXECUTED                    (all members succeed, or continue_on_error=true)
+EXECUTING      → PARTIALLY_EXECUTED                      (a later member failed with continue_on_error=false;
+                                                          remaining members SKIPPED)
+EXECUTING      → FAILED                                  (the first member failed)
+```
+
+**Aggregated review (satisfy every plan).** `GroupReviewPlanResolver` aggregates the
+`ReviewPlanSnapshot` of every **distinct** member target — `core.api.ReviewPlanLookupService` for
+query members (per datasource), the AF-500 connector's `reviewPlanId` for API members. The group's
+eligible approvers = the **union** across all members; the group advances to `APPROVED` only when
+**every** member plan's per-stage `min_approvals_required` is satisfied, so bundling never weakens a
+member's policy. One `group_review_decisions` row is recorded per reviewer/stage covering the whole
+group (idempotent on `(group, reviewer, stage)`); **the submitter can never approve their own group**.
+Routing policy may still escalate at group level.
+
+**Per-member AI risk + aggregate.** On submit, each member is analyzed via the async pattern — a new
+`ai.api` group-item analyzer (mirrors `ApiCallAnalyzer`) calls `AiAnalyzerStrategy.analyze(...)` for
+query members and `analyzeApiCall(...)` for API members, gated by `AiRateLimiter` and **fail-safe** (a
+failed member analysis escalates, never blocks). It persists an `ai_analyses` row keyed to the
+`request_group_item_id`, sets the item risk, and publishes `RequestGroupItemAnalyzedEvent`. The group's
+aggregate risk = the **max** member `risk_level` / `risk_score`, recomputed as analyses complete.
+
+**Ordered execution (no distributed rollback).** `GroupExecutionService` runs members in
+`sequence_order`: a query member resolves masking + row-security directives
+(`core.api.MaskingPolicyResolutionService` + `RowSecurityResolutionService`) and runs through
+`proxy.api.QueryExecutor.execute`; an API member runs through a **new `apigov.api` inline-execution
+entry point** (`ApiInlineExecutionService.executeInline(...)`) that performs connector-auth injection +
+call + response masking and returns a snapshot **without** persisting an `api_requests` row, reusing
+apigov's internal `ApiCallExecutor` / `ApiConnectorAuthApplier` / `ApiResponseMasker`. On the **first
+failure** with `continue_on_error=false` the run stops, the remaining members are marked `SKIPPED`, and
+the group becomes `PARTIALLY_EXECUTED` (or `FAILED` if the first member fails). With
+`continue_on_error=true` all members run and the group becomes `EXECUTED` with mixed item statuses.
+**There is no cross-target rollback** — an APPROVED group is *not* atomic; already-applied members
+stay. Each member records its own result snapshot + audit row (alongside the group's group-level audit
+rows) and publishes `RequestGroupItemExecutedEvent`; the group publishes
+`RequestGroupStatusChangedEvent`.
+
+**Build-time permission validation.** On submit, every member is validated against the submitter's
+permission for its target — `core.api.DatasourceUserPermissionLookupService` for query members, a new
+`apigov.api` connector-permission lookup for API members. A **break-glass group**
+(`submission_reason = EMERGENCY_ACCESS`) requires `can_break_glass` on **every** member target.
+
+**Audit & realtime.** New `AuditResourceType.REQUEST_GROUP` and `AuditAction.REQUEST_GROUP_*` values
+record the group lifecycle alongside each member's own query/API audit row. New
+`NotificationEventType.REQUEST_GROUP_*` values fan out submitted / approved / executed /
+partially-executed / failed over every channel. `RealtimeEventDispatcher` maps the group events to the
+`request_group.status_changed` and `request_group.item_executed` WebSocket events.
 
 ## MCP server (mcp module)
 

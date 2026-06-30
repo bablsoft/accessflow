@@ -23,6 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -177,5 +178,22 @@ class DefaultAiAnalysisPersistenceServiceTest {
         assertThatThrownBy(() -> service.persist(queryRequestId, command))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(queryRequestId.toString());
+    }
+
+    @Test
+    void persistForGroupItemKeysAnalysisToTheMemberAndReturnsId() {
+        var itemId = UUID.randomUUID();
+        when(aiAnalysisRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var command = new PersistAiAnalysisCommand(
+                AiProviderType.OPENAI, "gpt", 42, RiskLevel.MEDIUM, "ok", "[]", "[]", false, null, 3, 4,
+                false, null);
+
+        var id = service.persistForGroupItem(itemId, command);
+
+        var captor = ArgumentCaptor.forClass(AiAnalysisEntity.class);
+        verify(aiAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getRequestGroupItemId()).isEqualTo(itemId);
+        assertThat(captor.getValue().getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+        assertThat(id).isEqualTo(captor.getValue().getId());
     }
 }

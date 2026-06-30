@@ -8,6 +8,8 @@ import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallResult;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorAuthApplier;
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
+import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
@@ -264,5 +266,40 @@ class ApiExecutionServiceTest {
 
         assertThat(result.getErrorMessage()).isEqualTo("token boom");
         verify(stateService).apply(entity, QueryStatus.FAILED);
+    }
+
+    @Test
+    void executeInlineRunsCallAndMasksWithoutPersisting() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        when(executor.execute(any(ApiCallRequest.class)))
+                .thenReturn(new ApiCallResult(200, 9, 5, false, "{\"ssn\":\"x\"}", "application/json"));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("{\"ssn\":\"***\"}");
+
+        var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                connectorId, orgId, userId, "op", "GET", "/x", null, null, ApiBodyType.RAW, null, null,
+                null, null));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.statusCode()).isEqualTo(200);
+        assertThat(result.responseSnapshot()).contains("***");
+        verify(stateService, org.mockito.Mockito.never()).apply(any(), any());
+    }
+
+    @Test
+    void executeInlineReturnsFailureWhenConnectorMissing() {
+        var orgId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                        service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
+                                connectorId, orgId, userId, null, "GET", "/x", null, null,
+                                ApiBodyType.RAW, null, null, null, null)))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiExecutionException.class);
     }
 }

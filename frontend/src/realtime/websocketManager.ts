@@ -222,6 +222,18 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['attestation', 'worklist'] });
         this.queryClient.invalidateQueries({ queryKey: ['attestation', 'campaigns'] });
         break;
+      case 'request_group.status_changed':
+      case 'request_group.item_executed': {
+        const groupId = (envelope.data as { request_group_id?: string }).request_group_id;
+        if (groupId) {
+          this.queryClient.invalidateQueries({
+            queryKey: ['request-groups', 'detail', groupId],
+          });
+        }
+        this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'list'] });
+        this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'reviews'] });
+        break;
+      }
     }
   }
 }
