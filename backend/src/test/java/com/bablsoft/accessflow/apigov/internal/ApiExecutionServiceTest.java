@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallResult;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorAuthApplier;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -61,7 +62,8 @@ class ApiExecutionServiceTest {
     void setUp() {
         service = new ApiExecutionService(requestRepository, connectorRepository, permissionRepository,
                 encryptionService, authApplier, oauth2TokenService, executor, responseMasker, stateService,
-                eventPublisher, JsonMapper.builder().build());
+                eventPublisher, JsonMapper.builder().build(),
+                new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L));
     }
 
     private ApiRequestEntity approved() {
@@ -126,6 +128,25 @@ class ApiExecutionServiceTest {
         assertThat(captor.getValue().headers()).containsEntry("traceparent",
                 "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01");
         assertThat(result.getResponseContentType()).isEqualTo("application/json");
+    }
+
+    @Test
+    void executeClampsResponseCapToSystemCeiling() {
+        var entity = approved();
+        var c = connector();
+        c.setMaxResponseBytes(50_000_000L); // above the 8 MB ceiling configured in setUp
+        when(stateService.require(requestId)).thenReturn(entity);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
+        when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
+        var captor = org.mockito.ArgumentCaptor.forClass(ApiCallRequest.class);
+        when(executor.execute(captor.capture()))
+                .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
+        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(responseMasker.mask(any(), any())).thenReturn("{}");
+
+        service.execute(requestId);
+
+        assertThat(captor.getValue().maxResponseBytes()).isEqualTo(8_000_000L);
     }
 
     @Test

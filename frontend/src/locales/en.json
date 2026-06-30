@@ -2963,6 +2963,7 @@
       "decidedAt": "Decided at",
       "scheduled": "Scheduled",
       "truncated": "Truncated",
+      "previewTruncated": "Showing a bounded preview of the response. Use “Download full response” to get the complete body.",
       "notFound": "Request not found",
       "submitter": "Submitter",
       "filterAllSubmitters": "All submitters",

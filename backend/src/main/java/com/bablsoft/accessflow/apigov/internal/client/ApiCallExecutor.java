@@ -26,7 +26,8 @@ import java.util.Set;
  * review still work — execution returns a clear error). The body is composed per
  * {@link ApiBodyType} (raw / form-data multipart / x-www-form-urlencoded / binary) and query
  * parameters are appended to the URL. The response body is read into memory and capped at
- * {@code maxResponseBytes} (the surplus is dropped and {@code truncated} is set).
+ * {@code maxResponseBytes} (the surplus is dropped and {@code truncated} is set); the cut is backed
+ * off to a complete UTF-8 boundary so a truncated body is never left with a split character.
  */
 @Component
 public class ApiCallExecutor {
@@ -60,7 +61,8 @@ public class ApiCallExecutor {
             int durationMs = (int) Math.min(Integer.MAX_VALUE, (System.nanoTime() - start) / 1_000_000);
             byte[] raw = response.body() != null ? response.body() : new byte[0];
             boolean truncated = raw.length > request.maxResponseBytes();
-            int keep = truncated ? (int) Math.min(request.maxResponseBytes(), Integer.MAX_VALUE) : raw.length;
+            int keep = truncated ? utf8SafeLimit(raw, (int) Math.min(request.maxResponseBytes(), Integer.MAX_VALUE))
+                    : raw.length;
             var text = new String(raw, 0, keep, StandardCharsets.UTF_8);
             var contentType = response.headers().firstValue("content-type").orElse(null);
             return new ApiCallResult(response.statusCode(), durationMs, raw.length, truncated, text, contentType);
@@ -160,6 +162,23 @@ public class ApiCallExecutor {
         writeAscii(out, "--" + boundary + "--\r\n");
         return new BodyPayload(HttpRequest.BodyPublishers.ofByteArray(out.toByteArray()),
                 "multipart/form-data; boundary=" + boundary);
+    }
+
+    /**
+     * Backs {@code cap} off to the end of the last complete UTF-8 sequence so a truncated body never
+     * splits a multi-byte character (which would otherwise decode to a trailing replacement char).
+     * Continuation bytes have the form {@code 10xxxxxx}; if {@code cap} lands on one, walk back to the
+     * leading byte and drop the partial sequence.
+     */
+    private static int utf8SafeLimit(byte[] raw, int cap) {
+        if (cap <= 0 || cap >= raw.length) {
+            return Math.max(0, Math.min(cap, raw.length));
+        }
+        int i = cap;
+        while (i > 0 && (raw[i] & 0xC0) == 0x80) {
+            i--;
+        }
+        return i;
     }
 
     private static byte[] decodeBase64(String value) {

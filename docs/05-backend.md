@@ -1873,8 +1873,9 @@ producing a normalized operation catalog with read/write classification, and per
 submit (`POST /api/v1/api-requests`) → async rate-limited AI risk scoring (`ai.api.ApiCallAnalyzer`,
 fail-safe) → routing (`api_routing_policies`) + human review (`ApiReviewService`, self-approval
 forbidden, via `ApiReviewStateMachine`) → guarded execution (`ApiExecutionService`: connector-auth
-injection, `max_response_bytes` cap, recursive dot-path response masking via `ColumnMasker`,
-immutable masked snapshot). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
+injection, response cap = min(per-connector `max_response_bytes`, system `max-response-bytes`
+ceiling), recursive dot-path response masking via `ColumnMasker`, immutable masked snapshot stored in
+full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
 (`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
 (`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. gRPC call
 **execution** is the one piece not yet wired (REST/SOAP/GraphQL execute over the JDK HTTP client).
@@ -1891,9 +1892,17 @@ base64** (no object storage); the total encoded body is capped by
 `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (422 when exceeded). **W3C trace context:** a `trace_id` +
 `span_id` are generated at submit and injected on execution as a `traceparent` header under the
 connector's admin-renamable `trace_header_mapping`; both are filterable on the list. **Response
-download:** the executor captures the upstream `Content-Type` into `response_content_type`, and
-`GET /api-requests/{id}/response` streams the stored (masked, capped) snapshot as an attachment in
-its correct format. **Schema URL fetch:** `DefaultApiSchemaService.upload` fetches `sourceUrl` (http(s),
+download (AF-521, #521).** The **full** masked response body is stored for download — bounded only by
+a generous system-wide ceiling `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` (default 10 MiB), the absolute
+backstop above any per-connector `max_response_bytes` (the executor caps at the **min** of the two,
+and the cut is backed off to a complete UTF-8 boundary so a truncated body is never left with a split
+character; `response_truncated` flags an upstream body that exceeded the ceiling). The executor
+captures the upstream `Content-Type` into `response_content_type`, and
+`GET /api-requests/{id}/response` streams the **complete** stored snapshot as an attachment in its
+correct format. The **detail** view embeds only a bounded inline preview
+(`ACCESSFLOW_APIGOV_RESPONSE_PREVIEW_BYTES`, default 64 KiB) of that snapshot and sets
+`response_snapshot_preview_truncated` when clipped, so the page stays light while the download stays
+whole. **Schema URL fetch:** `DefaultApiSchemaService.upload` fetches `sourceUrl` (http(s),
 bounded size/timeout) when `rawContent` is blank — a third ingestion mode alongside paste and file
 upload — raising `ApiSchemaFetchException` (422 `API_SCHEMA_FETCH_ERROR`) on failure. The submitter's
 email is resolved via `core.api.UserQueryService` for the list/detail submitter column.

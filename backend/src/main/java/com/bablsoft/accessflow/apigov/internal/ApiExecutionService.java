@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallResult;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorAuthApplier;
+import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
@@ -59,6 +60,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     private final ApiRequestStateService stateService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final ApigovRequestProperties requestProperties;
 
     @Transactional
     public ApiRequestEntity execute(UUID apiRequestId) {
@@ -174,11 +176,12 @@ public class ApiExecutionService implements ApiInlineExecutionService {
 
     private ApiCallResult executeCall(ApiConnectorEntity connector, ApiRequestEntity request,
                                       Map<String, String> headers) {
+        var responseCap = Math.min(connector.getMaxResponseBytes(), requestProperties.maxResponseBytes());
         return executor.execute(new ApiCallRequest(connector.getProtocol(), connector.getBaseUrl(),
                 request.getVerb(), request.getRequestPath(), headers, readMap(request.getQueryParams()),
                 request.getBodyType() == null ? ApiBodyType.RAW : request.getBodyType(),
                 request.getRequestBody(), request.getRequestContentType(), readFormFields(request.getFormFields()),
-                request.getBinaryFilename(), connector.getTimeoutMs(), connector.getMaxResponseBytes(),
+                request.getBinaryFilename(), connector.getTimeoutMs(), responseCap,
                 request.getOperationId()));
     }
 

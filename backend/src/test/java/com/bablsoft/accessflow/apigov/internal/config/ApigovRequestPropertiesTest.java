@@ -7,13 +7,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApigovRequestPropertiesTest {
 
     @Test
-    void keepsPositiveValue() {
-        assertThat(new ApigovRequestProperties(1024L).maxRequestBodyBytes()).isEqualTo(1024L);
+    void keepsPositiveValues() {
+        var props = new ApigovRequestProperties(1024L, 2048L, 512L);
+        assertThat(props.maxRequestBodyBytes()).isEqualTo(1024L);
+        assertThat(props.maxResponseBytes()).isEqualTo(2048L);
+        assertThat(props.responsePreviewBytes()).isEqualTo(512L);
     }
 
     @Test
     void defaultsWhenNonPositive() {
-        assertThat(new ApigovRequestProperties(0L).maxRequestBodyBytes()).isEqualTo(5L * 1024 * 1024);
-        assertThat(new ApigovRequestProperties(-1L).maxRequestBodyBytes()).isEqualTo(5L * 1024 * 1024);
+        var zeroed = new ApigovRequestProperties(0L, 0L, 0L);
+        assertThat(zeroed.maxRequestBodyBytes()).isEqualTo(5L * 1024 * 1024);
+        assertThat(zeroed.maxResponseBytes()).isEqualTo(10L * 1024 * 1024);
+        assertThat(zeroed.responsePreviewBytes()).isEqualTo(65_536L);
+
+        var negative = new ApigovRequestProperties(-1L, -1L, -1L);
+        assertThat(negative.maxRequestBodyBytes()).isEqualTo(5L * 1024 * 1024);
+        assertThat(negative.maxResponseBytes()).isEqualTo(10L * 1024 * 1024);
+        assertThat(negative.responsePreviewBytes()).isEqualTo(65_536L);
     }
 }

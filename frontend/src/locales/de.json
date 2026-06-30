@@ -2963,6 +2963,7 @@
       "decidedAt": "Entschieden am",
       "scheduled": "Geplant",
       "truncated": "Gekürzt",
+      "previewTruncated": "Es wird eine begrenzte Vorschau der Antwort angezeigt. Verwenden Sie „Vollständige Antwort herunterladen“, um den gesamten Inhalt zu erhalten.",
       "notFound": "Anfrage nicht gefunden",
       "submitter": "Einreicher",
       "filterAllSubmitters": "Alle Einreicher",

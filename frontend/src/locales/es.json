@@ -2963,6 +2963,7 @@
       "decidedAt": "Decidido el",
       "scheduled": "Programado",
       "truncated": "Truncado",
+      "previewTruncated": "Se muestra una vista previa limitada de la respuesta. Use «Descargar respuesta completa» para obtener el cuerpo completo.",
       "notFound": "Solicitud no encontrada",
       "submitter": "Remitente",
       "filterAllSubmitters": "Todos los remitentes",

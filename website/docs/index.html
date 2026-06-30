@@ -1133,7 +1133,9 @@
             (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>) by pasting it, uploading a file, or
             pointing at a URL to fetch; AccessFlow parses it into a normalized operation catalog with
             read/write classification. Set the review plan, AI-analysis toggle + AI config, text-to-API
-            toggle, require-review-on-reads/writes, and the max response size. A <em>Test connection</em>
+            toggle, require-review-on-reads/writes, and the max response size (default 10&nbsp;MiB —
+            the full response is stored and downloadable up to this cap, with only a bounded preview
+            shown inline). A <em>Test connection</em>
             button probes reachability (and, for OAuth2 connectors, exercises the token fetch).
           </p>
           <p>

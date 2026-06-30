@@ -69,7 +69,8 @@ class DefaultApiRequestServiceTest {
     void setUp() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
-                aiAnalysisLookupService, userQueryService, new ApigovRequestProperties(5_242_880L),
+                aiAnalysisLookupService, userQueryService,
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         lenient().when(userQueryService.findById(any())).thenReturn(Optional.empty());
@@ -232,6 +233,43 @@ class DefaultApiRequestServiceTest {
     }
 
     @Test
+    void detailViewSlicesSnapshotToPreviewWhileDownloadKeepsFullBody() {
+        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
+                decisionRepository, schemaService, stateService, executionService, breakGlassService,
+                aiAnalysisLookupService, userQueryService,
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L),
+                auditLogService, eventPublisher, JsonMapper.builder().build());
+        lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
+        var full = "0123456789ABCDEF"; // 16 chars, longer than the 8-char preview budget
+        var e = persisted(QueryStatus.EXECUTED);
+        e.setResponseSnapshot(full);
+        e.setResponseContentType("application/json");
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+        lenient().when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
+
+        var view = service.get(e.getId(), orgId, userId, false);
+        assertThat(view.responseSnapshot()).isEqualTo("01234567");
+        assertThat(view.responseSnapshotPreviewTruncated()).isTrue();
+
+        var payload = service.downloadResponse(e.getId(), orgId, userId, false);
+        assertThat(new String(payload.content(), java.nio.charset.StandardCharsets.UTF_8)).isEqualTo(full);
+    }
+
+    @Test
+    void detailViewKeepsShortSnapshotWholeWithoutPreviewFlag() {
+        var e = persisted(QueryStatus.EXECUTED);
+        e.setResponseSnapshot("{\"ok\":true}");
+        when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
+        when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
+
+        var view = service.get(e.getId(), orgId, userId, false);
+        assertThat(view.responseSnapshot()).isEqualTo("{\"ok\":true}");
+        assertThat(view.responseSnapshotPreviewTruncated()).isFalse();
+    }
+
+    @Test
     void executeDelegatesToExecutionServiceAndAudits() {
         var e = persisted(QueryStatus.APPROVED);
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
@@ -266,7 +304,8 @@ class DefaultApiRequestServiceTest {
     void submitRejectsBodyOverSizeCap() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
-                aiAnalysisLookupService, userQueryService, new ApigovRequestProperties(4L),
+                aiAnalysisLookupService, userQueryService,
+                new ApigovRequestProperties(4L, 10_485_760L, 65_536L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));

@@ -2963,6 +2963,7 @@
       "decidedAt": "决定时间",
       "scheduled": "已计划",
       "truncated": "已截断",
+      "previewTruncated": "仅显示响应的有限预览。请使用“下载完整响应”获取完整内容。",
       "notFound": "未找到请求",
       "submitter": "提交者",
       "filterAllSubmitters": "所有提交者",

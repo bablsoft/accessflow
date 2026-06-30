@@ -2420,6 +2420,7 @@ export interface ApiRequest {
   response_bytes: number | null;
   response_truncated: boolean;
   response_snapshot: string | null;
+  response_snapshot_preview_truncated: boolean;
   response_content_type: string | null;
   error_message: string | null;
   created_at: string;
