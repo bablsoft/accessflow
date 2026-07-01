@@ -17,7 +17,6 @@ import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -55,7 +54,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
 
     private final ApiRequestRepository requestRepository;
     private final ApiConnectorRepository connectorRepository;
-    private final ApiConnectorUserPermissionRepository permissionRepository;
+    private final EffectiveApiConnectorPermissionResolver permissionResolver;
     private final CredentialEncryptionService encryptionService;
     private final ApiConnectorAuthApplier authApplier;
     private final ConnectorOAuth2TokenService oauth2TokenService;
@@ -230,9 +229,9 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     }
 
     private List<String> restrictedFields(UUID connectorId, UUID userId) {
-        return permissionRepository.findByConnectorIdAndUserId(connectorId, userId)
-                .map(p -> p.getRestrictedResponseFields() == null ? List.<String>of()
-                        : List.of(p.getRestrictedResponseFields()))
+        // Effective restricted fields = intersection across the user's direct + group grants (AF-530).
+        return permissionResolver.resolve(connectorId, userId)
+                .map(EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission::restrictedResponseFields)
                 .orElseGet(List::of);
     }
 

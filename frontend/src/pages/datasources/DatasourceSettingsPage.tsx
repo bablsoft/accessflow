@@ -7,6 +7,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Segmented,
   Select,
   Skeleton,
   Switch,
@@ -22,6 +23,7 @@ import {
   LoadingOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { isAxiosError } from 'axios';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -47,13 +49,17 @@ import {
   deleteDatasource,
   getDatasource,
   getDatasourceSchema,
+  grantGroupPermission,
   grantPermission,
+  listGroupPermissions,
   listPermissions,
+  revokeGroupPermission,
   revokePermission,
   testConnection,
   testReplicaConnection,
   updateDatasource,
 } from '@/api/datasources';
+import { groupKeys, listAllGroups } from '@/api/groups';
 import { ConnectionTester } from '@/components/datasources/ConnectionTester';
 import type { ConnectionTestResult } from '@/types/api';
 import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
@@ -74,9 +80,11 @@ import {
 } from '@/api/dataClassifications';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type {
+  CreateGroupPermissionInput,
   CreatePermissionInput,
   DataClassification,
   Datasource,
+  DatasourceGroupPermission,
   DatasourcePermission,
   UpdateDatasourceInput,
   User,
@@ -645,10 +653,27 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
   });
   const permissions = permissionsQuery.data ?? [];
 
+  const groupPermissionsQuery = useQuery({
+    queryKey: datasourceKeys.groupPermissions(dsId),
+    queryFn: () => listGroupPermissions(dsId),
+  });
+  const groupPermissions = groupPermissionsQuery.data ?? [];
+
   const revokeMutation = useMutation({
     mutationFn: (permId: string) => revokePermission(dsId, permId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: datasourceKeys.permissions(dsId) });
+      message.success(t('datasources.settings.revoke_success'));
+    },
+    onError: () => {
+      message.error(t('datasources.settings.revoke_error'));
+    },
+  });
+
+  const revokeGroupMutation = useMutation({
+    mutationFn: (permId: string) => revokeGroupPermission(dsId, permId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: datasourceKeys.groupPermissions(dsId) });
       message.success(t('datasources.settings.revoke_success'));
     },
     onError: () => {
@@ -664,6 +689,17 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
       okText: t('datasources.settings.perm_revoke'),
       cancelText: t('common.cancel'),
       onOk: () => revokeMutation.mutateAsync(perm.id),
+    });
+  };
+
+  const onRevokeGroup = (perm: DatasourceGroupPermission) => {
+    modal.confirm({
+      title: t('datasources.settings.revoke_confirm_title'),
+      content: perm.group_name,
+      okType: 'danger',
+      okText: t('datasources.settings.perm_revoke'),
+      cancelText: t('common.cancel'),
+      onOk: () => revokeGroupMutation.mutateAsync(perm.id),
     });
   };
 
@@ -695,6 +731,7 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
         open={grantOpen}
         dsId={dsId}
         existingUserIds={permissions.map((p) => p.user_id)}
+        existingGroupIds={groupPermissions.map((p) => p.group_id)}
         onClose={() => setGrantOpen(false)}
       />
       <Table<DatasourcePermission>
@@ -825,12 +862,115 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
           },
         ]}
       />
+      {(groupPermissions.length > 0 || groupPermissionsQuery.isLoading) && (
+        <>
+          <div style={{ fontWeight: 600, margin: '28px 0 12px' }}>
+            {t('datasources.settings.group_permissions_title')}
+          </div>
+          <Table<DatasourceGroupPermission>
+            rowKey="id"
+            size="middle"
+            loading={groupPermissionsQuery.isLoading}
+            dataSource={groupPermissions}
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            columns={[
+              {
+                title: t('datasources.settings.perm_col_group'),
+                dataIndex: 'group_name',
+                render: (_v, p) => (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Tag icon={<TeamOutlined />} color="blue">
+                      {t('datasources.settings.perm_group_tag')}
+                    </Tag>
+                    <div>
+                      <div style={{ fontSize: 13 }}>{p.group_name}</div>
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {t('datasources.settings.perm_member_count', { count: p.member_count })}
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                title: t('datasources.settings.perm_col_read'),
+                width: 70,
+                align: 'center',
+                render: (_v, p) => <PermCell on={p.can_read} />,
+              },
+              {
+                title: t('datasources.settings.perm_col_write'),
+                width: 70,
+                align: 'center',
+                render: (_v, p) => <PermCell on={p.can_write} />,
+              },
+              {
+                title: t('datasources.settings.perm_col_ddl'),
+                width: 70,
+                align: 'center',
+                render: (_v, p) => <PermCell on={p.can_ddl} />,
+              },
+              {
+                title: t('datasources.settings.perm_col_break_glass'),
+                width: 90,
+                align: 'center',
+                render: (_v, p) => <PermCell on={p.can_break_glass} />,
+              },
+              {
+                title: t('datasources.settings.perm_col_schemas'),
+                render: (_v, p) => (
+                  <span className="mono" style={{ fontSize: 12 }}>
+                    {p.allowed_schemas ? (
+                      p.allowed_schemas.join(', ')
+                    ) : (
+                      <span className="muted">all</span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                title: t('datasources.settings.perm_col_expires'),
+                width: 170,
+                render: (_v, p) =>
+                  p.expires_at ? (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {fmtDate(p.expires_at)}
+                    </span>
+                  ) : (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {t('datasources.settings.perm_never_expires')}
+                    </span>
+                  ),
+              },
+              {
+                title: t('datasources.settings.perm_col_actions'),
+                width: 100,
+                align: 'right',
+                render: (_v, p) => (
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => onRevokeGroup(p)}
+                    disabled={revokeGroupMutation.isPending}
+                  >
+                    {t('datasources.settings.perm_revoke')}
+                  </Button>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </div>
   );
 }
 
+type GrantTarget = 'user' | 'group';
+
 interface GrantFormValues {
-  user_id: string;
+  target: GrantTarget;
+  user_id?: string;
+  group_id?: string;
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
@@ -846,19 +986,33 @@ interface GrantAccessModalProps {
   open: boolean;
   dsId: string;
   existingUserIds: string[];
+  existingGroupIds: string[];
   onClose: () => void;
 }
 
-function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessModalProps) {
+function GrantAccessModal({
+  open,
+  dsId,
+  existingUserIds,
+  existingGroupIds,
+  onClose,
+}: GrantAccessModalProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<GrantFormValues>();
   const selectedSchemas = Form.useWatch('allowed_schemas', form);
+  const target: GrantTarget = Form.useWatch('target', form) ?? 'user';
 
   const usersQuery = useQuery({
     queryKey: userKeys.list({ size: 100 }),
     queryFn: () => listUsers({ size: 100 }),
+    enabled: open,
+  });
+
+  const groupsQuery = useQuery({
+    queryKey: groupKeys.lists(),
+    queryFn: () => listAllGroups(),
     enabled: open,
   });
 
@@ -881,6 +1035,12 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
     () =>
       (usersQuery.data?.content ?? []).filter((u) => u.active && !taken.has(u.id)),
     [usersQuery.data, taken],
+  );
+
+  const takenGroups = useMemo(() => new Set(existingGroupIds), [existingGroupIds]);
+  const eligibleGroups = useMemo(
+    () => (groupsQuery.data ?? []).filter((g) => !takenGroups.has(g.id)),
+    [groupsQuery.data, takenGroups],
   );
 
   const schemaOptions = useMemo(
@@ -916,10 +1076,47 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
     [schemaQuery.data],
   );
 
-  const grantMutation = useMutation({
-    mutationFn: (input: CreatePermissionInput) => grantPermission(dsId, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: datasourceKeys.permissions(dsId) });
+  const grantMutation = useMutation<
+    DatasourcePermission | DatasourceGroupPermission,
+    Error,
+    GrantFormValues
+  >({
+    mutationFn: (values: GrantFormValues) => {
+      const shared = {
+        can_read: values.can_read,
+        can_write: values.can_write,
+        can_ddl: values.can_ddl,
+        can_break_glass: values.can_break_glass,
+        row_limit_override:
+          typeof values.row_limit_override === 'number' ? values.row_limit_override : null,
+        allowed_schemas:
+          values.allowed_schemas && values.allowed_schemas.length > 0
+            ? values.allowed_schemas
+            : null,
+        allowed_tables:
+          values.allowed_tables && values.allowed_tables.length > 0
+            ? values.allowed_tables
+            : null,
+        restricted_columns:
+          values.restricted_columns && values.restricted_columns.length > 0
+            ? values.restricted_columns
+            : null,
+        expires_at: values.expires_at ? values.expires_at.toISOString() : null,
+      };
+      if (values.target === 'group') {
+        const payload: CreateGroupPermissionInput = { group_id: values.group_id!, ...shared };
+        return grantGroupPermission(dsId, payload);
+      }
+      const payload: CreatePermissionInput = { user_id: values.user_id!, ...shared };
+      return grantPermission(dsId, payload);
+    },
+    onSuccess: (_data, values) => {
+      void queryClient.invalidateQueries({
+        queryKey:
+          values.target === 'group'
+            ? datasourceKeys.groupPermissions(dsId)
+            : datasourceKeys.permissions(dsId),
+      });
       message.success(t('datasources.settings.grant_success'));
       onClose();
     },
@@ -936,29 +1133,7 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
     if (values.can_break_glass && !values.expires_at) {
       message.warning(t('datasources.settings.grant_break_glass_no_expiry_hint'));
     }
-    const payload: CreatePermissionInput = {
-      user_id: values.user_id,
-      can_read: values.can_read,
-      can_write: values.can_write,
-      can_ddl: values.can_ddl,
-      can_break_glass: values.can_break_glass,
-      row_limit_override:
-        typeof values.row_limit_override === 'number' ? values.row_limit_override : null,
-      allowed_schemas:
-        values.allowed_schemas && values.allowed_schemas.length > 0
-          ? values.allowed_schemas
-          : null,
-      allowed_tables:
-        values.allowed_tables && values.allowed_tables.length > 0
-          ? values.allowed_tables
-          : null,
-      restricted_columns:
-        values.restricted_columns && values.restricted_columns.length > 0
-          ? values.restricted_columns
-          : null,
-      expires_at: values.expires_at ? values.expires_at.toISOString() : null,
-    };
-    grantMutation.mutate(payload);
+    grantMutation.mutate(values);
   };
 
   return (
@@ -977,6 +1152,7 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
         form={form}
         layout="vertical"
         initialValues={{
+          target: 'user',
           can_read: true,
           can_write: false,
           can_ddl: false,
@@ -984,29 +1160,64 @@ function GrantAccessModal({ open, dsId, existingUserIds, onClose }: GrantAccessM
         }}
         onFinish={onFinish}
       >
-        <Form.Item
-          name="user_id"
-          label={t('datasources.settings.grant_user_label')}
-          rules={[
-            { required: true, message: t('datasources.settings.grant_user_required') },
-          ]}
-        >
-          <Select<string>
-            showSearch
-            optionFilterProp="label"
-            placeholder={t('datasources.settings.grant_user_placeholder')}
-            loading={usersQuery.isLoading}
-            notFoundContent={
-              usersQuery.isLoading
-                ? t('datasources.settings.grant_user_loading')
-                : t('datasources.settings.grant_user_empty')
-            }
-            options={eligible.map((u) => ({
-              value: u.id,
-              label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-            }))}
+        <Form.Item name="target" label={t('datasources.settings.grant_target_label')}>
+          <Segmented<GrantTarget>
+            block
+            options={[
+              { value: 'user', label: t('datasources.settings.grant_target_user') },
+              { value: 'group', label: t('datasources.settings.grant_target_group') },
+            ]}
           />
         </Form.Item>
+        {target === 'group' ? (
+          <Form.Item
+            name="group_id"
+            label={t('datasources.settings.grant_group_label')}
+            rules={[
+              { required: true, message: t('datasources.settings.grant_group_required') },
+            ]}
+          >
+            <Select<string>
+              showSearch
+              optionFilterProp="label"
+              placeholder={t('datasources.settings.grant_group_placeholder')}
+              loading={groupsQuery.isLoading}
+              notFoundContent={
+                groupsQuery.isLoading
+                  ? t('datasources.settings.grant_user_loading')
+                  : t('datasources.settings.grant_group_empty')
+              }
+              options={eligibleGroups.map((g) => ({
+                value: g.id,
+                label: g.name,
+              }))}
+            />
+          </Form.Item>
+        ) : (
+          <Form.Item
+            name="user_id"
+            label={t('datasources.settings.grant_user_label')}
+            rules={[
+              { required: true, message: t('datasources.settings.grant_user_required') },
+            ]}
+          >
+            <Select<string>
+              showSearch
+              optionFilterProp="label"
+              placeholder={t('datasources.settings.grant_user_placeholder')}
+              loading={usersQuery.isLoading}
+              notFoundContent={
+                usersQuery.isLoading
+                  ? t('datasources.settings.grant_user_loading')
+                  : t('datasources.settings.grant_user_empty')
+              }
+              options={eligible.map((u) => ({
+                value: u.id,
+                label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
+              }))}
+            />
+          </Form.Item>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           <Form.Item
             name="can_read"

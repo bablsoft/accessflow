@@ -12,10 +12,13 @@ const updateDatasource = vi.fn();
 const testConnection = vi.fn();
 const testReplicaConnection = vi.fn();
 const listPermissions = vi.fn();
+const listGroupPermissions = vi.fn();
 const deleteDatasource = vi.fn();
 const grantPermission = vi.fn();
+const grantGroupPermission = vi.fn();
 const getDatasourceSchema = vi.fn();
 const listUsers = vi.fn();
+const listAllGroups = vi.fn();
 
 vi.mock('@/api/datasources', () => ({
   getDatasource: (...args: unknown[]) => getDatasource(...args),
@@ -23,9 +26,12 @@ vi.mock('@/api/datasources', () => ({
   testConnection: (...args: unknown[]) => testConnection(...args),
   testReplicaConnection: (...args: unknown[]) => testReplicaConnection(...args),
   listPermissions: (...args: unknown[]) => listPermissions(...args),
+  listGroupPermissions: (...args: unknown[]) => listGroupPermissions(...args),
   deleteDatasource: (...args: unknown[]) => deleteDatasource(...args),
   grantPermission: (...args: unknown[]) => grantPermission(...args),
+  grantGroupPermission: (...args: unknown[]) => grantGroupPermission(...args),
   revokePermission: vi.fn(),
+  revokeGroupPermission: vi.fn(),
   getDatasourceSchema: (...args: unknown[]) => getDatasourceSchema(...args),
   datasourceKeys: {
     all: ['datasources'] as const,
@@ -34,7 +40,17 @@ vi.mock('@/api/datasources', () => ({
     detail: (id: string) => ['datasources', 'detail', id] as const,
     schema: (id: string) => ['datasources', 'detail', id, 'schema'] as const,
     permissions: (id: string) => ['datasources', 'detail', id, 'permissions'] as const,
+    groupPermissions: (id: string) =>
+      ['datasources', 'detail', id, 'permissions', 'groups'] as const,
     types: () => ['datasources', 'types'] as const,
+  },
+}));
+
+vi.mock('@/api/groups', () => ({
+  listAllGroups: (...args: unknown[]) => listAllGroups(...args),
+  groupKeys: {
+    all: ['groups'] as const,
+    lists: () => ['groups', 'list'] as const,
   },
 }));
 
@@ -113,6 +129,10 @@ describe('DatasourceSettingsPage — read replica section', () => {
     testReplicaConnection.mockReset();
     listPermissions.mockReset();
     listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
   });
 
   it('renders the read replica section with empty fields when datasource has no replica', async () => {
@@ -305,6 +325,10 @@ describe('DatasourceSettingsPage — break-glass permission grant', () => {
     getDatasource.mockResolvedValue(baseDs);
     listPermissions.mockReset();
     listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
     grantPermission.mockReset();
     grantPermission.mockResolvedValue(basePermission({ can_read: true, can_break_glass: true }));
     getDatasourceSchema.mockReset();

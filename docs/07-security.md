@@ -325,13 +325,23 @@ All four organization lifecycle mutations are audited against the target org
 
 ## Datasource-Level Access Control
 
-Beyond platform roles, every action against a customer database is validated against `datasource_user_permissions`:
+Beyond platform roles, every action against a customer database is validated against the caller's
+**effective permission** — the most-permissive union of their direct `datasource_user_permissions` row
+and every unexpired `datasource_group_permissions` grant for a group they belong to (AF-530). Boolean
+capabilities are OR-ed, allow-lists (`allowed_schemas`/`allowed_tables`) unioned, and `restricted_columns`
+intersected (a column is masked only when **every** contributing grant masks it), each grant's `expires_at`
+honoured independently. The union is computed once in `DefaultDatasourceUserPermissionLookupService.findFor`,
+the single choke-point every enforcement path (proxy, JIT/break-glass gates, masking/row-security scoping,
+`requestgroups` checks) reads through, so groups behave here exactly as they already do for
+masking-reveal and row-security. Granting a group access lets an admin onboard a whole team without a
+row per member; JIT materialisation still manages the per-user row specifically (via `findDirectFor`,
+which ignores group grants). The check below runs against that resolved effective permission:
 
 ```
 User attempts query on datasource
          │
          ▼
-Does permission record exist for (user_id, datasource_id)?
+Does an effective permission exist for the user (direct grant OR any group grant)?
   NO  → 403 Forbidden
   YES ↓
 Does permission allow this query type?
@@ -562,10 +572,16 @@ posture as the query proxy:
   single upstream `401`. The token, secret, refresh token, and password are **never logged, audited,
   or serialized**; a real token fetch records only an `API_CONNECTOR_OAUTH2_TOKEN_REFRESHED` audit
   row (grant type only, no token).
-- **Response-field masking.** Per-user `restricted_response_fields` (dot-paths) are redacted from the
-  JSON response recursively (including through arrays and nested objects) via the shared
-  `ColumnMasker` (FULL strategy) before the response snapshot is persisted — the unmasked body is
-  never stored. Mirrors the query masking model and is keyed on the submitter.
+- **Group-based access (AF-530).** An admin may grant a **user group** access to a connector
+  (`api_connector_group_permissions`); members inherit it. The effective permission a submitter is
+  checked against is the most-permissive union of their direct grant and every unexpired group grant —
+  `can_*` OR-ed, `allowed_operations` unioned, `restricted_response_fields` intersected — computed by
+  `EffectiveApiConnectorPermissionResolver`, the one component every connector enforcement point routes
+  through (submit-time permission check, response-field masking, text-to-API access, admin visibility).
+- **Response-field masking.** A submitter's effective `restricted_response_fields` (dot-paths) are
+  redacted from the JSON response recursively (including through arrays and nested objects) via the
+  shared `ColumnMasker` (FULL strategy) before the response snapshot is persisted — the unmasked body is
+  never stored. Mirrors the query masking model and is keyed on the submitter's effective grant.
 - **Response-size cap.** The executor reads at most `max_response_bytes` and flags `truncated`,
   bounding memory and exfiltration blast radius.
 - **A submitter can never approve their own API request.** Enforced in `DefaultApiReviewService`

@@ -1,6 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  apiBase,
   createPostgresDatasource,
   deleteDatasource,
   inviteUserViaApi,
@@ -9,6 +10,21 @@ import {
   waitForInviteToken,
   type CreatedDatasource,
 } from '../helpers/datasources';
+
+async function createGroupViaApi(
+  request: APIRequestContext,
+  token: string,
+  name: string,
+): Promise<string> {
+  const res = await request.post(`${apiBase()}/api/v1/admin/groups`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { name },
+  });
+  if (!res.ok()) {
+    throw new Error(`create group failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()).id as string;
+}
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -23,6 +39,8 @@ const X_RENAMED = `Postgres E2E ${UNIQUE_SUFFIX} RENAMED`;
 const Y_NAME = `Postgres E2E ${UNIQUE_SUFFIX} DUPE-TARGET`;
 const Z_NAME = `Postgres E2E ${UNIQUE_SUFFIX} BAD-CREDS`;
 const A_NAME = `Postgres E2E ${UNIQUE_SUFFIX} PERMS`;
+const B_NAME = `Postgres E2E ${UNIQUE_SUFFIX} GROUP-PERMS`;
+const GROUP_NAME = `AF-530 Group ${UNIQUE_SUFFIX}`;
 const WRONG_PASSWORD = 'wrong-password-af273';
 
 const ANALYST_DISPLAY = 'AF-273 Analyst';
@@ -100,6 +118,8 @@ test.describe.serial('datasource settings — config + permissions', () => {
   let datasourceY: CreatedDatasource | null = null;
   let datasourceZ: CreatedDatasource | null = null;
   let datasourceA: CreatedDatasource | null = null;
+  let datasourceB: CreatedDatasource | null = null;
+  let groupId = '';
   let adminAccessToken = '';
 
   test.beforeAll(async ({ request }) => {
@@ -118,6 +138,10 @@ test.describe.serial('datasource settings — config + permissions', () => {
     datasourceA = await createPostgresDatasource(request, adminAccessToken, {
       name: A_NAME,
     });
+    datasourceB = await createPostgresDatasource(request, adminAccessToken, {
+      name: B_NAME,
+    });
+    groupId = await createGroupViaApi(request, adminAccessToken, GROUP_NAME);
 
     // Provision an ANALYST so the grant flow has a target user other than
     // the admin (admin holds implicit access and is omitted from the grant
@@ -140,10 +164,17 @@ test.describe.serial('datasource settings — config + permissions', () => {
     // Best-effort — the helper swallows non-204/404 with a console.warn so a
     // stack already torn down (or a row a test already deactivated) doesn't
     // fail the suite.
-    for (const ds of [datasourceX, datasourceY, datasourceZ, datasourceA]) {
+    for (const ds of [datasourceX, datasourceY, datasourceZ, datasourceA, datasourceB]) {
       if (ds) {
         await deleteDatasource(request, adminAccessToken, ds.id);
       }
+    }
+    if (groupId) {
+      await request
+        .delete(`${apiBase()}/api/v1/admin/groups/${groupId}`, {
+          headers: { Authorization: `Bearer ${adminAccessToken}` },
+        })
+        .catch(() => undefined);
     }
   });
 
@@ -479,5 +510,55 @@ test.describe.serial('datasource settings — config + permissions', () => {
     await expect(page.getByRole('tab', { name: /^Permissions · 0$/ })).toBeVisible({
       timeout: 10_000,
     });
+  });
+
+  // AF-530: grant a whole group access; the group grant renders in its own
+  // section of the permissions tab with the member count.
+  test('grants access to a group and the group row appears', async ({ page }) => {
+    if (!datasourceB) throw new Error('beforeAll did not create datasource B');
+    const dsId = datasourceB.id;
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/datasources/${dsId}/settings`);
+    await waitForSettingsReady(page, dsId);
+
+    await page.getByRole('tab', { name: /^Permissions · 0$/ }).click();
+    await expect(page.getByRole('button', { name: 'Grant access' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Grant access' }).first().click();
+    const grantDialog = page.getByRole('dialog').filter({ hasText: 'Grant datasource access' });
+    await expect(grantDialog).toBeVisible();
+
+    // Flip the User / Group toggle to Group, then the user Select is swapped
+    // for the group Select.
+    await grantDialog.locator('.ant-segmented-item').filter({ hasText: 'Group' }).click();
+    const groupCombobox = grantDialog.getByRole('combobox', { name: 'Group' });
+    await groupCombobox.click();
+    await groupCombobox.fill(GROUP_NAME);
+    await page.locator('.ant-select-item-option').filter({ hasText: GROUP_NAME }).click();
+
+    const [grantResponse] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === 'POST' &&
+          new RegExp(`/api/v1/datasources/${dsId}/permissions/groups$`).test(r.url()),
+        { timeout: 15_000 },
+      ),
+      grantDialog.getByRole('button', { name: 'Grant access' }).click(),
+    ]);
+    expect(grantResponse.status()).toBe(201);
+    expect(grantResponse.request().postDataJSON().group_id).toBe(groupId);
+
+    await expect(page.getByText('Access granted', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(grantDialog).toHaveCount(0);
+
+    // The group grant renders under the "Group grants" section with its name.
+    await expect(page.getByText('Group grants', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    const groupRow = page.locator('.ant-table-row').filter({ hasText: GROUP_NAME });
+    await expect(groupRow).toHaveCount(1, { timeout: 10_000 });
   });
 });

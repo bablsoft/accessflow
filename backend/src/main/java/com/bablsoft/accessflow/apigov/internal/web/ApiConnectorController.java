@@ -178,6 +178,51 @@ class ApiConnectorController {
                 id, caller, metadata("permission_id", permissionId.toString()), auditContext);
     }
 
+    @GetMapping("/{id}/permissions/groups")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List per-group permissions on a connector")
+    @ApiResponse(responseCode = "200", description = "Group permission list")
+    @ApiResponse(responseCode = "404", description = "Connector not found")
+    List<ApiConnectorGroupPermissionResponse> listGroupPermissions(@PathVariable UUID id,
+                                                                   Authentication authentication) {
+        var caller = claims(authentication);
+        return service.listGroupPermissions(id, caller.organizationId()).stream()
+                .map(ApiConnectorGroupPermissionResponse::from)
+                .toList();
+    }
+
+    @PostMapping("/{id}/permissions/groups")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Grant or update a user group's access to a connector")
+    @ApiResponse(responseCode = "201", description = "Group permission granted")
+    @ApiResponse(responseCode = "404", description = "Connector or group not found")
+    ApiConnectorGroupPermissionResponse grantGroup(
+            @PathVariable UUID id,
+            @Valid @RequestBody GrantApiConnectorGroupPermissionRequest body,
+            Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var view = service.grantGroupPermission(id, caller.organizationId(), caller.userId(),
+                body.toCommand());
+        auditWriter.record(AuditAction.API_PERMISSION_GROUP_GRANTED, AuditResourceType.API_CONNECTOR,
+                id, caller, metadata("group_id", body.groupId().toString()), auditContext);
+        return ApiConnectorGroupPermissionResponse.from(view);
+    }
+
+    @DeleteMapping("/{id}/permissions/groups/{permissionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Revoke a user group's access to a connector")
+    @ApiResponse(responseCode = "204", description = "Group permission revoked")
+    @ApiResponse(responseCode = "404", description = "Connector or permission not found")
+    void revokeGroup(@PathVariable UUID id, @PathVariable UUID permissionId,
+                     Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        service.revokeGroupPermission(id, caller.organizationId(), permissionId);
+        auditWriter.record(AuditAction.API_PERMISSION_GROUP_REVOKED, AuditResourceType.API_CONNECTOR,
+                id, caller, metadata("permission_id", permissionId.toString()), auditContext);
+    }
+
     private static JwtClaims claims(Authentication authentication) {
         return (JwtClaims) authentication.getPrincipal();
     }

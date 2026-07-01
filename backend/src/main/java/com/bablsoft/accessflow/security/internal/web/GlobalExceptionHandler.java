@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.CustomDriverNotFoundException;
 import com.bablsoft.accessflow.core.api.CustomDriverTooLargeException;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
@@ -311,6 +312,16 @@ class GlobalExceptionHandler {
     ProblemDetail handleDatasourcePermissionNotFound(DatasourcePermissionNotFoundException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, msg("error.datasource_permission_not_found"));
         pd.setProperty("error", "DATASOURCE_PERMISSION_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(DatasourceGroupPermissionAlreadyExistsException.class)
+    ProblemDetail handleDatasourceGroupPermissionAlreadyExists(
+            DatasourceGroupPermissionAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.datasource_group_permission_already_exists"));
+        pd.setProperty("error", "DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

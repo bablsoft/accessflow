@@ -10,7 +10,6 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +31,7 @@ import static org.mockito.Mockito.when;
 class DefaultApiAssistServiceTest {
 
     @Mock private ApiConnectorRepository connectorRepository;
-    @Mock private ApiConnectorUserPermissionRepository permissionRepository;
+    @Mock private EffectiveApiConnectorPermissionResolver permissionResolver;
     @Mock private ApiSchemaService schemaService;
     @Mock private ApiCallAnalyzer apiCallAnalyzer;
 
@@ -44,7 +43,7 @@ class DefaultApiAssistServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultApiAssistService(connectorRepository, permissionRepository, schemaService,
+        service = new DefaultApiAssistService(connectorRepository, permissionResolver, schemaService,
                 apiCallAnalyzer);
     }
 

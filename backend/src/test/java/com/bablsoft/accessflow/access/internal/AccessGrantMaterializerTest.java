@@ -75,7 +75,7 @@ class AccessGrantMaterializerTest {
     @Test
     void materialiseGrantsPermissionAndAttaches() {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(approved()));
-        when(permissionLookupService.findFor(requesterId, datasourceId)).thenReturn(Optional.empty());
+        when(permissionLookupService.findDirectFor(requesterId, datasourceId)).thenReturn(Optional.empty());
         when(datasourceAdminService.grantPermission(eq(datasourceId), eq(organizationId),
                 eq(approverId), any())).thenReturn(granted());
 
@@ -95,7 +95,7 @@ class AccessGrantMaterializerTest {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(approved()));
         var standing = new DatasourceUserPermissionView(UUID.randomUUID(), requesterId, datasourceId,
                 true, false, false, false, null, null, null, null /* no expiry = standing */);
-        when(permissionLookupService.findFor(requesterId, datasourceId))
+        when(permissionLookupService.findDirectFor(requesterId, datasourceId))
                 .thenReturn(Optional.of(standing));
 
         assertThatThrownBy(() -> materializer.materialize(requestId, approverId))
@@ -109,7 +109,7 @@ class AccessGrantMaterializerTest {
         var existingPermId = UUID.randomUUID();
         var jit = new DatasourceUserPermissionView(existingPermId, requesterId, datasourceId,
                 true, false, false, false, null, null, null, Instant.now().plusSeconds(60));
-        when(permissionLookupService.findFor(requesterId, datasourceId)).thenReturn(Optional.of(jit));
+        when(permissionLookupService.findDirectFor(requesterId, datasourceId)).thenReturn(Optional.of(jit));
         when(datasourceAdminService.grantPermission(any(), any(), any(), any()))
                 .thenReturn(granted());
 

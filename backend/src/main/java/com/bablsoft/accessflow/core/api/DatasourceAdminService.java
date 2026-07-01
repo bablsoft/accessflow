@@ -40,4 +40,12 @@ public interface DatasourceAdminService {
                                              UUID grantedByUserId, CreatePermissionCommand command);
 
     void revokePermission(UUID datasourceId, UUID organizationId, UUID permissionId);
+
+    List<DatasourceGroupPermissionView> listGroupPermissions(UUID datasourceId, UUID organizationId);
+
+    DatasourceGroupPermissionView grantGroupPermission(UUID datasourceId, UUID organizationId,
+                                                       UUID grantedByUserId,
+                                                       CreateDatasourceGroupPermissionCommand command);
+
+    void revokeGroupPermission(UUID datasourceId, UUID organizationId, UUID permissionId);
 }

@@ -9,12 +9,10 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +21,7 @@ import java.util.UUID;
 public class DefaultApiAssistService implements ApiAssistService {
 
     private final ApiConnectorRepository connectorRepository;
-    private final ApiConnectorUserPermissionRepository permissionRepository;
+    private final EffectiveApiConnectorPermissionResolver permissionResolver;
     private final ApiSchemaService schemaService;
     private final ApiCallAnalyzer apiCallAnalyzer;
 
@@ -65,9 +63,8 @@ public class DefaultApiAssistService implements ApiAssistService {
         var connector = connectorRepository.findByIdAndOrganizationId(connectorId, organizationId)
                 .orElseThrow(() -> new ApiConnectorNotFoundException(connectorId));
         if (!admin) {
-            var permitted = permissionRepository.findByConnectorIdAndUserId(connectorId, userId)
-                    .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(Instant.now()))
-                    .map(p -> p.isCanRead() || p.isCanWrite())
+            var permitted = permissionResolver.resolve(connectorId, userId)
+                    .map(p -> p.canRead() || p.canWrite())
                     .orElse(false);
             if (!permitted) {
                 throw new ApiRequestPermissionException("No access to this connector");

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestResult;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionView;
@@ -10,6 +11,7 @@ import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.CreateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
+import com.bablsoft.accessflow.apigov.api.GrantApiConnectorGroupPermissionCommand;
 import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
@@ -17,13 +19,17 @@ import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorGroupPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.UserGroupService;
+import com.bablsoft.accessflow.core.api.UserGroupView;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -37,7 +43,6 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +58,9 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
     private final ApiConnectorRepository connectorRepository;
     private final ApiSchemaRepository schemaRepository;
     private final ApiConnectorUserPermissionRepository permissionRepository;
+    private final ApiConnectorGroupPermissionRepository groupPermissionRepository;
+    private final EffectiveApiConnectorPermissionResolver permissionResolver;
+    private final UserGroupService userGroupService;
     private final CredentialEncryptionService encryptionService;
     private final UserQueryService userQueryService;
     private final ApiConnectorProber prober;
@@ -71,12 +79,8 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
     @Transactional(readOnly = true)
     public PageResponse<ApiConnectorView> listForUser(UUID organizationId, UUID userId,
                                                       PageRequest pageRequest) {
-        var now = Instant.now();
-        var granted = permissionRepository.findByUserId(userId).stream()
-                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(now))
-                .map(ApiConnectorUserPermissionEntity::getConnectorId)
-                .distinct()
-                .toList();
+        // Union of the user's direct and group grants (AF-530).
+        var granted = permissionResolver.connectorIdsFor(userId);
         var views = granted.stream()
                 .map(id -> connectorRepository.findByIdAndOrganizationId(id, organizationId))
                 .flatMap(Optional::stream)
@@ -96,10 +100,10 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
     @Transactional(readOnly = true)
     public ApiConnectorView getForUser(UUID id, UUID organizationId, UUID userId) {
         var connector = require(id, organizationId);
-        var permission = permissionRepository.findByConnectorIdAndUserId(id, userId)
-                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(Instant.now()))
+        // Effective permission = union of the user's direct and group grants (AF-530).
+        var permission = permissionResolver.resolve(id, userId)
                 .orElseThrow(() -> new ApiConnectorNotFoundException(id));
-        if (!permission.isCanRead() && !permission.isCanWrite()) {
+        if (!permission.canRead() && !permission.canWrite()) {
             throw new ApiConnectorNotFoundException(id);
         }
         return toView(connector);
@@ -327,6 +331,53 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         permissionRepository.delete(entity);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ApiConnectorGroupPermissionView> listGroupPermissions(UUID connectorId,
+                                                                      UUID organizationId) {
+        require(connectorId, organizationId);
+        return groupPermissionRepository.findByConnectorId(connectorId).stream()
+                .map(this::toGroupPermissionView)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ApiConnectorGroupPermissionView grantGroupPermission(
+            UUID connectorId, UUID organizationId, UUID grantedByUserId,
+            GrantApiConnectorGroupPermissionCommand command) {
+        require(connectorId, organizationId);
+        // Validates the group exists in this organization (throws UserGroupNotFoundException → 404).
+        var group = userGroupService.getGroup(command.groupId(), organizationId);
+        var entity = groupPermissionRepository.findByConnectorIdAndGroupId(connectorId, command.groupId())
+                .orElseGet(() -> {
+                    var fresh = new ApiConnectorGroupPermissionEntity();
+                    fresh.setId(UUID.randomUUID());
+                    fresh.setOrganizationId(organizationId);
+                    fresh.setConnectorId(connectorId);
+                    fresh.setGroupId(command.groupId());
+                    fresh.setCreatedBy(grantedByUserId);
+                    return fresh;
+                });
+        entity.setCanRead(command.canRead());
+        entity.setCanWrite(command.canWrite());
+        entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setExpiresAt(command.expiresAt());
+        entity.setAllowedOperations(toArray(command.allowedOperations()));
+        entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
+        return toGroupPermissionView(groupPermissionRepository.save(entity), group);
+    }
+
+    @Override
+    @Transactional
+    public void revokeGroupPermission(UUID connectorId, UUID organizationId, UUID permissionId) {
+        require(connectorId, organizationId);
+        var entity = groupPermissionRepository.findById(permissionId)
+                .filter(p -> p.getConnectorId().equals(connectorId))
+                .orElseThrow(() -> new ApiConnectorPermissionNotFoundException(permissionId));
+        groupPermissionRepository.delete(entity);
+    }
+
     private ApiConnectorEntity require(UUID id, UUID organizationId) {
         return connectorRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ApiConnectorNotFoundException(id));
@@ -366,6 +417,23 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 e.getId(), e.getConnectorId(), e.getUserId(),
                 user != null ? user.email() : null,
                 user != null ? user.displayName() : null,
+                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.getExpiresAt(),
+                e.getAllowedOperations() != null ? List.of(e.getAllowedOperations()) : List.of(),
+                e.getRestrictedResponseFields() != null ? List.of(e.getRestrictedResponseFields()) : List.of(),
+                e.getCreatedAt());
+    }
+
+    private ApiConnectorGroupPermissionView toGroupPermissionView(ApiConnectorGroupPermissionEntity e) {
+        var group = userGroupService.getGroup(e.getGroupId(), e.getOrganizationId());
+        return toGroupPermissionView(e, group);
+    }
+
+    private ApiConnectorGroupPermissionView toGroupPermissionView(ApiConnectorGroupPermissionEntity e,
+                                                                  UserGroupView group) {
+        return new ApiConnectorGroupPermissionView(
+                e.getId(), e.getConnectorId(), e.getGroupId(),
+                group != null ? group.name() : null,
+                group != null ? group.memberCount() : 0,
                 e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.getExpiresAt(),
                 e.getAllowedOperations() != null ? List.of(e.getAllowedOperations()) : List.of(),
                 e.getRestrictedResponseFields() != null ? List.of(e.getRestrictedResponseFields()) : List.of(),

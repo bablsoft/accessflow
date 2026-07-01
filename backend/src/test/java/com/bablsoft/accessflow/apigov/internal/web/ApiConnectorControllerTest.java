@@ -180,9 +180,42 @@ class ApiConnectorControllerTest {
         verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_UPDATED));
     }
 
+    @Test
+    void listGroupPermissionsMapsViews() {
+        when(service.listGroupPermissions(connectorId, orgId)).thenReturn(List.of(groupPermissionView()));
+
+        var list = controller.listGroupPermissions(connectorId, auth(UserRoleType.ADMIN));
+
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).groupName()).isEqualTo("Analysts");
+        assertThat(list.get(0).memberCount()).isEqualTo(3);
+    }
+
+    @Test
+    void grantAndRevokeGroupAudit() {
+        var groupId = UUID.randomUUID();
+        when(service.grantGroupPermission(eq(connectorId), eq(orgId), eq(userId), any()))
+                .thenReturn(groupPermissionView());
+        controller.grantGroup(connectorId,
+                new GrantApiConnectorGroupPermissionRequest(groupId, true, false, false, null, null, null),
+                auth(UserRoleType.ADMIN), auditContext);
+        verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GROUP_GRANTED));
+
+        var permId = UUID.randomUUID();
+        controller.revokeGroup(connectorId, permId, auth(UserRoleType.ADMIN), auditContext);
+        verify(service).revokeGroupPermission(connectorId, orgId, permId);
+        verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GROUP_REVOKED));
+    }
+
     private ApiConnectorPermissionView permissionView() {
         return new ApiConnectorPermissionView(UUID.randomUUID(), connectorId, UUID.randomUUID(),
                 "u@acme.test", "User", true, false, false, null, List.of(), List.of(), Instant.now());
+    }
+
+    private com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView groupPermissionView() {
+        return new com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView(UUID.randomUUID(),
+                connectorId, UUID.randomUUID(), "Analysts", 3, true, false, false, null,
+                List.of(), List.of(), Instant.now());
     }
 
     private static AuditEntry auditEntry(AuditAction action) {

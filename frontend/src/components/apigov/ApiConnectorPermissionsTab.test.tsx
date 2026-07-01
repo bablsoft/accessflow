@@ -4,22 +4,36 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
-import type { ApiConnectorPermission, ApiOperation, UserPage } from '@/types/api';
+import type {
+  ApiConnectorGroupPermission,
+  ApiConnectorPermission,
+  ApiOperation,
+  UserGroup,
+  UserPage,
+} from '@/types/api';
 
 const {
   listApiConnectorPermissions,
+  listApiConnectorGroupPermissions,
   listApiOperations,
   grantApiConnectorPermission,
+  grantApiConnectorGroupPermission,
   updateApiConnectorPermission,
   revokeApiConnectorPermission,
+  revokeApiConnectorGroupPermission,
   listUsers,
+  listAllGroups,
 } = vi.hoisted(() => ({
   listApiConnectorPermissions: vi.fn(),
+  listApiConnectorGroupPermissions: vi.fn(),
   listApiOperations: vi.fn(),
   grantApiConnectorPermission: vi.fn(),
+  grantApiConnectorGroupPermission: vi.fn(),
   updateApiConnectorPermission: vi.fn(),
   revokeApiConnectorPermission: vi.fn(),
+  revokeApiConnectorGroupPermission: vi.fn(),
   listUsers: vi.fn(),
+  listAllGroups: vi.fn(),
 }));
 
 vi.mock('@/api/apiConnectors', async () => {
@@ -27,16 +41,24 @@ vi.mock('@/api/apiConnectors', async () => {
   return {
     ...actual,
     listApiConnectorPermissions,
+    listApiConnectorGroupPermissions,
     listApiOperations,
     grantApiConnectorPermission,
+    grantApiConnectorGroupPermission,
     updateApiConnectorPermission,
     revokeApiConnectorPermission,
+    revokeApiConnectorGroupPermission,
   };
 });
 
 vi.mock('@/api/admin', async () => {
   const actual = await vi.importActual<typeof import('@/api/admin')>('@/api/admin');
   return { ...actual, listUsers };
+});
+
+vi.mock('@/api/groups', async () => {
+  const actual = await vi.importActual<typeof import('@/api/groups')>('@/api/groups');
+  return { ...actual, listAllGroups };
 });
 
 const { ApiConnectorPermissionsTab } = await import('./ApiConnectorPermissionsTab');
@@ -60,11 +82,52 @@ const operations: ApiOperation[] = [
 ];
 
 const users: UserPage = {
-  content: [],
+  content: [
+    {
+      id: 'u-2',
+      email: 'bob@example.com',
+      display_name: 'Bob',
+      role: 'ANALYST',
+      organization_id: 'org-1',
+      active: true,
+      auth_provider: 'LOCAL',
+      last_login_at: null,
+      preferred_language: 'en',
+      totp_enabled: false,
+      created_at: '2026-05-04T10:15:00Z',
+    },
+  ],
   page: 0,
   size: 100,
-  total_elements: 0,
-  total_pages: 0,
+  total_elements: 1,
+  total_pages: 1,
+};
+
+const groups: UserGroup[] = [
+  {
+    id: 'g-1',
+    organization_id: 'org-1',
+    name: 'Analysts',
+    description: null,
+    member_count: 4,
+    created_at: '2026-05-04T10:15:00Z',
+    updated_at: '2026-05-04T10:15:00Z',
+  },
+];
+
+const groupPermission: ApiConnectorGroupPermission = {
+  id: 'gp-1',
+  connector_id: 'c-1',
+  group_id: 'g-1',
+  group_name: 'Analysts',
+  member_count: 4,
+  can_read: true,
+  can_write: false,
+  can_break_glass: false,
+  expires_at: null,
+  allowed_operations: [],
+  restricted_response_fields: [],
+  created_at: '2026-05-04T10:15:00Z',
 };
 
 function wrap(node: ReactNode) {
@@ -79,8 +142,11 @@ function wrap(node: ReactNode) {
 describe('ApiConnectorPermissionsTab — edit flow', () => {
   beforeEach(() => {
     listApiConnectorPermissions.mockResolvedValue([permission]);
+    listApiConnectorGroupPermissions.mockResolvedValue([]);
     listApiOperations.mockResolvedValue(operations);
     listUsers.mockResolvedValue(users);
+    listAllGroups.mockResolvedValue(groups);
+    grantApiConnectorGroupPermission.mockResolvedValue(groupPermission);
     updateApiConnectorPermission.mockResolvedValue({ ...permission, can_write: true });
   });
 
@@ -119,5 +185,30 @@ describe('ApiConnectorPermissionsTab — edit flow', () => {
     expect(permissionId).toBe('perm-1');
     expect(payload.can_write).toBe(true);
     expect(payload.can_read).toBe(true);
+  });
+
+  it('switching the grant target to Group swaps the user selector for a group selector', async () => {
+    render(wrap(<ApiConnectorPermissionsTab connectorId="c-1" />));
+    await screen.findByText('alice@example.com');
+
+    // The user selector is shown by default.
+    expect(screen.getByRole('combobox', { name: 'User' })).toBeInTheDocument();
+
+    // Flip the Segmented toggle to Group (click the segmented option label).
+    fireEvent.click(screen.getByText('Group'));
+
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Group' })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('combobox', { name: 'User' })).not.toBeInTheDocument();
+  });
+
+  it('renders group grants in their own section with the member count', async () => {
+    listApiConnectorGroupPermissions.mockResolvedValue([groupPermission]);
+    render(wrap(<ApiConnectorPermissionsTab connectorId="c-1" />));
+
+    await screen.findByText('Group grants');
+    expect(await screen.findByText(/Analysts/)).toBeInTheDocument();
+    expect(screen.getByText('4 members')).toBeInTheDocument();
   });
 });

@@ -180,4 +180,39 @@ describe('api/apiConnectors', () => {
     await api.revokeApiConnectorPermission('c-1', 'perm-1');
     expect(del).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/perm-1');
   });
+
+  it('lists group permissions', async () => {
+    get.mockResolvedValue({ data: [{ id: 'gp-1', group_id: 'g-1', group_name: 'Analysts' }] });
+    const perms = await api.listApiConnectorGroupPermissions('c-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups');
+    expect(perms).toHaveLength(1);
+  });
+
+  it('grants a group permission', async () => {
+    post.mockResolvedValue({ data: { id: 'gp-1' } });
+    const input = {
+      group_id: 'g-1',
+      can_read: true,
+      can_write: false,
+      can_break_glass: false,
+    };
+    await api.grantApiConnectorGroupPermission('c-1', input);
+    expect(post).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups', input);
+  });
+
+  it('revokes a group permission', async () => {
+    del.mockResolvedValue({ data: undefined });
+    await api.revokeApiConnectorGroupPermission('c-1', 'gp-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups/gp-1');
+  });
+
+  it('groupPermissions key factory', () => {
+    expect(api.apiConnectorKeys.groupPermissions('c-1')).toEqual([
+      'api-connectors',
+      'detail',
+      'c-1',
+      'permissions',
+      'groups',
+    ]);
+  });
 });

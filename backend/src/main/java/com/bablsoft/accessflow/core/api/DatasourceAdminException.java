@@ -4,6 +4,7 @@ public sealed class DatasourceAdminException extends RuntimeException
         permits DatasourceNotFoundException,
                 DatasourceNameAlreadyExistsException,
                 DatasourcePermissionAlreadyExistsException,
+                DatasourceGroupPermissionAlreadyExistsException,
                 DatasourcePermissionNotFoundException,
                 DatasourceConnectionTestException,
                 IllegalDatasourcePermissionException,

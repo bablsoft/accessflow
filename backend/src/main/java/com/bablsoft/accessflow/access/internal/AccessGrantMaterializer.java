@@ -58,7 +58,9 @@ class AccessGrantMaterializer {
     }
 
     private void replaceExistingTimeBoxedPermission(AccessGrantRequestEntity entity) {
-        var existing = permissionLookupService.findFor(entity.getRequesterId(),
+        // JIT access manages the per-user datasource_user_permissions row specifically, so it must
+        // look at the direct grant only — never a group grant (whose id it could not revoke here).
+        var existing = permissionLookupService.findDirectFor(entity.getRequesterId(),
                 entity.getDatasourceId());
         if (existing.isEmpty()) {
             return;
