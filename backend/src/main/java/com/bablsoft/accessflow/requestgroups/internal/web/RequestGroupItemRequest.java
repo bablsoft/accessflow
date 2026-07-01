@@ -17,7 +17,7 @@ record RequestGroupItemRequest(
         UUID datasourceId,
         @Size(max = 100000, message = "{validation.request_group_item.sql.size}")
         String sqlText,
-        boolean transactional,
+        Boolean transactional,
         // API_CALL
         UUID apiConnectorId,
         @Size(max = 255, message = "{validation.request_group_item.operation.size}")
@@ -36,16 +36,17 @@ record RequestGroupItemRequest(
         @Size(max = 255, message = "{validation.request_group_item.filename.size}")
         String binaryFilename) {
 
-    record FormFieldRequest(String name, String value, boolean file, String filename, String contentType) {
+    record FormFieldRequest(String name, String value, Boolean file, String filename, String contentType) {
     }
 
     RequestGroupItemInput toInput(int order) {
         var fields = formFields == null ? List.<RequestGroupItemInput.ApiFormFieldInput>of()
                 : formFields.stream()
                         .map(f -> new RequestGroupItemInput.ApiFormFieldInput(f.name(), f.value(),
-                                f.file(), f.filename(), f.contentType()))
+                                f.file() != null && f.file(), f.filename(), f.contentType()))
                         .toList();
-        return new RequestGroupItemInput(targetKind, order, datasourceId, sqlText, transactional,
+        return new RequestGroupItemInput(targetKind, order, datasourceId, sqlText,
+                transactional != null && transactional,
                 apiConnectorId, operationId, verb, requestPath, requestHeaders, queryParams, bodyType,
                 requestContentType, requestBody, fields, binaryFilename);
     }
