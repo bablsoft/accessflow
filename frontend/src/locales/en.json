@@ -2989,7 +2989,16 @@
         "no_masking_suggestions": "No masking suggestions",
         "applied": "Applied",
         "not_applied": "Not applied"
-      }
+      },
+      "edit": "Edit",
+      "editPermission": "Edit permission — {{user}}",
+      "save": "Save",
+      "updated": "Permission updated",
+      "allowedOperations": "Allowed operations",
+      "allowedOperationsPlaceholder": "All operations (leave empty)",
+      "allOperations": "All",
+      "restrictedResponseFields": "Masked response fields",
+      "restrictedResponseFieldsPlaceholder": "Add dot-paths (e.g. data.ssn)"
     },
     "editor": {
       "title": "API Editor",

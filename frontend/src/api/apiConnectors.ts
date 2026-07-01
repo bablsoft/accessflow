@@ -9,6 +9,7 @@ import type {
   CreateApiConnectorInput,
   GrantApiConnectorPermissionInput,
   UpdateApiConnectorInput,
+  UpdateApiConnectorPermissionInput,
   UploadApiSchemaInput,
 } from '@/types/api';
 
@@ -104,6 +105,18 @@ export async function grantApiConnectorPermission(
 ): Promise<ApiConnectorPermission> {
   const { data } = await apiClient.post<ApiConnectorPermission>(
     `${BASE}/${connectorId}/permissions`,
+    input,
+  );
+  return data;
+}
+
+export async function updateApiConnectorPermission(
+  connectorId: string,
+  permissionId: string,
+  input: UpdateApiConnectorPermissionInput,
+): Promise<ApiConnectorPermission> {
+  const { data } = await apiClient.put<ApiConnectorPermission>(
+    `${BASE}/${connectorId}/permissions/${permissionId}`,
     input,
   );
   return data;

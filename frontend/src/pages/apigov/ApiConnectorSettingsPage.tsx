@@ -1,5 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Segmented, Select, Switch, Table, Tabs, Tag, Upload } from 'antd';
+import { useEffect, useState } from 'react';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Segmented,
+  Select,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Upload,
+} from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,15 +22,12 @@ import {
   apiConnectorKeys,
   deleteApiSchema,
   getApiConnector,
-  grantApiConnectorPermission,
-  listApiConnectorPermissions,
   listApiOperations,
   listApiSchemas,
-  revokeApiConnectorPermission,
   updateApiConnector,
   uploadApiSchema,
 } from '@/api/apiConnectors';
-import { aiConfigKeys, listAiConfigs, listUsers, userKeys } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs } from '@/api/admin';
 import {
   API_AUTH_METHODS,
   API_SCHEMA_TYPES,
@@ -30,6 +40,7 @@ import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields
 import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
 import { ApiConnectorMaskingTab } from '@/components/apigov/ApiConnectorMaskingTab';
 import { ApiConnectorClassificationTab } from '@/components/apigov/ApiConnectorClassificationTab';
+import { ApiConnectorPermissionsTab } from '@/components/apigov/ApiConnectorPermissionsTab';
 import {
   pairsToRecord,
   recordToPairs,
@@ -37,13 +48,11 @@ import {
 } from '@/utils/apiRequestComposition';
 import type {
   ApiAuthMethod,
-  ApiConnectorPermission,
   ApiOperation,
   ApiSchema,
   ApiSchemaType,
   Oauth2GrantType,
   UpdateApiConnectorInput,
-  User,
 } from '@/types/api';
 
 export default function ApiConnectorSettingsPage() {
@@ -69,7 +78,7 @@ export default function ApiConnectorSettingsPage() {
             { key: 'config', label: t('apiGov.settings.tabConfig'), children: <ConfigTab connectorId={id} /> },
             { key: 'schema', label: t('apiGov.settings.tabSchema'), children: <SchemaTab connectorId={id} /> },
             { key: 'operations', label: t('apiGov.settings.tabOperations'), children: <OperationsTab connectorId={id} /> },
-            { key: 'permissions', label: t('apiGov.settings.tabPermissions'), children: <PermissionsTab connectorId={id} /> },
+            { key: 'permissions', label: t('apiGov.settings.tabPermissions'), children: <ApiConnectorPermissionsTab connectorId={id} /> },
             { key: 'masking', label: t('apiGov.settings.tabMasking'), children: <ApiConnectorMaskingTab connectorId={id} /> },
             { key: 'classification', label: t('apiGov.settings.tabClassification'), children: <ApiConnectorClassificationTab connectorId={id} /> },
           ]}
@@ -368,108 +377,5 @@ function OperationsTab({ connectorId }: { connectorId: string }) {
         },
       ]}
     />
-  );
-}
-
-function PermissionsTab({ connectorId }: { connectorId: string }) {
-  const { t } = useTranslation();
-  const { message } = App.useApp();
-  const queryClient = useQueryClient();
-  const [form] = Form.useForm<{ user_id: string; can_read: boolean; can_write: boolean; can_break_glass: boolean }>();
-  const permsQuery = useQuery({
-    queryKey: apiConnectorKeys.permissions(connectorId),
-    queryFn: () => listApiConnectorPermissions(connectorId),
-  });
-  const usersQuery = useQuery({
-    queryKey: userKeys.list({ size: 100 }),
-    queryFn: () => listUsers({ size: 100 }),
-  });
-  const taken = useMemo(
-    () => new Set((permsQuery.data ?? []).map((p) => p.user_id)),
-    [permsQuery.data],
-  );
-  const eligible: User[] = useMemo(
-    () => (usersQuery.data?.content ?? []).filter((u) => u.active && !taken.has(u.id)),
-    [usersQuery.data, taken],
-  );
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: apiConnectorKeys.permissions(connectorId) });
-  const grantMutation = useMutation({
-    mutationFn: (values: { user_id: string; can_read: boolean; can_write: boolean; can_break_glass: boolean }) =>
-      grantApiConnectorPermission(connectorId, values),
-    onSuccess: () => {
-      message.success(t('apiGov.settings.granted'));
-      form.resetFields();
-      invalidate();
-    },
-    onError: () => message.error(t('apiGov.error')),
-  });
-  const revokeMutation = useMutation({
-    mutationFn: (permissionId: string) => revokeApiConnectorPermission(connectorId, permissionId),
-    onSuccess: () => {
-      message.success(t('apiGov.settings.revoked'));
-      invalidate();
-    },
-    onError: () => message.error(t('apiGov.error')),
-  });
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
-      <Form
-        form={form}
-        layout="inline"
-        initialValues={{ can_read: true, can_write: false, can_break_glass: false }}
-        onFinish={(values) => grantMutation.mutate(values)}
-      >
-        <Form.Item name="user_id" rules={[{ required: true, message: t('apiGov.settings.userRequired') }]}>
-          <Select<string>
-            showSearch
-            optionFilterProp="label"
-            placeholder={t('apiGov.settings.userPlaceholder')}
-            style={{ width: 280 }}
-            loading={usersQuery.isLoading}
-            notFoundContent={
-              usersQuery.isLoading
-                ? t('apiGov.settings.userLoading')
-                : t('apiGov.settings.userEmpty')
-            }
-            options={eligible.map((u) => ({
-              value: u.id,
-              label: u.display_name ? `${u.display_name} (${u.email})` : u.email,
-            }))}
-          />
-        </Form.Item>
-        <Form.Item name="can_read" label={t('apiGov.settings.canRead')} valuePropName="checked">
-          <Switch size="small" />
-        </Form.Item>
-        <Form.Item name="can_write" label={t('apiGov.settings.canWrite')} valuePropName="checked">
-          <Switch size="small" />
-        </Form.Item>
-        <Form.Item name="can_break_glass" label={t('apiGov.settings.canBreakGlass')} valuePropName="checked">
-          <Switch size="small" />
-        </Form.Item>
-        <Button type="primary" htmlType="submit" loading={grantMutation.isPending}>
-          {t('apiGov.settings.grant')}
-        </Button>
-      </Form>
-      <Table<ApiConnectorPermission>
-        rowKey="id"
-        size="small"
-        pagination={false}
-        loading={permsQuery.isLoading}
-        dataSource={permsQuery.data ?? []}
-        locale={{ emptyText: t('apiGov.settings.noPermissions') }}
-        columns={[
-          { title: t('apiGov.settings.user'), dataIndex: 'user_email', render: (e: string | null, r: ApiConnectorPermission) => e ?? r.user_id },
-          { title: t('apiGov.settings.canRead'), dataIndex: 'can_read', render: (v: boolean) => (v ? '✓' : '—') },
-          { title: t('apiGov.settings.canWrite'), dataIndex: 'can_write', render: (v: boolean) => (v ? '✓' : '—') },
-          { title: t('apiGov.settings.canBreakGlass'), dataIndex: 'can_break_glass', render: (v: boolean) => (v ? '✓' : '—') },
-          { title: '', key: 'a', render: (_: unknown, row: ApiConnectorPermission) => (
-            <Button size="small" danger loading={revokeMutation.isPending} onClick={() => revokeMutation.mutate(row.id)}>
-              {t('apiGov.settings.revoke')}
-            </Button>
-          ) },
-        ]}
-      />
-    </div>
   );
 }

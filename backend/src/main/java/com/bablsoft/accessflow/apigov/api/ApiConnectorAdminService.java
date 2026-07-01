@@ -36,5 +36,9 @@ public interface ApiConnectorAdminService {
                                                UUID grantedByUserId,
                                                GrantApiConnectorPermissionCommand command);
 
+    ApiConnectorPermissionView updatePermission(UUID connectorId, UUID organizationId,
+                                                UUID permissionId,
+                                                UpdateApiConnectorPermissionCommand command);
+
     void revokePermission(UUID connectorId, UUID organizationId, UUID permissionId);
 }

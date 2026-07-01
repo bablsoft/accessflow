@@ -149,6 +149,21 @@ class ApiConnectorController {
         return ApiConnectorPermissionResponse.from(view);
     }
 
+    @PutMapping("/{id}/permissions/{permissionId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a user's access to a connector")
+    @ApiResponse(responseCode = "200", description = "Permission updated")
+    @ApiResponse(responseCode = "404", description = "Connector or permission not found")
+    ApiConnectorPermissionResponse update(@PathVariable UUID id, @PathVariable UUID permissionId,
+                                          @Valid @RequestBody UpdateApiConnectorPermissionRequest body,
+                                          Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var view = service.updatePermission(id, caller.organizationId(), permissionId, body.toCommand());
+        auditWriter.record(AuditAction.API_PERMISSION_UPDATED, AuditResourceType.API_CONNECTOR,
+                id, caller, metadata("permission_id", permissionId.toString()), auditContext);
+        return ApiConnectorPermissionResponse.from(view);
+    }
+
     @DeleteMapping("/{id}/permissions/{permissionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

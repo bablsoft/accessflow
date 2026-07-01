@@ -129,7 +129,10 @@ documents are rejected `422 API_SCHEMA_PARSE_ERROR`. The editor reads it via
 `api_connector_user_permissions` grants a user access to a connector: `can_read` (safe methods),
 `can_write` (mutating), `can_break_glass`, `expires_at` (JIT), `allowed_operations` (an operation-id
 subset), and `restricted_response_fields` (dot-paths masked in that user's responses). Admins manage
-grants under `/api-connectors/{id}/permissions`; non-admins only see connectors they're granted.
+grants under `/api-connectors/{id}/permissions`; non-admins only see connectors they're granted. An
+existing grant is editable in place via `PUT /api-connectors/{id}/permissions/{permissionId}` (same
+fields, minus `userId`) — capabilities, expiry, allowed operations, and masked fields can be changed
+without revoking and re-creating, preserving the grant's `created_by`/`created_at` provenance.
 
 ## 4. Governed-call pipeline
 

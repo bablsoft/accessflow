@@ -2989,7 +2989,16 @@
         "no_masking_suggestions": "Քողարկման առաջարկներ չկան",
         "applied": "Կիրառված",
         "not_applied": "Չկիրառված"
-      }
+      },
+      "edit": "Խմբագրել",
+      "editPermission": "Խմբագրել թույլտվությունը — {{user}}",
+      "save": "Պահպանել",
+      "updated": "Թույլտվությունը թարմացվեց",
+      "allowedOperations": "Թույլատրված գործողություններ",
+      "allowedOperationsPlaceholder": "Բոլոր գործողությունները (թողնել դատարկ)",
+      "allOperations": "Բոլորը",
+      "restrictedResponseFields": "Դիմակավորված պատասխանի դաշտեր",
+      "restrictedResponseFieldsPlaceholder": "Ավելացնել կետային ուղիներ (օր. data.ssn)"
     },
     "editor": {
       "title": "API Editor",
