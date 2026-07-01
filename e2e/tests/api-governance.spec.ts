@@ -123,10 +123,13 @@ test('admin edits an API connector permission in place (AF-530)', async ({ page,
   await createResponse;
   await page.waitForURL('**/api-connectors/*/settings', { timeout: 15_000 });
 
-  // Permissions tab → grant the member read access.
+  // Permissions tab → grant the member read access. The user picker is an AntD Select whose
+  // placeholder renders as an overlay span (not an input attribute), so open it by its Form.Item
+  // label and pick the option by title — mirroring the AI-config select above.
   await page.getByRole('tab', { name: 'Permissions' }).click();
-  await page.getByPlaceholder('Search by name or email…').click();
-  await page.getByText(new RegExp(memberEmail)).click();
+  await page.getByLabel('User', { exact: true }).click();
+  await page.keyboard.type(memberEmail);
+  await page.getByTitle(new RegExp(memberEmail)).click();
   const grantResponse = page.waitForResponse(
     (r) => r.request().method() === 'POST' && /\/permissions$/.test(new URL(r.url()).pathname) && r.ok(),
   );
