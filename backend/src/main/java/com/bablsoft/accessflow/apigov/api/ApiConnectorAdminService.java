@@ -41,4 +41,12 @@ public interface ApiConnectorAdminService {
                                                 UpdateApiConnectorPermissionCommand command);
 
     void revokePermission(UUID connectorId, UUID organizationId, UUID permissionId);
+
+    List<ApiConnectorGroupPermissionView> listGroupPermissions(UUID connectorId, UUID organizationId);
+
+    ApiConnectorGroupPermissionView grantGroupPermission(UUID connectorId, UUID organizationId,
+                                                         UUID grantedByUserId,
+                                                         GrantApiConnectorGroupPermissionCommand command);
+
+    void revokeGroupPermission(UUID connectorId, UUID organizationId, UUID permissionId);
 }

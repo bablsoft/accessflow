@@ -561,6 +561,26 @@ Edge cases:
 - **Quoted mixed-case identifiers** (`"Public"."Users"`) are lowercased — case-insensitive matching is v1.0's behaviour across the board.
 - **Admins** (`SubmissionInput.isAdmin=true`) bypass the entire permission lookup, including the allow-list check.
 
+### Group-based access grants (AF-530)
+
+`DatasourceUserPermissionLookupService.findFor(userId, datasourceId)` returns the caller's **effective**
+permission: the most-permissive union of their direct `datasource_user_permissions` row and every
+unexpired `datasource_group_permissions` grant for a group they belong to (group ids via
+`UserGroupMembershipRepository.findGroupIdsForUser`). Booleans OR; `allowed_schemas`/`allowed_tables`
+merge to their union (any contributor with no allow-list ⇒ all allowed); `restricted_columns` merges to
+the **intersection** (a column is masked only when every contributing grant masks it); expired grants
+contribute nothing. Because `findFor` is the single choke-point every enforcement path already reads
+through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-SQL, workflow
+submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
+those call sites. `findBreakGlassEligible` unions group break-glass grants the same way. JIT-access
+materialisation, which manages the per-user row specifically, uses the sibling `findDirectFor` (direct
+grant only, ignoring group grants). On the connector side the analogous union lives in
+`EffectiveApiConnectorPermissionResolver` (see the API Access Governance section), which every scattered
+connector enforcement point routes through. Admins are granted/revoked group access via
+`DatasourceAdminService.{grant,list,revoke}GroupPermission` and the `/permissions/groups` endpoints,
+audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector side:
+`API_PERMISSION_GROUP_GRANTED` / `API_PERMISSION_GROUP_REVOKED`).
+
 ### Column-level masking
 
 When a `(user_id, datasource_id)` permission row carries `restricted_columns` (a `TEXT[]` of fully-qualified `schema.table.column` strings), SELECT result values for those columns are masked **before** rows are added to the in-memory result list — and therefore before they are serialised into `query_request_results.rows`. The raw sensitive value never lands in our database.

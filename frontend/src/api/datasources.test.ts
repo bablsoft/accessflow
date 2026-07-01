@@ -205,6 +205,28 @@ describe('api/datasources', () => {
     expect(del).toHaveBeenCalledWith('/api/v1/datasources/ds-1/permissions/perm-1');
   });
 
+  it('listGroupPermissions unwraps the { content } envelope', async () => {
+    const groupPerm = { id: 'gp-1', datasource_id: 'ds-1', group_id: 'g-1', group_name: 'Analysts' };
+    get.mockResolvedValueOnce({ data: { content: [groupPerm] } });
+    const result = await datasourcesApi.listGroupPermissions('ds-1');
+    expect(get).toHaveBeenCalledWith('/api/v1/datasources/ds-1/permissions/groups');
+    expect(result).toEqual([groupPerm]);
+  });
+
+  it('grantGroupPermission POSTs /api/v1/datasources/{id}/permissions/groups', async () => {
+    post.mockResolvedValueOnce({ data: { id: 'gp-1' } });
+    const input = { group_id: 'g-1', can_read: true };
+    const result = await datasourcesApi.grantGroupPermission('ds-1', input);
+    expect(post).toHaveBeenCalledWith('/api/v1/datasources/ds-1/permissions/groups', input);
+    expect(result.id).toBe('gp-1');
+  });
+
+  it('revokeGroupPermission DELETEs /api/v1/datasources/{id}/permissions/groups/{permId}', async () => {
+    del.mockResolvedValueOnce({ data: undefined });
+    await datasourcesApi.revokeGroupPermission('ds-1', 'gp-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/datasources/ds-1/permissions/groups/gp-1');
+  });
+
   it('getDatasourceTypes GETs /api/v1/datasources/types', async () => {
     get.mockResolvedValueOnce({ data: { types: [] } });
     const result = await datasourcesApi.getDatasourceTypes();
@@ -223,6 +245,8 @@ describe('api/datasources', () => {
       .toEqual(['datasources', 'detail', 'ds-1', 'sample-rows', '', 'users', 50]);
     expect(datasourcesApi.datasourceKeys.permissions('ds-1'))
       .toEqual(['datasources', 'detail', 'ds-1', 'permissions']);
+    expect(datasourcesApi.datasourceKeys.groupPermissions('ds-1'))
+      .toEqual(['datasources', 'detail', 'ds-1', 'permissions', 'groups']);
     expect(datasourcesApi.datasourceKeys.list({ page: 0, size: 100 }))
       .toEqual(['datasources', 'list', { page: 0, size: 100 }]);
     expect(datasourcesApi.datasourceKeys.types())

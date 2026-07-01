@@ -51,6 +51,12 @@ class DatasourceAdminServiceImplTest {
 
     @Mock DatasourceRepository datasourceRepository;
     @Mock DatasourceUserPermissionRepository permissionRepository;
+    @Mock com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository
+            groupPermissionRepository;
+    @Mock com.bablsoft.accessflow.core.api.UserGroupService userGroupService;
+    @Mock com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository userGroupRepository;
+    @Mock com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository
+            groupMembershipRepository;
     @Mock OrganizationRepository organizationRepository;
     @Mock UserRepository userRepository;
     @Mock ReviewPlanRepository reviewPlanRepository;
@@ -645,6 +651,119 @@ class DatasourceAdminServiceImplTest {
         when(permissionRepository.findById(permId)).thenReturn(Optional.of(permission));
 
         assertThatThrownBy(() -> service.revokePermission(datasourceId, orgId, permId))
+                .isInstanceOf(DatasourcePermissionNotFoundException.class);
+    }
+
+    @Test
+    void grantGroupPermissionPersistsAndReturnsView() {
+        var groupId = UUID.randomUUID();
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 4, java.time.Instant.now(), java.time.Instant.now()));
+        when(groupPermissionRepository.existsByGroup_IdAndDatasource_Id(groupId, datasourceId))
+                .thenReturn(false);
+        var group = new com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity();
+        group.setId(groupId);
+        group.setName("Analysts");
+        when(userGroupRepository.getReferenceById(groupId)).thenReturn(group);
+        var grantedBy = new UserEntity();
+        grantedBy.setId(adminId);
+        when(userRepository.getReferenceById(adminId)).thenReturn(grantedBy);
+        when(groupMembershipRepository.countByGroup_Id(groupId)).thenReturn(4L);
+        when(groupPermissionRepository.save(any(
+                com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
+                groupId, true, true, false, false, null, List.of("public"), null, null, null);
+        var view = service.grantGroupPermission(datasourceId, orgId, adminId, command);
+
+        assertThat(view.groupId()).isEqualTo(groupId);
+        assertThat(view.groupName()).isEqualTo("Analysts");
+        assertThat(view.memberCount()).isEqualTo(4);
+        assertThat(view.canRead()).isTrue();
+        assertThat(view.canWrite()).isTrue();
+        assertThat(view.allowedSchemas()).containsExactly("public");
+        assertThat(view.createdBy()).isEqualTo(adminId);
+    }
+
+    @Test
+    void grantGroupPermissionRejectsDuplicate() {
+        var groupId = UUID.randomUUID();
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 4, java.time.Instant.now(), java.time.Instant.now()));
+        when(groupPermissionRepository.existsByGroup_IdAndDatasource_Id(groupId, datasourceId))
+                .thenReturn(true);
+
+        var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
+                groupId, true, false, false, false, null, null, null, null, null);
+        assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException.class);
+    }
+
+    @Test
+    void grantGroupPermissionRejectsUnknownGroup() {
+        var groupId = UUID.randomUUID();
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId))
+                .thenThrow(new com.bablsoft.accessflow.core.api.UserGroupNotFoundException(groupId));
+
+        var command = new com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand(
+                groupId, true, false, false, false, null, null, null, null, null);
+        assertThatThrownBy(() -> service.grantGroupPermission(datasourceId, orgId, adminId, command))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.UserGroupNotFoundException.class);
+    }
+
+    @Test
+    void listGroupPermissionsReturnsViews() {
+        var groupId = UUID.randomUUID();
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var group = new com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity();
+        group.setId(groupId);
+        group.setName("Analysts");
+        var perm = new com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity();
+        perm.setId(UUID.randomUUID());
+        perm.setDatasource(entity);
+        perm.setGroup(group);
+        perm.setCanRead(true);
+        when(groupPermissionRepository.findAllByDatasource_Id(datasourceId)).thenReturn(List.of(perm));
+        when(groupMembershipRepository.countByGroup_Id(groupId)).thenReturn(2L);
+
+        var views = service.listGroupPermissions(datasourceId, orgId);
+
+        assertThat(views).hasSize(1);
+        assertThat(views.get(0).groupName()).isEqualTo("Analysts");
+        assertThat(views.get(0).memberCount()).isEqualTo(2);
+    }
+
+    @Test
+    void revokeGroupPermissionDeletesWhenFound() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var permId = UUID.randomUUID();
+        var perm = new com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity();
+        perm.setId(permId);
+        perm.setDatasource(entity);
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.of(perm));
+
+        service.revokeGroupPermission(datasourceId, orgId, permId);
+
+        verify(groupPermissionRepository).delete(perm);
+    }
+
+    @Test
+    void revokeGroupPermissionThrowsWhenMissing() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var permId = UUID.randomUUID();
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.revokeGroupPermission(datasourceId, orgId, permId))
                 .isInstanceOf(DatasourcePermissionNotFoundException.class);
     }
 

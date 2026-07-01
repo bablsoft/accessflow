@@ -659,6 +659,19 @@ export interface CreatePermissionInput {
   expires_at?: string | null;
 }
 
+export interface CreateGroupPermissionInput {
+  group_id: string;
+  can_read?: boolean;
+  can_write?: boolean;
+  can_ddl?: boolean;
+  can_break_glass?: boolean;
+  row_limit_override?: number | null;
+  allowed_schemas?: string[] | null;
+  allowed_tables?: string[] | null;
+  restricted_columns?: string[] | null;
+  expires_at?: string | null;
+}
+
 export type DriverStatus = 'READY' | 'AVAILABLE' | 'UNAVAILABLE';
 
 export type DriverSource = 'bundled' | 'uploaded' | 'connector';
@@ -1257,6 +1270,25 @@ export interface DatasourcePermission {
   user_id: string;
   user_email: string;
   user_display_name: string;
+  can_read: boolean;
+  can_write: boolean;
+  can_ddl: boolean;
+  can_break_glass: boolean;
+  row_limit_override: number | null;
+  allowed_schemas: string[] | null;
+  allowed_tables: string[] | null;
+  restricted_columns: string[] | null;
+  expires_at: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface DatasourceGroupPermission {
+  id: string;
+  datasource_id: string;
+  group_id: string;
+  group_name: string;
+  member_count: number;
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
@@ -2364,6 +2396,31 @@ export interface GrantApiConnectorPermissionInput {
 }
 
 export interface UpdateApiConnectorPermissionInput {
+  can_read: boolean;
+  can_write: boolean;
+  can_break_glass: boolean;
+  expires_at?: string | null;
+  allowed_operations?: string[];
+  restricted_response_fields?: string[];
+}
+
+export interface ApiConnectorGroupPermission {
+  id: string;
+  connector_id: string;
+  group_id: string;
+  group_name: string;
+  member_count: number;
+  can_read: boolean;
+  can_write: boolean;
+  can_break_glass: boolean;
+  expires_at: string | null;
+  allowed_operations: string[];
+  restricted_response_fields: string[];
+  created_at: string;
+}
+
+export interface GrantApiConnectorGroupPermissionInput {
+  group_id: string;
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;

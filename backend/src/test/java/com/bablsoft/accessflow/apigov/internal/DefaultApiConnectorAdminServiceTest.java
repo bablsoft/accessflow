@@ -14,13 +14,16 @@ import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
+import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorGroupPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaRepository;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -56,6 +59,9 @@ class DefaultApiConnectorAdminServiceTest {
     @Mock private ApiConnectorRepository connectorRepository;
     @Mock private ApiSchemaRepository schemaRepository;
     @Mock private ApiConnectorUserPermissionRepository permissionRepository;
+    @Mock private ApiConnectorGroupPermissionRepository groupPermissionRepository;
+    @Mock private EffectiveApiConnectorPermissionResolver permissionResolver;
+    @Mock private UserGroupService userGroupService;
     @Mock private CredentialEncryptionService encryptionService;
     @Mock private UserQueryService userQueryService;
     @Mock private ApiConnectorProber prober;
@@ -70,7 +76,8 @@ class DefaultApiConnectorAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiConnectorAdminService(connectorRepository, schemaRepository,
-                permissionRepository, encryptionService, userQueryService, prober, oauth2TokenService,
+                permissionRepository, groupPermissionRepository, permissionResolver, userGroupService,
+                encryptionService, userQueryService, prober, oauth2TokenService,
                 messageSource, JsonMapper.builder().build());
         lenient().when(schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(any()))
                 .thenReturn(Optional.empty());
@@ -138,13 +145,9 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void listForUserReturnsOnlyGrantedActiveNonExpiredConnectors() {
         var entity = persistedConnector();
-        var perm = new ApiConnectorUserPermissionEntity();
-        perm.setConnectorId(entity.getId());
-        perm.setExpiresAt(null);
-        var expired = new ApiConnectorUserPermissionEntity();
-        expired.setConnectorId(UUID.randomUUID());
-        expired.setExpiresAt(java.time.Instant.now().minusSeconds(60));
-        when(permissionRepository.findByUserId(userId)).thenReturn(List.of(perm, expired));
+        // Resolver returns the union of the user's direct + group grants (AF-530).
+        when(permissionResolver.connectorIdsFor(userId))
+                .thenReturn(new java.util.LinkedHashSet<>(List.of(entity.getId())));
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
 
         var page = service.listForUser(orgId, userId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
@@ -156,12 +159,10 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void getForUserReturnsWhenPermissionGrantsRead() {
         var entity = persistedConnector();
-        var perm = new ApiConnectorUserPermissionEntity();
-        perm.setConnectorId(entity.getId());
-        perm.setUserId(userId);
-        perm.setCanRead(true);
+        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, true, false, false,
+                List.of(), List.of(), null);
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
-        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.of(perm));
+        when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.of(perm));
 
         assertThat(service.getForUser(entity.getId(), orgId, userId).id()).isEqualTo(entity.getId());
     }
@@ -170,7 +171,7 @@ class DefaultApiConnectorAdminServiceTest {
     void getForUserThrowsWhenNoPermission() {
         var entity = persistedConnector();
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
-        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getForUser(entity.getId(), orgId, userId))
                 .isInstanceOf(ApiConnectorNotFoundException.class);
@@ -179,11 +180,10 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void getForUserThrowsWhenPermissionGrantsNeitherReadNorWrite() {
         var entity = persistedConnector();
-        var perm = new ApiConnectorUserPermissionEntity();
-        perm.setConnectorId(entity.getId());
-        perm.setUserId(userId);
+        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, false, false, false,
+                List.of(), List.of(), null);
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
-        when(permissionRepository.findByConnectorIdAndUserId(entity.getId(), userId)).thenReturn(Optional.of(perm));
+        when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.of(perm));
 
         assertThatThrownBy(() -> service.getForUser(entity.getId(), orgId, userId))
                 .isInstanceOf(ApiConnectorNotFoundException.class);
@@ -437,6 +437,94 @@ class DefaultApiConnectorAdminServiceTest {
         assertThatThrownBy(() -> service.updatePermission(connectorId, orgId, UUID.randomUUID(),
                 new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorNotFoundException.class);
+    }
+
+    @Test
+    void grantGroupPermissionUpsertsAndReturnsView() {
+        var entity = persistedConnector();
+        var groupId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 3, Instant.now(), Instant.now()));
+        when(groupPermissionRepository.findByConnectorIdAndGroupId(entity.getId(), groupId))
+                .thenReturn(Optional.empty());
+        when(groupPermissionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.grantGroupPermission(entity.getId(), orgId, UUID.randomUUID(),
+                new com.bablsoft.accessflow.apigov.api.GrantApiConnectorGroupPermissionCommand(
+                        groupId, true, false, false, null, List.of("listPets"), List.of("data.ssn")));
+
+        assertThat(view.groupId()).isEqualTo(groupId);
+        assertThat(view.groupName()).isEqualTo("Analysts");
+        assertThat(view.memberCount()).isEqualTo(3);
+        assertThat(view.canRead()).isTrue();
+        assertThat(view.allowedOperations()).containsExactly("listPets");
+        assertThat(view.restrictedResponseFields()).containsExactly("data.ssn");
+    }
+
+    @Test
+    void grantGroupPermissionRejectsUnknownGroup() {
+        var entity = persistedConnector();
+        var groupId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(userGroupService.getGroup(groupId, orgId))
+                .thenThrow(new com.bablsoft.accessflow.core.api.UserGroupNotFoundException(groupId));
+
+        assertThatThrownBy(() -> service.grantGroupPermission(entity.getId(), orgId, UUID.randomUUID(),
+                new com.bablsoft.accessflow.apigov.api.GrantApiConnectorGroupPermissionCommand(
+                        groupId, true, false, false, null, null, null)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.UserGroupNotFoundException.class);
+    }
+
+    @Test
+    void listGroupPermissionsReturnsViews() {
+        var entity = persistedConnector();
+        var groupId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        var perm = new com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity();
+        perm.setId(UUID.randomUUID());
+        perm.setConnectorId(entity.getId());
+        perm.setGroupId(groupId);
+        perm.setOrganizationId(orgId);
+        perm.setCanRead(true);
+        when(groupPermissionRepository.findByConnectorId(entity.getId())).thenReturn(List.of(perm));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 5, Instant.now(), Instant.now()));
+
+        var views = service.listGroupPermissions(entity.getId(), orgId);
+
+        assertThat(views).hasSize(1);
+        assertThat(views.get(0).groupName()).isEqualTo("Analysts");
+        assertThat(views.get(0).memberCount()).isEqualTo(5);
+    }
+
+    @Test
+    void revokeGroupPermissionRejectsForeignPermission() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var foreign = new com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity();
+        foreign.setId(permId);
+        foreign.setConnectorId(UUID.randomUUID());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.of(foreign));
+
+        assertThatThrownBy(() -> service.revokeGroupPermission(entity.getId(), orgId, permId))
+                .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void revokeGroupPermissionDeletesWhenFound() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var perm = new com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity();
+        perm.setId(permId);
+        perm.setConnectorId(entity.getId());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.of(perm));
+
+        service.revokeGroupPermission(entity.getId(), orgId, permId);
+
+        verify(groupPermissionRepository).delete(perm);
     }
 
     private ApiConnectorEntity persistedConnector() {

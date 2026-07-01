@@ -12,10 +12,9 @@ import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
-import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -43,7 +42,7 @@ class ApiExecutionServiceTest {
 
     @Mock private ApiRequestRepository requestRepository;
     @Mock private ApiConnectorRepository connectorRepository;
-    @Mock private ApiConnectorUserPermissionRepository permissionRepository;
+    @Mock private EffectiveApiConnectorPermissionResolver permissionResolver;
     @Mock private CredentialEncryptionService encryptionService;
     @Mock private ApiConnectorAuthApplier authApplier;
     @Mock private ConnectorOAuth2TokenService oauth2TokenService;
@@ -61,7 +60,7 @@ class ApiExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ApiExecutionService(requestRepository, connectorRepository, permissionRepository,
+        service = new ApiExecutionService(requestRepository, connectorRepository, permissionResolver,
                 encryptionService, authApplier, oauth2TokenService, executor, responseMasker,
                 maskingResolutionService, stateService,
                 eventPublisher, JsonMapper.builder().build(),
@@ -98,9 +97,9 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(200, 12, 42, false, "{\"ssn\":\"x\"}", "application/json"));
-        var perm = new ApiConnectorUserPermissionEntity();
-        perm.setRestrictedResponseFields(new String[]{"ssn"});
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.of(perm));
+        var perm = new ResolvedApiConnectorPermission(connectorId, userId, true, false, false,
+                java.util.List.of(), java.util.List.of("ssn"), null);
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.of(perm));
         when(responseMasker.mask(any(), any(), any())).thenReturn("{\"ssn\":\"***\"}");
 
         var result = service.execute(requestId);
@@ -124,7 +123,7 @@ class ApiExecutionServiceTest {
         var captor = org.mockito.ArgumentCaptor.forClass(ApiCallRequest.class);
         when(executor.execute(captor.capture()))
                 .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         var result = service.execute(requestId);
@@ -145,7 +144,7 @@ class ApiExecutionServiceTest {
         var captor = org.mockito.ArgumentCaptor.forClass(ApiCallRequest.class);
         when(executor.execute(captor.capture()))
                 .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         service.execute(requestId);
@@ -159,7 +158,7 @@ class ApiExecutionServiceTest {
         when(stateService.require(requestId)).thenReturn(entity);
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         lenient().when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
-        lenient().when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        lenient().when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(executor.execute(any(ApiCallRequest.class))).thenThrow(new ApiExecutionException("boom"));
 
         var result = service.execute(requestId);
@@ -188,7 +187,7 @@ class ApiExecutionServiceTest {
         when(encryptionService.decrypt("ENC")).thenReturn("{\"token\":\"t\"}");
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of("Authorization", "Bearer t"));
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(204, 5, 0, false, "", null));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         service.execute(requestId);
@@ -206,7 +205,7 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(oauth2TokenService.accessToken(c)).thenReturn("tok-1");
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(200, 5, 2, false, "{}", null));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         service.execute(requestId);
@@ -228,7 +227,7 @@ class ApiExecutionServiceTest {
         when(executor.execute(any(ApiCallRequest.class)))
                 .thenReturn(new ApiCallResult(401, 5, 0, false, "", null))
                 .thenReturn(new ApiCallResult(200, 6, 2, false, "{}", null));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         var result = service.execute(requestId);
@@ -250,7 +249,7 @@ class ApiExecutionServiceTest {
         when(oauth2TokenService.accessToken(c)).thenReturn("stale");
         when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         var result = service.execute(requestId);
@@ -269,7 +268,7 @@ class ApiExecutionServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(c));
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         service.execute(requestId);
@@ -301,7 +300,7 @@ class ApiExecutionServiceTest {
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
         when(executor.execute(any(ApiCallRequest.class)))
                 .thenReturn(new ApiCallResult(200, 9, 5, false, "{\"ssn\":\"x\"}", "application/json"));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.empty());
         when(responseMasker.mask(any(), any(), any())).thenReturn("{\"ssn\":\"***\"}");
 

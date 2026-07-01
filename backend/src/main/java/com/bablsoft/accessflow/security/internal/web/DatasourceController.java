@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.CreateDatasourceReviewerCommand;
+import com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -21,6 +22,7 @@ import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.web.model.ConnectionTestResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceReviewerRequest;
+import com.bablsoft.accessflow.security.internal.web.model.CreateGroupPermissionRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreatePermissionRequest;
 import com.bablsoft.accessflow.security.internal.web.model.DatabaseSchemaResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourcePageResponse;
@@ -28,6 +30,8 @@ import com.bablsoft.accessflow.security.internal.web.model.DatasourceResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceReviewerListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceReviewerResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceTypesResponse;
+import com.bablsoft.accessflow.security.internal.web.model.GroupPermissionListResponse;
+import com.bablsoft.accessflow.security.internal.web.model.GroupPermissionResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionResponse;
 import com.bablsoft.accessflow.security.internal.web.model.TestReplicaRequest;
@@ -351,6 +355,78 @@ class DatasourceController {
         datasourceAdminService.revokePermission(id, caller.organizationId(), permId);
         recordAudit(AuditAction.PERMISSION_REVOKED, AuditResourceType.PERMISSION, permId, caller,
                 auditContext, Map.of("datasource_id", id.toString()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/permissions/groups")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List group permissions on a datasource")
+    @ApiResponse(responseCode = "200", description = "List of group permissions")
+    @ApiResponse(responseCode = "404", description = "Datasource not found")
+    GroupPermissionListResponse listGroupPermissions(@PathVariable UUID id,
+                                                     Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var permissions = datasourceAdminService.listGroupPermissions(id, caller.organizationId())
+                .stream()
+                .map(GroupPermissionResponse::from)
+                .toList();
+        return new GroupPermissionListResponse(permissions);
+    }
+
+    @PostMapping("/{id}/permissions/groups")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Grant a user group access to a datasource")
+    @ApiResponse(responseCode = "201", description = "Group permission granted")
+    @ApiResponse(responseCode = "404", description = "Datasource or group not found")
+    @ApiResponse(responseCode = "409", description = "Permission already exists for this group")
+    ResponseEntity<GroupPermissionResponse> grantGroupPermission(
+            @PathVariable UUID id,
+            @Valid @RequestBody CreateGroupPermissionRequest request,
+            Authentication authentication,
+            RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        var command = new CreateDatasourceGroupPermissionCommand(
+                request.groupId(),
+                request.canRead(),
+                request.canWrite(),
+                request.canDdl(),
+                request.canBreakGlass(),
+                request.rowLimitOverride(),
+                request.allowedSchemas(),
+                request.allowedTables(),
+                request.restrictedColumns(),
+                request.expiresAt());
+        var view = datasourceAdminService.grantGroupPermission(id, caller.organizationId(),
+                caller.userId(), command);
+        var metadata = new HashMap<String, Object>();
+        metadata.put("datasource_id", id.toString());
+        metadata.put("group_id", view.groupId().toString());
+        metadata.put("can_read", view.canRead());
+        metadata.put("can_write", view.canWrite());
+        metadata.put("can_ddl", view.canDdl());
+        metadata.put("can_break_glass", view.canBreakGlass());
+        recordAudit(AuditAction.PERMISSION_GROUP_GRANTED, AuditResourceType.PERMISSION, view.id(),
+                caller, auditContext, metadata);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{permId}")
+                .buildAndExpand(view.id())
+                .toUri();
+        return ResponseEntity.created(location).body(GroupPermissionResponse.from(view));
+    }
+
+    @DeleteMapping("/{id}/permissions/groups/{permId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Revoke a user group's permission on a datasource")
+    @ApiResponse(responseCode = "204", description = "Group permission revoked")
+    @ApiResponse(responseCode = "404", description = "Group permission not found")
+    ResponseEntity<Void> revokeGroupPermission(@PathVariable UUID id,
+                                               @PathVariable UUID permId,
+                                               Authentication authentication,
+                                               RequestAuditContext auditContext) {
+        var caller = currentClaims(authentication);
+        datasourceAdminService.revokeGroupPermission(id, caller.organizationId(), permId);
+        recordAudit(AuditAction.PERMISSION_GROUP_REVOKED, AuditResourceType.PERMISSION, permId,
+                caller, auditContext, Map.of("datasource_id", id.toString()));
         return ResponseEntity.noContent().build();
     }
 

@@ -8,11 +8,10 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
 import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
+import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
-import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiReviewDecisionRepository;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
@@ -48,7 +47,7 @@ class DefaultApiRequestServiceTest {
 
     @Mock private ApiRequestRepository requestRepository;
     @Mock private ApiConnectorRepository connectorRepository;
-    @Mock private ApiConnectorUserPermissionRepository permissionRepository;
+    @Mock private EffectiveApiConnectorPermissionResolver permissionResolver;
     @Mock private ApiReviewDecisionRepository decisionRepository;
     @Mock private ApiSchemaService schemaService;
     @Mock private ApiRequestStateService stateService;
@@ -67,7 +66,7 @@ class DefaultApiRequestServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
+        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L),
@@ -86,14 +85,9 @@ class DefaultApiRequestServiceTest {
         return c;
     }
 
-    private ApiConnectorUserPermissionEntity permission(boolean read, boolean write, boolean breakGlass) {
-        var p = new ApiConnectorUserPermissionEntity();
-        p.setConnectorId(connectorId);
-        p.setUserId(userId);
-        p.setCanRead(read);
-        p.setCanWrite(write);
-        p.setCanBreakGlass(breakGlass);
-        return p;
+    private ResolvedApiConnectorPermission permission(boolean read, boolean write, boolean breakGlass) {
+        return new ResolvedApiConnectorPermission(connectorId, userId, read, write, breakGlass,
+                List.of(), List.of(), null);
     }
 
     private SubmitApiRequestCommand cmd(String verb, SubmissionReason reason) {
@@ -105,7 +99,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void submitWritePersistsPendingAiAndPublishesEvent() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, false)));
         when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
@@ -119,7 +113,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void submitWriteWithoutWritePermissionIsDenied() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, false, false)));
 
         assertThatThrownBy(() -> service.submit(cmd("POST", SubmissionReason.USER_SUBMITTED)))
@@ -130,7 +124,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void submitWithoutPermissionIsDenied() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.submit(cmd("GET", SubmissionReason.USER_SUBMITTED)))
                 .isInstanceOf(ApiRequestPermissionException.class);
@@ -139,7 +133,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void breakGlassRequiresBreakGlassPermissionThenExecutes() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, true)));
         when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         var executed = new ApiRequestEntity();
@@ -161,7 +155,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void breakGlassWithoutPermissionIsDenied() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, false)));
 
         assertThatThrownBy(() -> service.submit(cmd("POST", SubmissionReason.EMERGENCY_ACCESS)))
@@ -234,7 +228,7 @@ class DefaultApiRequestServiceTest {
 
     @Test
     void detailViewSlicesSnapshotToPreviewWhileDownloadKeepsFullBody() {
-        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
+        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L),
@@ -289,7 +283,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void submitGeneratesTraceAndSpanIds() {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, false)));
         var captor = org.mockito.ArgumentCaptor.forClass(ApiRequestEntity.class);
         when(requestRepository.save(captor.capture())).thenAnswer(i -> i.getArgument(0));
@@ -302,14 +296,14 @@ class DefaultApiRequestServiceTest {
 
     @Test
     void submitRejectsBodyOverSizeCap() {
-        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionRepository,
+        service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService, breakGlassService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(4L, 10_485_760L, 65_536L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
-        when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+        when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, false)));
         var command = new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, "POST", "/charges",
                 null, null, ApiBodyType.RAW, "text/plain", "way too long", List.of(), null, "need", null,

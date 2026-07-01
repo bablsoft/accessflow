@@ -841,6 +841,15 @@
             for the full authorization matrix.
           </p>
           <p>
+            <strong>Group-based access grants.</strong> Rather than a row per person, an admin can grant
+            a <strong>user group</strong> access to a datasource or an API connector (same
+            read / write / DDL / break-glass controls); every member inherits the grant, and adding
+            someone to the group gives them access without a new grant. When a user has both a direct
+            grant and one or more group grants, their <strong>effective access is the most-permissive
+            union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
+            only where every grant restricts, and each grant's expiry is honoured independently.
+          </p>
+          <p>
             <strong>Just-in-time (JIT) access requests.</strong> Instead of an admin pre-granting a
             datasource permission, any user can request temporary, scoped access from
             <code>/access-requests</code> — pick a datasource, the capabilities they need
@@ -897,8 +906,10 @@
           <p>
             <strong>What it is.</strong> Named, organisation-scoped collections of users. Use them to
             (1) bundle reviewers so you can attach a single group — instead of ten individual users —
-            to a datasource as eligible reviewers, and (2) act as the target of IdP group mappings so
-            SAML / OAuth2 logins keep membership in sync automatically.
+            to a datasource as eligible reviewers, (2) <strong>grant a whole team data or API
+            access</strong> (a datasource or API-connector grant on a group is inherited by every
+            member, so you don't add a row per person), and (3) act as the target of IdP group mappings
+            so SAML / OAuth2 logins keep membership in sync automatically.
           </p>
           <p><strong>Configure it.</strong> Manage groups from <code>/admin/groups</code>:</p>
           <ol>
@@ -910,7 +921,10 @@
             <li><strong>Use the group.</strong> On a datasource's <em>Reviewers</em> tab
               (<code>/datasources/&lt;id&gt;/settings</code>), add the group as a reviewer. From
               that point on, members of the group can see and decide queries against that
-              datasource (in addition to plan-approver rules).</li>
+              datasource (in addition to plan-approver rules). On the same page's
+              <em>Permissions</em> tab (and an API connector's <em>Permissions</em> tab) you can also
+              <em>grant the group access</em> — switch the grant target from <em>User</em> to
+              <em>Group</em> and every member inherits the read / write / DDL / break-glass grant.</li>
             <li><strong>Optional: IdP-managed memberships.</strong> Configure
               <code>group_mappings</code> on the SAML or OAuth2 admin pages so an IdP group claim
               auto-maps to the AccessFlow group. On every login, AccessFlow replaces the user's

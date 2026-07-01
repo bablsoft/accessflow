@@ -59,6 +59,9 @@ class DatasourceControllerIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired DatasourceUserPermissionRepository permissionRepository;
+    @Autowired com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository
+            groupPermissionRepository;
+    @Autowired com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository userGroupRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
@@ -543,6 +546,91 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void grantGroupPermissionCreates201() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true,"can_write":true,
+                         "allowed_schemas":["public"]}
+                        """.formatted(group.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.group_id").asString()
+                .isEqualTo(group.getId().toString());
+        assertThat(result).bodyJson().extractingPath("$.group_name").asString().isEqualTo("Analysts");
+        assertThat(result).bodyJson().extractingPath("$.can_write").asBoolean().isTrue();
+    }
+
+    @Test
+    void grantDuplicateGroupPermissionReturns409() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+        saveGroupPermission(ds, group, admin);
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true}
+                        """.formatted(group.getId()))
+                .exchange();
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS");
+    }
+
+    @Test
+    void grantGroupPermissionForUnknownGroupReturns404() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"group_id":"%s","can_read":true}
+                        """.formatted(UUID.randomUUID()))
+                .exchange();
+
+        assertThat(result).hasStatus(404);
+    }
+
+    @Test
+    void listGroupPermissionsReturnsAllForDatasource() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+        saveGroupPermission(ds, group, admin);
+
+        var result = mvc.get().uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[*].group_name").asArray()
+                .contains("Analysts");
+    }
+
+    @Test
+    void revokeGroupPermissionReturns204() {
+        var ds = saveDatasource(primaryOrg, "DS");
+        var group = saveGroup(primaryOrg, "Analysts");
+        var perm = saveGroupPermission(ds, group, admin);
+
+        var result = mvc.delete()
+                .uri("/api/v1/datasources/" + ds.getId() + "/permissions/groups/" + perm.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(204);
+        assertThat(groupPermissionRepository.findById(perm.getId())).isEmpty();
+    }
+
+    @Test
     void listPermissionsReturnsAllForDatasource() {
         var ds = saveDatasource(primaryOrg, "DS");
         savePermission(ds, analyst, admin, true, false, false);
@@ -799,6 +887,30 @@ class DatasourceControllerIntegrationTest {
         perm.setCanWrite(canWrite);
         perm.setCanDdl(canDdl);
         return permissionRepository.save(perm);
+    }
+
+    private com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity saveGroup(
+            OrganizationEntity org, String name) {
+        var group = new com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity();
+        group.setId(UUID.randomUUID());
+        group.setOrganization(org);
+        group.setName(name);
+        return userGroupRepository.save(group);
+    }
+
+    private com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity
+            saveGroupPermission(DatasourceEntity ds,
+                                com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity group,
+                                UserEntity grantedBy) {
+        var perm =
+                new com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity();
+        perm.setId(UUID.randomUUID());
+        perm.setOrganizationId(ds.getOrganization().getId());
+        perm.setDatasource(ds);
+        perm.setGroup(group);
+        perm.setCreatedBy(grantedBy);
+        perm.setCanRead(true);
+        return groupPermissionRepository.save(perm);
     }
 
     private String generateToken(UserEntity entity) {

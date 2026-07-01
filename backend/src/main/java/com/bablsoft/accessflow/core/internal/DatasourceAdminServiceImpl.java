@@ -2,17 +2,21 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
+import com.bablsoft.accessflow.core.api.CreateDatasourceGroupPermissionCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CustomDriverNotFoundException;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.DatasourceGroupPermissionAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.DatasourceGroupPermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceView;
+import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
@@ -29,12 +33,17 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.CustomJdbcDriver
 import com.bablsoft.accessflow.core.events.DatasourceConfigChangedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity;
+import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.PageRequest;
@@ -75,6 +84,10 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     private final DatasourceRepository datasourceRepository;
     private final DatasourceUserPermissionRepository permissionRepository;
+    private final DatasourceGroupPermissionRepository groupPermissionRepository;
+    private final UserGroupService userGroupService;
+    private final UserGroupRepository userGroupRepository;
+    private final UserGroupMembershipRepository groupMembershipRepository;
     private final OrganizationRepository organizationRepository;
     private final QuotaService quotaService;
     private final UserRepository userRepository;
@@ -545,6 +558,59 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         permissionRepository.delete(permission);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourceGroupPermissionView> listGroupPermissions(UUID datasourceId,
+                                                                    UUID organizationId) {
+        loadInOrganization(datasourceId, organizationId);
+        return groupPermissionRepository.findAllByDatasource_Id(datasourceId).stream()
+                .map(this::toGroupPermissionView)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public DatasourceGroupPermissionView grantGroupPermission(
+            UUID datasourceId, UUID organizationId, UUID grantedByUserId,
+            CreateDatasourceGroupPermissionCommand command) {
+        var datasource = loadInOrganization(datasourceId, organizationId);
+        // Validates the group exists in this organization (throws UserGroupNotFoundException → 404).
+        userGroupService.getGroup(command.groupId(), organizationId);
+        if (groupPermissionRepository.existsByGroup_IdAndDatasource_Id(command.groupId(), datasourceId)) {
+            throw new DatasourceGroupPermissionAlreadyExistsException(command.groupId(), datasourceId);
+        }
+        UserGroupEntity group = userGroupRepository.getReferenceById(command.groupId());
+        var grantedBy = userRepository.getReferenceById(grantedByUserId);
+        var entity = new DatasourceGroupPermissionEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(organizationId);
+        entity.setDatasource(datasource);
+        entity.setGroup(group);
+        entity.setCanRead(Boolean.TRUE.equals(command.canRead()));
+        entity.setCanWrite(Boolean.TRUE.equals(command.canWrite()));
+        entity.setCanDdl(Boolean.TRUE.equals(command.canDdl()));
+        entity.setCanBreakGlass(Boolean.TRUE.equals(command.canBreakGlass()));
+        entity.setRowLimitOverride(command.rowLimitOverride());
+        entity.setAllowedSchemas(toArray(command.allowedSchemas()));
+        entity.setAllowedTables(toArray(command.allowedTables()));
+        entity.setRestrictedColumns(toArray(command.restrictedColumns()));
+        entity.setExpiresAt(command.expiresAt());
+        entity.setCreatedBy(grantedBy);
+        return toGroupPermissionView(groupPermissionRepository.save(entity));
+    }
+
+    @Override
+    @Transactional
+    public void revokeGroupPermission(UUID datasourceId, UUID organizationId, UUID permissionId) {
+        loadInOrganization(datasourceId, organizationId);
+        var permission = groupPermissionRepository.findById(permissionId)
+                .orElseThrow(() -> new DatasourcePermissionNotFoundException(permissionId));
+        if (!permission.getDatasource().getId().equals(datasourceId)) {
+            throw new DatasourcePermissionNotFoundException(permissionId);
+        }
+        groupPermissionRepository.delete(permission);
+    }
+
     private DatasourceEntity loadInOrganization(UUID id, UUID organizationId) {
         var entity = datasourceRepository.findById(id)
                 .orElseThrow(() -> new DatasourceNotFoundException(id));
@@ -801,6 +867,28 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 user.getId(),
                 user.getEmail(),
                 user.getDisplayName(),
+                entity.isCanRead(),
+                entity.isCanWrite(),
+                entity.isCanDdl(),
+                entity.isCanBreakGlass(),
+                entity.getRowLimitOverride(),
+                toList(entity.getAllowedSchemas()),
+                toList(entity.getAllowedTables()),
+                toList(entity.getRestrictedColumns()),
+                entity.getExpiresAt(),
+                entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null,
+                entity.getCreatedAt());
+    }
+
+    private DatasourceGroupPermissionView toGroupPermissionView(
+            DatasourceGroupPermissionEntity entity) {
+        UserGroupEntity group = entity.getGroup();
+        return new DatasourceGroupPermissionView(
+                entity.getId(),
+                entity.getDatasource().getId(),
+                group.getId(),
+                group.getName(),
+                groupMembershipRepository.countByGroup_Id(group.getId()),
                 entity.isCanRead(),
                 entity.isCanWrite(),
                 entity.isCanDdl(),

@@ -2,8 +2,10 @@ import { apiClient } from './client';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
+  CreateGroupPermissionInput,
   CreatePermissionInput,
   Datasource,
+  DatasourceGroupPermission,
   DatasourcePage,
   DatasourcePermission,
   DatasourceSchema,
@@ -29,6 +31,8 @@ export const datasourceKeys = {
   sampleRows: (id: string, schema: string | undefined, table: string, limit: number) =>
     ['datasources', 'detail', id, 'sample-rows', schema ?? '', table, limit] as const,
   permissions: (id: string) => ['datasources', 'detail', id, 'permissions'] as const,
+  groupPermissions: (id: string) =>
+    ['datasources', 'detail', id, 'permissions', 'groups'] as const,
   types: () => ['datasources', 'types'] as const,
 };
 
@@ -130,6 +134,30 @@ export async function grantPermission(
 
 export async function revokePermission(id: string, permId: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}/permissions/${permId}`);
+}
+
+export async function listGroupPermissions(
+  id: string,
+): Promise<DatasourceGroupPermission[]> {
+  const { data } = await apiClient.get<{ content: DatasourceGroupPermission[] }>(
+    `${BASE}/${id}/permissions/groups`,
+  );
+  return data.content;
+}
+
+export async function grantGroupPermission(
+  id: string,
+  input: CreateGroupPermissionInput,
+): Promise<DatasourceGroupPermission> {
+  const { data } = await apiClient.post<DatasourceGroupPermission>(
+    `${BASE}/${id}/permissions/groups`,
+    input,
+  );
+  return data;
+}
+
+export async function revokeGroupPermission(id: string, permId: string): Promise<void> {
+  await apiClient.delete(`${BASE}/${id}/permissions/groups/${permId}`);
 }
 
 export async function getDatasourceTypes(): Promise<DatasourceTypesResponse> {

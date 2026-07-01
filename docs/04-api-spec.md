@@ -157,6 +157,9 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `GET` | `/datasources/{id}/permissions` | ADMIN | List all user permissions for a datasource |
 | `POST` | `/datasources/{id}/permissions` | ADMIN | Grant a user permission on a datasource |
 | `DELETE` | `/datasources/{id}/permissions/{permId}` | ADMIN | Revoke a permission |
+| `GET` | `/datasources/{id}/permissions/groups` | ADMIN | List group-based access grants for a datasource (AF-530) |
+| `POST` | `/datasources/{id}/permissions/groups` | ADMIN | Grant a user group access to a datasource |
+| `DELETE` | `/datasources/{id}/permissions/groups/{permId}` | ADMIN | Revoke a group grant |
 | `GET` | `/datasources/{id}/masking-policies` | ADMIN | List dynamic data masking policies for a datasource |
 | `POST` | `/datasources/{id}/masking-policies` | ADMIN | Create a masking policy on a datasource column |
 | `PUT` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Update a masking policy |
@@ -586,6 +589,67 @@ default `false`) grants the emergency break-glass submission mode on this dataso
 
 **Response 204:** No content.
 **Response 404:** Permission does not exist or belongs to a different datasource. `error: DATASOURCE_PERMISSION_NOT_FOUND`.
+
+### GET /datasources/{id}/permissions/groups — Response 200
+
+Group-based access grants (AF-530). A grant to a **user group** is inherited by every member; a user's
+**effective** access is the most-permissive union of their direct grant and every unexpired group grant
+for a group they belong to (flags OR-ed; allow-lists unioned; `restricted_columns` intersected so a
+column is masked only when every contributing grant masks it). Same shape as the per-user list, keyed on
+the group instead of a user:
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "group_id": "uuid",
+      "group_name": "Analysts",
+      "member_count": 12,
+      "can_read": true,
+      "can_write": false,
+      "can_ddl": false,
+      "can_break_glass": false,
+      "row_limit_override": null,
+      "allowed_schemas": ["public"],
+      "allowed_tables": null,
+      "restricted_columns": ["public.users.ssn"],
+      "expires_at": null,
+      "created_by": "uuid",
+      "created_at": "2026-05-04T10:15:00Z"
+    }
+  ]
+}
+```
+
+### POST /datasources/{id}/permissions/groups — Request Body
+
+Same body as the per-user grant with `group_id` in place of `user_id`:
+
+```json
+{
+  "group_id": "uuid",
+  "can_read": true,
+  "can_write": false,
+  "can_ddl": false,
+  "can_break_glass": false,
+  "row_limit_override": 1000,
+  "allowed_schemas": ["public"],
+  "allowed_tables": ["users", "orders"],
+  "restricted_columns": ["public.users.ssn"],
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+**Response 201:** Group permission object. `Location` header points to `/api/v1/datasources/{id}/permissions/groups/{permId}`.
+**Response 404:** Datasource or group does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND` / `USER_GROUP_NOT_FOUND`.
+**Response 409:** A permission row already exists for `(group_id, datasource_id)`. `error: DATASOURCE_GROUP_PERMISSION_ALREADY_EXISTS`.
+
+### DELETE /datasources/{id}/permissions/groups/{permId}
+
+**Response 204:** No content.
+**Response 404:** Group permission does not exist or belongs to a different datasource. `error: DATASOURCE_PERMISSION_NOT_FOUND`.
 
 ---
 
@@ -4389,6 +4453,9 @@ secrets themselves are never returned.
 | `POST` | `/api-connectors/{id}/permissions` | **Admin.** Grant/update a user's access (`201`): `userId`, `canRead`, `canWrite`, `canBreakGlass`, `expiresAt` (JIT), `allowedOperations` (subset), `restrictedResponseFields` (dot-paths masked in responses). |
 | `PUT` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Update an existing grant in place (`200`): same body as `POST` **minus** `userId` (the target user is fixed by the permission id, so `createdBy`/`createdAt` provenance is preserved). `404 API_CONNECTOR_PERMISSION_NOT_FOUND` when the permission is missing or belongs to a different connector. |
 | `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
+| `GET` | `/api-connectors/{id}/permissions/groups` | **Admin.** List group-based access grants on the connector (AF-530). Each row carries `groupId`, `groupName`, `memberCount`. |
+| `POST` | `/api-connectors/{id}/permissions/groups` | **Admin.** Grant/update a user group's access (`201`, upsert by `(connector, group)`): same body as the per-user grant with `groupId` in place of `userId`. `404 USER_GROUP_NOT_FOUND` when the group is missing or in another org. Members inherit the grant; effective access is the most-permissive union of a user's direct grant and every unexpired group grant (`allowedOperations` unioned, `restrictedResponseFields` intersected). |
+| `DELETE` | `/api-connectors/{id}/permissions/groups/{permissionId}` | **Admin.** Revoke a group grant (`204`). |
 
 ### Connector response masking & classification (AF-518)
 

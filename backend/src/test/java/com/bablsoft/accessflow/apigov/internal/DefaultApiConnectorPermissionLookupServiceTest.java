@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
-import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
+import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -9,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,24 +19,18 @@ import static org.mockito.Mockito.when;
 class DefaultApiConnectorPermissionLookupServiceTest {
 
     @Mock
-    private ApiConnectorUserPermissionRepository repository;
+    private EffectiveApiConnectorPermissionResolver permissionResolver;
     @InjectMocks
     private DefaultApiConnectorPermissionLookupService service;
 
     @Test
-    void mapsPermissionEntityToView() {
+    void mapsResolvedPermissionToView() {
         var connectorId = UUID.randomUUID();
         var userId = UUID.randomUUID();
         var expiry = Instant.now();
-        var entity = new ApiConnectorUserPermissionEntity();
-        entity.setConnectorId(connectorId);
-        entity.setUserId(userId);
-        entity.setCanRead(true);
-        entity.setCanWrite(false);
-        entity.setCanBreakGlass(true);
-        entity.setAllowedOperations(new String[]{"listCharges"});
-        entity.setExpiresAt(expiry);
-        when(repository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.of(entity));
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.of(
+                new ResolvedApiConnectorPermission(connectorId, userId, true, false, true,
+                        List.of("listCharges"), List.of(), expiry)));
 
         var view = service.findFor(connectorId, userId).orElseThrow();
 
@@ -47,23 +41,10 @@ class DefaultApiConnectorPermissionLookupServiceTest {
     }
 
     @Test
-    void nullAllowedOperationsBecomesEmptyList() {
-        var connectorId = UUID.randomUUID();
-        var userId = UUID.randomUUID();
-        var entity = new ApiConnectorUserPermissionEntity();
-        entity.setConnectorId(connectorId);
-        entity.setUserId(userId);
-        entity.setAllowedOperations(null);
-        when(repository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.of(entity));
-
-        assertThat(service.findFor(connectorId, userId).orElseThrow().allowedOperations()).isEmpty();
-    }
-
-    @Test
     void emptyWhenNoPermission() {
         var connectorId = UUID.randomUUID();
         var userId = UUID.randomUUID();
-        when(repository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
 
         assertThat(service.findFor(connectorId, userId)).isEmpty();
     }

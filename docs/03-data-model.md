@@ -185,6 +185,35 @@ Grants a specific user access to a specific datasource with granular controls.
 
 ---
 
+## datasource_group_permissions (AF-530, Flyway V111)
+
+Grants a **user group** access to a datasource; every member inherits the grant. Parallel table to
+`datasource_user_permissions` (keeping the per-user table's `(user_id, datasource_id)` unique
+constraint and restriction columns clean), keyed on `group_id` instead of `user_id`. A user's
+**effective** permission is the most-permissive union of their direct grant and every unexpired group
+grant they belong to — resolved in `DefaultDatasourceUserPermissionLookupService` (flags OR-ed;
+allow-lists unioned; `restricted_columns` intersected so a column is masked only when every contributing
+grant masks it; each grant's `expires_at` honoured independently). Mirrors how groups already drive
+masking-reveal and row-security.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `datasource_id` | FK → `datasources` ON DELETE CASCADE |
+| `group_id` | FK → `user_groups` ON DELETE CASCADE |
+| `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false — same semantics as the per-user table |
+| `row_limit_override` | INTEGER nullable |
+| `allowed_schemas` / `allowed_tables` / `restricted_columns` | TEXT[] nullable — same semantics as the per-user table |
+| `expires_at` | TIMESTAMPTZ nullable — honoured per grant (an expired grant contributes nothing) |
+| `created_by` | FK → `users` |
+| `created_at` | TIMESTAMPTZ |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+
+Unique `(datasource_id, group_id)`; index on `(datasource_id)`.
+
+---
+
 ## masking_policy
 
 Conditional / role-based dynamic data masking (AF-381). Each row binds a masking **strategy** to one
@@ -1577,6 +1606,31 @@ Per-user, per-connector grants — how an admin shares governed connectivity wit
 | `restricted_response_fields` | TEXT[] | Dot-paths masked in responses for this user (legacy FULL masks; merged with `api_connector_masking_policy` since AF-518). |
 | `created_by` | UUID | |
 | `created_at` | TIMESTAMPTZ | |
+
+## api_connector_group_permissions (AF-530, Flyway V111)
+
+Per-**group**, per-connector grants; every member inherits the grant. Parallel table to
+`api_connector_user_permissions`, keyed on `group_id`. A user's effective connector permission is the
+most-permissive union of their direct grant and every unexpired group grant — resolved by
+`EffectiveApiConnectorPermissionResolver` (flags OR-ed, `allowed_operations` unioned,
+`restricted_response_fields` intersected), which every connector enforcement point (submit-time
+permission check, response-field masking, text-to-API access, admin visibility) routes through.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | FK → `organizations` `ON DELETE CASCADE`. |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. Unique with `group_id`. |
+| `group_id` | UUID | FK → `user_groups` `ON DELETE CASCADE`. |
+| `can_read` / `can_write` / `can_break_glass` | BOOLEAN | |
+| `expires_at` | TIMESTAMPTZ | JIT expiry (nullable), honoured per grant. |
+| `allowed_operations` | TEXT[] | Operation-id subset (null = all). |
+| `restricted_response_fields` | TEXT[] | Dot-paths masked in responses. |
+| `created_by` | UUID | |
+| `created_at` | TIMESTAMPTZ | |
+| `version` | BIGINT NOT NULL DEFAULT 0 | Optimistic lock. |
+
+Unique `(connector_id, group_id)`; index on `(connector_id)`.
 
 ## api_connector_masking_policy (AF-518)
 

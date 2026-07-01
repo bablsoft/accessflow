@@ -19,10 +19,9 @@ import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
 import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
-import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
-import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiReviewDecisionRepository;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
@@ -47,7 +46,6 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -63,7 +61,7 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     private final ApiRequestRepository requestRepository;
     private final ApiConnectorRepository connectorRepository;
-    private final ApiConnectorUserPermissionRepository permissionRepository;
+    private final EffectiveApiConnectorPermissionResolver permissionResolver;
     private final ApiReviewDecisionRepository decisionRepository;
     private final ApiSchemaService schemaService;
     private final ApiRequestStateService stateService;
@@ -129,8 +127,8 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     private ApiRequestSubmissionResult breakGlassExecute(ApiConnectorEntity connector, ApiRequestEntity entity,
                                                          SubmitApiRequestCommand command,
-                                                         ApiConnectorUserPermissionEntity permission) {
-        if (permission == null || !permission.isCanBreakGlass()) {
+                                                         ResolvedApiConnectorPermission permission) {
+        if (permission == null || !permission.canBreakGlass()) {
             throw new ApiRequestPermissionException("Break-glass is not permitted for this connector");
         }
         stateService.apply(entity, QueryStatus.APPROVED);
@@ -199,11 +197,11 @@ public class DefaultApiRequestService implements ApiRequestService {
         return metadata;
     }
 
-    private ApiConnectorUserPermissionEntity enforcePermission(ApiConnectorEntity connector,
-                                                               SubmitApiRequestCommand command, boolean write,
-                                                               boolean breakGlass) {
-        var permission = permissionRepository.findByConnectorIdAndUserId(connector.getId(), command.submitterUserId())
-                .filter(p -> p.getExpiresAt() == null || p.getExpiresAt().isAfter(Instant.now()))
+    private ResolvedApiConnectorPermission enforcePermission(ApiConnectorEntity connector,
+                                                             SubmitApiRequestCommand command, boolean write,
+                                                             boolean breakGlass) {
+        // Effective permission = union of the submitter's direct grant and every group grant (AF-530).
+        var permission = permissionResolver.resolve(connector.getId(), command.submitterUserId())
                 .orElse(null);
         if (command.admin() && !breakGlass) {
             return permission;
@@ -214,15 +212,15 @@ public class DefaultApiRequestService implements ApiRequestService {
         if (breakGlass) {
             return permission;
         }
-        if (write && !permission.isCanWrite()) {
+        if (write && !permission.canWrite()) {
             throw new ApiRequestPermissionException("Write access not granted on this connector");
         }
-        if (!write && !permission.isCanRead()) {
+        if (!write && !permission.canRead()) {
             throw new ApiRequestPermissionException("Read access not granted on this connector");
         }
-        var allowed = permission.getAllowedOperations();
-        if (allowed != null && allowed.length > 0 && command.operationId() != null
-                && !List.of(allowed).contains(command.operationId())) {
+        var allowed = permission.allowedOperations();
+        if (!allowed.isEmpty() && command.operationId() != null
+                && !allowed.contains(command.operationId())) {
             throw new ApiRequestPermissionException("Operation not in your allow-list for this connector");
         }
         return permission;

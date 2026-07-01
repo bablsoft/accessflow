@@ -2,11 +2,13 @@ import { apiClient } from './client';
 import type {
   ApiConnectionTestResult,
   ApiConnector,
+  ApiConnectorGroupPermission,
   ApiConnectorPage,
   ApiConnectorPermission,
   ApiOperation,
   ApiSchema,
   CreateApiConnectorInput,
+  GrantApiConnectorGroupPermissionInput,
   GrantApiConnectorPermissionInput,
   UpdateApiConnectorInput,
   UpdateApiConnectorPermissionInput,
@@ -29,6 +31,8 @@ export const apiConnectorKeys = {
   schemas: (id: string) => ['api-connectors', 'detail', id, 'schemas'] as const,
   operations: (id: string) => ['api-connectors', 'detail', id, 'operations'] as const,
   permissions: (id: string) => ['api-connectors', 'detail', id, 'permissions'] as const,
+  groupPermissions: (id: string) =>
+    ['api-connectors', 'detail', id, 'permissions', 'groups'] as const,
 };
 
 export async function listApiConnectors(
@@ -127,4 +131,31 @@ export async function revokeApiConnectorPermission(
   permissionId: string,
 ): Promise<void> {
   await apiClient.delete(`${BASE}/${connectorId}/permissions/${permissionId}`);
+}
+
+export async function listApiConnectorGroupPermissions(
+  connectorId: string,
+): Promise<ApiConnectorGroupPermission[]> {
+  const { data } = await apiClient.get<ApiConnectorGroupPermission[]>(
+    `${BASE}/${connectorId}/permissions/groups`,
+  );
+  return data;
+}
+
+export async function grantApiConnectorGroupPermission(
+  connectorId: string,
+  input: GrantApiConnectorGroupPermissionInput,
+): Promise<ApiConnectorGroupPermission> {
+  const { data } = await apiClient.post<ApiConnectorGroupPermission>(
+    `${BASE}/${connectorId}/permissions/groups`,
+    input,
+  );
+  return data;
+}
+
+export async function revokeApiConnectorGroupPermission(
+  connectorId: string,
+  permissionId: string,
+): Promise<void> {
+  await apiClient.delete(`${BASE}/${connectorId}/permissions/groups/${permissionId}`);
 }
