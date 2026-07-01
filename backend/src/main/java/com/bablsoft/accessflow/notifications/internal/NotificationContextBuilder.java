@@ -197,7 +197,8 @@ class NotificationContextBuilder {
                 view.baselineMean(),
                 anomalyUserLabel(view),
                 null,
-                null, null, null));
+                null, null, null,
+                null));
     }
 
     /**
@@ -228,7 +229,8 @@ class NotificationContextBuilder {
                 null,
                 null, null, null, null, null, null,
                 digest,
-                null, null, null));
+                null, null, null,
+                null));
     }
 
     /**
@@ -261,7 +263,8 @@ class NotificationContextBuilder {
                 null,
                 null, null, null, null, null, null,
                 null,
-                summary.id(), summary.name(), summary.dueAt()));
+                summary.id(), summary.name(), summary.dueAt(),
+                null));
     }
 
     /**
@@ -281,7 +284,7 @@ class NotificationContextBuilder {
         return Optional.of(new NotificationContext(
                 eventType,
                 view.organizationId(),
-                apiRequestId,
+                null,
                 null, null, null, null,
                 view.aiRiskLevel(),
                 view.aiRiskScore(),
@@ -300,7 +303,8 @@ class NotificationContextBuilder {
                 null,
                 null, null, null, null, null, null,
                 null,
-                null, null, null));
+                null, null, null,
+                apiRequestId));
     }
 
     private List<RecipientView> apiRecipients(NotificationEventType eventType, ApiRequestNotificationView view) {
@@ -361,7 +365,8 @@ class NotificationContextBuilder {
                 null,
                 null, null, null, null, null, null,
                 null,
-                null, null, null));
+                null, null, null,
+                null));
     }
 
     private URI buildApiConnectorUrl(UUID connectorId) {

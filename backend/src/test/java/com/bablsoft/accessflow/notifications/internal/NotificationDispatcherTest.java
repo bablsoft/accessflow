@@ -21,6 +21,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -213,6 +214,28 @@ class NotificationDispatcherTest {
                 eq(Set.of(reviewerA, reviewerB)),
                 eq(orgId),
                 eq(queryRequestId),
+                isNull(),
+                any());
+    }
+
+    @Test
+    void persistsApiRequestNotificationWithApiRequestId() {
+        var reviewer = UUID.randomUUID();
+        var apiRequestId = UUID.randomUUID();
+        when(contextBuilder.buildApiRequest(
+                eq(NotificationEventType.API_REQUEST_SUBMITTED), eq(apiRequestId)))
+                .thenReturn(Optional.of(sampleApiContext(apiRequestId,
+                        List.of(new RecipientView(reviewer, "a@x", "A")))));
+        when(contextBuilder.lookupPlanChannelIds(any())).thenReturn(List.of());
+
+        dispatcher.dispatchApiRequest(NotificationEventType.API_REQUEST_SUBMITTED, apiRequestId);
+
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.API_REQUEST_SUBMITTED),
+                eq(Set.of(reviewer)),
+                eq(orgId),
+                isNull(),
+                eq(apiRequestId),
                 any());
     }
 
@@ -226,7 +249,7 @@ class NotificationDispatcherTest {
 
         dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null, null);
 
-        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -237,7 +260,7 @@ class NotificationDispatcherTest {
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@x", "A")))));
         doThrow(new RuntimeException("db down"))
-                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any());
+                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any());
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of(emailCh.getId()));
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
@@ -295,6 +318,23 @@ class NotificationDispatcherTest {
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/x"),
                 recipients, Instant.now(), "en", null);
+    }
+
+    private NotificationContext sampleApiContext(UUID apiRequestId, List<RecipientView> recipients) {
+        return new NotificationContext(
+                NotificationEventType.API_REQUEST_SUBMITTED,
+                orgId, null, null,
+                null, null, null,
+                null, null, null,
+                datasourceId, "conn",
+                UUID.randomUUID(), "submit@example.com", "Sub",
+                "GET /things", null, null, null,
+                URI.create("https://app.example.test/api-requests/x"),
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                apiRequestId);
     }
 
     private NotificationChannelEntity channel(NotificationChannelType type) {

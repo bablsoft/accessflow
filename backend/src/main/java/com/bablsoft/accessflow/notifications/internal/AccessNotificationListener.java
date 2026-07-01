@@ -83,7 +83,7 @@ class AccessNotificationListener {
             if (recipients == null || recipients.isEmpty()) {
                 return;
             }
-            userNotificationService.recordForUsers(type, recipients, view.organizationId(), null,
+            userNotificationService.recordForUsers(type, recipients, view.organizationId(), null, null,
                     buildPayload(view));
         } catch (RuntimeException ex) {
             log.error("Access notification {} failed for request {}", type, accessRequestId, ex);

@@ -46,6 +46,22 @@ class UserNotificationResponseTest {
         assertThat(resp.payload().size()).isZero();
     }
 
+    @Test
+    void mapsQueryAndApiRequestIds() {
+        var queryRequestId = UUID.randomUUID();
+        var apiRequestId = UUID.randomUUID();
+        var view = new UserNotificationView(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                NotificationEventType.API_REQUEST_SUBMITTED,
+                queryRequestId, apiRequestId, "{}", false,
+                Instant.parse("2026-05-08T10:00:00Z"), null);
+
+        var resp = UserNotificationResponse.from(view, mapper);
+
+        assertThat(resp.queryRequestId()).isEqualTo(queryRequestId);
+        assertThat(resp.apiRequestId()).isEqualTo(apiRequestId);
+    }
+
     private UserNotificationView view(String payloadJson) {
         return new UserNotificationView(
                 UUID.randomUUID(),
@@ -53,6 +69,7 @@ class UserNotificationResponseTest {
                 UUID.randomUUID(),
                 NotificationEventType.QUERY_APPROVED,
                 UUID.randomUUID(),
+                null,
                 payloadJson,
                 false,
                 Instant.parse("2026-05-08T10:00:00Z"),
