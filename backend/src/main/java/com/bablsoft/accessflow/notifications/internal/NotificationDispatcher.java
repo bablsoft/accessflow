@@ -198,6 +198,7 @@ class NotificationDispatcher {
                     recipientIds,
                     ctx.organizationId(),
                     ctx.queryRequestId(),
+                    ctx.apiRequestId(),
                     buildPayload(ctx));
         } catch (RuntimeException ex) {
             log.error("Failed to persist in-app notifications for event {} on query {}",
@@ -209,6 +210,9 @@ class NotificationDispatcher {
         ObjectNode payload = objectMapper.createObjectNode();
         if (ctx.queryRequestId() != null) {
             payload.put("query_id", ctx.queryRequestId().toString());
+        }
+        if (ctx.apiRequestId() != null) {
+            payload.put("api_id", ctx.apiRequestId().toString());
         }
         if (ctx.datasourceName() != null) {
             payload.put("datasource", ctx.datasourceName());

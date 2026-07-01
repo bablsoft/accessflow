@@ -494,6 +494,35 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void buildApiRequestPutsIdInApiRequestSlotNotQuerySlot() {
+        var apiRequestId = UUID.randomUUID();
+        when(apiRequestLookup.find(apiRequestId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView(
+                        apiRequestId, orgId, UUID.randomUUID(), "Payments API", submitterId,
+                        "POST", "/v1/charges",
+                        com.bablsoft.accessflow.core.api.SubmissionReason.USER_SUBMITTED,
+                        RiskLevel.LOW, 10, "ok")));
+
+        var ctx = builder.buildApiRequest(
+                NotificationEventType.API_REQUEST_SUBMITTED, apiRequestId).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.API_REQUEST_SUBMITTED);
+        assertThat(ctx.queryRequestId()).isNull();
+        assertThat(ctx.apiRequestId()).isEqualTo(apiRequestId);
+        assertThat(ctx.datasourceName()).isEqualTo("Payments API");
+        assertThat(ctx.reviewUrl().toString())
+                .isEqualTo("https://app.example.test/api-requests/" + apiRequestId);
+    }
+
+    @Test
+    void buildApiRequestEmptyWhenRequestMissing() {
+        var apiRequestId = UUID.randomUUID();
+        when(apiRequestLookup.find(apiRequestId)).thenReturn(Optional.empty());
+        assertThat(builder.buildApiRequest(
+                NotificationEventType.API_REQUEST_SUBMITTED, apiRequestId)).isEmpty();
+    }
+
+    @Test
     void buildAttestationCampaignEmptyWhenCampaignMissing() {
         var campaignId = UUID.randomUUID();
         when(attestationLookup.findSummary(campaignId)).thenReturn(Optional.empty());

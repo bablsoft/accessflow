@@ -21,6 +21,10 @@ import java.util.UUID;
  * ({@code queryRequestId}, {@code queryType}, SQL previews, {@code riskLevel}) is null in that case,
  * and the anomaly explanation is carried in {@code aiSummary}. The backward-compatible constructor
  * (without the anomaly fields) defaults them to null for the query/access notification paths.
+ *
+ * <p>{@code apiRequestId} is only populated for the {@code API_REQUEST_*} events (AF-500) and is
+ * mutually exclusive with {@code queryRequestId} — an in-app notification references at most one of
+ * a query request or an API request.
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -56,7 +60,8 @@ public record NotificationContext(
         WeeklyDigestData digest,
         UUID attestationCampaignId,
         String attestationCampaignName,
-        Instant attestationDueAt) {
+        Instant attestationDueAt,
+        UUID apiRequestId) {
 
     /** Backward-compatible constructor for the query / access notification paths (no anomaly fields). */
     public NotificationContext(
@@ -89,7 +94,7 @@ public record NotificationContext(
                 submittedByUserId, submitterEmail, submitterDisplayName, justification,
                 reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
                 occurredAt, locale, approvalTimeoutHours, null, null, null, null, null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 
     /** Compatibility constructor for the anomaly / weekly-digest paths (no attestation fields). */
@@ -131,6 +136,6 @@ public record NotificationContext(
                 reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
                 occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
                 anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
-                null, null, null);
+                null, null, null, null);
     }
 }

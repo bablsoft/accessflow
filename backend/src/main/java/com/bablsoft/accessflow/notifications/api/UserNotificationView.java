@@ -13,6 +13,7 @@ public record UserNotificationView(
         UUID organizationId,
         NotificationEventType eventType,
         UUID queryRequestId,
+        UUID apiRequestId,
         String payloadJson,
         boolean read,
         Instant createdAt,
