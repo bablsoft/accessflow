@@ -139,10 +139,12 @@ test('admin edits an API connector permission in place (AF-530)', async ({ page,
   const grantedRow = page.getByRole('row').filter({ hasText: memberEmail });
   await expect(grantedRow).toBeVisible();
 
-  // Edit the grant in place — toggle write on — and expect a PUT (not a revoke + re-grant).
+  // Edit the grant in place — toggle write on — and expect a PUT (not a revoke + re-grant). The
+  // modal title carries the member's identity (display name if resolved, else the email), so match
+  // only the static prefix.
   await grantedRow.getByRole('button', { name: 'Edit' }).click();
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText(/Edit permission — Perm Edit Member/)).toBeVisible();
+  const dialog = page.getByRole('dialog', { name: /Edit permission/ });
+  await expect(dialog).toBeVisible();
   const switches = dialog.locator('button[role="switch"]');
   await switches.nth(1).click(); // can_write
   const updateResponse = page.waitForResponse(
