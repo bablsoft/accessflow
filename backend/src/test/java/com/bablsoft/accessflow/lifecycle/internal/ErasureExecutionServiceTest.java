@@ -49,6 +49,8 @@ class ErasureExecutionServiceTest {
     @Mock
     private LifecycleDirectiveResolutionService directiveResolutionService;
     @Mock
+    private com.bablsoft.accessflow.proxy.api.SqlParserService sqlParserService;
+    @Mock
     private QueryExecutor queryExecutor;
     @Mock
     private AuditLogService auditLogService;
@@ -58,9 +60,11 @@ class ErasureExecutionServiceTest {
     @BeforeEach
     void setUp() {
         var clock = Clock.fixed(Instant.parse("2026-06-29T00:00:00Z"), ZoneOffset.UTC);
+        var objectMapper = new tools.jackson.databind.ObjectMapper();
         service = new ErasureExecutionService(requestRepository, runRepository,
-                directiveResolutionService, queryExecutor, auditLogService,
-                new tools.jackson.databind.ObjectMapper(), clock);
+                directiveResolutionService, new ErasurePredicateCompiler(sqlParserService),
+                new ErasureConditionCodec(objectMapper), queryExecutor, auditLogService,
+                objectMapper, clock);
     }
 
     private DeletionRequestEntity request(ErasureStatus status, String scope) {
@@ -146,6 +150,31 @@ class ErasureExecutionServiceTest {
 
         assertThat(entity.getStatus()).isEqualTo(ErasureStatus.FAILED);
         verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void execute_usesStructuredConditionsFromRequestConfig() {
+        var entity = request(ErasureStatus.APPROVED, "{\"tables\":[\"users\"]}");
+        entity.setSubjectType(null);
+        entity.setSubjectIdentifier(null);
+        entity.setTargetTable("users");
+        entity.setConditions(
+                "{\"conditions\":[{\"column\":\"status\",\"operator\":\"EQUALS\",\"values\":[\"inactive\"],\"negate\":false}]}");
+        when(requestRepository.findByIdForUpdate(REQ)).thenReturn(Optional.of(entity));
+        when(directiveResolutionService.resolveSoftDeletes(ORG, DS)).thenReturn(List.of());
+        when(queryExecutor.execute(any())).thenReturn(new UpdateExecutionResult(2, Duration.ZERO));
+
+        assertThat(service.execute(REQ)).isTrue();
+
+        var captor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).execute(captor.capture());
+        var req = captor.getValue();
+        assertThat(req.sql()).isEqualTo("DELETE FROM users");
+        assertThat(req.rowSecurityPredicates()).singleElement().satisfies(p -> {
+            assertThat(p.columnName()).isEqualTo("status");
+            assertThat(p.values()).containsExactly("inactive");
+        });
+        assertThat(entity.getStatus()).isEqualTo(ErasureStatus.EXECUTED);
     }
 
     @Test

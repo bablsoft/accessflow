@@ -12,10 +12,13 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,6 +67,12 @@ public class RetentionPolicyScanService {
         if (runRepository.existsByPolicyIdAndStatus(policy.getId(), LifecycleRunStatus.STAGED)) {
             return false;
         }
+        // AF-519: a policy carrying a cron schedule is only staged when its schedule is due; the
+        // cron bookkeeping (last/next run) advances on each due tick regardless of eligibility, so a
+        // barren tick does not re-fire every poll. Null-cron policies keep the every-tick behavior.
+        if (!cronDue(policy)) {
+            return false;
+        }
         LifecyclePreviewResult preview = previewCalculator.preview(policy);
         if (preview.totalEstimatedRows() <= 0) {
             return false;
@@ -82,6 +91,37 @@ public class RetentionPolicyScanService {
         run.setCreatedAt(clock.instant());
         run.setUpdatedAt(clock.instant());
         runRepository.save(run);
+        return true;
+    }
+
+    /**
+     * @return {@code true} if the policy has no cron (fires every tick) or its cron is due now.
+     * When a cron policy is due, its {@code lastRunAt}/{@code nextRunAt} bookkeeping is advanced and
+     * persisted. A brand-new cron policy ({@code lastRunAt == null}) is due immediately.
+     */
+    private boolean cronDue(RetentionPolicyEntity policy) {
+        String cron = policy.getCronSchedule();
+        if (cron == null || cron.isBlank()) {
+            return true;
+        }
+        CronExpression expr;
+        try {
+            expr = CronExpression.parse(cron.trim());
+        } catch (IllegalArgumentException ex) {
+            log.warn("Retention policy {} has an unparseable cron '{}'; skipping", policy.getId(), cron);
+            return false;
+        }
+        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+        if (policy.getLastRunAt() != null) {
+            var due = expr.next(ZonedDateTime.ofInstant(policy.getLastRunAt(), ZoneOffset.UTC));
+            if (due == null || now.isBefore(due)) {
+                return false;
+            }
+        }
+        policy.setLastRunAt(now.toInstant());
+        var next = expr.next(now);
+        policy.setNextRunAt(next == null ? null : next.toInstant());
+        policyRepository.save(policy);
         return true;
     }
 }

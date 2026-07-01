@@ -43,6 +43,10 @@ class DefaultErasureRequestServiceTest {
     @Mock
     private ErasureRequestViewMapper mapper;
     @Mock
+    private ErasureConditionValidator conditionValidator;
+    @Mock
+    private ErasureConditionCodec conditionCodec;
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private DefaultErasureRequestService service;
@@ -50,7 +54,8 @@ class DefaultErasureRequestServiceTest {
     @BeforeEach
     void setUp() {
         var clock = Clock.fixed(Instant.parse("2026-06-29T00:00:00Z"), ZoneOffset.UTC);
-        service = new DefaultErasureRequestService(repository, mapper, eventPublisher, clock);
+        service = new DefaultErasureRequestService(repository, mapper, conditionValidator,
+                conditionCodec, eventPublisher, clock);
     }
 
     @Test
@@ -59,10 +64,18 @@ class DefaultErasureRequestServiceTest {
         when(mapper.toView(any())).thenReturn(stubView(ErasureStatus.PENDING_SCOPE_AI));
 
         service.submit(new SubmitErasureCommand(ORG, DS, LifecycleSubjectType.EMAIL,
-                "user@example.com", "GDPR", USER));
+                "user@example.com", null, null, null, null, "GDPR", USER));
 
         verify(repository).save(any(DeletionRequestEntity.class));
         verify(eventPublisher).publishEvent(any(ErasureRequestSubmittedEvent.class));
+    }
+
+    @Test
+    void submit_rejectsEmptyRequest() {
+        assertThatThrownBy(() -> service.submit(new SubmitErasureCommand(ORG, DS, null, null,
+                null, null, null, null, "GDPR", USER)))
+                .isInstanceOf(com.bablsoft.accessflow.lifecycle.api.InvalidErasureConfigException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -115,7 +128,7 @@ class DefaultErasureRequestServiceTest {
 
     private static ErasureRequestView stubView(ErasureStatus status) {
         return new ErasureRequestView(REQ, ORG, DS, "DS", LifecycleSubjectType.EMAIL,
-                "user@example.com", status, "GDPR", USER, "u@e.com", null, null, null, null,
-                null, null, Instant.now(), Instant.now());
+                "user@example.com", null, java.util.List.of(), null, null, status, "GDPR", USER,
+                "u@e.com", null, null, null, null, null, null, Instant.now(), Instant.now());
     }
 }

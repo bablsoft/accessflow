@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "El tipo de sujeto es obligatorio",
     "lifecycle_subject_identifier_required": "El identificador del sujeto es obligatorio",
     "lifecycle_subject_identifier_size": "El identificador del sujeto debe tener como máximo 255 caracteres",
-    "lifecycle_reason_max": "El motivo debe tener como máximo 2.000 caracteres"
+    "lifecycle_reason_max": "El motivo debe tener como máximo 2.000 caracteres",
+    "lifecycle_cron_schedule_size": "La programación cron debe tener como máximo 100 caracteres",
+    "lifecycle_raw_where_size": "El WHERE sin procesar debe tener como máximo 4000 caracteres",
+    "lifecycle_condition_column_required": "Se requiere una columna"
   },
   "errors": {
     "auth_invalid": "Correo electrónico o contraseña no válidos.",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "Ruta JSON",
       "XML_PATH": "Ruta XML (XPath)",
       "REGEX": "Expresión regular"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "en",
+      "NOT_IN": "no en",
+      "IS_NULL": "es nulo"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "Transformación",
       "label_soft_delete_column": "Columna de borrado lógico",
       "soft_delete_column_help": "Columna marcadora establecida al eliminar (por defecto deleted_at).",
-      "label_enabled": "Activada"
+      "label_enabled": "Activada",
+      "label_cron_schedule": "Programación cron",
+      "cron_schedule_help": "Cron de Spring opcional (6 campos, p. ej. 0 0 3 * * *). Déjelo vacío para usar el intervalo de escaneo global."
     },
     "preview": {
       "title": "Vista previa de simulación",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "Envíe una solicitud arriba para empezar.",
       "col_subject": "Sujeto",
       "col_status": "Estado",
-      "col_created": "Enviada"
+      "col_created": "Enviada",
+      "subject_help": "Opcional. Indique un sujeto o use la tabla objetivo + condiciones de abajo."
     },
     "erasure_review": {
       "title": "Cola de revisión de borrado",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "Motivo opcional del rechazo…",
       "scope_label": "Alcance detectado",
       "no_scope": "Alcance aún no detectado"
+    },
+    "config": {
+      "label_target_table": "Tabla objetivo",
+      "target_table_help": "La tabla a la que se aplican las condiciones y el WHERE sin procesar.",
+      "label_target_columns": "Columnas objetivo",
+      "target_columns_placeholder": "Agregar columnas (separadas por comas)",
+      "conditions_title": "Condiciones",
+      "conditions_help": "Todas las condiciones se combinan con Y. Use el WHERE sin procesar de abajo para O o lógica más compleja.",
+      "condition_column_placeholder": "Columna",
+      "condition_values_placeholder": "Valor(es)",
+      "condition_negate": "Negar",
+      "condition_remove": "Eliminar condición",
+      "add_condition": "Agregar condición",
+      "label_raw_where": "WHERE sin procesar (avanzado)",
+      "raw_where_help": "Una expresión SQL booleana, validada por el analizador. Solo para orígenes de datos SQL.",
+      "custom_scope": "Alcance personalizado",
+      "n_conditions_one": "{{count}} condición",
+      "n_conditions_other": "{{count}} condiciones",
+      "has_raw_where": "WHERE sin procesar"
     }
   },
   "requestGroups": {

@@ -2579,6 +2579,29 @@ export interface ApiDecisionResponse {
 export type LifecycleAction = 'HARD_DELETE' | 'SOFT_DELETE' | 'PSEUDONYMIZE';
 export type LifecycleTransform = 'SHA256_SALTED' | 'FORMAT_PRESERVING' | 'TOKENIZATION';
 export type LifecycleSubjectType = 'USER_ID' | 'EMAIL' | 'CUSTOM';
+
+// AF-519: shared erasure configuration — structured conditions + raw WHERE escape hatch.
+export type ErasureConditionOperator =
+  | 'EQUALS'
+  | 'NOT_EQUALS'
+  | 'LESS_THAN'
+  | 'LESS_THAN_OR_EQUAL'
+  | 'GREATER_THAN'
+  | 'GREATER_THAN_OR_EQUAL'
+  | 'IN'
+  | 'NOT_IN'
+  | 'IS_NULL';
+
+export interface ErasureCondition {
+  column: string;
+  operator: ErasureConditionOperator;
+  values: string[];
+  negate: boolean;
+}
+
+export interface ErasureConditionSet {
+  conditions: ErasureCondition[];
+}
 export type ErasureStatus =
   | 'PENDING_SCOPE_AI'
   | 'PENDING_REVIEW'
@@ -2603,6 +2626,11 @@ export interface RetentionPolicy {
   action: LifecycleAction;
   transform_type: LifecycleTransform | null;
   soft_delete_column: string | null;
+  conditions: ErasureConditionSet | null;
+  raw_where: string | null;
+  cron_schedule: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
   enabled: boolean;
   created_by: string;
   created_at: string;
@@ -2623,6 +2651,9 @@ export interface CreateRetentionPolicyRequest {
   action: LifecycleAction;
   transform_type?: LifecycleTransform | null;
   soft_delete_column?: string | null;
+  conditions?: ErasureConditionSet | null;
+  raw_where?: string | null;
+  cron_schedule?: string | null;
   enabled?: boolean;
 }
 
@@ -2647,8 +2678,12 @@ export interface ErasureRequest {
   organization_id: string;
   datasource_id: string;
   datasource_name: string | null;
-  subject_type: LifecycleSubjectType;
-  subject_identifier: string;
+  subject_type: LifecycleSubjectType | null;
+  subject_identifier: string | null;
+  target_table: string | null;
+  target_columns: string[];
+  conditions: ErasureConditionSet | null;
+  raw_where: string | null;
   status: ErasureStatus;
   reason: string | null;
   requested_by: string;
@@ -2667,8 +2702,12 @@ export type ErasureRequestPage = PageEnvelope<ErasureRequest>;
 
 export interface SubmitErasureRequest {
   datasource_id: string;
-  subject_type: LifecycleSubjectType;
-  subject_identifier: string;
+  subject_type?: LifecycleSubjectType | null;
+  subject_identifier?: string | null;
+  target_table?: string | null;
+  target_columns?: string[];
+  conditions?: ErasureConditionSet | null;
+  raw_where?: string | null;
   reason?: string | null;
 }
 

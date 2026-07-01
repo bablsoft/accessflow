@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.lifecycle.internal;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.lifecycle.api.CreateRetentionPolicyCommand;
+import com.bablsoft.accessflow.lifecycle.api.ErasureConditionSet;
 import com.bablsoft.accessflow.lifecycle.api.InvalidRetentionPolicyException;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleAction;
 import com.bablsoft.accessflow.lifecycle.api.LifecyclePreviewResult;
@@ -29,6 +30,8 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
     private final RetentionPolicyRepository repository;
     private final RetentionPolicyViewMapper mapper;
     private final LifecyclePreviewCalculator previewCalculator;
+    private final ErasureConditionValidator conditionValidator;
+    private final ErasureConditionCodec conditionCodec;
     private final Clock clock;
 
     @Override
@@ -36,6 +39,8 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
     public RetentionPolicyView create(CreateRetentionPolicyCommand command) {
         validate(command.targetTable(), command.classificationTag(), command.action(),
                 command.transformType(), command.retentionWindow());
+        conditionValidator.validate(command.datasourceId(), command.targetTable(),
+                command.conditions(), command.rawWhere(), command.cronSchedule());
         var entity = new RetentionPolicyEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(command.organizationId());
@@ -44,7 +49,8 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
         apply(entity, command.name(), command.description(), command.targetTable(),
                 command.targetColumns(), command.classificationTag(), command.timestampColumn(),
                 command.retentionWindow(), command.action(), command.transformType(),
-                command.softDeleteColumn(), command.enabled());
+                command.softDeleteColumn(), command.conditions(), command.rawWhere(),
+                command.cronSchedule(), command.enabled());
         Instant now = clock.instant();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
@@ -58,10 +64,13 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
                 command.transformType(), command.retentionWindow());
         var entity = repository.findByIdAndOrganizationId(command.policyId(), command.organizationId())
                 .orElseThrow(() -> new RetentionPolicyNotFoundException(command.policyId()));
+        conditionValidator.validate(entity.getDatasourceId(), command.targetTable(),
+                command.conditions(), command.rawWhere(), command.cronSchedule());
         apply(entity, command.name(), command.description(), command.targetTable(),
                 command.targetColumns(), command.classificationTag(), command.timestampColumn(),
                 command.retentionWindow(), command.action(), command.transformType(),
-                command.softDeleteColumn(), command.enabled());
+                command.softDeleteColumn(), command.conditions(), command.rawWhere(),
+                command.cronSchedule(), command.enabled());
         return mapper.toView(repository.save(entity));
     }
 
@@ -101,7 +110,9 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
     private void apply(RetentionPolicyEntity entity, String name, String description,
                        String targetTable, List<String> targetColumns, String classificationTag,
                        String timestampColumn, String retentionWindow, LifecycleAction action,
-                       LifecycleTransform transformType, String softDeleteColumn, boolean enabled) {
+                       LifecycleTransform transformType, String softDeleteColumn,
+                       ErasureConditionSet conditions, String rawWhere, String cronSchedule,
+                       boolean enabled) {
         entity.setName(name);
         entity.setDescription(description);
         entity.setTargetTable(blankToNull(targetTable));
@@ -113,6 +124,9 @@ class DefaultRetentionPolicyService implements RetentionPolicyService {
         entity.setAction(action);
         entity.setTransformType(transformType);
         entity.setSoftDeleteColumn(blankToNull(softDeleteColumn));
+        entity.setConditions(conditionCodec.toJson(conditions));
+        entity.setRawWhere(blankToNull(rawWhere));
+        entity.setCronSchedule(blankToNull(cronSchedule));
         entity.setEnabled(enabled);
     }
 

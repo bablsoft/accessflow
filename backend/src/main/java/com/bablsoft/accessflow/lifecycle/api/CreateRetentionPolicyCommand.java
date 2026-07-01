@@ -21,6 +21,9 @@ public record CreateRetentionPolicyCommand(
         LifecycleAction action,
         LifecycleTransform transformType,
         String softDeleteColumn,
+        ErasureConditionSet conditions,
+        String rawWhere,
+        String cronSchedule,
         boolean enabled,
         UUID createdBy) {
 

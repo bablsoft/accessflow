@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "Тип субъекта обязателен",
     "lifecycle_subject_identifier_required": "Идентификатор субъекта обязателен",
     "lifecycle_subject_identifier_size": "Идентификатор субъекта не более 255 символов",
-    "lifecycle_reason_max": "Причина не более 2000 символов"
+    "lifecycle_reason_max": "Причина не более 2000 символов",
+    "lifecycle_cron_schedule_size": "Расписание cron не должно превышать 100 символов",
+    "lifecycle_raw_where_size": "Сырое WHERE не должно превышать 4000 символов",
+    "lifecycle_condition_column_required": "Требуется столбец"
   },
   "errors": {
     "auth_invalid": "Неверный адрес или пароль.",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "JSON-путь",
       "XML_PATH": "XML-путь (XPath)",
       "REGEX": "Регулярное выражение"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "в",
+      "NOT_IN": "не в",
+      "IS_NULL": "равно null"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "Преобразование",
       "label_soft_delete_column": "Столбец мягкого удаления",
       "soft_delete_column_help": "Столбец-маркер, устанавливаемый при удалении (по умолчанию deleted_at).",
-      "label_enabled": "Включена"
+      "label_enabled": "Включена",
+      "label_cron_schedule": "Расписание cron",
+      "cron_schedule_help": "Необязательный Spring cron (6 полей, напр. 0 0 3 * * *). Оставьте пустым для глобального интервала сканирования."
     },
     "preview": {
       "title": "Предпросмотр (пробный запуск)",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "Отправьте запрос выше, чтобы начать.",
       "col_subject": "Субъект",
       "col_status": "Статус",
-      "col_created": "Отправлено"
+      "col_created": "Отправлено",
+      "subject_help": "Необязательно. Укажите субъект или используйте целевую таблицу + условия ниже."
     },
     "erasure_review": {
       "title": "Очередь проверки удаления",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "Необязательная причина отклонения…",
       "scope_label": "Обнаруженный объём",
       "no_scope": "Объём ещё не определён"
+    },
+    "config": {
+      "label_target_table": "Целевая таблица",
+      "target_table_help": "Таблица, к которой применяются условия и сырое WHERE.",
+      "label_target_columns": "Целевые столбцы",
+      "target_columns_placeholder": "Добавьте столбцы (через запятую)",
+      "conditions_title": "Условия",
+      "conditions_help": "Все условия объединяются логическим И. Для ИЛИ или более сложной логики используйте сырое WHERE ниже.",
+      "condition_column_placeholder": "Столбец",
+      "condition_values_placeholder": "Значение(я)",
+      "condition_negate": "Отрицание",
+      "condition_remove": "Удалить условие",
+      "add_condition": "Добавить условие",
+      "label_raw_where": "Сырое WHERE (расширенное)",
+      "raw_where_help": "Булево SQL-выражение, проверяемое парсером. Только для SQL-источников.",
+      "custom_scope": "Пользовательская область",
+      "n_conditions_one": "{{count}} условие",
+      "n_conditions_other": "{{count}} условий",
+      "has_raw_where": "сырое WHERE"
     }
   },
   "requestGroups": {

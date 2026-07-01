@@ -17,6 +17,9 @@ public record UpdateRetentionPolicyCommand(
         LifecycleAction action,
         LifecycleTransform transformType,
         String softDeleteColumn,
+        ErasureConditionSet conditions,
+        String rawWhere,
+        String cronSchedule,
         boolean enabled) {
 
     public UpdateRetentionPolicyCommand {

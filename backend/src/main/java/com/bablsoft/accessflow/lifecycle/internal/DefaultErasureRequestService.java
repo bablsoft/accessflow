@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
 import com.bablsoft.accessflow.lifecycle.api.ErasureRequestService;
 import com.bablsoft.accessflow.lifecycle.api.ErasureRequestView;
 import com.bablsoft.accessflow.lifecycle.api.ErasureStatus;
+import com.bablsoft.accessflow.lifecycle.api.InvalidErasureConfigException;
 import com.bablsoft.accessflow.lifecycle.events.ErasureRequestSubmittedEvent;
 import com.bablsoft.accessflow.lifecycle.internal.persistence.entity.DeletionRequestEntity;
 import com.bablsoft.accessflow.lifecycle.internal.persistence.repo.DeletionRequestRepository;
@@ -25,18 +26,28 @@ class DefaultErasureRequestService implements ErasureRequestService {
 
     private final DeletionRequestRepository repository;
     private final ErasureRequestViewMapper mapper;
+    private final ErasureConditionValidator conditionValidator;
+    private final ErasureConditionCodec conditionCodec;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     @Override
     @Transactional
     public ErasureRequestView submit(SubmitErasureCommand command) {
+        validateShape(command);
+        conditionValidator.validate(command.datasourceId(), command.targetTable(),
+                command.conditions(), command.rawWhere(), null);
         var entity = new DeletionRequestEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(command.organizationId());
         entity.setDatasourceId(command.datasourceId());
         entity.setSubjectType(command.subjectType());
-        entity.setSubjectIdentifier(command.subjectIdentifier());
+        entity.setSubjectIdentifier(blankToNull(command.subjectIdentifier()));
+        entity.setTargetTable(blankToNull(command.targetTable()));
+        entity.setTargetColumns(command.targetColumns() == null ? new String[0]
+                : command.targetColumns().toArray(String[]::new));
+        entity.setConditions(conditionCodec.toJson(command.conditions()));
+        entity.setRawWhere(blankToNull(command.rawWhere()));
         entity.setReason(command.reason());
         entity.setRequestedBy(command.requestedBy());
         entity.setStatus(ErasureStatus.PENDING_SCOPE_AI);
@@ -82,5 +93,25 @@ class DefaultErasureRequestService implements ErasureRequestService {
     private DeletionRequestEntity load(UUID requestId, UUID organizationId) {
         return repository.findByIdAndOrganizationId(requestId, organizationId)
                 .orElseThrow(() -> new DeletionRequestNotFoundException(requestId));
+    }
+
+    private static void validateShape(SubmitErasureCommand command) {
+        boolean hasSubject = command.subjectIdentifier() != null
+                && !command.subjectIdentifier().isBlank();
+        boolean hasStructured = command.conditions() != null && !command.conditions().isEmpty();
+        boolean hasRawWhere = command.rawWhere() != null && !command.rawWhere().isBlank();
+        if (!hasSubject && !hasStructured && !hasRawWhere) {
+            throw new InvalidErasureConfigException(
+                    InvalidErasureConfigException.Reason.EMPTY_REQUEST);
+        }
+        if ((hasStructured || hasRawWhere)
+                && (command.targetTable() == null || command.targetTable().isBlank())) {
+            throw new InvalidErasureConfigException(
+                    InvalidErasureConfigException.Reason.TARGET_TABLE_REQUIRED);
+        }
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s;
     }
 }

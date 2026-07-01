@@ -15,6 +15,7 @@ import java.util.List;
 class RetentionPolicyViewMapper {
 
     private final DatasourceLookupService datasourceLookupService;
+    private final ErasureConditionCodec conditionCodec;
 
     RetentionPolicyView toView(RetentionPolicyEntity entity) {
         var datasourceName = datasourceLookupService.findRef(entity.getDatasourceId())
@@ -34,6 +35,11 @@ class RetentionPolicyViewMapper {
                 entity.getAction(),
                 entity.getTransformType(),
                 entity.getSoftDeleteColumn(),
+                conditionCodec.fromJson(entity.getConditions()),
+                entity.getRawWhere(),
+                entity.getCronSchedule(),
+                entity.getLastRunAt(),
+                entity.getNextRunAt(),
                 entity.isEnabled(),
                 entity.getCreatedBy(),
                 entity.getCreatedAt(),

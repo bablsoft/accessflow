@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "Le type de sujet est obligatoire",
     "lifecycle_subject_identifier_required": "L’identifiant du sujet est obligatoire",
     "lifecycle_subject_identifier_size": "L’identifiant du sujet ne doit pas dépasser 255 caractères",
-    "lifecycle_reason_max": "Le motif ne doit pas dépasser 2 000 caractères"
+    "lifecycle_reason_max": "Le motif ne doit pas dépasser 2 000 caractères",
+    "lifecycle_cron_schedule_size": "La planification cron ne doit pas dépasser 100 caractères",
+    "lifecycle_raw_where_size": "Le WHERE brut ne doit pas dépasser 4 000 caractères",
+    "lifecycle_condition_column_required": "Une colonne est requise"
   },
   "errors": {
     "auth_invalid": "E-mail ou mot de passe invalide.",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "Chemin JSON",
       "XML_PATH": "Chemin XML (XPath)",
       "REGEX": "Expression régulière"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "dans",
+      "NOT_IN": "pas dans",
+      "IS_NULL": "est nul"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "Transformation",
       "label_soft_delete_column": "Colonne de suppression logique",
       "soft_delete_column_help": "Colonne marqueur définie à la suppression (par défaut deleted_at).",
-      "label_enabled": "Activée"
+      "label_enabled": "Activée",
+      "label_cron_schedule": "Planification cron",
+      "cron_schedule_help": "Cron Spring facultatif (6 champs, p. ex. 0 0 3 * * *). Laisser vide pour utiliser l’intervalle de scan global."
     },
     "preview": {
       "title": "Aperçu à blanc",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "Envoyez une demande ci-dessus pour commencer.",
       "col_subject": "Sujet",
       "col_status": "Statut",
-      "col_created": "Soumise"
+      "col_created": "Soumise",
+      "subject_help": "Facultatif. Indiquez un sujet ou utilisez la table cible + les conditions ci-dessous."
     },
     "erasure_review": {
       "title": "File de revue des effacements",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "Motif facultatif du rejet…",
       "scope_label": "Portée détectée",
       "no_scope": "Portée pas encore détectée"
+    },
+    "config": {
+      "label_target_table": "Table cible",
+      "target_table_help": "La table à laquelle s’appliquent les conditions et le WHERE brut.",
+      "label_target_columns": "Colonnes cibles",
+      "target_columns_placeholder": "Ajouter des colonnes (séparées par des virgules)",
+      "conditions_title": "Conditions",
+      "conditions_help": "Toutes les conditions sont combinées avec ET. Utilisez le WHERE brut ci-dessous pour OU ou une logique plus complexe.",
+      "condition_column_placeholder": "Colonne",
+      "condition_values_placeholder": "Valeur(s)",
+      "condition_negate": "Nier",
+      "condition_remove": "Supprimer la condition",
+      "add_condition": "Ajouter une condition",
+      "label_raw_where": "WHERE brut (avancé)",
+      "raw_where_help": "Une expression SQL booléenne, validée par l’analyseur. Uniquement pour les sources de données SQL.",
+      "custom_scope": "Portée personnalisée",
+      "n_conditions_one": "{{count}} condition",
+      "n_conditions_other": "{{count}} conditions",
+      "has_raw_where": "WHERE brut"
     }
   },
   "requestGroups": {

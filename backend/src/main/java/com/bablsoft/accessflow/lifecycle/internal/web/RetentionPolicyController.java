@@ -77,7 +77,8 @@ class RetentionPolicyController {
                 caller.organizationId(), body.datasourceId(), body.name(), body.description(),
                 body.targetTable(), body.targetColumns(), body.classificationTag(),
                 body.timestampColumn(), body.retentionWindow(), body.action(), body.transformType(),
-                body.softDeleteColumn(), body.enabled() == null || body.enabled(), caller.userId()));
+                body.softDeleteColumn(), body.conditions(), body.rawWhere(), body.cronSchedule(),
+                body.enabled() == null || body.enabled(), caller.userId()));
         auditWriter.record(AuditAction.RETENTION_POLICY_CREATED, AuditResourceType.RETENTION_POLICY,
                 view.id(), caller, metadata(view), auditContext);
         return RetentionPolicyResponse.from(view);
@@ -98,6 +99,7 @@ class RetentionPolicyController {
                 id, caller.organizationId(), body.name(), body.description(), body.targetTable(),
                 body.targetColumns(), body.classificationTag(), body.timestampColumn(),
                 body.retentionWindow(), body.action(), body.transformType(), body.softDeleteColumn(),
+                body.conditions(), body.rawWhere(), body.cronSchedule(),
                 body.enabled() == null || body.enabled()));
         auditWriter.record(AuditAction.RETENTION_POLICY_UPDATED, AuditResourceType.RETENTION_POLICY,
                 view.id(), caller, metadata(view), auditContext);

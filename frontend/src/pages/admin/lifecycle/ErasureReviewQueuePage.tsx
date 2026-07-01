@@ -114,15 +114,30 @@ export default function ErasureReviewQueuePage() {
               {
                 title: t('lifecycle.erasure.col_subject'),
                 dataIndex: 'subject_identifier',
-                render: (v: string, r) => (
-                  <div>
-                    <div style={{ fontSize: 13 }}>{v}</div>
-                    <div className="mono muted" style={{ fontSize: 11 }}>
-                      {lifecycleSubjectTypeLabel(t, r.subject_type)}
-                      {r.datasource_name ? ` · ${r.datasource_name}` : ''}
+                render: (v: string | null, r) => {
+                  const conditionCount = r.conditions?.conditions.length ?? 0;
+                  const scopeBits: string[] = [];
+                  if (conditionCount > 0) {
+                    scopeBits.push(t('lifecycle.config.n_conditions', { count: conditionCount }));
+                  }
+                  if (r.raw_where) scopeBits.push(t('lifecycle.config.has_raw_where'));
+                  return (
+                    <div>
+                      <div style={{ fontSize: 13 }}>{v ?? r.target_table ?? '—'}</div>
+                      <div className="mono muted" style={{ fontSize: 11 }}>
+                        {r.subject_type
+                          ? lifecycleSubjectTypeLabel(t, r.subject_type)
+                          : t('lifecycle.config.custom_scope')}
+                        {r.datasource_name ? ` · ${r.datasource_name}` : ''}
+                      </div>
+                      {scopeBits.length > 0 && (
+                        <div className="mono muted" style={{ fontSize: 11 }}>
+                          {scopeBits.join(' · ')}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ),
+                  );
+                },
               },
               {
                 title: t('lifecycle.erasure_review.col_requested_by'),

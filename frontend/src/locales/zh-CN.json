@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "主体类型为必填项",
     "lifecycle_subject_identifier_required": "主体标识符为必填项",
     "lifecycle_subject_identifier_size": "主体标识符最多 255 个字符",
-    "lifecycle_reason_max": "原因最多 2,000 个字符"
+    "lifecycle_reason_max": "原因最多 2,000 个字符",
+    "lifecycle_cron_schedule_size": "Cron 计划最多 100 个字符",
+    "lifecycle_raw_where_size": "原始 WHERE 最多 4,000 个字符",
+    "lifecycle_condition_column_required": "需要一个列"
   },
   "errors": {
     "auth_invalid": "邮箱或密码不正确。",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "JSON 路径",
       "XML_PATH": "XML 路径 (XPath)",
       "REGEX": "正则表达式"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in",
+      "IS_NULL": "is null"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "转换",
       "label_soft_delete_column": "软删除列",
       "soft_delete_column_help": "删除时设置的标记列（默认 deleted_at）。",
-      "label_enabled": "已启用"
+      "label_enabled": "已启用",
+      "label_cron_schedule": "Cron 计划",
+      "cron_schedule_help": "可选的 Spring cron（6 个字段，例如 0 0 3 * * *）。留空则使用全局扫描间隔。"
     },
     "preview": {
       "title": "试运行预览",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "在上方提交申请以开始。",
       "col_subject": "主体",
       "col_status": "状态",
-      "col_created": "提交时间"
+      "col_created": "提交时间",
+      "subject_help": "可选。提供一个主体，或使用下方的目标表 + 条件。"
     },
     "erasure_review": {
       "title": "删除审核队列",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "拒绝原因（可选）……",
       "scope_label": "检测到的范围",
       "no_scope": "尚未检测到范围"
+    },
+    "config": {
+      "label_target_table": "目标表",
+      "target_table_help": "条件和原始 WHERE 应用到的表。",
+      "label_target_columns": "目标列",
+      "target_columns_placeholder": "添加列（逗号分隔）",
+      "conditions_title": "条件",
+      "conditions_help": "所有条件以“与”组合。若需“或”或更复杂的逻辑，请使用下方的原始 WHERE。",
+      "condition_column_placeholder": "列",
+      "condition_values_placeholder": "值",
+      "condition_negate": "取反",
+      "condition_remove": "删除条件",
+      "add_condition": "添加条件",
+      "label_raw_where": "原始 WHERE（高级）",
+      "raw_where_help": "一个布尔 SQL 表达式，由解析器校验。仅适用于 SQL 数据源。",
+      "custom_scope": "自定义范围",
+      "n_conditions_one": "{{count}} 个条件",
+      "n_conditions_other": "{{count}} 个条件",
+      "has_raw_where": "原始 WHERE"
     }
   },
   "requestGroups": {

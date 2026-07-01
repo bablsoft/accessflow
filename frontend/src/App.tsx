@@ -408,9 +408,9 @@ export function App() {
             }
           />
           <Route
-            path="/admin/lifecycle/erasure"
+            path="/lifecycle/erasure-reviews"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
                 <Suspense fallback={null}>
                   <ErasureReviewQueuePage />
                 </Suspense>

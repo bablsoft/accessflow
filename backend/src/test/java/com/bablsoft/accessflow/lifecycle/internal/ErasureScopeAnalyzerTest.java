@@ -77,6 +77,23 @@ class ErasureScopeAnalyzerTest {
     }
 
     @Test
+    void onSubmitted_derivesScopeFromRequestConfigWhenTargetTableSet() {
+        var entity = request(ErasureStatus.PENDING_SCOPE_AI);
+        entity.setSubjectType(null);
+        entity.setSubjectIdentifier(null);
+        entity.setTargetTable("audit_events");
+        entity.setRawWhere("created_at < '2020-01-01'");
+        when(requestRepository.findByIdForUpdate(REQ)).thenReturn(Optional.of(entity));
+
+        analyzer.onSubmitted(new ErasureRequestSubmittedEvent(REQ, ORG, DS));
+
+        assertThat(entity.getStatus()).isEqualTo(ErasureStatus.PENDING_REVIEW);
+        assertThat(entity.getScopeSnapshot()).contains("audit_events");
+        // The request carries its own scope, so enabled policies are not consulted.
+        verify(policyRepository, never()).findAllByDatasourceIdAndEnabledTrue(any());
+    }
+
+    @Test
     void onSubmitted_skipsWhenMissing() {
         when(requestRepository.findByIdForUpdate(REQ)).thenReturn(Optional.empty());
         analyzer.onSubmitted(new ErasureRequestSubmittedEvent(REQ, ORG, DS));

@@ -14,6 +14,11 @@ import {
   type PolicyListFilters,
 } from '@/api/lifecycle';
 import { listDatasources } from '@/api/datasources';
+import { ErasureConfigForm } from '@/components/lifecycle/ErasureConfigForm';
+import {
+  configToPayload,
+  type ErasureConfigFormValues,
+} from '@/pages/lifecycle/erasureConfigForm';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import {
@@ -33,18 +38,17 @@ import type {
 
 const PAGE_SIZE = 20;
 
-interface PolicyFormValues {
+interface PolicyFormValues extends ErasureConfigFormValues {
   datasource_id: string;
   name: string;
   description?: string;
-  target_table?: string;
-  target_columns?: string[];
   classification_tag?: string;
   timestamp_column: string;
   retention_window: string;
   action: LifecycleAction;
   transform_type?: LifecycleTransform;
   soft_delete_column?: string;
+  cron_schedule?: string;
   enabled: boolean;
 }
 
@@ -316,13 +320,14 @@ function CreatePolicyModal({
         form={form}
         layout="vertical"
         initialValues={{ action: 'HARD_DELETE', enabled: true, timestamp_column: 'created_at' }}
-        onFinish={(values) =>
+        onFinish={(values) => {
+          const config = configToPayload(values);
           onSubmit({
             datasource_id: values.datasource_id,
             name: values.name.trim(),
             description: values.description?.trim() || null,
-            target_table: values.target_table?.trim() || null,
-            target_columns: values.target_columns ?? [],
+            target_table: config.target_table,
+            target_columns: config.target_columns,
             classification_tag: values.classification_tag?.trim() || null,
             timestamp_column: values.timestamp_column.trim(),
             retention_window: values.retention_window.trim(),
@@ -330,9 +335,12 @@ function CreatePolicyModal({
             transform_type: values.action === 'PSEUDONYMIZE' ? values.transform_type : null,
             soft_delete_column:
               values.action === 'SOFT_DELETE' ? values.soft_delete_column?.trim() || null : null,
+            conditions: config.conditions,
+            raw_where: config.raw_where,
+            cron_schedule: values.cron_schedule?.trim() || null,
             enabled: values.enabled,
-          })
-        }
+          });
+        }}
       >
         <Form.Item
           name="datasource_id"
@@ -364,17 +372,7 @@ function CreatePolicyModal({
         >
           <Input.TextArea rows={2} maxLength={2000} showCount />
         </Form.Item>
-        <Form.Item
-          name="target_table"
-          label={t('lifecycle.policies.label_target_table')}
-          extra={t('lifecycle.policies.target_help')}
-          rules={[{ max: 255, message: t('validation.lifecycle_target_table_size') }]}
-        >
-          <Input maxLength={255} />
-        </Form.Item>
-        <Form.Item name="target_columns" label={t('lifecycle.policies.label_target_columns')}>
-          <Select mode="tags" tokenSeparators={[',']} open={false} />
-        </Form.Item>
+        <ErasureConfigForm form={form} />
         <Form.Item
           name="classification_tag"
           label={t('lifecycle.policies.label_classification_tag')}
@@ -429,6 +427,14 @@ function CreatePolicyModal({
             <Input placeholder="deleted_at" maxLength={255} />
           </Form.Item>
         )}
+        <Form.Item
+          name="cron_schedule"
+          label={t('lifecycle.policies.label_cron_schedule')}
+          extra={t('lifecycle.policies.cron_schedule_help')}
+          rules={[{ max: 100, message: t('validation.lifecycle_cron_schedule_size') }]}
+        >
+          <Input placeholder="0 0 3 * * *" maxLength={100} />
+        </Form.Item>
         <Form.Item name="enabled" label={t('lifecycle.policies.label_enabled')} valuePropName="checked">
           <Switch />
         </Form.Item>

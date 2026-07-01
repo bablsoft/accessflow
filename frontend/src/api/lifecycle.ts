@@ -13,7 +13,8 @@ import type {
 
 const POLICY_BASE = '/api/v1/lifecycle/policies';
 const ERASURE_BASE = '/api/v1/lifecycle/erasure-requests';
-const ADMIN_ERASURE_BASE = '/api/v1/admin/lifecycle/erasure-requests';
+// AF-519: review is review-plan based and reachable by REVIEWER-eligible users, not admin-only.
+const ERASURE_REVIEW_BASE = '/api/v1/lifecycle/erasure-reviews';
 
 export interface PolicyListFilters {
   page?: number;
@@ -98,19 +99,19 @@ export async function listErasureQueue(
   const params: Record<string, number> = {};
   if (typeof filters.page === 'number') params.page = filters.page;
   if (typeof filters.size === 'number') params.size = filters.size;
-  const { data } = await apiClient.get<ErasureRequestPage>(ADMIN_ERASURE_BASE, { params });
+  const { data } = await apiClient.get<ErasureRequestPage>(ERASURE_REVIEW_BASE, { params });
   return data;
 }
 
 export async function approveErasure(id: string, comment?: string): Promise<ErasureRequest> {
-  const { data } = await apiClient.post<ErasureRequest>(`${ADMIN_ERASURE_BASE}/${id}/approve`, {
+  const { data } = await apiClient.post<ErasureRequest>(`${ERASURE_REVIEW_BASE}/${id}/approve`, {
     comment,
   });
   return data;
 }
 
 export async function rejectErasure(id: string, comment?: string): Promise<ErasureRequest> {
-  const { data } = await apiClient.post<ErasureRequest>(`${ADMIN_ERASURE_BASE}/${id}/reject`, {
+  const { data } = await apiClient.post<ErasureRequest>(`${ERASURE_REVIEW_BASE}/${id}/reject`, {
     comment,
   });
   return data;

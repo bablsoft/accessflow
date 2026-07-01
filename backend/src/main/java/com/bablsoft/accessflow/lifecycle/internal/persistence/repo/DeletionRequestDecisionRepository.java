@@ -11,5 +11,9 @@ public interface DeletionRequestDecisionRepository
 
     List<DeletionRequestDecisionEntity> findAllByRequestId(UUID requestId);
 
+    List<DeletionRequestDecisionEntity> findAllByRequestIdOrderByCreatedAtAsc(UUID requestId);
+
+    List<DeletionRequestDecisionEntity> findAllByRequestIdAndStage(UUID requestId, int stage);
+
     boolean existsByRequestIdAndReviewerId(UUID requestId, UUID reviewerId);
 }
