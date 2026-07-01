@@ -79,6 +79,7 @@ export function memberToBody(m: DraftMember): RequestGroupItemBody {
   }
   return {
     target_kind: 'API_CALL',
+    transactional: false,
     api_connector_id: m.connectorId,
     operation_id: m.operationId,
     verb: m.verb,

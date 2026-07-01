@@ -16,7 +16,7 @@ record UpdateRequestGroupRequest(
         String name,
         @Size(max = 4000, message = "{validation.request_group.description.size}")
         String description,
-        boolean continueOnError,
+        Boolean continueOnError,
         @NotEmpty(message = "{validation.request_group.items.required}")
         @Valid
         List<RequestGroupItemRequest> items) {
@@ -26,6 +26,6 @@ record UpdateRequestGroupRequest(
         var order = new AtomicInteger();
         var inputs = items.stream().map(i -> i.toInput(order.getAndIncrement())).toList();
         return new UpdateRequestGroupCommand(requestGroupId, organizationId, callerUserId, admin, name,
-                description, continueOnError, inputs);
+                description, continueOnError != null && continueOnError, inputs);
     }
 }

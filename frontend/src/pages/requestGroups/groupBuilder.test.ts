@@ -36,6 +36,7 @@ describe('groupBuilder', () => {
     m.requestBody = '{"a":1}';
     expect(memberToBody(m)).toEqual({
       target_kind: 'API_CALL',
+      transactional: false,
       api_connector_id: 'c-1',
       operation_id: null,
       verb: 'POST',
