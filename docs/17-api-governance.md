@@ -171,13 +171,52 @@ executes immediately, opens a mandatory retro-review in `break_glass_events`
 draft via `ApiCallAnalyzer.generateApiCall`, enabled only for connectors with a parsed schema and
 `text_to_api_enabled`. A debounced risk preview is at `POST /api/v1/api-requests/analyze`.
 
+## 5. Masking & classification (AF-518)
+
+Connector-level governance of API responses, mirroring datasource dynamic masking (AF-381) and
+data-classification tagging (AF-447), adapted to non-tabular bodies. Because a response field isn't a
+column, a mask/tag targets it four ways via the `api_masking_matcher_type` enum:
+
+- `SCHEMA_FIELD` — a field of a parsed schema operation (`operation_id` + `field_ref`); resolved to a
+  JSON dot-path (the field reference is treated as the response path).
+- `JSON_PATH` — a dot-path into the JSON body (e.g. `user.email`), descending through arrays; a path
+  landing on a sub-tree masks every leaf beneath it.
+- `XML_PATH` — an XPath into an XML/SOAP body, evaluated with an XXE-hardened parser (same
+  `DocumentBuilderFactory` setup as `WsdlSchemaParser`).
+- `REGEX` — a regular expression over a JSON or text body; the first capturing group (or the whole
+  match when there is none) is masked.
+
+**Masking policies** (`api_connector_masking_policy`, admin CRUD under
+`/api-connectors/{id}/masking-policies`) carry a `MaskingStrategy` + `strategy_params` and
+`reveal_to_roles`/`reveal_to_group_ids`/`reveal_to_user_ids`. `ApiConnectorMaskingResolutionService`
+resolves the policies that *apply* to a submitter (a requester in any reveal list sees the unmasked
+value — same precedence as the SQL path, resolved via `core.api.UserQueryService` +
+`UserGroupService`). `ApiExecutionService` resolves them on `execute()`/`executeInline()`, **merges**
+the result with the legacy per-permission `restricted_response_fields` (FULL masks, back-compat), and
+`ApiResponseMasker.mask(body, contentType, masks)` applies them — JSON-tree masks to JSON bodies,
+XPath masks to XML bodies, regex over whatever remains — reusing `core.api.ColumnMasker.apply`. The
+body is masked **once**, before the snapshot is stored, so the raw value never persists. Applied
+policy ids are recorded on the `API_REQUEST_EXECUTED` audit metadata.
+
+**Classification tags** (`api_connector_classification_tag`, admin CRUD under
+`/api-connectors/{id}/classification-tags`) tag a field (`operation_id` + `field_ref` + matcher) with
+PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE. Tagging auto-derives a masking policy from
+`ApiConnectorClassificationDefaults` (PII/GDPR/FINANCIAL→PARTIAL(visible_suffix=4), PCI/PHI→FULL,
+SENSITIVE→HASH; idempotent), and `ApiConnectorClassificationRiskBooster` raises the apigov AI
+analyzer's risk for calls to a classified operation (PCI/PHI +30, FINANCIAL +20, PII/GDPR +15,
+SENSITIVE +10 — strongest weight, clamped, never lowers the LLM verdict; fully fail-safe).
+`GET /api-connectors/{id}/classification-tags/derivation-preview` previews the aggregated review
+posture + masking suggestions (suggested, never auto-applied).
+
 ---
 
 ## Audit & notifications
 
 Every connector/schema/permission/request action writes a tamper-evident `audit_log` row via
 `audit.api.AuditLogService`: `API_CONNECTOR_CREATED`/`_UPDATED`/`_DELETED`, `API_SCHEMA_UPLOADED`/
-`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED` (resource `API_CONNECTOR`), and
+`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED`,
+`API_CONNECTOR_MASKING_POLICY_CREATED`/`_UPDATED`/`_DELETED`,
+`API_CONNECTOR_CLASSIFICATION_TAG_ADDED`/`_REMOVED` (resource `API_CONNECTOR`), and
 `API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`
 (resource `API_REQUEST`) — delivering the full audit of which APIs are called, how, and by whom.
 

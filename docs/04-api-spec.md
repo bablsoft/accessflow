@@ -4389,6 +4389,19 @@ secrets themselves are never returned.
 | `POST` | `/api-connectors/{id}/permissions` | **Admin.** Grant/update a user's access (`201`): `userId`, `canRead`, `canWrite`, `canBreakGlass`, `expiresAt` (JIT), `allowedOperations` (subset), `restrictedResponseFields` (dot-paths masked in responses). |
 | `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
 
+### Connector response masking & classification (AF-518)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api-connectors/{connectorId}/masking-policies` | **Admin.** List connector-level response-masking policies. Returns `{ content: [...] }`. |
+| `POST` | `/api-connectors/{connectorId}/masking-policies` | **Admin.** Create a masking policy (`201`): `matcherType` (`SCHEMA_FIELD`/`JSON_PATH`/`XML_PATH`/`REGEX`), `operationId` (required for `SCHEMA_FIELD`), `fieldRef`, `strategy` (`masking_strategy`), `strategyParams`, `revealToRoles`/`revealToGroupIds`/`revealToUserIds`, `enabled`. `422 ILLEGAL_API_MASKING_POLICY` on a bad matcher / params / reveal target. |
+| `PUT` | `/api-connectors/{connectorId}/masking-policies/{policyId}` | **Admin.** Update a masking policy. |
+| `DELETE` | `/api-connectors/{connectorId}/masking-policies/{policyId}` | **Admin.** Delete a masking policy (`204`). |
+| `GET` | `/api-connectors/{connectorId}/classification-tags` | **Admin.** List data-classification tags. Returns `{ content: [...] }`. |
+| `POST` | `/api-connectors/{connectorId}/classification-tags` | **Admin.** Tag a response field (`201`): `matcherType`, `operationId`, `fieldRef`, `classifications` (≥1 of PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE), `note`, `applyMasking`. One tag per classification; `applyMasking` idempotently derives a masking policy. Returns `{ content: [...] }`. |
+| `DELETE` | `/api-connectors/{connectorId}/classification-tags/{tagId}` | **Admin.** Remove a classification tag (`204`; keeps the derived masking policy). |
+| `GET` | `/api-connectors/{connectorId}/classification-tags/derivation-preview` | **Admin.** Preview the aggregated review posture + masking suggestions implied by the connector's tags (suggested, never auto-applied). |
+
 ### Governed API requests
 
 | Method | Path | Description |

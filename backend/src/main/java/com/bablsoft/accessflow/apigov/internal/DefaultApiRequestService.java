@@ -185,9 +185,18 @@ public class DefaultApiRequestService implements ApiRequestService {
             throw new ApiRequestPermissionException("Only the submitter can execute an API request");
         }
         var executed = executionService.execute(id);
-        audit(AuditAction.API_REQUEST_EXECUTED, executed, null, null,
-                Map.of("status", executed.getStatus().name()));
+        audit(AuditAction.API_REQUEST_EXECUTED, executed, null, null, executedMetadata(executed));
         return toDetailView(executed);
+    }
+
+    private static Map<String, Object> executedMetadata(ApiRequestEntity executed) {
+        var metadata = new java.util.LinkedHashMap<String, Object>();
+        metadata.put("status", executed.getStatus().name());
+        var policyIds = executed.getAppliedMaskingPolicyIds();
+        if (policyIds != null && !policyIds.isEmpty()) {
+            metadata.put("appliedMaskingPolicyIds", policyIds.stream().map(UUID::toString).toList());
+        }
+        return metadata;
     }
 
     private ApiConnectorUserPermissionEntity enforcePermission(ApiConnectorEntity connector,

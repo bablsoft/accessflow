@@ -3,6 +3,7 @@ import type {
   AccessGrantStatus,
   ApiAuthMethod,
   ApiBodyType,
+  ApiMaskingMatcherType,
   ApiProtocol,
   ApiSchemaType,
   ErasureStatus,
@@ -202,6 +203,16 @@ export const DATA_CLASSIFICATIONS: readonly DataClassification[] = [
 
 export const dataClassificationLabel = (t: TFunction, v: DataClassification): string =>
   t(`enums.data_classification.${v}` as const);
+
+export const API_MASKING_MATCHER_TYPES: readonly ApiMaskingMatcherType[] = [
+  'SCHEMA_FIELD',
+  'JSON_PATH',
+  'XML_PATH',
+  'REGEX',
+] as const;
+
+export const apiMaskingMatcherTypeLabel = (t: TFunction, v: ApiMaskingMatcherType): string =>
+  t(`enums.api_masking_matcher_type.${v}` as const);
 
 // ── Routing policies ──────────────────────────────────────────────────────────
 export const QUERY_TYPES: readonly QueryType[] = [

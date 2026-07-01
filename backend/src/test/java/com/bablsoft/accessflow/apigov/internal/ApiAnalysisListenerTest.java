@@ -42,6 +42,7 @@ class ApiAnalysisListenerTest {
     @Mock private ApiSchemaService schemaService;
     @Mock private ApiCallAnalyzer apiCallAnalyzer;
     @Mock private AiAnalysisPersistenceService persistenceService;
+    @Mock private ApiConnectorClassificationRiskBooster classificationRiskBooster;
     @Mock private ApplicationEventPublisher eventPublisher;
 
     private ApiAnalysisListener listener;
@@ -52,8 +53,11 @@ class ApiAnalysisListenerTest {
     @BeforeEach
     void setUp() {
         listener = new ApiAnalysisListener(requestRepository, connectorRepository, schemaService,
-                apiCallAnalyzer, persistenceService, eventPublisher, JsonMapper.builder().build());
+                apiCallAnalyzer, persistenceService, classificationRiskBooster, eventPublisher,
+                JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
+        lenient().when(classificationRiskBooster.boost(any(), any(), any(), any()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     private ApiRequestEntity request() {

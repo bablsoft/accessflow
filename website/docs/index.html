@@ -1145,6 +1145,20 @@
             are granted.
           </p>
           <p>
+            <strong>Mask &amp; classify responses.</strong> On the connector's <em>Masking</em> and
+            <em>Classification</em> tabs (admin), define connector-level <em>masking policies</em> that
+            redact response fields before the snapshot is stored. Because API responses aren't columnar,
+            a policy targets a field four ways — a <em>schema field</em> (operation + field from the
+            parsed catalog), a <em>JSON path</em>, an <em>XML path</em> (XPath), or a <em>regex</em> —
+            each with a masking strategy (full, partial, hash, email, format-preserving) and
+            role / group / user <em>reveal</em> scoping (a requester in a reveal list sees the unmasked
+            value; no implicit admin bypass). <em>Data-classification tags</em> (PII, PCI, PHI, GDPR,
+            FINANCIAL, SENSITIVE) on a field auto-derive a masking policy and raise the AI risk score for
+            calls to the operation, with a derivation preview of the suggested handling. Masking is
+            applied once, before storage, so raw values never persist, and the policy ids that applied
+            are recorded in the execution audit.
+          </p>
+          <p>
             <strong>Use it.</strong> In the <em>API editor</em> (<code>/api-editor</code>) a user picks a
             connector, searches the operation catalog (or writes a free-form method + path), and composes
             the call like Postman — query parameters, custom headers (over the connector's read-only

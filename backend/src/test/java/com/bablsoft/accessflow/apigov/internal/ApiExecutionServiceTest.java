@@ -49,6 +49,7 @@ class ApiExecutionServiceTest {
     @Mock private ConnectorOAuth2TokenService oauth2TokenService;
     @Mock private ApiCallExecutor executor;
     @Mock private ApiResponseMasker responseMasker;
+    @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingResolutionService maskingResolutionService;
     @Mock private ApiRequestStateService stateService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -61,9 +62,12 @@ class ApiExecutionServiceTest {
     @BeforeEach
     void setUp() {
         service = new ApiExecutionService(requestRepository, connectorRepository, permissionRepository,
-                encryptionService, authApplier, oauth2TokenService, executor, responseMasker, stateService,
+                encryptionService, authApplier, oauth2TokenService, executor, responseMasker,
+                maskingResolutionService, stateService,
                 eventPublisher, JsonMapper.builder().build(),
                 new ApigovRequestProperties(5_242_880L, 8_000_000L, 65_536L));
+        lenient().when(maskingResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(java.util.List.of());
     }
 
     private ApiRequestEntity approved() {
@@ -97,7 +101,7 @@ class ApiExecutionServiceTest {
         var perm = new ApiConnectorUserPermissionEntity();
         perm.setRestrictedResponseFields(new String[]{"ssn"});
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.of(perm));
-        when(responseMasker.mask(any(), any())).thenReturn("{\"ssn\":\"***\"}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{\"ssn\":\"***\"}");
 
         var result = service.execute(requestId);
 
@@ -121,7 +125,7 @@ class ApiExecutionServiceTest {
         when(executor.execute(captor.capture()))
                 .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("{}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         var result = service.execute(requestId);
 
@@ -142,7 +146,7 @@ class ApiExecutionServiceTest {
         when(executor.execute(captor.capture()))
                 .thenReturn(new ApiCallResult(200, 5, 2, false, "{}", "application/json"));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("{}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         service.execute(requestId);
 
@@ -185,7 +189,7 @@ class ApiExecutionServiceTest {
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of("Authorization", "Bearer t"));
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(204, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         service.execute(requestId);
 
@@ -203,7 +207,7 @@ class ApiExecutionServiceTest {
         when(oauth2TokenService.accessToken(c)).thenReturn("tok-1");
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(200, 5, 2, false, "{}", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("{}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         service.execute(requestId);
 
@@ -225,7 +229,7 @@ class ApiExecutionServiceTest {
                 .thenReturn(new ApiCallResult(401, 5, 0, false, "", null))
                 .thenReturn(new ApiCallResult(200, 6, 2, false, "{}", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("{}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{}");
 
         var result = service.execute(requestId);
 
@@ -247,7 +251,7 @@ class ApiExecutionServiceTest {
         when(oauth2TokenService.fetchFresh(c)).thenReturn("fresh");
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         var result = service.execute(requestId);
 
@@ -266,7 +270,7 @@ class ApiExecutionServiceTest {
         when(authApplier.authHeaders(any(), any(), anyInt())).thenReturn(java.util.Map.of());
         when(executor.execute(any(ApiCallRequest.class))).thenReturn(new ApiCallResult(401, 5, 0, false, "", null));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId)).thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("");
 
         service.execute(requestId);
 
@@ -299,7 +303,7 @@ class ApiExecutionServiceTest {
                 .thenReturn(new ApiCallResult(200, 9, 5, false, "{\"ssn\":\"x\"}", "application/json"));
         when(permissionRepository.findByConnectorIdAndUserId(connectorId, userId))
                 .thenReturn(Optional.empty());
-        when(responseMasker.mask(any(), any())).thenReturn("{\"ssn\":\"***\"}");
+        when(responseMasker.mask(any(), any(), any())).thenReturn("{\"ssn\":\"***\"}");
 
         var result = service.executeInline(new ApiInlineExecutionService.ApiInlineExecutionCommand(
                 connectorId, orgId, userId, "op", "GET", "/x", null, null, ApiBodyType.RAW, null, null,

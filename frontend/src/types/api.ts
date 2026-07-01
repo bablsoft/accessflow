@@ -2385,6 +2385,76 @@ export interface ApiOperation {
   write: boolean;
 }
 
+// --- AF-518: API connector masking & classification ---
+
+export type ApiMaskingMatcherType = 'SCHEMA_FIELD' | 'JSON_PATH' | 'XML_PATH' | 'REGEX';
+
+export interface ApiConnectorMaskingPolicy {
+  id: string;
+  connector_id: string;
+  matcher_type: ApiMaskingMatcherType;
+  operation_id: string | null;
+  field_ref: string;
+  strategy: MaskingStrategy;
+  strategy_params: Record<string, string>;
+  reveal_to_roles: Role[];
+  reveal_to_group_ids: string[];
+  reveal_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApiConnectorMaskingPolicyInput {
+  matcher_type: ApiMaskingMatcherType;
+  operation_id?: string | null;
+  field_ref: string;
+  strategy: MaskingStrategy;
+  strategy_params?: Record<string, string>;
+  reveal_to_roles?: string[];
+  reveal_to_group_ids?: string[];
+  reveal_to_user_ids?: string[];
+  enabled?: boolean;
+}
+
+export type UpdateApiConnectorMaskingPolicyInput = CreateApiConnectorMaskingPolicyInput;
+
+export interface ApiConnectorClassificationTag {
+  id: string;
+  connector_id: string;
+  operation_id: string | null;
+  field_ref: string;
+  matcher_type: ApiMaskingMatcherType;
+  classification: DataClassification;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApiConnectorClassificationTagInput {
+  matcher_type: ApiMaskingMatcherType;
+  operation_id?: string | null;
+  field_ref: string;
+  classifications: DataClassification[];
+  note?: string;
+  apply_masking?: boolean;
+}
+
+export interface ApiConnectorClassificationMaskingSuggestion {
+  matcher_type: ApiMaskingMatcherType;
+  operation_id: string | null;
+  field_ref: string;
+  classification: DataClassification;
+  suggested_strategy: MaskingStrategy;
+  suggested_params: Record<string, string>;
+  already_applied: boolean;
+}
+
+export interface ApiConnectorClassificationDerivation {
+  suggested_review_posture: ClassificationReviewPosture;
+  masking_suggestions: ApiConnectorClassificationMaskingSuggestion[];
+}
+
 export interface ApiReviewDecision {
   id: string;
   reviewer_id: string;
