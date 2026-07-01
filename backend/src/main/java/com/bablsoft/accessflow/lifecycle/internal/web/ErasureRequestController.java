@@ -46,7 +46,8 @@ class ErasureRequestController {
         var caller = currentClaims(authentication);
         var view = erasureRequestService.submit(new SubmitErasureCommand(
                 caller.organizationId(), body.datasourceId(), body.subjectType(),
-                body.subjectIdentifier(), body.reason(), caller.userId()));
+                body.subjectIdentifier(), body.targetTable(), body.targetColumns(),
+                body.conditions(), body.rawWhere(), body.reason(), caller.userId()));
         auditWriter.record(AuditAction.DATA_ERASURE_REQUESTED, AuditResourceType.DELETION_REQUEST,
                 view.id(), caller, metadata(view), auditContext);
         return ErasureRequestResponse.from(view);
@@ -87,10 +88,18 @@ class ErasureRequestController {
     }
 
     private static Map<String, Object> metadata(ErasureRequestView view) {
-        return Map.of(
-                "datasourceId", view.datasourceId().toString(),
-                "subjectType", view.subjectType().name(),
-                "subjectIdentifier", view.subjectIdentifier());
+        var meta = new java.util.LinkedHashMap<String, Object>();
+        meta.put("datasourceId", view.datasourceId().toString());
+        if (view.subjectType() != null) {
+            meta.put("subjectType", view.subjectType().name());
+        }
+        if (view.subjectIdentifier() != null) {
+            meta.put("subjectIdentifier", view.subjectIdentifier());
+        }
+        if (view.targetTable() != null) {
+            meta.put("targetTable", view.targetTable());
+        }
+        return meta;
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

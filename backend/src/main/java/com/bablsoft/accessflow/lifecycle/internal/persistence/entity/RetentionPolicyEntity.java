@@ -72,6 +72,25 @@ public class RetentionPolicyEntity {
     @Column(name = "soft_delete_column", columnDefinition = "text")
     private String softDeleteColumn;
 
+    // AF-519: structured predicate list (JSONB) — { "match_type": "ALL", "conditions": [...] }.
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private String conditions;
+
+    // AF-519: raw WHERE escape hatch (admin-authored, JSqlParser-validated).
+    @Column(name = "raw_where", columnDefinition = "text")
+    private String rawWhere;
+
+    // AF-519: optional per-policy cron schedule, decoupled from the global scan interval.
+    @Column(name = "cron_schedule", columnDefinition = "text")
+    private String cronSchedule;
+
+    @Column(name = "last_run_at")
+    private Instant lastRunAt;
+
+    @Column(name = "next_run_at")
+    private Instant nextRunAt;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

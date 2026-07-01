@@ -31,6 +31,14 @@ public interface DeletionRequestRepository extends JpaRepository<DeletionRequest
     Page<DeletionRequestEntity> findAllByOrganizationIdAndRequestedBy(
             UUID organizationId, UUID requestedBy, Pageable pageable);
 
+    List<DeletionRequestEntity> findAllByOrganizationIdAndStatusOrderByCreatedAtAsc(
+            UUID organizationId, ErasureStatus status);
+
     @Query("select d.id from DeletionRequestEntity d where d.status = :status")
     List<UUID> findIdsByStatus(@Param("status") ErasureStatus status);
+
+    @Query("select d.id from DeletionRequestEntity d where d.status = "
+            + "com.bablsoft.accessflow.lifecycle.api.ErasureStatus.PENDING_REVIEW "
+            + "and d.updatedAt < :cutoff")
+    List<UUID> findTimedOutPendingReviewIds(@Param("cutoff") java.time.Instant cutoff);
 }

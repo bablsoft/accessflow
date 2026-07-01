@@ -954,7 +954,9 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ApiRequestRunJob` | apigov | `apiRequestRunJob` | `accessflow.apigov.scheduled-run-poll-interval` | `PT1M` |
 | `ApiRequestTimeoutJob` | apigov | `apiRequestTimeoutJob` | `accessflow.apigov.timeout-poll-interval` | `PT5M` |
 | `RetentionPolicyScanJob` | lifecycle | `retentionPolicyScanJob` | `accessflow.lifecycle.policy-scan-interval` | `PT1H` |
+| `RetentionPolicyExecutionJob` | lifecycle | `retentionPolicyExecutionJob` | `accessflow.lifecycle.policy-execution-interval` | `PT5M` |
 | `ErasureExecutionJob` | lifecycle | `erasureExecutionJob` | `accessflow.lifecycle.erasure-execution-interval` | `PT1M` |
+| `ErasureReviewTimeoutJob` | lifecycle | `erasureReviewTimeoutJob` | `accessflow.lifecycle.review-timeout-poll-interval` | `PT5M` |
 | `ScheduledGroupRunJob` | requestgroups | `scheduledGroupRunJob` | `accessflow.requestgroups.run-poll-interval` | `PT1M` |
 | `GroupTimeoutJob` | requestgroups | `groupTimeoutJob` | `accessflow.requestgroups.timeout-poll-interval` | `PT5M` |
 
@@ -1077,6 +1079,38 @@ proof-of-deletion audit row (affected rows, tables, method), then transitions th
 `EXECUTED` (or `FAILED` with the offending tables). Per-table failures are isolated so one bad table
 fails only that request. The subject-linking column is currently derived from `subject_type`
 (`EMAIL`→`email`, `USER_ID`→`user_id`); AI-assisted per-table column detection is a follow-up.
+
+**Configurable & request-based erasure (AF-519).** Both the admin retention rule and the user erasure
+request share one richer configuration shape (target table/columns + structured conditions + a raw
+WHERE escape hatch), compiled by the single `ErasurePredicateCompiler`: each structured
+`ErasureCondition` (`lifecycle.api`, AND-combined) becomes a **bound** `RowSecurityDirective` (values
+are JDBC-bound, negation flips to the complementary operator), the retention age window is an inlined
+UTC-constant clause, and the `rawWhere` is validated via `proxy.api.SqlParserService` (JSqlParser) and
+inlined as an ANDed clause — never concatenating user values. `ErasureConditionValidator` rejects
+conditions/raw WHERE on non-SQL datasources and bad operator arity / unparseable WHERE / bad cron at
+save/submit time (`InvalidErasureConfigException` → 422). **Retention execution is now wired**:
+`RetentionPolicyScanService` gates staging on the optional per-policy cron
+(`CronExpression.next(lastRunAt)`, advancing `last_run_at`/`next_run_at`), and the new
+`RetentionPolicyExecutionService`/`RetentionPolicyExecutionJob` drain STAGED `RETENTION_POLICY` runs
+through the proxy — HARD_DELETE issues a governed `DELETE`, SOFT_DELETE relies on the datasource's
+soft-delete rewrite, and PSEUDONYMIZE is recorded as read-time-enforced (no destructive batch write,
+consistent with the read-time masking model) — writing a `RETENTION_POLICY_EXECUTED` audit row.
+`ErasureScopeAnalyzer` derives scope from the request's own `target_table` when present (else the
+enabled-policy derivation), and `ErasureExecutionService` builds predicates from the request's config
+(a subject-only request is byte-for-byte the pre-AF-519 single-directive path).
+
+**Review-plan-based erasure review (AF-519).** `DefaultErasureReviewService` was reworked from
+admin-only, single-stage to mirror `DefaultAccessReviewService`: it resolves the datasource
+`ReviewPlanSnapshot`, computes the current stage from recorded decisions, checks the caller is a plan
+approver at that stage within the datasource's scoped-reviewer set (`ReviewerEligibilityService`), and
+treats any ADMIN as a backstop approver (finalising with `minApprovals=1, isLastStage=true` when the
+plan does not route to them). The **self-approval guard is preserved** (`ErasureSelfApprovalException`).
+The package-private `ErasureRequestStateService` (mirrors `AccessGrantRequestStateService`) is the sole
+owner of `deletion_requests.status` for review transitions, pessimistic-locked and idempotent on
+`(request_id, reviewer_id, stage)`. The reviewer surface moved to REVIEWER-reachable
+`/api/v1/lifecycle/erasure-reviews` (`ErasureReviewController`, `hasAnyRole('REVIEWER','ADMIN')`), and
+`ErasureReviewTimeoutJob` auto-rejects requests stuck in `PENDING_REVIEW` past
+`accessflow.lifecycle.review-timeout`. Cross-engine (NoSQL) conditions are out of scope for v1.
 
 ---
 

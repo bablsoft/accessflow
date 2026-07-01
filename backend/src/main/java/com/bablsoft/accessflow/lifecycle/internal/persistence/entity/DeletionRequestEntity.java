@@ -39,11 +39,27 @@ public class DeletionRequestEntity {
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(name = "subject_type", nullable = false, columnDefinition = "lifecycle_subject_type")
+    @Column(name = "subject_type", columnDefinition = "lifecycle_subject_type")
     private LifecycleSubjectType subjectType;
 
-    @Column(name = "subject_identifier", nullable = false, columnDefinition = "text")
+    @Column(name = "subject_identifier", columnDefinition = "text")
     private String subjectIdentifier;
+
+    // AF-519: rich config — a request may target a table/columns + structured conditions / raw WHERE
+    // instead of (or alongside) the subject shape above.
+    @Column(name = "target_table", columnDefinition = "text")
+    private String targetTable;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "target_columns", columnDefinition = "text[]")
+    private String[] targetColumns;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private String conditions;
+
+    @Column(name = "raw_where", columnDefinition = "text")
+    private String rawWhere;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)

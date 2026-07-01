@@ -1,4 +1,4 @@
-// AF-499 — Data Lifecycle Manager end-to-end.
+// AF-499 / AF-519 — Data Lifecycle Manager end-to-end (retention rules + review-plan-based erasure).
 //
 // NOTE (repo memory: e2e port 5173 collision): the main e2e stack binds the
 // frontend on host port 5173, which collides with a locally running dev app.
@@ -97,18 +97,21 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     subjectEmail = `subject-${randomUUID()}@example.com`;
     await submitErasureViaApi(request, submitterToken, datasource!.id, subjectEmail);
 
-    // Submitter sees their request in the self-service list.
+    // Submitter sees their request in the self-service list, and the reworked page (AF-519) offers
+    // the shared erasure-configuration form (target table + conditions + raw WHERE).
     const subCtx = await browser.newContext();
     try {
       const page = await subCtx.newPage();
       await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
       await page.goto('/lifecycle/erasure');
       await expect(page.getByText(subjectEmail, { exact: true })).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByText('Conditions', { exact: true }).first()).toBeVisible();
     } finally {
       await subCtx.close();
     }
 
-    // Admin approves it from the review queue (async scope detection → PENDING_REVIEW).
+    // Admin approves it from the review-plan-based review queue (AF-519: /lifecycle/erasure-reviews;
+    // an admin is the backstop reviewer). Async scope detection → PENDING_REVIEW first.
     const adminCtx = await browser.newContext();
     try {
       const page = await adminCtx.newPage();
@@ -116,7 +119,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
 
       const row = page.getByRole('row', { name: new RegExp(subjectEmail) });
       await expect(async () => {
-        await page.goto('/admin/lifecycle/erasure');
+        await page.goto('/lifecycle/erasure-reviews');
         await expect(row).toBeVisible({ timeout: 3_000 });
       }).toPass({ timeout: 30_000 });
 

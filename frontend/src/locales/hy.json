@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "Սուբյեկտի տեսակը պարտադիր է",
     "lifecycle_subject_identifier_required": "Սուբյեկտի նույնացուցիչը պարտադիր է",
     "lifecycle_subject_identifier_size": "Սուբյեկտի նույնացուցիչը առավելագույնը 255 նիշ",
-    "lifecycle_reason_max": "Պատճառը առավելագույնը 2000 նիշ"
+    "lifecycle_reason_max": "Պատճառը առավելագույնը 2000 նիշ",
+    "lifecycle_cron_schedule_size": "Cron ժամանակացույցը պետք է լինի առավելագույնը 100 նիշ",
+    "lifecycle_raw_where_size": "Չմշակված WHERE-ը պետք է լինի առավելագույնը 4000 նիշ",
+    "lifecycle_condition_column_required": "Պահանջվում է սյունակ"
   },
   "errors": {
     "auth_invalid": "Անվավեր էլ. փոստ կամ գաղտնաբառ։",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "JSON ուղի",
       "XML_PATH": "XML ուղի (XPath)",
       "REGEX": "Կանոնավոր արտահայտություն"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "not in",
+      "IS_NULL": "is null"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "Փոխակերպում",
       "label_soft_delete_column": "Փափուկ ջնջման սյունակ",
       "soft_delete_column_help": "Ջնջման ժամանակ սահմանվող նշիչ սյունակ (լռելյայն deleted_at)։",
-      "label_enabled": "Միացված"
+      "label_enabled": "Միացված",
+      "label_cron_schedule": "Cron ժամանակացույց",
+      "cron_schedule_help": "Ընտրովի Spring cron (6 դաշտ, օր. 0 0 3 * * *)։ Թողեք դատարկ՝ գլոբալ սկանավորման միջակայքն օգտագործելու համար։"
     },
     "preview": {
       "title": "Փորձնական նախադիտում",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "Սկսելու համար վերևում ուղարկեք հարցում։",
       "col_subject": "Սուբյեկտ",
       "col_status": "Կարգավիճակ",
-      "col_created": "Ուղարկված"
+      "col_created": "Ուղարկված",
+      "subject_help": "Ընտրովի։ Նշեք սուբյեկտ կամ օգտագործեք թիրախ աղյուսակը + ստորև պայմանները։"
     },
     "erasure_review": {
       "title": "Ջնջման վերանայման հերթ",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "Մերժման ոչ պարտադիր պատճառ…",
       "scope_label": "Հայտնաբերված շրջանակ",
       "no_scope": "Շրջանակը դեռ հայտնաբերված չէ"
+    },
+    "config": {
+      "label_target_table": "Թիրախ աղյուսակ",
+      "target_table_help": "Աղյուսակը, որին կիրառվում են պայմաններն ու չմշակված WHERE-ը։",
+      "label_target_columns": "Թիրախ սյունակներ",
+      "target_columns_placeholder": "Ավելացրեք սյունակներ (ստորակետերով)",
+      "conditions_title": "Պայմաններ",
+      "conditions_help": "Բոլոր պայմանները միավորվում են ԵՎ-ով։ ԿԱՄ-ի կամ ավելի բարդ տրամաբանության համար օգտագործեք ստորև չմշակված WHERE-ը։",
+      "condition_column_placeholder": "Սյունակ",
+      "condition_values_placeholder": "Արժեք(ներ)",
+      "condition_negate": "Ժխտել",
+      "condition_remove": "Հեռացնել պայմանը",
+      "add_condition": "Ավելացնել պայման",
+      "label_raw_where": "Չմշակված WHERE (առաջադեմ)",
+      "raw_where_help": "Բուլյան SQL արտահայտություն՝ վավերացված վերլուծիչով։ Միայն SQL տվյալների աղբյուրների համար։",
+      "custom_scope": "Հատուկ շրջանակ",
+      "n_conditions_one": "{{count}} պայման",
+      "n_conditions_other": "{{count}} պայման",
+      "has_raw_where": "չմշակված WHERE"
     }
   },
   "requestGroups": {

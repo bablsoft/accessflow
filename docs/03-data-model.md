@@ -1694,19 +1694,28 @@ The `lifecycle` module (migration **V103**) adds retention + right-to-erasure go
 
 ### retention_policies
 
-Per-datasource, admin-defined retention rule. Targets a `target_table` and/or `classification_tag`
-(at least one required, app-enforced) plus an optional `target_columns text[]`; a `retention_window`
-(ISO-8601 period/duration) measured against `timestamp_column`; an `action` (with `transform_type`
-required only for `PSEUDONYMIZE`, and an optional `soft_delete_column`); `enabled`. UUID PK,
-`@Version`, `organization_id`/`datasource_id`/`created_by` are bare UUIDs (no FK). Indexed by org,
-by enabled+org+datasource (scan job), and by datasource (proxy directive resolution).
+Per-datasource, admin-defined retention/erasure rule. Targets a `target_table` and/or
+`classification_tag` (at least one required, app-enforced) plus an optional `target_columns text[]`; a
+`retention_window` (ISO-8601 period/duration) measured against `timestamp_column`; an `action` (with
+`transform_type` required only for `PSEUDONYMIZE`, and an optional `soft_delete_column`); `enabled`.
+UUID PK, `@Version`, `organization_id`/`datasource_id`/`created_by` are bare UUIDs (no FK). Indexed by
+org, by enabled+org+datasource (scan job), and by datasource (proxy directive resolution).
+
+**AF-519 additive columns** (migration **V110**, all nullable): `conditions` JSONB (a structured
+AND-combined predicate list `{ "conditions": [{column, operator, values, negate}] }`), `raw_where`
+TEXT (a JSqlParser-validated raw WHERE escape hatch), `cron_schedule` TEXT (an optional Spring cron
+decoupled from the global scan interval), and `last_run_at`/`next_run_at` TIMESTAMPTZ cron bookkeeping.
+A partial index `idx_retention_policies_cron ON (next_run_at) WHERE cron_schedule IS NOT NULL AND
+enabled` backs the cron due-scan. Conditions/raw WHERE are SQL-only (rejected for NoSQL datasources).
 
 ### deletion_requests
 
-A right-to-erasure request keyed on a `subject_identifier` + `subject_type`, flowing the
-`erasure_status` state machine. Holds the nullable `ai_scope_analysis_id`, an immutable
-`scope_snapshot` JSONB, `estimated_rows`/`affected_rows`, `executed_at`, `failure_reason`. Indexed by
-org+status and a partial `PENDING_REVIEW` index for the review queue.
+A right-to-erasure request flowing the `erasure_status` state machine. Since AF-519 it may be driven
+by the legacy subject shape (`subject_type`/`subject_identifier`, now **nullable**) and/or a richer
+config: `target_table` TEXT, `target_columns text[]`, `conditions` JSONB, `raw_where` TEXT (V110, all
+additive). Holds the nullable `ai_scope_analysis_id`, an immutable `scope_snapshot` JSONB,
+`estimated_rows`/`affected_rows`, `executed_at`, `failure_reason`. Indexed by org+status and a partial
+`PENDING_REVIEW` index for the review queue (also used by the review-timeout job).
 
 ### deletion_request_decisions
 

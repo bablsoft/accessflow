@@ -60,15 +60,31 @@ class ErasureScopeAnalyzer {
 
     private String buildScopeSnapshot(DeletionRequestEntity entity) {
         Set<String> tables = new LinkedHashSet<>();
-        for (RetentionPolicyEntity policy
-                : policyRepository.findAllByDatasourceIdAndEnabledTrue(entity.getDatasourceId())) {
-            if (policy.getTargetTable() != null && !policy.getTargetTable().isBlank()) {
-                tables.add(policy.getTargetTable());
+        // AF-519: a request carrying its own target table scopes to that table directly; otherwise
+        // (legacy subject-only shape) the scope is derived from the datasource's enabled policies.
+        if (entity.getTargetTable() != null && !entity.getTargetTable().isBlank()) {
+            tables.add(entity.getTargetTable());
+        } else {
+            for (RetentionPolicyEntity policy
+                    : policyRepository.findAllByDatasourceIdAndEnabledTrue(entity.getDatasourceId())) {
+                if (policy.getTargetTable() != null && !policy.getTargetTable().isBlank()) {
+                    tables.add(policy.getTargetTable());
+                }
             }
         }
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("subjectType", entity.getSubjectType().name());
-        root.put("subjectIdentifier", entity.getSubjectIdentifier());
+        if (entity.getSubjectType() != null) {
+            root.put("subjectType", entity.getSubjectType().name());
+        }
+        if (entity.getSubjectIdentifier() != null) {
+            root.put("subjectIdentifier", entity.getSubjectIdentifier());
+        }
+        if (entity.getTargetTable() != null) {
+            root.put("targetTable", entity.getTargetTable());
+        }
+        if (entity.getRawWhere() != null) {
+            root.put("rawWhere", entity.getRawWhere());
+        }
         ArrayNode tableArray = root.putArray("tables");
         tables.forEach(tableArray::add);
         return objectMapper.writeValueAsString(root);

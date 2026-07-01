@@ -6,6 +6,7 @@ import type {
   ApiMaskingMatcherType,
   ApiProtocol,
   ApiSchemaType,
+  ErasureConditionOperator,
   ErasureStatus,
   LifecycleAction,
   LifecycleSubjectType,
@@ -448,6 +449,22 @@ export const ERASURE_STATUSES: readonly ErasureStatus[] = [
 
 export const erasureStatusLabel = (t: TFunction, v: ErasureStatus): string =>
   t(`enums.erasure_status.${v}` as const);
+
+// AF-519: structured erasure-condition operators (superset of row-security operators + IS_NULL).
+export const ERASURE_CONDITION_OPERATORS: readonly ErasureConditionOperator[] = [
+  'EQUALS',
+  'NOT_EQUALS',
+  'LESS_THAN',
+  'LESS_THAN_OR_EQUAL',
+  'GREATER_THAN',
+  'GREATER_THAN_OR_EQUAL',
+  'IN',
+  'NOT_IN',
+  'IS_NULL',
+] as const;
+
+export const erasureConditionOperatorLabel = (t: TFunction, v: ErasureConditionOperator): string =>
+  t(`enums.erasure_condition_operator.${v}` as const);
 
 // ── Request Groups: chaining & grouping (AF-501) ─────────────────────────────
 

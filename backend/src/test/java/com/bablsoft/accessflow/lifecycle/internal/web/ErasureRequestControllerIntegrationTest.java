@@ -112,7 +112,7 @@ class ErasureRequestControllerIntegrationTest {
     @Test
     void submitAdvancesToReviewThenAdminApproves() {
         var id = submitAndAwaitReview(userToken, "approve@example.com");
-        var res = mvc.post().uri("/api/v1/admin/lifecycle/erasure-requests/{id}/approve", id)
+        var res = mvc.post().uri("/api/v1/lifecycle/erasure-reviews/{id}/approve", id)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"comment\":\"approved\"}")
@@ -126,7 +126,7 @@ class ErasureRequestControllerIntegrationTest {
     @Test
     void adminRejects() {
         var id = submitAndAwaitReview(userToken, "reject@example.com");
-        var res = mvc.post().uri("/api/v1/admin/lifecycle/erasure-requests/{id}/reject", id)
+        var res = mvc.post().uri("/api/v1/lifecycle/erasure-reviews/{id}/reject", id)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"comment\":\"not valid\"}")
@@ -138,7 +138,7 @@ class ErasureRequestControllerIntegrationTest {
     @Test
     void submitterCannotApproveOwnRequest() {
         var id = submitAndAwaitReview(adminToken, "self@example.com");
-        var res = mvc.post().uri("/api/v1/admin/lifecycle/erasure-requests/{id}/approve", id)
+        var res = mvc.post().uri("/api/v1/lifecycle/erasure-reviews/{id}/approve", id)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}")
@@ -151,7 +151,7 @@ class ErasureRequestControllerIntegrationTest {
     @Test
     void listPendingExcludesOwnAndAdminSees() {
         submitAndAwaitReview(userToken, "queue@example.com");
-        var res = mvc.get().uri("/api/v1/admin/lifecycle/erasure-requests")
+        var res = mvc.get().uri("/api/v1/lifecycle/erasure-reviews")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
         assertThat(res).hasStatus(200);
         assertThat(res).bodyJson().extractingPath("$.content.length()").isEqualTo(1);
@@ -173,7 +173,7 @@ class ErasureRequestControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken).exchange()).hasStatus(204);
 
         var approvedId = submitAndAwaitReview(userToken, "locked@example.com");
-        mvc.post().uri("/api/v1/admin/lifecycle/erasure-requests/{id}/approve", approvedId)
+        mvc.post().uri("/api/v1/lifecycle/erasure-reviews/{id}/approve", approvedId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON).content("{}").exchange();
         var res = mvc.post().uri("/api/v1/lifecycle/erasure-requests/{id}/cancel", approvedId)
@@ -193,7 +193,7 @@ class ErasureRequestControllerIntegrationTest {
     @Test
     void approveReturns403ForNonAdmin() {
         var id = submitAndAwaitReview(userToken, "forbidden@example.com");
-        assertThat(mvc.post().uri("/api/v1/admin/lifecycle/erasure-requests/{id}/approve", id)
+        assertThat(mvc.post().uri("/api/v1/lifecycle/erasure-reviews/{id}/approve", id)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken)
                 .contentType(MediaType.APPLICATION_JSON).content("{}").exchange())
                 .hasStatus(403);

@@ -12,6 +12,11 @@ import {
   type ErasureListFilters,
 } from '@/api/lifecycle';
 import { listDatasources } from '@/api/datasources';
+import { ErasureConfigForm } from '@/components/lifecycle/ErasureConfigForm';
+import {
+  configToPayload,
+  type ErasureConfigFormValues,
+} from '@/pages/lifecycle/erasureConfigForm';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
@@ -26,10 +31,10 @@ import type { ErasureRequest, LifecycleSubjectType, SubmitErasureRequest } from 
 
 const PAGE_SIZE = 20;
 
-interface ErasureFormValues {
+interface ErasureFormValues extends ErasureConfigFormValues {
   datasource_id: string;
-  subject_type: LifecycleSubjectType;
-  subject_identifier: string;
+  subject_type?: LifecycleSubjectType;
+  subject_identifier?: string;
   reason?: string;
 }
 
@@ -85,15 +90,21 @@ export default function ErasureSubmitPage() {
           form={form}
           layout="vertical"
           initialValues={{ subject_type: 'EMAIL' }}
-          style={{ maxWidth: 560, marginBottom: 32 }}
-          onFinish={(values) =>
+          style={{ maxWidth: 640, marginBottom: 32 }}
+          onFinish={(values) => {
+            const config = configToPayload(values);
+            const subjectId = values.subject_identifier?.trim() || null;
             submitMutation.mutate({
               datasource_id: values.datasource_id,
-              subject_type: values.subject_type,
-              subject_identifier: values.subject_identifier.trim(),
+              subject_type: subjectId ? values.subject_type : null,
+              subject_identifier: subjectId,
+              target_table: config.target_table,
+              target_columns: config.target_columns,
+              conditions: config.conditions,
+              raw_where: config.raw_where,
               reason: values.reason?.trim() || null,
-            })
-          }
+            });
+          }}
         >
           <Form.Item
             name="datasource_id"
@@ -111,20 +122,18 @@ export default function ErasureSubmitPage() {
           <Form.Item
             name="subject_type"
             label={t('lifecycle.erasure.label_subject_type')}
-            rules={[{ required: true, message: t('validation.lifecycle_subject_type_required') }]}
           >
             <Select options={enumOptions(LIFECYCLE_SUBJECT_TYPES, lifecycleSubjectTypeLabel, t)} />
           </Form.Item>
           <Form.Item
             name="subject_identifier"
             label={t('lifecycle.erasure.label_subject_identifier')}
-            rules={[
-              { required: true, message: t('validation.lifecycle_subject_identifier_required') },
-              { max: 255, message: t('validation.lifecycle_subject_identifier_size') },
-            ]}
+            rules={[{ max: 255, message: t('validation.lifecycle_subject_identifier_size') }]}
+            tooltip={t('lifecycle.erasure.subject_help')}
           >
             <Input maxLength={255} placeholder="user@example.com" />
           </Form.Item>
+          <ErasureConfigForm form={form} />
           <Form.Item
             name="reason"
             label={t('lifecycle.erasure.label_reason')}
@@ -161,9 +170,9 @@ export default function ErasureSubmitPage() {
               {
                 title: t('lifecycle.erasure.col_subject'),
                 dataIndex: 'subject_identifier',
-                render: (v: string, r) => (
+                render: (v: string | null, r) => (
                   <div>
-                    <div style={{ fontSize: 13 }}>{v}</div>
+                    <div style={{ fontSize: 13 }}>{v ?? r.target_table ?? '—'}</div>
                     {r.datasource_name && (
                       <div className="mono muted" style={{ fontSize: 11 }}>
                         {r.datasource_name}

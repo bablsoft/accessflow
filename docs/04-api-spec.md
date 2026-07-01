@@ -4469,14 +4469,20 @@ Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated*
 |--------|------|-------------|
 | `GET` | `/lifecycle/policies` | **Admin.** List retention policies. Paginated (`page`, `size`). |
 | `GET` | `/lifecycle/policies/{id}` | **Admin.** Get a single policy. `404 RETENTION_POLICY_NOT_FOUND`. |
-| `POST` | `/lifecycle/policies` | **Admin.** Create a policy. `201`. Body: `{datasourceId, name, description?, targetTable?, targetColumns?, classificationTag?, timestampColumn, retentionWindow, action, transformType?, softDeleteColumn?, enabled?}`. `400 INVALID_RETENTION_POLICY` (`reason`: `NO_TARGET`/`TRANSFORM_REQUIRED`/`TRANSFORM_NOT_ALLOWED`/`INVALID_WINDOW`). |
+| `POST` | `/lifecycle/policies` | **Admin.** Create a policy. `201`. Body: `{datasourceId, name, description?, targetTable?, targetColumns?, classificationTag?, timestampColumn, retentionWindow, action, transformType?, softDeleteColumn?, conditions?, rawWhere?, cronSchedule?, enabled?}` (AF-519 adds `conditions`/`rawWhere`/`cronSchedule`). `400 INVALID_RETENTION_POLICY` (`reason`: `NO_TARGET`/`TRANSFORM_REQUIRED`/`TRANSFORM_NOT_ALLOWED`/`INVALID_WINDOW`); `422 INVALID_ERASURE_CONFIG` (`reason`: `CONDITION_COLUMN_REQUIRED`/`CONDITION_VALUE_ARITY`/`INVALID_RAW_WHERE`/`INVALID_CRON`/`UNSUPPORTED_DATASOURCE`). |
 | `PUT` | `/lifecycle/policies/{id}` | **Admin.** Update a policy. `200`. Same body (no `datasourceId`). |
 | `DELETE` | `/lifecycle/policies/{id}` | **Admin.** Delete a policy. `204`. |
 | `POST` | `/lifecycle/policies/{id}/preview` | **Admin.** Dry-run impact (matched tables, best-effort estimated rows via the proxy's non-committing dry-run, method) **without executing**. `200`. |
 
 `action` ∈ `HARD_DELETE`/`SOFT_DELETE`/`PSEUDONYMIZE`; `transformType` ∈
 `SHA256_SALTED`/`FORMAT_PRESERVING`/`TOKENIZATION` (required iff `PSEUDONYMIZE`); `retentionWindow`
-is an ISO-8601 period (`P7Y`, `P30D`) or duration (`PT720H`).
+is an ISO-8601 period (`P7Y`, `P30D`) or duration (`PT720H`). `conditions` is
+`{conditions:[{column, operator, values, negate}]}` (AND-combined, bound predicates; `operator` ∈
+row-security operators + `IS_NULL`); `rawWhere` is a JSqlParser-validated boolean SQL clause;
+`cronSchedule` is a 6-field Spring cron. **Retention/erasure-rule runs now execute** (AF-519): the
+scan job stages a `lifecycle_run` when a policy is age-eligible (honouring `cronSchedule` when set),
+and `RetentionPolicyExecutionJob` drains STAGED runs through the proxy (HARD_DELETE / SOFT_DELETE
+physical/marker writes; PSEUDONYMIZE stays read-time enforced).
 
 ### Right-to-erasure (deletion requests)
 
@@ -4484,21 +4490,24 @@ Self-service (any authenticated user):
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/lifecycle/erasure-requests` | Submit an erasure request. `202` (AI scope detection runs async → `PENDING_REVIEW`). Body: `{datasourceId, subjectType, subjectIdentifier, reason?}`. `subjectType` ∈ `USER_ID`/`EMAIL`/`CUSTOM`. |
+| `POST` | `/lifecycle/erasure-requests` | Submit an erasure request. `202` (AI scope detection runs async → `PENDING_REVIEW`). Body: `{datasourceId, subjectType?, subjectIdentifier?, targetTable?, targetColumns?, conditions?, rawWhere?, reason?}` (AF-519: subject is optional; provide a subject and/or a target table + conditions/rawWhere). `422 INVALID_ERASURE_CONFIG` (`reason` incl. `EMPTY_REQUEST`/`TARGET_TABLE_REQUIRED`). |
 | `GET` | `/lifecycle/erasure-requests` | List the caller's own requests. Paginated. |
 | `GET` | `/lifecycle/erasure-requests/{id}` | Get one of the caller's requests. `404 DELETION_REQUEST_NOT_FOUND`. |
 | `POST` | `/lifecycle/erasure-requests/{id}/cancel` | Cancel while `PENDING_SCOPE_AI`/`PENDING_REVIEW`. `204`. `409 DELETION_REQUEST_INVALID_STATE`. |
 
-Admin review queue (ADMIN):
+Review queue — **review-plan based, REVIEWER or ADMIN** (AF-519; replaces the former admin-only
+`/admin/lifecycle/erasure-requests` review endpoints). Eligibility follows the datasource review plan
++ scoped-reviewer set, with an ADMIN backstop; multi-stage plans are honoured:
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/admin/lifecycle/erasure-requests` | List `PENDING_REVIEW` requests, excluding the caller's own. Paginated. |
-| `POST` | `/admin/lifecycle/erasure-requests/{id}/approve` | Approve (`{comment?}`) → `APPROVED`. The submitter can never self-approve (`403 DELETION_REQUEST_SELF_APPROVAL`). |
-| `POST` | `/admin/lifecycle/erasure-requests/{id}/reject` | Reject (`{comment?}`) → `REJECTED`. |
+| `GET` | `/lifecycle/erasure-reviews` | List requests the caller can act on (admins see all `PENDING_REVIEW` excluding their own; plan-eligible reviewers see requests routed to them). Paginated. |
+| `POST` | `/lifecycle/erasure-reviews/{id}/approve` | Approve (`{comment?}`). Only the final stage → `APPROVED`. Submitter can never self-approve (`403 DELETION_REQUEST_SELF_APPROVAL`); a non-eligible caller gets `403 DELETION_REQUEST_REVIEWER_NOT_ELIGIBLE`. |
+| `POST` | `/lifecycle/erasure-reviews/{id}/reject` | Reject (`{comment?}`) → `REJECTED`. |
 
-State machine: `PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED` (+ `REJECTED`, `FAILED`,
-`CANCELLED`).
+Requests stuck in `PENDING_REVIEW` past `accessflow.lifecycle.review-timeout` are auto-rejected by
+`ErasureReviewTimeoutJob`. State machine: `PENDING_SCOPE_AI → PENDING_REVIEW → APPROVED → EXECUTED`
+(+ `REJECTED`, `FAILED`, `CANCELLED`).
 
 ### Retention-adherence compliance report
 

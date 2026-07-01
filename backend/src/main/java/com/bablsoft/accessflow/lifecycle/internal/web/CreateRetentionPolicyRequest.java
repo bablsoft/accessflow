@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.lifecycle.internal.web;
 
+import com.bablsoft.accessflow.lifecycle.api.ErasureConditionSet;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleAction;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleTransform;
 import jakarta.validation.constraints.NotBlank;
@@ -44,6 +45,14 @@ public record CreateRetentionPolicyRequest(
 
         @Size(max = 255, message = "{validation.lifecycle.soft_delete_column.size}")
         String softDeleteColumn,
+
+        ErasureConditionSet conditions,
+
+        @Size(max = 4000, message = "{validation.lifecycle.raw_where.size}")
+        String rawWhere,
+
+        @Size(max = 100, message = "{validation.lifecycle.cron_schedule.size}")
+        String cronSchedule,
 
         Boolean enabled) {
 }

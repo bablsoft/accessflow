@@ -47,19 +47,25 @@ class DefaultRetentionPolicyServiceTest {
     private RetentionPolicyViewMapper mapper;
     @Mock
     private LifecyclePreviewCalculator previewCalculator;
+    @Mock
+    private ErasureConditionValidator conditionValidator;
+    @Mock
+    private ErasureConditionCodec conditionCodec;
 
     private DefaultRetentionPolicyService service;
 
     @BeforeEach
     void setUp() {
         var clock = Clock.fixed(Instant.parse("2026-06-29T00:00:00Z"), ZoneOffset.UTC);
-        service = new DefaultRetentionPolicyService(repository, mapper, previewCalculator, clock);
+        service = new DefaultRetentionPolicyService(repository, mapper, previewCalculator,
+                conditionValidator, conditionCodec, clock);
     }
 
     private CreateRetentionPolicyCommand create(LifecycleAction action, LifecycleTransform transform,
                                                 String table, String window) {
         return new CreateRetentionPolicyCommand(ORG, DS, "Retention", "desc", table,
-                List.of("email"), null, "created_at", window, action, transform, null, true, USER);
+                List.of("email"), null, "created_at", window, action, transform, null, null, null,
+                null, true, USER);
     }
 
     @Test
@@ -111,7 +117,8 @@ class DefaultRetentionPolicyServiceTest {
     void update_throwsWhenMissing() {
         when(repository.findByIdAndOrganizationId(POLICY, ORG)).thenReturn(Optional.empty());
         var cmd = new UpdateRetentionPolicyCommand(POLICY, ORG, "Retention", null, "orders",
-                List.of(), null, "created_at", "P30D", LifecycleAction.HARD_DELETE, null, null, true);
+                List.of(), null, "created_at", "P30D", LifecycleAction.HARD_DELETE, null, null,
+                null, null, null, true);
         assertThatThrownBy(() -> service.update(cmd))
                 .isInstanceOf(RetentionPolicyNotFoundException.class);
     }
@@ -124,7 +131,8 @@ class DefaultRetentionPolicyServiceTest {
         when(repository.save(entity)).thenReturn(entity);
         when(mapper.toView(entity)).thenReturn(stubView());
         var cmd = new UpdateRetentionPolicyCommand(POLICY, ORG, "Retention", null, "orders",
-                List.of(), null, "created_at", "P7Y", LifecycleAction.SOFT_DELETE, null, "deleted_at", false);
+                List.of(), null, "created_at", "P7Y", LifecycleAction.SOFT_DELETE, null, "deleted_at",
+                null, null, null, false);
 
         var view = service.update(cmd);
 
@@ -180,6 +188,6 @@ class DefaultRetentionPolicyServiceTest {
     private static RetentionPolicyView stubView() {
         return new RetentionPolicyView(POLICY, ORG, DS, "DS", "Retention", null, "orders",
                 List.of("email"), null, "created_at", "P30D", LifecycleAction.HARD_DELETE, null,
-                null, true, USER, Instant.now(), Instant.now());
+                null, null, null, null, null, null, true, USER, Instant.now(), Instant.now());
     }
 }

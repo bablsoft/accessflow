@@ -26,32 +26,38 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Review-plan-based erasure review surface (AF-519). Reachable by REVIEWER-eligible users (not just
+ * admins), mirroring the JIT-access reviewer queue; eligibility is enforced in the service per the
+ * datasource review plan. Replaces the former admin-only {@code /admin/lifecycle/erasure-requests}
+ * review endpoints.
+ */
 @RestController
-@RequestMapping("/api/v1/admin/lifecycle/erasure-requests")
-@Tag(name = "Erasure Requests (Admin)", description = "Admin review queue for right-to-erasure requests")
+@RequestMapping("/api/v1/lifecycle/erasure-reviews")
+@Tag(name = "Erasure Reviews", description = "Review-plan-based review queue for right-to-erasure requests")
 @RequiredArgsConstructor
-class AdminErasureRequestController {
+class ErasureReviewController {
 
     private final ErasureReviewService erasureReviewService;
     private final LifecycleAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "List erasure requests awaiting review (excludes the caller's own)")
-    @ApiResponse(responseCode = "200", description = "Page of pending erasure requests")
-    @ApiResponse(responseCode = "403", description = "Caller is not an admin")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @Operation(summary = "List erasure requests the caller can review (per review-plan eligibility)")
+    @ApiResponse(responseCode = "200", description = "Page of actionable erasure requests")
+    @ApiResponse(responseCode = "403", description = "Caller is not a reviewer or admin")
     ErasureRequestPageResponse listPending(Authentication authentication, Pageable pageable) {
         var caller = currentClaims(authentication);
-        var page = erasureReviewService.listPending(caller.organizationId(), caller.userId(),
+        var page = erasureReviewService.listPending(toContext(caller),
                 SpringPageableAdapter.toPageRequest(pageable));
         return ErasureRequestPageResponse.from(page);
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
     @Operation(summary = "Approve an erasure request")
-    @ApiResponse(responseCode = "200", description = "Request approved")
-    @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an admin")
+    @ApiResponse(responseCode = "200", description = "Decision recorded (approved / advanced a stage)")
+    @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an eligible reviewer")
     @ApiResponse(responseCode = "404", description = "Deletion request not found")
     @ApiResponse(responseCode = "409", description = "Request is not awaiting review")
     ErasureRequestResponse approve(@PathVariable UUID id,
@@ -59,18 +65,17 @@ class AdminErasureRequestController {
                                    Authentication authentication,
                                    RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
-        var view = erasureReviewService.approve(id,
-                new ReviewerContext(caller.userId(), caller.organizationId()), body.comment());
+        var view = erasureReviewService.approve(id, toContext(caller), body.comment());
         auditWriter.record(AuditAction.DATA_ERASURE_APPROVED, AuditResourceType.DELETION_REQUEST,
                 id, caller, metadata(view, body.comment()), auditContext);
         return ErasureRequestResponse.from(view);
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
     @Operation(summary = "Reject an erasure request")
     @ApiResponse(responseCode = "200", description = "Request rejected")
-    @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an admin")
+    @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an eligible reviewer")
     @ApiResponse(responseCode = "404", description = "Deletion request not found")
     @ApiResponse(responseCode = "409", description = "Request is not awaiting review")
     ErasureRequestResponse reject(@PathVariable UUID id,
@@ -78,8 +83,7 @@ class AdminErasureRequestController {
                                   Authentication authentication,
                                   RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
-        var view = erasureReviewService.reject(id,
-                new ReviewerContext(caller.userId(), caller.organizationId()), body.comment());
+        var view = erasureReviewService.reject(id, toContext(caller), body.comment());
         auditWriter.record(AuditAction.DATA_ERASURE_REJECTED, AuditResourceType.DELETION_REQUEST,
                 id, caller, metadata(view, body.comment()), auditContext);
         return ErasureRequestResponse.from(view);
@@ -87,12 +91,21 @@ class AdminErasureRequestController {
 
     private static Map<String, Object> metadata(ErasureRequestView view, String comment) {
         Map<String, Object> meta = new HashMap<>();
-        meta.put("subjectIdentifier", view.subjectIdentifier());
+        if (view.subjectIdentifier() != null) {
+            meta.put("subjectIdentifier", view.subjectIdentifier());
+        }
+        if (view.targetTable() != null) {
+            meta.put("targetTable", view.targetTable());
+        }
         meta.put("status", view.status().name());
         if (comment != null && !comment.isBlank()) {
             meta.put("comment", comment);
         }
         return meta;
+    }
+
+    private static ReviewerContext toContext(JwtClaims caller) {
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

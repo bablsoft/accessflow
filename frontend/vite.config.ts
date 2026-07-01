@@ -116,6 +116,7 @@ export default defineConfig({
         'src/pages/admin/routingPolicyForm.ts',
         'src/pages/queries/buildTimelineStages.ts',
         'src/pages/requestGroups/groupBuilder.ts',
+        'src/pages/lifecycle/erasureConfigForm.ts',
         'src/realtime/collabProvider.ts',
         'src/realtime/websocketManager.ts',
         'src/store/authStore.ts',

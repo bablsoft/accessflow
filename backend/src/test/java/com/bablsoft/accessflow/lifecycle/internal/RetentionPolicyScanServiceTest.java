@@ -108,6 +108,38 @@ class RetentionPolicyScanServiceTest {
     }
 
     @Test
+    void scanAndStage_skipsCronPolicyNotYetDue() {
+        var p = policy();
+        p.setCronSchedule("0 0 0 * * *"); // daily at midnight
+        p.setLastRunAt(Instant.parse("2026-06-29T00:00:00Z")); // ran now; next fire is tomorrow
+        when(policyRepository.findAllByEnabledTrue()).thenReturn(List.of(p));
+        when(runRepository.existsByPolicyIdAndStatus(p.getId(), LifecycleRunStatus.STAGED))
+                .thenReturn(false);
+
+        assertThat(service.scanAndStage()).isZero();
+        verify(runRepository, never()).save(any());
+        verify(previewCalculator, never()).preview(any());
+    }
+
+    @Test
+    void scanAndStage_stagesCronPolicyWhenDueAndAdvancesBookkeeping() {
+        var p = policy();
+        p.setCronSchedule("0 0 0 * * *");
+        p.setLastRunAt(Instant.parse("2026-06-27T00:00:00Z")); // next fire (06-28) is due
+        when(policyRepository.findAllByEnabledTrue()).thenReturn(List.of(p));
+        when(runRepository.existsByPolicyIdAndStatus(p.getId(), LifecycleRunStatus.STAGED))
+                .thenReturn(false);
+        when(previewCalculator.preview(p)).thenReturn(
+                new LifecyclePreviewResult(LifecycleAction.HARD_DELETE, null, 5L, List.of()));
+
+        assertThat(service.scanAndStage()).isEqualTo(1);
+        assertThat(p.getLastRunAt()).isEqualTo(Instant.parse("2026-06-29T00:00:00Z"));
+        assertThat(p.getNextRunAt()).isEqualTo(Instant.parse("2026-06-30T00:00:00Z"));
+        verify(policyRepository).save(p);
+        verify(runRepository).save(any(LifecycleRunEntity.class));
+    }
+
+    @Test
     void scanAndStage_swallowsPerPolicyFailure() {
         var p = policy();
         when(policyRepository.findAllByEnabledTrue()).thenReturn(List.of(p));

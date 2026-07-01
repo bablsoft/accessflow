@@ -2,7 +2,9 @@ package com.bablsoft.accessflow.lifecycle.internal.web;
 
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestInvalidStateException;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
+import com.bablsoft.accessflow.lifecycle.api.ErasureReviewerNotEligibleException;
 import com.bablsoft.accessflow.lifecycle.api.ErasureSelfApprovalException;
+import com.bablsoft.accessflow.lifecycle.api.InvalidErasureConfigException;
 import com.bablsoft.accessflow.lifecycle.api.InvalidRetentionPolicyException;
 import com.bablsoft.accessflow.lifecycle.api.RetentionPolicyNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,22 @@ class LifecycleExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(InvalidErasureConfigException.class)
+    ProblemDetail handleInvalidErasureConfig(InvalidErasureConfigException ex) {
+        String key = switch (ex.reason()) {
+            case CONDITION_COLUMN_REQUIRED -> "error.erasure_config_condition_column_required";
+            case CONDITION_VALUE_ARITY -> "error.erasure_config_condition_value_arity";
+            case INVALID_RAW_WHERE -> "error.erasure_config_invalid_raw_where";
+            case INVALID_CRON -> "error.erasure_config_invalid_cron";
+            case UNSUPPORTED_DATASOURCE -> "error.erasure_config_unsupported_datasource";
+            case EMPTY_REQUEST -> "error.erasure_config_empty_request";
+            case TARGET_TABLE_REQUIRED -> "error.erasure_config_target_table_required";
+        };
+        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg(key), "INVALID_ERASURE_CONFIG");
+        pd.setProperty("reason", ex.reason().name());
+        return pd;
+    }
+
     @ExceptionHandler(DeletionRequestNotFoundException.class)
     ProblemDetail handleErasureNotFound(DeletionRequestNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, msg("error.deletion_request_not_found"),
@@ -66,6 +84,12 @@ class LifecycleExceptionHandler {
     ProblemDetail handleErasureSelfApproval(ErasureSelfApprovalException ex) {
         return problem(HttpStatus.FORBIDDEN, msg("error.deletion_request_self_approval"),
                 "DELETION_REQUEST_SELF_APPROVAL");
+    }
+
+    @ExceptionHandler(ErasureReviewerNotEligibleException.class)
+    ProblemDetail handleErasureReviewerNotEligible(ErasureReviewerNotEligibleException ex) {
+        return problem(HttpStatus.FORBIDDEN, msg("error.deletion_request_reviewer_not_eligible"),
+                "DELETION_REQUEST_REVIEWER_NOT_ELIGIBLE");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {

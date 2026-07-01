@@ -277,7 +277,10 @@
     "lifecycle_subject_type_required": "Betroffenentyp ist erforderlich",
     "lifecycle_subject_identifier_required": "Betroffenenkennung ist erforderlich",
     "lifecycle_subject_identifier_size": "Die Betroffenenkennung darf höchstens 255 Zeichen lang sein",
-    "lifecycle_reason_max": "Der Grund darf höchstens 2.000 Zeichen lang sein"
+    "lifecycle_reason_max": "Der Grund darf höchstens 2.000 Zeichen lang sein",
+    "lifecycle_cron_schedule_size": "Cron-Zeitplan darf höchstens 100 Zeichen lang sein",
+    "lifecycle_raw_where_size": "Rohes WHERE darf höchstens 4.000 Zeichen lang sein",
+    "lifecycle_condition_column_required": "Eine Spalte ist erforderlich"
   },
   "errors": {
     "auth_invalid": "Ungültige E-Mail oder ungültiges Passwort.",
@@ -2389,6 +2392,17 @@
       "JSON_PATH": "JSON-Pfad",
       "XML_PATH": "XML-Pfad (XPath)",
       "REGEX": "Regex"
+    },
+    "erasure_condition_operator": {
+      "EQUALS": "=",
+      "NOT_EQUALS": "≠",
+      "LESS_THAN": "<",
+      "LESS_THAN_OR_EQUAL": "≤",
+      "GREATER_THAN": ">",
+      "GREATER_THAN_OR_EQUAL": "≥",
+      "IN": "in",
+      "NOT_IN": "nicht in",
+      "IS_NULL": "ist null"
     }
   },
   "access": {
@@ -3150,7 +3164,9 @@
       "label_transform": "Transformation",
       "label_soft_delete_column": "Soft-Delete-Spalte",
       "soft_delete_column_help": "Markerspalte beim Löschen gesetzt (Standard deleted_at).",
-      "label_enabled": "Aktiviert"
+      "label_enabled": "Aktiviert",
+      "label_cron_schedule": "Cron-Zeitplan",
+      "cron_schedule_help": "Optionaler Spring-Cron (6 Felder, z. B. 0 0 3 * * *). Leer lassen, um das globale Scan-Intervall zu verwenden."
     },
     "preview": {
       "title": "Probelauf-Vorschau",
@@ -3177,7 +3193,8 @@
       "mine_empty_description": "Senden Sie oben eine Anfrage, um zu beginnen.",
       "col_subject": "Betroffener",
       "col_status": "Status",
-      "col_created": "Gesendet"
+      "col_created": "Gesendet",
+      "subject_help": "Optional. Geben Sie ein Subjekt an oder verwenden Sie die Zieltabelle + Bedingungen unten."
     },
     "erasure_review": {
       "title": "Löschprüfungs-Warteschlange",
@@ -3195,6 +3212,25 @@
       "reject_comment_placeholder": "Optionaler Grund für die Ablehnung…",
       "scope_label": "Erkannter Umfang",
       "no_scope": "Umfang noch nicht erkannt"
+    },
+    "config": {
+      "label_target_table": "Zieltabelle",
+      "target_table_help": "Die Tabelle, auf die Bedingungen und rohes WHERE angewendet werden.",
+      "label_target_columns": "Zielspalten",
+      "target_columns_placeholder": "Spalten hinzufügen (kommagetrennt)",
+      "conditions_title": "Bedingungen",
+      "conditions_help": "Alle Bedingungen werden mit UND verknüpft. Für ODER oder komplexere Logik das rohe WHERE unten verwenden.",
+      "condition_column_placeholder": "Spalte",
+      "condition_values_placeholder": "Wert(e)",
+      "condition_negate": "Negieren",
+      "condition_remove": "Bedingung entfernen",
+      "add_condition": "Bedingung hinzufügen",
+      "label_raw_where": "Rohes WHERE (erweitert)",
+      "raw_where_help": "Ein boolescher SQL-Ausdruck, vom Parser validiert. Nur für SQL-Datenquellen.",
+      "custom_scope": "Benutzerdefinierter Umfang",
+      "n_conditions_one": "{{count}} Bedingung",
+      "n_conditions_other": "{{count}} Bedingungen",
+      "has_raw_where": "rohes WHERE"
     }
   },
   "requestGroups": {
