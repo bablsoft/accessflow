@@ -39,6 +39,11 @@ test('admin configures connector masking policy and classification tag', async (
   await createResponse;
   await page.waitForURL('**/api-connectors/*/settings', { timeout: 15_000 });
 
+  // Ant Design keeps prior tab panels mounted (display:none), and tagging a field auto-derives a
+  // masking policy that repeats the field text — so a bare getByText('user.ssn') would match hidden
+  // occurrences in inactive panels. Scope every content assertion to the active (visible) tab panel.
+  const activePanel = page.locator('.ant-tabs-tabpane-active');
+
   // Masking tab → add a JSON-path masking policy.
   await page.getByRole('tab', { name: 'Masking' }).click();
   await page.getByRole('button', { name: 'Add policy' }).click();
@@ -49,7 +54,7 @@ test('admin configures connector masking policy and classification tag', async (
   );
   await page.getByRole('button', { name: 'Save' }).click();
   await maskingCreate;
-  await expect(page.getByText('user.ssn')).toBeVisible();
+  await expect(activePanel.getByText('user.ssn').first()).toBeVisible();
 
   // Classification tab → tag a field as PII.
   await page.getByRole('tab', { name: 'Classification' }).click();
@@ -65,7 +70,7 @@ test('admin configures connector masking policy and classification tag', async (
   );
   await page.getByRole('button', { name: 'Save' }).click();
   await classificationCreate;
-  // `user.card` now appears in the classification tag table, its derivation-preview suggestion, and
-  // the auto-derived masking policy — AntD keeps prior tab panels mounted — so scope to the first.
-  await expect(page.getByText('user.card').first()).toBeVisible();
+  // Within the active Classification panel `user.card` shows in both the tag table and the
+  // derivation-preview suggestion; either visible match is enough.
+  await expect(activePanel.getByText('user.card').first()).toBeVisible();
 });
