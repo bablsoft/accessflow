@@ -2363,6 +2363,15 @@ export interface GrantApiConnectorPermissionInput {
   restricted_response_fields?: string[];
 }
 
+export interface UpdateApiConnectorPermissionInput {
+  can_read: boolean;
+  can_write: boolean;
+  can_break_glass: boolean;
+  expires_at?: string | null;
+  allowed_operations?: string[];
+  restricted_response_fields?: string[];
+}
+
 export interface ApiSchema {
   id: string;
   schema_type: ApiSchemaType;

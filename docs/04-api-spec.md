@@ -4387,6 +4387,7 @@ secrets themselves are never returned.
 |--------|------|-------------|
 | `GET` | `/api-connectors/{id}/permissions` | **Admin.** List per-user grants on the connector. |
 | `POST` | `/api-connectors/{id}/permissions` | **Admin.** Grant/update a user's access (`201`): `userId`, `canRead`, `canWrite`, `canBreakGlass`, `expiresAt` (JIT), `allowedOperations` (subset), `restrictedResponseFields` (dot-paths masked in responses). |
+| `PUT` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Update an existing grant in place (`200`): same body as `POST` **minus** `userId` (the target user is fixed by the permission id, so `createdBy`/`createdAt` provenance is preserved). `404 API_CONNECTOR_PERMISSION_NOT_FOUND` when the permission is missing or belongs to a different connector. |
 | `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
 
 ### Connector response masking & classification (AF-518)

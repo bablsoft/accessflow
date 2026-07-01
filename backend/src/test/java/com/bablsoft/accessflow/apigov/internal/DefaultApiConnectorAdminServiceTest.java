@@ -12,6 +12,7 @@ import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
+import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
@@ -366,6 +367,76 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThatThrownBy(() -> service.revokePermission(entity.getId(), orgId, permId))
                 .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void updatePermissionMutatesFieldsAndPreservesProvenance() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var creator = UUID.randomUUID();
+        var createdAt = Instant.now().minusSeconds(3600);
+        var existing = new ApiConnectorUserPermissionEntity();
+        existing.setId(permId);
+        existing.setConnectorId(entity.getId());
+        existing.setUserId(UUID.randomUUID());
+        existing.setCanRead(true);
+        existing.setCreatedBy(creator);
+        existing.setCreatedAt(createdAt);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findById(permId)).thenReturn(Optional.of(existing));
+        when(userQueryService.findById(existing.getUserId()))
+                .thenReturn(Optional.of(userView(existing.getUserId(), orgId)));
+        when(permissionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.updatePermission(entity.getId(), orgId, permId,
+                new UpdateApiConnectorPermissionCommand(false, true, true, null,
+                        List.of("createPet"), List.of("data.token")));
+
+        assertThat(view.canRead()).isFalse();
+        assertThat(view.canWrite()).isTrue();
+        assertThat(view.canBreakGlass()).isTrue();
+        assertThat(view.allowedOperations()).containsExactly("createPet");
+        assertThat(view.restrictedResponseFields()).containsExactly("data.token");
+        // provenance untouched
+        assertThat(existing.getCreatedBy()).isEqualTo(creator);
+        assertThat(existing.getCreatedAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void updatePermissionRejectsForeignPermission() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var foreign = new ApiConnectorUserPermissionEntity();
+        foreign.setId(permId);
+        foreign.setConnectorId(UUID.randomUUID());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findById(permId)).thenReturn(Optional.of(foreign));
+
+        assertThatThrownBy(() -> service.updatePermission(entity.getId(), orgId, permId,
+                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void updatePermissionRejectsMissingPermission() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(permissionRepository.findById(permId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updatePermission(entity.getId(), orgId, permId,
+                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void updatePermissionRejectsConnectorFromAnotherOrg() {
+        var connectorId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updatePermission(connectorId, orgId, UUID.randomUUID(),
+                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
     }
 
     private ApiConnectorEntity persistedConnector() {

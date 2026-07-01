@@ -164,6 +164,22 @@ class ApiConnectorControllerTest {
         verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_REVOKED));
     }
 
+    @Test
+    void updatePermissionDelegatesAndAudits() {
+        var permId = UUID.randomUUID();
+        when(service.updatePermission(eq(connectorId), eq(orgId), eq(permId), any()))
+                .thenReturn(permissionView());
+
+        var response = controller.update(connectorId, permId,
+                new UpdateApiConnectorPermissionRequest(false, true, false, null,
+                        List.of("createPet"), List.of("data.token")),
+                auth(UserRoleType.ADMIN), auditContext);
+
+        assertThat(response.canRead()).isTrue();
+        verify(service).updatePermission(eq(connectorId), eq(orgId), eq(permId), any());
+        verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_UPDATED));
+    }
+
     private ApiConnectorPermissionView permissionView() {
         return new ApiConnectorPermissionView(UUID.randomUUID(), connectorId, UUID.randomUUID(),
                 "u@acme.test", "User", true, false, false, null, List.of(), List.of(), Instant.now());

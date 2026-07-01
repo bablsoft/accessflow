@@ -2989,7 +2989,16 @@
         "no_masking_suggestions": "暂无脱敏建议",
         "applied": "已应用",
         "not_applied": "未应用"
-      }
+      },
+      "edit": "编辑",
+      "editPermission": "编辑权限 — {{user}}",
+      "save": "保存",
+      "updated": "权限已更新",
+      "allowedOperations": "允许的操作",
+      "allowedOperationsPlaceholder": "所有操作（留空）",
+      "allOperations": "全部",
+      "restrictedResponseFields": "掩码响应字段",
+      "restrictedResponseFieldsPlaceholder": "添加点路径（如 data.ssn）"
     },
     "editor": {
       "title": "API Editor",

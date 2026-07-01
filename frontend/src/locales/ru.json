@@ -2989,7 +2989,16 @@
         "no_masking_suggestions": "Нет предложений по маскированию",
         "applied": "Применено",
         "not_applied": "Не применено"
-      }
+      },
+      "edit": "Изменить",
+      "editPermission": "Изменить разрешение — {{user}}",
+      "save": "Сохранить",
+      "updated": "Разрешение обновлено",
+      "allowedOperations": "Разрешённые операции",
+      "allowedOperationsPlaceholder": "Все операции (оставьте пустым)",
+      "allOperations": "Все",
+      "restrictedResponseFields": "Маскируемые поля ответа",
+      "restrictedResponseFieldsPlaceholder": "Добавьте пути (напр. data.ssn)"
     },
     "editor": {
       "title": "API Editor",

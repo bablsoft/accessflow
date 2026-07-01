@@ -1,4 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import {
+  acceptInvitationViaApi,
+  inviteUserViaApi,
+  loginViaApi,
+  purgeMailcrab,
+  waitForInviteToken,
+} from '../helpers/datasources';
 
 // AF-500: API Access Governance — admin creates an API connector via the UI, uploads an OpenAPI
 // schema, and sees the parsed operation catalog. Seeded admin comes from the bootstrap module.
@@ -88,6 +95,61 @@ test('API Requests and API Reviews pages render their filter bars (#512)', async
   await page.goto('/api-reviews');
   await expect(page.getByPlaceholder('Search by connector, path')).toBeVisible();
   await expect(page.getByText('All connectors')).toBeVisible();
+});
+
+test('admin edits an API connector permission in place (AF-530)', async ({ page, request }) => {
+  // Seed a second, usable user via invite + accept (bootstrap only seeds the admin).
+  const memberEmail = `perm-edit-${Date.now()}@accessflow.test`;
+  const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await purgeMailcrab(request);
+  await inviteUserViaApi(request, adminToken, memberEmail, 'Perm Edit Member', 'ANALYST');
+  const inviteToken = await waitForInviteToken(request, memberEmail);
+  await acceptInvitationViaApi(request, inviteToken, ADMIN_PASSWORD);
+
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  // Create a connector to grant on.
+  const connectorName = `PermEdit ${Date.now()}`;
+  await page.goto('/api-connectors');
+  await page.getByRole('button', { name: /New connector/i }).click();
+  await page.getByLabel('Name', { exact: true }).fill(connectorName);
+  await page.getByLabel('Base URL').fill('https://perm-edit.example.com');
+  await page.getByLabel('AI config').click();
+  await page.getByTitle(/e2e-mock-openai/).click();
+  const createResponse = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/api-connectors') && r.ok(),
+  );
+  await page.getByRole('button', { name: 'Save' }).click();
+  await createResponse;
+  await page.waitForURL('**/api-connectors/*/settings', { timeout: 15_000 });
+
+  // Permissions tab → grant the member read access.
+  await page.getByRole('tab', { name: 'Permissions' }).click();
+  await page.getByPlaceholder('Search by name or email…').click();
+  await page.getByText(new RegExp(memberEmail)).click();
+  const grantResponse = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && /\/permissions$/.test(new URL(r.url()).pathname) && r.ok(),
+  );
+  await page.getByRole('button', { name: 'Share with user' }).click();
+  await grantResponse;
+
+  const grantedRow = page.getByRole('row').filter({ hasText: memberEmail });
+  await expect(grantedRow).toBeVisible();
+
+  // Edit the grant in place — toggle write on — and expect a PUT (not a revoke + re-grant).
+  await grantedRow.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(/Edit permission — Perm Edit Member/)).toBeVisible();
+  const switches = dialog.locator('button[role="switch"]');
+  await switches.nth(1).click(); // can_write
+  const updateResponse = page.waitForResponse(
+    (r) => r.request().method() === 'PUT' && /\/permissions\/[0-9a-f-]+$/.test(new URL(r.url()).pathname) && r.ok(),
+  );
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await updateResponse;
+
+  // The row now reflects write access; provenance stayed on the same permission id.
+  await expect(grantedRow.getByText('✓')).toHaveCount(2);
 });
 
 test('API editor shows the Postman-style composer and scheduling (#517)', async ({ page }) => {

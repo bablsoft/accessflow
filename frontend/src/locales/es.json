@@ -2989,7 +2989,16 @@
         "no_masking_suggestions": "Sin sugerencias de enmascaramiento",
         "applied": "Aplicada",
         "not_applied": "No aplicada"
-      }
+      },
+      "edit": "Editar",
+      "editPermission": "Editar permiso — {{user}}",
+      "save": "Guardar",
+      "updated": "Permiso actualizado",
+      "allowedOperations": "Operaciones permitidas",
+      "allowedOperationsPlaceholder": "Todas las operaciones (dejar vacío)",
+      "allOperations": "Todas",
+      "restrictedResponseFields": "Campos de respuesta enmascarados",
+      "restrictedResponseFieldsPlaceholder": "Añadir rutas de puntos (p. ej. data.ssn)"
     },
     "editor": {
       "title": "API Editor",
