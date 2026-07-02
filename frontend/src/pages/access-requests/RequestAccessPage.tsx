@@ -181,7 +181,8 @@ export function RequestAccessPage() {
           <Popconfirm
             title={t('access.request.cancel_confirm')}
             onConfirm={() => cancel.mutate(r.id)}
-            okText={t('access.request.cancel')}
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
           >
             <Button size="small" danger loading={cancel.isPending}>
               {t('access.request.cancel')}
