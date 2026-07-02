@@ -61,6 +61,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -113,7 +114,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     public PageResponse<DatasourceView> listForUser(UUID organizationId, UUID userId,
                                                     PageRequest pageRequest) {
         var page = datasourceRepository.findAllVisibleToUser(
-                organizationId, userId, PageAdapter.toSpringPageable(pageRequest));
+                organizationId, userId, Instant.now(), PageAdapter.toSpringPageable(pageRequest));
         return PageAdapter.toPageResponse(page.map(this::toView));
     }
 
@@ -127,7 +128,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Transactional(readOnly = true)
     public DatasourceView getForUser(UUID id, UUID organizationId, UUID userId) {
         var entity = loadInOrganization(id, organizationId);
-        if (!permissionRepository.existsByUser_IdAndDatasource_Id(userId, id)) {
+        if (!datasourceRepository.existsVisibleToUser(id, userId, Instant.now())) {
             throw new DatasourceNotFoundException(id);
         }
         return toView(entity);
@@ -474,7 +475,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     public DatabaseSchemaView introspectSchema(UUID id, UUID organizationId, UUID userId,
                                                boolean isAdmin) {
         var entity = loadInOrganization(id, organizationId);
-        if (!isAdmin && !permissionRepository.existsByUser_IdAndDatasource_Id(userId, id)) {
+        if (!isAdmin && !datasourceRepository.existsVisibleToUser(id, userId, Instant.now())) {
             throw new DatasourceNotFoundException(id);
         }
         return introspect(id, entity);

@@ -62,6 +62,8 @@ class DatasourceControllerIntegrationTest {
     @Autowired com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceGroupPermissionRepository
             groupPermissionRepository;
     @Autowired com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository userGroupRepository;
+    @Autowired com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository
+            membershipRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
@@ -346,6 +348,41 @@ class DatasourceControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.content[*].name").asArray()
                 .containsExactly("Visible");
+    }
+
+    @Test
+    void listDatasourcesAsAnalystIncludesOnesVisibleViaGroupMembership() {
+        var direct = saveDatasource(primaryOrg, "Direct");
+        var viaGroup = saveDatasource(primaryOrg, "ViaGroup");
+        saveDatasource(primaryOrg, "Hidden");
+        savePermission(direct, analyst, admin, true, false, false);
+        var group = saveGroup(primaryOrg, "Analysts");
+        addToGroup(analyst, group);
+        saveGroupPermission(viaGroup, group, admin);
+
+        var result = mvc.get().uri("/api/v1/datasources")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[*].name").asArray()
+                .containsExactlyInAnyOrder("Direct", "ViaGroup");
+    }
+
+    @Test
+    void getDatasourceByIdAsAnalystViaGroupMembershipReturnsView() {
+        var ds = saveDatasource(primaryOrg, "ViaGroup");
+        var group = saveGroup(primaryOrg, "Analysts");
+        addToGroup(analyst, group);
+        saveGroupPermission(ds, group, admin);
+
+        var result = mvc.get().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.id").asString()
+                .isEqualTo(ds.getId().toString());
     }
 
     @Test
@@ -911,6 +948,17 @@ class DatasourceControllerIntegrationTest {
         perm.setCreatedBy(grantedBy);
         perm.setCanRead(true);
         return groupPermissionRepository.save(perm);
+    }
+
+    private void addToGroup(UserEntity user,
+                           com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity group) {
+        var membership =
+                new com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupMembershipEntity();
+        membership.setId(new com.bablsoft.accessflow.core.internal.persistence.entity
+                .UserGroupMembershipEntity.Id(user.getId(), group.getId()));
+        membership.setUser(user);
+        membership.setGroup(group);
+        membershipRepository.save(membership);
     }
 
     private String generateToken(UserEntity entity) {
