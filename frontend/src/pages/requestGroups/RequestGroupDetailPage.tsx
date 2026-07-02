@@ -26,6 +26,8 @@ import {
   requestGroupKeys,
 } from '@/api/requestGroups';
 import { fmtDate } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { RequestGroupMemberPanel } from './RequestGroupMemberPanel';
 
 export default function RequestGroupDetailPage() {
@@ -57,7 +59,7 @@ export default function RequestGroupDetailPage() {
       message.success(t('requestGroups.detail.executeStarted'));
       refresh();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const cancelMutation = useMutation({
@@ -66,7 +68,7 @@ export default function RequestGroupDetailPage() {
       message.success(t('requestGroups.detail.cancelled'));
       refresh();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const decideMutation = useMutation({
@@ -81,7 +83,7 @@ export default function RequestGroupDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['request-groups', 'reviews'] });
       refresh();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const group = groupQuery.data;

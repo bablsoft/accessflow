@@ -93,15 +93,18 @@ async function waitForListReady(page: Page): Promise<void> {
 // implementation, not the issue body:
 //
 //   * Test 2 ("Update with a duplicate name → 409 → error banner"). The
-//     settings page's update mutation onError shows the generic
-//     `datasources.settings.save_error` toast — there is no dedicated banner
-//     or specialised 409 copy (DatasourceSettingsPage.tsx:254-256). We
-//     assert the generic toast.
+//     settings page's update mutation onError now routes through
+//     `showApiError` + `apiErrorMessage` (AF-556), so the toast surfaces the
+//     backend's localized ProblemDetail `detail` ("A datasource with that name
+//     already exists") rather than the generic `datasources.settings.save_error`
+//     fallback. We assert the backend detail copy.
 //
 //   * Test 3 ("Test-connection with wrong password → failure alert"). The
 //     wizard renders an AntD Alert, but the settings page's testMutation
-//     onError shows a message.error toast
-//     (DatasourceSettingsPage.tsx:93-95). We assert the toast.
+//     onError shows a message.error toast. Since AF-556 that toast surfaces the
+//     backend ProblemDetail `detail` ("Connection test failed") via
+//     showApiError + apiErrorMessage, not the frontend `connection_failed`
+//     copy. We assert the backend detail toast.
 //
 //   * Test 5 ("Grant a permission that already exists → 409"). PermissionMatrix's
 //     eligible-users filter strips already-granted users from the dropdown
@@ -243,9 +246,10 @@ test.describe.serial('datasource settings — config + permissions', () => {
     ]);
     expect(putResponse.status()).toBe(409);
 
-    // Generic message.error from updateMutation.onError. See deviation note
-    // in the file-level comment for why we assert the generic copy.
-    await expect(page.getByText('Failed to update datasource', { exact: true })).toBeVisible({
+    // updateMutation.onError surfaces the backend ProblemDetail `detail` via
+    // showApiError + apiErrorMessage (AF-556). See deviation note in the
+    // file-level comment.
+    await expect(page.getByText('A datasource with that name already exists')).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -270,10 +274,13 @@ test.describe.serial('datasource settings — config + permissions', () => {
     ]);
     expect(testResponse.status()).toBe(422);
 
-    // message.error(t('datasources.settings.connection_failed')). See
-    // deviation note in the file-level comment for why we assert a toast
-    // rather than an Alert.
-    await expect(page.getByText('Connection failed', { exact: true })).toBeVisible({
+    // testMutation.onError surfaces the backend ProblemDetail `detail` via
+    // showApiError + apiErrorMessage (AF-556); the 422
+    // DATASOURCE_CONNECTION_TEST_FAILED detail is the localized
+    // `error.datasource_connection_test_failed` = "Connection test failed". See
+    // deviation note in the file-level comment for why we assert a toast rather
+    // than an Alert.
+    await expect(page.getByText('Connection test failed')).toBeVisible({
       timeout: 10_000,
     });
   });

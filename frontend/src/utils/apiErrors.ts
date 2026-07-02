@@ -24,6 +24,24 @@ export function apiErrorTraceId(err: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Shared generic extractor for call sites that have no dedicated domain handler.
+ * Prefers the backend-localized, occurrence-specific `detail` over the `title`
+ * (which is only the HTTP reason phrase, e.g. "Forbidden"), then the axios/Error
+ * message, and finally the caller's generic fallback. Use this — routed through
+ * `showApiError` — instead of a static toast that discards `err`.
+ */
+export function apiErrorMessage(err: unknown, fallback: () => string): string {
+  if (axios.isAxiosError(err)) {
+    const body = (err as AxiosError<ProblemDetail>).response?.data;
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (err.message) return err.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback();
+}
+
 export function authErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

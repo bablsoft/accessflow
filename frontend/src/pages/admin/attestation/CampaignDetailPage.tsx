@@ -24,7 +24,7 @@ import {
   type CampaignItemsFilters,
   type EvidenceExportResult,
 } from '@/api/attestation';
-import { adminErrorMessage } from '@/utils/apiErrors';
+import { adminErrorMessage, apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
 import {
@@ -95,7 +95,7 @@ export default function CampaignDetailPage() {
         message.warning(t('attestation.detail.export_truncated'));
       }
     },
-    onError: () => message.error(t('attestation.detail.export_failed')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('attestation.detail.export_failed'))),
   });
 
   const campaign = campaignQuery.data;

@@ -41,6 +41,8 @@ import {
   updateRequestGroup,
 } from '@/api/requestGroups';
 import { aggregateRisk } from '@/utils/requestGroupRisk';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { GroupMemberCard } from './GroupMemberCard';
 import { memberToBody, memberValid, newMember, type DraftMember } from './groupBuilder';
 
@@ -109,7 +111,7 @@ export default function GroupBuilderPage() {
       setGroupId(saved.id);
       message.success(t('requestGroups.builder.saved'));
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const submitMutation = useMutation({
@@ -128,7 +130,7 @@ export default function GroupBuilderPage() {
       message.success(t('requestGroups.builder.submitted'));
       navigate(`/request-groups/${saved.id}`);
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const addMember = (kind: DraftMember['targetKind']) =>

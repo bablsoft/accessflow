@@ -30,6 +30,8 @@ import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import { analyzeOnly, breakGlassSubmit, dryRunQuery, queryKeys, submitQuery } from '@/api/queries';
 import { getBreakGlassEligibility, meKeys } from '@/api/me';
 import { formatSql } from '@/utils/sqlFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { activeSyntax, engineMode, syntaxForQuery } from '@/utils/engineModes';
 import type { QueryTemplate, SubmissionReason } from '@/types/api';
 import './editor.css';
@@ -76,8 +78,8 @@ export function QueryEditorPage() {
       // Remember the exact SQL this analysis ran against so we can detect staleness later.
       setAnalyzedSql(sqlToAnalyze);
     },
-    onError: () => {
-      message.error(t('editor.analyze_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('editor.analyze_error')));
     },
   });
 
@@ -86,8 +88,8 @@ export function QueryEditorPage() {
     onSuccess: (_data, sqlToRun) => {
       setDryRunSql(sqlToRun);
     },
-    onError: () => {
-      message.error(t('editor.dry_run_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('editor.dry_run_error')));
     },
   });
 
@@ -137,8 +139,8 @@ export function QueryEditorPage() {
       });
       navigate(`/queries/${created.id}`);
     },
-    onError: () => {
-      message.error(t('editor.submit_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('editor.submit_error')));
     },
   });
 
@@ -160,8 +162,8 @@ export function QueryEditorPage() {
       setBreakGlassJustification('');
       navigate(`/queries/${result.id}`);
     },
-    onError: () => {
-      message.error(t('editor.break_glass_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('editor.break_glass_error')));
     },
   });
 

@@ -16,6 +16,8 @@ import {
 } from '@/api/requestGroups';
 import { targetKindLabel } from '@/utils/enumLabels';
 import { timeAgo } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { PendingGroupReview, RequestGroupItem } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -121,7 +123,7 @@ export default function RequestGroupReviewQueuePage() {
       setComment('');
       invalidate();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const rows = useMemo(() => queueQuery.data?.content ?? [], [queueQuery.data]);

@@ -17,6 +17,8 @@ import {
 } from '@/api/apiRequests';
 import { reviewDecisionTypeLabel, submissionReasonLabel } from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { ApiReviewDecision } from '@/types/api';
 
 export default function ApiRequestDetailPage() {
@@ -43,7 +45,7 @@ export default function ApiRequestDetailPage() {
       message.success(t('apiGov.requests.executed'));
       refresh();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const cancelMutation = useMutation({
@@ -52,7 +54,7 @@ export default function ApiRequestDetailPage() {
       message.success(t('apiGov.requests.cancelled'));
       refresh();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const downloadMutation = useMutation({
@@ -67,7 +69,7 @@ export default function ApiRequestDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     },
-    onError: () => message.error(t('apiGov.requests.downloadFailed')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.requests.downloadFailed'))),
   });
 
   const request = requestQuery.data;

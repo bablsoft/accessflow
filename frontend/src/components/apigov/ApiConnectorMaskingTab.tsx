@@ -43,6 +43,7 @@ import {
 } from '@/utils/enumLabels';
 import { maskingPreview } from '@/utils/maskingPreview';
 import { userDisplay } from '@/utils/userDisplay';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   ApiConnectorMaskingPolicy,
@@ -76,8 +77,8 @@ export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string })
       });
       message.success(t('apiGov.settings.masking.delete_success'));
     },
-    onError: () => {
-      message.error(t('apiGov.settings.masking.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.settings.masking.delete_error')));
     },
   });
 
@@ -343,7 +344,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
       onClose();
     },
     onError: (err) => {
-      showApiError(message, err, () => t('apiGov.settings.masking.save_error'));
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.settings.masking.save_error')));
     },
   });
 

@@ -28,6 +28,7 @@ import {
   dataClassificationLabel,
   enumOptions,
 } from '@/utils/enumLabels';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { ClassificationDerivationPanel } from './ClassificationDerivationPanel';
 import type {
@@ -55,8 +56,8 @@ export function ClassificationTab({ dsId }: { dsId: string }) {
       void queryClient.invalidateQueries({ queryKey: dataClassificationKeys.derivation(dsId) });
       message.success(t('datasources.settings.classification.delete_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.classification.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.classification.delete_error')));
     },
   });
 
@@ -226,7 +227,7 @@ function ClassificationTagModal({
       onClose();
     },
     onError: (err) => {
-      showApiError(message, err, () => t('datasources.settings.classification.save_error'));
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.classification.save_error')));
     },
   });
 

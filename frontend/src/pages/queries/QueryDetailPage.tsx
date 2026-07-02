@@ -48,7 +48,7 @@ import {
   requestChanges,
   reviewKeys,
 } from '@/api/reviews';
-import { queryCancelErrorMessage, queryReplayErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage, queryCancelErrorMessage, queryReplayErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
 import type { QueryDetail } from '@/types/api';
@@ -121,8 +121,8 @@ export function QueryDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
       message.success(t('queries.detail.ai_failed_reanalyze_success'));
     },
-    onError: () => {
-      message.error(t('queries.detail.ai_failed_reanalyze_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('queries.detail.ai_failed_reanalyze_error')));
     },
   });
 

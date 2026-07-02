@@ -24,6 +24,8 @@ import {
 import { Oauth2ConnectorFields } from '@/components/apigov/Oauth2ConnectorFields';
 import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
 import { pairsToRecord, type KeyValuePair } from '@/utils/apiRequestComposition';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type {
   ApiConnector,
   ApiProtocol,
@@ -66,7 +68,7 @@ export default function ApiConnectorsListPage() {
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.lists() });
       navigate(`/api-connectors/${created.id}/settings`);
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const testMutation = useMutation({
@@ -75,7 +77,7 @@ export default function ApiConnectorsListPage() {
       result.success
         ? message.success(`${t('apiGov.connectors.testSuccess')}${result.message ? ` — ${result.message}` : ''}`)
         : message.error(`${t('apiGov.connectors.testFailed')}${result.message ? ` — ${result.message}` : ''}`),
-    onError: () => message.error(t('apiGov.connectors.testFailed')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.connectors.testFailed'))),
   });
 
   const deleteMutation = useMutation({
@@ -84,7 +86,7 @@ export default function ApiConnectorsListPage() {
       message.success(t('apiGov.connectors.deleted'));
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.lists() });
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const columns = [

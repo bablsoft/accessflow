@@ -15,6 +15,8 @@ import {
 import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
 import { enumOptions, riskLevelLabel } from '@/utils/enumLabels';
 import { timeAgo } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { PendingApiReview, RiskLevel } from '@/types/api';
 
 const RISKS: RiskLevel[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -69,7 +71,7 @@ export default function ApiReviewQueuePage() {
       setComment('');
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const rows = useMemo(() => queueQuery.data?.content ?? [], [queueQuery.data]);

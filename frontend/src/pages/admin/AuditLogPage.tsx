@@ -29,7 +29,8 @@ import {
   verifyAuditChain,
   type AuditLogExportResult,
 } from '@/api/admin';
-import { adminErrorMessage } from '@/utils/apiErrors';
+import { adminErrorMessage, apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
 import type { AuditChainResult, AuditEvent, AuditLogFilters } from '@/types/api';
@@ -135,8 +136,8 @@ export function AuditLogPage() {
         message.warning(t('admin.audit.export_truncated'));
       }
     },
-    onError: () => {
-      message.error(t('admin.audit.export_failed'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('admin.audit.export_failed')));
     },
   });
 

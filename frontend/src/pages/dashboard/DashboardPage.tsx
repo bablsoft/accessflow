@@ -46,7 +46,8 @@ import {
   type DashboardWidgetId,
 } from '@/store/preferencesStore';
 import { useAuthStore } from '@/store/authStore';
-import { dashboardErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage, dashboardErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { DashboardSummary, Role } from '@/types/api';
 
 // Each widget is shown only to the roles for which it is meaningful (mirrors the sidebar nav model):
@@ -113,7 +114,7 @@ export default function DashboardPage() {
       a.remove();
       URL.revokeObjectURL(url);
     },
-    onError: () => message.error(t('dashboard.export_failed')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('dashboard.export_failed'))),
   });
 
   // Reconcile persisted order/visibility with the role-available widget set (forward-compatible: a
