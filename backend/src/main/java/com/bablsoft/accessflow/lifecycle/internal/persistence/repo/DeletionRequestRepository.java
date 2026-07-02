@@ -37,8 +37,9 @@ public interface DeletionRequestRepository extends JpaRepository<DeletionRequest
     @Query("select d.id from DeletionRequestEntity d where d.status = :status")
     List<UUID> findIdsByStatus(@Param("status") ErasureStatus status);
 
-    @Query("select d.id from DeletionRequestEntity d where d.status = "
-            + "com.bablsoft.accessflow.lifecycle.api.ErasureStatus.PENDING_REVIEW "
-            + "and d.updatedAt < :cutoff")
-    List<UUID> findTimedOutPendingReviewIds(@Param("cutoff") java.time.Instant cutoff);
+    // Bind the status as a parameter — an inlined JPQL enum literal is rendered with a cast to the
+    // Java class name (::ErasureStatus), not the Postgres enum type erasure_status (#546).
+    @Query("select d.id from DeletionRequestEntity d where d.status = :status and d.updatedAt < :cutoff")
+    List<UUID> findTimedOutPendingReviewIds(@Param("status") ErasureStatus status,
+                                            @Param("cutoff") java.time.Instant cutoff);
 }
