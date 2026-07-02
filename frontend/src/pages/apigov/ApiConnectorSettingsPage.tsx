@@ -46,6 +46,8 @@ import {
   recordToPairs,
   type KeyValuePair,
 } from '@/utils/apiRequestComposition';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type {
   ApiAuthMethod,
   ApiOperation,
@@ -120,7 +122,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
       message.success(t('apiGov.connectors.updated'));
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connectorId) });
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   if (!connectorQuery.data) return null;
   const c = connectorQuery.data;
@@ -261,7 +263,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
       setSourceUrl('');
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   const canUpload =
     source === 'url' ? !!sourceUrl.trim() : source === 'upload' ? !!content : !!content.trim();
@@ -271,7 +273,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
       message.success(t('apiGov.settings.schemaDeleted'));
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 700 }}>

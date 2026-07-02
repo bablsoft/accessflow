@@ -8,6 +8,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { queryTypeLabel, dataClassificationLabel } from '@/utils/enumLabels';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import {
   complianceKeys,
   exportComplianceReport,
@@ -62,7 +64,7 @@ export default function AuditorDashboardPage() {
         t('auditor.export_signed', { algorithm: result.signatureAlgorithm ?? 'RSA' }),
       );
     },
-    onError: () => message.error(t('auditor.export_failed')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('auditor.export_failed'))),
   });
 
   const classifiedColumns: ColumnsType<ClassifiedAccessRow> = [

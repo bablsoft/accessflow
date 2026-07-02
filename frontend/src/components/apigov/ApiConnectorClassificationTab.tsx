@@ -19,6 +19,7 @@ import {
   dataClassificationLabel,
   enumOptions,
 } from '@/utils/enumLabels';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { ApiConnectorClassificationDerivationPanel } from './ApiConnectorClassificationDerivationPanel';
 import type {
@@ -51,8 +52,8 @@ export function ApiConnectorClassificationTab({ connectorId }: { connectorId: st
       });
       message.success(t('apiGov.settings.classification.delete_success'));
     },
-    onError: () => {
-      message.error(t('apiGov.settings.classification.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.settings.classification.delete_error')));
     },
   });
 
@@ -221,7 +222,7 @@ function ClassificationTagModal({
       onClose();
     },
     onError: (err) => {
-      showApiError(message, err, () => t('apiGov.settings.classification.save_error'));
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.settings.classification.save_error')));
     },
   });
 

@@ -8,6 +8,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { apiConnectorKeys, listApiConnectors, listApiOperations } from '@/api/apiConnectors';
 import { analyzeApiCall, generateApiCall, submitApiRequest } from '@/api/apiRequests';
 import { riskLevelLabel } from '@/utils/enumLabels';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import { ApiRequestComposer } from '@/components/apigov/ApiRequestComposer';
 import {
   compositionToSubmit,
@@ -63,7 +65,7 @@ export default function ApiEditorPage() {
         request_path: path,
         request_body: compositionToSubmit(composition).request_body,
       }),
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const generateMutation = useMutation({
@@ -72,7 +74,7 @@ export default function ApiEditorPage() {
       setComposition((c) => ({ ...c, bodyType: 'RAW', rawBody: result.draft }));
       message.success(t('apiGov.editor.generated'));
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const submitMutation = useMutation({
@@ -92,7 +94,7 @@ export default function ApiEditorPage() {
       message.success(t('apiGov.editor.submitted'));
       navigate(`/api-requests/${created.id}`);
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const preview = analyzeMutation.data;

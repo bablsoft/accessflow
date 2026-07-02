@@ -41,6 +41,7 @@ import {
   rowSecurityValueTypeLabel,
 } from '@/utils/enumLabels';
 import { userDisplay } from '@/utils/userDisplay';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   CreateRowSecurityPolicyInput,
@@ -73,8 +74,8 @@ export function RowSecurityTab({ dsId }: { dsId: string }) {
       void queryClient.invalidateQueries({ queryKey: rowSecurityPolicyKeys.list(dsId) });
       message.success(t('datasources.settings.row_security.delete_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.row_security.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.row_security.delete_error')));
     },
   });
 
@@ -343,7 +344,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
       onClose();
     },
     onError: (err) => {
-      showApiError(message, err, () => t('datasources.settings.row_security.save_error'));
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.row_security.save_error')));
     },
   });
 

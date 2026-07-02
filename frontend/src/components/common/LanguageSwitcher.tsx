@@ -12,6 +12,8 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { isSupportedLanguage, LANGUAGE_DISPLAY_NAMES, type Language } from '@/i18n';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 
 export type LanguageSwitcherMode = 'authenticated' | 'public';
 
@@ -47,8 +49,8 @@ export function LanguageSwitcher({ mode = 'authenticated' }: LanguageSwitcherPro
       setLanguage(payload.current_language);
       queryClient.setQueryData(localizationKeys.me(), payload);
     },
-    onError: () => {
-      message.error(t('errors.languages_save_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('errors.languages_save_error')));
     },
   });
 

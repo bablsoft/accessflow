@@ -43,6 +43,7 @@ import {
 import { maskingPreview } from '@/utils/maskingPreview';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   CreateMaskingPolicyInput,
@@ -73,8 +74,8 @@ export function MaskingTab({ dsId }: { dsId: string }) {
       void queryClient.invalidateQueries({ queryKey: maskingPolicyKeys.list(dsId) });
       message.success(t('datasources.settings.masking.delete_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.masking.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.masking.delete_error')));
     },
   });
 
@@ -318,7 +319,7 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
       onClose();
     },
     onError: (err) => {
-      showApiError(message, err, () => t('datasources.settings.masking.save_error'));
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.masking.save_error')));
     },
   });
 

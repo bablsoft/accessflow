@@ -726,6 +726,7 @@ The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `fronte
 
 - Wrap each top-level route in an error boundary; surface a recovery action ("Retry"), not a stack trace.
 - Backend errors follow the RFC 9457 `ProblemDetail` envelope — see `docs/04-api-spec.md`. Render `title`/`detail`; map known `error` codes (e.g. `PERMISSION_DENIED`, `SQL_PARSE_ERROR`) to user-friendly messages in `src/utils/apiErrors.ts`.
+- **Always surface the server `detail`.** Route every failing-request toast through `showApiError(message, err, builder)` where `builder` is the matching `apiErrors.ts` domain handler (keeps its specific `error code → i18n` mappings) or, for call sites with no dedicated handler, the shared `apiErrorMessage(err, () => t('...generic'))` extractor. The backend `detail` is already localized (resolved via request locale), so it is preferred over a static fallback — the generic string only shows when the envelope carries no `detail`. Never write `onError: () => message.error(t('...'))` that discards `err`, and never pass a static `() => t('...')` builder to `showApiError` (it throws the error away — use `(e) => apiErrorMessage(e, () => t('...'))`).
 - Never display raw axios error objects, server stack traces, or SQL strings as error messages.
 - 422 (SQL parse) errors render inline in the editor as gutter markers — not as a toast.
 - 401 is handled by the Axios interceptor (refresh + retry) — components must not catch it.

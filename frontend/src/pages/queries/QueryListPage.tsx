@@ -20,6 +20,8 @@ import {
   riskLevelLabel,
 } from '@/utils/enumLabels';
 import { userDisplay } from '@/utils/userDisplay';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type {
   QueryListItem,
   QueryStatus,
@@ -81,8 +83,8 @@ export function QueryListPage() {
         message.warning(t('queries.list.export_truncated'));
       }
     },
-    onError: () => {
-      message.error(t('queries.list.export_failed'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('queries.list.export_failed')));
     },
   });
 

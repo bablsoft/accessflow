@@ -3,12 +3,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
+import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
 import type { RequestGroup, RequestGroupItem } from '@/types/api';
 
-const { getRequestGroupMock } = vi.hoisted(() => ({
+const { getRequestGroupMock, approveRequestGroupMock } = vi.hoisted(() => ({
   getRequestGroupMock: vi.fn(),
+  approveRequestGroupMock: vi.fn(),
 }));
 
 vi.mock('@/api/requestGroups', async () => {
@@ -18,7 +20,7 @@ vi.mock('@/api/requestGroups', async () => {
     getRequestGroup: getRequestGroupMock,
     executeRequestGroup: vi.fn(),
     cancelRequestGroup: vi.fn(),
-    approveRequestGroup: vi.fn(),
+    approveRequestGroup: approveRequestGroupMock,
     rejectRequestGroup: vi.fn(),
   };
 });
@@ -93,9 +95,21 @@ function renderPage() {
   );
 }
 
+function axiosError(status: number, data: unknown): AxiosError {
+  const response = {
+    data,
+    status,
+    statusText: '',
+    headers: {},
+    config: {} as never,
+  } as AxiosResponse;
+  return new AxiosError('Request failed', undefined, undefined, undefined, response);
+}
+
 describe('RequestGroupDetailPage', () => {
   beforeEach(() => {
     getRequestGroupMock.mockReset();
+    approveRequestGroupMock.mockReset();
     useAuthStore.setState({
       user: {
         id: 'u-1',
@@ -156,5 +170,38 @@ describe('RequestGroupDetailPage', () => {
 
     expect(screen.getByTestId('group-step-0-ai')).toHaveTextContent('Reads all user rows.');
     expect(screen.getByTestId('group-step-0-body')).toHaveTextContent('SELECT * FROM users');
+  });
+
+  it('surfaces the backend detail when approving your own group fails', async () => {
+    // Reviewer/admin sees the Approve button on a PENDING_REVIEW group (no client-side
+    // self-approval gate); the server rejects self-approval with a localized detail.
+    useAuthStore.setState({
+      user: {
+        id: 'u-1',
+        email: 'u@x.io',
+        display_name: 'Dana',
+        role: 'ADMIN',
+        organization_id: 'org-1',
+      } as never,
+    });
+    getRequestGroupMock.mockResolvedValue(group([item()]));
+    approveRequestGroupMock.mockRejectedValue(
+      axiosError(403, {
+        title: 'Forbidden',
+        detail: 'You cannot approve your own request group',
+        error: 'REQUEST_GROUP_SELF_APPROVAL',
+      }),
+    );
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    // The decision modal opens; confirm it.
+    fireEvent.click(await screen.findByRole('button', { name: 'OK' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('You cannot approve your own request group')).toBeInTheDocument();
+    });
+    // The generic fallback must NOT be shown when the envelope carries a detail.
+    expect(screen.queryByText('Something went wrong. Please try again.')).not.toBeInTheDocument();
   });
 });

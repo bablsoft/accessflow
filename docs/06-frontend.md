@@ -591,6 +591,19 @@ interface AuthStore {
 }
 ```
 
+### API error toasts (`showApiError` + `apiErrors.ts`)
+
+Every failing-request toast must surface the backend's RFC 9457 `ProblemDetail.detail` rather than a
+static generic string. Route errors through `showApiError(message, err, builder)` (`src/utils/showApiError.tsx`,
+which also renders the trace-id footer). The `builder` is either a domain handler from
+`src/utils/apiErrors.ts` (each maps its specific `error` codes to localized i18n messages, then falls
+back through `detail` → `title` → axios message → a per-domain generic key), or — for call sites with
+no dedicated handler — the shared `apiErrorMessage(err, () => t('...generic'))` extractor, which prefers
+`detail` (backend-localized, occurrence-specific) over `title` (the HTTP reason phrase) and only shows
+the caller's generic fallback when the envelope carries neither. Anti-patterns to avoid:
+`onError: () => message.error(t('...'))` (discards `err`, so `detail` is lost) and passing a static
+`() => t('...')` builder to `showApiError` (same — use `(e) => apiErrorMessage(e, () => t('...'))`).
+
 ### WebSocket Hook
 
 The connection itself is owned by `<RealtimeBridge />`, mounted inside `AppLayout` so it only runs under `AuthGuard` — the WebSocket module is never imported by the `/login` or `/setup` routes, and no connection is attempted before authentication. It reads `accessToken` from `authStore`, opens `${VITE_WS_URL}?token=<JWT>` on auth, reconnects with exponential backoff, and disconnects on logout (when `AppLayout` unmounts). The bridge also wires **default `queryClient.invalidateQueries`** for the standard event/key mapping (see table below) — most callers don't need to subscribe at all; they just observe their existing TanStack queries refetching.

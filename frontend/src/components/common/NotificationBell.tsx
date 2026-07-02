@@ -12,6 +12,8 @@ import {
   markNotificationRead,
   notificationKeys,
 } from '@/api/notifications';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { UserNotification, UserNotificationPayload } from '@/types/api';
 import './notification-bell.css';
 
@@ -42,19 +44,19 @@ export function NotificationBell() {
   const markRead = useMutation({
     mutationFn: (id: string) => markNotificationRead(id),
     onSuccess: invalidate,
-    onError: () => message.error(t('notifications.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('notifications.error'))),
   });
 
   const markAll = useMutation({
     mutationFn: () => markAllNotificationsRead(),
     onSuccess: invalidate,
-    onError: () => message.error(t('notifications.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('notifications.error'))),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteNotification(id),
     onSuccess: invalidate,
-    onError: () => message.error(t('notifications.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('notifications.error'))),
   });
 
   const onRowClick = (item: UserNotification) => {

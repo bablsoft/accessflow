@@ -39,7 +39,7 @@ import { SchemaObjectTree } from '@/components/datasources/SchemaObjectTree';
 import { SampleDataDrawer } from '@/components/datasources/SampleDataDrawer';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
-import { datasourceGrantErrorMessage } from '@/utils/apiErrors';
+import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
@@ -138,8 +138,8 @@ export function DatasourceSettingsPage() {
         message.error(result.message ?? t('datasources.settings.connection_failed'));
       }
     },
-    onError: () => {
-      message.error(t('datasources.settings.connection_failed'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.connection_failed')));
     },
   });
 
@@ -150,8 +150,8 @@ export function DatasourceSettingsPage() {
       message.success(t('datasources.settings.delete_success'));
       navigate('/datasources');
     },
-    onError: () => {
-      message.error(t('datasources.settings.delete_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.delete_error')));
     },
   });
 
@@ -365,8 +365,8 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
       void queryClient.invalidateQueries({ queryKey: datasourceKeys.lists() });
       message.success(t('datasources.settings.save_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.save_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.save_error')));
     },
   });
 
@@ -665,8 +665,8 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
       void queryClient.invalidateQueries({ queryKey: datasourceKeys.permissions(dsId) });
       message.success(t('datasources.settings.revoke_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.revoke_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.revoke_error')));
     },
   });
 
@@ -676,8 +676,8 @@ function PermissionMatrix({ dsId }: { dsId: string }) {
       void queryClient.invalidateQueries({ queryKey: datasourceKeys.groupPermissions(dsId) });
       message.success(t('datasources.settings.revoke_success'));
     },
-    onError: () => {
-      message.error(t('datasources.settings.revoke_error'));
+    onError: (err) => {
+      showApiError(message, err, (e) => apiErrorMessage(e, () => t('datasources.settings.revoke_error')));
     },
   });
 

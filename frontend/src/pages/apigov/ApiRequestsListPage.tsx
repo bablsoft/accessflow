@@ -18,6 +18,8 @@ import {
 import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
 import { enumOptions, queryStatusLabel, riskLevelLabel } from '@/utils/enumLabels';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { ApiRequest, QueryStatus, RiskLevel } from '@/types/api';
 
 const STATUSES: QueryStatus[] = [
@@ -77,7 +79,7 @@ export default function ApiRequestsListPage() {
       message.success(t('apiGov.requests.cancelled'));
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const executeMutation = useMutation({
@@ -86,7 +88,7 @@ export default function ApiRequestsListPage() {
       message.success(t('apiGov.requests.executed'));
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const rows = useMemo(() => requestsQuery.data?.content ?? [], [requestsQuery.data]);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
 import {
   adminErrorMessage,
+  apiErrorMessage,
   apiErrorTraceId,
   authErrorMessage,
   collaborationErrorMessage,
@@ -645,5 +646,39 @@ describe('connectorErrorMessage', () => {
   it('returns a generic fallback for non-axios values', () => {
     expect(connectorErrorMessage(undefined))
       .toBe('Something went wrong with the connector. Please try again.');
+  });
+});
+
+describe('apiErrorMessage', () => {
+  const fallback = () => 'generic fallback';
+
+  it('prefers the backend detail over the title', () => {
+    expect(
+      apiErrorMessage(
+        buildAxiosError(403, {
+          title: 'Forbidden',
+          detail: 'You cannot approve your own request group',
+        }),
+        fallback,
+      ),
+    ).toBe('You cannot approve your own request group');
+  });
+
+  it('falls back to the title when there is no detail', () => {
+    expect(apiErrorMessage(buildAxiosError(400, { title: 'Bad Request' }), fallback))
+      .toBe('Bad Request');
+  });
+
+  it('falls back to the axios message when the body is empty', () => {
+    expect(apiErrorMessage(buildAxiosError(500, {}), fallback)).toBe('Request failed');
+  });
+
+  it('uses an Error message for non-axios errors', () => {
+    expect(apiErrorMessage(new Error('boom'), fallback)).toBe('boom');
+  });
+
+  it('returns the fallback for non-axios values without a message', () => {
+    expect(apiErrorMessage(undefined, fallback)).toBe('generic fallback');
+    expect(apiErrorMessage(new Error(''), fallback)).toBe('generic fallback');
   });
 });

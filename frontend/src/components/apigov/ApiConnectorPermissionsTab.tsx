@@ -17,6 +17,8 @@ import {
 } from '@/api/apiConnectors';
 import { listUsers, userKeys } from '@/api/admin';
 import { groupKeys, listAllGroups } from '@/api/groups';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type {
   ApiConnectorGroupPermission,
   ApiConnectorPermission,
@@ -119,7 +121,7 @@ function EditPermissionModal({
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.permissions(connectorId) });
       onClose();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
   const subject = permission
@@ -227,7 +229,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
       if (values.target === 'group') invalidateGroups();
       else invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   const revokeMutation = useMutation({
     mutationFn: (permissionId: string) => revokeApiConnectorPermission(connectorId, permissionId),
@@ -235,7 +237,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
       message.success(t('apiGov.settings.revoked'));
       invalidate();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   const revokeGroupMutation = useMutation({
     mutationFn: (permissionId: string) =>
@@ -244,7 +246,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
       message.success(t('apiGov.settings.revoked'));
       invalidateGroups();
     },
-    onError: () => message.error(t('apiGov.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
   const groupPerms = groupPermsQuery.data ?? [];
   return (

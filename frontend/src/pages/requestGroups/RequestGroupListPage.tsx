@@ -20,6 +20,8 @@ import {
   requestGroupStatusLabel,
 } from '@/utils/enumLabels';
 import { timeAgo } from '@/utils/dateFormat';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 import type { RequestGroup, RequestGroupStatus } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -57,7 +59,7 @@ export default function RequestGroupListPage() {
       message.success(t('requestGroups.list.executeStarted'));
       invalidate();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const cancelMutation = useMutation({
@@ -66,7 +68,7 @@ export default function RequestGroupListPage() {
       message.success(t('requestGroups.list.cancelled'));
       invalidate();
     },
-    onError: () => message.error(t('requestGroups.error')),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
   const rows = useMemo(() => groupsQuery.data?.content ?? [], [groupsQuery.data]);

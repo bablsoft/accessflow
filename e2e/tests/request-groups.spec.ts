@@ -213,6 +213,17 @@ test.describe('request groups (AF-501)', () => {
 
     // An independent reviewer approves the bundle, then it executes as one ordered sequence.
     await waitForGroupStatus(request, adminToken, groupId, 'PENDING_REVIEW');
+
+    // Self-approval is blocked server-side, and there is no client-side gate — so the submitting
+    // admin still sees the Approve button. Attempting it must surface the backend's localized
+    // ProblemDetail `detail` in the toast, not a generic "Something went wrong" (issue #556).
+    await page.reload();
+    await page.getByRole('button', { name: 'Approve', exact: true }).click();
+    await page.getByRole('button', { name: 'OK', exact: true }).click();
+    await expect(page.getByText('You cannot approve your own request group')).toBeVisible();
+    await expect(page.getByText('Something went wrong. Please try again.')).toHaveCount(0);
+    await page.keyboard.press('Escape'); // dismiss the decision modal
+
     await approveGroupViaApi(request, reviewerToken, groupId);
     await waitForGroupStatus(request, adminToken, groupId, 'APPROVED');
 
