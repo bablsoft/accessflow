@@ -200,8 +200,10 @@ test.describe.serial('query submission from /editor', () => {
     const body = (await response.json()) as { error?: string };
     expect(body.error).toBe('INVALID_SQL');
 
-    // Toast `editor.submit_error` = "Could not submit query" (en.json:294).
-    await expect(page.getByText('Could not submit query')).toBeVisible({
+    // submitMutation.onError surfaces the backend ProblemDetail `detail` via
+    // showApiError + apiErrorMessage (AF-556); the 422 INVALID_SQL detail is the
+    // localized `error.sql_parse_failed` = "Failed to parse SQL".
+    await expect(page.getByText('Failed to parse SQL')).toBeVisible({
       timeout: 5_000,
     });
 

@@ -93,10 +93,11 @@ async function waitForListReady(page: Page): Promise<void> {
 // implementation, not the issue body:
 //
 //   * Test 2 ("Update with a duplicate name → 409 → error banner"). The
-//     settings page's update mutation onError shows the generic
-//     `datasources.settings.save_error` toast — there is no dedicated banner
-//     or specialised 409 copy (DatasourceSettingsPage.tsx:254-256). We
-//     assert the generic toast.
+//     settings page's update mutation onError now routes through
+//     `showApiError` + `apiErrorMessage` (AF-556), so the toast surfaces the
+//     backend's localized ProblemDetail `detail` ("A datasource with that name
+//     already exists") rather than the generic `datasources.settings.save_error`
+//     fallback. We assert the backend detail copy.
 //
 //   * Test 3 ("Test-connection with wrong password → failure alert"). The
 //     wizard renders an AntD Alert, but the settings page's testMutation
@@ -243,9 +244,10 @@ test.describe.serial('datasource settings — config + permissions', () => {
     ]);
     expect(putResponse.status()).toBe(409);
 
-    // Generic message.error from updateMutation.onError. See deviation note
-    // in the file-level comment for why we assert the generic copy.
-    await expect(page.getByText('Failed to update datasource', { exact: true })).toBeVisible({
+    // updateMutation.onError surfaces the backend ProblemDetail `detail` via
+    // showApiError + apiErrorMessage (AF-556). See deviation note in the
+    // file-level comment.
+    await expect(page.getByText('A datasource with that name already exists')).toBeVisible({
       timeout: 10_000,
     });
   });
