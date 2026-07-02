@@ -1,4 +1,9 @@
-import type { ErasureCondition, ErasureConditionOperator, ErasureConditionSet } from '@/types/api';
+import type {
+  ErasureCondition,
+  ErasureConditionOperator,
+  ErasureConditionSet,
+  SchemaNamespace,
+} from '@/types/api';
 
 /**
  * Form-row shape for the structured condition builder (AF-519). Mirrors {@link ErasureCondition}
@@ -78,6 +83,45 @@ export function requiresTargetTable(values: {
   raw_where?: string | null;
 }): boolean {
   return rowsToConditionSet(values.conditions) !== null || blankToNull(values.raw_where) !== null;
+}
+
+/** A `schema.table` pick-list entry with its column names, for the cascading target pickers (#548). */
+export interface ErasureTableOption {
+  value: string;
+  columns: string[];
+}
+
+/** Flatten an introspected schema into sorted `schema.table` options with embedded column lists. */
+export function schemaTableOptions(
+  schemas: ReadonlyArray<SchemaNamespace>,
+): ErasureTableOption[] {
+  const out: ErasureTableOption[] = [];
+  for (const s of schemas) {
+    for (const tbl of s.tables) {
+      out.push({ value: `${s.name}.${tbl.name}`, columns: tbl.columns.map((c) => c.name) });
+    }
+  }
+  out.sort((a, b) => a.value.localeCompare(b.value));
+  return out;
+}
+
+/** The selected table's columns, or null when the selection doesn't match a schema table. */
+export function columnsForTable(
+  tables: ReadonlyArray<ErasureTableOption>,
+  selected: string | null | undefined,
+): string[] | null {
+  if (!selected) return null;
+  return tables.find((tbl) => tbl.value === selected)?.columns ?? null;
+}
+
+/** Drop column selections that don't exist on the newly selected table (null allowed ⇒ keep all). */
+export function pruneColumnsToTable(
+  selected: string[] | undefined,
+  allowed: string[] | null,
+): string[] {
+  if (allowed === null) return selected ?? [];
+  const allowedSet = new Set(allowed);
+  return (selected ?? []).filter((c) => allowedSet.has(c));
 }
 
 /** Convert a persisted {@link ErasureConditionSet} back into editable Form.List rows. */

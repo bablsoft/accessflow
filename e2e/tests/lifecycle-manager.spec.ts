@@ -137,6 +137,55 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     }
   });
 
+  test('erasure form offers schema-driven cascading table/column pickers (#548)', async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    try {
+      const page = await ctx.newPage();
+      await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
+      await page.goto('/lifecycle/erasure');
+
+      // Select the Postgres datasource — its schema introspects the AccessFlow DB itself.
+      await page.getByRole('combobox').first().click();
+      await page.locator('.ant-select-item-option').filter({ hasText: datasource!.name }).click();
+      await page.keyboard.press('Escape');
+
+      // Once the schema loads, Target table swaps from free-text to a searchable Select —
+      // wait for its schema-mode placeholder before interacting (avoids racing the fetch).
+      await expect(page.getByText('Select a table')).toBeVisible({ timeout: 15_000 });
+
+      const openOptions = page.locator(
+        '.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option',
+      );
+      const targetTable = page.getByLabel('Target table');
+      await targetTable.click();
+      await targetTable.fill('public.users');
+      await expect(openOptions.filter({ hasText: 'public.users' }).first()).toBeVisible({
+        timeout: 10_000,
+      });
+      await openOptions.filter({ hasText: 'public.users' }).first().click();
+
+      // Target columns is scoped to the selected table's columns.
+      const targetColumns = page.getByLabel('Target columns');
+      await targetColumns.click();
+      await expect(
+        openOptions.filter({ hasText: /^email$/ }).first(),
+      ).toBeVisible({ timeout: 10_000 });
+      await openOptions.filter({ hasText: /^email$/ }).first().click();
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.ant-select-selection-item[title="email"]')).toBeVisible();
+
+      // Changing the table re-scopes the columns and clears the stale selection.
+      await targetTable.click();
+      await targetTable.fill('public.organizations');
+      await openOptions.filter({ hasText: 'public.organizations' }).first().click();
+      await expect(page.locator('.ant-select-selection-item[title="email"]')).toBeHidden();
+    } finally {
+      await ctx.close();
+    }
+  });
+
   test('submitter files an erasure request and an admin approves it', async ({ request, browser }) => {
     subjectEmail = `subject-${randomUUID()}@example.com`;
     await submitErasureViaApi(request, submitterToken, datasource!.id, subjectEmail);

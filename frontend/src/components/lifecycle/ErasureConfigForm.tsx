@@ -6,7 +6,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
-import { requiresTargetTable } from '@/pages/lifecycle/erasureConfigForm';
+import {
+  columnsForTable,
+  pruneColumnsToTable,
+  requiresTargetTable,
+  schemaTableOptions,
+} from '@/pages/lifecycle/erasureConfigForm';
 import { ERASURE_CONDITION_OPERATORS, enumOptions, erasureConditionOperatorLabel } from '@/utils/enumLabels';
 import type { ErasureConditionOperator } from '@/types/api';
 
@@ -46,22 +51,39 @@ export function ErasureConfigForm({
     retry: false,
   });
 
-  const tableOptions = useMemo(
-    () =>
-      (schemaQuery.data?.schemas ?? []).flatMap((s) =>
-        s.tables.map((tbl) => ({ value: `${s.name}.${tbl.name}` })),
-      ),
+  const tables = useMemo(
+    () => schemaTableOptions(schemaQuery.data?.schemas ?? []),
     [schemaQuery.data],
   );
-  const columnOptions = useMemo(() => {
+  // Free-text fallback whenever no introspected table is available (loading, error,
+  // empty schema, or no datasource selected yet).
+  const schemaAvailable = tables.length > 0;
+  const tableOptions = useMemo(() => tables.map((tbl) => ({ value: tbl.value })), [tables]);
+  const globalColumnOptions = useMemo(() => {
     const names = new Set<string>();
-    for (const s of schemaQuery.data?.schemas ?? []) {
-      for (const tbl of s.tables) {
-        for (const col of tbl.columns) names.add(col.name);
-      }
+    for (const tbl of tables) {
+      for (const col of tbl.columns) names.add(col);
     }
     return [...names].sort().map((name) => ({ value: name }));
-  }, [schemaQuery.data]);
+  }, [tables]);
+
+  const selectedTable = Form.useWatch('target_table', form) as string | undefined;
+  const scopedColumns = useMemo(
+    () => columnsForTable(tables, selectedTable),
+    [tables, selectedTable],
+  );
+  const columnOptions = useMemo(
+    () => (scopedColumns === null ? globalColumnOptions : scopedColumns.map((c) => ({ value: c }))),
+    [scopedColumns, globalColumnOptions],
+  );
+
+  const onTableChange = (next: string | undefined) => {
+    const current = form.getFieldValue('target_columns') as string[] | undefined;
+    form.setFieldValue(
+      'target_columns',
+      pruneColumnsToTable(current, columnsForTable(tables, next)),
+    );
+  };
 
   const operatorOptions = enumOptions(ERASURE_CONDITION_OPERATORS, erasureConditionOperatorLabel, t);
 
@@ -85,19 +107,35 @@ export function ErasureConfigForm({
         ]}
         tooltip={t('lifecycle.config.target_table_help')}
       >
-        <AutoComplete
-          options={tableOptions}
-          filterOption={(input, option) =>
-            (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-          }
-          placeholder="public.users"
-          allowClear
-        />
+        {schemaAvailable ? (
+          <Select
+            showSearch
+            optionFilterProp="value"
+            options={tableOptions}
+            placeholder={t('lifecycle.config.target_table_placeholder')}
+            onChange={onTableChange}
+            allowClear
+          />
+        ) : (
+          <AutoComplete
+            options={tableOptions}
+            filterOption={(input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            placeholder="public.users"
+            allowClear
+          />
+        )}
       </Form.Item>
 
       <Form.Item name="target_columns" label={t('lifecycle.config.label_target_columns')}>
-        <Select mode="tags" options={columnOptions} tokenSeparators={[',']} allowClear
-          placeholder={t('lifecycle.config.target_columns_placeholder')} />
+        {schemaAvailable && scopedColumns !== null ? (
+          <Select mode="multiple" options={columnOptions} allowClear
+            placeholder={t('lifecycle.config.target_columns_select_placeholder')} />
+        ) : (
+          <Select mode="tags" options={columnOptions} tokenSeparators={[',']} allowClear
+            placeholder={t('lifecycle.config.target_columns_placeholder')} />
+        )}
       </Form.Item>
 
       <Typography.Text strong>{t('lifecycle.config.conditions_title')}</Typography.Text>

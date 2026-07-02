@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  columnsForTable,
   configToPayload,
   conditionSetToRows,
   hasErasureScope,
+  pruneColumnsToTable,
   requiresTargetTable,
   rowsToConditionSet,
+  schemaTableOptions,
 } from '@/pages/lifecycle/erasureConfigForm';
+import type { SchemaNamespace } from '@/types/api';
 
 describe('rowsToConditionSet', () => {
   it('returns null for empty / undefined rows', () => {
@@ -110,6 +114,73 @@ describe('requiresTargetTable', () => {
   it('is true once a bound condition or raw WHERE is present', () => {
     expect(requiresTargetTable({ conditions: [{ column: 'status', values: ['x'] }] })).toBe(true);
     expect(requiresTargetTable({ raw_where: "status = 'inactive'" })).toBe(true);
+  });
+});
+
+const col = (name: string): SchemaNamespace['tables'][number]['columns'][number] => ({
+  name,
+  type: 'text',
+  nullable: true,
+  primary_key: false,
+});
+
+const SCHEMAS: SchemaNamespace[] = [
+  {
+    name: 'sales',
+    tables: [{ name: 'orders', columns: [col('id'), col('total')], foreign_keys: [] }],
+  },
+  {
+    name: 'public',
+    tables: [
+      { name: 'users', columns: [col('id'), col('email')], foreign_keys: [] },
+      { name: 'audit', columns: [], foreign_keys: [] },
+    ],
+  },
+];
+
+describe('schemaTableOptions', () => {
+  it('returns an empty array for an empty schema', () => {
+    expect(schemaTableOptions([])).toEqual([]);
+  });
+
+  it('flattens to sorted schema.table entries with embedded column names', () => {
+    expect(schemaTableOptions(SCHEMAS)).toEqual([
+      { value: 'public.audit', columns: [] },
+      { value: 'public.users', columns: ['id', 'email'] },
+      { value: 'sales.orders', columns: ['id', 'total'] },
+    ]);
+  });
+});
+
+describe('columnsForTable', () => {
+  const tables = schemaTableOptions(SCHEMAS);
+
+  it('returns null when nothing is selected', () => {
+    expect(columnsForTable(tables, undefined)).toBeNull();
+    expect(columnsForTable(tables, null)).toBeNull();
+    expect(columnsForTable(tables, '')).toBeNull();
+  });
+
+  it('returns null when the selection matches no schema table (free-text value)', () => {
+    expect(columnsForTable(tables, 'public.unknown')).toBeNull();
+  });
+
+  it('returns the matched table columns', () => {
+    expect(columnsForTable(tables, 'public.users')).toEqual(['id', 'email']);
+    expect(columnsForTable(tables, 'public.audit')).toEqual([]);
+  });
+});
+
+describe('pruneColumnsToTable', () => {
+  it('keeps all selections when the allowed list is null (no schema table matched)', () => {
+    expect(pruneColumnsToTable(['a', 'b'], null)).toEqual(['a', 'b']);
+    expect(pruneColumnsToTable(undefined, null)).toEqual([]);
+  });
+
+  it('drops selections missing from the new table and keeps valid ones', () => {
+    expect(pruneColumnsToTable(['id', 'total', 'email'], ['id', 'email'])).toEqual(['id', 'email']);
+    expect(pruneColumnsToTable(['total'], [])).toEqual([]);
+    expect(pruneColumnsToTable(undefined, ['id'])).toEqual([]);
   });
 });
 

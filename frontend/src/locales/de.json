@@ -3244,6 +3244,8 @@
       "target_table_help": "Die Tabelle, auf die Bedingungen und rohes WHERE angewendet werden.",
       "label_target_columns": "Zielspalten",
       "target_columns_placeholder": "Spalten hinzufügen (kommagetrennt)",
+      "target_table_placeholder": "Tabelle auswählen",
+      "target_columns_select_placeholder": "Spalten auswählen",
       "conditions_title": "Bedingungen",
       "conditions_help": "Alle Bedingungen werden mit UND verknüpft. Für ODER oder komplexere Logik das rohe WHERE unten verwenden.",
       "condition_column_placeholder": "Spalte",
