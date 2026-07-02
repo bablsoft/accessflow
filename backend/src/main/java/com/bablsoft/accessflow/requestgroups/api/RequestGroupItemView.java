@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.api;
 
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 
@@ -27,6 +28,8 @@ public record RequestGroupItemView(
         UUID aiAnalysisId,
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
+        /** Full embedded analysis — populated on the group detail view only (AF-531). */
+        QueryDetailView.AiAnalysisDetail aiAnalysis,
         // Outcome
         RequestGroupItemStatus status,
         Integer responseStatusCode,

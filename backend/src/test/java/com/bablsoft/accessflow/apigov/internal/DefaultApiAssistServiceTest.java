@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.ai.api.GeneratedApiCall;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
+import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -25,6 +26,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +36,7 @@ class DefaultApiAssistServiceTest {
     @Mock private EffectiveApiConnectorPermissionResolver permissionResolver;
     @Mock private ApiSchemaService schemaService;
     @Mock private ApiCallAnalyzer apiCallAnalyzer;
+    @Mock private ApiConnectorClassificationRiskBooster classificationRiskBooster;
 
     private DefaultApiAssistService service;
 
@@ -44,7 +47,7 @@ class DefaultApiAssistServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiAssistService(connectorRepository, permissionResolver, schemaService,
-                apiCallAnalyzer);
+                apiCallAnalyzer, classificationRiskBooster);
     }
 
     private ApiConnectorEntity connector(boolean textToApi) {
@@ -69,6 +72,35 @@ class DefaultApiAssistServiceTest {
 
         assertThat(preview.riskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(preview.riskScore()).isEqualTo(70);
+    }
+
+    @Test
+    void analyzeDetailedReturnsClassificationBoostedFullResult() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector(false)));
+        when(schemaService.listOperations(connectorId, orgId)).thenReturn(List.of(
+                new ApiOperation("listPets", "GET", "/pets", null, false, null, null)));
+        var analyzed = new AiAnalysisResult(40, RiskLevel.MEDIUM,
+                "reads pets", List.of(), false, null, AiProviderType.ANTHROPIC, "claude", 1, 1, List.of());
+        var boosted = new AiAnalysisResult(70, RiskLevel.HIGH,
+                "reads pets", List.of(), false, null, AiProviderType.ANTHROPIC, "claude", 1, 1, List.of());
+        when(apiCallAnalyzer.analyzeApiCall(any())).thenReturn(analyzed);
+        when(classificationRiskBooster.boost(analyzed, orgId, connectorId, "listPets")).thenReturn(boosted);
+
+        var result = service.analyzeDetailed(connectorId, orgId, userId, true,
+                new ApiAssistService.AnalyzeInput("listPets", "GET", "/pets", null, null));
+
+        assertThat(result).isSameAs(boosted);
+        verify(classificationRiskBooster).boost(analyzed, orgId, connectorId, "listPets");
+    }
+
+    @Test
+    void analyzeDetailedDeniedWithoutConnectorPermission() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector(false)));
+        when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.analyzeDetailed(connectorId, orgId, userId, false,
+                new ApiAssistService.AnalyzeInput(null, "GET", "/pets", null, null)))
+                .isInstanceOf(ApiRequestPermissionException.class);
     }
 
     @Test

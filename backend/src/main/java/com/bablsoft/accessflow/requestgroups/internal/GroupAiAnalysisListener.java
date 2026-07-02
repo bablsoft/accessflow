@@ -27,9 +27,10 @@ import java.util.UUID;
 
 /**
  * Drives async, fail-safe per-member AI risk scoring of a submitted group, then routes the group to
- * review or approval. Query members go through {@link AiAnalyzerService#analyzePreview} (persisted to
- * {@code ai_analyses} keyed to the member) and API members through {@link ApiAssistService#analyze}.
- * A member whose analysis fails escalates (never blocks). The aggregate group risk is the maximum
+ * review or approval. Query members go through {@link AiAnalyzerService#analyzePreview} and API
+ * members through {@link ApiAssistService#analyzeDetailed}; both are persisted to
+ * {@code ai_analyses} keyed to the member (AF-531), so the group detail view can embed the full
+ * analysis. A member whose analysis fails escalates (never blocks). The aggregate group risk is the maximum
  * across members; once every member is scored the group resolves its union-of-plans review
  * requirement and transitions to {@code PENDING_REVIEW} (human approval needed) or {@code APPROVED}.
  */
@@ -87,12 +88,15 @@ class GroupAiAnalysisListener {
                 item.setAiRiskLevel(result.riskLevel());
                 item.setAiRiskScore(result.riskScore());
             } else {
-                var preview = apiAssistService.analyze(item.getApiConnectorId(), group.getOrganizationId(),
-                        group.getSubmittedBy(), true,
+                var result = apiAssistService.analyzeDetailed(item.getApiConnectorId(),
+                        group.getOrganizationId(), group.getSubmittedBy(), true,
                         new ApiAssistService.AnalyzeInput(item.getOperationId(), item.getVerb(),
                                 item.getRequestPath(), item.getRequestBody(), null));
-                item.setAiRiskLevel(preview.riskLevel());
-                item.setAiRiskScore(preview.riskScore());
+                var analysisId = aiAnalysisPersistenceService.persistForGroupItem(item.getId(),
+                        toCommand(result));
+                item.setAiAnalysisId(analysisId);
+                item.setAiRiskLevel(result.riskLevel());
+                item.setAiRiskScore(result.riskScore());
             }
         } catch (RuntimeException ex) {
             // Fail-safe: a failed member analysis escalates (handled by route falling back to review),

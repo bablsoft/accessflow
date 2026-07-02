@@ -9,14 +9,12 @@ import {
   Modal,
   Skeleton,
   Space,
-  Tag,
 } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RequestGroupStatusPill } from '@/components/common/RequestGroupStatusPill';
-import { RequestGroupItemStatusPill } from '@/components/common/RequestGroupItemStatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -27,69 +25,8 @@ import {
   rejectRequestGroup,
   requestGroupKeys,
 } from '@/api/requestGroups';
-import { targetKindLabel } from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
-import type { RequestGroupItem } from '@/types/api';
-
-function MemberRow({ item }: { item: RequestGroupItem }) {
-  const { t } = useTranslation();
-  return (
-    <Card size="small" styles={{ body: { padding: 12 } }} data-testid={`group-step-${item.sequence_order}`}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <span className="mono muted">#{item.sequence_order + 1}</span>
-        <Tag>{targetKindLabel(t, item.target_kind)}</Tag>
-        <RequestGroupItemStatusPill status={item.status} size="sm" />
-        {item.ai_risk_level != null && (
-          <RiskPill level={item.ai_risk_level} score={item.ai_risk_score} size="sm" />
-        )}
-        <span style={{ flex: 1 }} />
-        {item.duration_ms != null && (
-          <span className="muted" style={{ fontSize: 12 }}>
-            {item.duration_ms} ms
-          </span>
-        )}
-      </div>
-      <div style={{ marginTop: 8 }}>
-        {item.target_kind === 'QUERY' ? (
-          <div>
-            <div className="muted" style={{ fontSize: 12 }}>
-              {item.datasource_name ?? item.datasource_id}
-            </div>
-            {item.sql_text && (
-              <pre
-                style={{
-                  background: 'var(--bg-sunken)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: 8,
-                  margin: '6px 0 0',
-                  fontSize: 12,
-                  maxHeight: 160,
-                  overflow: 'auto',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {item.sql_text}
-              </pre>
-            )}
-          </div>
-        ) : (
-          <div className="mono" style={{ fontSize: 12 }}>
-            <span style={{ fontWeight: 600 }}>{item.verb}</span> {item.request_path}
-            {item.api_connector_name && (
-              <span className="muted"> · {item.api_connector_name}</span>
-            )}
-          </div>
-        )}
-        {item.error_message && (
-          <div style={{ color: 'var(--risk-high)', fontSize: 12, marginTop: 6 }}>
-            {item.error_message}
-          </div>
-        )}
-      </div>
-    </Card>
-  );
-}
+import { RequestGroupMemberPanel } from './RequestGroupMemberPanel';
 
 export default function RequestGroupDetailPage() {
   const { t } = useTranslation();
@@ -269,7 +206,7 @@ export default function RequestGroupDetailPage() {
                 {[...group.items]
                   .sort((a, b) => a.sequence_order - b.sequence_order)
                   .map((item) => (
-                    <MemberRow key={item.id} item={item} />
+                    <RequestGroupMemberPanel key={item.id} item={item} />
                   ))}
               </div>
             </Card>

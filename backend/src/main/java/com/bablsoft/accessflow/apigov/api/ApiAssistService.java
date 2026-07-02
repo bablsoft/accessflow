@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.api;
 
+import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 
 import java.util.List;
@@ -14,6 +15,14 @@ public interface ApiAssistService {
 
     ApiAiPreview analyze(UUID connectorId, UUID organizationId, UUID userId, boolean admin,
                          AnalyzeInput input);
+
+    /**
+     * Full analysis result (issues, optimizations, provider/model, token counts) including the
+     * data-classification risk boost — for persistence-grade callers such as request-group member
+     * analysis (AF-531), at parity with what standalone API requests persist.
+     */
+    AiAnalysisResult analyzeDetailed(UUID connectorId, UUID organizationId, UUID userId, boolean admin,
+                                     AnalyzeInput input);
 
     GeneratedApiCallView generate(UUID connectorId, UUID organizationId, UUID userId, boolean admin,
                                   String prompt, String language);

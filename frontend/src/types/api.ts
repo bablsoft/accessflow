@@ -2809,6 +2809,8 @@ export interface RequestGroupItem {
   ai_analysis_id: string | null;
   ai_risk_level: RiskLevel | null;
   ai_risk_score: number | null;
+  /** Full embedded analysis — present on the group detail response only (AF-531). */
+  ai_analysis: AiAnalysisDetail | null;
   status: RequestGroupItemStatus;
   response_status_code: number | null;
   rows_affected: number | null;

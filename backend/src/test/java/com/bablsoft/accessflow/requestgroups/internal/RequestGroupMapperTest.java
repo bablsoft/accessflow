@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.requestgroups.internal;
 
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -46,12 +48,42 @@ class RequestGroupMapperTest {
                 group.getOrganizationId(), true, null, null, Instant.now(), "en", false, Instant.now());
 
         var view = RequestGroupMapper.toView(group, List.of(item), submitter,
-                Map.of(datasourceId, new DatasourceRef(datasourceId, "prod-db")), Map.of());
+                Map.of(datasourceId, new DatasourceRef(datasourceId, "prod-db")), Map.of(), Map.of());
 
         assertThat(view.submittedByDisplayName()).isEqualTo("Dana");
         assertThat(view.aiRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(view.items()).hasSize(1);
         assertThat(view.items().get(0).datasourceName()).isEqualTo("prod-db");
         assertThat(view.items().get(0).targetKind()).isEqualTo(RequestGroupTargetKind.QUERY);
+        assertThat(view.items().get(0).aiAnalysis()).isNull();
+    }
+
+    @Test
+    void attachesEmbeddedAnalysisWhenPresentForItem() {
+        var group = new RequestGroupEntity();
+        group.setId(UUID.randomUUID());
+        group.setOrganizationId(UUID.randomUUID());
+        group.setSubmittedBy(UUID.randomUUID());
+        group.setName("bundle");
+        group.setStatus(RequestGroupStatus.PENDING_REVIEW);
+
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setSequenceOrder(0);
+        item.setTargetKind(RequestGroupTargetKind.QUERY);
+        item.setSqlText("SELECT 1");
+        item.setQueryType(QueryType.SELECT);
+        item.setStatus(RequestGroupItemStatus.PENDING);
+        item.setAiAnalysisId(UUID.randomUUID());
+
+        var detail = new QueryDetailView.AiAnalysisDetail(item.getAiAnalysisId(), RiskLevel.MEDIUM, 40,
+                "Reads one row", "[]", "[]", false, 1L, AiProviderType.OPENAI, "gpt-4o", 10, 5,
+                false, null);
+
+        var view = RequestGroupMapper.toView(group, List.of(item), null, Map.of(), Map.of(),
+                Map.of(item.getId(), detail));
+
+        assertThat(view.items().get(0).aiAnalysis()).isSameAs(detail);
+        assertThat(view.items().get(0).aiAnalysis().summary()).isEqualTo("Reads one row");
     }
 }

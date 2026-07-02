@@ -99,8 +99,10 @@ class GroupAiAnalysisListenerTest {
                 .thenReturn(result(20, RiskLevel.LOW));
         when(aiAnalysisPersistenceService.persistForGroupItem(eq(q.getId()), any()))
                 .thenReturn(UUID.randomUUID());
-        when(apiAssistService.analyze(eq(a.getApiConnectorId()), any(), any(), eq(true), any()))
-                .thenReturn(new ApiAssistService.ApiAiPreview(90, RiskLevel.HIGH, "risky", List.of()));
+        when(apiAssistService.analyzeDetailed(eq(a.getApiConnectorId()), any(), any(), eq(true), any()))
+                .thenReturn(result(90, RiskLevel.HIGH));
+        when(aiAnalysisPersistenceService.persistForGroupItem(eq(a.getId()), any()))
+                .thenReturn(UUID.randomUUID());
         when(reviewPlanResolver.resolve(eq(group), any()))
                 .thenReturn(new GroupReviewResolution(true, 2, Set.of(), Set.of()));
 
@@ -110,6 +112,25 @@ class GroupAiAnalysisListenerTest {
         assertThat(group.getAiRiskScore()).isEqualTo(90);
         assertThat(group.getRequiredApprovals()).isEqualTo(2);
         assertThat(q.getAiAnalysisId()).isNotNull();
+        assertThat(a.getAiAnalysisId()).isNotNull();
+        verify(aiAnalysisPersistenceService).persistForGroupItem(eq(a.getId()), any());
+        verify(stateService).apply(group, RequestGroupStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void apiMemberAnalysisFailureIsFailSafe() {
+        var a = apiItem();
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(List.of(a));
+        when(apiAssistService.analyzeDetailed(eq(a.getApiConnectorId()), any(), any(), eq(true), any()))
+                .thenThrow(new RuntimeException("no ai config"));
+        when(reviewPlanResolver.resolve(eq(group), any()))
+                .thenReturn(new GroupReviewResolution(true, 1, Set.of(), Set.of()));
+
+        listener.onSubmitted(new RequestGroupSubmittedEvent(group.getId()));
+
+        assertThat(a.getAiAnalysisId()).isNull();
+        assertThat(a.getAiRiskLevel()).isNull();
+        verify(aiAnalysisPersistenceService, never()).persistForGroupItem(any(), any());
         verify(stateService).apply(group, RequestGroupStatus.PENDING_REVIEW);
     }
 
