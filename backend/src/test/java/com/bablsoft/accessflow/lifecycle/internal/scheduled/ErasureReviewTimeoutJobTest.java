@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.lifecycle.internal.scheduled;
 
+import com.bablsoft.accessflow.lifecycle.api.ErasureStatus;
 import com.bablsoft.accessflow.lifecycle.internal.ErasureRequestStateService;
 import com.bablsoft.accessflow.lifecycle.internal.config.LifecycleProperties;
 import com.bablsoft.accessflow.lifecycle.internal.persistence.repo.DeletionRequestRepository;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,7 +40,8 @@ class ErasureReviewTimeoutJobTest {
     @Test
     void run_marksEachTimedOutRequest() {
         var a = UUID.randomUUID();
-        when(requestRepository.findTimedOutPendingReviewIds(any())).thenReturn(List.of(a));
+        when(requestRepository.findTimedOutPendingReviewIds(eq(ErasureStatus.PENDING_REVIEW), any()))
+                .thenReturn(List.of(a));
         when(stateService.markTimedOut(a)).thenReturn(true);
 
         job.run();
@@ -49,7 +52,8 @@ class ErasureReviewTimeoutJobTest {
     @Test
     void run_swallowsPerRowFailure() {
         var a = UUID.randomUUID();
-        when(requestRepository.findTimedOutPendingReviewIds(any())).thenReturn(List.of(a));
+        when(requestRepository.findTimedOutPendingReviewIds(eq(ErasureStatus.PENDING_REVIEW), any()))
+                .thenReturn(List.of(a));
         when(stateService.markTimedOut(a)).thenThrow(new RuntimeException("boom"));
 
         job.run(); // must not propagate
@@ -57,7 +61,8 @@ class ErasureReviewTimeoutJobTest {
 
     @Test
     void run_noopWhenNothingTimedOut() {
-        when(requestRepository.findTimedOutPendingReviewIds(any())).thenReturn(List.of());
+        when(requestRepository.findTimedOutPendingReviewIds(eq(ErasureStatus.PENDING_REVIEW), any()))
+                .thenReturn(List.of());
         job.run();
         verify(stateService, never()).markTimedOut(any());
     }

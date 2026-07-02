@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.lifecycle.internal.scheduled;
 
+import com.bablsoft.accessflow.lifecycle.api.ErasureStatus;
 import com.bablsoft.accessflow.lifecycle.internal.ErasureRequestStateService;
 import com.bablsoft.accessflow.lifecycle.internal.config.LifecycleProperties;
 import com.bablsoft.accessflow.lifecycle.internal.persistence.repo.DeletionRequestRepository;
@@ -36,7 +37,7 @@ class ErasureReviewTimeoutJob {
     @SchedulerLock(name = "erasureReviewTimeoutJob", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     public void run() {
         var cutoff = clock.instant().minus(properties.reviewTimeout());
-        var ids = requestRepository.findTimedOutPendingReviewIds(cutoff);
+        var ids = requestRepository.findTimedOutPendingReviewIds(ErasureStatus.PENDING_REVIEW, cutoff);
         if (ids.isEmpty()) {
             log.debug("No erasure requests past review timeout");
             return;
