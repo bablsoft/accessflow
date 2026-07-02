@@ -33,6 +33,11 @@
              Local/CI builds run from backend/ so the default resolves to the sibling folder; the
              Docker build copies connectors into the image and overrides this with -Dconnectors.dir. -->
         <connectors.dir>${project.basedir}/../connectors</connectors.dir>
+        <!-- Surefire runs the whole suite in one fork; the accumulated Spring test-context cache
+             plus the ArchUnit class-graph import (ApiPackageDependencyTest) exceed the JVM's
+             default (RAM/4) heap on CI runners. The JaCoCo prepare-agent goal prepends its agent
+             to this existing value, so the coverage profile keeps working. -->
+        <argLine>-Xmx6g</argLine>
     </properties>
 
     <dependencyManagement>
