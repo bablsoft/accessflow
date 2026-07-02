@@ -219,7 +219,7 @@ describe('GroupBuilderPage (#559)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save draft/i }));
 
     await waitFor(() => expect(updateRequestGroupMock).toHaveBeenCalled());
-    const [savedId, payload] = updateRequestGroupMock.mock.calls[0];
+    const [savedId, payload] = updateRequestGroupMock.mock.calls[0]!;
     expect(savedId).toBe('g-1');
     expect(createRequestGroupMock).not.toHaveBeenCalled();
     // The saved API composition round-trips (regression: body was dropped on hydrate).

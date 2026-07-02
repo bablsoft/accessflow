@@ -128,7 +128,7 @@ describe('useQueryAuthoring', () => {
     const { result, onSqlChange } = setup(baseDs, 'select id from users');
     act(() => result.current.format());
     expect(onSqlChange).toHaveBeenCalledTimes(1);
-    const [formatted, source] = onSqlChange.mock.calls[0];
+    const [formatted, source] = onSqlChange.mock.calls[0]!;
     expect(formatted).toContain('SELECT');
     expect(source).toBe('user');
   });
