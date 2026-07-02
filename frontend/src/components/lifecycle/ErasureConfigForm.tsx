@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
+import { requiresTargetTable } from '@/pages/lifecycle/erasureConfigForm';
 import { ERASURE_CONDITION_OPERATORS, enumOptions, erasureConditionOperatorLabel } from '@/utils/enumLabels';
 import type { ErasureConditionOperator } from '@/types/api';
 
@@ -15,6 +16,12 @@ interface ErasureConfigFormProps {
   form: FormInstance<any>;
   /** Name of the datasource-id field on the parent form (schema introspection source). */
   datasourceFieldName?: string;
+  /**
+   * Enforce the erasure-request shape rule (backend TARGET_TABLE_REQUIRED): target table becomes
+   * required once structured conditions or a raw WHERE are set. Off by default — retention
+   * policies may target by classification tag instead.
+   */
+  requireTargetTableWithConditions?: boolean;
 }
 
 /**
@@ -23,7 +30,11 @@ interface ErasureConfigFormProps {
  * both the admin retention-policy modal and the user "Right to Erasure" page. Structured conditions
  * and raw WHERE apply to SQL datasources only (the backend rejects them otherwise).
  */
-export function ErasureConfigForm({ form, datasourceFieldName = 'datasource_id' }: ErasureConfigFormProps) {
+export function ErasureConfigForm({
+  form,
+  datasourceFieldName = 'datasource_id',
+  requireTargetTableWithConditions = false,
+}: ErasureConfigFormProps) {
   const { t } = useTranslation();
   const dsId = Form.useWatch(datasourceFieldName, form) as string | undefined;
 
@@ -59,7 +70,19 @@ export function ErasureConfigForm({ form, datasourceFieldName = 'datasource_id' 
       <Form.Item
         name="target_table"
         label={t('lifecycle.config.label_target_table')}
-        rules={[{ max: 255, message: t('validation.lifecycle_target_table_size') }]}
+        dependencies={['conditions', 'raw_where']}
+        rules={[
+          { max: 255, message: t('validation.lifecycle_target_table_size') },
+          ({ getFieldValue }) => ({
+            required:
+              requireTargetTableWithConditions &&
+              requiresTargetTable({
+                conditions: getFieldValue('conditions'),
+                raw_where: getFieldValue('raw_where') as string | undefined,
+              }),
+            message: t('validation.lifecycle_erasure_target_table_required'),
+          }),
+        ]}
         tooltip={t('lifecycle.config.target_table_help')}
       >
         <AutoComplete

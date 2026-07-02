@@ -278,6 +278,8 @@
     "lifecycle_subject_identifier_required": "Betroffenenkennung ist erforderlich",
     "lifecycle_subject_identifier_size": "Die Betroffenenkennung darf höchstens 255 Zeichen lang sein",
     "lifecycle_reason_max": "Der Grund darf höchstens 2.000 Zeichen lang sein",
+    "lifecycle_erasure_scope_required": "Geben Sie eine Betroffenenkennung, eine Bedingung oder eine rohe WHERE-Klausel an",
+    "lifecycle_erasure_target_table_required": "Eine Zieltabelle ist erforderlich, wenn Bedingungen oder eine rohe WHERE-Klausel gesetzt sind",
     "lifecycle_cron_schedule_size": "Cron-Zeitplan darf höchstens 100 Zeichen lang sein",
     "lifecycle_raw_where_size": "Rohes WHERE darf höchstens 4.000 Zeichen lang sein",
     "lifecycle_condition_column_required": "Eine Spalte ist erforderlich"
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Benachrichtigungskanal nicht gefunden.",
     "notification_delivery_failed": "Test-Benachrichtigung konnte nicht zugestellt werden.",
     "bad_audit_query": "Audit-Log-Filter ist ungültig (Seitengröße oder Ressourcentyp).",
+    "invalid_erasure_config": "Die Konfiguration der Löschanfrage ist ungültig.",
     "datasource_permission_already_exists": "Dieser Benutzer hat bereits eine Berechtigung für diese Datenquelle.",
     "illegal_datasource_permission": "Dieser Benutzer gehört nicht zu deiner Organisation.",
     "datasource_grant_generic": "Zugriff konnte nicht gewährt werden. Bitte erneut versuchen.",

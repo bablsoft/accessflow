@@ -171,6 +171,12 @@ export function adminErrorMessage(err: unknown): string {
       return i18n.t('errors.notification_delivery_failed');
     }
     if (code === 'BAD_AUDIT_QUERY') return i18n.t('errors.bad_audit_query');
+    if (code === 'INVALID_ERASURE_CONFIG') {
+      // The backend localises a reason-specific detail; prefer it over the generic
+      // ProblemDetail title ("Unprocessable Content").
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.invalid_erasure_config');
+    }
     if (body?.title) return body.title;
     if (body?.detail) return body.detail;
     if (ax.message) return ax.message;

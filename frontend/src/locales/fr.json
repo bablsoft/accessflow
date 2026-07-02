@@ -278,6 +278,8 @@
     "lifecycle_subject_identifier_required": "L’identifiant du sujet est obligatoire",
     "lifecycle_subject_identifier_size": "L’identifiant du sujet ne doit pas dépasser 255 caractères",
     "lifecycle_reason_max": "Le motif ne doit pas dépasser 2 000 caractères",
+    "lifecycle_erasure_scope_required": "Indiquez un identifiant du sujet, une condition ou une clause WHERE brute",
+    "lifecycle_erasure_target_table_required": "La table cible est obligatoire lorsque des conditions ou une clause WHERE brute sont définies",
     "lifecycle_cron_schedule_size": "La planification cron ne doit pas dépasser 100 caractères",
     "lifecycle_raw_where_size": "Le WHERE brut ne doit pas dépasser 4 000 caractères",
     "lifecycle_condition_column_required": "Une colonne est requise"
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Canal de notification introuvable.",
     "notification_delivery_failed": "La notification de test n'a pas pu être livrée.",
     "bad_audit_query": "Filtre du journal d'audit invalide (taille de page ou type de ressource).",
+    "invalid_erasure_config": "La configuration de la demande d’effacement est invalide.",
     "datasource_permission_already_exists": "Cet utilisateur a déjà une autorisation pour cette source de données.",
     "illegal_datasource_permission": "Cet utilisateur n'appartient pas à ton organisation.",
     "datasource_grant_generic": "Échec de l'octroi de l'accès. Réessaie.",

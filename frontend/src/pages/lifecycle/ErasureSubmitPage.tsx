@@ -15,6 +15,7 @@ import { listDatasources } from '@/api/datasources';
 import { ErasureConfigForm } from '@/components/lifecycle/ErasureConfigForm';
 import {
   configToPayload,
+  hasErasureScope,
   type ErasureConfigFormValues,
 } from '@/pages/lifecycle/erasureConfigForm';
 import { adminErrorMessage } from '@/utils/apiErrors';
@@ -91,6 +92,14 @@ export default function ErasureSubmitPage() {
           layout="vertical"
           initialValues={{ subject_type: 'EMAIL' }}
           style={{ maxWidth: 640, marginBottom: 32 }}
+          onValuesChange={() => {
+            // Nested Form.List edits don't always re-trigger `dependencies`-based rules;
+            // re-validate the two cross-field anchors so a shown error clears as soon as
+            // the user fixes any contributing field. `dirty` skips untouched fields.
+            void form
+              .validateFields(['subject_identifier', 'target_table'], { dirty: true })
+              .catch(() => undefined);
+          }}
           onFinish={(values) => {
             const config = configToPayload(values);
             const subjectId = values.subject_identifier?.trim() || null;
@@ -128,12 +137,27 @@ export default function ErasureSubmitPage() {
           <Form.Item
             name="subject_identifier"
             label={t('lifecycle.erasure.label_subject_identifier')}
-            rules={[{ max: 255, message: t('validation.lifecycle_subject_identifier_size') }]}
+            dependencies={['conditions', 'raw_where']}
+            rules={[
+              { max: 255, message: t('validation.lifecycle_subject_identifier_size') },
+              ({ getFieldValue }) => ({
+                validator: () =>
+                  hasErasureScope({
+                    subject_identifier: getFieldValue('subject_identifier') as string | undefined,
+                    conditions: getFieldValue('conditions'),
+                    raw_where: getFieldValue('raw_where') as string | undefined,
+                  })
+                    ? Promise.resolve()
+                    : Promise.reject(
+                        new Error(t('validation.lifecycle_erasure_scope_required')),
+                      ),
+              }),
+            ]}
             tooltip={t('lifecycle.erasure.subject_help')}
           >
             <Input maxLength={255} placeholder="user@example.com" />
           </Form.Item>
-          <ErasureConfigForm form={form} />
+          <ErasureConfigForm form={form} requireTargetTableWithConditions />
           <Form.Item
             name="reason"
             label={t('lifecycle.erasure.label_reason')}

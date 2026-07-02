@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
-import { queryReplayErrorMessage } from './apiErrors';
+import { adminErrorMessage, queryReplayErrorMessage } from './apiErrors';
 
 function axiosError(status: number, data: unknown): AxiosError {
   const response = {
@@ -45,5 +45,25 @@ describe('queryReplayErrorMessage', () => {
   it('returns a generic message for non-axios errors', () => {
     const msg = queryReplayErrorMessage(new Error('boom'));
     expect(msg).toBe('boom');
+  });
+});
+
+describe('adminErrorMessage — INVALID_ERASURE_CONFIG', () => {
+  it('prefers the backend-localised detail over the ProblemDetail title', () => {
+    const msg = adminErrorMessage(
+      axiosError(422, {
+        error: 'INVALID_ERASURE_CONFIG',
+        title: 'Unprocessable Content',
+        detail: 'A target table is required when using conditions or a raw WHERE clause',
+      }),
+    );
+    expect(msg).toBe('A target table is required when using conditions or a raw WHERE clause');
+  });
+
+  it('falls back to a friendly message when the 422 carries no detail', () => {
+    const msg = adminErrorMessage(
+      axiosError(422, { error: 'INVALID_ERASURE_CONFIG', title: 'Unprocessable Content' }),
+    );
+    expect(msg).toMatch(/erasure request configuration is invalid/i);
   });
 });

@@ -93,6 +93,50 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     }
   });
 
+  test('erasure form blocks submit with inline field errors when shape rules are unmet (#544)', async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    try {
+      const page = await ctx.newPage();
+      await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
+      await page.goto('/lifecycle/erasure');
+
+      // No POST /erasure-requests may fire — validation must block the call client-side.
+      let submitted = false;
+      page.on('request', (req) => {
+        if (req.method() === 'POST' && req.url().includes('/erasure-requests')) submitted = true;
+      });
+
+      // Select only a datasource (first combobox in the form), then submit →
+      // EMPTY_REQUEST parity error on the subject field.
+      await page.getByRole('combobox').first().click();
+      await page.locator('.ant-select-item-option').filter({ hasText: datasource!.name }).click();
+      await page.keyboard.press('Escape');
+      await page.getByRole('button', { name: 'Submit request' }).click();
+      await expect(
+        page.getByText('Provide a subject identifier, a condition, or a raw WHERE clause'),
+      ).toBeVisible({ timeout: 10_000 });
+
+      // Add a raw WHERE without a target table → TARGET_TABLE_REQUIRED parity error,
+      // and the scope error clears.
+      await page.getByLabel('Raw WHERE (advanced)').fill("status = 'inactive'");
+      await page.getByRole('button', { name: 'Submit request' }).click();
+      await expect(
+        page.getByText('Target table is required when conditions or a raw WHERE clause are set'),
+      ).toBeVisible({ timeout: 10_000 });
+      await expect(
+        page.getByText('Provide a subject identifier, a condition, or a raw WHERE clause'),
+      ).toBeHidden();
+
+      // Neither invalid submit reached the network, and no raw 422 toast appeared.
+      expect(submitted).toBe(false);
+      await expect(page.getByText('Unprocessable Content')).toBeHidden();
+    } finally {
+      await ctx.close();
+    }
+  });
+
   test('submitter files an erasure request and an admin approves it', async ({ request, browser }) => {
     subjectEmail = `subject-${randomUUID()}@example.com`;
     await submitErasureViaApi(request, submitterToken, datasource!.id, subjectEmail);
