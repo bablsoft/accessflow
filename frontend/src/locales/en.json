@@ -280,7 +280,9 @@
     "lifecycle_subject_type_required": "Subject type is required",
     "lifecycle_subject_identifier_required": "Subject identifier is required",
     "lifecycle_subject_identifier_size": "Subject identifier must be at most 255 characters",
-    "lifecycle_reason_max": "Reason must be at most 2,000 characters"
+    "lifecycle_reason_max": "Reason must be at most 2,000 characters",
+    "lifecycle_erasure_scope_required": "Provide a subject identifier, a condition, or a raw WHERE clause",
+    "lifecycle_erasure_target_table_required": "Target table is required when conditions or a raw WHERE clause are set"
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Notification channel not found.",
     "notification_delivery_failed": "Test notification could not be delivered.",
     "bad_audit_query": "Audit log filter is invalid (page size or resource type).",
+    "invalid_erasure_config": "The erasure request configuration is invalid.",
     "datasource_permission_already_exists": "This user already has a permission row for this datasource.",
     "illegal_datasource_permission": "That user is not part of your organization.",
     "datasource_grant_generic": "Failed to grant access. Please try again.",

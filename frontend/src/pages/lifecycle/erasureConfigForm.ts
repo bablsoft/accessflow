@@ -53,6 +53,33 @@ export function configToPayload(values: ErasureConfigFormValues): ErasureConfigP
   };
 }
 
+/**
+ * Mirrors the backend EMPTY_REQUEST shape rule: an erasure request needs a subject identifier,
+ * at least one bound structured condition, or a raw WHERE clause.
+ */
+export function hasErasureScope(values: {
+  subject_identifier?: string | null;
+  conditions?: ErasureConditionRow[];
+  raw_where?: string | null;
+}): boolean {
+  return (
+    blankToNull(values.subject_identifier) !== null ||
+    rowsToConditionSet(values.conditions) !== null ||
+    blankToNull(values.raw_where) !== null
+  );
+}
+
+/**
+ * Mirrors the backend TARGET_TABLE_REQUIRED shape rule: a target table is required whenever
+ * structured conditions or a raw WHERE clause are present.
+ */
+export function requiresTargetTable(values: {
+  conditions?: ErasureConditionRow[];
+  raw_where?: string | null;
+}): boolean {
+  return rowsToConditionSet(values.conditions) !== null || blankToNull(values.raw_where) !== null;
+}
+
 /** Convert a persisted {@link ErasureConditionSet} back into editable Form.List rows. */
 export function conditionSetToRows(set: ErasureConditionSet | null | undefined): ErasureConditionRow[] {
   return (set?.conditions ?? []).map((c) => ({

@@ -278,6 +278,8 @@
     "lifecycle_subject_identifier_required": "El identificador del sujeto es obligatorio",
     "lifecycle_subject_identifier_size": "El identificador del sujeto debe tener como máximo 255 caracteres",
     "lifecycle_reason_max": "El motivo debe tener como máximo 2.000 caracteres",
+    "lifecycle_erasure_scope_required": "Indique un identificador del sujeto, una condición o una cláusula WHERE sin procesar",
+    "lifecycle_erasure_target_table_required": "La tabla objetivo es obligatoria cuando se definen condiciones o una cláusula WHERE sin procesar",
     "lifecycle_cron_schedule_size": "La programación cron debe tener como máximo 100 caracteres",
     "lifecycle_raw_where_size": "El WHERE sin procesar debe tener como máximo 4000 caracteres",
     "lifecycle_condition_column_required": "Se requiere una columna"
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Canal de notificación no encontrado.",
     "notification_delivery_failed": "No se pudo entregar la notificación de prueba.",
     "bad_audit_query": "El filtro del registro de auditoría no es válido (tamaño de página o tipo de recurso).",
+    "invalid_erasure_config": "La configuración de la solicitud de borrado no es válida.",
     "datasource_permission_already_exists": "Este usuario ya tiene un permiso para esta fuente de datos.",
     "illegal_datasource_permission": "Ese usuario no pertenece a tu organización.",
     "datasource_grant_generic": "No se pudo conceder el acceso. Inténtalo de nuevo.",

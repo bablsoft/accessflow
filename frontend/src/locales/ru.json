@@ -278,6 +278,8 @@
     "lifecycle_subject_identifier_required": "Идентификатор субъекта обязателен",
     "lifecycle_subject_identifier_size": "Идентификатор субъекта не более 255 символов",
     "lifecycle_reason_max": "Причина не более 2000 символов",
+    "lifecycle_erasure_scope_required": "Укажите идентификатор субъекта, условие или сырое выражение WHERE",
+    "lifecycle_erasure_target_table_required": "Целевая таблица обязательна, если заданы условия или сырое WHERE",
     "lifecycle_cron_schedule_size": "Расписание cron не должно превышать 100 символов",
     "lifecycle_raw_where_size": "Сырое WHERE не должно превышать 4000 символов",
     "lifecycle_condition_column_required": "Требуется столбец"
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Канал уведомлений не найден.",
     "notification_delivery_failed": "Не удалось доставить тестовое уведомление.",
     "bad_audit_query": "Фильтр журнала аудита недопустим (размер страницы или тип ресурса).",
+    "invalid_erasure_config": "Конфигурация запроса на удаление недопустима.",
     "datasource_permission_already_exists": "У этого пользователя уже есть разрешение на этот источник данных.",
     "illegal_datasource_permission": "Этот пользователь не входит в вашу организацию.",
     "datasource_grant_generic": "Не удалось предоставить доступ. Повторите попытку.",

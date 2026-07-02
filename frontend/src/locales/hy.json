@@ -278,6 +278,8 @@
     "lifecycle_subject_identifier_required": "Սուբյեկտի նույնացուցիչը պարտադիր է",
     "lifecycle_subject_identifier_size": "Սուբյեկտի նույնացուցիչը առավելագույնը 255 նիշ",
     "lifecycle_reason_max": "Պատճառը առավելագույնը 2000 նիշ",
+    "lifecycle_erasure_scope_required": "Նշեք սուբյեկտի նույնացուցիչ, պայման կամ չմշակված WHERE արտահայտություն",
+    "lifecycle_erasure_target_table_required": "Թիրախ աղյուսակը պարտադիր է, երբ նշված են պայմաններ կամ չմշակված WHERE",
     "lifecycle_cron_schedule_size": "Cron ժամանակացույցը պետք է լինի առավելագույնը 100 նիշ",
     "lifecycle_raw_where_size": "Չմշակված WHERE-ը պետք է լինի առավելագույնը 4000 նիշ",
     "lifecycle_condition_column_required": "Պահանջվում է սյունակ"
@@ -314,6 +316,7 @@
     "notification_channel_not_found": "Ծանուցումների ալիքը չի գտնվել։",
     "notification_delivery_failed": "Չհաջողվեց առաքել փորձարկման ծանուցումը։",
     "bad_audit_query": "Աուդիտի մատյանի զտիչը անվավեր է (էջի չափ կամ ռեսուրսի տեսակ)։",
+    "invalid_erasure_config": "Ջնջման հարցման կազմաձևումն անվավեր է։",
     "datasource_permission_already_exists": "Այս օգտատերն արդեն ունի թույլտվություն այս տվյալների աղբյուրում։",
     "illegal_datasource_permission": "Այդ օգտատերը չի պատկանում ձեր կազմակերպությանը։",
     "datasource_grant_generic": "Չհաջողվեց տրամադրել մուտքը։ Փորձեք նորից։",

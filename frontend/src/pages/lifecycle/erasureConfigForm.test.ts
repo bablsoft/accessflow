@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   configToPayload,
   conditionSetToRows,
+  hasErasureScope,
+  requiresTargetTable,
   rowsToConditionSet,
 } from '@/pages/lifecycle/erasureConfigForm';
 
@@ -73,6 +75,41 @@ describe('configToPayload', () => {
     expect(payload.conditions).toEqual({
       conditions: [{ column: 'status', operator: 'NOT_EQUALS', values: ['active'], negate: false }],
     });
+  });
+});
+
+describe('hasErasureScope', () => {
+  it('is false when subject, conditions, and raw WHERE are all absent or blank', () => {
+    expect(hasErasureScope({})).toBe(false);
+    expect(hasErasureScope({ subject_identifier: '   ', raw_where: '  ', conditions: [] })).toBe(
+      false,
+    );
+  });
+
+  it('ignores condition rows without a bound column (mirrors backend normalisation)', () => {
+    expect(hasErasureScope({ conditions: [{ operator: 'EQUALS', values: ['x'] }] })).toBe(false);
+    expect(hasErasureScope({ conditions: [{ column: '  ', values: ['x'] }] })).toBe(false);
+  });
+
+  it('is true with a subject identifier, a bound condition, or a raw WHERE', () => {
+    expect(hasErasureScope({ subject_identifier: 'user@example.com' })).toBe(true);
+    expect(hasErasureScope({ conditions: [{ column: 'status', values: ['inactive'] }] })).toBe(
+      true,
+    );
+    expect(hasErasureScope({ raw_where: "status = 'inactive'" })).toBe(true);
+  });
+});
+
+describe('requiresTargetTable', () => {
+  it('is false without conditions or raw WHERE (blank rows do not count)', () => {
+    expect(requiresTargetTable({})).toBe(false);
+    expect(requiresTargetTable({ conditions: [], raw_where: '   ' })).toBe(false);
+    expect(requiresTargetTable({ conditions: [{ operator: 'EQUALS' }] })).toBe(false);
+  });
+
+  it('is true once a bound condition or raw WHERE is present', () => {
+    expect(requiresTargetTable({ conditions: [{ column: 'status', values: ['x'] }] })).toBe(true);
+    expect(requiresTargetTable({ raw_where: "status = 'inactive'" })).toBe(true);
   });
 });
 
