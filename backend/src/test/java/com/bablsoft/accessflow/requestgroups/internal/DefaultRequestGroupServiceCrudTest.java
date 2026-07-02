@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
@@ -19,6 +20,7 @@ import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.requestgroups.api.CreateRequestGroupCommand;
 import com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemInput;
+import com.bablsoft.accessflow.requestgroups.api.RequestGroupListFilter;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.api.SubmitRequestGroupCommand;
@@ -32,6 +34,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
@@ -136,6 +141,55 @@ class DefaultRequestGroupServiceCrudTest {
 
         assertThat(view.name()).isEqualTo("bundle");
         verify(itemRepository, org.mockito.Mockito.times(2)).save(any());
+    }
+
+    private RequestGroupItemEntity persistedApiItem() {
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.API_CALL);
+        item.setApiConnectorId(connectorId);
+        item.setVerb("POST");
+        item.setRequestPath("/v1/tickets");
+        item.setRequestHeaders("{\"X-Trace\":\"1\"}");
+        item.setQueryParams("{\"dryRun\":\"true\"}");
+        item.setBodyType(com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW);
+        item.setRequestContentType("application/json");
+        item.setRequestBody("{\"a\":1}");
+        item.setStatus(com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus.PENDING);
+        return item;
+    }
+
+    @Test
+    void getReturnsApiCompositionForDraftEditing() {
+        var group = draftGroup();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(persistedApiItem()));
+
+        var view = service.get(group.getId(), orgId, userId, false);
+
+        var item = view.items().get(0);
+        assertThat(item.requestHeaders()).containsEntry("X-Trace", "1");
+        assertThat(item.queryParams()).containsEntry("dryRun", "true");
+        assertThat(item.bodyType()).isEqualTo(com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW);
+        assertThat(item.requestBody()).isEqualTo("{\"a\":1}");
+    }
+
+    @Test
+    void listOmitsApiComposition() {
+        var group = draftGroup();
+        when(groupRepository.findAll(org.mockito.ArgumentMatchers.<Specification<RequestGroupEntity>>any(),
+                any(Pageable.class))).thenReturn(new PageImpl<>(List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(persistedApiItem()));
+
+        var page = service.list(new RequestGroupListFilter(orgId, null, null),
+                new PageRequest(0, 20, List.of()));
+
+        var item = page.content().get(0).items().get(0);
+        assertThat(item.requestHeaders()).isEmpty();
+        assertThat(item.bodyType()).isNull();
+        assertThat(item.requestBody()).isNull();
     }
 
     @Test

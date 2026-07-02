@@ -370,7 +370,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
             }
         }
         return RequestGroupMapper.toView(group, items, submitter, datasources, connectors,
-                analysesByItemId);
+                analysesByItemId, objectMapper, includeAnalyses);
     }
 
     private void audit(AuditAction action, RequestGroupEntity group, UUID actorId,

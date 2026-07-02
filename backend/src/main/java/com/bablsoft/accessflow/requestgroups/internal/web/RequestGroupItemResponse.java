@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -10,6 +12,8 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 record RequestGroupItemResponse(
@@ -26,6 +30,13 @@ record RequestGroupItemResponse(
         String operationId,
         String verb,
         String requestPath,
+        Map<String, String> requestHeaders,
+        Map<String, String> queryParams,
+        ApiBodyType bodyType,
+        String requestContentType,
+        String requestBody,
+        List<ApiFormField> formFields,
+        String binaryFilename,
         UUID aiAnalysisId,
         RiskLevel aiRiskLevel,
         Integer aiRiskScore,
@@ -40,7 +51,9 @@ record RequestGroupItemResponse(
     static RequestGroupItemResponse from(RequestGroupItemView v) {
         return new RequestGroupItemResponse(v.id(), v.sequenceOrder(), v.targetKind(), v.datasourceId(),
                 v.datasourceName(), v.sqlText(), v.queryType(), v.transactional(), v.apiConnectorId(),
-                v.apiConnectorName(), v.operationId(), v.verb(), v.requestPath(), v.aiAnalysisId(),
+                v.apiConnectorName(), v.operationId(), v.verb(), v.requestPath(), v.requestHeaders(),
+                v.queryParams(), v.bodyType(), v.requestContentType(), v.requestBody(), v.formFields(),
+                v.binaryFilename(), v.aiAnalysisId(),
                 v.aiRiskLevel(), v.aiRiskScore(), AiAnalysisDetail.from(v.aiAnalysis()), v.status(),
                 v.responseStatusCode(), v.rowsAffected(), v.errorMessage(), v.durationMs(),
                 v.executedAt());
