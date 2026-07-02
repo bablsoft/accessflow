@@ -3044,6 +3044,8 @@
       "title": "API Editor",
       "connector": "Connector",
       "selectConnector": "Select a connector",
+      "loading": "Loading connectors…",
+      "noConnectors": "No API connectors assigned — ask an administrator to grant you access.",
       "operation": "Operation",
       "freeForm": "Free-form call",
       "verb": "Method",
