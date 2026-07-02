@@ -100,6 +100,22 @@ export default function ApiEditorPage() {
   const preview = analyzeMutation.data;
   const canTextToApi = !!connector?.text_to_api_enabled && !!connector?.schema_present;
 
+  if (connectorsQuery.isLoading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div className="muted">{t('apiGov.editor.loading')}</div>
+      </div>
+    );
+  }
+
+  if ((connectorsQuery.data?.content ?? []).length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <div className="muted">{t('apiGov.editor.noConnectors')}</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader title={t('apiGov.editor.title')} />
