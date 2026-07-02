@@ -3337,7 +3337,11 @@
       "executeStarted": "Execution started.",
       "cancelled": "Group cancelled.",
       "approved": "Group approved.",
-      "rejected": "Group rejected."
+      "rejected": "Group rejected.",
+      "expandStep": "显示步骤详情",
+      "collapseStep": "隐藏步骤详情",
+      "stepRequest": "请求",
+      "aiNotAvailable": "此步骤没有可用的 AI 分析。"
     },
     "reviews": {
       "title": "Group reviews",

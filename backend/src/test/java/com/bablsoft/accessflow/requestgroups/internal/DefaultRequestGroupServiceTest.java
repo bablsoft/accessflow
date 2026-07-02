@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.requestgroups.internal;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionLookupService;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
@@ -45,6 +46,7 @@ class DefaultRequestGroupServiceTest {
     @Mock private GroupExecutionService executionService;
     @Mock private QueryParser queryParser;
     @Mock private DatasourceLookupService datasourceLookupService;
+    @Mock private AiAnalysisLookupService aiAnalysisLookupService;
     @Mock private DatasourceUserPermissionLookupService datasourcePermissionLookupService;
     @Mock private ApiConnectorPermissionLookupService apiConnectorPermissionLookupService;
     @Mock private ApiConnectorAdminService apiConnectorAdminService;
@@ -61,9 +63,10 @@ class DefaultRequestGroupServiceTest {
 
     private DefaultRequestGroupService newService() {
         return new DefaultRequestGroupService(groupRepository, itemRepository, stateService,
-                executionService, queryParser, datasourceLookupService, datasourcePermissionLookupService,
-                apiConnectorPermissionLookupService, apiConnectorAdminService, userQueryService,
-                auditLogService, eventPublisher, objectMapper);
+                executionService, queryParser, datasourceLookupService, aiAnalysisLookupService,
+                datasourcePermissionLookupService, apiConnectorPermissionLookupService,
+                apiConnectorAdminService, userQueryService, auditLogService, eventPublisher,
+                objectMapper);
     }
 
     private RequestGroupItemInput queryInput() {

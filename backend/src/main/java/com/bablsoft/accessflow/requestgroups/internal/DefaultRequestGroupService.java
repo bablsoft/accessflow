@@ -7,12 +7,14 @@ import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -66,6 +68,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
     private final GroupExecutionService executionService;
     private final QueryParser queryParser;
     private final DatasourceLookupService datasourceLookupService;
+    private final AiAnalysisLookupService aiAnalysisLookupService;
     private final DatasourceUserPermissionLookupService datasourcePermissionLookupService;
     private final ApiConnectorPermissionLookupService apiConnectorPermissionLookupService;
     private final com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService apiConnectorAdminService;
@@ -162,7 +165,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
     @Override
     @Transactional(readOnly = true)
     public RequestGroupView get(UUID id, UUID organizationId, UUID userId, boolean admin) {
-        return assembleView(requireOwned(id, organizationId, userId, admin));
+        return assembleView(requireOwned(id, organizationId, userId, admin), true);
     }
 
     @Override
@@ -211,7 +214,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
         }
         executionService.execute(id, userId, "manual");
         return assembleView(groupRepository.findById(id).orElseThrow(
-                () -> new RequestGroupNotFoundException(id)));
+                () -> new RequestGroupNotFoundException(id)), true);
     }
 
     // ----- helpers -----
@@ -338,10 +341,15 @@ public class DefaultRequestGroupService implements RequestGroupService {
     }
 
     private RequestGroupView assembleView(RequestGroupEntity group) {
+        return assembleView(group, false);
+    }
+
+    private RequestGroupView assembleView(RequestGroupEntity group, boolean includeAnalyses) {
         var items = itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId());
         var submitter = userQueryService.findById(group.getSubmittedBy()).orElse(null);
         Map<UUID, DatasourceRef> datasources = new HashMap<>();
         Map<UUID, ApiConnectorView> connectors = new HashMap<>();
+        Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId = new HashMap<>();
         for (RequestGroupItemEntity item : items) {
             if (item.getDatasourceId() != null && !datasources.containsKey(item.getDatasourceId())) {
                 datasourceLookupService.findRef(item.getDatasourceId())
@@ -356,8 +364,13 @@ public class DefaultRequestGroupService implements RequestGroupService {
                     log.debug("Connector {} no longer resolvable for group view", item.getApiConnectorId());
                 }
             }
+            if (includeAnalyses && item.getAiAnalysisId() != null) {
+                aiAnalysisLookupService.findDetailById(item.getAiAnalysisId())
+                        .ifPresent(detail -> analysesByItemId.put(item.getId(), detail));
+            }
         }
-        return RequestGroupMapper.toView(group, items, submitter, datasources, connectors);
+        return RequestGroupMapper.toView(group, items, submitter, datasources, connectors,
+                analysesByItemId);
     }
 
     private void audit(AuditAction action, RequestGroupEntity group, UUID actorId,

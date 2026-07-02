@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.requestgroups.internal;
 
 import com.bablsoft.accessflow.apigov.api.ApiConnectorView;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupView;
@@ -20,9 +21,10 @@ final class RequestGroupMapper {
 
     static RequestGroupView toView(RequestGroupEntity group, List<RequestGroupItemEntity> items,
                                    UserView submitter, Map<UUID, DatasourceRef> datasources,
-                                   Map<UUID, ApiConnectorView> connectors) {
+                                   Map<UUID, ApiConnectorView> connectors,
+                                   Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId) {
         var itemViews = items.stream()
-                .map(i -> toItemView(i, datasources, connectors))
+                .map(i -> toItemView(i, datasources, connectors, analysesByItemId))
                 .toList();
         return new RequestGroupView(
                 group.getId(),
@@ -48,7 +50,8 @@ final class RequestGroupMapper {
 
     static RequestGroupItemView toItemView(RequestGroupItemEntity i,
                                            Map<UUID, DatasourceRef> datasources,
-                                           Map<UUID, ApiConnectorView> connectors) {
+                                           Map<UUID, ApiConnectorView> connectors,
+                                           Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId) {
         var dsName = i.getDatasourceId() == null ? null
                 : datasources.getOrDefault(i.getDatasourceId(), new DatasourceRef(i.getDatasourceId(), null)).name();
         var connName = i.getApiConnectorId() == null ? null
@@ -71,6 +74,7 @@ final class RequestGroupMapper {
                 i.getAiAnalysisId(),
                 i.getAiRiskLevel(),
                 i.getAiRiskScore(),
+                analysesByItemId.get(i.getId()),
                 i.getStatus(),
                 i.getResponseStatusCode(),
                 i.getRowsAffected(),

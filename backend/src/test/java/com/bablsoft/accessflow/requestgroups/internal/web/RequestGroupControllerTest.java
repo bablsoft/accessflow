@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -61,8 +63,14 @@ class RequestGroupControllerTest {
     private RequestGroupItemView itemView() {
         return new RequestGroupItemView(UUID.randomUUID(), 0, RequestGroupTargetKind.QUERY,
                 UUID.randomUUID(), "db", "SELECT 1", QueryType.SELECT, false, null, null, null, null,
-                null, null, RiskLevel.LOW, 10, RequestGroupItemStatus.PENDING, null, null, null, null,
-                null);
+                null, null, RiskLevel.LOW, 10, analysisDetail(), RequestGroupItemStatus.PENDING, null,
+                null, null, null, null);
+    }
+
+    private QueryDetailView.AiAnalysisDetail analysisDetail() {
+        return new QueryDetailView.AiAnalysisDetail(UUID.randomUUID(), RiskLevel.LOW, 10,
+                "Reads one row", "[{\"severity\":\"LOW\"}]", null, false, 1L, AiProviderType.OPENAI,
+                "gpt-4o", 12, 7, false, null);
     }
 
     private RequestGroupView view(RequestGroupStatus status) {
@@ -123,8 +131,13 @@ class RequestGroupControllerTest {
     @Test
     void getDelegates() {
         when(service.get(groupId, orgId, userId, false)).thenReturn(view(RequestGroupStatus.PENDING_REVIEW));
-        assertThat(controller.get(groupId, auth(UserRoleType.ANALYST)).status())
-                .isEqualTo(RequestGroupStatus.PENDING_REVIEW);
+        var resp = controller.get(groupId, auth(UserRoleType.ANALYST));
+        assertThat(resp.status()).isEqualTo(RequestGroupStatus.PENDING_REVIEW);
+        var analysis = resp.items().get(0).aiAnalysis();
+        assertThat(analysis).isNotNull();
+        assertThat(analysis.summary()).isEqualTo("Reads one row");
+        assertThat(analysis.issues()).isEqualTo("[{\"severity\":\"LOW\"}]");
+        assertThat(analysis.optimizations()).isEqualTo("[]");
     }
 
     @Test

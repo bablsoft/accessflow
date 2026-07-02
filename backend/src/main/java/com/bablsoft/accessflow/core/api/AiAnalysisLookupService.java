@@ -13,4 +13,10 @@ public interface AiAnalysisLookupService {
 
     /** Fetch an analysis directly by its id (e.g. an API request's analysis, AF-500). */
     Optional<AiAnalysisSummaryView> findById(UUID analysisId);
+
+    /**
+     * Fetch the full analysis detail (issues, optimizations, provider/model, token counts) by id —
+     * used by the request-groups detail view to embed per-member analyses (AF-531).
+     */
+    Optional<QueryDetailView.AiAnalysisDetail> findDetailById(UUID analysisId);
 }

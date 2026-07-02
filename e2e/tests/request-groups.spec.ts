@@ -201,6 +201,16 @@ test.describe('request groups (AF-501)', () => {
     await expect(page.getByTestId('group-step-0')).toBeVisible();
     await expect(page.getByTestId('group-step-1')).toBeVisible();
 
+    // Each step is an expandable panel: expanding surfaces the request card (SqlBlock) and the
+    // AI-analysis section (no AI provider is configured in the e2e stack, so the not-available
+    // note renders), collapsing hides the body again.
+    await page.getByTestId('group-step-0-toggle').click();
+    await expect(page.getByTestId('group-step-0-body')).toBeVisible();
+    await expect(page.getByTestId('group-step-0-body')).toContainText('SELECT 1');
+    await expect(page.getByTestId('group-step-0-ai')).toBeVisible();
+    await page.getByTestId('group-step-0-toggle').click();
+    await expect(page.getByTestId('group-step-0-body')).toHaveCount(0);
+
     // An independent reviewer approves the bundle, then it executes as one ordered sequence.
     await waitForGroupStatus(request, adminToken, groupId, 'PENDING_REVIEW');
     await approveGroupViaApi(request, reviewerToken, groupId);

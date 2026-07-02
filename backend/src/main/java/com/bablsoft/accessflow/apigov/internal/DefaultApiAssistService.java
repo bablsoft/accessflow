@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.ApiCallAnalyzer;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
@@ -24,20 +25,36 @@ public class DefaultApiAssistService implements ApiAssistService {
     private final EffectiveApiConnectorPermissionResolver permissionResolver;
     private final ApiSchemaService schemaService;
     private final ApiCallAnalyzer apiCallAnalyzer;
+    private final ApiConnectorClassificationRiskBooster classificationRiskBooster;
 
     @Override
     @Transactional(readOnly = true)
     public ApiAiPreview analyze(UUID connectorId, UUID organizationId, UUID userId, boolean admin,
                                 AnalyzeInput input) {
-        var connector = resolveAccessible(connectorId, organizationId, userId, admin);
-        var schemaContext = renderSchema(connector, organizationId);
-        var result = apiCallAnalyzer.analyzeApiCall(new ApiCallAnalyzer.ApiCallAnalysisInput(
-                organizationId, connector.getAiConfigId(), connector.getProtocol().name(),
-                input.verb(), input.requestPath(), input.requestBody(), schemaContext, input.language()));
+        var result = runAnalysis(connectorId, organizationId, userId, admin, input);
         var issues = result.issues().stream()
                 .map(i -> i.category() + ": " + i.message())
                 .toList();
         return new ApiAiPreview(result.riskScore(), result.riskLevel(), result.summary(), issues);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AiAnalysisResult analyzeDetailed(UUID connectorId, UUID organizationId, UUID userId,
+                                            boolean admin, AnalyzeInput input) {
+        var result = runAnalysis(connectorId, organizationId, userId, admin, input);
+        // AF-518: raise risk when the called operation references a data-classified field —
+        // parity with the standalone API-request analysis pipeline.
+        return classificationRiskBooster.boost(result, organizationId, connectorId, input.operationId());
+    }
+
+    private AiAnalysisResult runAnalysis(UUID connectorId, UUID organizationId, UUID userId,
+                                         boolean admin, AnalyzeInput input) {
+        var connector = resolveAccessible(connectorId, organizationId, userId, admin);
+        var schemaContext = renderSchema(connector, organizationId);
+        return apiCallAnalyzer.analyzeApiCall(new ApiCallAnalyzer.ApiCallAnalysisInput(
+                organizationId, connector.getAiConfigId(), connector.getProtocol().name(),
+                input.verb(), input.requestPath(), input.requestBody(), schemaContext, input.language()));
     }
 
     @Override

@@ -2013,9 +2013,15 @@ Routing policy may still escalate at group level.
 **Per-member AI risk + aggregate.** On submit, each member is analyzed via the async pattern — a new
 `ai.api` group-item analyzer (mirrors `ApiCallAnalyzer`) calls `AiAnalyzerStrategy.analyze(...)` for
 query members and `analyzeApiCall(...)` for API members, gated by `AiRateLimiter` and **fail-safe** (a
-failed member analysis escalates, never blocks). It persists an `ai_analyses` row keyed to the
-`request_group_item_id`, sets the item risk, and publishes `RequestGroupItemAnalyzedEvent`. The group's
-aggregate risk = the **max** member `risk_level` / `risk_score`, recomputed as analyses complete.
+failed member analysis escalates, never blocks). **Both member kinds persist** an `ai_analyses` row
+keyed to the `request_group_item_id` (AF-531): query members via `AiAnalyzerService.analyzePreview`,
+API members via `ApiAssistService.analyzeDetailed` — a persistence-grade variant of the editor preview
+that returns the full `AiAnalysisResult` including the AF-518 data-classification risk boost. The
+listener sets the item risk + `ai_analysis_id` and publishes `RequestGroupItemAnalyzedEvent`. The
+group's aggregate risk = the **max** member `risk_level` / `risk_score`, recomputed as analyses
+complete. The group **detail** view (`get`/`execute`, not the list) dereferences each item's
+`ai_analysis_id` through `core.api.AiAnalysisLookupService.findDetailById` and embeds the full
+analysis (summary, issues, optimizations, provider/model, tokens) in the item response.
 
 **Ordered execution (no distributed rollback).** `GroupExecutionService` runs members in
 `sequence_order`: a query member resolves masking + row-security directives

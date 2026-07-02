@@ -1,10 +1,11 @@
 import { Alert, App, Button, Card, Descriptions, Empty, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { DownloadOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
+import { DetailCard } from '@/components/common/DetailCard';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
@@ -203,29 +204,37 @@ export default function ApiRequestDetailPage() {
             )}
 
             {request.justification && (
-              <Card size="small" title={t('apiGov.requests.justification')}>
-                {request.justification}
-              </Card>
+              <DetailCard title={t('apiGov.requests.justification')}>
+                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                  {request.justification}
+                </div>
+              </DetailCard>
             )}
 
             {request.ai_summary && (
-              <Card size="small" title={t('apiGov.requests.aiSummary')}>
-                {request.ai_summary}
-              </Card>
+              <DetailCard
+                title={t('apiGov.requests.aiSummary')}
+                icon={<ThunderboltOutlined style={{ color: 'var(--accent)' }} />}
+              >
+                <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
+                  {request.ai_summary}
+                </div>
+              </DetailCard>
             )}
 
             {request.error_message && (
-              <Card size="small" title={t('apiGov.requests.error')}>
-                <span style={{ color: 'var(--risk-high)' }}>{request.error_message}</span>
-              </Card>
+              <DetailCard title={t('apiGov.requests.error')}>
+                <div style={{ padding: 14 }}>
+                  <span style={{ color: 'var(--risk-high)' }}>{request.error_message}</span>
+                </div>
+              </DetailCard>
             )}
 
             {request.response_snapshot && (
-              <Card
-                size="small"
+              <DetailCard
                 title={t('apiGov.requests.snapshot')}
                 extra={
-                  <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginLeft: 'auto' }}>
                     {request.response_truncated && <Tag color="orange">{t('apiGov.requests.truncated')}</Tag>}
                     <Button
                       size="small"
@@ -238,43 +247,47 @@ export default function ApiRequestDetailPage() {
                   </span>
                 }
               >
-                {request.response_snapshot_preview_truncated && (
-                  <Alert
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 8 }}
-                    message={t('apiGov.requests.previewTruncated')}
-                  />
-                )}
-                <pre
-                  style={{
-                    background: 'var(--bg-sunken)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: 12,
-                    margin: 0,
-                    maxHeight: 360,
-                    overflow: 'auto',
-                    fontSize: 12,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {request.response_snapshot}
-                </pre>
-              </Card>
+                <div style={{ padding: 14 }}>
+                  {request.response_snapshot_preview_truncated && (
+                    <Alert
+                      type="info"
+                      showIcon
+                      style={{ marginBottom: 8 }}
+                      message={t('apiGov.requests.previewTruncated')}
+                    />
+                  )}
+                  <pre
+                    style={{
+                      background: 'var(--bg-sunken)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 12,
+                      margin: 0,
+                      maxHeight: 360,
+                      overflow: 'auto',
+                      fontSize: 12,
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {request.response_snapshot}
+                  </pre>
+                </div>
+              </DetailCard>
             )}
 
-            <Card size="small" title={t('apiGov.requests.decisions')}>
-              <Table<ApiReviewDecision>
-                rowKey="id"
-                size="small"
-                pagination={false}
-                dataSource={request.decisions}
-                columns={decisionColumns}
-                locale={{ emptyText: '—' }}
-              />
-            </Card>
+            <DetailCard title={t('apiGov.requests.decisions')}>
+              <div style={{ padding: 14 }}>
+                <Table<ApiReviewDecision>
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  dataSource={request.decisions}
+                  columns={decisionColumns}
+                  locale={{ emptyText: '—' }}
+                />
+              </div>
+            </DetailCard>
           </>
         )}
       </div>

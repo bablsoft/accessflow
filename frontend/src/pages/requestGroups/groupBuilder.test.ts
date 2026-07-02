@@ -94,6 +94,7 @@ describe('groupBuilder', () => {
       ai_analysis_id: null,
       ai_risk_level: 'LOW',
       ai_risk_score: 10,
+      ai_analysis: null,
       status: 'PENDING',
       response_status_code: null,
       rows_affected: null,

@@ -23,6 +23,7 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { SqlBlock } from '@/components/common/SqlBlock';
+import { DetailCard } from '@/components/common/DetailCard';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { IssueCard } from '@/components/editor/IssueCard';
 import { OptimizationCard } from '@/components/editor/OptimizationCard';
@@ -428,7 +429,7 @@ export function QueryDetailPage() {
               })}
             />
           )}
-          <Card
+          <DetailCard
             title={canCollaborate ? t('queries.detail.card_sql_collab') : t('queries.detail.card_sql')}
             icon={<FileTextOutlined />}
             extra={<QueryTypePill type={query.query_type} />}
@@ -440,9 +441,9 @@ export function QueryDetailPage() {
                 <SqlBlock sql={query.sql_text} />
               </div>
             )}
-          </Card>
+          </DetailCard>
 
-          <Card title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
+          <DetailCard title={t('queries.detail.card_justification')} icon={<InfoCircleOutlined />}>
             <div style={{ padding: 14, fontSize: 13, lineHeight: 1.55 }}>
               {query.justification?.trim() ? (
                 query.justification
@@ -452,9 +453,9 @@ export function QueryDetailPage() {
                 </span>
               )}
             </div>
-          </Card>
+          </DetailCard>
 
-          <Card
+          <DetailCard
             title={
               aiFailed
                 ? t('queries.detail.ai_failed_accordion_title')
@@ -566,10 +567,10 @@ export function QueryDetailPage() {
                 )}
               </>
             )}
-          </Card>
+          </DetailCard>
 
           {query.status === 'EXECUTED' && (
-            <Card title={t('queries.detail.card_execution')} icon={<CheckOutlined style={{ color: 'var(--risk-low)' }} />}>
+            <DetailCard title={t('queries.detail.card_execution')} icon={<CheckOutlined style={{ color: 'var(--risk-low)' }} />}>
               <div
                 style={{
                   padding: 14,
@@ -588,11 +589,11 @@ export function QueryDetailPage() {
                   value={timeAgo(query.updated_at)}
                 />
               </div>
-            </Card>
+            </DetailCard>
           )}
 
           {query.status === 'FAILED' && (
-            <Card
+            <DetailCard
               title={t('queries.detail.card_execution')}
               icon={<ExclamationCircleOutlined style={{ color: 'var(--risk-crit)' }} />}
             >
@@ -637,20 +638,20 @@ export function QueryDetailPage() {
                   />
                 </div>
               </div>
-            </Card>
+            </DetailCard>
           )}
 
           {query.status === 'EXECUTED' && <QueryDiffCard query={query} />}
 
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (
-            <Card title={t('queries.detail.card_results')} icon={<FileTextOutlined />}>
+            <DetailCard title={t('queries.detail.card_results')} icon={<FileTextOutlined />}>
               <div style={{ padding: 14 }}>
                 <QueryResultsTable
                   queryId={query.id}
                   defaultView={engineMode(query.db_type).defaultResultView}
                 />
               </div>
-            </Card>
+            </DetailCard>
           )}
 
           {canDecide && (
@@ -733,35 +734,6 @@ export function QueryDetailPage() {
           <Metadata query={query} />
         </div>
       </div>
-    </div>
-  );
-}
-
-function Card({
-  title, icon, extra, children,
-}: { title: string; icon?: React.ReactNode; extra?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-      }}
-    >
-      <div
-        style={{
-          padding: '10px 14px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        {icon && <span style={{ color: 'var(--fg-muted)' }}>{icon}</span>}
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{title}</span>
-        {extra}
-      </div>
-      {children}
     </div>
   );
 }

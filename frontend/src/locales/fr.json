@@ -3337,7 +3337,11 @@
       "executeStarted": "Execution started.",
       "cancelled": "Group cancelled.",
       "approved": "Group approved.",
-      "rejected": "Group rejected."
+      "rejected": "Group rejected.",
+      "expandStep": "Afficher les détails de l'étape",
+      "collapseStep": "Masquer les détails de l'étape",
+      "stepRequest": "Requête",
+      "aiNotAvailable": "L'analyse IA n'est pas disponible pour cette étape."
     },
     "reviews": {
       "title": "Group reviews",

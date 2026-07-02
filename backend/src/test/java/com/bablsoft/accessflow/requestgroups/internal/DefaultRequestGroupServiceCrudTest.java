@@ -4,10 +4,12 @@ import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionLookupService.ApiConnectorPermissionLookupView;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
+import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.UserQueryService;
@@ -53,6 +55,7 @@ class DefaultRequestGroupServiceCrudTest {
     @Mock private GroupExecutionService executionService;
     @Mock private QueryParser queryParser;
     @Mock private DatasourceLookupService datasourceLookupService;
+    @Mock private AiAnalysisLookupService aiAnalysisLookupService;
     @Mock private DatasourceUserPermissionLookupService datasourcePermissionLookupService;
     @Mock private ApiConnectorPermissionLookupService apiConnectorPermissionLookupService;
     @Mock private ApiConnectorAdminService apiConnectorAdminService;
@@ -71,9 +74,10 @@ class DefaultRequestGroupServiceCrudTest {
     @BeforeEach
     void setUp() {
         service = new DefaultRequestGroupService(groupRepository, itemRepository, stateService,
-                executionService, queryParser, datasourceLookupService, datasourcePermissionLookupService,
-                apiConnectorPermissionLookupService, apiConnectorAdminService, userQueryService,
-                auditLogService, eventPublisher, objectMapper);
+                executionService, queryParser, datasourceLookupService, aiAnalysisLookupService,
+                datasourcePermissionLookupService, apiConnectorPermissionLookupService,
+                apiConnectorAdminService, userQueryService, auditLogService, eventPublisher,
+                objectMapper);
         lenient().when(groupRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(itemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(userQueryService.findById(any())).thenReturn(Optional.of(new UserView(userId,
@@ -238,5 +242,47 @@ class DefaultRequestGroupServiceCrudTest {
         when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(List.of());
 
         assertThat(service.get(group.getId(), orgId, userId, false).id()).isEqualTo(group.getId());
+    }
+
+    @Test
+    void getEmbedsFullMemberAnalysis() {
+        var group = draftGroup();
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(datasourceId);
+        item.setStatus(com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus.PENDING);
+        item.setAiAnalysisId(UUID.randomUUID());
+        var detail = new QueryDetailView.AiAnalysisDetail(item.getAiAnalysisId(), null, 40,
+                "Reads one row", "[]", "[]", false, null, null, "gpt-4o", 10, 5, false, null);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(List.of(item));
+        when(aiAnalysisLookupService.findDetailById(item.getAiAnalysisId()))
+                .thenReturn(Optional.of(detail));
+
+        var view = service.get(group.getId(), orgId, userId, false);
+
+        assertThat(view.items().get(0).aiAnalysis()).isSameAs(detail);
+    }
+
+    @Test
+    void listDoesNotLoadMemberAnalyses() {
+        var group = draftGroup();
+        group.setStatus(RequestGroupStatus.PENDING_REVIEW);
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setAiAnalysisId(UUID.randomUUID());
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<RequestGroupEntity>>any(),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(List.of(item));
+
+        var page = service.list(new com.bablsoft.accessflow.requestgroups.api.RequestGroupListFilter(
+                orgId, null, null), new com.bablsoft.accessflow.core.api.PageRequest(0, 20, List.of()));
+
+        assertThat(page.content().get(0).items().get(0).aiAnalysis()).isNull();
+        verify(aiAnalysisLookupService, org.mockito.Mockito.never()).findDetailById(any());
     }
 }
