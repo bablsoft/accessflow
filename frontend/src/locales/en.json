@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "Edit",
+      "editStepAria": "Edit step {{index}}",
+      "stepIncomplete": "This step is incomplete — open Edit to finish it.",
+      "noTargetYet": "No target selected yet",
+      "emptyStepPreview": "Nothing authored yet — open Edit to compose this step.",
+      "drawerTitleQuery": "Edit query step {{index}}",
+      "drawerTitleApi": "Edit API step {{index}}",
+      "done": "Done",
+      "pickDatasourceFirst": "Select a datasource to start authoring this query.",
+      "editTitle": "Edit request group",
+      "notEditable": "Only your own draft groups can be edited."
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "Show step details",
       "collapseStep": "Hide step details",
       "stepRequest": "Request",
-      "aiNotAvailable": "AI analysis is not available for this step."
+      "aiNotAvailable": "AI analysis is not available for this step.",
+      "edit": "Edit"
     },
     "reviews": {
       "title": "Group reviews",

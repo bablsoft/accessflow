@@ -28,6 +28,14 @@
   min-height: 0;
   overflow: auto;
 }
+/* Narrower columns when the panel mounts inside the group-member edit drawer (#559). */
+.af-editor-grid--drawer {
+  grid-template-columns: 200px 1fr 280px;
+  min-height: 480px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
 @media (max-width: 1100px) {
   .af-editor-grid {
     grid-template-columns: 220px 1fr 300px;

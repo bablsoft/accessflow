@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "Editar",
+      "editStepAria": "Editar paso {{index}}",
+      "stepIncomplete": "Este paso está incompleto: abra Editar para terminarlo.",
+      "noTargetYet": "Aún no se ha seleccionado un destino",
+      "emptyStepPreview": "Aún no hay contenido: abra Editar para componer este paso.",
+      "drawerTitleQuery": "Editar paso de consulta {{index}}",
+      "drawerTitleApi": "Editar paso de API {{index}}",
+      "done": "Listo",
+      "pickDatasourceFirst": "Seleccione una fuente de datos para empezar a redactar esta consulta.",
+      "editTitle": "Editar grupo de solicitudes",
+      "notEditable": "Solo se pueden editar sus propios grupos en borrador."
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "Mostrar detalles del paso",
       "collapseStep": "Ocultar detalles del paso",
       "stepRequest": "Solicitud",
-      "aiNotAvailable": "El análisis de IA no está disponible para este paso."
+      "aiNotAvailable": "El análisis de IA no está disponible para este paso.",
+      "edit": "Editar"
     },
     "reviews": {
       "title": "Group reviews",

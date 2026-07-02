@@ -241,6 +241,14 @@ export function App() {
             }
           />
           <Route
+            path="/request-groups/:id/edit"
+            element={
+              <Suspense fallback={null}>
+                <GroupBuilderPage />
+              </Suspense>
+            }
+          />
+          <Route
             path="/request-groups/reviews"
             element={
               <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>

@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "Изменить",
+      "editStepAria": "Изменить шаг {{index}}",
+      "stepIncomplete": "Этот шаг не завершён — откройте «Изменить», чтобы закончить его.",
+      "noTargetYet": "Цель ещё не выбрана",
+      "emptyStepPreview": "Пока ничего не составлено — откройте «Изменить», чтобы заполнить шаг.",
+      "drawerTitleQuery": "Изменить шаг запроса {{index}}",
+      "drawerTitleApi": "Изменить шаг API {{index}}",
+      "done": "Готово",
+      "pickDatasourceFirst": "Выберите источник данных, чтобы начать составление запроса.",
+      "editTitle": "Изменить группу запросов",
+      "notEditable": "Редактировать можно только собственные черновики групп."
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "Показать детали шага",
       "collapseStep": "Скрыть детали шага",
       "stepRequest": "Запрос",
-      "aiNotAvailable": "ИИ-анализ недоступен для этого шага."
+      "aiNotAvailable": "ИИ-анализ недоступен для этого шага.",
+      "edit": "Изменить"
     },
     "reviews": {
       "title": "Group reviews",

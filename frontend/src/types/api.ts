@@ -2806,6 +2806,14 @@ export interface RequestGroupItem {
   operation_id: string | null;
   verb: string | null;
   request_path: string | null;
+  /** API_CALL composition — present on the group detail response only, for DRAFT editing (#559). */
+  request_headers: Record<string, string> | null;
+  query_params: Record<string, string> | null;
+  body_type: ApiBodyType | null;
+  request_content_type: string | null;
+  request_body: string | null;
+  form_fields: ApiFormField[] | null;
+  binary_filename: string | null;
   ai_analysis_id: string | null;
   ai_risk_level: RiskLevel | null;
   ai_risk_score: number | null;

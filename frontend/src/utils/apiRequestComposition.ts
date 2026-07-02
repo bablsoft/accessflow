@@ -37,6 +37,44 @@ export const emptyComposition: ApiRequestComposition = {
   binaryBase64: null,
 };
 
+/** A fresh composition with unshared array instances (emptyComposition shares its arrays). */
+export function newComposition(): ApiRequestComposition {
+  return { ...emptyComposition, queryParams: [], headers: [], formFields: [] };
+}
+
+/** The composition fields as they come back on a saved item (group member, snake_case wire). */
+export interface SavedComposition {
+  request_headers?: Record<string, string> | null;
+  query_params?: Record<string, string> | null;
+  body_type?: ApiBodyType | null;
+  request_content_type?: string | null;
+  request_body?: string | null;
+  form_fields?: ApiFormField[] | null;
+  binary_filename?: string | null;
+}
+
+/** Rebuilds editor state from a saved item so `compositionToSubmit(compositionFromSaved(x)) ≈ x`. */
+export function compositionFromSaved(saved: SavedComposition): ApiRequestComposition {
+  const bodyType = saved.body_type ?? 'RAW';
+  return {
+    queryParams: recordToPairs(saved.query_params),
+    headers: recordToPairs(saved.request_headers),
+    bodyType,
+    contentType:
+      bodyType === 'RAW' ? (saved.request_content_type ?? 'application/json') : 'application/json',
+    rawBody: bodyType === 'RAW' ? (saved.request_body ?? '') : '',
+    formFields: (saved.form_fields ?? []).map((f) => ({
+      key: f.key,
+      type: f.type,
+      value: f.value,
+      filename: f.filename ?? null,
+      content_type: f.content_type ?? null,
+    })),
+    binaryFilename: bodyType === 'BINARY' ? (saved.binary_filename ?? null) : null,
+    binaryBase64: bodyType === 'BINARY' ? (saved.request_body ?? null) : null,
+  };
+}
+
 /** Drops blank-key rows and collapses pairs to a plain object for the wire. */
 export function pairsToRecord(pairs: KeyValuePair[]): Record<string, string> {
   const record: Record<string, string> = {};
