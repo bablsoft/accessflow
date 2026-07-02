@@ -3244,6 +3244,8 @@
       "target_table_help": "La tabla a la que se aplican las condiciones y el WHERE sin procesar.",
       "label_target_columns": "Columnas objetivo",
       "target_columns_placeholder": "Agregar columnas (separadas por comas)",
+      "target_table_placeholder": "Seleccione una tabla",
+      "target_columns_select_placeholder": "Seleccione columnas",
       "conditions_title": "Condiciones",
       "conditions_help": "Todas las condiciones se combinan con Y. Use el WHERE sin procesar de abajo para O o lógica más compleja.",
       "condition_column_placeholder": "Columna",

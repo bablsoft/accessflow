@@ -3199,6 +3199,8 @@
       "target_table_help": "The table conditions and raw WHERE apply to.",
       "label_target_columns": "Target columns",
       "target_columns_placeholder": "Add columns (comma-separated)",
+      "target_table_placeholder": "Select a table",
+      "target_columns_select_placeholder": "Select columns",
       "conditions_title": "Conditions",
       "conditions_help": "All conditions are combined with AND. Use the raw WHERE below for OR or more complex logic.",
       "condition_column_placeholder": "Column",

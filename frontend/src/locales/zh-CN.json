@@ -3244,6 +3244,8 @@
       "target_table_help": "条件和原始 WHERE 应用到的表。",
       "label_target_columns": "目标列",
       "target_columns_placeholder": "添加列（逗号分隔）",
+      "target_table_placeholder": "选择表",
+      "target_columns_select_placeholder": "选择列",
       "conditions_title": "条件",
       "conditions_help": "所有条件以“与”组合。若需“或”或更复杂的逻辑，请使用下方的原始 WHERE。",
       "condition_column_placeholder": "列",

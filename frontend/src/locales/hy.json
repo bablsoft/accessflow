@@ -3244,6 +3244,8 @@
       "target_table_help": "Աղյուսակը, որին կիրառվում են պայմաններն ու չմշակված WHERE-ը։",
       "label_target_columns": "Թիրախ սյունակներ",
       "target_columns_placeholder": "Ավելացրեք սյունակներ (ստորակետերով)",
+      "target_table_placeholder": "Ընտրեք աղյուսակ",
+      "target_columns_select_placeholder": "Ընտրեք սյունակներ",
       "conditions_title": "Պայմաններ",
       "conditions_help": "Բոլոր պայմանները միավորվում են ԵՎ-ով։ ԿԱՄ-ի կամ ավելի բարդ տրամաբանության համար օգտագործեք ստորև չմշակված WHERE-ը։",
       "condition_column_placeholder": "Սյունակ",

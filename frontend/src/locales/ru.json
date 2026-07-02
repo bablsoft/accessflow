@@ -3244,6 +3244,8 @@
       "target_table_help": "Таблица, к которой применяются условия и сырое WHERE.",
       "label_target_columns": "Целевые столбцы",
       "target_columns_placeholder": "Добавьте столбцы (через запятую)",
+      "target_table_placeholder": "Выберите таблицу",
+      "target_columns_select_placeholder": "Выберите столбцы",
       "conditions_title": "Условия",
       "conditions_help": "Все условия объединяются логическим И. Для ИЛИ или более сложной логики используйте сырое WHERE ниже.",
       "condition_column_placeholder": "Столбец",

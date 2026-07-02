@@ -3244,6 +3244,8 @@
       "target_table_help": "La table à laquelle s’appliquent les conditions et le WHERE brut.",
       "label_target_columns": "Colonnes cibles",
       "target_columns_placeholder": "Ajouter des colonnes (séparées par des virgules)",
+      "target_table_placeholder": "Sélectionnez une table",
+      "target_columns_select_placeholder": "Sélectionnez des colonnes",
       "conditions_title": "Conditions",
       "conditions_help": "Toutes les conditions sont combinées avec ET. Utilisez le WHERE brut ci-dessous pour OU ou une logique plus complexe.",
       "condition_column_placeholder": "Colonne",
