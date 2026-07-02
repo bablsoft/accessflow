@@ -574,9 +574,22 @@ through (proxy dry-run/sample-data, `access` materialiser, AI analyzer, text-to-
 submission/lifecycle/break-glass, `requestgroups`), group grants are honoured everywhere without touching
 those call sites. `findBreakGlassEligible` unions group break-glass grants the same way. JIT-access
 materialisation, which manages the per-user row specifically, uses the sibling `findDirectFor` (direct
-grant only, ignoring group grants). On the connector side the analogous union lives in
+grant only, ignoring group grants). **Datasource visibility** — the list the Query Editor renders
+(`GET /datasources` → `findAllVisibleToUser`), the single-datasource fetch (`GET /datasources/{id}` →
+`getForUser`), and schema introspection for autocomplete (`GET /datasources/{id}/schema`) — does **not**
+route through `findFor`; it is a separate `DatasourceRepository` query. That query mirrors the same rule:
+a datasource is visible when the caller holds an unexpired direct grant **or** an unexpired
+`datasource_group_permissions` grant for a group they belong to (AF-558). Before AF-558 it matched only
+direct grants, so group-only members saw an empty picker even though every enforcement path would have
+let them query. On the connector side the analogous union lives in
 `EffectiveApiConnectorPermissionResolver` (see the API Access Governance section), which every scattered
-connector enforcement point routes through. Admins are granted/revoked group access via
+connector enforcement point routes through — including the **API-editor visibility** paths
+(`GET /api-connectors` → `listForUser`, `GET /api-connectors/{id}` → `getForUser`,
+`GET /api-connectors/{id}/operations`), so connector list/get already honoured group grants and never
+had the datasource gap. **Grouped requests** (`requestgroups`) validate every member at both draft-persist
+and submit time through the group-aware `DatasourceUserPermissionLookupService.findFor` (query members)
+and `ApiConnectorPermissionLookupService.findFor` (API members), so a group-only grant is sufficient to
+add and run a member. Admins are granted/revoked group access via
 `DatasourceAdminService.{grant,list,revoke}GroupPermission` and the `/permissions/groups` endpoints,
 audited as `PERMISSION_GROUP_GRANTED` / `PERMISSION_GROUP_REVOKED` (connector side:
 `API_PERMISSION_GROUP_GRANTED` / `API_PERMISSION_GROUP_REVOKED`).

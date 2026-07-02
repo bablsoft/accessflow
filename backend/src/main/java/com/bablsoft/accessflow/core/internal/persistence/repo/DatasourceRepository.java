@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -55,11 +56,41 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
     @Query("""
             select d from DatasourceEntity d
              where d.organization.id = :orgId
-               and exists (
-                   select 1 from DatasourceUserPermissionEntity p
-                    where p.datasource = d and p.user.id = :userId)
+               and (
+                 exists (
+                     select 1 from DatasourceUserPermissionEntity p
+                      where p.datasource = d and p.user.id = :userId
+                        and (p.expiresAt is null or p.expiresAt > :now))
+                 or exists (
+                     select 1 from DatasourceGroupPermissionEntity gp
+                      where gp.datasource = d
+                        and (gp.expiresAt is null or gp.expiresAt > :now)
+                        and gp.group.id in (
+                            select m.group.id from UserGroupMembershipEntity m
+                             where m.user.id = :userId)))
             """)
     Page<DatasourceEntity> findAllVisibleToUser(@Param("orgId") UUID orgId,
                                                 @Param("userId") UUID userId,
+                                                @Param("now") Instant now,
                                                 Pageable pageable);
+
+    @Query("""
+            select (count(d) > 0) from DatasourceEntity d
+             where d.id = :datasourceId
+               and (
+                 exists (
+                     select 1 from DatasourceUserPermissionEntity p
+                      where p.datasource = d and p.user.id = :userId
+                        and (p.expiresAt is null or p.expiresAt > :now))
+                 or exists (
+                     select 1 from DatasourceGroupPermissionEntity gp
+                      where gp.datasource = d
+                        and (gp.expiresAt is null or gp.expiresAt > :now)
+                        and gp.group.id in (
+                            select m.group.id from UserGroupMembershipEntity m
+                             where m.user.id = :userId)))
+            """)
+    boolean existsVisibleToUser(@Param("datasourceId") UUID datasourceId,
+                                @Param("userId") UUID userId,
+                                @Param("now") Instant now);
 }

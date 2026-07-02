@@ -508,7 +508,7 @@ class DatasourceAdminServiceImplTest {
     void getForUserWithoutPermissionThrowsNotFound() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
-        when(permissionRepository.existsByUser_IdAndDatasource_Id(userId, datasourceId))
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
                 .thenReturn(false);
 
         assertThatThrownBy(() -> service.getForUser(datasourceId, orgId, userId))
@@ -519,7 +519,7 @@ class DatasourceAdminServiceImplTest {
     void getForUserWithPermissionReturnsView() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
-        when(permissionRepository.existsByUser_IdAndDatasource_Id(userId, datasourceId))
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
                 .thenReturn(true);
 
         var view = service.getForUser(datasourceId, orgId, userId);
