@@ -158,8 +158,11 @@ release. The mirror is release-output only — never hand-edit it.
    optionally, registry.terraform.io) and register the GPG key. The submitter must be a **public**
    member of the `bablsoft` org. Subsequent releases are picked up automatically.
 
-> Run `make docs` and commit the generated `docs/` in the `terraform-provider/` directory before
-> the first tag so the registry shows per-resource documentation.
+> `docs/` is generated — the provider overview (the registry's **Overview** tab and docs landing
+> page) is authored in `templates/index.md.tmpl`, and the per-resource pages come from the schema
+> `MarkdownDescription`s and `examples/`. Edit the template (never `docs/index.md` directly), run
+> `make docs`, and commit the regenerated `docs/` **on `main`** before tagging — never as an
+> out-of-band commit on the tag, or the next regeneration silently reverts it.
 
 ---
 

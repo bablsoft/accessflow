@@ -26,7 +26,8 @@ vet:
 lint:
 	golangci-lint run
 
-# Regenerate docs/ from the schema MarkdownDescriptions and examples/ (registry input).
+# Regenerate docs/ (registry input) from templates/ (provider overview), the schema
+# MarkdownDescriptions, and examples/. Edit templates/index.md.tmpl, not docs/index.md.
 .PHONY: docs
 docs:
 	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate \
