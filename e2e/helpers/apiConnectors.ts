@@ -66,10 +66,13 @@ export async function grantApiConnectorPermissionViaApi(
 ): Promise<void> {
   const res = await request.post(`${apiBase()}/api/v1/api-connectors/${connectorId}/permissions`, {
     headers: { Authorization: `Bearer ${token}` },
+    // can_break_glass is a primitive boolean on the backend DTO; omitting it
+    // deserializes as null and fails (FAIL_ON_NULL_FOR_PRIMITIVES), so send all three.
     data: {
       user_id: userId,
       can_read: options.canRead ?? false,
       can_write: options.canWrite ?? false,
+      can_break_glass: false,
     },
   });
   if (!res.ok()) {
