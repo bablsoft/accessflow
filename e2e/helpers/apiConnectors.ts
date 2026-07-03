@@ -40,3 +40,51 @@ export async function deleteApiConnectorViaApi(
     throw new Error(`Delete API connector failed: ${res.status()} ${await res.text()}`);
   }
 }
+
+/** Grants a user read/write access on a connector so they can submit governed API calls (#567). */
+export async function grantApiConnectorPermissionViaApi(
+  request: APIRequestContext,
+  token: string,
+  connectorId: string,
+  userId: string,
+  options: { canRead?: boolean; canWrite?: boolean },
+): Promise<void> {
+  const res = await request.post(`${apiBase()}/api/v1/api-connectors/${connectorId}/permissions`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      user_id: userId,
+      can_read: options.canRead ?? false,
+      can_write: options.canWrite ?? false,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Grant API connector permission failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
+export interface SubmittedApiRequest {
+  id: string;
+  status: string;
+}
+
+/** Submits a governed API call; a write op against a default connector lands in PENDING_REVIEW (#567). */
+export async function submitApiRequestViaApi(
+  request: APIRequestContext,
+  token: string,
+  options: { connectorId: string; verb: string; requestPath: string; justification?: string },
+): Promise<SubmittedApiRequest> {
+  const res = await request.post(`${apiBase()}/api/v1/api-requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      connector_id: options.connectorId,
+      verb: options.verb,
+      request_path: options.requestPath,
+      justification: options.justification ?? null,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Submit API request failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { id: string; status: string };
+  return { id: body.id, status: body.status };
+}
