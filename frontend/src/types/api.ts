@@ -2435,6 +2435,8 @@ export interface GrantApiConnectorGroupPermissionInput {
   restricted_response_fields?: string[];
 }
 
+export type UpdateApiConnectorGroupPermissionInput = UpdateApiConnectorPermissionInput;
+
 export interface ApiSchema {
   id: string;
   schema_type: ApiSchemaType;

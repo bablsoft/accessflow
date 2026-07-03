@@ -200,6 +200,21 @@ describe('api/apiConnectors', () => {
     expect(post).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups', input);
   });
 
+  it('updates a group permission via PUT with the permission id in the path', async () => {
+    put.mockResolvedValue({ data: { id: 'gp-1', group_id: 'g-1', can_write: true } });
+    const input = {
+      can_read: false,
+      can_write: true,
+      can_break_glass: true,
+      expires_at: '2030-01-01T00:00:00.000Z',
+      allowed_operations: ['listPets'],
+      restricted_response_fields: ['data.ssn'],
+    };
+    const result = await api.updateApiConnectorGroupPermission('c-1', 'gp-1', input);
+    expect(put).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups/gp-1', input);
+    expect(result.can_write).toBe(true);
+  });
+
   it('revokes a group permission', async () => {
     del.mockResolvedValue({ data: undefined });
     await api.revokeApiConnectorGroupPermission('c-1', 'gp-1');

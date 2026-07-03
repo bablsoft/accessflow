@@ -4455,6 +4455,7 @@ secrets themselves are never returned.
 | `DELETE` | `/api-connectors/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
 | `GET` | `/api-connectors/{id}/permissions/groups` | **Admin.** List group-based access grants on the connector (AF-530). Each row carries `groupId`, `groupName`, `memberCount`. |
 | `POST` | `/api-connectors/{id}/permissions/groups` | **Admin.** Grant/update a user group's access (`201`, upsert by `(connector, group)`): same body as the per-user grant with `groupId` in place of `userId`. `404 USER_GROUP_NOT_FOUND` when the group is missing or in another org. Members inherit the grant; effective access is the most-permissive union of a user's direct grant and every unexpired group grant (`allowedOperations` unioned, `restrictedResponseFields` intersected). |
+| `PUT` | `/api-connectors/{id}/permissions/groups/{permissionId}` | **Admin.** Update an existing group grant in place (`200`): same body as the group `POST` **minus** `groupId` (the target group is fixed by the permission id, so `createdBy`/`createdAt` provenance is preserved). `404 API_CONNECTOR_PERMISSION_NOT_FOUND` when the permission is missing or belongs to a different connector. |
 | `DELETE` | `/api-connectors/{id}/permissions/groups/{permissionId}` | **Admin.** Revoke a group grant (`204`). |
 
 ### Connector response masking & classification (AF-518)

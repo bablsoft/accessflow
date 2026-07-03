@@ -207,6 +207,22 @@ class ApiConnectorControllerTest {
         verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GROUP_REVOKED));
     }
 
+    @Test
+    void updateGroupPermissionDelegatesAndAudits() {
+        var permId = UUID.randomUUID();
+        when(service.updateGroupPermission(eq(connectorId), eq(orgId), eq(permId), any()))
+                .thenReturn(groupPermissionView());
+
+        var response = controller.updateGroup(connectorId, permId,
+                new UpdateApiConnectorGroupPermissionRequest(true, false, false, null,
+                        List.of("listPets"), List.of("data.ssn")),
+                auth(UserRoleType.ADMIN), auditContext);
+
+        assertThat(response.groupName()).isEqualTo("Analysts");
+        verify(service).updateGroupPermission(eq(connectorId), eq(orgId), eq(permId), any());
+        verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GROUP_UPDATED));
+    }
+
     private ApiConnectorPermissionView permissionView() {
         return new ApiConnectorPermissionView(UUID.randomUUID(), connectorId, UUID.randomUUID(),
                 "u@acme.test", "User", true, false, false, null, List.of(), List.of(), Instant.now());

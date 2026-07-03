@@ -477,6 +477,83 @@ class DefaultApiConnectorAdminServiceTest {
     }
 
     @Test
+    void updateGroupPermissionMutatesFieldsAndPreservesProvenance() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var creator = UUID.randomUUID();
+        var createdAt = Instant.now().minusSeconds(3600);
+        var existing = new com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity();
+        existing.setId(permId);
+        existing.setConnectorId(entity.getId());
+        existing.setGroupId(groupId);
+        existing.setOrganizationId(orgId);
+        existing.setCanRead(true);
+        existing.setCreatedBy(creator);
+        existing.setCreatedAt(createdAt);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.of(existing));
+        when(userGroupService.getGroup(groupId, orgId)).thenReturn(new com.bablsoft.accessflow.core.api.UserGroupView(
+                groupId, orgId, "Analysts", null, 4, Instant.now(), Instant.now()));
+        when(groupPermissionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.updateGroupPermission(entity.getId(), orgId, permId,
+                new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
+                        false, true, true, null, List.of("createPet"), List.of("data.token")));
+
+        assertThat(view.canRead()).isFalse();
+        assertThat(view.canWrite()).isTrue();
+        assertThat(view.canBreakGlass()).isTrue();
+        assertThat(view.groupName()).isEqualTo("Analysts");
+        assertThat(view.memberCount()).isEqualTo(4);
+        assertThat(view.allowedOperations()).containsExactly("createPet");
+        assertThat(view.restrictedResponseFields()).containsExactly("data.token");
+        // provenance untouched
+        assertThat(existing.getCreatedBy()).isEqualTo(creator);
+        assertThat(existing.getCreatedAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void updateGroupPermissionRejectsForeignPermission() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        var foreign = new com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorGroupPermissionEntity();
+        foreign.setId(permId);
+        foreign.setConnectorId(UUID.randomUUID());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.of(foreign));
+
+        assertThatThrownBy(() -> service.updateGroupPermission(entity.getId(), orgId, permId,
+                new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
+                        true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void updateGroupPermissionRejectsMissingPermission() {
+        var entity = persistedConnector();
+        var permId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(groupPermissionRepository.findById(permId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateGroupPermission(entity.getId(), orgId, permId,
+                new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
+                        true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
+    }
+
+    @Test
+    void updateGroupPermissionRejectsConnectorFromAnotherOrg() {
+        var connectorId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateGroupPermission(connectorId, orgId, UUID.randomUUID(),
+                new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
+                        true, false, false, null, null, null)))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
+    }
+
+    @Test
     void listGroupPermissionsReturnsViews() {
         var entity = persistedConnector();
         var groupId = UUID.randomUUID();

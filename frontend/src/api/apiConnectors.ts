@@ -11,6 +11,7 @@ import type {
   GrantApiConnectorGroupPermissionInput,
   GrantApiConnectorPermissionInput,
   UpdateApiConnectorInput,
+  UpdateApiConnectorGroupPermissionInput,
   UpdateApiConnectorPermissionInput,
   UploadApiSchemaInput,
 } from '@/types/api';
@@ -148,6 +149,18 @@ export async function grantApiConnectorGroupPermission(
 ): Promise<ApiConnectorGroupPermission> {
   const { data } = await apiClient.post<ApiConnectorGroupPermission>(
     `${BASE}/${connectorId}/permissions/groups`,
+    input,
+  );
+  return data;
+}
+
+export async function updateApiConnectorGroupPermission(
+  connectorId: string,
+  permissionId: string,
+  input: UpdateApiConnectorGroupPermissionInput,
+): Promise<ApiConnectorGroupPermission> {
+  const { data } = await apiClient.put<ApiConnectorGroupPermission>(
+    `${BASE}/${connectorId}/permissions/groups/${permissionId}`,
     input,
   );
   return data;

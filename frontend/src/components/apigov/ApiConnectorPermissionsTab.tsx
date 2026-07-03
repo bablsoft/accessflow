@@ -13,6 +13,7 @@ import {
   listApiOperations,
   revokeApiConnectorGroupPermission,
   revokeApiConnectorPermission,
+  updateApiConnectorGroupPermission,
   updateApiConnectorPermission,
 } from '@/api/apiConnectors';
 import { listUsers, userKeys } from '@/api/admin';
@@ -78,14 +79,18 @@ function PermissionCapabilityFields({ operations }: { operations: ApiOperation[]
   );
 }
 
+type EditTarget =
+  | { kind: 'user'; permission: ApiConnectorPermission }
+  | { kind: 'group'; permission: ApiConnectorGroupPermission };
+
 function EditPermissionModal({
   connectorId,
-  permission,
+  target,
   operations,
   onClose,
 }: {
   connectorId: string;
-  permission: ApiConnectorPermission | null;
+  target: EditTarget | null;
   operations: ApiOperation[];
   onClose: () => void;
 }) {
@@ -95,7 +100,8 @@ function EditPermissionModal({
   const [form] = Form.useForm<PermissionCapabilityValues>();
 
   useEffect(() => {
-    if (!permission) return;
+    if (!target) return;
+    const { permission } = target;
     form.setFieldsValue({
       can_read: permission.can_read,
       can_write: permission.can_write,
@@ -104,36 +110,55 @@ function EditPermissionModal({
       allowed_operations: permission.allowed_operations,
       restricted_response_fields: permission.restricted_response_fields,
     });
-  }, [permission, form]);
+  }, [target, form]);
 
-  const updateMutation = useMutation({
-    mutationFn: (values: PermissionCapabilityValues) =>
-      updateApiConnectorPermission(connectorId, permission!.id, {
+  const updateMutation = useMutation<
+    ApiConnectorPermission | ApiConnectorGroupPermission,
+    Error,
+    PermissionCapabilityValues
+  >({
+    mutationFn: (values: PermissionCapabilityValues) => {
+      const payload = {
         can_read: values.can_read,
         can_write: values.can_write,
         can_break_glass: values.can_break_glass,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
         allowed_operations: values.allowed_operations ?? [],
         restricted_response_fields: values.restricted_response_fields ?? [],
-      }),
+      };
+      if (target!.kind === 'group') {
+        return updateApiConnectorGroupPermission(connectorId, target!.permission.id, payload);
+      }
+      return updateApiConnectorPermission(connectorId, target!.permission.id, payload);
+    },
     onSuccess: () => {
       message.success(t('apiGov.settings.updated'));
-      queryClient.invalidateQueries({ queryKey: apiConnectorKeys.permissions(connectorId) });
+      queryClient.invalidateQueries({
+        queryKey:
+          target!.kind === 'group'
+            ? apiConnectorKeys.groupPermissions(connectorId)
+            : apiConnectorKeys.permissions(connectorId),
+      });
       onClose();
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
 
-  const subject = permission
-    ? permission.user_display_name
-      ? `${permission.user_display_name} (${permission.user_email ?? permission.user_id})`
-      : permission.user_email ?? permission.user_id
-    : '';
+  let title = '';
+  if (target?.kind === 'group') {
+    title = t('apiGov.settings.editGroupPermission', { group: target.permission.group_name });
+  } else if (target?.kind === 'user') {
+    const p = target.permission;
+    const subject = p.user_display_name
+      ? `${p.user_display_name} (${p.user_email ?? p.user_id})`
+      : p.user_email ?? p.user_id;
+    title = t('apiGov.settings.editPermission', { user: subject });
+  }
 
   return (
     <Modal
-      open={!!permission}
-      title={t('apiGov.settings.editPermission', { user: subject })}
+      open={!!target}
+      title={title}
       onCancel={onClose}
       onOk={() => form.submit()}
       okText={t('apiGov.settings.save')}
@@ -159,7 +184,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
   const queryClient = useQueryClient();
   const [form] = Form.useForm<GrantFormValues>();
   const target: GrantTarget = Form.useWatch('target', form) ?? 'user';
-  const [editing, setEditing] = useState<ApiConnectorPermission | null>(null);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
   const permsQuery = useQuery({
     queryKey: apiConnectorKeys.permissions(connectorId),
     queryFn: () => listApiConnectorPermissions(connectorId),
@@ -311,7 +336,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
         )}
         <PermissionCapabilityFields operations={operations} />
         <Button type="primary" htmlType="submit" loading={grantMutation.isPending}>
-          {t('apiGov.settings.grant')}
+          {target === 'group' ? t('apiGov.settings.grantGroup') : t('apiGov.settings.grant')}
         </Button>
       </Form>
       <Table<ApiConnectorPermission>
@@ -331,7 +356,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
           { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },
           { title: '', key: 'a', render: (_: unknown, row: ApiConnectorPermission) => (
             <div style={{ display: 'flex', gap: 8 }}>
-              <Button size="small" onClick={() => setEditing(row)}>
+              <Button size="small" onClick={() => setEditing({ kind: 'user', permission: row })}>
                 {t('apiGov.settings.edit')}
               </Button>
               <Button size="small" danger loading={revokeMutation.isPending} onClick={() => revokeMutation.mutate(row.id)}>
@@ -372,16 +397,21 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
             { title: t('apiGov.settings.allowedOperations'), dataIndex: 'allowed_operations', render: (v: string[]) => (v.length ? v.length : t('apiGov.settings.allOperations')) },
             { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },
             { title: '', key: 'a', render: (_: unknown, row: ApiConnectorGroupPermission) => (
-              <Button size="small" danger loading={revokeGroupMutation.isPending} onClick={() => revokeGroupMutation.mutate(row.id)}>
-                {t('apiGov.settings.revoke')}
-              </Button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button size="small" onClick={() => setEditing({ kind: 'group', permission: row })}>
+                  {t('apiGov.settings.edit')}
+                </Button>
+                <Button size="small" danger loading={revokeGroupMutation.isPending} onClick={() => revokeGroupMutation.mutate(row.id)}>
+                  {t('apiGov.settings.revoke')}
+                </Button>
+              </div>
             ) },
           ]}
         />
       )}
       <EditPermissionModal
         connectorId={connectorId}
-        permission={editing}
+        target={editing}
         operations={operations}
         onClose={() => setEditing(null)}
       />
