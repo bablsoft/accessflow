@@ -102,6 +102,7 @@ describe('NotificationBell', () => {
           id: 'n2',
           event_type: 'QUERY_SUBMITTED',
           query_request_id: 'q-99',
+          api_request_id: null,
           payload: { datasource: 'orders-prod', submitter: 'alice@acme.com' },
           read: false,
           created_at: new Date().toISOString(),
@@ -131,6 +132,7 @@ describe('NotificationBell', () => {
           id: 'n1',
           event_type: 'QUERY_APPROVED',
           query_request_id: 'q-42',
+          api_request_id: null,
           payload: { datasource: 'orders-prod' },
           read: false,
           created_at: new Date().toISOString(),
@@ -159,6 +161,7 @@ describe('NotificationBell', () => {
           id: 'n1',
           event_type: 'QUERY_APPROVED',
           query_request_id: null,
+          api_request_id: null,
           payload: { datasource: 'A' },
           read: false,
           created_at: new Date().toISOString(),
@@ -175,6 +178,65 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 
+  it('renders an API_REQUEST_SUBMITTED body and navigates to /api-reviews', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'a1',
+          event_type: 'API_REQUEST_SUBMITTED',
+          query_request_id: null,
+          api_request_id: 'api-11',
+          payload: { datasource: 'payments-api', submitter: 'bob@acme.com' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/submitted an API request on payments-api/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('a1'));
+    expect(navigateMock).toHaveBeenCalledWith('/api-reviews');
+    expect(navigateMock).not.toHaveBeenCalledWith('/api-requests/api-11');
+  });
+
+  it('renders a terminal API event body and navigates to the API-request detail page', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'a2',
+          event_type: 'API_REQUEST_EXECUTED',
+          query_request_id: null,
+          api_request_id: 'api-22',
+          payload: { datasource: 'payments-api' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/API request on payments-api was executed/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('a2'));
+    expect(navigateMock).toHaveBeenCalledWith('/api-requests/api-22');
+  });
+
   it('delete button calls deleteNotification and does not navigate', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 0 });
     deleteNotificationMock.mockResolvedValue(undefined);
@@ -184,6 +246,7 @@ describe('NotificationBell', () => {
           id: 'n7',
           event_type: 'QUERY_REJECTED',
           query_request_id: 'q-7',
+          api_request_id: null,
           payload: { datasource: 'sales' },
           read: true,
           created_at: new Date().toISOString(),

@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Your query on {{datasource}} was rejected",
       "REVIEW_TIMEOUT": "Your query on {{datasource}} timed out awaiting review",
       "AI_HIGH_RISK": "AI flagged a high-risk query on {{datasource}}",
+      "API_REQUEST_SUBMITTED": "{{submitter}} submitted an API request on {{datasource}}",
+      "API_REQUEST_SUBMITTED_no_submitter": "New API request awaiting review on {{datasource}}",
+      "API_REQUEST_APPROVED": "Your API request on {{datasource}} was approved",
+      "API_REQUEST_EXECUTED": "Your API request on {{datasource}} was executed",
+      "API_REQUEST_FAILED": "Your API request on {{datasource}} failed",
       "fallback": "New notification"
     }
   },

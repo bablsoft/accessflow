@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Ваш запрос на {{datasource}} был отклонён",
       "REVIEW_TIMEOUT": "Срок проверки вашего запроса на {{datasource}} истёк",
       "AI_HIGH_RISK": "ИИ отметил высокорискованный запрос на {{datasource}}",
+      "API_REQUEST_SUBMITTED": "{{submitter}} отправил API-запрос на {{datasource}}",
+      "API_REQUEST_SUBMITTED_no_submitter": "Новый API-запрос ожидает проверки на {{datasource}}",
+      "API_REQUEST_APPROVED": "Ваш API-запрос на {{datasource}} был одобрен",
+      "API_REQUEST_EXECUTED": "Ваш API-запрос на {{datasource}} был выполнен",
+      "API_REQUEST_FAILED": "Ваш API-запрос на {{datasource}} завершился ошибкой",
       "fallback": "Новое уведомление"
     }
   },

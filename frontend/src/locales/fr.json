@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Ta requête sur {{datasource}} a été rejetée",
       "REVIEW_TIMEOUT": "Ta requête sur {{datasource}} a expiré en attendant la revue",
       "AI_HIGH_RISK": "L'IA a signalé une requête à haut risque sur {{datasource}}",
+      "API_REQUEST_SUBMITTED": "{{submitter}} a soumis une requête API sur {{datasource}}",
+      "API_REQUEST_SUBMITTED_no_submitter": "Nouvelle requête API en attente de revue sur {{datasource}}",
+      "API_REQUEST_APPROVED": "Ta requête API sur {{datasource}} a été approuvée",
+      "API_REQUEST_EXECUTED": "Ta requête API sur {{datasource}} a été exécutée",
+      "API_REQUEST_FAILED": "Ta requête API sur {{datasource}} a échoué",
       "fallback": "Nouvelle notification"
     }
   },
