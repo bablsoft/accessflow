@@ -2877,7 +2877,11 @@
       "aiConfig": "Конфигурация ИИ",
       "aiConfigPlaceholder": "Выберите конфигурацию ИИ",
       "aiConfigRequired": "Выберите конфигурацию ИИ, когда включён анализ ИИ или текст-в-API",
-      "addAiConfig": "Добавить конфигурацию ИИ"
+      "addAiConfig": "Добавить конфигурацию ИИ",
+      "reviewPlan": "План проверки",
+      "reviewPlanPlaceholder": "План не привязан",
+      "reviewPlanLoading": "Загрузка планов…",
+      "reviewPlanHint": "Без плана запросам, направленным на проверку, требуется одно одобрение"
     },
     "settings": {
       "title": "Connector settings",

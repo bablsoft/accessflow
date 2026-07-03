@@ -41,6 +41,7 @@ public record UpdateApiConnectorRequest(
         Oauth2GrantType oauth2GrantType,
         Oauth2ClientAuth oauth2ClientAuth,
         UUID reviewPlanId,
+        Boolean clearReviewPlan,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
         Boolean textToApiEnabled,
@@ -54,7 +55,8 @@ public record UpdateApiConnectorRequest(
         return new UpdateApiConnectorCommand(name, baseUrl, defaultHeaders, traceHeaderMapping, timeoutMs,
                 tlsVerify, authMethod, credentials, oauth2TokenUri, oauth2ClientId, oauth2ClientSecret,
                 oauth2Scopes, oauth2Audience, oauth2RefreshToken, oauth2Username, oauth2Password,
-                oauth2GrantType, oauth2ClientAuth, reviewPlanId, aiAnalysisEnabled, aiConfigId,
-                textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes, active);
+                oauth2GrantType, oauth2ClientAuth, reviewPlanId, clearReviewPlan, aiAnalysisEnabled,
+                aiConfigId, textToApiEnabled, requireReviewReads, requireReviewWrites, maxResponseBytes,
+                active);
     }
 }

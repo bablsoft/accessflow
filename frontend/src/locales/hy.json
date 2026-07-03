@@ -2877,7 +2877,11 @@
       "aiConfig": "AI կարգավորում",
       "aiConfigPlaceholder": "Ընտրեք AI կարգավորում",
       "aiConfigRequired": "Ընտրեք AI կարգավորում, երբ միացված է AI վերլուծությունը կամ տեքստ-դեպի-API-ն",
-      "addAiConfig": "Ավելացնել AI կարգավորում"
+      "addAiConfig": "Ավելացնել AI կարգավորում",
+      "reviewPlan": "Վերանայման պլան",
+      "reviewPlanPlaceholder": "Պլան չի կցված",
+      "reviewPlanLoading": "Բեռնվում են պլանները…",
+      "reviewPlanHint": "Առանց պլանի՝ վերանայման ուղարկված հարցումները պահանջում են մեկ հաստատում"
     },
     "settings": {
       "title": "Connector settings",

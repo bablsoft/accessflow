@@ -2877,7 +2877,11 @@
       "aiConfig": "AI config",
       "aiConfigPlaceholder": "Select an AI config",
       "aiConfigRequired": "Select an AI config when AI analysis or text-to-API is enabled",
-      "addAiConfig": "Add AI config"
+      "addAiConfig": "Add AI config",
+      "reviewPlan": "Review plan",
+      "reviewPlanPlaceholder": "No plan attached",
+      "reviewPlanLoading": "Loading plans…",
+      "reviewPlanHint": "Without a plan, requests routed to review need a single approval"
     },
     "settings": {
       "title": "Connector settings",

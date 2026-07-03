@@ -2877,7 +2877,11 @@
       "aiConfig": "KI-Konfiguration",
       "aiConfigPlaceholder": "KI-Konfiguration auswählen",
       "aiConfigRequired": "Wählen Sie eine KI-Konfiguration, wenn KI-Analyse oder Text-zu-API aktiviert ist",
-      "addAiConfig": "KI-Konfiguration hinzufügen"
+      "addAiConfig": "KI-Konfiguration hinzufügen",
+      "reviewPlan": "Prüfplan",
+      "reviewPlanPlaceholder": "Kein Plan zugeordnet",
+      "reviewPlanLoading": "Pläne werden geladen…",
+      "reviewPlanHint": "Ohne Plan benötigen zur Prüfung geleitete Anfragen eine einzige Genehmigung"
     },
     "settings": {
       "title": "Connector settings",

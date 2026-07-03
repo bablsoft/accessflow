@@ -2380,7 +2380,11 @@ export interface CreateApiConnectorInput {
   max_response_bytes?: number;
 }
 
-export type UpdateApiConnectorInput = Partial<CreateApiConnectorInput> & { active?: boolean };
+export type UpdateApiConnectorInput = Partial<CreateApiConnectorInput> & {
+  active?: boolean;
+  /** review_plan_id: null means "unchanged" on update — clearing goes through this flag. */
+  clear_review_plan?: boolean;
+};
 
 export interface ApiConnectionTestResult {
   success: boolean;

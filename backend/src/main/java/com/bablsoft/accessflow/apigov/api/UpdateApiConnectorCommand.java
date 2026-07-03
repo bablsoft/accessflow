@@ -7,7 +7,9 @@ import java.util.UUID;
  * Update command for an API connector. {@code credentials} is null when the caller leaves the stored
  * secret unchanged; a non-null (possibly empty) map replaces it. Likewise each OAuth2 secret
  * ({@code oauth2ClientSecret}, {@code oauth2RefreshToken}, {@code oauth2Password}) is null to leave
- * the stored value unchanged.
+ * the stored value unchanged. {@code reviewPlanId} follows the same null-means-unchanged rule, so
+ * unassigning a plan goes through {@code clearReviewPlan} (mirrors the datasource update's
+ * {@code clearAiConfig} convention); when true it wins over {@code reviewPlanId}.
  */
 public record UpdateApiConnectorCommand(
         String name,
@@ -29,6 +31,7 @@ public record UpdateApiConnectorCommand(
         Oauth2GrantType oauth2GrantType,
         Oauth2ClientAuth oauth2ClientAuth,
         UUID reviewPlanId,
+        Boolean clearReviewPlan,
         Boolean aiAnalysisEnabled,
         UUID aiConfigId,
         Boolean textToApiEnabled,

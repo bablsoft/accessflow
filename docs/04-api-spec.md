@@ -4425,6 +4425,14 @@ execute, text-to-API, break-glass) lands in a follow-up and will be documented h
 `textToApiEnabled`, `requireReviewReads`, `requireReviewWrites`, `maxResponseBytes` (≥1). The read
 view also returns `defaultHeaders` + `traceHeaderMapping`.
 
+**Review plan assignment (AF-579).** `reviewPlanId` must reference a review plan belonging to the
+caller's organization — a non-existent or cross-org id is rejected with `404 REVIEW_PLAN_NOT_FOUND`
+(on both create and update). The assigned plan's `min_approvals_required` governs API requests
+routed to review on this connector; without a plan the default is a single approval. On update,
+`reviewPlanId = null` (or omitted) leaves the assignment unchanged; pass `clearReviewPlan: true` to
+unassign the plan (persists `review_plan_id = NULL`) — the flag wins over any `reviewPlanId` sent in
+the same request.
+
 **Outbound OAuth2 token sourcing (#506).** When `authMethod = OAUTH2_CLIENT_CREDENTIALS`, the
 create/update requests also accept (no new endpoints): `oauth2TokenUri` (≤2048), `oauth2ClientId`
 (≤512), `oauth2ClientSecret` (≤1024, **write-only**), `oauth2Scopes` (≤1024), `oauth2Audience`

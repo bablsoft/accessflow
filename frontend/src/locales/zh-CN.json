@@ -2877,7 +2877,11 @@
       "aiConfig": "AI 配置",
       "aiConfigPlaceholder": "选择 AI 配置",
       "aiConfigRequired": "启用 AI 分析或文本转 API 时需选择 AI 配置",
-      "addAiConfig": "添加 AI 配置"
+      "addAiConfig": "添加 AI 配置",
+      "reviewPlan": "审核计划",
+      "reviewPlanPlaceholder": "未关联计划",
+      "reviewPlanLoading": "正在加载计划…",
+      "reviewPlanHint": "未关联计划时，进入审核的请求只需一次批准"
     },
     "settings": {
       "title": "Connector settings",
