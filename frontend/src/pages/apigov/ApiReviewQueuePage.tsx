@@ -3,6 +3,7 @@ import { App, Button, Input, Modal, Select, Skeleton, Table } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -27,6 +28,7 @@ const PAGE_SIZE = 20;
 export default function ApiReviewQueuePage() {
   const { t } = useTranslation();
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [decisionFor, setDecisionFor] = useState<{ id: string; kind: 'approve' | 'reject' } | null>(
     null,
@@ -128,14 +130,20 @@ export default function ApiReviewQueuePage() {
           <Button
             size="small"
             type="primary"
-            onClick={() => setDecisionFor({ id: row.api_request_id, kind: 'approve' })}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDecisionFor({ id: row.api_request_id, kind: 'approve' });
+            }}
           >
             {t('apiGov.reviews.approve')}
           </Button>
           <Button
             size="small"
             danger
-            onClick={() => setDecisionFor({ id: row.api_request_id, kind: 'reject' })}
+            onClick={(e) => {
+              e.stopPropagation();
+              setDecisionFor({ id: row.api_request_id, kind: 'reject' });
+            }}
           >
             {t('apiGov.reviews.reject')}
           </Button>
@@ -213,6 +221,10 @@ export default function ApiReviewQueuePage() {
             size="middle"
             scroll={{ x: 'max-content' }}
             locale={{ emptyText: t('apiGov.reviews.empty') }}
+            onRow={(row) => ({
+              onClick: () => navigate(`/api-requests/${row.api_request_id}`),
+              style: { cursor: 'pointer' },
+            })}
             pagination={{
               current: page + 1,
               pageSize: PAGE_SIZE,
