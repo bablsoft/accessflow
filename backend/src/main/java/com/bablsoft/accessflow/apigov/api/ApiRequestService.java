@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.api;
 
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.util.UUID;
 
@@ -20,7 +21,12 @@ public interface ApiRequestService {
      */
     PageResponse<ApiRequestView> list(ApiRequestListFilter filter, PageRequest pageRequest);
 
-    ApiRequestView get(UUID id, UUID organizationId, UUID userId, boolean admin);
+    /**
+     * Returns the detail view of one request. Visible to the submitter, and — per the
+     * {@code docs/07-security.md} role matrix ("View all query history") — to any {@code REVIEWER}
+     * or {@code ADMIN} in the organization. Everyone else gets {@code ApiRequestNotFoundException}.
+     */
+    ApiRequestView get(UUID id, UUID organizationId, UUID userId, UserRoleType callerRole);
 
     /** Submitter cancels a request that is still pending (or APPROVED + scheduled, not yet run). */
     void cancel(UUID id, UUID organizationId, UUID userId);
@@ -30,8 +36,8 @@ public interface ApiRequestService {
 
     /**
      * Returns the stored (masked, size-capped) response snapshot of an executed request for download,
-     * together with its captured content type and a suggested filename. Same ownership guard as
-     * {@link #get}.
+     * together with its captured content type and a suggested filename. Same access guard as
+     * {@link #get} — submitter, {@code REVIEWER}, or {@code ADMIN}.
      */
-    ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId, boolean admin);
+    ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId, UserRoleType callerRole);
 }

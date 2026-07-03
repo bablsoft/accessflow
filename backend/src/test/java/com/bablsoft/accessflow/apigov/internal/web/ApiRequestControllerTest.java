@@ -61,7 +61,8 @@ class ApiRequestControllerTest {
     @Test
     void submitReturnsDetail() {
         when(requestService.submit(any())).thenReturn(new ApiRequestSubmissionResult(requestId, QueryStatus.PENDING_AI));
-        when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(false))).thenReturn(view());
+        when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(UserRoleType.ANALYST)))
+                .thenReturn(view());
 
         var response = controller.submit(new SubmitApiRequestRequest(connectorId, null, "POST", "/charges",
                 null, null, null, null, "{}", null, null, "need", null, null),
@@ -69,6 +70,17 @@ class ApiRequestControllerTest {
 
         assertThat(response.id()).isEqualTo(requestId);
         verify(requestService).submit(any());
+    }
+
+    @Test
+    void getForwardsCallerRoleSoReviewersCanView() {
+        when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(UserRoleType.REVIEWER)))
+                .thenReturn(view());
+
+        var response = controller.get(requestId, auth(UserRoleType.REVIEWER));
+
+        assertThat(response.id()).isEqualTo(requestId);
+        verify(requestService).get(requestId, orgId, userId, UserRoleType.REVIEWER);
     }
 
     @Test
@@ -120,7 +132,7 @@ class ApiRequestControllerTest {
 
     @Test
     void downloadResponseSetsContentTypeAndAttachment() {
-        when(requestService.downloadResponse(requestId, orgId, userId, false))
+        when(requestService.downloadResponse(requestId, orgId, userId, UserRoleType.ANALYST))
                 .thenReturn(new com.bablsoft.accessflow.apigov.api.ApiResponsePayload(
                         "{\"ok\":true}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         "application/json", "api-response-x.json"));

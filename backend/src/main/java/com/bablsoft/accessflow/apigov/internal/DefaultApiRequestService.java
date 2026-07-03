@@ -35,6 +35,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import lombok.RequiredArgsConstructor;
@@ -150,12 +151,18 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiRequestView get(UUID id, UUID organizationId, UUID userId, boolean admin) {
+    public ApiRequestView get(UUID id, UUID organizationId, UUID userId, UserRoleType callerRole) {
         var entity = require(id, organizationId);
-        if (!admin && !entity.getSubmittedBy().equals(userId)) {
+        // Per docs/07-security.md role matrix, REVIEWER and ADMIN both have "View all query history";
+        // the same parity applies to API requests. Everyone else can only read their own rows.
+        if (!canViewAll(callerRole) && !entity.getSubmittedBy().equals(userId)) {
             throw new ApiRequestNotFoundException(id);
         }
         return toDetailView(entity);
+    }
+
+    private static boolean canViewAll(UserRoleType callerRole) {
+        return callerRole == UserRoleType.ADMIN || callerRole == UserRoleType.REVIEWER;
     }
 
     @Override
@@ -316,9 +323,11 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId, boolean admin) {
+    public ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId,
+            UserRoleType callerRole) {
         var entity = require(id, organizationId);
-        if (!admin && !entity.getSubmittedBy().equals(userId)) {
+        // Same view guard as get(): submitter, REVIEWER, or ADMIN.
+        if (!canViewAll(callerRole) && !entity.getSubmittedBy().equals(userId)) {
             throw new ApiRequestNotFoundException(id);
         }
         var snapshot = entity.getResponseSnapshot();
