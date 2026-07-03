@@ -28,8 +28,14 @@ spec:
     default list element wholesale, so without this fallback the rendered
     Ingress fails validation with "spec.rules[].http.paths: Required value".
     */}}
+    {{- /*
+    The trailing slash on /api/ is deliberate: Traefik and ingress-nginx match
+    `Prefix` paths as literal string prefixes, so a bare /api would swallow SPA
+    routes like /api-requests and /api-editor instead of letting them fall
+    through to the frontend.
+    */}}
     {{- $defaultPaths := list
-        (dict "path" "/api" "pathType" "Prefix" "service" "backend")
+        (dict "path" "/api/" "pathType" "Prefix" "service" "backend")
         (dict "path" "/ws"  "pathType" "Prefix" "service" "backend")
         (dict "path" "/"    "pathType" "Prefix" "service" "frontend") }}
     {{- range .Values.ingress.hosts }}

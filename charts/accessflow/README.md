@@ -157,9 +157,9 @@ ingress:
   hosts:
     - host: accessflow.company.com
       paths:
-        - { path: /api, pathType: Prefix, service: backend }
-        - { path: /ws,  pathType: Prefix, service: backend }
-        - { path: /,    pathType: Prefix, service: frontend }
+        - { path: /api/, pathType: Prefix, service: backend }
+        - { path: /ws,   pathType: Prefix, service: backend }
+        - { path: /,     pathType: Prefix, service: frontend }
   tls:
     enabled: true
     secretName: accessflow-tls   # Created by cert-manager (above) or pre-loaded with kubectl

@@ -231,12 +231,15 @@ ingress:
   # nginx.ingress.kubernetes.io/*, alb.ingress.kubernetes.io/*, etc. here.
   annotations: {}
   # `paths` is optional. When omitted, the chart wires in the standard 3-path
-  # routing shown below (`/api` + `/ws` → backend, `/` → frontend), so a
+  # routing shown below (`/api/` + `/ws` → backend, `/` → frontend), so a
   # minimal override like `hosts: [{ host: my-host }]` Just Works.
+  # The trailing slash on /api/ is deliberate: Traefik and ingress-nginx match
+  # `Prefix` paths literally, so a bare /api would swallow SPA routes like
+  # /api-requests and /api-editor instead of routing them to the frontend.
   hosts:
     - host: accessflow.company.com
       paths:
-        - path: /api
+        - path: /api/
           pathType: Prefix
           service: backend
         - path: /ws
