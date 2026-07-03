@@ -1,6 +1,6 @@
 # Terraform / OpenTofu provider for AccessFlow
 
-The official provider for [AccessFlow](https://github.com/bablsoft/accessflow), the open-source
+The official provider for [AccessFlow](https://accessflow.bablsoft.com/), the open-source
 database access governance platform. Manage datasources, review plans, routing / row-security /
 masking policies, AI configs, and notification channels declaratively through the AccessFlow REST
 API. Works with both [OpenTofu](https://opentofu.org) and Terraform.

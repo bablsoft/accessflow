@@ -6,7 +6,7 @@ description: |-
 
 # AccessFlow Provider
 
-The AccessFlow provider manages [AccessFlow](https://github.com/bablsoft/accessflow) — the
+The AccessFlow provider manages [AccessFlow](https://accessflow.bablsoft.com/) — the
 open-source database access governance platform — declaratively through its REST API. Use it to
 provision datasources, review plans, routing/row-security/masking policies, AI configs, and
 notification channels as code, with the same authoritative-upsert semantics as the built-in
