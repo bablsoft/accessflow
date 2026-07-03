@@ -1924,6 +1924,12 @@
       "API_REQUEST_APPROVED": "Ваш API-запрос на {{datasource}} был одобрен",
       "API_REQUEST_EXECUTED": "Ваш API-запрос на {{datasource}} был выполнен",
       "API_REQUEST_FAILED": "Ваш API-запрос на {{datasource}} завершился ошибкой",
+      "ACCESS_REQUEST_SUBMITTED": "{{requester}} запросил доступ к {{datasource}}",
+      "ACCESS_REQUEST_SUBMITTED_no_requester": "Новый запрос доступа ожидает проверки на {{datasource}}",
+      "ACCESS_REQUEST_APPROVED": "Ваш запрос доступа к {{datasource}} был одобрен",
+      "ACCESS_REQUEST_REJECTED": "Ваш запрос доступа к {{datasource}} был отклонён",
+      "ACCESS_GRANT_EXPIRED": "Срок вашего доступа к {{datasource}} истёк",
+      "ACCESS_GRANT_REVOKED": "Ваш доступ к {{datasource}} был отозван",
       "fallback": "Новое уведомление"
     }
   },

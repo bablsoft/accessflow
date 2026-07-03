@@ -1924,6 +1924,12 @@
       "API_REQUEST_APPROVED": "您在 {{datasource}} 上的 API 请求已被批准",
       "API_REQUEST_EXECUTED": "您在 {{datasource}} 上的 API 请求已执行",
       "API_REQUEST_FAILED": "您在 {{datasource}} 上的 API 请求失败",
+      "ACCESS_REQUEST_SUBMITTED": "{{requester}} 请求访问 {{datasource}}",
+      "ACCESS_REQUEST_SUBMITTED_no_requester": "{{datasource}} 上有新的访问请求等待审核",
+      "ACCESS_REQUEST_APPROVED": "您对 {{datasource}} 的访问请求已被批准",
+      "ACCESS_REQUEST_REJECTED": "您对 {{datasource}} 的访问请求已被拒绝",
+      "ACCESS_GRANT_EXPIRED": "您对 {{datasource}} 的访问授权已过期",
+      "ACCESS_GRANT_REVOKED": "您对 {{datasource}} 的访问授权已被撤销",
       "fallback": "新通知"
     }
   },

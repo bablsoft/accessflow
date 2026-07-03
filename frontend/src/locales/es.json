@@ -1924,6 +1924,12 @@
       "API_REQUEST_APPROVED": "Tu solicitud de API en {{datasource}} fue aprobada",
       "API_REQUEST_EXECUTED": "Tu solicitud de API en {{datasource}} fue ejecutada",
       "API_REQUEST_FAILED": "Tu solicitud de API en {{datasource}} falló",
+      "ACCESS_REQUEST_SUBMITTED": "{{requester}} solicitó acceso a {{datasource}}",
+      "ACCESS_REQUEST_SUBMITTED_no_requester": "Nueva solicitud de acceso esperando revisión en {{datasource}}",
+      "ACCESS_REQUEST_APPROVED": "Tu solicitud de acceso para {{datasource}} fue aprobada",
+      "ACCESS_REQUEST_REJECTED": "Tu solicitud de acceso para {{datasource}} fue rechazada",
+      "ACCESS_GRANT_EXPIRED": "Tu permiso de acceso en {{datasource}} expiró",
+      "ACCESS_GRANT_REVOKED": "Tu permiso de acceso en {{datasource}} fue revocado",
       "fallback": "Nueva notificación"
     }
   },

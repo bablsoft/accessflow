@@ -185,6 +185,21 @@ function renderMessage(
       return t('notifications.events.API_REQUEST_EXECUTED', { datasource });
     case 'API_REQUEST_FAILED':
       return t('notifications.events.API_REQUEST_FAILED', { datasource });
+    case 'ACCESS_REQUEST_SUBMITTED':
+      return payload.requester
+        ? t('notifications.events.ACCESS_REQUEST_SUBMITTED', {
+            requester: payload.requester,
+            datasource,
+          })
+        : t('notifications.events.ACCESS_REQUEST_SUBMITTED_no_requester', { datasource });
+    case 'ACCESS_REQUEST_APPROVED':
+      return t('notifications.events.ACCESS_REQUEST_APPROVED', { datasource });
+    case 'ACCESS_REQUEST_REJECTED':
+      return t('notifications.events.ACCESS_REQUEST_REJECTED', { datasource });
+    case 'ACCESS_GRANT_EXPIRED':
+      return t('notifications.events.ACCESS_GRANT_EXPIRED', { datasource });
+    case 'ACCESS_GRANT_REVOKED':
+      return t('notifications.events.ACCESS_GRANT_REVOKED', { datasource });
     default:
       return t('notifications.events.fallback');
   }
@@ -197,6 +212,18 @@ export function routeForNotification(item: UserNotification): string | null {
   }
   if (item.event_type === 'API_REQUEST_SUBMITTED') {
     return '/api-reviews';
+  }
+  if (item.event_type === 'ACCESS_REQUEST_SUBMITTED') {
+    return '/admin/access-requests';
+  }
+  // Terminal access events are requester-targeted → the requester's own access page.
+  if (
+    item.event_type === 'ACCESS_REQUEST_APPROVED' ||
+    item.event_type === 'ACCESS_REQUEST_REJECTED' ||
+    item.event_type === 'ACCESS_GRANT_EXPIRED' ||
+    item.event_type === 'ACCESS_GRANT_REVOKED'
+  ) {
+    return '/access-requests';
   }
   // Terminal API events are submitter-targeted → the API-request detail page.
   if (
