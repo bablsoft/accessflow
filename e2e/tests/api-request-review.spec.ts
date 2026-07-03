@@ -132,6 +132,44 @@ test.describe.serial('api request review (#567)', () => {
     }
   });
 
+  test('a reviewer opens the request detail by clicking a queue row on /api-reviews', async ({
+    browser,
+    request,
+  }) => {
+    if (!connector) throw new Error('connector not created in beforeAll');
+
+    // Distinct path so the queue row is unambiguous — other tests in this file
+    // leave PENDING_REVIEW requests against '/anything' behind.
+    const submitted = await submitApiRequestViaApi(request, submitterToken, {
+      connectorId: connector.id,
+      verb: 'POST',
+      requestPath: '/anything/queue-row-view',
+      justification: 'open detail from the review queue',
+    });
+    await waitForApiRequestStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
+
+    const reviewerCtx = await browser.newContext();
+    try {
+      const reviewerPage = await reviewerCtx.newPage();
+      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await reviewerPage.goto('/api-reviews');
+
+      const row = reviewerPage.locator('.ant-table-row', { hasText: '/anything/queue-row-view' });
+      await expect(row.first()).toBeVisible({ timeout: 15_000 });
+      await row.first().click();
+
+      // Row click navigates to the request detail, where the reviewer sees the
+      // full request context and the inline Approve/Reject decision block.
+      await reviewerPage.waitForURL(`**/api-requests/${submitted.id}`, { timeout: 15_000 });
+      await expect(reviewerPage.getByRole('button', { name: 'Approve' })).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(reviewerPage.getByRole('button', { name: 'Reject' })).toBeVisible();
+    } finally {
+      await reviewerCtx.close();
+    }
+  });
+
   test('a non-admin REVIEWER can open any API request detail (#566)', async ({ request }) => {
     if (!connector) throw new Error('connector not created in beforeAll');
 
