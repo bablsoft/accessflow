@@ -32,7 +32,7 @@ class CreateRequestGroupRequestJsonTest {
                       "verb": "POST",
                       "requestPath": "/x",
                       "bodyType": "FORM_DATA",
-                      "formFields": [ { "name": "f", "value": "v" } ]
+                      "formFields": [ { "key": "f", "type": "TEXT", "value": "v" } ]
                     }
                   ]
                 }
@@ -47,6 +47,7 @@ class CreateRequestGroupRequestJsonTest {
         assertThat(command.items().get(1).targetKind()).isEqualTo(RequestGroupTargetKind.API_CALL);
         assertThat(command.items().get(1).transactional()).isFalse();
         assertThat(command.items().get(1).formFields()).hasSize(1);
+        assertThat(command.items().get(1).formFields().get(0).name()).isEqualTo("f");
         assertThat(command.items().get(1).formFields().get(0).file()).isFalse();
     }
 
@@ -69,7 +70,8 @@ class CreateRequestGroupRequestJsonTest {
                       "verb": "POST",
                       "requestPath": "/x",
                       "bodyType": "FORM_DATA",
-                      "formFields": [ { "name": "f", "value": "v", "file": true } ]
+                      "formFields": [ { "key": "f", "type": "FILE", "value": "aGk=",
+                                        "filename": "a.txt", "contentType": "text/plain" } ]
                     }
                   ]
                 }
@@ -81,5 +83,7 @@ class CreateRequestGroupRequestJsonTest {
         assertThat(command.continueOnError()).isTrue();
         assertThat(command.items().get(0).transactional()).isTrue();
         assertThat(command.items().get(1).formFields().get(0).file()).isTrue();
+        assertThat(command.items().get(1).formFields().get(0).filename()).isEqualTo("a.txt");
+        assertThat(command.items().get(1).formFields().get(0).contentType()).isEqualTo("text/plain");
     }
 }

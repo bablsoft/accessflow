@@ -37,6 +37,7 @@ export default function RequestGroupDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const role = useAuthStore((s) => s.user?.role);
+  const userId = useAuthStore((s) => s.user?.id);
   const isReviewer = role === 'REVIEWER' || role === 'ADMIN';
 
   const [decisionFor, setDecisionFor] = useState<'approve' | 'reject' | null>(null);
@@ -93,6 +94,8 @@ export default function RequestGroupDetailPage() {
     group?.status === 'PENDING_REVIEW' ||
     group?.status === 'APPROVED';
   const canReview = isReviewer && group?.status === 'PENDING_REVIEW';
+  // Only the submitter can re-open their own DRAFT in the builder (#559).
+  const canEdit = group?.status === 'DRAFT' && group.submitted_by_user_id === userId;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -174,8 +177,17 @@ export default function RequestGroupDetailPage() {
               </Card>
             )}
 
-            {(canExecute || canCancel || canReview) && (
+            {(canExecute || canCancel || canReview || canEdit) && (
               <Space>
+                {canEdit && (
+                  <Button
+                    type="primary"
+                    data-testid="group-edit-button"
+                    onClick={() => navigate(`/request-groups/${group.id}/edit`)}
+                  >
+                    {t('requestGroups.detail.edit')}
+                  </Button>
+                )}
                 {canExecute && (
                   <Button
                     type="primary"

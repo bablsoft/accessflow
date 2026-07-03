@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemInput;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import jakarta.validation.constraints.NotNull;
@@ -32,18 +33,17 @@ record RequestGroupItemRequest(
         @Size(max = 255, message = "{validation.request_group_item.content_type.size}")
         String requestContentType,
         String requestBody,
-        List<FormFieldRequest> formFields,
+        // same wire shape as the apigov submit request ({key, type, value, filename, content_type})
+        List<ApiFormField> formFields,
         @Size(max = 255, message = "{validation.request_group_item.filename.size}")
         String binaryFilename) {
-
-    record FormFieldRequest(String name, String value, Boolean file, String filename, String contentType) {
-    }
 
     RequestGroupItemInput toInput(int order) {
         var fields = formFields == null ? List.<RequestGroupItemInput.ApiFormFieldInput>of()
                 : formFields.stream()
-                        .map(f -> new RequestGroupItemInput.ApiFormFieldInput(f.name(), f.value(),
-                                f.file() != null && f.file(), f.filename(), f.contentType()))
+                        .map(f -> new RequestGroupItemInput.ApiFormFieldInput(f.key(), f.value(),
+                                f.type() == ApiFormField.ApiFormFieldType.FILE, f.filename(),
+                                f.contentType()))
                         .toList();
         return new RequestGroupItemInput(targetKind, order, datasourceId, sqlText,
                 transactional != null && transactional,

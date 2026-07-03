@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "Bearbeiten",
+      "editStepAria": "Schritt {{index}} bearbeiten",
+      "stepIncomplete": "Dieser Schritt ist unvollständig — öffnen Sie „Bearbeiten“, um ihn abzuschließen.",
+      "noTargetYet": "Noch kein Ziel ausgewählt",
+      "emptyStepPreview": "Noch nichts verfasst — öffnen Sie „Bearbeiten“, um diesen Schritt zu erstellen.",
+      "drawerTitleQuery": "Abfrageschritt {{index}} bearbeiten",
+      "drawerTitleApi": "API-Schritt {{index}} bearbeiten",
+      "done": "Fertig",
+      "pickDatasourceFirst": "Wählen Sie eine Datenquelle, um diese Abfrage zu erstellen.",
+      "editTitle": "Anfragegruppe bearbeiten",
+      "notEditable": "Nur eigene Entwurfsgruppen können bearbeitet werden."
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "Schrittdetails anzeigen",
       "collapseStep": "Schrittdetails ausblenden",
       "stepRequest": "Anfrage",
-      "aiNotAvailable": "Für diesen Schritt ist keine KI-Analyse verfügbar."
+      "aiNotAvailable": "Für diesen Schritt ist keine KI-Analyse verfügbar.",
+      "edit": "Bearbeiten"
     },
     "reviews": {
       "title": "Group reviews",

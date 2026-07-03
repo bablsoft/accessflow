@@ -14,6 +14,11 @@ import {
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import {
+  createApiConnectorViaApi,
+  deleteApiConnectorViaApi,
+  type CreatedApiConnector,
+} from '../helpers/apiConnectors';
 
 // AF-501: Request chaining & grouping. An analyst bundles two ordered database-query steps into one
 // request group, submits it as a single element, an independent reviewer approves the bundle, and it
@@ -36,46 +41,80 @@ async function loginViaUi(page: Page, email: string, password: string): Promise<
   await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
-// CodeMirror's contenteditable doesn't accept .fill(); type into the focused editor. The Nth editor
-// on the builder page corresponds to step N (each member card embeds its own SqlEditor).
-async function typeInEditor(page: Page, index: number, sql: string): Promise<void> {
-  const content = page.locator('.cm-content').nth(index);
-  await content.click();
-  await page.keyboard.type(sql, { delay: 15 });
-  await page.keyboard.press('Escape');
+// Since #559 the builder cards are compact summaries: "Add step" (or a card's Edit button) opens a
+// full-parity authoring drawer — the same Query/API editor surfaces as /editor and /api-editor.
+function editDrawer(page: Page) {
+  return page.getByTestId('group-member-edit-drawer');
 }
 
-// Picks an option from the most-recently-rendered datasource <Select> on the builder. The member
-// card's datasource picker is the only combobox inside its card, so scoping by the step testid keeps
-// us from clicking an earlier step's select.
-async function pickDatasourceForStep(
-  page: Page,
-  stepIndex: number,
-  ds: CreatedDatasource,
-): Promise<void> {
-  const card = page.getByTestId(`group-member-${stepIndex}`);
-  // The datasource Select is searchable: type the name to filter the (virtualized, org-wide) list
-  // down to our datasource so the option is rendered before we click it.
-  // The datasource Select carries showSearch + optionFilterProp="label". The e2e org accumulates
-  // dozens of datasources, which AntD virtualizes, so the desired option is only DOM-resident after
-  // typing the label narrows the list. Mirror the proven helper in admin-audit-log.spec.ts: fill the
-  // wrapper's search input, then click the exact-label option.
-  const select = card.locator('.ant-select').first();
+// Picks an option from a searchable AntD <Select> inside the drawer. The list is virtualized, so
+// the desired option is only DOM-resident after typing the label narrows it (mirrors the proven
+// helper in admin-audit-log.spec.ts); Enter selects the highlighted match cleanly.
+async function pickTargetInDrawer(page: Page, name: string): Promise<void> {
+  const select = editDrawer(page).locator('.ant-select').first();
   await select.scrollIntoViewIfNeeded();
   await select.click();
   const input = select.locator('input');
-  await input.fill(ds.name);
-  // Wait for the filtered option to render in the open dropdown, then keyboard-select it. Clicking
-  // the row is unreliable: AntD's rc-virtual-list renders a hidden duplicate "measure" node, and for
-  // a lower card the dropdown is still animating into place (Playwright reports "not stable"). Enter
-  // selects the highlighted match cleanly.
+  await input.fill(name);
   await page
     .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option')
-    .filter({ hasText: new RegExp(`^${ds.name}$`) })
+    .filter({ hasText: new RegExp(`^${name}$`) })
     .first()
     .waitFor();
   await input.press('ArrowDown');
   await input.press('Enter');
+}
+
+// CodeMirror's contenteditable doesn't accept .fill(); type into the drawer's focused editor,
+// then verify the typed content stuck (the editor rebuilds when the schema-introspect response
+// lands — it feeds autocomplete — and a rebuild mid-typing used to swallow keystrokes).
+async function typeInDrawerEditor(page: Page, sql: string): Promise<void> {
+  const content = editDrawer(page).locator('.cm-content').first();
+  await content.click();
+  await page.keyboard.type(sql, { delay: 15 });
+  // Blur (not Escape — that would close the drawer) so the autocomplete popup dismisses.
+  await content.blur();
+  await expect(content).toContainText(sql);
+}
+
+// The first drawer-open for a datasource fires its schema-introspect fetch (later opens hit the
+// TanStack cache). Wait for it so the editor isn't rebuilt mid-typing.
+const schemaFetched = new WeakMap<Page, Set<string>>();
+
+async function waitForSchemaOnFirstUse(
+  page: Page,
+  ds: CreatedDatasource,
+  pick: () => Promise<void>,
+): Promise<void> {
+  const seen = schemaFetched.get(page) ?? new Set<string>();
+  schemaFetched.set(page, seen);
+  if (seen.has(ds.id)) {
+    await pick();
+    return;
+  }
+  const schemaResponse = page.waitForResponse(
+    (r) => r.url().includes(`/datasources/${ds.id}/schema`),
+    { timeout: 15_000 },
+  );
+  await pick();
+  await schemaResponse;
+  seen.add(ds.id);
+}
+
+async function closeDrawer(page: Page): Promise<void> {
+  await page.getByTestId('group-member-edit-done').click();
+  await expect(editDrawer(page)).toBeHidden();
+}
+
+// Adds a database-query step and authors it in the drawer (which opens automatically on add).
+async function addQueryStep(page: Page, ds: CreatedDatasource, sql: string): Promise<void> {
+  await page.getByRole('button', { name: 'Add step' }).click();
+  await page.getByRole('menuitem', { name: 'Database query' }).click();
+  await expect(editDrawer(page)).toBeVisible();
+  await waitForSchemaOnFirstUse(page, ds, () => pickTargetInDrawer(page, ds.name));
+  await editDrawer(page).locator('.cm-content').first().waitFor();
+  await typeInDrawerEditor(page, sql);
+  await closeDrawer(page);
 }
 
 // Approve the group through a reviewer token that is NOT the submitter (self-approval is blocked).
@@ -130,6 +169,7 @@ test.describe('request groups (AF-501)', () => {
   let reviewerToken: string;
   let datasource: CreatedDatasource | null = null;
   let reviewPlan: CreatedReviewPlan | null = null;
+  let connector: CreatedApiConnector | null = null;
 
   const approverEmail = `group-reviewer-${randomUUID().slice(0, 8)}@accessflow.test`;
 
@@ -152,9 +192,13 @@ test.describe('request groups (AF-501)', () => {
       name: `Group DS ${Date.now()}`,
       reviewPlanId: reviewPlan.id,
     });
+    connector = await createApiConnectorViaApi(request, adminToken, {
+      name: `Group Connector ${Date.now()}`,
+    });
   });
 
   test.afterAll(async ({ request }) => {
+    if (connector) await deleteApiConnectorViaApi(request, adminToken, connector.id);
     if (datasource) await deleteDatasource(request, adminToken, datasource.id);
     if (reviewPlan) await deleteReviewPlanViaApi(request, adminToken, reviewPlan.id);
   });
@@ -171,21 +215,14 @@ test.describe('request groups (AF-501)', () => {
     const groupName = `E2E Group ${Date.now()}`;
     await page.locator('#group-name-input').fill(groupName);
 
-    const addStep = page.getByRole('button', { name: 'Add step' });
-    await addStep.click();
-    await page.getByRole('menuitem', { name: 'Database query' }).click();
-    await addStep.click();
-    await page.getByRole('menuitem', { name: 'Database query' }).click();
+    await addQueryStep(page, ds, 'SELECT 1');
+    await addQueryStep(page, ds, 'SELECT 2');
 
     await expect(page.getByTestId('group-member-0')).toBeVisible();
     await expect(page.getByTestId('group-member-1')).toBeVisible();
-
-    await pickDatasourceForStep(page, 0, ds);
-    await page.waitForLoadState('networkidle');
-    await typeInEditor(page, 0, 'SELECT 1');
-
-    await pickDatasourceForStep(page, 1, ds);
-    await typeInEditor(page, 1, 'SELECT 2');
+    // The compact cards summarise the authored steps (#559).
+    await expect(page.getByTestId('group-member-0')).toContainText('SELECT 1');
+    await expect(page.getByTestId('group-member-1')).toContainText('SELECT 2');
 
     // Submit the whole group; backend creates it (DRAFT) and transitions it into the AI/review path.
     const submitResponse = page.waitForResponse(
@@ -241,6 +278,105 @@ test.describe('request groups (AF-501)', () => {
     await expect(page.getByTestId('group-step-0')).toBeVisible();
     await expect(page.getByTestId('group-step-1')).toBeVisible();
     await expect(page.getByText(groupName)).toBeVisible();
+  });
+
+  // #559: an API_CALL step is authored with the full composer (params / headers / RAW body), saved
+  // as a DRAFT, and re-opened for editing via the detail page's Edit button — the composition must
+  // round-trip intact (regression: the body used to be dropped on hydrate).
+  test('round-trips an API step composition through draft save and re-edit', async ({
+    page,
+    request,
+  }) => {
+    const ds = datasource!;
+    const conn = connector!;
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    await page.goto('/request-groups/new');
+    const groupName = `E2E Draft Group ${Date.now()}`;
+    await page.locator('#group-name-input').fill(groupName);
+
+    await addQueryStep(page, ds, 'SELECT 1');
+
+    // API step: connector + method/path + a query param, a header, and a RAW JSON body.
+    await page.getByRole('button', { name: 'Add step' }).click();
+    await page.getByRole('menuitem', { name: 'API call' }).click();
+    const drawer = editDrawer(page);
+    await expect(drawer).toBeVisible();
+    await pickTargetInDrawer(page, conn.name);
+    await drawer.getByLabel('Method').fill('POST');
+    await drawer.getByLabel('Path').fill('/api/v1/echo');
+
+    // AntD keeps inactive tab panes mounted (hidden), so scope every interaction to the active pane.
+    const activePane = drawer.locator('.ant-tabs-tabpane-active');
+    await activePane.getByRole('button', { name: 'Add' }).click();
+    await activePane.getByLabel('Key').fill('dryRun');
+    await activePane.getByLabel('Value').fill('true');
+
+    await drawer.getByRole('tab', { name: 'Headers' }).click();
+    await activePane.getByRole('button', { name: 'Add' }).click();
+    await activePane.getByLabel('Key').fill('X-Trace');
+    await activePane.getByLabel('Value').fill('e2e-1');
+
+    await drawer.getByRole('tab', { name: 'Body' }).click();
+    await activePane.locator('textarea').fill('{"subject":"e2e"}');
+    await closeDrawer(page);
+
+    await expect(page.getByTestId('group-member-1')).toContainText('POST /api/v1/echo');
+
+    // Save the draft; the response carries the created group id.
+    const saveResponse = page.waitForResponse(
+      (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/request-groups'),
+    );
+    await page.getByRole('button', { name: 'Save draft' }).click();
+    const saveRes = await saveResponse;
+    expect(saveRes.status()).toBe(201);
+    const created = (await saveRes.json()) as { id: string };
+    const groupId = created.id;
+
+    // The API composition is persisted and returned on the detail response (#559 backend).
+    const saved = await request.get(`${apiBase()}/api/v1/request-groups/${groupId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(saved.ok()).toBeTruthy();
+    const savedBody = (await saved.json()) as {
+      items: {
+        target_kind: string;
+        request_body: string | null;
+        request_headers: Record<string, string>;
+        query_params: Record<string, string>;
+        body_type: string | null;
+      }[];
+    };
+    const apiItem = savedBody.items.find((i) => i.target_kind === 'API_CALL')!;
+    expect(apiItem.request_body).toBe('{"subject":"e2e"}');
+    expect(apiItem.request_headers).toMatchObject({ 'X-Trace': 'e2e-1' });
+    expect(apiItem.query_params).toMatchObject({ dryRun: 'true' });
+    expect(apiItem.body_type).toBe('RAW');
+
+    // Re-open the draft for editing from the detail page (own DRAFT → Edit button).
+    await page.goto(`/request-groups/${groupId}`);
+    await page.getByTestId('group-edit-button').click();
+    await page.waitForURL(`**/request-groups/${groupId}/edit`);
+    await expect(page.locator('#group-name-input')).toHaveValue(groupName);
+
+    // The API step re-opens with the full composition intact.
+    await page.getByTestId('group-member-1-edit').click();
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByLabel('Method')).toHaveValue('POST');
+    await expect(drawer.getByLabel('Path')).toHaveValue('/api/v1/echo');
+    await expect(activePane.getByLabel('Key')).toHaveValue('dryRun');
+    await expect(activePane.getByLabel('Value')).toHaveValue('true');
+    await drawer.getByRole('tab', { name: 'Headers' }).click();
+    await expect(activePane.getByLabel('Key')).toHaveValue('X-Trace');
+    await drawer.getByRole('tab', { name: 'Body' }).click();
+    await expect(activePane.locator('textarea')).toHaveValue('{"subject":"e2e"}');
+    await closeDrawer(page);
+
+    // Cleanup: drafts are deletable by their submitter.
+    const del = await request.delete(`${apiBase()}/api/v1/request-groups/${groupId}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(del.ok()).toBeTruthy();
   });
 
   test('the request groups list shows the new group action and table', async ({ page }) => {

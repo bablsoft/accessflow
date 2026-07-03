@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.ApiBodyType;
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -9,6 +11,8 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +22,8 @@ class RequestGroupItemResponseTest {
     private RequestGroupItemView view(QueryDetailView.AiAnalysisDetail analysis) {
         return new RequestGroupItemView(UUID.randomUUID(), 0, RequestGroupTargetKind.QUERY,
                 UUID.randomUUID(), "prod-db", "SELECT 1", QueryType.SELECT, false, null, null, null,
-                null, null, analysis == null ? null : analysis.id(), RiskLevel.MEDIUM, 40, analysis,
+                null, null, Map.of(), Map.of(), null, null, null, List.of(), null,
+                analysis == null ? null : analysis.id(), RiskLevel.MEDIUM, 40, analysis,
                 RequestGroupItemStatus.PENDING, null, null, null, null, null);
     }
 
@@ -55,6 +60,28 @@ class RequestGroupItemResponseTest {
         assertThat(response.aiAnalysis()).isNull();
         assertThat(response.sqlText()).isEqualTo("SELECT 1");
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+    }
+
+    @Test
+    void copiesApiCallComposition() {
+        var view = new RequestGroupItemView(UUID.randomUUID(), 1, RequestGroupTargetKind.API_CALL,
+                null, null, null, null, false, UUID.randomUUID(), "crm", "createTicket", "POST",
+                "/v1/tickets", Map.of("X-Trace", "1"), Map.of("dryRun", "true"), ApiBodyType.FORM_DATA,
+                null, null,
+                List.of(new ApiFormField("note", ApiFormField.ApiFormFieldType.TEXT, "hello", null, null),
+                        new ApiFormField("doc", ApiFormField.ApiFormFieldType.FILE, "aGk=", "a.txt",
+                                "text/plain")),
+                null, null, null, null, null, RequestGroupItemStatus.PENDING, null, null, null, null,
+                null);
+
+        var response = RequestGroupItemResponse.from(view);
+
+        assertThat(response.requestHeaders()).containsEntry("X-Trace", "1");
+        assertThat(response.queryParams()).containsEntry("dryRun", "true");
+        assertThat(response.bodyType()).isEqualTo(ApiBodyType.FORM_DATA);
+        assertThat(response.formFields()).hasSize(2);
+        assertThat(response.formFields().get(1).type()).isEqualTo(ApiFormField.ApiFormFieldType.FILE);
+        assertThat(response.formFields().get(1).filename()).isEqualTo("a.txt");
     }
 
     @Test

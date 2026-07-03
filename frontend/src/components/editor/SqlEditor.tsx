@@ -56,6 +56,9 @@ export function SqlEditor({
 }: SqlEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  // Doc + focus carried across view rebuilds (schema arrival, syntax toggle) so an in-progress
+  // edit is never reset — the parent's `value` can lag the live doc by a render (#559).
+  const restoreRef = useRef<{ doc: string; focus: boolean } | null>(null);
 
   // The editor view is rebuilt only on schema/dbType/syntax/readOnly changes, so its update
   // listener would otherwise close over a stale `onChange`. Route every change through a ref so the
@@ -145,10 +148,16 @@ export function SqlEditor({
       EditorState.readOnly.of(!!readOnly),
     ];
 
-    const state = EditorState.create({ doc: value, extensions: exts });
+    const restore = restoreRef.current;
+    restoreRef.current = null;
+    const state = EditorState.create({ doc: restore?.doc ?? value, extensions: exts });
     const view = new EditorView({ state, parent: containerRef.current });
+    if (restore?.focus) {
+      view.focus();
+    }
     viewRef.current = view;
     return () => {
+      restoreRef.current = { doc: view.state.doc.toString(), focus: view.hasFocus };
       view.destroy();
       viewRef.current = null;
     };
@@ -157,10 +166,13 @@ export function SqlEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema, dbType, syntax, readOnly, JSON.stringify(issues)]);
 
-  // Sync external value changes (e.g. format)
+  // Sync external value changes (e.g. format, templates, applied AI drafts). Never while the
+  // editor has focus: mid-typing the parent's `value` lags the live doc by a render, and writing
+  // that stale value back would revert the newest keystrokes (visible in the group-member drawer,
+  // where every keystroke re-renders the whole builder page — #559).
   useEffect(() => {
     const v = viewRef.current;
-    if (!v) return;
+    if (!v || v.hasFocus) return;
     const current = v.state.doc.toString();
     if (current !== value) {
       v.dispatch({ changes: { from: 0, to: current.length, insert: value } });

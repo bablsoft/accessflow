@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "Խմբագրել",
+      "editStepAria": "Խմբագրել քայլ {{index}}-ը",
+      "stepIncomplete": "Այս քայլն անավարտ է — բացեք «Խմբագրել»-ը՝ ավարտելու համար։",
+      "noTargetYet": "Թիրախ դեռ ընտրված չէ",
+      "emptyStepPreview": "Դեռ ոչինչ գրված չէ — բացեք «Խմբագրել»-ը՝ քայլը կազմելու համար։",
+      "drawerTitleQuery": "Խմբագրել հարցման քայլ {{index}}-ը",
+      "drawerTitleApi": "Խմբագրել API քայլ {{index}}-ը",
+      "done": "Պատրաստ է",
+      "pickDatasourceFirst": "Ընտրեք տվյալների աղբյուր՝ այս հարցումը գրելու համար։",
+      "editTitle": "Խմբագրել հարցումների խումբը",
+      "notEditable": "Կարող են խմբագրվել միայն ձեր սեփական սևագիր խմբերը։"
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "Ցուցադրել քայլի մանրամասները",
       "collapseStep": "Թաքցնել քայլի մանրամասները",
       "stepRequest": "Հարցում",
-      "aiNotAvailable": "ԱԲ վերլուծությունը հասանելի չէ այս քայլի համար։"
+      "aiNotAvailable": "ԱԲ վերլուծությունը հասանելի չէ այս քայլի համար։",
+      "edit": "Խմբագրել"
     },
     "reviews": {
       "title": "Group reviews",

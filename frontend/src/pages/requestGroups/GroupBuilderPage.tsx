@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   App,
   Button,
@@ -8,11 +8,12 @@ import {
   Dropdown,
   Form,
   Input,
+  Skeleton,
   Space,
 } from 'antd';
 import { DatabaseOutlined, ApiOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,19 +38,32 @@ import { datasourceKeys, listDatasources } from '@/api/datasources';
 import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
 import {
   createRequestGroup,
+  getRequestGroup,
+  requestGroupKeys,
   submitRequestGroup,
   updateRequestGroup,
 } from '@/api/requestGroups';
+import { useAuthStore } from '@/store/authStore';
 import { aggregateRisk } from '@/utils/requestGroupRisk';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { GroupMemberCard } from './GroupMemberCard';
-import { memberToBody, memberValid, newMember, type DraftMember } from './groupBuilder';
+import { GroupMemberEditDrawer } from './GroupMemberEditDrawer';
+import {
+  memberFromItem,
+  memberToBody,
+  memberValid,
+  newMember,
+  type DraftMember,
+} from './groupBuilder';
 
 export default function GroupBuilderPage() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const navigate = useNavigate();
+  // `/request-groups/:id/edit` re-opens an owned DRAFT in the builder (#559).
+  const { id: editId } = useParams<{ id: string }>();
+  const userId = useAuthStore((s) => s.user?.id);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -58,6 +72,7 @@ export default function GroupBuilderPage() {
   const [groupId, setGroupId] = useState<string | null>(null);
   const [breakGlass, setBreakGlass] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const datasourcesQuery = useQuery({
     queryKey: datasourceKeys.list({ size: 100 }),
@@ -69,10 +84,36 @@ export default function GroupBuilderPage() {
   });
 
   const datasources = useMemo(
-    () => datasourcesQuery.data?.content ?? [],
+    () => (datasourcesQuery.data?.content ?? []).filter((d) => d.active),
     [datasourcesQuery.data],
   );
   const connectors = useMemo(() => connectorsQuery.data?.content ?? [], [connectorsQuery.data]);
+
+  const editGroupQuery = useQuery({
+    queryKey: editId ? requestGroupKeys.detail(editId) : ['request-groups', 'detail', 'none'],
+    queryFn: () => getRequestGroup(editId as string),
+    enabled: !!editId,
+  });
+
+  // Hydrate the form exactly once per opened draft; live edits must not be clobbered by refetches.
+  const hydratedGroupId = useRef<string | null>(null);
+  useEffect(() => {
+    const group = editGroupQuery.data;
+    if (!editId || !group || hydratedGroupId.current === group.id) {
+      return;
+    }
+    if (group.status !== 'DRAFT' || group.submitted_by_user_id !== userId) {
+      message.warning(t('requestGroups.builder.notEditable'));
+      navigate(`/request-groups/${group.id}`, { replace: true });
+      return;
+    }
+    hydratedGroupId.current = group.id;
+    setName(group.name);
+    setDescription(group.description ?? '');
+    setContinueOnError(group.continue_on_error);
+    setMembers(group.items.map(memberFromItem));
+    setGroupId(group.id);
+  }, [editId, editGroupQuery.data, userId, message, navigate, t]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -133,8 +174,12 @@ export default function GroupBuilderPage() {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('requestGroups.error'))),
   });
 
-  const addMember = (kind: DraftMember['targetKind']) =>
-    setMembers((prev) => [...prev, newMember(kind)]);
+  const addMember = (kind: DraftMember['targetKind']) => {
+    const member = newMember(kind);
+    setMembers((prev) => [...prev, member]);
+    // Drop the author straight into the full editing surface for the new step.
+    setEditingKey(member.key);
+  };
 
   const updateMember = (key: string, next: DraftMember) =>
     setMembers((prev) => prev.map((m) => (m.key === key ? next : m)));
@@ -153,10 +198,33 @@ export default function GroupBuilderPage() {
     });
   };
 
+  if (editId && editGroupQuery.isError) {
+    return (
+      <Card size="small" style={{ margin: 24 }}>
+        <EmptyState
+          title={t('requestGroups.detail.notFound')}
+          action={
+            <Button onClick={() => navigate('/request-groups')}>{t('common.back')}</Button>
+          }
+        />
+      </Card>
+    );
+  }
+
+  if (editId && (editGroupQuery.isLoading || !groupId)) {
+    return (
+      <div style={{ padding: 24 }} data-testid="group-builder-loading">
+        <Skeleton active paragraph={{ rows: 6 }} />
+      </div>
+    );
+  }
+
+  const editingMember = members.find((m) => m.key === editingKey) ?? null;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
-        title={t('requestGroups.builder.title')}
+        title={editId ? t('requestGroups.builder.editTitle') : t('requestGroups.builder.title')}
         subtitle={t('requestGroups.builder.subtitle')}
         actions={
           <Button onClick={() => navigate('/request-groups')}>{t('common.back')}</Button>
@@ -235,7 +303,7 @@ export default function GroupBuilderPage() {
                       index={i}
                       datasources={datasources}
                       connectors={connectors}
-                      onChange={(next) => updateMember(m.key, next)}
+                      onEdit={() => setEditingKey(m.key)}
                       onRemove={() => removeMember(m.key)}
                     />
                   ))}
@@ -322,6 +390,14 @@ export default function GroupBuilderPage() {
           </Space>
         </div>
       </div>
+      <GroupMemberEditDrawer
+        member={editingMember}
+        index={members.findIndex((m) => m.key === editingKey)}
+        datasources={datasources}
+        connectors={connectors}
+        onChange={(next) => updateMember(next.key, next)}
+        onClose={() => setEditingKey(null)}
+      />
     </div>
   );
 }

@@ -67,6 +67,8 @@ accessflow-ui/
 │   │   │   ├── SqlEditor.tsx       # CodeMirror 6 SQL editor component
 │   │   │   ├── AiHintPanel.tsx     # Inline AI analysis results panel
 │   │   │   ├── SchemaTree.tsx      # Sidebar schema/table browser
+│   │   │   ├── QueryAuthoringPanel.tsx # Shared /editor authoring surface (page + group drawer — #559)
+│   │   │   ├── useQueryAuthoring.ts    # Transient authoring state: analyze/dry-run staleness, syntax, templates
 │   │   │   └── EditorToolbar.tsx   # Format, run, datasource selector
 │   │   │
 │   │   ├── review/
@@ -128,7 +130,9 @@ accessflow-ui/
 │   │   │   └── ReviewQueuePage.tsx   # Pending reviews for current reviewer
 │   │   │
 │   │   ├── requestGroups/            # Grouped requests (chaining — AF-501)
-│   │   │   ├── GroupBuilderPage.tsx        # Build + reorder + submit a bundle
+│   │   │   ├── GroupBuilderPage.tsx        # Build + reorder + submit a bundle (also mounts /request-groups/:id/edit — #559)
+│   │   │   ├── GroupMemberCard.tsx         # Compact step summary (seq, kind, target, preview, risk)
+│   │   │   ├── GroupMemberEditDrawer.tsx   # Full-parity per-step authoring drawer (#559)
 │   │   │   ├── RequestGroupListPage.tsx    # Grouped-request history
 │   │   │   └── RequestGroupDetailPage.tsx  # Ordered step progress (live)
 │   │   │
@@ -177,7 +181,14 @@ accessflow-ui/
 
 ### QueryEditorPage
 
-The primary user-facing page. Features:
+The primary user-facing page. Since #559 its authoring surface is extracted into the shared
+`components/editor/QueryAuthoringPanel.tsx` + `useQueryAuthoring.ts` pair — the panel renders the
+schema tree, toolbar (syntax toggle / format), text-to-SQL bar, CodeMirror editor, AI/dry-run right
+rail, and the template drawer/modals; the hook owns the transient authoring state (analysis + dry-run
+staleness, syntax, template choreography). `QueryEditorPage` keeps the page concerns (datasource
+selection, justification, schedule, `submission_reason`, submit + break-glass) and the group
+builder's `GroupMemberEditDrawer` mounts the very same panel, so the two surfaces never drift.
+Features:
 
 - **Datasource selector** — dropdown of datasources the user has access to, loads schema tree on selection
 - **CodeMirror SQL editor** — see SQL Editor section below. `SqlEditor` picks its CodeMirror language from the **engine-mode registry** (`src/utils/engineModes.ts`, AF-418), keyed by `db_type`: relational datasources get the SQL language with a PostgreSQL/MySQL dialect; a `MONGODB` datasource highlights as **JavaScript** (shell syntax) or **JSON** (JSON-command syntax), driven by the generic `syntax` prop. New engines register their syntaxes/highlighting in the registry — no `SqlEditor` edits.
@@ -453,7 +464,7 @@ under `apiGov.*` in every registered locale.
 |-------|------|-------|
 | `/api-connectors` | `ApiConnectorsListPage` | Admin list of connectors (protocol / auth / active) with Skeleton + EmptyState; "New connector" CTA. |
 | `/api-connectors/:id/settings` | `ApiConnectorSettingsPage` | Create/edit form (protocol, base URL, auth method + credential fields, a `default_headers` key-value editor and a `trace_header_mapping` editor (#517), governance toggles incl. AI analysis / text-to-API switches and an **AI-config `Select`** — required when either AI feature is on, mirroring the datasource wizard), schema ingestion with three modes — paste / file upload / `sourceUrl` (#517) — + parsed-operation explorer, and the per-user "Share with team" permission grants (`can_read`/`can_write`/`can_break_glass`/`expires_at`/`allowed_operations`/`restricted_response_fields`). AntD `Form`; validation parity with the backend DTOs. The "New connector" modal on `/api-connectors` carries the same AI-analysis/text-to-API/AI-config fields plus a `default_headers` editor. |
-| `/api-editor` | `ApiEditorPage` | Connector picker → searchable+sorted operation `Select` from the parsed catalog (or free-form verb + path) → a Postman-style request composer (`ApiRequestComposer`: Params / Headers / Body tabs; body modes none/raw/x-www-form-urlencoded/form-data/binary with file uploads read to bounded base64; the connector's default headers shown read-only) → optional scheduled-run `DatePicker` (#517) → debounced AI risk preview (`POST /api-requests/analyze`, `RiskBadge`) → submit. A "describe the call in plain English" text-to-API box (`POST /api-requests/generate`) shows only when the connector has a schema and `text_to_api_enabled`. |
+| `/api-editor` | `ApiEditorPage` | Connector picker → the shared **`ApiAuthoringPanel`** (`components/apigov/ApiAuthoringPanel.tsx` + `useApiAuthoring.ts`, #559): searchable+sorted operation `Select` from the parsed catalog auto-filling verb/path (or free-form verb + path) → a Postman-style request composer (`ApiRequestComposer`: Params / Headers / Body tabs; body modes none/raw/x-www-form-urlencoded/form-data/binary with file uploads read to bounded base64; the connector's default headers shown read-only) → AI risk preview (`POST /api-requests/analyze`, `RiskBadge`) and the "describe the call in plain English" text-to-API box (`POST /api-requests/generate`, shown only when the connector has a schema and `text_to_api_enabled`). The page keeps the connector select, optional scheduled-run `DatePicker` (#517), justification, and submit; the group builder's `GroupMemberEditDrawer` mounts the same panel for API steps. |
 | `/api-requests` | `ApiRequestsListPage` | API requests aligned with the Query History page: a filter bar (search, status, connector, verb, risk, submitter, trace id, span id, date range; #517), a **Submitter** column, `StatusPill`/`RiskPill`, server-side pagination + filtering (`status`/`connector_id`/`verb`/`trace_id`/`span_id`/`from`/`to`; risk + free-text incl. submitter email filtered client-side), and row click → detail. |
 | `/api-requests/:id` | `ApiRequestDetailPage` | Responsive card layout: status (`StatusPill`) + AI risk (`RiskPill`), connection/response metadata in a reflowing `Descriptions` (incl. submitter, trace id, span id; #517), justification / AI summary / error cards, the size-capped field-masked response snapshot with a **Download full response** button (`GET /api-requests/{id}/response`, #517), and the review-decisions table. |
 | `/api-reviews` | `ApiReviewQueuePage` | Reviewer/admin queue of API requests awaiting review with the same filter bar (search, connector, verb, risk) + pagination; approve/reject via a comment modal (self-approval blocked server-side). |
@@ -472,7 +483,8 @@ registered locale.
 
 | Route | Page | Notes |
 |-------|------|-------|
-| `/request-groups/new` | `GroupBuilderPage` | Build a bundle: add steps — each a **datasource + embedded query editor** (reusing `QueryEditorPage` components) **or** a **connector + embedded API editor** (reusing the AF-500 API composer) — drag-reorder the steps with `@dnd-kit` (already used for dashboard widgets), a per-step **AI risk preview** + an **aggregate risk badge** (max of members), a `continueOnError` toggle, an optional scheduled-run `DatePicker`, then submit the whole bundle. Only datasources/connectors the user is permitted to use are selectable; validation parity with the backend DTOs. |
+| `/request-groups/new` | `GroupBuilderPage` | Build a bundle: add steps rendered as **compact summary cards** (`GroupMemberCard` — sequence, kind, target, one-line preview, risk, incomplete warning) whose **Edit** action opens `GroupMemberEditDrawer` — the full-parity authoring surface (#559). QUERY steps mount the shared `QueryAuthoringPanel` (the `/editor` surface: `SchemaTree` + schema autocomplete, syntax toggle, format, AI analyze + `AiHintPanel`, dry-run + `DryRunPanel`, text-to-SQL, query templates); API steps mount the shared `ApiAuthoringPanel` (the `/api-editor` surface: operation picker auto-filling verb/path, the full `ApiRequestComposer` — params / headers / body types / form-data / file — AI analyze risk preview, text-to-API). Drag-reorder the steps with `@dnd-kit` (already used for dashboard widgets), an **aggregate risk badge** (max of members), a `continueOnError` toggle, an optional scheduled-run `DatePicker`, then submit the whole bundle. Only **active** datasources / permitted connectors are selectable; validation parity with the backend DTOs. |
+| `/request-groups/:id/edit` | `GroupBuilderPage` | Re-open an **own `DRAFT`** group in the builder (#559): hydrates name/description/steps — including each API step's full saved composition (headers, params, body, form fields) from the detail response — and saves via `PUT`. Non-DRAFT or foreign groups redirect back to the detail page with a warning. Reached via the detail page's **Edit** button (own DRAFT only). |
 | `/request-groups` | `RequestGroupListPage` | The caller's grouped-request history (admins see all) — filter bar (status), `StatusPill`, server-side pagination, row click → detail. Skeleton + EmptyState. |
 | `/request-groups/:id` | `RequestGroupDetailPage` | Status (`StatusPill`) + aggregate `RiskPill`, and the **ordered step-by-step progress** (running / done / failed / skipped) updating live via the `request_group.status_changed` / `request_group.item_executed` WebSocket events. Each step is an **expandable panel** (`RequestGroupMemberPanel`, AF-531): collapsed = one-line header (sequence, kind, status/risk pills, duration, inline SQL/path preview); expanded = `DetailCard` sections mirroring the individual detail views — the request (`SqlBlock` for queries, verb + path for API calls), the **full embedded AI analysis** (summary + `IssueCard`/`OptimizationCard` lists, provider/model, failed state), and the error block. Submitter actions: cancel (pending / scheduled-approved), execute (approved). |
 
@@ -703,6 +715,7 @@ for deployment recipes (Docker Compose, Helm).
 /reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384)
 /request-groups                     → RequestGroupListPage (lazy; grouped-request history — AF-501)
 /request-groups/new                 → GroupBuilderPage (lazy; build + reorder + submit a grouped request — AF-501)
+/request-groups/:id/edit            → GroupBuilderPage (lazy; re-open an own DRAFT for editing — #559)
 /request-groups/:id                 → RequestGroupDetailPage (lazy; ordered step-by-step progress, live via WebSocket — AF-501)
 /profile                            → ProfilePage
 

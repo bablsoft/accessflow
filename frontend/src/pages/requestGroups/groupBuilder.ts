@@ -3,6 +3,12 @@ import type {
   RequestGroupItemBody,
   RequestGroupTargetKind,
 } from '@/types/api';
+import {
+  compositionFromSaved,
+  compositionToSubmit,
+  newComposition,
+  type ApiRequestComposition,
+} from '@/utils/apiRequestComposition';
 
 /**
  * A draft member in the group builder. Carries a stable client-side `key` for dnd-kit + React keys
@@ -21,7 +27,7 @@ export interface DraftMember {
   operationId: string | null;
   verb: string;
   requestPath: string;
-  requestBody: string;
+  composition: ApiRequestComposition;
   // pre-existing AI risk (when editing a saved DRAFT)
   aiRiskLevel: RequestGroupItem['ai_risk_level'];
   aiRiskScore: RequestGroupItem['ai_risk_score'];
@@ -44,7 +50,7 @@ export function newMember(targetKind: RequestGroupTargetKind): DraftMember {
     operationId: null,
     verb: 'GET',
     requestPath: '',
-    requestBody: '',
+    composition: newComposition(),
     aiRiskLevel: null,
     aiRiskScore: null,
   };
@@ -62,7 +68,7 @@ export function memberFromItem(item: RequestGroupItem): DraftMember {
     operationId: item.operation_id,
     verb: item.verb ?? 'GET',
     requestPath: item.request_path ?? '',
-    requestBody: '',
+    composition: compositionFromSaved(item),
     aiRiskLevel: item.ai_risk_level,
     aiRiskScore: item.ai_risk_score,
   };
@@ -84,9 +90,7 @@ export function memberToBody(m: DraftMember): RequestGroupItemBody {
     operation_id: m.operationId,
     verb: m.verb,
     request_path: m.requestPath,
-    body_type: m.requestBody.trim() ? 'RAW' : 'NONE',
-    request_content_type: m.requestBody.trim() ? 'application/json' : null,
-    request_body: m.requestBody.trim() ? m.requestBody : null,
+    ...compositionToSubmit(m.composition),
   };
 }
 

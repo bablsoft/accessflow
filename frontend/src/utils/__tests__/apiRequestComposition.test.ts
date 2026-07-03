@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  compositionFromSaved,
   compositionToSubmit,
   emptyComposition,
   fileToBase64,
+  newComposition,
   pairsToRecord,
   recordToPairs,
   type ApiRequestComposition,
@@ -84,6 +86,80 @@ describe('compositionToSubmit', () => {
 
   it('empty raw body collapses to null', () => {
     expect(compositionToSubmit(base({ bodyType: 'RAW', rawBody: '' })).request_body).toBeNull();
+  });
+});
+
+describe('newComposition', () => {
+  it('returns fresh array instances so drafts do not share state', () => {
+    const a = newComposition();
+    const b = newComposition();
+    a.headers.push({ key: 'X', value: '1' });
+    expect(b.headers).toEqual([]);
+    expect(emptyComposition.headers).toEqual([]);
+  });
+});
+
+describe('compositionFromSaved', () => {
+  it('rebuilds a RAW composition', () => {
+    const c = compositionFromSaved({
+      request_headers: { 'X-H': 'v' },
+      query_params: { q: '1' },
+      body_type: 'RAW',
+      request_content_type: 'text/csv',
+      request_body: 'a,b',
+    });
+    expect(c.bodyType).toBe('RAW');
+    expect(c.contentType).toBe('text/csv');
+    expect(c.rawBody).toBe('a,b');
+    expect(c.headers).toEqual([{ key: 'X-H', value: 'v' }]);
+    expect(c.queryParams).toEqual([{ key: 'q', value: '1' }]);
+    expect(c.binaryBase64).toBeNull();
+  });
+
+  it('rebuilds form fields and routes BINARY bodies to binaryBase64', () => {
+    const form = compositionFromSaved({
+      body_type: 'FORM_DATA',
+      form_fields: [
+        { key: 'name', type: 'TEXT', value: 'v', filename: null, content_type: null },
+        { key: 'doc', type: 'FILE', value: 'AAA=', filename: 'a.txt', content_type: 'text/plain' },
+      ],
+    });
+    expect(form.formFields).toHaveLength(2);
+    expect(form.formFields[1]).toEqual({
+      key: 'doc',
+      type: 'FILE',
+      value: 'AAA=',
+      filename: 'a.txt',
+      content_type: 'text/plain',
+    });
+    expect(form.rawBody).toBe('');
+
+    const bin = compositionFromSaved({
+      body_type: 'BINARY',
+      request_body: 'QklO',
+      binary_filename: 'f.bin',
+    });
+    expect(bin.binaryBase64).toBe('QklO');
+    expect(bin.binaryFilename).toBe('f.bin');
+    expect(bin.rawBody).toBe('');
+  });
+
+  it('defaults an empty saved shape to a blank RAW composition', () => {
+    const c = compositionFromSaved({});
+    expect(c).toEqual(newComposition());
+  });
+
+  it('round-trips through compositionToSubmit', () => {
+    const saved = {
+      request_headers: { 'X-H': 'v' },
+      query_params: { q: '1' },
+      body_type: 'RAW' as const,
+      request_content_type: 'application/json',
+      request_body: '{"x":1}',
+      form_fields: [],
+      binary_filename: null,
+    };
+    expect(compositionToSubmit(compositionFromSaved(saved))).toEqual(saved);
   });
 });
 

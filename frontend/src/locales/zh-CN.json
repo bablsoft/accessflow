@@ -3321,7 +3321,18 @@
       "saveDraft": "Save draft",
       "submit": "Submit",
       "saved": "Draft saved.",
-      "submitted": "Group submitted for review."
+      "submitted": "Group submitted for review.",
+      "editStep": "编辑",
+      "editStepAria": "编辑第 {{index}} 步",
+      "stepIncomplete": "此步骤尚未完成——点击“编辑”以完成。",
+      "noTargetYet": "尚未选择目标",
+      "emptyStepPreview": "尚未编写内容——点击“编辑”来编排此步骤。",
+      "drawerTitleQuery": "编辑查询步骤 {{index}}",
+      "drawerTitleApi": "编辑 API 步骤 {{index}}",
+      "done": "完成",
+      "pickDatasourceFirst": "请选择数据源以开始编写此查询。",
+      "editTitle": "编辑请求组",
+      "notEditable": "只能编辑自己的草稿组。"
     },
     "detail": {
       "title": "Request group",
@@ -3348,7 +3359,8 @@
       "expandStep": "显示步骤详情",
       "collapseStep": "隐藏步骤详情",
       "stepRequest": "请求",
-      "aiNotAvailable": "此步骤没有可用的 AI 分析。"
+      "aiNotAvailable": "此步骤没有可用的 AI 分析。",
+      "edit": "编辑"
     },
     "reviews": {
       "title": "Group reviews",

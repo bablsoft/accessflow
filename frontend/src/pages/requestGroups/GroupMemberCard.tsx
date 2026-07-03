@@ -1,13 +1,12 @@
-import { Button, Card, Checkbox, Input, Select, Space, Tag } from 'antd';
-import { DeleteOutlined, HolderOutlined } from '@ant-design/icons';
+import { Button, Card, Tag, Tooltip } from 'antd';
+import { DeleteOutlined, EditOutlined, HolderOutlined, WarningOutlined } from '@ant-design/icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import { SqlEditor } from '@/components/editor/SqlEditor';
 import { RiskPill } from '@/components/common/RiskPill';
 import type { ApiConnector, Datasource } from '@/types/api';
 import { targetKindLabel } from '@/utils/enumLabels';
-import type { DraftMember } from './groupBuilder';
+import { memberValid, type DraftMember } from './groupBuilder';
 
 interface GroupMemberCardProps {
   member: DraftMember;
@@ -15,17 +14,23 @@ interface GroupMemberCardProps {
   readOnly?: boolean;
   datasources: Datasource[];
   connectors: ApiConnector[];
-  onChange: (next: DraftMember) => void;
+  /** Opens the full authoring drawer for this member (#559). */
+  onEdit: () => void;
   onRemove: () => void;
 }
 
+/**
+ * Compact summary card for one group step: sequence, kind, target, one-line preview, and risk.
+ * All authoring happens in the {@link GroupMemberEditDrawer} opened via the Edit action, which
+ * mounts the same panels as the standalone Query / API editors (#559).
+ */
 export function GroupMemberCard({
   member,
   index,
   readOnly = false,
   datasources,
   connectors,
-  onChange,
+  onEdit,
   onRemove,
 }: GroupMemberCardProps) {
   const { t } = useTranslation();
@@ -40,7 +45,17 @@ export function GroupMemberCard({
     opacity: isDragging ? 0.6 : 1,
   };
 
-  const datasource = datasources.find((d) => d.id === member.datasourceId);
+  const targetName =
+    member.targetKind === 'QUERY'
+      ? datasources.find((d) => d.id === member.datasourceId)?.name
+      : connectors.find((c) => c.id === member.connectorId)?.name;
+  const preview =
+    member.targetKind === 'QUERY'
+      ? member.sqlText.split('\n')[0]
+      : member.requestPath
+        ? `${member.verb} ${member.requestPath}`
+        : '';
+  const incomplete = !memberValid(member);
 
   return (
     <div ref={setNodeRef} style={style} data-testid={`group-member-${index}`}>
@@ -66,102 +81,62 @@ export function GroupMemberCard({
             {member.aiRiskLevel != null && (
               <RiskPill level={member.aiRiskLevel} score={member.aiRiskScore} size="sm" />
             )}
+            {incomplete && (
+              <Tooltip title={t('requestGroups.builder.stepIncomplete')}>
+                <WarningOutlined
+                  style={{ color: 'var(--af-warning)' }}
+                  aria-label={t('requestGroups.builder.stepIncomplete')}
+                />
+              </Tooltip>
+            )}
           </div>
         }
         extra={
           !readOnly && (
-            <Button
-              size="small"
-              danger
-              type="text"
-              icon={<DeleteOutlined />}
-              aria-label={t('requestGroups.builder.removeMember', { index: index + 1 })}
-              onClick={onRemove}
-            />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                data-testid={`group-member-${index}-edit`}
+                aria-label={t('requestGroups.builder.editStepAria', { index: index + 1 })}
+                onClick={onEdit}
+              >
+                {t('requestGroups.builder.editStep')}
+              </Button>
+              <Button
+                size="small"
+                danger
+                type="text"
+                icon={<DeleteOutlined />}
+                aria-label={t('requestGroups.builder.removeMember', { index: index + 1 })}
+                onClick={onRemove}
+              />
+            </div>
           )
         }
       >
-        {member.targetKind === 'QUERY' ? (
-          <Space direction="vertical" style={{ width: '100%' }} size={10}>
-            <label style={{ display: 'block' }}>
-              <div className="muted" style={{ marginBottom: 4 }}>
-                {t('requestGroups.builder.datasource')}
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                disabled={readOnly}
-                showSearch
-                optionFilterProp="label"
-                placeholder={t('requestGroups.builder.selectDatasource')}
-                value={member.datasourceId ?? undefined}
-                onChange={(v) => onChange({ ...member, datasourceId: v })}
-                options={datasources.map((d) => ({ value: d.id, label: d.name }))}
-              />
-            </label>
-            <SqlEditor
-              value={member.sqlText}
-              onChange={(next) => onChange({ ...member, sqlText: next })}
-              dbType={datasource?.db_type}
-              readOnly={readOnly}
-              height={160}
-            />
-            <Checkbox
-              checked={member.transactional}
-              disabled={readOnly}
-              onChange={(e) => onChange({ ...member, transactional: e.target.checked })}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <span className="muted" style={{ fontSize: 12 }}>
+            {targetName ?? t('requestGroups.builder.noTargetYet')}
+          </span>
+          {preview ? (
+            <span
+              className="mono"
+              style={{
+                fontSize: 12,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
             >
-              {t('requestGroups.builder.transactional')}
-            </Checkbox>
-          </Space>
-        ) : (
-          <Space direction="vertical" style={{ width: '100%' }} size={10}>
-            <label style={{ display: 'block' }}>
-              <div className="muted" style={{ marginBottom: 4 }}>
-                {t('requestGroups.builder.connector')}
-              </div>
-              <Select
-                style={{ width: '100%' }}
-                disabled={readOnly}
-                showSearch
-                optionFilterProp="label"
-                placeholder={t('requestGroups.builder.selectConnector')}
-                value={member.connectorId ?? undefined}
-                onChange={(v) => onChange({ ...member, connectorId: v })}
-                options={connectors.map((c) => ({ value: c.id, label: c.name }))}
-              />
-            </label>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                style={{ width: 110 }}
-                value={member.verb}
-                disabled={readOnly}
-                maxLength={16}
-                onChange={(e) => onChange({ ...member, verb: e.target.value })}
-                aria-label={t('requestGroups.builder.verb')}
-              />
-              <Input
-                value={member.requestPath}
-                disabled={readOnly}
-                maxLength={4000}
-                placeholder="/v1/resource"
-                onChange={(e) => onChange({ ...member, requestPath: e.target.value })}
-                aria-label={t('requestGroups.builder.path')}
-              />
-            </Space.Compact>
-            <label style={{ display: 'block' }}>
-              <div className="muted" style={{ marginBottom: 4 }}>
-                {t('requestGroups.builder.requestBody')}
-              </div>
-              <Input.TextArea
-                rows={3}
-                disabled={readOnly}
-                value={member.requestBody}
-                onChange={(e) => onChange({ ...member, requestBody: e.target.value })}
-                placeholder={t('requestGroups.builder.requestBodyHint')}
-              />
-            </label>
-          </Space>
-        )}
+              {preview}
+            </span>
+          ) : (
+            <span className="muted" style={{ fontSize: 12 }}>
+              {t('requestGroups.builder.emptyStepPreview')}
+            </span>
+          )}
+        </div>
       </Card>
     </div>
   );

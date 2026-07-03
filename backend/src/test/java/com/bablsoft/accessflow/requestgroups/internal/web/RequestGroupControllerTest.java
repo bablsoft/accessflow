@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.PageResponse;
@@ -63,7 +64,8 @@ class RequestGroupControllerTest {
     private RequestGroupItemView itemView() {
         return new RequestGroupItemView(UUID.randomUUID(), 0, RequestGroupTargetKind.QUERY,
                 UUID.randomUUID(), "db", "SELECT 1", QueryType.SELECT, false, null, null, null, null,
-                null, null, RiskLevel.LOW, 10, analysisDetail(), RequestGroupItemStatus.PENDING, null,
+                null, Map.of(), Map.of(), null, null, null, List.of(), null,
+                null, RiskLevel.LOW, 10, analysisDetail(), RequestGroupItemStatus.PENDING, null,
                 null, null, null, null);
     }
 
@@ -85,7 +87,7 @@ class RequestGroupControllerTest {
         var api = new RequestGroupItemRequest(RequestGroupTargetKind.API_CALL, null, null, false,
                 UUID.randomUUID(), "op", "POST", "/x", Map.of("h", "v"), Map.of("q", "1"),
                 RequestGroupItemInput.ApiBodyKind.RAW, "application/json", "{}",
-                List.of(new RequestGroupItemRequest.FormFieldRequest("f", "v", false, null, null)), null);
+                List.of(new ApiFormField("f", ApiFormField.ApiFormFieldType.TEXT, "v", null, null)), null);
         return new CreateRequestGroupRequest("bundle", "desc", true, List.of(query, api));
     }
 
@@ -102,6 +104,8 @@ class RequestGroupControllerTest {
         assertThat(captor.getValue().items().get(0).targetKind()).isEqualTo(RequestGroupTargetKind.QUERY);
         assertThat(captor.getValue().items().get(1).targetKind()).isEqualTo(RequestGroupTargetKind.API_CALL);
         assertThat(captor.getValue().items().get(1).formFields()).hasSize(1);
+        assertThat(captor.getValue().items().get(1).formFields().get(0).name()).isEqualTo("f");
+        assertThat(captor.getValue().items().get(1).formFields().get(0).file()).isFalse();
     }
 
     @Test
