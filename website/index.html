@@ -113,6 +113,7 @@
         <a href="#features">Features</a>
         <a href="#connectors">Connectors</a>
         <a href="#how">How it works</a>
+        <a href="#use-cases">Use cases</a>
         <a href="#install">Install</a>
         <a href="#roadmap">Roadmap</a>
         <a href="docs/">Docs</a>
@@ -127,6 +128,7 @@
           <a href="#features">Features</a>
           <a href="#connectors">Connectors</a>
           <a href="#how">How it works</a>
+          <a href="#use-cases">Use cases</a>
           <a href="#install">Install</a>
           <a href="#roadmap">Roadmap</a>
           <a href="docs/">Docs</a>
@@ -785,6 +787,190 @@
       </div>
     </section>
 
+    <!-- Use cases -->
+    <section class="usecases scroll-pad" id="use-cases">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Use cases</span>
+          <h2>Six problems that show up in every enterprise security review.</h2>
+          <p>Different teams reach for AccessFlow for different reasons — but underneath it is the same governed checkpoint: one approval pipeline, one audit trail, one place where access policy actually runs.</p>
+        </div>
+
+        <div class="uc-list">
+
+          <!-- 1. Shared credentials -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For platform &amp; infrastructure teams</span>
+              <h3>Production access without shared credentials</h3>
+              <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
+              <ul class="uc-benefits">
+                <li>Every query attributable to a person, a reason, and an approval</li>
+                <li>Credentials AES-256 encrypted, decrypted only inside the proxy — never shown to users</li>
+                <li>SQL or NoSQL, the same flow — PostgreSQL and MongoDB governed identically</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Datasource · prod-orders</span>
+                  <span style="margin-left: auto;" class="mono">connection brokered</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">user</span><span class="v">alice@co · ANALYST · SSO</span></div>
+                  <div class="uc-mock-line"><span class="k">database</span><span class="v">postgresql://prod-orders.internal:5432</span></div>
+                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span style="color: var(--accent);">held by proxy — never disclosed</span></span></div>
+                  <div class="uc-mock-line"><span class="k">access</span><span><span class="pill approved">GOVERNED</span></span></div>
+                </div>
+                <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 2. JIT + break-glass -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For SRE &amp; on-call teams</span>
+              <h3>Just-in-time access that expires on its own</h3>
+              <p>Standing privileges shrink to zero. Engineers request access for the window they need — minutes to days — and the grant revokes itself when the clock runs out. When production is down at 3 a.m., break-glass lets on-call act immediately: every admin is alerted the moment it happens, and a mandatory retro-review closes the loop.</p>
+              <ul class="uc-benefits">
+                <li>Time-boxed grants, auto-revoked on expiry — no cleanup tickets</li>
+                <li>Break-glass skips the queue, never the guardrails — masking, row security, and row caps still apply</li>
+                <li>Every emergency run gets an after-the-fact review by an admin, never the submitter</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Access grants</span>
+                  <span style="margin-left: auto;" class="mono">auto-expiry on</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
+                  <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
+                  <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
+                </div>
+                <div class="uc-mock-foot"><span style="color: var(--warn);">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 3. AI pre-screening -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For engineering managers &amp; DBAs</span>
+              <h3>Review at scale without a ticket queue</h3>
+              <p>A governance process that takes days gets bypassed. AccessFlow's AI reads every query and API call first — risk score, anti-patterns, affected tables — so routing policies can auto-approve safe reads in seconds and send risky changes to the right approvers with the analysis already attached.</p>
+              <ul class="uc-benefits">
+                <li>Low-risk requests auto-approve — reviewers see only what deserves attention</li>
+                <li>Approvers decide from Slack, email, or one-tap push, with AI findings inline</li>
+                <li>Multi-stage approval chains for the changes that really matter</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">AI triage</span>
+                  <span style="margin-left: auto;" class="mono">routing policies active</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="v">SELECT … FROM events LIMIT 100</span><span class="k">risk 8</span><span class="pill approved">AUTO-APPROVED</span></div>
+                  <div class="uc-mock-line"><span class="v">UPDATE orders SET region_code …</span><span class="k">risk 62</span><span class="pill pending">→ DBA REVIEW</span></div>
+                  <div class="uc-mock-line"><span class="v">DROP TABLE legacy_users</span><span class="k">risk 97</span><span class="pill rejected">AUTO-REJECTED</span></div>
+                </div>
+                <div class="uc-mock-foot">reviewed by a human: only the one that needs it</div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 4. Audit readiness -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For compliance &amp; security teams</span>
+              <h3>Audit evidence as a download, not a project</h3>
+              <p>When the auditor asks who accessed customer data last quarter — and who approved it — the answer shouldn't be a two-week log archaeology project. Every request, decision, and execution lands in a tamper-evident, HMAC-chained audit trail, with scheduled access recertification campaigns and signed compliance exports on top.</p>
+              <ul class="uc-benefits">
+                <li>Append-only, tamper-evident record of every decision — built for SOC 2, ISO 27001 &amp; GDPR evidence</li>
+                <li>Recertification campaigns certify or revoke standing access on a schedule, with CSV evidence</li>
+                <li>Signed PDF/CSV compliance reports and a dedicated read-only auditor role</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Audit log</span>
+                  <span style="margin-left: auto;" class="mono">HMAC-SHA256 chained</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">14:02:51</span><span class="v">QUERY_SUBMITTED · alice@co</span><span class="k">#a81f→</span></div>
+                  <div class="uc-mock-line"><span class="k">14:04:11</span><span class="v">QUERY_APPROVED · eve@co</span><span class="k">#c290→</span></div>
+                  <div class="uc-mock-line"><span class="k">14:04:12</span><span class="v">QUERY_EXECUTED · system</span><span class="k">#f11d→</span></div>
+                </div>
+                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span style="color: var(--accent);">signed ✓</span></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 5. Data privacy operations -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For data protection &amp; privacy teams</span>
+              <h3>Privacy obligations as running processes</h3>
+              <p>Classify sensitive fields once — PII, PCI, PHI, GDPR — and let policy do the rest. Masking redacts tagged columns in every result, retention policies age data out on schedule, and right-to-erasure requests run through a governed, approved, audited workflow instead of a spreadsheet.</p>
+              <ul class="uc-benefits">
+                <li>Field-level masking applied to results across SQL and NoSQL engines alike</li>
+                <li>Retention and pseudonymization policies executed through the same governed proxy</li>
+                <li>Right-to-erasure with an approval trail you can show a regulator</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Query result · masked</span>
+                  <span style="margin-left: auto;" class="mono">3 columns tagged</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">email</span><span class="v">a•••@example.com</span><span class="uc-tag">PII</span></div>
+                  <div class="uc-mock-line"><span class="k">card_number</span><span class="v">•••• •••• •••• 4242</span><span class="uc-tag">PCI</span></div>
+                  <div class="uc-mock-line"><span class="k">diagnosis</span><span class="v">▓▓ redacted</span><span class="uc-tag">PHI</span></div>
+                </div>
+                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span style="color: var(--accent);">EXECUTED</span></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- 6. API governance -->
+          <article class="uc-row">
+            <div class="uc-copy">
+              <span class="uc-persona">For integration &amp; backend teams</span>
+              <h3>The same governance for your APIs</h3>
+              <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring.</p>
+              <ul class="uc-benefits">
+                <li>One connector catalog for third-party and internal APIs, with schema ingestion</li>
+                <li>Response masking policies and data-classification tags on API payloads</li>
+                <li>Break-glass, scheduling, and audit — identical to the database flow</li>
+              </ul>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">API requests</span>
+                  <span style="margin-left: auto;" class="mono">REST · SOAP · GraphQL · gRPC</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
+                  <div class="uc-mock-line"><span class="k">POST</span><span class="v">mutation refundCharge(…) · payments-gql</span><span class="pill pending">PENDING</span></div>
+                  <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill executed">EXECUTED</span></div>
+                </div>
+                <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
+              </div>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
     <!-- Install -->
     <section class="install scroll-pad" id="install">
       <div class="wrap">
@@ -1234,6 +1420,7 @@
           <ul>
             <li><a href="#features">Features</a></li>
             <li><a href="#how">How it works</a></li>
+            <li><a href="#use-cases">Use cases</a></li>
             <li><a href="#install">Quick start</a></li>
             <li><a href="#roadmap">Roadmap</a></li>
           </ul>
