@@ -41,6 +41,21 @@ export async function deleteApiConnectorViaApi(
   }
 }
 
+/** Resolves the caller's own user id from their token via GET /api/v1/me (#567). */
+export async function getCurrentUserIdViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<string> {
+  const res = await request.get(`${apiBase()}/api/v1/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Get current user failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
 /** Grants a user read/write access on a connector so they can submit governed API calls (#567). */
 export async function grantApiConnectorPermissionViaApi(
   request: APIRequestContext,
@@ -87,4 +102,27 @@ export async function submitApiRequestViaApi(
   }
   const body = (await res.json()) as { id: string; status: string };
   return { id: body.id, status: body.status };
+}
+
+/** Polls GET /api/v1/api-requests/{id} until it reaches the wanted status (routing is async, #567). */
+export async function waitForApiRequestStatus(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+  wanted: string,
+  timeoutMs = 15_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.get(`${apiBase()}/api/v1/api-requests/${requestId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok()) {
+      last = ((await res.json()) as { status: string }).status;
+      if (last === wanted) return;
+    }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  throw new Error(`API request ${requestId} never reached ${wanted} (last=${last})`);
 }

@@ -10,8 +10,10 @@ import {
 import {
   createApiConnectorViaApi,
   deleteApiConnectorViaApi,
+  getCurrentUserIdViaApi,
   grantApiConnectorPermissionViaApi,
   submitApiRequestViaApi,
+  waitForApiRequestStatus,
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
 
@@ -34,6 +36,7 @@ test.describe.configure({ timeout: 90_000 });
 test.describe.serial('api request review (#567)', () => {
   let adminAccessToken = '';
   let submitterEmail = '';
+  let submitterToken = '';
   let connector: CreatedApiConnector | null = null;
 
   test.beforeAll(async ({ request }) => {
@@ -48,20 +51,19 @@ test.describe.serial('api request review (#567)', () => {
     // explicit can_write grant to submit against the connector.
     submitterEmail = `fe567-submitter-${randomUUID()}@e2e.local`;
     await purgeMailcrab(request);
-    const submitter = await inviteUserViaApi(
-      request,
-      adminAccessToken,
-      submitterEmail,
-      'FE-567 Submitter',
-      'ANALYST',
-    );
+    await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'FE-567 Submitter', 'ANALYST');
     const token = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, token, SUBMITTER_PASSWORD, 'FE-567 Submitter');
+
+    // The invitation response carries the invitation id, not the user id, so
+    // resolve the real user id from the submitter's own token before granting.
+    submitterToken = await loginViaApi(request, submitterEmail, SUBMITTER_PASSWORD);
+    const submitterId = await getCurrentUserIdViaApi(request, submitterToken);
     await grantApiConnectorPermissionViaApi(
       request,
       adminAccessToken,
       connector.id,
-      submitter.id,
+      submitterId,
       { canWrite: true },
     );
   });
@@ -81,14 +83,15 @@ test.describe.serial('api request review (#567)', () => {
     // Submitter posts a write op via API. With require_review_writes=true (the
     // connector default) and no AI config seeded, it routes straight to
     // PENDING_REVIEW.
-    const submitterToken = await loginViaApi(request, submitterEmail, SUBMITTER_PASSWORD);
     const submitted = await submitApiRequestViaApi(request, submitterToken, {
       connectorId: connector.id,
       verb: 'POST',
       requestPath: '/anything',
       justification: 'FE-567 approve from detail page',
     });
-    expect(submitted.status).toBe('PENDING_REVIEW');
+    // Routing is async (AI skip runs on an event), so the immediate submit
+    // response may still be PENDING_AI — poll until it settles to PENDING_REVIEW.
+    await waitForApiRequestStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
 
     const reviewerCtx = await browser.newContext();
     try {
