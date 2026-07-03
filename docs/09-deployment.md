@@ -329,11 +329,14 @@ ingress:
   #   cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     # `paths` is optional. Omit it (e.g. `hosts: [{ host: my-host }]`) to
-    # inherit the standard 3-path routing (`/api` + `/ws` → backend, `/` →
+    # inherit the standard 3-path routing (`/api/` + `/ws` → backend, `/` →
     # frontend) wired into the chart.
     - host: accessflow.company.com
       paths:
-        - path: /api
+        # Trailing slash is deliberate — Traefik / ingress-nginx match Prefix
+        # paths literally, and SPA routes like /api-requests and /api-editor
+        # must fall through to the frontend.
+        - path: /api/
           pathType: Prefix
           service: backend
         - path: /ws
