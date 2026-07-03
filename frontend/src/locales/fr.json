@@ -2871,7 +2871,11 @@
       "aiConfig": "Configuration IA",
       "aiConfigPlaceholder": "Sélectionner une configuration IA",
       "aiConfigRequired": "Sélectionnez une configuration IA lorsque l'analyse IA ou texte-vers-API est activée",
-      "addAiConfig": "Ajouter une configuration IA"
+      "addAiConfig": "Ajouter une configuration IA",
+      "reviewPlan": "Plan de revue",
+      "reviewPlanPlaceholder": "Aucun plan associé",
+      "reviewPlanLoading": "Chargement des plans…",
+      "reviewPlanHint": "Sans plan, les demandes envoyées en revue nécessitent une seule approbation"
     },
     "settings": {
       "title": "Connector settings",

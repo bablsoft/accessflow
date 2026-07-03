@@ -10,7 +10,7 @@ export interface CreatedApiConnector {
 export async function createApiConnectorViaApi(
   request: APIRequestContext,
   token: string,
-  options: { name: string; baseUrl?: string },
+  options: { name: string; baseUrl?: string; aiAnalysisEnabled?: boolean },
 ): Promise<CreatedApiConnector> {
   const res = await request.post(`${apiBase()}/api/v1/api-connectors`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -19,6 +19,11 @@ export async function createApiConnectorViaApi(
       protocol: 'REST',
       base_url: options.baseUrl ?? 'http://backend:8080',
       auth_method: 'NONE',
+      // Omitted → backend defaults to true. Pass false when a spec drives the
+      // settings form of a connector that has no AI config assigned (AF-579).
+      ...(options.aiAnalysisEnabled === undefined
+        ? {}
+        : { ai_analysis_enabled: options.aiAnalysisEnabled }),
     },
   });
   if (!res.ok()) {

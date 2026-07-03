@@ -29,6 +29,8 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaReposit
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
+import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserGroupView;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
@@ -64,6 +66,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
     private final UserGroupService userGroupService;
     private final CredentialEncryptionService encryptionService;
     private final UserQueryService userQueryService;
+    private final ReviewPlanLookupService reviewPlanLookupService;
     private final ApiConnectorProber prober;
     private final ConnectorOAuth2TokenService oauth2TokenService;
     private final MessageSource messageSource;
@@ -142,6 +145,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 ? command.oauth2GrantType() : Oauth2GrantType.CLIENT_CREDENTIALS);
         entity.setOauth2ClientAuth(command.oauth2ClientAuth() != null
                 ? command.oauth2ClientAuth() : Oauth2ClientAuth.CLIENT_SECRET_BASIC);
+        requireReviewPlanInOrganization(command.reviewPlanId(), command.organizationId());
         entity.setReviewPlanId(command.reviewPlanId());
         entity.setAiAnalysisEnabled(command.aiAnalysisEnabled() == null || command.aiAnalysisEnabled());
         entity.setAiConfigId(command.aiConfigId());
@@ -214,7 +218,10 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         if (command.oauth2ClientAuth() != null) {
             entity.setOauth2ClientAuth(command.oauth2ClientAuth());
         }
-        if (command.reviewPlanId() != null) {
+        if (Boolean.TRUE.equals(command.clearReviewPlan())) {
+            entity.setReviewPlanId(null);
+        } else if (command.reviewPlanId() != null) {
+            requireReviewPlanInOrganization(command.reviewPlanId(), organizationId);
             entity.setReviewPlanId(command.reviewPlanId());
         }
         if (command.aiAnalysisEnabled() != null) {
@@ -400,6 +407,16 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
     private ApiConnectorEntity require(UUID id, UUID organizationId) {
         return connectorRepository.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ApiConnectorNotFoundException(id));
+    }
+
+    /** A cross-org plan id must read as "not found" — never reveal that the id exists elsewhere. */
+    private void requireReviewPlanInOrganization(UUID reviewPlanId, UUID organizationId) {
+        if (reviewPlanId == null) {
+            return;
+        }
+        reviewPlanLookupService.findById(reviewPlanId)
+                .filter(plan -> organizationId.equals(plan.organizationId()))
+                .orElseThrow(() -> new ReviewPlanNotFoundException(reviewPlanId));
     }
 
     private ApiConnectorView toView(ApiConnectorEntity e) {

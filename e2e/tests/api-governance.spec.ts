@@ -219,6 +219,70 @@ test('admin grants and edits an API connector group permission (AF-564)', async 
   await expect(grantedRow.getByText('✓')).toHaveCount(2);
 });
 
+test('admin assigns and clears a review plan on an API connector (AF-579)', async ({ page, request }) => {
+  const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  // Seed a review plan and a connector via API.
+  const planName = `ConnectorPlan ${Date.now()}`;
+  const planRes = await request.post(`${apiBase()}/api/v1/review-plans`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    // A human-approval plan must carry at least one approver rule.
+    data: {
+      name: planName,
+      min_approvals_required: 1,
+      approvers: [{ user_id: null, role: 'ADMIN', stage: 1 }],
+    },
+  });
+  expect(planRes.ok()).toBeTruthy();
+  const connector = await createApiConnectorViaApi(request, adminToken, {
+    name: `PlanAssign ${Date.now()}`,
+    // The settings form requires an AI config while AI analysis is on — keep it off
+    // so saving the review-plan change passes validation.
+    aiAnalysisEnabled: false,
+  });
+
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await page.goto(`/api-connectors/${connector.id}/settings`);
+
+  // Assign the plan from the config form.
+  await page.getByLabel('Review plan').click();
+  await page.getByTitle(planName).click();
+  const assignResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'PUT' &&
+      r.url().includes(`/api/v1/api-connectors/${connector.id}`) &&
+      r.ok(),
+  );
+  await page.getByRole('button', { name: 'Save' }).click();
+  await assignResponse;
+
+  // The assignment persisted server-side and survives a reload.
+  await page.reload();
+  await expect(page.getByText(planName)).toBeVisible();
+
+  // Clear the plan (AntD shows the clear affordance on hover) and save again.
+  const planSelect = page.locator('.ant-select:has(#review_plan_id)');
+  await planSelect.hover();
+  await planSelect.locator('.ant-select-clear').click();
+  const clearResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'PUT' &&
+      r.url().includes(`/api/v1/api-connectors/${connector.id}`) &&
+      r.ok(),
+  );
+  await page.getByRole('button', { name: 'Save' }).click();
+  await clearResponse;
+
+  // review_plan_id is NULL again.
+  const detailRes = await request.get(`${apiBase()}/api/v1/api-connectors/${connector.id}`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  expect(detailRes.ok()).toBeTruthy();
+  // Null fields are omitted from the JSON envelope, so a cleared plan reads as undefined.
+  const detail = (await detailRes.json()) as { review_plan_id?: string | null };
+  expect(detail.review_plan_id ?? null).toBeNull();
+});
+
 test('API editor shows the Postman-style composer and scheduling (#517)', async ({ page }) => {
   await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 

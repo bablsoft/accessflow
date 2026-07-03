@@ -114,7 +114,7 @@ class ApiConnectorControllerTest {
         when(service.update(eq(connectorId), eq(orgId), any())).thenReturn(view());
         var body = new UpdateApiConnectorRequest("Stripe",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         controller.update(connectorId, body, auth(UserRoleType.ADMIN), auditContext);
 

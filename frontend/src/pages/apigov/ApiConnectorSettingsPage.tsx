@@ -28,6 +28,7 @@ import {
   uploadApiSchema,
 } from '@/api/apiConnectors';
 import { aiConfigKeys, listAiConfigs } from '@/api/admin';
+import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import {
   API_AUTH_METHODS,
   API_SCHEMA_TYPES,
@@ -116,6 +117,10 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
     queryKey: aiConfigKeys.lists(),
     queryFn: listAiConfigs,
   });
+  const reviewPlansQuery = useQuery({
+    queryKey: reviewPlanKeys.lists(),
+    queryFn: listReviewPlans,
+  });
   const mutation = useMutation({
     mutationFn: (input: UpdateApiConnectorInput) => updateApiConnector(connectorId, input),
     onSuccess: () => {
@@ -146,6 +151,7 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
         oauth2_client_auth: c.oauth2_client_auth,
         ai_analysis_enabled: c.ai_analysis_enabled,
         ai_config_id: c.ai_config_id ?? null,
+        review_plan_id: c.review_plan_id ?? null,
         text_to_api_enabled: c.text_to_api_enabled,
         require_review_reads: c.require_review_reads,
         require_review_writes: c.require_review_writes,
@@ -156,6 +162,9 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
           ...values,
           default_headers: pairsToRecord(headers),
           trace_header_mapping: pairsToRecord(traceMapping),
+          // review_plan_id: null means "unchanged" on the update endpoint, so an
+          // explicit clear rides the dedicated flag (same as datasource clear_ai_config).
+          clear_review_plan: values.review_plan_id == null,
         })
       }
     >
@@ -212,6 +221,25 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
           options={(aiConfigsQuery.data ?? []).map((cfg) => ({
             value: cfg.id,
             label: `${cfg.name} · ${aiProviderLabel(t, cfg.provider)}`,
+          }))}
+        />
+      </Form.Item>
+      <Form.Item
+        name="review_plan_id"
+        label={t('apiGov.connectors.reviewPlan')}
+        extra={t('apiGov.connectors.reviewPlanHint')}
+      >
+        <Select
+          allowClear
+          loading={reviewPlansQuery.isLoading}
+          placeholder={
+            reviewPlansQuery.isLoading
+              ? t('apiGov.connectors.reviewPlanLoading')
+              : t('apiGov.connectors.reviewPlanPlaceholder')
+          }
+          options={(reviewPlansQuery.data ?? []).map((plan) => ({
+            value: plan.id,
+            label: plan.name,
           }))}
         />
       </Form.Item>

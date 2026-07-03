@@ -23,6 +23,9 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUser
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaRepository;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
+import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
+import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
@@ -64,6 +67,7 @@ class DefaultApiConnectorAdminServiceTest {
     @Mock private UserGroupService userGroupService;
     @Mock private CredentialEncryptionService encryptionService;
     @Mock private UserQueryService userQueryService;
+    @Mock private ReviewPlanLookupService reviewPlanLookupService;
     @Mock private ApiConnectorProber prober;
     @Mock private ConnectorOAuth2TokenService oauth2TokenService;
     @Mock private MessageSource messageSource;
@@ -77,7 +81,7 @@ class DefaultApiConnectorAdminServiceTest {
     void setUp() {
         service = new DefaultApiConnectorAdminService(connectorRepository, schemaRepository,
                 permissionRepository, groupPermissionRepository, permissionResolver, userGroupService,
-                encryptionService, userQueryService, prober, oauth2TokenService,
+                encryptionService, userQueryService, reviewPlanLookupService, prober, oauth2TokenService,
                 messageSource, JsonMapper.builder().build());
         lenient().when(schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(any()))
                 .thenReturn(Optional.empty());
@@ -207,10 +211,123 @@ class DefaultApiConnectorAdminServiceTest {
 
         var view = service.update(entity.getId(), orgId, new UpdateApiConnectorCommand("Renamed",
                 null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null, null, false));
+                null, null, null, null, null, null, null, null, null, null, null, null, null, false));
 
         assertThat(view.name()).isEqualTo("Renamed");
         assertThat(view.active()).isFalse();
+    }
+
+    @Test
+    void createAssignsReviewPlanFromCallersOrganization() {
+        var planId = UUID.randomUUID();
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Stripe")).thenReturn(false);
+        when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.of(planSnapshot(planId, orgId)));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.create(createCommandWithPlan(planId));
+
+        assertThat(view.reviewPlanId()).isEqualTo(planId);
+    }
+
+    @Test
+    void createRejectsReviewPlanFromAnotherOrganization() {
+        var planId = UUID.randomUUID();
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Stripe")).thenReturn(false);
+        when(reviewPlanLookupService.findById(planId))
+                .thenReturn(Optional.of(planSnapshot(planId, UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.create(createCommandWithPlan(planId)))
+                .isInstanceOf(ReviewPlanNotFoundException.class);
+        verify(connectorRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsUnknownReviewPlan() {
+        var planId = UUID.randomUUID();
+        when(connectorRepository.existsByOrganizationIdAndName(orgId, "Stripe")).thenReturn(false);
+        when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(createCommandWithPlan(planId)))
+                .isInstanceOf(ReviewPlanNotFoundException.class);
+        verify(connectorRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAssignsReviewPlanFromCallersOrganization() {
+        var entity = persistedConnector();
+        var planId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.of(planSnapshot(planId, orgId)));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.update(entity.getId(), orgId, updateReviewPlanCommand(planId, null));
+
+        assertThat(view.reviewPlanId()).isEqualTo(planId);
+    }
+
+    @Test
+    void updateRejectsReviewPlanFromAnotherOrganization() {
+        var entity = persistedConnector();
+        var planId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(reviewPlanLookupService.findById(planId))
+                .thenReturn(Optional.of(planSnapshot(planId, UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.update(entity.getId(), orgId, updateReviewPlanCommand(planId, null)))
+                .isInstanceOf(ReviewPlanNotFoundException.class);
+        verify(connectorRepository, never()).save(any());
+    }
+
+    @Test
+    void updateRejectsUnknownReviewPlan() {
+        var entity = persistedConnector();
+        var planId = UUID.randomUUID();
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.update(entity.getId(), orgId, updateReviewPlanCommand(planId, null)))
+                .isInstanceOf(ReviewPlanNotFoundException.class);
+        verify(connectorRepository, never()).save(any());
+    }
+
+    @Test
+    void updateClearReviewPlanUnassignsExistingPlan() {
+        var entity = persistedConnector();
+        entity.setReviewPlanId(UUID.randomUUID());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.update(entity.getId(), orgId, updateReviewPlanCommand(null, true));
+
+        assertThat(view.reviewPlanId()).isNull();
+        verify(reviewPlanLookupService, never()).findById(any());
+    }
+
+    @Test
+    void updateClearReviewPlanWinsOverProvidedPlanId() {
+        var entity = persistedConnector();
+        entity.setReviewPlanId(UUID.randomUUID());
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.update(entity.getId(), orgId, updateReviewPlanCommand(UUID.randomUUID(), true));
+
+        assertThat(view.reviewPlanId()).isNull();
+        verify(reviewPlanLookupService, never()).findById(any());
+    }
+
+    @Test
+    void updateLeavesReviewPlanUnchangedWhenAbsent() {
+        var entity = persistedConnector();
+        var existingPlan = UUID.randomUUID();
+        entity.setReviewPlanId(existingPlan);
+        when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
+        when(connectorRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        var view = service.update(entity.getId(), orgId, updateReviewPlanCommand(null, null));
+
+        assertThat(view.reviewPlanId()).isEqualTo(existingPlan);
+        verify(reviewPlanLookupService, never()).findById(any());
     }
 
     @Test
@@ -259,7 +376,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 null, null, "new-secret", null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         verify(encryptionService).encrypt("new-secret");
@@ -275,7 +392,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var cmd = new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
                 "https://idp/new", null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
         service.update(entity.getId(), orgId, cmd);
 
         assertThat(entity.getOauth2ClientSecretEncrypted()).isEqualTo("EXISTING");
@@ -602,6 +719,23 @@ class DefaultApiConnectorAdminServiceTest {
         service.revokeGroupPermission(entity.getId(), orgId, permId);
 
         verify(groupPermissionRepository).delete(perm);
+    }
+
+    private CreateApiConnectorCommand createCommandWithPlan(UUID reviewPlanId) {
+        return new CreateApiConnectorCommand(orgId, "Stripe", ApiProtocol.REST, "https://api.stripe.com",
+                null, null, null, null, ApiAuthMethod.NONE, null,
+                null, null, null, null, null, null, null, null, null, null,
+                reviewPlanId, true, null, false, false, true, 2048L);
+    }
+
+    private static UpdateApiConnectorCommand updateReviewPlanCommand(UUID reviewPlanId, Boolean clearReviewPlan) {
+        return new UpdateApiConnectorCommand(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null,
+                reviewPlanId, clearReviewPlan, null, null, null, null, null, null, null);
+    }
+
+    private static ReviewPlanSnapshot planSnapshot(UUID planId, UUID organizationId) {
+        return new ReviewPlanSnapshot(planId, organizationId, true, true, 2, false, 1, List.of(), List.of());
     }
 
     private ApiConnectorEntity persistedConnector() {
