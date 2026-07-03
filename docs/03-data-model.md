@@ -611,6 +611,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `submitted_ip` | VARCHAR(45) nullable (AF-446, Flyway `V88`) — source IP captured at submission (`X-Forwarded-For` first hop, else remote address). Read by the `source_ip` routing condition (routing runs asynchronously, after submission). |
 | `submitted_user_agent` | TEXT nullable (AF-446, `V88`) — the submission `User-Agent` header. Read by the `user_agent` routing condition. |
 | `cicd_origin` | BOOLEAN NOT NULL DEFAULT FALSE (AF-446, `V88`) — true when the query was submitted via an API key or with the `X-AccessFlow-CI` header. Read by the `cicd_origin` routing condition. |
+| `approved_by_grant_id` | UUID nullable (#582, `V112`) — id of the `access_grant_request` whose pre-approval fast-path auto-approved this query. Bare UUID (no FK, mirroring `granted_permission_id`): the grant's lifecycle (expiry, revocation) is independent of the query's audit trail. Stamped atomically with the `PENDING_AI → APPROVED` transition by `QueryRequestStateService.approveByAccessGrant`; surfaced as `approved_by_grant` on `GET /queries/{id}`. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 
@@ -1070,6 +1071,7 @@ Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-r
 | `allowed_schemas` / `allowed_tables` | TEXT[] nullable — optional scope (null = all) |
 | `requested_duration` | TEXT — ISO-8601 period (e.g. `PT4H`, `P1D`); bounded by `accessflow.access.min-duration`/`max-duration` |
 | `justification` | TEXT |
+| `pre_approve_queries` | BOOLEAN NOT NULL DEFAULT false — opt-in query pre-approval (#582, Flyway V112): while the grant is `APPROVED` and unexpired, a query it covers (capability + table scope) is auto-approved by the workflow state machine instead of routing to human review. A partial index on `(requester_id, datasource_id) WHERE status = 'APPROVED' AND pre_approve_queries` backs the per-submission lookup |
 | `status` | ENUM `access_grant_status`: `PENDING` \| `APPROVED` \| `REJECTED` \| `EXPIRED` \| `REVOKED` \| `CANCELLED` |
 | `expires_at` | TIMESTAMPTZ nullable — set to `now + requested_duration` on grant |
 | `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |

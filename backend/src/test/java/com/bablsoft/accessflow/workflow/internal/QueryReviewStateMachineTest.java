@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
+import com.bablsoft.accessflow.access.api.AccessGrantStatus;
+import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -32,9 +35,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,6 +63,8 @@ class QueryReviewStateMachineTest {
     @Mock RoutingPolicyEngine routingPolicyEngine;
     @Mock RoutingDecisionService routingDecisionService;
     @Mock com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService behaviorAnomalyLookupService;
+    @Mock AccessGrantLookupService accessGrantLookupService;
+    @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks QueryReviewStateMachine stateMachine;
 
@@ -66,6 +74,7 @@ class QueryReviewStateMachineTest {
     private final UUID submitterId = UUID.randomUUID();
     private final UUID aiAnalysisId = UUID.randomUUID();
     private final UUID policyId = UUID.randomUUID();
+    private final UUID grantId = UUID.randomUUID();
 
     @BeforeEach
     void stubSignals() {
@@ -367,6 +376,198 @@ class QueryReviewStateMachineTest {
 
         verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void aiCompletedGrantFastPathApprovesOnLowRisk() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenActiveGrant(grantView(true, false, false, null, null));
+        when(sqlParserService.parse(any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT * FROM orders"), Set.of("orders")));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService).approveByAccessGrant(queryId, grantId);
+        var captor = ArgumentCaptor.forClass(QueryAutoApprovedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().accessGrantId()).isEqualTo(grantId);
+        assertThat(captor.getValue().grantApproverEmail()).isEqualTo("approver@x.io");
+        assertThat(captor.getValue().matchedPolicyId()).isNull();
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+    }
+
+    @Test
+    void aiSkippedGrantFastPathApprovesWithoutRiskSignal() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenActiveGrant(grantView(true, false, false, null, null));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).approveByAccessGrant(queryId, grantId);
+        verify(eventPublisher).publishEvent(any(QueryAutoApprovedEvent.class));
+    }
+
+    @Test
+    void grantFastPathSuppressedOnHighRisk() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.HIGH);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.HIGH));
+
+        verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void grantFastPathSuppressedOnCriticalRisk() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.CRITICAL);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.CRITICAL));
+
+        verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void grantFastPathSuppressedOnActiveAnomaly() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        when(behaviorAnomalyLookupService.hasActiveAnomaly(organizationId, submitterId,
+                datasourceId)).thenReturn(true);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void autoRejectPolicyWinsOverGrantFastPath() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+        lenient().when(accessGrantLookupService.findActivePreApprovedGrants(organizationId,
+                submitterId, datasourceId)).thenReturn(List.of(grantView(true, false, false, null,
+                null)));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.REJECTED), any(),
+                any());
+        verify(eventPublisher).publishEvent(any(QueryAutoRejectedEvent.class));
+    }
+
+    @Test
+    void escalatePolicyWinsOverGrantFastPath() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.ESCALATE, 1);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.PENDING_REVIEW),
+                any(), any());
+    }
+
+    @Test
+    void grantFastPathSkipsCapabilityMismatch() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenActiveGrant(grantView(true, false, false, null, null));
+        when(sqlParserService.parse(any())).thenReturn(new SqlParseResult(QueryType.UPDATE, false,
+                List.of("UPDATE orders SET x=1"), Set.of("orders")));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void grantFastPathSkipsTableOutsideScope() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenActiveGrant(grantView(true, false, false, List.of("public"), List.of("orders")));
+        when(sqlParserService.parse(any())).thenReturn(new SqlParseResult(QueryType.SELECT, false,
+                List.of("SELECT * FROM payroll"), Set.of("payroll")));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void grantFastPathFailsClosedOnParseFailure() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenActiveGrant(grantView(true, false, false, null, List.of("orders")));
+        when(sqlParserService.parse(any())).thenThrow(new RuntimeException("boom"));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void grantFastPathFallsThroughWhenNoGrant() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId,
+                RiskLevel.LOW));
+
+        verify(accessGrantLookupService).findActivePreApprovedGrants(organizationId, submitterId,
+                datasourceId);
+        verify(queryRequestStateService, never()).approveByAccessGrant(any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void aiFailedNeverConsultsGrantLookup() {
+        givenPendingAiQuery(QueryType.SELECT);
+
+        stateMachine.onAiFailed(new AiAnalysisFailedEvent(queryId, "provider down"));
+
+        verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    private void givenActiveGrant(AccessGrantView grant) {
+        when(accessGrantLookupService.findActivePreApprovedGrants(organizationId, submitterId,
+                datasourceId)).thenReturn(List.of(grant));
+    }
+
+    private AccessGrantView grantView(boolean canRead, boolean canWrite, boolean canDdl,
+                                      List<String> allowedSchemas, List<String> allowedTables) {
+        return new AccessGrantView(grantId, organizationId, submitterId, datasourceId,
+                canRead, canWrite, canDdl, allowedSchemas, allowedTables,
+                AccessGrantStatus.APPROVED, Instant.now().plusSeconds(3600),
+                UUID.randomUUID(), "approver@x.io", Instant.now());
     }
 
     private void givenPendingAiQuery(QueryType type) {

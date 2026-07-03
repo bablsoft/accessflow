@@ -46,7 +46,7 @@ class AccessNotificationListenerTest {
     private AccessRequestView view(AccessGrantStatus status) {
         return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io",
                 UUID.randomUUID(), "db", true, false, false, List.of("public"), null, "PT4H",
-                "need access", status, Instant.now().plusSeconds(3600), null, Instant.now(),
+                "need access", false, status, Instant.now().plusSeconds(3600), null, Instant.now(),
                 Instant.now());
     }
 

@@ -66,6 +66,11 @@ public class QueryRequestEntity {
     @Column(name = "ai_analysis_id")
     private UUID aiAnalysisId;
 
+    // Bare UUID to access_grant_request (#582) — the grant row's lifecycle (expiry, revocation)
+    // is independent of this query's audit trail, so no FK.
+    @Column(name = "approved_by_grant_id")
+    private UUID approvedByGrantId;
+
     @Column(name = "execution_started_at")
     private Instant executionStartedAt;
 

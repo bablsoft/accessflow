@@ -881,6 +881,7 @@ export interface AccessRequest {
   allowed_tables: string[] | null;
   requested_duration: string;
   justification: string;
+  pre_approve_queries: boolean;
   status: AccessGrantStatus;
   expires_at: string | null;
   granted_permission_id: string | null;
@@ -899,6 +900,7 @@ export interface SubmitAccessRequestInput {
   allowed_tables?: string[] | null;
   requested_duration: string;
   justification: string;
+  pre_approve_queries?: boolean;
 }
 
 export interface RequestableDatasource {
@@ -926,6 +928,7 @@ export interface PendingAccessRequestItem {
   allowed_tables: string[] | null;
   requested_duration: string;
   justification: string;
+  pre_approve_queries: boolean;
   current_stage: number;
   created_at: string;
 }
@@ -1098,10 +1101,20 @@ export interface QueryDetail {
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
   matched_policy: MatchedRoutingPolicy | null;
+  approved_by_grant: ApprovedByGrant | null;
   review_decisions: ReviewDecisionDetail[];
   scheduled_for: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** Provenance of a grant-covered auto-approval (#582), surfaced on the query detail. */
+export interface ApprovedByGrant {
+  grant_id: string;
+  approver_id: string | null;
+  approver_email: string | null;
+  approved_at: string | null;
+  expires_at: string | null;
 }
 
 /** The routing policy that auto-decided a query, surfaced on the detail timeline. */

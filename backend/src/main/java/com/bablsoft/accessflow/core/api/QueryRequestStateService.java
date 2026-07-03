@@ -17,6 +17,14 @@ public interface QueryRequestStateService {
     void transitionTo(UUID queryRequestId, QueryStatus expected, QueryStatus next);
 
     /**
+     * Grant-covered auto-approval (#582): guarded {@code PENDING_AI → APPROVED} transition that
+     * also stamps {@code approved_by_grant_id} atomically, so the approval provenance and the
+     * status change commit together. Throws {@link IllegalQueryStatusTransitionException} when
+     * the current status is not {@code PENDING_AI}.
+     */
+    void approveByAccessGrant(UUID queryRequestId, UUID accessGrantId);
+
+    /**
      * Inserts an {@code APPROVED} {@link com.bablsoft.accessflow.core.api.DecisionType} row
      * for the given reviewer/stage and, if the per-stage threshold is now met AND it was the
      * last stage, transitions {@code PENDING_REVIEW → APPROVED} in the same transaction.

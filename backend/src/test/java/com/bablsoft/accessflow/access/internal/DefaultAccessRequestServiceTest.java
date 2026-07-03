@@ -67,7 +67,7 @@ class DefaultAccessRequestServiceTest {
 
     private SubmitCommand command(String duration) {
         return new SubmitCommand(organizationId, requesterId, datasourceId, true, false, false,
-                List.of("public"), null, duration, "need access");
+                List.of("public"), null, duration, "need access", false);
     }
 
     @Test
@@ -200,7 +200,7 @@ class DefaultAccessRequestServiceTest {
 
     private AccessRequestView view() {
         return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io", datasourceId,
-                "db", true, false, false, List.of("public"), null, "PT4H", "need access",
+                "db", true, false, false, List.of("public"), null, "PT4H", "need access", false,
                 AccessGrantStatus.PENDING, null, null, null, null);
     }
 }

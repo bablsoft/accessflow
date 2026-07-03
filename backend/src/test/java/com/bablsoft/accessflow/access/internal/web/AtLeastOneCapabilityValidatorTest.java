@@ -11,7 +11,7 @@ class AtLeastOneCapabilityValidatorTest {
     private final AtLeastOneCapabilityValidator validator = new AtLeastOneCapabilityValidator();
 
     private SubmitAccessRequestBody body(boolean r, boolean w, boolean d) {
-        return new SubmitAccessRequestBody(UUID.randomUUID(), r, w, d, null, null, "PT4H", "j");
+        return new SubmitAccessRequestBody(UUID.randomUUID(), r, w, d, false, null, null, "PT4H", "j");
     }
 
     @Test

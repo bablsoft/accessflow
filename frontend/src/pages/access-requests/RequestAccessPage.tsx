@@ -28,6 +28,7 @@ interface RequestFormValues {
   allowed_tables?: string[];
   requested_duration: string;
   justification: string;
+  pre_approve_queries?: boolean;
 }
 
 export function RequestAccessPage() {
@@ -118,6 +119,7 @@ export function RequestAccessPage() {
         allowed_tables: values.allowed_tables?.length ? values.allowed_tables : null,
         requested_duration: values.requested_duration,
         justification: values.justification,
+        pre_approve_queries: values.pre_approve_queries === true,
       }),
     onSuccess: () => {
       invalidateMine();
@@ -141,6 +143,7 @@ export function RequestAccessPage() {
       {r.can_read && <Tag>{t('access.request.can_read')}</Tag>}
       {r.can_write && <Tag color="orange">{t('access.request.can_write')}</Tag>}
       {r.can_ddl && <Tag color="red">{t('access.request.can_ddl')}</Tag>}
+      {r.pre_approve_queries && <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>}
     </Space>
   );
 
@@ -293,6 +296,15 @@ export function RequestAccessPage() {
                 loading={schema.isLoading}
                 optionFilterProp="label"
               />
+            </Form.Item>
+
+            <Form.Item
+              name="pre_approve_queries"
+              valuePropName="checked"
+              extra={t('access.request.pre_approve_hint')}
+              style={{ marginBottom: 12 }}
+            >
+              <Checkbox>{t('access.request.pre_approve_label')}</Checkbox>
             </Form.Item>
 
             <Form.Item

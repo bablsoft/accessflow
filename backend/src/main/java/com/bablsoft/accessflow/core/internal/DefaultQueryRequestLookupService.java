@@ -216,6 +216,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getExecutionDurationMs(),
                 entity.getErrorMessage(),
                 entity.getPreviousRunId(),
+                entity.getApprovedByGrantId(),
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
                 decisions,

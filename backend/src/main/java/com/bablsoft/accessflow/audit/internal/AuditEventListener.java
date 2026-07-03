@@ -149,6 +149,15 @@ class AuditEventListener {
                         if (event.reason() != null) {
                             metadata.put("reason", event.reason());
                         }
+                    } else if (event.accessGrantId() != null) {
+                        metadata.put("source", "ACCESS_GRANT");
+                        metadata.put("access_grant_id", event.accessGrantId().toString());
+                        if (event.grantApproverEmail() != null) {
+                            metadata.put("grant_approver", event.grantApproverEmail());
+                        }
+                        if (event.reason() != null) {
+                            metadata.put("reason", event.reason());
+                        }
                     }
                     return new AuditEntry(
                             AuditAction.QUERY_APPROVED,

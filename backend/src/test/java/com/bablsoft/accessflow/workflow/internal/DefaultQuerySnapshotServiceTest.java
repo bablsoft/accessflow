@@ -72,7 +72,7 @@ class DefaultQuerySnapshotServiceTest {
     private QueryDetailView detail(AiAnalysisDetail ai) {
         return new QueryDetailView(queryId, dsId, "prod", DbType.POSTGRESQL, orgId, userId,
                 "a@x.com", "Alice", "SELECT * FROM users", QueryType.SELECT, QueryStatus.EXECUTED,
-                "ticket-1", ai, 12L, 34, null, null, "Plan", 24, List.of(), null,
+                "ticket-1", ai, 12L, 34, null, null, null, "Plan", 24, List.of(), null,
                 Instant.parse("2026-06-18T11:00:00Z"), executedAt);
     }
 

@@ -111,7 +111,7 @@ class AccessRequestControllerIntegrationTest {
     private AccessRequestView view(UUID id, AccessGrantStatus status) {
         return new AccessRequestView(id, organization.getId(), UUID.randomUUID(), "u@x.io",
                 UUID.randomUUID(), "db", true, false, false, List.of("public"), null, "PT4H",
-                "j", status, null, null, Instant.now(), Instant.now());
+                "j", false, status, null, null, Instant.now(), Instant.now());
     }
 
     @Test

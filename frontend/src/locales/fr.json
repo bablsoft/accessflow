@@ -653,7 +653,10 @@
       "matched_policy_deleted": "(politique supprimée)",
       "matched_policy_no_reason": "aucune raison indiquée",
       "optimizations_title": "Suggestions d’optimisation",
-      "card_sql_collab": "SQL (collaboratif)"
+      "card_sql_collab": "SQL (collaboratif)",
+      "approved_by_grant_title": "Approuvée automatiquement au titre d’un octroi d’accès",
+      "approved_by_grant_body": "Cette requête était couverte par l’octroi d’accès {{grantId}}, approuvé par {{approver}} le {{when}}.",
+      "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}."
     }
   },
   "reviews": {
@@ -2472,7 +2475,10 @@
         "P1D": "1 jour",
         "P3D": "3 jours",
         "P7D": "7 jours"
-      }
+      },
+      "pre_approve_label": "Pré-approuver les requêtes sous cet octroi",
+      "pre_approve_hint": "Les requêtes couvertes par cet octroi (capacité et périmètre de tables) sautent la revue humaine tant que l’octroi est actif. Les requêtes à haut risque et les politiques de routage s’appliquent toujours.",
+      "pre_approve_tag": "Pré-approuve les requêtes"
     },
     "queue": {
       "title": "Demandes d'accès",
@@ -2489,7 +2495,8 @@
       "reject_required": "Un commentaire est requis pour rejeter",
       "on_approve": "Demande d'accès approuvée",
       "on_reject": "Demande d'accès rejetée",
-      "empty": "Aucune demande d'accès en attente de votre examen"
+      "empty": "Aucune demande d'accès en attente de votre examen",
+      "pre_approve_tooltip": "Approuver cette demande permet aux requêtes couvertes de s’exécuter sans revue supplémentaire tant que l’octroi est actif."
     },
     "ttl": {
       "remaining": "{{value}} restant",

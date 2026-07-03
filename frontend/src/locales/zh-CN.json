@@ -653,7 +653,10 @@
       "matched_policy_deleted": "（已删除的策略）",
       "matched_policy_no_reason": "未提供原因",
       "optimizations_title": "优化建议",
-      "card_sql_collab": "SQL（协作）"
+      "card_sql_collab": "SQL（协作）",
+      "approved_by_grant_title": "已根据访问授权自动批准",
+      "approved_by_grant_body": "此查询由访问授权 {{grantId}} 覆盖，由 {{approver}} 于 {{when}} 批准。",
+      "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。"
     }
   },
   "reviews": {
@@ -2472,7 +2475,10 @@
         "P1D": "1 天",
         "P3D": "3 天",
         "P7D": "7 天"
-      }
+      },
+      "pre_approve_label": "预先批准此授权下的查询",
+      "pre_approve_hint": "在授权有效期内，此授权覆盖的查询（能力和表范围）将跳过人工审核。高风险查询和路由策略仍然适用。",
+      "pre_approve_tag": "预批准查询"
     },
     "queue": {
       "title": "访问申请",
@@ -2489,7 +2495,8 @@
       "reject_required": "拒绝时必须填写备注",
       "on_approve": "访问申请已批准",
       "on_reject": "访问申请已拒绝",
-      "empty": "没有等待您审核的访问申请"
+      "empty": "没有等待您审核的访问申请",
+      "pre_approve_tooltip": "批准此申请后，在授权有效期内，覆盖范围内的查询无需进一步审核即可运行。"
     },
     "ttl": {
       "remaining": "剩余 {{value}}",

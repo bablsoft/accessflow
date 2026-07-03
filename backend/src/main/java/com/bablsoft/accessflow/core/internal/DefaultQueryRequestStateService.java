@@ -49,6 +49,21 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
 
     @Override
     @Transactional
+    public void approveByAccessGrant(UUID queryRequestId, UUID accessGrantId) {
+        var entity = lockOrThrow(queryRequestId);
+        if (entity.getStatus() != QueryStatus.PENDING_AI) {
+            throw new IllegalQueryStatusTransitionException(queryRequestId, entity.getStatus(),
+                    QueryStatus.PENDING_AI);
+        }
+        var previous = entity.getStatus();
+        entity.setStatus(QueryStatus.APPROVED);
+        entity.setApprovedByGrantId(accessGrantId);
+        queryRequestRepository.save(entity);
+        publishStatusChanged(entity, previous, QueryStatus.APPROVED);
+    }
+
+    @Override
+    @Transactional
     public RecordDecisionResult recordApprovalAndAdvance(RecordApprovalCommand command) {
         var entity = lockOrThrow(command.queryRequestId());
         if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {

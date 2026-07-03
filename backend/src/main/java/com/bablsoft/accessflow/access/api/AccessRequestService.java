@@ -57,7 +57,8 @@ public interface AccessRequestService {
             List<String> allowedSchemas,
             List<String> allowedTables,
             String requestedDuration,
-            String justification) {
+            String justification,
+            boolean preApproveQueries) {
     }
 
     record DatasourceOption(UUID id, String name) {

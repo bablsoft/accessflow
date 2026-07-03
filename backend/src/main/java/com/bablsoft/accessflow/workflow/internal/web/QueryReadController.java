@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -64,6 +65,7 @@ class QueryReadController {
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryCsvExportService queryCsvExportService;
     private final RoutingDecisionService routingDecisionService;
+    private final AccessGrantLookupService accessGrantLookupService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -154,7 +156,9 @@ class QueryReadController {
             throw new QueryRequestNotFoundException(id);
         }
         var matchedPolicy = routingDecisionService.findMatchedPolicy(id).orElse(null);
-        return QueryDetailResponse.from(detail, matchedPolicy);
+        var approvingGrant = detail.approvedByGrantId() == null ? null
+                : accessGrantLookupService.findGrant(detail.approvedByGrantId()).orElse(null);
+        return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant);
     }
 
     @PostMapping("/{id}/cancel")

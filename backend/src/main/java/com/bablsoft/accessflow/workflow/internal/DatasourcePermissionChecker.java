@@ -20,10 +20,16 @@ final class DatasourcePermissionChecker {
     }
 
     static boolean hasCapability(DatasourceUserPermissionView permission, QueryType type) {
+        return hasCapability(permission.canRead(), permission.canWrite(), permission.canDdl(),
+                type);
+    }
+
+    static boolean hasCapability(boolean canRead, boolean canWrite, boolean canDdl,
+                                 QueryType type) {
         return switch (type) {
-            case SELECT -> permission.canRead();
-            case INSERT, UPDATE, DELETE -> permission.canWrite();
-            case DDL -> permission.canDdl();
+            case SELECT -> canRead;
+            case INSERT, UPDATE, DELETE -> canWrite;
+            case DDL -> canDdl;
             case OTHER -> false;
         };
     }
@@ -34,8 +40,15 @@ final class DatasourcePermissionChecker {
      */
     static Set<String> rejectedTables(DatasourceUserPermissionView permission,
                                       Set<String> referencedTables) {
-        var allowedSchemas = normalizeList(permission.allowedSchemas());
-        var allowedTables = normalizeList(permission.allowedTables());
+        return rejectedTables(permission.allowedSchemas(), permission.allowedTables(),
+                referencedTables);
+    }
+
+    static Set<String> rejectedTables(List<String> rawAllowedSchemas,
+                                      List<String> rawAllowedTables,
+                                      Set<String> referencedTables) {
+        var allowedSchemas = normalizeList(rawAllowedSchemas);
+        var allowedTables = normalizeList(rawAllowedTables);
         if (allowedSchemas.isEmpty() && allowedTables.isEmpty()) {
             return Set.of();
         }

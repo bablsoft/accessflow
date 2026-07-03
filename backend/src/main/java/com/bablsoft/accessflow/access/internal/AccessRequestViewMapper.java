@@ -38,6 +38,7 @@ class AccessRequestViewMapper {
                 toList(entity.getAllowedTables()),
                 entity.getRequestedDuration(),
                 entity.getJustification(),
+                entity.isPreApproveQueries(),
                 entity.getStatus(),
                 entity.getExpiresAt(),
                 entity.getGrantedPermissionId(),

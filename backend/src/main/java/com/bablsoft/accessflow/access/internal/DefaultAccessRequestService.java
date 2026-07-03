@@ -60,6 +60,7 @@ class DefaultAccessRequestService implements AccessRequestService {
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRequestedDuration(command.requestedDuration());
         entity.setJustification(command.justification());
+        entity.setPreApproveQueries(command.preApproveQueries());
         entity.setStatus(AccessGrantStatus.PENDING);
         var saved = requestRepository.save(entity);
         eventPublisher.publishEvent(

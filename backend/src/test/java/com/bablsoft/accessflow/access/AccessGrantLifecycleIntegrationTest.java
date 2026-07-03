@@ -160,7 +160,7 @@ class AccessGrantLifecycleIntegrationTest {
         // Submit
         var view = accessRequestService.submit(new SubmitCommand(organization.getId(),
                 requester.getId(), datasource.getId(), true, true, false,
-                List.of("public", "analytics"), null, "PT4H", "deploy hotfix"));
+                List.of("public", "analytics"), null, "PT4H", "deploy hotfix", false));
         assertThat(view.status()).isEqualTo(AccessGrantStatus.PENDING);
 
         // Approve (single-stage REVIEWER plan → final approval)
@@ -202,7 +202,7 @@ class AccessGrantLifecycleIntegrationTest {
     @Test
     void cancellingPendingRequestTransitionsToCancelled() {
         var view = accessRequestService.submit(new SubmitCommand(organization.getId(),
-                requester.getId(), datasource.getId(), true, false, false, null, null, "PT2H", "j"));
+                requester.getId(), datasource.getId(), true, false, false, null, null, "PT2H", "j", false));
 
         accessRequestService.cancel(view.id(), requester.getId(), organization.getId());
 
@@ -213,7 +213,7 @@ class AccessGrantLifecycleIntegrationTest {
     @Test
     void listMineReturnsRequestersOwnRequests() {
         accessRequestService.submit(new SubmitCommand(organization.getId(), requester.getId(),
-                datasource.getId(), true, false, false, null, null, "PT2H", "j"));
+                datasource.getId(), true, false, false, null, null, "PT2H", "j", false));
 
         var page = accessRequestService.listMine(organization.getId(), requester.getId(), null,
                 com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));

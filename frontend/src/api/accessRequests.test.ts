@@ -28,10 +28,12 @@ describe('api/accessRequests', () => {
       can_ddl: false,
       requested_duration: 'PT4H',
       justification: 'need',
+      pre_approve_queries: true,
     });
     expect(post).toHaveBeenCalledWith('/api/v1/access-requests', expect.objectContaining({
       datasource_id: 'ds-1',
       requested_duration: 'PT4H',
+      pre_approve_queries: true,
     }));
     expect(result.id).toBe('a-1');
   });

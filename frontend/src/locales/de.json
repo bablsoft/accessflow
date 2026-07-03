@@ -653,7 +653,10 @@
       "matched_policy_deleted": "(gelöschte Richtlinie)",
       "matched_policy_no_reason": "keine Begründung angegeben",
       "optimizations_title": "Optimierungsvorschläge",
-      "card_sql_collab": "SQL (kollaborativ)"
+      "card_sql_collab": "SQL (kollaborativ)",
+      "approved_by_grant_title": "Automatisch genehmigt unter einer Zugriffsgewährung",
+      "approved_by_grant_body": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt, genehmigt von {{approver}} am {{when}}.",
+      "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt."
     }
   },
   "reviews": {
@@ -2472,7 +2475,10 @@
         "P1D": "1 Tag",
         "P3D": "3 Tage",
         "P7D": "7 Tage"
-      }
+      },
+      "pre_approve_label": "Abfragen unter dieser Gewährung vorab genehmigen",
+      "pre_approve_hint": "Von dieser Gewährung abgedeckte Abfragen (Berechtigung und Tabellenbereich) überspringen die menschliche Prüfung, solange die Gewährung aktiv ist. Abfragen mit hohem Risiko und Routing-Richtlinien gelten weiterhin.",
+      "pre_approve_tag": "Genehmigt Abfragen vorab"
     },
     "queue": {
       "title": "Zugriffsanfragen",
@@ -2489,7 +2495,8 @@
       "reject_required": "Für die Ablehnung ist ein Kommentar erforderlich",
       "on_approve": "Zugriffsanfrage genehmigt",
       "on_reject": "Zugriffsanfrage abgelehnt",
-      "empty": "Keine Zugriffsanfragen warten auf Ihre Prüfung"
+      "empty": "Keine Zugriffsanfragen warten auf Ihre Prüfung",
+      "pre_approve_tooltip": "Mit der Genehmigung dieser Anfrage laufen abgedeckte Abfragen ohne weitere Prüfung, solange die Gewährung aktiv ist."
     },
     "ttl": {
       "remaining": "noch {{value}}",

@@ -55,7 +55,7 @@ class AccessRequestController {
                 body.datasourceId(), Boolean.TRUE.equals(body.canRead()),
                 Boolean.TRUE.equals(body.canWrite()), Boolean.TRUE.equals(body.canDdl()),
                 body.allowedSchemas(), body.allowedTables(), body.requestedDuration(),
-                body.justification());
+                body.justification(), Boolean.TRUE.equals(body.preApproveQueries()));
         var view = accessRequestService.submit(command);
         auditWriter.record(AuditAction.ACCESS_REQUEST_SUBMITTED, view.id(), caller,
                 submitMetadata(view), auditContext);
@@ -120,6 +120,7 @@ class AccessRequestController {
         metadata.put("can_read", view.canRead());
         metadata.put("can_write", view.canWrite());
         metadata.put("can_ddl", view.canDdl());
+        metadata.put("pre_approve_queries", view.preApproveQueries());
         return metadata;
     }
 

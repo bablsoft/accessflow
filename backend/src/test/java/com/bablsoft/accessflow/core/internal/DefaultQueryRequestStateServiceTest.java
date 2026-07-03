@@ -97,6 +97,36 @@ class DefaultQueryRequestStateServiceTest {
     }
 
     @Test
+    void approveByAccessGrantTransitionsAndStampsGrantId() {
+        var grantId = UUID.randomUUID();
+        query.setStatus(QueryStatus.PENDING_AI);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        service.approveByAccessGrant(queryId, grantId);
+
+        assertThat(query.getStatus()).isEqualTo(QueryStatus.APPROVED);
+        assertThat(query.getApprovedByGrantId()).isEqualTo(grantId);
+        verify(queryRequestRepository).save(query);
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue()).isInstanceOf(QueryStatusChangedEvent.class);
+        var event = (QueryStatusChangedEvent) captor.getValue();
+        assertThat(event.newStatus()).isEqualTo(QueryStatus.APPROVED);
+    }
+
+    @Test
+    void approveByAccessGrantThrowsWhenNotPendingAi() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThatThrownBy(() -> service.approveByAccessGrant(queryId, UUID.randomUUID()))
+                .isInstanceOf(IllegalQueryStatusTransitionException.class);
+
+        assertThat(query.getApprovedByGrantId()).isNull();
+        verify(queryRequestRepository, never()).save(any());
+    }
+
+    @Test
     void recordApprovalAndAdvancePromotesToApprovedAtLastStage() {
         query.setStatus(QueryStatus.PENDING_REVIEW);
         when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));

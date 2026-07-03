@@ -23,6 +23,7 @@ public record AccessRequestView(
         List<String> allowedTables,
         String requestedDuration,
         String justification,
+        boolean preApproveQueries,
         AccessGrantStatus status,
         Instant expiresAt,
         UUID grantedPermissionId,

@@ -26,6 +26,7 @@ public record QueryDetailView(
         Integer durationMs,
         String errorMessage,
         UUID previousRunId,
+        UUID approvedByGrantId,
         String reviewPlanName,
         Integer approvalTimeoutHours,
         List<ReviewDecisionView> reviewDecisions,

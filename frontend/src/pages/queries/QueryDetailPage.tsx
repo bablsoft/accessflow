@@ -429,6 +429,26 @@ export function QueryDetailPage() {
               })}
             />
           )}
+          {query.approved_by_grant && (
+            <Alert
+              type="success"
+              showIcon
+              message={t('queries.detail.approved_by_grant_title')}
+              description={
+                query.approved_by_grant.approver_email
+                  ? t('queries.detail.approved_by_grant_body', {
+                      grantId: query.approved_by_grant.grant_id,
+                      approver: query.approved_by_grant.approver_email,
+                      when: query.approved_by_grant.approved_at
+                        ? fmtDate(query.approved_by_grant.approved_at)
+                        : '—',
+                    })
+                  : t('queries.detail.approved_by_grant_body_no_approver', {
+                      grantId: query.approved_by_grant.grant_id,
+                    })
+              }
+            />
+          )}
           <DetailCard
             title={canCollaborate ? t('queries.detail.card_sql_collab') : t('queries.detail.card_sql')}
             icon={<FileTextOutlined />}
