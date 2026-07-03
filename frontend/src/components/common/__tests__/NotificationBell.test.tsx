@@ -237,6 +237,102 @@ describe('NotificationBell', () => {
     expect(navigateMock).toHaveBeenCalledWith('/api-requests/api-22');
   });
 
+  it('renders an ACCESS_REQUEST_SUBMITTED body and navigates to /admin/access-requests', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'ar1',
+          event_type: 'ACCESS_REQUEST_SUBMITTED',
+          query_request_id: null,
+          api_request_id: null,
+          payload: {
+            access_request_id: 'req-1',
+            datasource: 'orders-prod',
+            requester: 'carol@acme.com',
+            requested_duration: 'PT4H',
+            status: 'PENDING',
+          },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/carol@acme\.com requested access to orders-prod/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('ar1'));
+    expect(navigateMock).toHaveBeenCalledWith('/admin/access-requests');
+  });
+
+  it('renders the no-requester variant when the ACCESS_REQUEST_SUBMITTED payload has no requester', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'ar2',
+          event_type: 'ACCESS_REQUEST_SUBMITTED',
+          query_request_id: null,
+          api_request_id: null,
+          payload: { access_request_id: 'req-2', datasource: 'orders-prod' },
+          read: true,
+          created_at: new Date().toISOString(),
+          read_at: new Date().toISOString(),
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('New access request awaiting review on orders-prod'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it.each([
+    ['ACCESS_REQUEST_APPROVED', /access request for hr-db was approved/],
+    ['ACCESS_REQUEST_REJECTED', /access request for hr-db was rejected/],
+    ['ACCESS_GRANT_EXPIRED', /access grant on hr-db expired/],
+    ['ACCESS_GRANT_REVOKED', /access grant on hr-db was revoked/],
+  ] as const)('renders %s and navigates to /access-requests', async (eventType, expected) => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'ar3',
+          event_type: eventType,
+          query_request_id: null,
+          api_request_id: null,
+          payload: { access_request_id: 'req-3', datasource: 'hr-db' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(expected);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('ar3'));
+    expect(navigateMock).toHaveBeenCalledWith('/access-requests');
+  });
+
   it('delete button calls deleteNotification and does not navigate', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 0 });
     deleteNotificationMock.mockResolvedValue(undefined);

@@ -1924,6 +1924,12 @@
       "API_REQUEST_APPROVED": "Ձեր API հարցումը {{datasource}}-ում հաստատվել է",
       "API_REQUEST_EXECUTED": "Ձեր API հարցումը {{datasource}}-ում կատարվել է",
       "API_REQUEST_FAILED": "Ձեր API հարցումը {{datasource}}-ում ձախողվեց",
+      "ACCESS_REQUEST_SUBMITTED": "{{requester}} մուտքի հայտ ներկայացրեց {{datasource}}-ի համար",
+      "ACCESS_REQUEST_SUBMITTED_no_requester": "Նոր մուտքի հայտ սպասում է վերանայման {{datasource}}-ում",
+      "ACCESS_REQUEST_APPROVED": "Ձեր մուտքի հայտը {{datasource}}-ի համար հաստատվել է",
+      "ACCESS_REQUEST_REJECTED": "Ձեր մուտքի հայտը {{datasource}}-ի համար մերժվել է",
+      "ACCESS_GRANT_EXPIRED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում ժամկետանց է",
+      "ACCESS_GRANT_REVOKED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում հետ է կանչվել",
       "fallback": "Նոր ծանուցում"
     }
   },

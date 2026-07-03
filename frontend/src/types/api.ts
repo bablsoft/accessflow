@@ -1592,7 +1592,12 @@ export type UserNotificationEventType =
   | 'API_REQUEST_SUBMITTED'
   | 'API_REQUEST_APPROVED'
   | 'API_REQUEST_EXECUTED'
-  | 'API_REQUEST_FAILED';
+  | 'API_REQUEST_FAILED'
+  | 'ACCESS_REQUEST_SUBMITTED'
+  | 'ACCESS_REQUEST_APPROVED'
+  | 'ACCESS_REQUEST_REJECTED'
+  | 'ACCESS_GRANT_EXPIRED'
+  | 'ACCESS_GRANT_REVOKED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -1603,6 +1608,11 @@ export interface UserNotificationPayload {
   risk_level?: RiskLevel;
   reviewer?: string;
   reviewer_comment?: string;
+  access_request_id?: string;
+  requester?: string;
+  requested_duration?: string;
+  status?: AccessGrantStatus;
+  expires_at?: string;
 }
 
 export interface UserNotification {
