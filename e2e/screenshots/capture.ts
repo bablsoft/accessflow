@@ -27,7 +27,11 @@ import {
   approveQueryViaApi,
   waitForInviteToken,
   purgeMailcrab,
+  createAttestationCampaignViaApi,
+  openAttestationCampaignViaApi,
+  createRetentionPolicyViaApi,
 } from '../helpers/datasources';
+import { createApiConnectorViaApi } from '../helpers/apiConnectors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
@@ -275,6 +279,48 @@ async function seedData() {
     else console.warn(`  [warn] create access request failed: ${res.status()} ${await res.text()}`);
   }
 
+  // 10. v2.1 entities so the new pages render populated. Each is best-effort —
+  //     a failed seed leaves the page on its empty state, never aborts capture.
+  // API connector (AF-500) for /api-connectors.
+  try {
+    const conn = await createApiConnectorViaApi(api, adminToken, {
+      name: `Payments API (sandbox) ${RUN_SUFFIX}`,
+      baseUrl: 'https://api.stripe.com',
+    });
+    console.log(`[seed] api connector ${conn.id}`);
+  } catch (e) {
+    console.warn(`  [warn] api connector: ${(e as Error).message}`);
+  }
+
+  // Retention policy (AF-499) for /admin/lifecycle/policies. Targets a real
+  // table in the in-stack AccessFlow DB the datasource points at.
+  try {
+    const rp = await createRetentionPolicyViaApi(api, adminToken, ds.id, {
+      name: `Purge stale audit rows ${RUN_SUFFIX}`,
+      targetTable: 'audit_log',
+      timestampColumn: 'occurred_at',
+      retentionWindow: 'P365D',
+      action: 'HARD_DELETE',
+    });
+    console.log(`[seed] retention policy ${rp.id}`);
+  } catch (e) {
+    console.warn(`  [warn] retention policy: ${(e as Error).message}`);
+  }
+
+  // Attestation campaign (AF-384) — created + opened so /admin/attestation
+  // lists a populated OPEN campaign row.
+  try {
+    const campaign = await createAttestationCampaignViaApi(api, adminToken, {
+      name: `Quarterly access review ${RUN_SUFFIX}`,
+      scope: 'ORGANIZATION',
+      pendingDefault: 'KEEP',
+    });
+    await openAttestationCampaignViaApi(api, adminToken, campaign.id).catch(() => {});
+    console.log(`[seed] attestation campaign ${campaign.id}`);
+  } catch (e) {
+    console.warn(`  [warn] attestation campaign: ${(e as Error).message}`);
+  }
+
   await api.dispose();
   return { datasourceId: ds.id };
 }
@@ -311,7 +357,11 @@ async function loginUi(page: Page, email = ADMIN_EMAIL, password = ADMIN_PASSWOR
   await page.locator('#login-email').fill(email);
   await page.locator('#login-password').fill(password);
   await page.locator('button[type=submit]').click();
-  await page.waitForURL('**/editor', { timeout: 30_000 });
+  // Post-login home is /dashboard for non-auditor roles (AF-498); older builds
+  // landed on /editor. Accept either so login settles regardless of default.
+  await page.waitForURL((url) => /\/(dashboard|editor)(\/|\?|$)/.test(url.pathname), {
+    timeout: 30_000,
+  });
 }
 
 async function shoot(page: Page, file: string) {
@@ -717,6 +767,45 @@ async function prepBreakGlassLog(page: Page) {
   await page.waitForTimeout(800);
 }
 
+// v2.1 pages -------------------------------------------------
+
+async function prepDashboard(page: Page) {
+  // AF-498 — personalized dashboard (default post-login home). Renders the
+  // seeded admin's own queries, pending approvals, and suggestion backlog.
+  await gotoAndSettle(page, '/dashboard');
+  await page.waitForTimeout(1000);
+}
+
+async function prepAttestationCampaigns(page: Page) {
+  // AF-384 — access-recertification campaign list (seeded OPEN campaign row).
+  await gotoAndSettle(page, '/admin/attestation');
+  await page.waitForTimeout(800);
+}
+
+async function prepApiConnectorsList(page: Page) {
+  // AF-500 — API Access Governance connector catalog (seeded connector row).
+  await gotoAndSettle(page, '/api-connectors');
+  await page.waitForTimeout(800);
+}
+
+async function prepLifecyclePolicies(page: Page) {
+  // AF-499 — Data Lifecycle Manager retention-policy list (seeded policy row).
+  await gotoAndSettle(page, '/admin/lifecycle/policies');
+  await page.waitForTimeout(800);
+}
+
+async function prepRequestGroupsList(page: Page) {
+  // AF-501 — request chaining & grouping list / builder entry.
+  await gotoAndSettle(page, '/request-groups');
+  await page.waitForTimeout(800);
+}
+
+async function prepApiRequestsList(page: Page) {
+  // AF-500 — governed API-call request list (end-user).
+  await gotoAndSettle(page, '/api-requests');
+  await page.waitForTimeout(800);
+}
+
 // ----------------------- main flow -----------------------
 
 async function main() {
@@ -801,6 +890,16 @@ async function main() {
     { name: 'auditor-dashboard', prep: prepAuditorDashboard, darkToo: true },
     { name: 'anomalies-dashboard', prep: prepAnomaliesDashboard, darkToo: true },
     { name: 'break-glass-log', prep: prepBreakGlassLog, darkToo: true },
+
+    // v2.1 admin (AF-498 dashboard, AF-384 attestation, AF-500 apigov, AF-499 lifecycle)
+    { name: 'dashboard', prep: prepDashboard, darkToo: true },
+    { name: 'attestation-campaigns', prep: prepAttestationCampaigns, darkToo: true },
+    { name: 'api-connectors-list', prep: prepApiConnectorsList, darkToo: true },
+    { name: 'lifecycle-policies', prep: prepLifecyclePolicies, darkToo: true },
+
+    // v2.1 end-user (light only, by precedent)
+    { name: 'request-groups-list', prep: prepRequestGroupsList, darkToo: false },
+    { name: 'api-requests-list', prep: prepApiRequestsList, darkToo: false },
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },

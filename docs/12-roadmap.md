@@ -148,9 +148,9 @@
 
 ---
 
-## v2.1
+## v2.1 ✅ released
 
-**Theme:** Query suggestions and compliance reporting.
+**Theme:** API access governance, data lifecycle, and reviewer productivity.
 
 - **AI query-optimization & index recommendations** — the analyzer returns concrete, dialect-aware optimization suggestions (index DDL + query rewrites) alongside the risk verdict; each has a one-click "Apply as draft" that pre-fills the editor and routes the suggested statement through the normal review pipeline, audited as `submission_reason=AI_SUGGESTION` (AF-451)
 - **Query playground / dry-run sandbox** — preview a query's impact before formal submission: a non-committing dry run returns the engine's execution plan (node type, rows, cost, filters) and a best-effort estimated row impact **without mutating data**, surfaced in the editor's right rail next to the AI panel. Runs through the same governance as a real execution (datasource access, allow-list, row-security) but creates no review. Dialect-aware across every engine that has a plan concept — relational `EXPLAIN` (PostgreSQL / MySQL / MariaDB / Oracle / SQL Server), MongoDB `explain`, Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`; engines without one degrade gracefully. SELECT dry-runs prefer the read replica when configured (AF-445)
@@ -160,9 +160,22 @@
 - **Immutable query snapshots & replay** — every executed query writes a sanitized, exact-replay-capable snapshot (SQL + schema fingerprint + AI verdict + approval decisions). "Replay in test environment" re-runs that exact SQL against a chosen test datasource through the full review workflow — validating engine + referenced-table compatibility, never bypassing approval, and distinctly audited (`trigger=replay`) (AF-449)
 - **Mobile-friendly approvals (PWA) with one-tap push** — an installable PWA with an offline-capable review-queue shell, plus Web Push (VAPID) delivery as a per-user notification path: a reviewer away from their desk gets a push when a query needs approval and approves/rejects in one tap. The decision only commits after a **step-up auth** re-verification (password, or TOTP when 2FA is enrolled), and the self-approval guard is enforced server-side regardless of channel (AF-444)
 - **Multi-model AI orchestration, voting & guardrails** — an `ai_config` can run several models in parallel (the primary plus weighted `{provider, model, weight}` members, e.g. a fast local Ollama pre-score alongside a deep Claude analysis) and combine their verdicts by a configurable voting strategy (weighted average, highest risk, or majority); issues are merged and risk aggregated. Pre-call guardrails block configured prompt-injection / pattern regexes before any model is called, and the existing strict output-schema validation rejects malformed responses without failing the query. Per-model cost (tokens) and latency are persisted per analysis and charted on the admin dashboard (AF-450)
-- **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
+- **API Access Governance** — extend query governance to outbound REST / SOAP / GraphQL / gRPC calls: a connector catalog with schema ingestion, a schema-guided request builder, the submit → AI risk → review → execute pipeline, response masking, break-glass, and text-to-API drafting (AF-500) — see [docs/17-api-governance.md](17-api-governance.md)
+- **Request chaining & grouping** — bundle ordered query + API-call members into one grouped request with aggregated AI analysis and a unified approval (union of approvers, every member's plan satisfied); an ordered executor runs the members in sequence with no distributed rollback (AF-501)
+- **Data Lifecycle Manager** — retention policies, a right-to-erasure request workflow, and proxy-enforced pseudonymization, driven by clustered-safe scan / execution jobs, with compliance reporting over the forensic record (AF-499)
+- **Configurable & request-based data erasure** — erasure conditions, cron-scheduled and request-based execution, and peer review of erasure requests with review-timeout auto-reject (AF-519)
+- **Personalized dashboard & query insights** — a self-scoped home surfacing pending approvals, my-query trends, the AI-suggestion backlog, and anomaly alerts, plus an opt-in weekly digest / export (AF-498)
+- **Group-based access grants** — grant read / write / DDL / break-glass on datasources and API connectors to a whole user group (inherited by every member), with parity-matched per-member authoring in request groups (AF-530, AF-531)
 - **Access recertification campaigns** — recurring attestation campaigns over the existing access model: an admin schedules an org- or datasource-scoped campaign that **snapshots** current standing `datasource_user_permissions` grants into per-grant items at open time and notifies the eligible reviewers (multi-channel + a `attestation.campaign_opened` WebSocket event). Reviewers certify or revoke each item from a worklist that reuses the review-queue patterns (eligibility derived from datasource reviewers, **self-review blocked**, bulk-certify); a `REVOKE` routes through the existing permission-revoke service. Two clustered-safe scheduled jobs open campaigns on their cadence and close them at the due date, applying a configurable default (`KEEP`/`REVOKE`) to anything still pending. A completed campaign exports as CSV **evidence** (who reviewed what, decisions, timestamps) for SOC2 / ISO 27001 audits, and every transition lands in the tamper-evident audit log (`ATTESTATION_CAMPAIGN_OPENED/CLOSED`, `ATTESTATION_ITEM_CERTIFIED/REVOKED`) (AF-384)
 - **Masking & data classification for API connectors** — brings the datasource governance model (dynamic masking AF-381 + classification tagging AF-447) to the API Access Governance module (AF-500), adapted to non-tabular API responses. Connector-level masking policies target a response field four ways — a schema-bound field, a JSON path, an XML/XPath, or a regex — each with a masking strategy and role/group/user reveal scoping; `ApiResponseMasker` applies them (reusing `ColumnMasker`) before the response snapshot is stored, so the raw value never persists, and applied policy ids land in the execution audit. Data-classification tags (PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE) auto-derive a masking policy and raise the apigov AI analyzer's risk for calls to a classified operation, with a derivation preview (AF-518)
+
+---
+
+## v2.2 🚧 in progress
+
+**Theme:** Native client access.
+
+- **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
 
 ---
 
