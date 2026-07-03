@@ -31,11 +31,14 @@ async function selectDatasource(page: Page): Promise<void> {
   await page.goto('/editor');
   const dsSelect = page.getByRole('combobox').first();
   await dsSelect.click();
-  await page.locator('.ant-select-item-option').filter({ hasText: datasource!.name }).click();
-  await page.waitForResponse(
+  // Register the schema wait BEFORE the option click — the fetch can complete
+  // before a later-registered listener attaches (localhost round-trips).
+  const schemaResponse = page.waitForResponse(
     (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
     { timeout: 15_000 },
   );
+  await page.locator('.ant-select-item-option').filter({ hasText: datasource!.name }).click();
+  await schemaResponse;
 }
 
 test.describe.serial('query dry-run from /editor (AF-445)', () => {

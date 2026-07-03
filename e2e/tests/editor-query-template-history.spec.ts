@@ -90,11 +90,14 @@ test.describe.serial('query template version history from /editor', () => {
 
     await loginViaUi(page);
     await page.goto('/editor');
-    await pickDatasource(page, datasource.name);
-    await page.waitForResponse(
+    // Register the schema wait BEFORE picking — the fetch can complete before a
+    // later-registered listener attaches (localhost round-trips).
+    const schemaResponse = page.waitForResponse(
       (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await pickDatasource(page, datasource.name);
+    await schemaResponse;
 
     // Open the Templates drawer and click History on our row. Match the toolbar button's full
     // accessible name ("book" icon + label) so it doesn't collide with the schema-tree buttons

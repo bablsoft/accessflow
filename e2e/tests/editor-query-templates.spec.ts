@@ -67,11 +67,14 @@ test.describe.serial('query templates from /editor', () => {
     // ── 1. Login and write a SQL template with two :placeholders.
     await loginViaUi(page);
     await page.goto('/editor');
-    await pickDatasource(page, datasource.name);
-    await page.waitForResponse(
+    // Register the schema wait BEFORE picking — the fetch can complete before a
+    // later-registered listener attaches (localhost round-trips).
+    const schemaResponse = page.waitForResponse(
       (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await pickDatasource(page, datasource.name);
+    await schemaResponse;
 
     const originalSql =
       'SELECT * FROM users WHERE country = :country LIMIT :limit';
@@ -100,11 +103,12 @@ test.describe.serial('query templates from /editor', () => {
 
     // ── 3. Reload — guarantees the editor SQL state is gone before we re-load.
     await page.reload();
-    await pickDatasource(page, datasource.name);
-    await page.waitForResponse(
+    const schemaAfterReload = page.waitForResponse(
       (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await pickDatasource(page, datasource.name);
+    await schemaAfterReload;
 
     // ── 4. Open the Templates drawer and click Open on our row. Match the toolbar button's
     // full accessible name ("book" icon + label) so it doesn't collide with the schema-tree

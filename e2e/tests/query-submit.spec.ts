@@ -76,15 +76,16 @@ test.describe.serial('query submission from /editor', () => {
     // name we created in beforeAll.
     const dsSelect = page.getByRole('combobox').first();
     await dsSelect.click();
-    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
-
-    // Wait for the schema fetch keyed by our datasource id. r.ok() filters
-    // out the cached 304-style hits when re-running.
-    await page.waitForResponse(
+    // Register the schema wait BEFORE the option click — the fetch can complete
+    // before a later-registered listener attaches. r.ok() filters out the
+    // cached 304-style hits when re-running.
+    const schemaResponse = page.waitForResponse(
       (r) =>
         r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
+    await schemaResponse;
 
     await typeInEditor(page, 'SELECT 1');
 
@@ -136,12 +137,13 @@ test.describe.serial('query submission from /editor', () => {
     // ordering.
     const dsSelect = page.getByRole('combobox').first();
     await dsSelect.click();
-    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
-    await page.waitForResponse(
+    const schemaResponse = page.waitForResponse(
       (r) =>
         r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
+    await schemaResponse;
 
     const submitButton = page.getByRole('button', { name: 'Submit for review' });
     await expect(submitButton).toBeDisabled();
@@ -172,12 +174,13 @@ test.describe.serial('query submission from /editor', () => {
 
     const dsSelect = page.getByRole('combobox').first();
     await dsSelect.click();
-    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
-    await page.waitForResponse(
+    const schemaResponse = page.waitForResponse(
       (r) =>
         r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
       { timeout: 15_000 },
     );
+    await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
+    await schemaResponse;
 
     await typeInEditor(page, 'SELEC 1');
     await page

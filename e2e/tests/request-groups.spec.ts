@@ -65,12 +65,40 @@ async function pickTargetInDrawer(page: Page, name: string): Promise<void> {
   await input.press('Enter');
 }
 
-// CodeMirror's contenteditable doesn't accept .fill(); type into the drawer's focused editor.
+// CodeMirror's contenteditable doesn't accept .fill(); type into the drawer's focused editor,
+// then verify the typed content stuck (the editor rebuilds when the schema-introspect response
+// lands — it feeds autocomplete — and a rebuild mid-typing used to swallow keystrokes).
 async function typeInDrawerEditor(page: Page, sql: string): Promise<void> {
   const content = editDrawer(page).locator('.cm-content').first();
   await content.click();
   await page.keyboard.type(sql, { delay: 15 });
-  await page.keyboard.press('Escape');
+  // Blur (not Escape — that would close the drawer) so the autocomplete popup dismisses.
+  await content.blur();
+  await expect(content).toContainText(sql);
+}
+
+// The first drawer-open for a datasource fires its schema-introspect fetch (later opens hit the
+// TanStack cache). Wait for it so the editor isn't rebuilt mid-typing.
+const schemaFetched = new WeakMap<Page, Set<string>>();
+
+async function waitForSchemaOnFirstUse(
+  page: Page,
+  ds: CreatedDatasource,
+  pick: () => Promise<void>,
+): Promise<void> {
+  const seen = schemaFetched.get(page) ?? new Set<string>();
+  schemaFetched.set(page, seen);
+  if (seen.has(ds.id)) {
+    await pick();
+    return;
+  }
+  const schemaResponse = page.waitForResponse(
+    (r) => r.url().includes(`/datasources/${ds.id}/schema`),
+    { timeout: 15_000 },
+  );
+  await pick();
+  await schemaResponse;
+  seen.add(ds.id);
 }
 
 async function closeDrawer(page: Page): Promise<void> {
@@ -83,7 +111,7 @@ async function addQueryStep(page: Page, ds: CreatedDatasource, sql: string): Pro
   await page.getByRole('button', { name: 'Add step' }).click();
   await page.getByRole('menuitem', { name: 'Database query' }).click();
   await expect(editDrawer(page)).toBeVisible();
-  await pickTargetInDrawer(page, ds.name);
+  await waitForSchemaOnFirstUse(page, ds, () => pickTargetInDrawer(page, ds.name));
   await editDrawer(page).locator('.cm-content').first().waitFor();
   await typeInDrawerEditor(page, sql);
   await closeDrawer(page);
@@ -300,7 +328,9 @@ test.describe('request groups (AF-501)', () => {
       (r) => r.request().method() === 'POST' && r.url().endsWith('/api/v1/request-groups'),
     );
     await page.getByRole('button', { name: 'Save draft' }).click();
-    const created = (await (await saveResponse).json()) as { id: string };
+    const saveRes = await saveResponse;
+    expect(saveRes.status()).toBe(201);
+    const created = (await saveRes.json()) as { id: string };
     const groupId = created.id;
 
     // The API composition is persisted and returned on the detail response (#559 backend).
