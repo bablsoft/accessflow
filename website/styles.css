@@ -224,7 +224,7 @@ section + section { border-top: 1px solid var(--line); }
   display: flex;
   align-items: center;
   height: 64px;
-  gap: 32px;
+  gap: 20px;
 }
 
 .logo {
@@ -250,16 +250,17 @@ section + section { border-top: 1px solid var(--line); }
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 16px;
+  gap: 2px;
+  margin-left: 8px;
 }
 
 .nav-links a {
   font-size: 13px;
   color: var(--fg-dim);
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: var(--radius);
   transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
 }
 .nav-links a:hover { color: var(--fg); background: var(--tint-2); }
 
@@ -280,9 +281,10 @@ section + section { border-top: 1px solid var(--line); }
   color: var(--fg-dim);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  white-space: nowrap;
 }
 
-.nav-mobile { display: none; position: relative; }
+.nav-mobile { display: none; position: relative; order: 10; }
 .nav-mobile > summary {
   list-style: none;
   cursor: pointer;
@@ -315,6 +317,7 @@ section + section { border-top: 1px solid var(--line); }
   font-size: 14px;
   color: var(--fg-dim);
   border-radius: var(--radius);
+  white-space: nowrap;
 }
 .nav-mobile-panel a:hover { background: var(--tint-2); color: var(--fg); }
 
@@ -949,6 +952,124 @@ section + section { border-top: 1px solid var(--line); }
 .pill.rejected { background: oklch(0.7 0.18 25 / 0.1); color: var(--danger); }
 .pill.ai { background: oklch(0.78 0.14 320 / 0.1); color: oklch(0.78 0.14 320); }
 
+/* use cases */
+.uc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 96px;
+}
+
+.uc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.uc-row:nth-child(even) .uc-visual { order: -1; }
+
+.uc-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.uc-persona {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-mute);
+}
+
+.uc-copy h3 {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.uc-copy > p {
+  color: var(--fg-dim);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.uc-benefits {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.uc-benefits li {
+  position: relative;
+  padding-left: 26px;
+  color: var(--fg-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.uc-benefits li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--mono);
+  color: var(--accent);
+}
+
+.uc-mock-body {
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uc-mock-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.uc-mock-line .k {
+  color: var(--fg-faint);
+  flex-shrink: 0;
+  min-width: 72px;
+}
+
+.uc-mock-line .v {
+  color: var(--fg-dim);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uc-mock-line .pill { flex-shrink: 0; }
+
+.uc-mock-foot {
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg-mute);
+}
+
+.uc-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  color: var(--fg-mute);
+  flex-shrink: 0;
+}
+
 /* install */
 
 .install-tabs {
@@ -1302,11 +1423,32 @@ footer {
 
 /* responsive */
 
+/* nav collapse ladder — every nav item stays on a single line at any width:
+   drop the duplicate "Quick start" CTA first, then the GitHub chip, then fold
+   the links into the hamburger, and finally drop the primary CTA on phones. */
+@media (max-width: 1280px) {
+  .nav-right .btn-ghost { display: none; }
+}
+
+@media (max-width: 1140px) {
+  .gh-stars { display: none; }
+}
+
+@media (max-width: 520px) {
+  .nav-right .btn-primary { display: none; }
+  .nav-inner { gap: 16px; }
+}
+
 @media (max-width: 1024px) {
+  .nav-links { display: none; }
+  .nav-mobile { display: flex; }
   .hero-inner { grid-template-columns: 1fr; gap: 40px; }
   .feat-grid { grid-template-columns: repeat(2, 1fr); }
   .flow-grid { grid-template-columns: 1fr; }
   .flow-steps { position: static; }
+  .uc-row { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .uc-row:nth-child(even) .uc-visual { order: 0; }
+  .uc-list { gap: 72px; }
   .install-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: repeat(2, 1fr); }
   .roadmap-track { grid-template-columns: 1fr; }
@@ -1318,9 +1460,6 @@ footer {
 @media (max-width: 720px) {
   section { padding: 80px 0; }
   .hero { padding: 64px 0 56px; }
-  .nav-links { display: none; }
-  .nav-mobile { display: flex; }
-  .gh-stars { display: none; }
   .feat-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: 1fr; }
   .roadmap-track { grid-template-columns: 1fr; }
