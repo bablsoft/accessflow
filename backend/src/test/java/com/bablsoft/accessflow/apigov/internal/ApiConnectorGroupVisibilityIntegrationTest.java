@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationReposi
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -64,6 +65,19 @@ class ApiConnectorGroupVisibilityIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    }
+
+    // These tests commit rows into the shared Testcontainers DB. The api_connector_group_permissions
+    // .created_by FK to users has no ON DELETE, so leaving rows behind would make a later integration
+    // test's userRepository.deleteAll() fail. Clear everything this test creates, children first.
+    @AfterEach
+    void cleanup() {
+        groupPermissionRepository.deleteAll();
+        membershipRepository.deleteAll();
+        connectorRepository.deleteAll();
+        userGroupRepository.deleteAll();
+        userRepository.deleteAll();
+        organizationRepository.deleteAll();
     }
 
     @Test

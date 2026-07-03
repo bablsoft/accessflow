@@ -19,6 +19,7 @@ const {
   grantApiConnectorPermission,
   grantApiConnectorGroupPermission,
   updateApiConnectorPermission,
+  updateApiConnectorGroupPermission,
   revokeApiConnectorPermission,
   revokeApiConnectorGroupPermission,
   listUsers,
@@ -30,6 +31,7 @@ const {
   grantApiConnectorPermission: vi.fn(),
   grantApiConnectorGroupPermission: vi.fn(),
   updateApiConnectorPermission: vi.fn(),
+  updateApiConnectorGroupPermission: vi.fn(),
   revokeApiConnectorPermission: vi.fn(),
   revokeApiConnectorGroupPermission: vi.fn(),
   listUsers: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock('@/api/apiConnectors', async () => {
     grantApiConnectorPermission,
     grantApiConnectorGroupPermission,
     updateApiConnectorPermission,
+    updateApiConnectorGroupPermission,
     revokeApiConnectorPermission,
     revokeApiConnectorGroupPermission,
   };
@@ -147,6 +150,7 @@ describe('ApiConnectorPermissionsTab — edit flow', () => {
     listAllGroups.mockResolvedValue(groups);
     grantApiConnectorGroupPermission.mockResolvedValue(groupPermission);
     updateApiConnectorPermission.mockResolvedValue({ ...permission, can_write: true });
+    updateApiConnectorGroupPermission.mockResolvedValue({ ...groupPermission, can_write: true });
   });
 
   it('opens a pre-filled edit modal and submits an update via PUT', async () => {
@@ -209,5 +213,51 @@ describe('ApiConnectorPermissionsTab — edit flow', () => {
     await screen.findByText('Group grants');
     expect(await screen.findByText(/Analysts/)).toBeInTheDocument();
     expect(screen.getByText('4 members')).toBeInTheDocument();
+  });
+
+  it('grant button label tracks the selected target', async () => {
+    render(wrap(<ApiConnectorPermissionsTab connectorId="c-1" />));
+    await screen.findByText('alice@example.com');
+
+    // Default target is user.
+    expect(screen.getByRole('button', { name: 'Share with user' })).toBeInTheDocument();
+
+    // Flip to Group — the submit label follows.
+    fireEvent.click(screen.getByText('Group'));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Share with group' })).toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('button', { name: 'Share with user' })).not.toBeInTheDocument();
+  });
+
+  it('edits a group grant via the group PUT endpoint', async () => {
+    listApiConnectorGroupPermissions.mockResolvedValue([groupPermission]);
+    render(wrap(<ApiConnectorPermissionsTab connectorId="c-1" />));
+
+    // Wait for both the user row and the group row to render.
+    await screen.findByText('alice@example.com');
+    await screen.findByText(/Analysts/);
+
+    // Both tables expose an Edit action; the group row's is the last one.
+    const editButtons = await screen.findAllByRole('button', { name: /edit/i });
+    expect(editButtons.length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(editButtons[editButtons.length - 1]!);
+
+    // Group edit modal titled by the group name.
+    await screen.findByText(/Edit group permission — Analysts/i);
+
+    const dialog = screen.getByRole('dialog');
+    const switches = Array.from(dialog.querySelectorAll<HTMLElement>('button[role="switch"]'));
+    // Toggle can_write (second switch) on.
+    fireEvent.click(switches[1]!);
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(updateApiConnectorGroupPermission).toHaveBeenCalledTimes(1));
+    const [connectorId, permissionId, payload] =
+      updateApiConnectorGroupPermission.mock.calls[0]!;
+    expect(connectorId).toBe('c-1');
+    expect(permissionId).toBe('gp-1');
+    expect(payload.can_write).toBe(true);
   });
 });

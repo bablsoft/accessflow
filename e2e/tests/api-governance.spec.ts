@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  apiBase,
   inviteUserViaApi,
   loginViaApi,
   purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
+import { createApiConnectorViaApi } from '../helpers/apiConnectors';
 
 // AF-500: API Access Governance — admin creates an API connector via the UI, uploads an OpenAPI
 // schema, and sees the parsed operation catalog. Seeded admin comes from the bootstrap module.
@@ -155,6 +157,65 @@ test('admin edits an API connector permission in place (AF-530)', async ({ page,
   await updateResponse;
 
   // The row now reflects write access; provenance stayed on the same permission id.
+  await expect(grantedRow.getByText('✓')).toHaveCount(2);
+});
+
+test('admin grants and edits an API connector group permission (AF-564)', async ({ page, request }) => {
+  const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+  // Seed a connector (via API) and a user group to share it with.
+  const connector = await createApiConnectorViaApi(request, adminToken, {
+    name: `GroupEdit ${Date.now()}`,
+  });
+  const groupName = `GroupEditGrp ${Date.now()}`;
+  const groupRes = await request.post(`${apiBase()}/api/v1/admin/groups`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+    data: { name: groupName },
+  });
+  expect(groupRes.ok()).toBeTruthy();
+
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await page.goto(`/api-connectors/${connector.id}/settings`);
+  await page.getByRole('tab', { name: 'Permissions' }).click();
+
+  // Flip the grant target to Group — the submit button label tracks it (Bug 1).
+  await page.getByText('Group', { exact: true }).first().click();
+  await expect(page.getByRole('button', { name: 'Share with group' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Share with user' })).toHaveCount(0);
+
+  // Pick the group and grant.
+  await page.locator('#group_id').click();
+  await page.keyboard.type(groupName);
+  await page.getByTitle(groupName).click();
+  const grantResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'POST' &&
+      /\/permissions\/groups$/.test(new URL(r.url()).pathname) &&
+      r.ok(),
+  );
+  await page.getByRole('button', { name: 'Share with group' }).click();
+  await grantResponse;
+
+  const grantedRow = page.getByRole('row').filter({ hasText: groupName });
+  await expect(grantedRow).toBeVisible();
+
+  // Edit the group grant in place — toggle write on — and expect a PUT to the group path (Bug 2),
+  // not a revoke + re-grant. The modal title carries the group name.
+  await grantedRow.getByRole('button', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog', { name: /Edit group permission/ });
+  await expect(dialog).toBeVisible();
+  const switches = dialog.locator('button[role="switch"]');
+  await switches.nth(1).click(); // can_write
+  const updateResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'PUT' &&
+      /\/permissions\/groups\/[0-9a-f-]+$/.test(new URL(r.url()).pathname) &&
+      r.ok(),
+  );
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await updateResponse;
+
+  // The group row now reflects both read and write access on the same permission id.
   await expect(grantedRow.getByText('✓')).toHaveCount(2);
 });
 

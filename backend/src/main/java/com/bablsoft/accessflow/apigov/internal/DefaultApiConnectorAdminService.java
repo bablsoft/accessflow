@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.api.Oauth2ClientAuth;
 import com.bablsoft.accessflow.apigov.api.Oauth2GrantType;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorCommand;
+import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand;
 import com.bablsoft.accessflow.apigov.api.UpdateApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.apigov.internal.client.ApiConnectorProber;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -366,6 +367,24 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
         return toGroupPermissionView(groupPermissionRepository.save(entity), group);
+    }
+
+    @Override
+    @Transactional
+    public ApiConnectorGroupPermissionView updateGroupPermission(
+            UUID connectorId, UUID organizationId, UUID permissionId,
+            UpdateApiConnectorGroupPermissionCommand command) {
+        require(connectorId, organizationId);
+        var entity = groupPermissionRepository.findById(permissionId)
+                .filter(p -> p.getConnectorId().equals(connectorId))
+                .orElseThrow(() -> new ApiConnectorPermissionNotFoundException(permissionId));
+        entity.setCanRead(command.canRead());
+        entity.setCanWrite(command.canWrite());
+        entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setExpiresAt(command.expiresAt());
+        entity.setAllowedOperations(toArray(command.allowedOperations()));
+        entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
+        return toGroupPermissionView(groupPermissionRepository.save(entity));
     }
 
     @Override

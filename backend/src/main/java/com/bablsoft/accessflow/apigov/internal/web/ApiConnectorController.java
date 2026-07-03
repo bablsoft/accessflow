@@ -209,6 +209,22 @@ class ApiConnectorController {
         return ApiConnectorGroupPermissionResponse.from(view);
     }
 
+    @PutMapping("/{id}/permissions/groups/{permissionId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a user group's access to a connector")
+    @ApiResponse(responseCode = "200", description = "Group permission updated")
+    @ApiResponse(responseCode = "404", description = "Connector or permission not found")
+    ApiConnectorGroupPermissionResponse updateGroup(
+            @PathVariable UUID id, @PathVariable UUID permissionId,
+            @Valid @RequestBody UpdateApiConnectorGroupPermissionRequest body,
+            Authentication authentication, RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var view = service.updateGroupPermission(id, caller.organizationId(), permissionId, body.toCommand());
+        auditWriter.record(AuditAction.API_PERMISSION_GROUP_UPDATED, AuditResourceType.API_CONNECTOR,
+                id, caller, metadata("permission_id", permissionId.toString()), auditContext);
+        return ApiConnectorGroupPermissionResponse.from(view);
+    }
+
     @DeleteMapping("/{id}/permissions/groups/{permissionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
