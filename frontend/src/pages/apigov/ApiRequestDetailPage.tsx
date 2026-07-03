@@ -1,4 +1,5 @@
-import { Alert, App, Button, Card, Descriptions, Empty, Skeleton, Table, Tag } from 'antd';
+import { useState } from 'react';
+import { Alert, App, Button, Card, Descriptions, Empty, Input, Modal, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,11 +11,14 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   apiRequestKeys,
+  approveApiReview,
   cancelApiRequest,
   downloadApiResponse,
   executeApiRequest,
   getApiRequest,
+  rejectApiReview,
 } from '@/api/apiRequests';
+import { useAuthStore } from '@/store/authStore';
 import { reviewDecisionTypeLabel, submissionReasonLabel } from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
@@ -27,6 +31,9 @@ export default function ApiRequestDetailPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const [decisionFor, setDecisionFor] = useState<'approve' | 'reject' | null>(null);
+  const [comment, setComment] = useState('');
 
   const requestQuery = useQuery({
     queryKey: apiRequestKeys.detail(id),
@@ -72,7 +79,28 @@ export default function ApiRequestDetailPage() {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.requests.downloadFailed'))),
   });
 
+  const decideMutation = useMutation({
+    mutationFn: (kind: 'approve' | 'reject') =>
+      kind === 'approve'
+        ? approveApiReview(id, comment.trim() || undefined)
+        : rejectApiReview(id, comment.trim() || undefined),
+    onSuccess: (_data, kind) => {
+      message.success(kind === 'approve' ? t('apiGov.reviews.approved') : t('apiGov.reviews.rejected'));
+      setDecisionFor(null);
+      setComment('');
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
+    },
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+  });
+
   const request = requestQuery.data;
+
+  const canDecide =
+    request != null &&
+    (user?.role === 'REVIEWER' || user?.role === 'ADMIN') &&
+    request.status === 'PENDING_REVIEW' &&
+    request.submitted_by !== user?.id;
 
   const decisionColumns: TableColumnsType<ApiReviewDecision> = [
     {
@@ -197,7 +225,17 @@ export default function ApiRequestDetailPage() {
                     {t('apiGov.requests.execute')}
                   </Button>
                 )}
-                {(request.status === 'PENDING_AI' || request.status === 'PENDING_REVIEW') && (
+                {canDecide && (
+                  <>
+                    <Button type="primary" onClick={() => setDecisionFor('approve')}>
+                      {t('apiGov.reviews.approve')}
+                    </Button>
+                    <Button danger onClick={() => setDecisionFor('reject')}>
+                      {t('apiGov.reviews.reject')}
+                    </Button>
+                  </>
+                )}
+                {!canDecide && (request.status === 'PENDING_AI' || request.status === 'PENDING_REVIEW') && (
                   <Button danger loading={cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
                     {t('apiGov.requests.cancel')}
                   </Button>
@@ -293,6 +331,20 @@ export default function ApiRequestDetailPage() {
           </>
         )}
       </div>
+      <Modal
+        open={decisionFor !== null}
+        title={decisionFor === 'approve' ? t('apiGov.reviews.approve') : t('apiGov.reviews.reject')}
+        onCancel={() => setDecisionFor(null)}
+        confirmLoading={decideMutation.isPending}
+        onOk={() => decisionFor && decideMutation.mutate(decisionFor)}
+      >
+        <Input.TextArea
+          rows={3}
+          placeholder={t('apiGov.reviews.comment')}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }
