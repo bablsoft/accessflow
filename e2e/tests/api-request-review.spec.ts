@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  apiBase,
   inviteUserViaApi,
   loginViaApi,
   purgeMailcrab,
@@ -129,5 +130,36 @@ test.describe.serial('api request review (#567)', () => {
     } finally {
       await reviewerCtx.close();
     }
+  });
+
+  test('a non-admin REVIEWER can open any API request detail (#566)', async ({ request }) => {
+    if (!connector) throw new Error('connector not created in beforeAll');
+
+    // Provision a distinct non-admin REVIEWER — the historical bug 404'd the
+    // detail endpoint for reviewers who weren't the submitter (only ADMIN /
+    // submitter passed). The other test reviews as the bootstrap ADMIN, so it
+    // never exercised the real reviewer path.
+    const reviewerEmail = `af566-reviewer-${randomUUID()}@e2e.local`;
+    const reviewerPassword = 'Reviewer-Pwd!123';
+    await purgeMailcrab(request);
+    await inviteUserViaApi(request, adminAccessToken, reviewerEmail, 'AF-566 Reviewer', 'REVIEWER');
+    const inviteToken = await waitForInviteToken(request, reviewerEmail);
+    await acceptInvitationViaApi(request, inviteToken, reviewerPassword, 'AF-566 Reviewer');
+    const reviewerToken = await loginViaApi(request, reviewerEmail, reviewerPassword);
+
+    const submitted = await submitApiRequestViaApi(request, submitterToken, {
+      connectorId: connector.id,
+      verb: 'POST',
+      requestPath: '/anything',
+      justification: 'AF-566 reviewer detail access',
+    });
+    await waitForApiRequestStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
+
+    const res = await request.get(`${apiBase()}/api/v1/api-requests/${submitted.id}`, {
+      headers: { Authorization: `Bearer ${reviewerToken}` },
+    });
+    expect(res.status()).toBe(200);
+    const body = (await res.json()) as { id: string };
+    expect(body.id).toBe(submitted.id);
   });
 });

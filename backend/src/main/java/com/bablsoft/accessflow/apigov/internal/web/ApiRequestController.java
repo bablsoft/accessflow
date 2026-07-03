@@ -52,7 +52,7 @@ class ApiRequestController {
         var result = requestService.submit(body.toCommand(caller.organizationId(), caller.userId(),
                 isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent()));
         return ApiRequestResponse.from(requestService.get(result.id(), caller.organizationId(),
-                caller.userId(), isAdmin(caller)));
+                caller.userId(), caller.role()));
     }
 
     @GetMapping
@@ -79,11 +79,12 @@ class ApiRequestController {
     @GetMapping("/{id}")
     @Operation(summary = "Get an API request with its response snapshot and review decisions")
     @ApiResponse(responseCode = "200", description = "Request")
-    @ApiResponse(responseCode = "404", description = "Request not found")
+    @ApiResponse(responseCode = "404",
+            description = "Not found in caller's org, or caller is not the submitter, a reviewer, or an admin")
     ApiRequestResponse get(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return ApiRequestResponse.from(requestService.get(id, caller.organizationId(), caller.userId(),
-                isAdmin(caller)));
+                caller.role()));
     }
 
     @GetMapping("/{id}/response")
@@ -94,7 +95,7 @@ class ApiRequestController {
     ResponseEntity<byte[]> downloadResponse(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         var payload = requestService.downloadResponse(id, caller.organizationId(), caller.userId(),
-                isAdmin(caller));
+                caller.role());
         var disposition = ContentDisposition.attachment().filename(payload.filename()).build();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())

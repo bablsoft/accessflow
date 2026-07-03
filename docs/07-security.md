@@ -586,6 +586,11 @@ posture as the query proxy:
   bounding memory and exfiltration blast radius.
 - **A submitter can never approve their own API request.** Enforced in `DefaultApiReviewService`
   (`SelfApprovalNotAllowedException`, 403), exactly like the query-review / JIT / break-glass blocks.
+- **Reviewers and admins may view any API request's detail + response snapshot** in their org —
+  `DefaultApiRequestService.get`/`downloadResponse` allow the submitter, any `REVIEWER`, or any
+  `ADMIN` (parity with the "View all query history" row); everyone else gets `404`. Viewing is not
+  execution: `execute` stays submitter/admin and `cancel` stays submitter-only, so a reviewer can
+  read a request from the `/api-reviews` queue without being able to run or cancel it.
 - **Break-glass parity.** Emergency access requires a per-user/per-connector `can_break_glass` grant
   (required for everyone, including admins), executes immediately through all guards, writes a
   prominent `API_REQUEST_BREAK_GLASS_EXECUTED` audit row, and opens a mandatory retro-review.
