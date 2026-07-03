@@ -1588,10 +1588,15 @@ export type UserNotificationEventType =
   | 'QUERY_APPROVED'
   | 'QUERY_REJECTED'
   | 'REVIEW_TIMEOUT'
-  | 'AI_HIGH_RISK';
+  | 'AI_HIGH_RISK'
+  | 'API_REQUEST_SUBMITTED'
+  | 'API_REQUEST_APPROVED'
+  | 'API_REQUEST_EXECUTED'
+  | 'API_REQUEST_FAILED';
 
 export interface UserNotificationPayload {
   query_id?: string;
+  api_id?: string;
   datasource?: string;
   submitter?: string;
   submitter_name?: string;
@@ -1604,6 +1609,7 @@ export interface UserNotification {
   id: string;
   event_type: UserNotificationEventType;
   query_request_id: string | null;
+  api_request_id: string | null;
   payload: UserNotificationPayload;
   read: boolean;
   created_at: string;

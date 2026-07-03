@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Deine Abfrage auf {{datasource}} wurde abgelehnt",
       "REVIEW_TIMEOUT": "Deine Abfrage auf {{datasource}} ist beim Warten auf Prüfung in Timeout gelaufen",
       "AI_HIGH_RISK": "Die KI hat eine Hochrisiko-Abfrage auf {{datasource}} markiert",
+      "API_REQUEST_SUBMITTED": "{{submitter}} hat eine API-Anfrage auf {{datasource}} eingereicht",
+      "API_REQUEST_SUBMITTED_no_submitter": "Neue API-Anfrage wartet auf Prüfung auf {{datasource}}",
+      "API_REQUEST_APPROVED": "Deine API-Anfrage auf {{datasource}} wurde genehmigt",
+      "API_REQUEST_EXECUTED": "Deine API-Anfrage auf {{datasource}} wurde ausgeführt",
+      "API_REQUEST_FAILED": "Deine API-Anfrage auf {{datasource}} ist fehlgeschlagen",
       "fallback": "Neue Benachrichtigung"
     }
   },

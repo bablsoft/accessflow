@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Ձեր հարցումը {{datasource}}-ում մերժվել է",
       "REVIEW_TIMEOUT": "Ձեր հարցումը {{datasource}}-ում ժամկետանց է վերանայման սպասելիս",
       "AI_HIGH_RISK": "AI-ն նշել է բարձր ռիսկի հարցում {{datasource}}-ում",
+      "API_REQUEST_SUBMITTED": "{{submitter}} ներկայացրեց API հարցում {{datasource}}-ում",
+      "API_REQUEST_SUBMITTED_no_submitter": "Նոր API հարցում սպասում է վերանայման {{datasource}}-ում",
+      "API_REQUEST_APPROVED": "Ձեր API հարցումը {{datasource}}-ում հաստատվել է",
+      "API_REQUEST_EXECUTED": "Ձեր API հարցումը {{datasource}}-ում կատարվել է",
+      "API_REQUEST_FAILED": "Ձեր API հարցումը {{datasource}}-ում ձախողվեց",
       "fallback": "Նոր ծանուցում"
     }
   },

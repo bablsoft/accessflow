@@ -172,6 +172,19 @@ function renderMessage(
       return t('notifications.events.REVIEW_TIMEOUT', { datasource });
     case 'AI_HIGH_RISK':
       return t('notifications.events.AI_HIGH_RISK', { datasource });
+    case 'API_REQUEST_SUBMITTED':
+      return payload.submitter
+        ? t('notifications.events.API_REQUEST_SUBMITTED', {
+            submitter: payload.submitter_name ?? payload.submitter,
+            datasource,
+          })
+        : t('notifications.events.API_REQUEST_SUBMITTED_no_submitter', { datasource });
+    case 'API_REQUEST_APPROVED':
+      return t('notifications.events.API_REQUEST_APPROVED', { datasource });
+    case 'API_REQUEST_EXECUTED':
+      return t('notifications.events.API_REQUEST_EXECUTED', { datasource });
+    case 'API_REQUEST_FAILED':
+      return t('notifications.events.API_REQUEST_FAILED', { datasource });
     default:
       return t('notifications.events.fallback');
   }
@@ -181,6 +194,17 @@ export function routeForNotification(item: UserNotification): string | null {
   // Reviewer-targeted: lands on the review queue, not the submitter-only detail page.
   if (item.event_type === 'QUERY_SUBMITTED') {
     return '/reviews';
+  }
+  if (item.event_type === 'API_REQUEST_SUBMITTED') {
+    return '/api-reviews';
+  }
+  // Terminal API events are submitter-targeted → the API-request detail page.
+  if (
+    item.event_type === 'API_REQUEST_APPROVED' ||
+    item.event_type === 'API_REQUEST_EXECUTED' ||
+    item.event_type === 'API_REQUEST_FAILED'
+  ) {
+    return item.api_request_id ? `/api-requests/${item.api_request_id}` : null;
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

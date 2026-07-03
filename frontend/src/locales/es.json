@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "Tu consulta en {{datasource}} fue rechazada",
       "REVIEW_TIMEOUT": "Tu consulta en {{datasource}} venció esperando revisión",
       "AI_HIGH_RISK": "La IA marcó una consulta de alto riesgo en {{datasource}}",
+      "API_REQUEST_SUBMITTED": "{{submitter}} envió una solicitud de API en {{datasource}}",
+      "API_REQUEST_SUBMITTED_no_submitter": "Nueva solicitud de API esperando revisión en {{datasource}}",
+      "API_REQUEST_APPROVED": "Tu solicitud de API en {{datasource}} fue aprobada",
+      "API_REQUEST_EXECUTED": "Tu solicitud de API en {{datasource}} fue ejecutada",
+      "API_REQUEST_FAILED": "Tu solicitud de API en {{datasource}} falló",
       "fallback": "Nueva notificación"
     }
   },

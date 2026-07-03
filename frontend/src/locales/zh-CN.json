@@ -1919,6 +1919,11 @@
       "QUERY_REJECTED": "您在 {{datasource}} 上的查询已被拒绝",
       "REVIEW_TIMEOUT": "您在 {{datasource}} 上的查询在等待审核时超时",
       "AI_HIGH_RISK": "AI 在 {{datasource}} 上标记了一个高风险查询",
+      "API_REQUEST_SUBMITTED": "{{submitter}} 在 {{datasource}} 上提交了一个 API 请求",
+      "API_REQUEST_SUBMITTED_no_submitter": "{{datasource}} 上有新的 API 请求等待审核",
+      "API_REQUEST_APPROVED": "您在 {{datasource}} 上的 API 请求已被批准",
+      "API_REQUEST_EXECUTED": "您在 {{datasource}} 上的 API 请求已执行",
+      "API_REQUEST_FAILED": "您在 {{datasource}} 上的 API 请求失败",
       "fallback": "新通知"
     }
   },
