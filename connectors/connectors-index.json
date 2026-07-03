@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "2.1.0",
   "connectors": [
     {
       "id": "cassandra",
@@ -31,7 +31,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "a7ea70c36006adf2b7ba5449dacfd02ce7b4a8f93d2b7346aebd9c5346bb94ff"
+        "sha256": "8753f5bd9f1f962df5ecb621d10fc8bcec8a65b4338da1e1197f82e8dbc86cb1"
       }
     },
     {
@@ -42,7 +42,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "05090268ab9bf61135ba6b44a1604010ffef4d8be2e0471089f2ca2c536d768f"
+        "sha256": "9a609fc1747e1712a6e0cffa8ce84f935b96154013f868211919da20284761f6"
       }
     },
     {
@@ -53,7 +53,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "660fc466f090ca3539f20126d45fac9553a0d557a539f44745b08c6da20982ca"
+        "sha256": "416568fc8ba21388ae37bc8eeccff7fcd6b656cf29fe1fd8e26fb1f325648886"
       }
     },
     {
@@ -75,7 +75,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "300f461c704f51175baa1e42ed4d436cc4afd12105efc7de09565a65562c4ca6"
+        "sha256": "58236b5f0a8d7111f48a1fa61d58e234d7603192223444551a582940fbde3c51"
       }
     },
     {
