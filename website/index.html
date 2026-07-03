@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AccessFlow — Open-source database access governance</title>
-  <meta name="description" content="AccessFlow is an open-source query proxy for SQL and NoSQL databases — PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
+  <title>AccessFlow — Open-source database &amp; API access governance</title>
+  <meta name="description" content="AccessFlow is an open-source access proxy for SQL and NoSQL databases — PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
 
   <link rel="canonical" href="https://accessflow.bablsoft.com/" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="bablsoft" />
-  <meta name="keywords" content="database access governance, SQL and NoSQL proxy, query approval workflow, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, DynamoDB, AI query review, Apache 2.0" />
+  <meta name="keywords" content="database access governance, API access governance, SQL and NoSQL proxy, REST SOAP GraphQL gRPC proxy, query approval workflow, API call approval workflow, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, DynamoDB, AI query review, Apache 2.0" />
   <meta name="theme-color" content="#0A0D11" />
   <meta name="color-scheme" content="dark light" />
 
@@ -28,20 +28,20 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="AccessFlow — Open-source database access governance" />
-  <meta property="og:description" content="Open-source query proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta property="og:title" content="AccessFlow — Open-source database &amp; API access governance" />
+  <meta property="og:description" content="Open-source access proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta property="og:url" content="https://accessflow.bablsoft.com/" />
   <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL &amp; NoSQL proxy with AI review and approval workflows." />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="AccessFlow — Open-source database access governance" />
-  <meta name="twitter:description" content="Open-source query proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more. AI-reviewed queries, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta name="twitter:title" content="AccessFlow — Open-source database &amp; API access governance" />
+  <meta name="twitter:description" content="Open-source access proxy for SQL and NoSQL databases — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
-  <meta name="twitter:image:alt" content="AccessFlow — governed database access, built for engineers. Open-source SQL &amp; NoSQL proxy with AI review and approval workflows." />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -61,7 +61,7 @@
         "@id": "https://accessflow.bablsoft.com/#software",
         "name": "AccessFlow",
         "url": "https://accessflow.bablsoft.com/",
-        "description": "Open-source query proxy for SQL and NoSQL databases — PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, and Neo4j. AI-reviewed queries, configurable approval workflows, and a tamper-evident audit log.",
+        "description": "Open-source access proxy for SQL and NoSQL databases — PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, and Neo4j — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, and a tamper-evident audit log.",
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Database access governance",
         "operatingSystem": "Linux, macOS, Windows (Docker)",
@@ -180,14 +180,15 @@
             generally available — Apache 2.0 licensed
           </span>
           <h1>
-            Governed database access,<br />
+            Governed database &amp; API access,<br />
             built for <span class="underline">engineers</span>.
           </h1>
           <p class="hero-sub">
-            AccessFlow is an open-source query proxy for SQL and NoSQL databases that sits between your
-            team and your data. Every query is checked, sorted by type, optionally AI-reviewed, and routed
-            through a configurable human-approval workflow before it touches production — with a
-            tamper-evident metadata audit trail of every decision.
+            AccessFlow is an open-source access proxy for SQL and NoSQL databases — and outbound
+            REST, SOAP, GraphQL, and gRPC APIs — that sits between your team and your data. Every query
+            and every API call is checked, sorted by type, optionally AI-reviewed, and routed through a
+            configurable human-approval workflow before it touches production — with a tamper-evident
+            metadata audit trail of every decision.
           </p>
           <div class="hero-cta">
             <a href="#install" class="btn btn-primary">
@@ -234,12 +235,13 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Architecture</span>
-          <h2>One proxy. Every query. Zero shared credentials.</h2>
+          <h2>One proxy. Every query and API call. Zero shared credentials.</h2>
           <p>
-            Nobody gets the database password — not even your own team. AccessFlow sits in the middle
-            and is the only thing that ever connects to the real database, and only after a query is
-            approved. Users sign in to AccessFlow, never to the database; behind the scenes the proxy
-            holds the real database connection pools and opens connections on their behalf.
+            Nobody gets the database password or the API credentials — not even your own team.
+            AccessFlow sits in the middle and is the only thing that ever connects to the real database
+            or upstream API, and only after a request is approved. Users sign in to AccessFlow, never to
+            the target; behind the scenes the proxy holds the real database connection pools and the
+            connectors' encrypted credentials, and reaches out on their behalf.
           </p>
         </div>
 
@@ -261,7 +263,7 @@
           <div class="arch-services">
             <div class="arch-cell">
               <span class="label">SERVICE</span>
-              <span class="value">Query Proxy</span>
+              <span class="value">Query &amp; API Proxy</span>
             </div>
             <div class="arch-cell">
               <span class="label">SERVICE</span>
@@ -286,8 +288,8 @@
           <div class="arch-conn" aria-hidden="true"></div>
           <div class="arch-row">
             <div class="arch-cell accent arch-cell-lg">
-              <span class="label">CUSTOMER DATABASES (PROXIED)</span>
-              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j</span>
+              <span class="label">CUSTOMER DATABASES &amp; APIS (PROXIED)</span>
+              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · REST · SOAP · GraphQL · gRPC APIs</span>
             </div>
           </div>
         </div>
@@ -546,7 +548,7 @@
         <div class="section-head">
           <span class="eyebrow">Request flow</span>
           <h2>From keystroke to commit, observable at every step.</h2>
-          <p>Every query follows the same predictable path — submitted, reviewed, run — and each step is recorded. A single state machine drives that flow through classification, review, and execution, and every transition is auditable, cancellable, and replayable.</p>
+          <p>Every query follows the same predictable path — submitted, reviewed, run — and each step is recorded. Outbound API calls travel the same path, and grouped requests can bundle both. A single state machine drives that flow through classification, review, and execution, and every transition is auditable, cancellable, and replayable.</p>
         </div>
 
         <div class="flow-grid">
@@ -788,7 +790,7 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Quick start</span>
-          <h2>Up and governing queries in under five minutes.</h2>
+          <h2>Up and governing queries and API calls in under five minutes.</h2>
           <p>Pick your platform. The backend initializes its database schema on first boot; the first admin is created through the in-app setup wizard the moment you open the SPA.</p>
         </div>
 
@@ -1044,6 +1046,13 @@
               </ul>
             </div>
             <div class="rm-group">
+              <h5 class="rm-cat">API governance</h5>
+              <ul>
+                <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
+                <li>Operation catalog · response masking · text-to-API</li>
+              </ul>
+            </div>
+            <div class="rm-group">
               <h5 class="rm-cat">Compliance</h5>
               <ul>
                 <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
@@ -1064,7 +1073,6 @@
             <div class="rm-group">
               <h5 class="rm-cat">Connectors &amp; access</h5>
               <ul>
-                <li>REST API governance</li>
                 <li>Native wire-protocol gateway</li>
                 <li>Column-level permissions</li>
               </ul>
