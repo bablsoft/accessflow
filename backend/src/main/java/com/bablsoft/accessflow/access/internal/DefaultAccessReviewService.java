@@ -238,6 +238,7 @@ class DefaultAccessReviewService implements AccessReviewService {
                 AccessRequestViewMapper.toList(entity.getAllowedTables()),
                 entity.getRequestedDuration(),
                 entity.getJustification(),
+                entity.isPreApproveQueries(),
                 stage,
                 entity.getCreatedAt());
     }

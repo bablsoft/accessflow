@@ -847,6 +847,7 @@ Decision rules:
 | Plan flag combination | Resulting status |
 |-----------------------|-------------------|
 | `requires_human_approval=false` | `APPROVED` (auto-approve) |
+| Active pre-approving JIT grant covers the query (#582 — runs before the plan rules, after routing policies) | `APPROVED` (grant fast-path) |
 | `auto_approve_reads=true` AND `query_type=SELECT` AND AI risk ∈ {LOW, MEDIUM} | `APPROVED` (fast path) |
 | (default) | `PENDING_REVIEW` |
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
@@ -860,7 +861,7 @@ Decision rules:
 Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:
 
 1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, transactional flag, and the client context captured at submission — source IP / CIDR, user-agent, time-since-last-approval, CI/CD origin) via `RoutingConditionEvaluator`.
-2. **First match wins.** The first enabled policy whose condition matches decides the action; evaluation stops there. On **no match** the query falls through to the datasource's review plan exactly as before — deterministic fall-through, identical to the pre-AF-379 behaviour.
+2. **First match wins.** The first enabled policy whose condition matches decides the action; evaluation stops there. On **no match** the grant-covered auto-approval fast-path (#582, see the [JIT section](#grant-covered-query-auto-approval-582)) is consulted next, and only then does the query fall through to the datasource's review plan exactly as before — so **any** matching policy (AUTO_REJECT, REQUIRE_APPROVALS, ESCALATE — including anomaly-driven ones) always wins over the grant fast-path.
 3. The outcome (matched policy id, action, resolved `effective_min_approvals`, reason) is persisted as a single `routing_decision` row (`RoutingDecisionService`), and surfaced on `GET /queries/{id}` as `matched_policy`.
 
 The four `routing_action` effects:
@@ -1162,6 +1163,19 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 **Expiry & revoke.** `AccessGrantExpiryJob` (see "Scheduled jobs" above) revokes grants past `expires_at` → `EXPIRED`. An admin may early-revoke an active grant (`POST /admin/access-requests/{id}/revoke`) → `REVOKED`. Both paths revoke the materialised permission (tolerating an already-deleted row) and publish events consumed by the notifications + realtime modules.
 
 **Module boundaries.** `access → core.api`, `audit.api`; `notifications`/`realtime`/`audit` read access data through `access.api.AccessRequestLookupService` (and never reach into `access.internal`). `access` only *publishes* events to notifications/realtime, so there is no cycle. In-app + WebSocket notifications are delivered for access events (`AccessNotificationListener` + `RealtimeEventDispatcher`); per-channel email/Slack delivery for access events is a follow-up.
+
+### Grant-covered query auto-approval (#582)
+
+A grant that only conveys *submission* rights still forces every query through human review — the same access reviewed twice. The requester can therefore opt a request into **query pre-approval** via the `pre_approve_queries` flag (default `false`; a checkbox on the Request Access form, echoed as a highlighted tag on the reviewer's queue so the approver sees exactly what they authorize).
+
+While such a grant is `APPROVED` and unexpired, `QueryReviewStateMachine.tryGrantFastPath` runs on the AI-completed and AI-skipped paths — **after** routing-policy evaluation returned no match (any matching policy, including `AUTO_REJECT` and anomaly-driven `ESCALATE`, wins) and **before** the plan fall-through. The fast-path transitions `PENDING_AI → APPROVED` when **all** of the following hold:
+
+- no open behavioural anomaly for the requester on the datasource (`ConditionContext.anomalyActive` — UBA, AF-383);
+- the AI risk level is LOW/MEDIUM, or absent because the datasource has `ai_analysis_enabled=false` (HIGH/CRITICAL falls through to normal review; the AI-*failed* path never runs the fast-path, consistent with routing);
+- the requester holds an `APPROVED`, unexpired grant on the datasource with `pre_approve_queries=true` (`access.api.AccessGrantLookupService.findActivePreApprovedGrants` — expiry/revocation flip the grant status, so the fast-path shuts off immediately);
+- the grant **covers** the query: its capability matches the query type (SELECT→`can_read`, DML→`can_write`, DDL→`can_ddl`) and every referenced table is inside its `allowed_schemas`/`allowed_tables` (the same `DatasourcePermissionChecker` semantics as the submission gate). The SQL is **re-parsed inside the fast-path and a parse failure fails closed** — the routing context's `referencedTables` is empty on parse failure, which would pass an allow-list check vacuously.
+
+On a match, `core.api.QueryRequestStateService.approveByAccessGrant` stamps `query_requests.approved_by_grant_id` atomically with the transition, and the published `QueryAutoApprovedEvent` carries the grant id + the grant's final-stage approver email — audited as `QUERY_APPROVED` with metadata `{ auto_approved: true, source: "ACCESS_GRANT", access_grant_id, grant_approver, reason }`, so the approval chain stays traceable to the human who approved the grant. `GET /queries/{id}` surfaces the provenance as `approved_by_grant` (resolved at read time from the grant row, which is never deleted), rendered as an alert on `QueryDetailPage`.
 
 ---
 

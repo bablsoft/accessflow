@@ -57,6 +57,11 @@ export function AccessRequestsQueuePage() {
       {r.can_read && <Tag>{t('access.request.can_read')}</Tag>}
       {r.can_write && <Tag color="orange">{t('access.request.can_write')}</Tag>}
       {r.can_ddl && <Tag color="red">{t('access.request.can_ddl')}</Tag>}
+      {r.pre_approve_queries && (
+        <Tooltip title={t('access.queue.pre_approve_tooltip')}>
+          <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>
+        </Tooltip>
+      )}
     </Space>
   );
 

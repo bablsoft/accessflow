@@ -46,6 +46,7 @@ public interface AccessReviewService {
             List<String> allowedTables,
             String requestedDuration,
             String justification,
+            boolean preApproveQueries,
             int currentStage,
             Instant createdAt) {
     }

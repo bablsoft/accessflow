@@ -653,7 +653,10 @@
       "matched_policy_deleted": "(deleted policy)",
       "matched_policy_no_reason": "no reason given",
       "optimizations_title": "Optimization suggestions",
-      "card_sql_collab": "SQL (collaborative)"
+      "card_sql_collab": "SQL (collaborative)",
+      "approved_by_grant_title": "Auto-approved under an access grant",
+      "approved_by_grant_body": "This query was covered by access grant {{grantId}}, approved by {{approver}} on {{when}}.",
+      "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}."
     }
   },
   "reviews": {
@@ -2496,7 +2499,10 @@
         "P1D": "1 day",
         "P3D": "3 days",
         "P7D": "7 days"
-      }
+      },
+      "pre_approve_label": "Pre-approve queries under this grant",
+      "pre_approve_hint": "Queries covered by this grant (capability and table scope) skip human review while the grant is active. High-risk queries and routing policies still apply.",
+      "pre_approve_tag": "Pre-approves queries"
     },
     "queue": {
       "title": "Access requests",
@@ -2513,7 +2519,8 @@
       "reject_required": "A comment is required to reject",
       "on_approve": "Access request approved",
       "on_reject": "Access request rejected",
-      "empty": "No access requests awaiting your review"
+      "empty": "No access requests awaiting your review",
+      "pre_approve_tooltip": "Approving this request lets covered queries run without further review while the grant is active."
     },
     "ttl": {
       "remaining": "{{value}} left",

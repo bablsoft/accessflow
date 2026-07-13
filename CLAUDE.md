@@ -400,6 +400,10 @@ com.bablsoft.accessflow/
                                             datasource.ai_analysis_enabled=false;
                                             APPROVED only when plan.requires_human_approval=false)
   PENDING_AI → APPROVED  (routing-policy AUTO_APPROVE — AF-379)
+  PENDING_AI → APPROVED  (grant-covered auto-approval — #582; an active APPROVED JIT grant with
+                          pre_approve_queries=true covers the query (capability + table scope).
+                          Loses to any matching routing policy, suppressed on HIGH/CRITICAL risk,
+                          open anomaly, SQL re-parse failure, and the AI-failed path)
   PENDING_AI → APPROVED  (break-glass — submitter holds can_break_glass; bypasses AI + review,
                           submission_reason=EMERGENCY_ACCESS, no QuerySubmittedEvent — AF-385)
   PENDING_AI → REJECTED  (routing-policy AUTO_REJECT — AF-379; no review_decisions row,

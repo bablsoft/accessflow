@@ -1297,6 +1297,13 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "action": "AUTO_REJECT",
     "reason": "Payroll deletes require an out-of-band change request"
   },
+  "approved_by_grant": {
+    "grant_id": "uuid",
+    "approver_id": "uuid",
+    "approver_email": "reviewer@company.com",
+    "approved_at": "2026-07-01T09:00:00Z",
+    "expires_at": "2026-07-01T13:00:00Z"
+  },
   "previous_run_id": "uuid",
   "scheduled_for": "2026-06-01T03:00:00Z",
   "created_at": "2025-01-15T10:00:00Z",
@@ -1305,6 +1312,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 ```
 
 `matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
+
+`approved_by_grant` is the provenance of a grant-covered auto-approval (#582); `null` for every query that was not auto-approved by a pre-approving JIT access grant. `grant_id` always reflects the query's persisted `approved_by_grant_id`; the approver fields (`approver_id`, `approver_email`, `approved_at` — the grant's final-stage approval) and `expires_at` are resolved from the grant row at read time and are `null` when the grant row or its approver is no longer resolvable. The frontend renders an "auto-approved under an access grant" alert on the detail page when this object is present. See [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582).
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
@@ -1936,11 +1945,12 @@ Just-in-time, time-bound access requests. A user requests temporary scoped acces
   "allowed_schemas": ["analytics"],
   "allowed_tables": null,
   "requested_duration": "PT4H",
-  "justification": "Investigate incident #1234"
+  "justification": "Investigate incident #1234",
+  "pre_approve_queries": false
 }
 ```
 
-`requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. **Response 201** returns the created request (`status: "PENDING"`).
+`requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`).
 
 ### GET /access-requests — Query Parameters
 

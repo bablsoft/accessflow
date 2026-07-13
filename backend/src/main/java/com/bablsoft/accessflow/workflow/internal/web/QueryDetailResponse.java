@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
@@ -33,16 +34,22 @@ public record QueryDetailResponse(
         String reviewPlanName,
         Integer approvalTimeoutHours,
         MatchedPolicyDetail matchedPolicy,
+        ApprovedByGrantDetail approvedByGrant,
         List<ReviewDecisionDetail> reviewDecisions,
         Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
 
     public static QueryDetailResponse from(QueryDetailView view) {
-        return from(view, null);
+        return from(view, null, null);
     }
 
     public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched) {
+        return from(view, matched, null);
+    }
+
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -61,6 +68,7 @@ public record QueryDetailResponse(
                 view.reviewPlanName(),
                 view.approvalTimeoutHours(),
                 MatchedPolicyDetail.from(matched),
+                ApprovedByGrantDetail.from(view.approvedByGrantId(), grant),
                 view.reviewDecisions().stream().map(ReviewDecisionDetail::from).toList(),
                 view.scheduledFor(),
                 view.createdAt(),
@@ -79,6 +87,30 @@ public record QueryDetailResponse(
             }
             return new MatchedPolicyDetail(src.policyId(), src.policyName(), src.action(),
                     src.reason());
+        }
+    }
+
+    /**
+     * Provenance of a grant-covered auto-approval (#582). {@code grantId} always reflects the
+     * query's {@code approved_by_grant_id}; the approver fields are null when the grant row (or
+     * its approver) is no longer resolvable.
+     */
+    public record ApprovedByGrantDetail(
+            UUID grantId,
+            UUID approverId,
+            String approverEmail,
+            Instant approvedAt,
+            Instant expiresAt) {
+
+        static ApprovedByGrantDetail from(UUID approvedByGrantId, AccessGrantView grant) {
+            if (approvedByGrantId == null) {
+                return null;
+            }
+            if (grant == null) {
+                return new ApprovedByGrantDetail(approvedByGrantId, null, null, null, null);
+            }
+            return new ApprovedByGrantDetail(grant.id(), grant.approverId(), grant.approverEmail(),
+                    grant.approvedAt(), grant.expiresAt());
         }
     }
 

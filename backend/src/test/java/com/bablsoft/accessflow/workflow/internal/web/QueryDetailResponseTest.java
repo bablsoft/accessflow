@@ -45,6 +45,7 @@ class QueryDetailResponseTest {
                 "SELECT 1", QueryType.SELECT, QueryStatus.EXECUTED,
                 "ticket-42", ai, 5L, 99, null,
                 priorRunId,
+                null,
                 "Prod plan", 24,
                 List.of(decision),
                 scheduledFor,
@@ -111,6 +112,7 @@ class QueryDetailResponseTest {
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
                 "x", ai, null, null, null, null,
+                null,
                 null, null,
                 List.of(),
                 null,
@@ -128,6 +130,7 @@ class QueryDetailResponseTest {
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_AI,
                 "x", null, null, null, null, null,
+                null,
                 null, null,
                 List.of(),
                 null,
@@ -167,11 +170,57 @@ class QueryDetailResponseTest {
         assertThat(response.matchedPolicy().reason()).isEqualTo("payroll protected");
     }
 
+    @Test
+    void approvedByGrantIsNullWithoutGrantProvenance() {
+        var response = QueryDetailResponse.from(minimalView());
+
+        assertThat(response.approvedByGrant()).isNull();
+    }
+
+    @Test
+    void approvedByGrantIsPopulatedFromGrantView() {
+        var grantId = UUID.randomUUID();
+        var approverId = UUID.randomUUID();
+        var approvedAt = Instant.parse("2026-07-01T09:00:00Z");
+        var expiresAt = Instant.parse("2026-07-01T13:00:00Z");
+        var grant = new com.bablsoft.accessflow.access.api.AccessGrantView(
+                grantId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                true, false, false, List.of("public"), null,
+                com.bablsoft.accessflow.access.api.AccessGrantStatus.APPROVED, expiresAt,
+                approverId, "approver@x.io", approvedAt);
+
+        var response = QueryDetailResponse.from(minimalView(grantId), null, grant);
+
+        assertThat(response.approvedByGrant()).isNotNull();
+        assertThat(response.approvedByGrant().grantId()).isEqualTo(grantId);
+        assertThat(response.approvedByGrant().approverId()).isEqualTo(approverId);
+        assertThat(response.approvedByGrant().approverEmail()).isEqualTo("approver@x.io");
+        assertThat(response.approvedByGrant().approvedAt()).isEqualTo(approvedAt);
+        assertThat(response.approvedByGrant().expiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void approvedByGrantKeepsGrantIdWhenGrantRowUnresolvable() {
+        var grantId = UUID.randomUUID();
+
+        var response = QueryDetailResponse.from(minimalView(grantId), null, null);
+
+        assertThat(response.approvedByGrant()).isNotNull();
+        assertThat(response.approvedByGrant().grantId()).isEqualTo(grantId);
+        assertThat(response.approvedByGrant().approverEmail()).isNull();
+        assertThat(response.approvedByGrant().approvedAt()).isNull();
+    }
+
     private QueryDetailView minimalView() {
+        return minimalView(null);
+    }
+
+    private QueryDetailView minimalView(UUID approvedByGrantId) {
         return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.REJECTED,
                 "x", null, null, null, null, null,
+                approvedByGrantId,
                 null, null,
                 List.of(),
                 null,
@@ -189,6 +238,7 @@ class QueryDetailResponseTest {
                 UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
                 "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
                 "x", ai, null, null, null, null,
+                null,
                 null, null,
                 List.of(),
                 null,

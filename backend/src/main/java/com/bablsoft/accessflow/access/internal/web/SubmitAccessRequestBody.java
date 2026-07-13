@@ -22,6 +22,8 @@ public record SubmitAccessRequestBody(
         Boolean canWrite,
         Boolean canDdl,
 
+        Boolean preApproveQueries,
+
         @Size(max = 50, message = "{validation.access.schemas.max}")
         List<@NotBlank(message = "{validation.access.schema.blank}") String> allowedSchemas,
 

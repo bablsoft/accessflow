@@ -157,6 +157,28 @@ class AuditEventListenerTest {
     }
 
     @Test
+    void onQueryAutoApprovedRecordsAccessGrantProvenance() {
+        var queryId = UUID.randomUUID();
+        var grantId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoApproved(new QueryAutoApprovedEvent(queryId, null,
+                "grant-covered", grantId, "approver@x.io"));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_APPROVED);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.metadata()).containsEntry("auto_approved", true);
+        assertThat(entry.metadata()).containsEntry("source", "ACCESS_GRANT");
+        assertThat(entry.metadata()).containsEntry("access_grant_id", grantId.toString());
+        assertThat(entry.metadata()).containsEntry("grant_approver", "approver@x.io");
+        assertThat(entry.metadata()).containsEntry("reason", "grant-covered");
+        assertThat(entry.metadata()).doesNotContainKey("routing_policy_id");
+    }
+
+    @Test
     void onQueryAutoRejectedRecordsRejectedWithPolicyProvenance() {
         var queryId = UUID.randomUUID();
         var policyId = UUID.randomUUID();

@@ -653,7 +653,10 @@
       "matched_policy_deleted": "(política eliminada)",
       "matched_policy_no_reason": "sin motivo indicado",
       "optimizations_title": "Sugerencias de optimización",
-      "card_sql_collab": "SQL (colaborativo)"
+      "card_sql_collab": "SQL (colaborativo)",
+      "approved_by_grant_title": "Aprobada automáticamente bajo una concesión de acceso",
+      "approved_by_grant_body": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}, aprobada por {{approver}} el {{when}}.",
+      "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}."
     }
   },
   "reviews": {
@@ -2472,7 +2475,10 @@
         "P1D": "1 día",
         "P3D": "3 días",
         "P7D": "7 días"
-      }
+      },
+      "pre_approve_label": "Preaprobar consultas bajo esta concesión",
+      "pre_approve_hint": "Las consultas cubiertas por esta concesión (capacidad y alcance de tablas) omiten la revisión humana mientras la concesión esté activa. Las consultas de alto riesgo y las políticas de enrutamiento siguen aplicándose.",
+      "pre_approve_tag": "Preaprueba consultas"
     },
     "queue": {
       "title": "Solicitudes de acceso",
@@ -2489,7 +2495,8 @@
       "reject_required": "Se requiere un comentario para rechazar",
       "on_approve": "Solicitud de acceso aprobada",
       "on_reject": "Solicitud de acceso rechazada",
-      "empty": "No hay solicitudes de acceso pendientes de tu revisión"
+      "empty": "No hay solicitudes de acceso pendientes de tu revisión",
+      "pre_approve_tooltip": "Aprobar esta solicitud permite que las consultas cubiertas se ejecuten sin más revisión mientras la concesión esté activa."
     },
     "ttl": {
       "remaining": "quedan {{value}}",

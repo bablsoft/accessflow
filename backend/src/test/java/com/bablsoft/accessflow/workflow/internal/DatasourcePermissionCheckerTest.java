@@ -67,6 +67,29 @@ class DatasourcePermissionCheckerTest {
                 .isEmpty();
     }
 
+    @Test
+    void primitiveHasCapabilityOverloadMatchesViewOverload() {
+        assertThat(DatasourcePermissionChecker.hasCapability(true, false, false,
+                QueryType.SELECT)).isTrue();
+        assertThat(DatasourcePermissionChecker.hasCapability(false, true, false,
+                QueryType.DELETE)).isTrue();
+        assertThat(DatasourcePermissionChecker.hasCapability(false, false, true,
+                QueryType.DDL)).isTrue();
+        assertThat(DatasourcePermissionChecker.hasCapability(true, false, false,
+                QueryType.UPDATE)).isFalse();
+        assertThat(DatasourcePermissionChecker.hasCapability(true, true, true,
+                QueryType.OTHER)).isFalse();
+    }
+
+    @Test
+    void listRejectedTablesOverloadMatchesViewOverload() {
+        assertThat(DatasourcePermissionChecker.rejectedTables(null, null, Set.of("orders")))
+                .isEmpty();
+        assertThat(DatasourcePermissionChecker.rejectedTables(List.of("public"), List.of("orders"),
+                Set.of("orders", "public.users", "private.secrets")))
+                .containsExactly("private.secrets");
+    }
+
     private DatasourceUserPermissionView perm(boolean canRead, boolean canWrite, boolean canDdl) {
         return new DatasourceUserPermissionView(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), canRead, canWrite, canDdl, false,

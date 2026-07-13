@@ -122,6 +122,7 @@ function failedQuery(): QueryDetail {
     review_plan_name: 'Prod plan',
     approval_timeout_hours: 24,
     matched_policy: null,
+    approved_by_grant: null,
     review_decisions: [],
     scheduled_for: null,
     created_at: '2026-05-01T10:00:00Z',

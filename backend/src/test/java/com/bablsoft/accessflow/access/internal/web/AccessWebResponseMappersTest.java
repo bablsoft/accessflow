@@ -24,7 +24,7 @@ class AccessWebResponseMappersTest {
     void accessRequestResponseFromCopiesFields() {
         var view = new AccessRequestView(id, UUID.randomUUID(), UUID.randomUUID(), "u@x.io",
                 UUID.randomUUID(), "db", true, false, true, List.of("public"), null, "PT4H", "j",
-                AccessGrantStatus.PENDING, null, null, Instant.now(), Instant.now());
+                true, AccessGrantStatus.PENDING, null, null, Instant.now(), Instant.now());
         var response = AccessRequestResponse.from(view);
         assertThat(response.id()).isEqualTo(id);
         assertThat(response.datasourceName()).isEqualTo("db");
@@ -36,7 +36,7 @@ class AccessWebResponseMappersTest {
     void accessRequestPageResponseFromMapsContent() {
         var view = new AccessRequestView(id, UUID.randomUUID(), UUID.randomUUID(), "u@x.io",
                 UUID.randomUUID(), "db", true, false, false, null, null, "PT4H", "j",
-                AccessGrantStatus.APPROVED, null, null, Instant.now(), Instant.now());
+                false, AccessGrantStatus.APPROVED, null, null, Instant.now(), Instant.now());
         var page = new PageResponse<>(List.of(view), 0, 20, 1, 1);
         var response = AccessRequestPageResponse.from(page);
         assertThat(response.content()).hasSize(1);
@@ -48,7 +48,7 @@ class AccessWebResponseMappersTest {
         var datasourceId = UUID.randomUUID();
         var requesterId = UUID.randomUUID();
         var pending = new PendingAccessRequest(id, datasourceId, "db", requesterId, "u@x.io",
-                true, false, false, List.of("public"), null, "PT4H", "j", 1, Instant.now());
+                true, false, false, List.of("public"), null, "PT4H", "j", true, 1, Instant.now());
         var item = PendingAccessRequestItem.from(pending);
         assertThat(item.datasource().id()).isEqualTo(datasourceId);
         assertThat(item.requestedBy().email()).isEqualTo("u@x.io");
@@ -58,7 +58,7 @@ class AccessWebResponseMappersTest {
     @Test
     void pendingPageResponseFromMapsContent() {
         var pending = new PendingAccessRequest(id, UUID.randomUUID(), "db", UUID.randomUUID(),
-                "u@x.io", true, false, false, null, null, "PT4H", "j", 0, Instant.now());
+                "u@x.io", true, false, false, null, null, "PT4H", "j", false, 0, Instant.now());
         var page = new PageResponse<>(List.of(pending), 0, 20, 1, 1);
         var response = PendingAccessRequestsPageResponse.from(page);
         assertThat(response.content()).hasSize(1);

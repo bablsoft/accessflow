@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
+import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -27,12 +29,14 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.MessageSource;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,8 +46,9 @@ import java.util.UUID;
  * path) the {@link RoutingPolicyEngine} runs first: the first enabled policy by ascending priority
  * whose typed condition matches decides routing — {@code AUTO_APPROVE} / {@code AUTO_REJECT}
  * short-circuit, {@code REQUIRE_APPROVALS} / {@code ESCALATE} force human review with an effective
- * approval-count override persisted on {@code routing_decision}. On no match the query falls through
- * to the datasource's review plan exactly as before.
+ * approval-count override persisted on {@code routing_decision}. On no match, the grant-covered
+ * fast-path (#582) runs next — see {@link #tryGrantFastPath} — and only then does the query fall
+ * through to the datasource's review plan exactly as before.
  *
  * <p>AI failure unconditionally lands in {@code PENDING_REVIEW} so a human can inspect the query —
  * routing policies are not run on the failure path (no risk signal, and a failed analysis is not a
@@ -67,6 +72,8 @@ class QueryReviewStateMachine {
     private final RoutingPolicyEngine routingPolicyEngine;
     private final RoutingDecisionService routingDecisionService;
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
+    private final AccessGrantLookupService accessGrantLookupService;
+    private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
 
     // Time-of-day / day-of-week routing conditions evaluate in the server's local zone. A field
@@ -95,6 +102,9 @@ class QueryReviewStateMachine {
         if (applyRoutingPolicy(query, context, plan)) {
             return;
         }
+        if (tryGrantFastPath(query, context)) {
+            return;
+        }
         var nextStatus = decideNextStatus(plan, query, event.riskLevel());
         queryRequestStateService.transitionTo(query.id(), QueryStatus.PENDING_AI, nextStatus);
         publishTerminalOrPending(query.id(), nextStatus);
@@ -115,6 +125,9 @@ class QueryReviewStateMachine {
         var plan = reviewPlanLookupService.findForDatasource(query.datasourceId()).orElse(null);
         var context = buildContext(query, null, -1);
         if (applyRoutingPolicy(query, context, plan)) {
+            return;
+        }
+        if (tryGrantFastPath(query, context)) {
             return;
         }
         var nextStatus = decideNextStatusOnSkip(plan);
@@ -181,6 +194,67 @@ class QueryReviewStateMachine {
         }
         log.info("Query {} routed by policy {} -> {}", query.id(), match.policyId(), match.action());
         return true;
+    }
+
+    /**
+     * Grant-covered auto-approval (#582): when the submitter holds an active APPROVED JIT grant
+     * with {@code pre_approve_queries=true} whose scope covers the query (capability + table
+     * allow-list, same semantics as the submission gate), transition straight to APPROVED with
+     * the grant as provenance. Runs only after routing policies found no match — an AUTO_REJECT /
+     * REQUIRE_APPROVALS / ESCALATE policy (including anomaly-driven ones) always wins. Suppressed
+     * on an open behavioural anomaly and on HIGH/CRITICAL AI risk; the AI-skipped path (no risk
+     * signal) is allowed. The SQL is re-parsed here rather than trusting the context's
+     * referencedTables, which is empty on parse failure and would otherwise pass the allow-list
+     * check vacuously — a parse failure fails closed.
+     */
+    private boolean tryGrantFastPath(QueryRequestSnapshot query, ConditionContext context) {
+        if (context.anomalyActive()) {
+            return false;
+        }
+        // Gate on the risk level alone (not hasRiskSignal(), which also requires a score) so a
+        // HIGH/CRITICAL verdict suppresses the fast-path even when no numeric score was reported.
+        if (context.riskLevel() != null
+                && context.riskLevel() != RiskLevel.LOW
+                && context.riskLevel() != RiskLevel.MEDIUM) {
+            return false;
+        }
+        var grants = accessGrantLookupService.findActivePreApprovedGrants(
+                query.organizationId(), query.submittedByUserId(), query.datasourceId());
+        if (grants.isEmpty()) {
+            return false;
+        }
+        Set<String> referencedTables;
+        try {
+            referencedTables = sqlParserService.parse(query.sqlText()).referencedTables();
+        } catch (RuntimeException ex) {
+            log.warn("Grant fast-path: failed to re-parse SQL for query {}; failing closed",
+                    query.id());
+            return false;
+        }
+        for (var grant : grants) {
+            if (grantCovers(grant, query.queryType(), referencedTables)) {
+                queryRequestStateService.approveByAccessGrant(query.id(), grant.id());
+                eventPublisher.publishEvent(new QueryAutoApprovedEvent(query.id(), null,
+                        grantReason(grant), grant.id(), grant.approverEmail()));
+                log.info("Query {} auto-approved under access grant {}", query.id(), grant.id());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean grantCovers(AccessGrantView grant, QueryType queryType,
+                                       Set<String> referencedTables) {
+        return DatasourcePermissionChecker.hasCapability(grant.canRead(), grant.canWrite(),
+                        grant.canDdl(), queryType)
+                && DatasourcePermissionChecker.rejectedTables(grant.allowedSchemas(),
+                        grant.allowedTables(), referencedTables).isEmpty();
+    }
+
+    private String grantReason(AccessGrantView grant) {
+        var approver = grant.approverEmail() != null ? grant.approverEmail() : "-";
+        return messageSource.getMessage("workflow.grant_pre_approval.reason",
+                new Object[]{grant.id(), approver}, Locale.getDefault());
     }
 
     private static int effectiveForRequire(RoutingMatch match) {

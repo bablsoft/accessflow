@@ -41,6 +41,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -104,6 +105,8 @@ class QueryReviewStateMachineIntegrationTest {
     @AfterEach
     void cleanup() {
         jdbcTemplate.update("UPDATE query_requests SET ai_analysis_id = NULL");
+        jdbcTemplate.update("DELETE FROM access_grant_decision");
+        jdbcTemplate.update("DELETE FROM access_grant_request");
         aiAnalysisRepository.deleteAll();
         queryRequestRepository.deleteAll();
         datasourceRepository.deleteAll();
@@ -190,6 +193,106 @@ class QueryReviewStateMachineIntegrationTest {
         });
     }
 
+    @Test
+    void grantFastPathAutoApprovesCoveredQueryAndRecordsProvenance() {
+        var plan = persistPlan(true, true, false);
+        var datasource = persistDatasource(plan);
+        var approver = persistApprover();
+        var grantId = persistPreApprovedGrant(datasource, approver,
+                Instant.now().plus(Duration.ofHours(4)));
+        var query = persistPendingAiQuery(datasource, QueryType.SELECT,
+                "SELECT * FROM orders");
+
+        publish(new AiAnalysisCompletedEvent(query.getId(), null, RiskLevel.LOW));
+
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var loaded = queryRequestRepository.findById(query.getId()).orElseThrow();
+            assertThat(loaded.getStatus()).isEqualTo(QueryStatus.APPROVED);
+            assertThat(loaded.getApprovedByGrantId()).isEqualTo(grantId);
+        });
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var metadata = jdbcTemplate.queryForList(
+                    "SELECT metadata::text FROM audit_log "
+                            + "WHERE resource_id = ? AND action::text = 'QUERY_APPROVED'",
+                    String.class, query.getId());
+            assertThat(metadata).isNotEmpty();
+            assertThat(metadata.get(0)).contains("\"source\": \"ACCESS_GRANT\"")
+                    .contains(grantId.toString())
+                    .contains(approver.getEmail());
+        });
+    }
+
+    @Test
+    void expiredGrantDoesNotFastPath() {
+        var plan = persistPlan(true, true, false);
+        var datasource = persistDatasource(plan);
+        var approver = persistApprover();
+        persistPreApprovedGrant(datasource, approver, Instant.now().minus(Duration.ofMinutes(1)));
+        var query = persistPendingAiQuery(datasource, QueryType.SELECT,
+                "SELECT * FROM orders");
+
+        publish(new AiAnalysisCompletedEvent(query.getId(), null, RiskLevel.LOW));
+
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var loaded = queryRequestRepository.findById(query.getId()).orElseThrow();
+            assertThat(loaded.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+            assertThat(loaded.getApprovedByGrantId()).isNull();
+        });
+    }
+
+    @Test
+    void grantScopeMissRoutesToReview() {
+        var plan = persistPlan(true, true, false);
+        var datasource = persistDatasource(plan);
+        var approver = persistApprover();
+        persistPreApprovedGrant(datasource, approver, Instant.now().plus(Duration.ofHours(4)));
+        var query = persistPendingAiQuery(datasource, QueryType.SELECT,
+                "SELECT * FROM payroll");
+
+        publish(new AiAnalysisCompletedEvent(query.getId(), null, RiskLevel.LOW));
+
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            var loaded = queryRequestRepository.findById(query.getId()).orElseThrow();
+            assertThat(loaded.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+            assertThat(loaded.getApprovedByGrantId()).isNull();
+        });
+    }
+
+    private UserEntity persistApprover() {
+        var approver = new UserEntity();
+        approver.setId(UUID.randomUUID());
+        approver.setEmail("approver-" + UUID.randomUUID() + "@example.com");
+        approver.setDisplayName("Approver");
+        approver.setPasswordHash("hash");
+        approver.setRole(UserRoleType.REVIEWER);
+        approver.setAuthProvider(AuthProviderType.LOCAL);
+        approver.setActive(true);
+        approver.setOrganization(organization);
+        return userRepository.save(approver);
+    }
+
+    /** Seeds an APPROVED pre-approving grant scoped to the {@code orders} table via plain SQL —
+     * the access module's entities are module-private to {@code access.internal}. */
+    private UUID persistPreApprovedGrant(DatasourceEntity datasource, UserEntity approver,
+                                         Instant expiresAt) {
+        var grantId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO access_grant_request (id, organization_id, requester_id, datasource_id,
+                    can_read, can_write, can_ddl, allowed_schemas, allowed_tables,
+                    requested_duration, justification, status, expires_at, pre_approve_queries,
+                    version, created_at, updated_at)
+                VALUES (?, ?, ?, ?, true, false, false, NULL, ARRAY['orders'], 'PT4H', 'j',
+                    'APPROVED'::access_grant_status, ?, true, 0, now(), now())
+                """, grantId, organization.getId(), submitter.getId(), datasource.getId(),
+                java.sql.Timestamp.from(expiresAt));
+        jdbcTemplate.update("""
+                INSERT INTO access_grant_decision (id, access_grant_request_id, reviewer_id,
+                    decision, stage, comment, decided_at)
+                VALUES (?, ?, ?, 'APPROVED'::decision, 1, NULL, now())
+                """, UUID.randomUUID(), grantId, approver.getId());
+        return grantId;
+    }
+
     private void publish(Object event) {
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> eventPublisher.publishEvent(event));
@@ -241,11 +344,16 @@ class QueryReviewStateMachineIntegrationTest {
     }
 
     private QueryRequestEntity persistPendingAiQuery(DatasourceEntity ds, QueryType type) {
+        return persistPendingAiQuery(ds, type, "SELECT 1");
+    }
+
+    private QueryRequestEntity persistPendingAiQuery(DatasourceEntity ds, QueryType type,
+                                                     String sql) {
         var query = new QueryRequestEntity();
         query.setId(UUID.randomUUID());
         query.setDatasource(ds);
         query.setSubmittedBy(submitter);
-        query.setSqlText("SELECT 1");
+        query.setSqlText(sql);
         query.setQueryType(type);
         query.setStatus(QueryStatus.PENDING_AI);
         return queryRequestRepository.save(query);

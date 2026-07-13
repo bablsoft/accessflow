@@ -17,6 +17,7 @@ public record PendingAccessRequestItem(
         List<String> allowedTables,
         String requestedDuration,
         String justification,
+        boolean preApproveQueries,
         int currentStage,
         Instant createdAt) {
 
@@ -32,6 +33,7 @@ public record PendingAccessRequestItem(
                 pending.allowedTables(),
                 pending.requestedDuration(),
                 pending.justification(),
+                pending.preApproveQueries(),
                 pending.currentStage(),
                 pending.createdAt());
     }

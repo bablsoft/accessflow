@@ -58,6 +58,9 @@ public class AccessGrantRequestEntity {
     @Column(name = "allowed_tables", columnDefinition = "text[]")
     private String[] allowedTables;
 
+    @Column(name = "pre_approve_queries", nullable = false)
+    private boolean preApproveQueries = false;
+
     @Column(name = "requested_duration", nullable = false, columnDefinition = "text")
     private String requestedDuration;
 

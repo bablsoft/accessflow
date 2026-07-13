@@ -29,7 +29,7 @@ class SubmitAccessRequestBodyTest {
     }
 
     private SubmitAccessRequestBody valid() {
-        return new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false,
+        return new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, false,
                 List.of("public"), null, "PT4H", "need access");
     }
 
@@ -40,14 +40,14 @@ class SubmitAccessRequestBodyTest {
 
     @Test
     void missingDatasourceIdIsRejected() {
-        var body = new SubmitAccessRequestBody(null, true, false, false, null, null, "PT4H", "j");
+        var body = new SubmitAccessRequestBody(null, true, false, false, false, null, null, "PT4H", "j");
         assertThat(validator.validate(body))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("datasourceId"));
     }
 
     @Test
     void blankDurationIsRejected() {
-        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, null, null,
+        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, false, null, null,
                 "  ", "j");
         assertThat(validator.validate(body))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("requestedDuration"));
@@ -55,7 +55,7 @@ class SubmitAccessRequestBodyTest {
 
     @Test
     void nonIso8601DurationIsRejected() {
-        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, null, null,
+        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, false, null, null,
                 "4 hours", "j");
         assertThat(validator.validate(body))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("requestedDuration"));
@@ -63,14 +63,14 @@ class SubmitAccessRequestBodyTest {
 
     @Test
     void noCapabilityIsRejected() {
-        var body = new SubmitAccessRequestBody(UUID.randomUUID(), false, false, false, null, null,
+        var body = new SubmitAccessRequestBody(UUID.randomUUID(), false, false, false, false, null, null,
                 "PT4H", "j");
         assertThat(validator.validate(body)).isNotEmpty();
     }
 
     @Test
     void blankJustificationIsRejected() {
-        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, null, null,
+        var body = new SubmitAccessRequestBody(UUID.randomUUID(), true, false, false, false, null, null,
                 "PT4H", " ");
         assertThat(validator.validate(body))
                 .anyMatch(v -> v.getPropertyPath().toString().equals("justification"));
