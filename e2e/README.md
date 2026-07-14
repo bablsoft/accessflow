@@ -272,6 +272,40 @@ override is invisible to them. If you add a new spec that executes a
 long-running SQL statement against the seeded datasource, bear this
 cap in mind.
 
+`tests/query-execute-complex-sql.spec.ts` (AF-595) drives a battery of
+**sophisticated SQL** against the seeded Postgres through the full
+submit → approve → execute pipeline, covering the write path and
+failure-prone statements the trivial-`SELECT` `query-execute.spec.ts`
+doesn't. `beforeAll` provisions a per-run second admin (self-approval is
+blocked), a one-stage `ADMIN` review plan, a Postgres datasource, and a
+uniquely-named scratch table (`af595_<hex>`) via an approved `CREATE
+TABLE` — so re-runs against the long-lived DB never collide, and
+`afterAll` drops the scratch objects + datasource. Most cases run through
+the API helpers (`runApproved` composes `submitQueryViaApi` →
+`waitForQueryStatus` → `approveQueryViaApi` → `executeQueryViaApi`); two
+representative flows are UI-driven. Seven serial tests:
+
+1. **Multi-row INSERT** (UI) — `INSERT … VALUES (…),(…),(…)` executes and
+   the **Execution result** card renders the `rows affected` value `3`.
+2. **`BEGIN;…COMMIT;` DML batch** (API) — an `INSERT`/`UPDATE`/`DELETE`
+   envelope runs atomically; a follow-up `SELECT` confirms exactly the
+   committed end-state survives.
+3. **`UPDATE` / `DELETE` with `WHERE`** (API) — asserts the affected-row
+   counts (2 and 1).
+4. **Stored function** (API) — an approved `CREATE FUNCTION` then
+   `SELECT fn(21)` returns `42`; a `CALL` statement is asserted to be
+   rejected `422 INVALID_SQL` (CALL classifies as an unsupported query
+   type — a documented proxy gap, not widened by this issue).
+5. **CTE + `JOIN` SELECT** (UI) — a `WITH … JOIN …` query renders the
+   **Results** table with three columns and three rows.
+6. **Execution-time failures** (API) — a duplicate-PK `INSERT` and a
+   divide-by-zero both land in `FAILED` (HTTP 202, no 500, no stuck row)
+   with a non-empty `error_message`.
+7. **Parse / validation rejections** (API) — unparseable SQL and a
+   disallowed `SELECT 1; DROP TABLE x;` multi-statement each return
+   `422 INVALID_SQL` (the editor-inline surfacing of the same 422 is
+   already covered by `query-submit.spec.ts`).
+
 `tests/auth-guard-roles.spec.ts` (AF-288) locks down the React
 [`AuthGuard`](../frontend/src/components/common/AuthGuard.tsx) — the only thing
 keeping non-admins out of admin pages on the client. `beforeAll` invites a
