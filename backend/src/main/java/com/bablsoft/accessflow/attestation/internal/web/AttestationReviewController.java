@@ -38,7 +38,7 @@ class AttestationReviewController {
     private final AttestationAuditWriter auditWriter;
 
     @GetMapping("/items")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_REVIEW')")
     @Operation(summary = "List attestation items the caller can act on across open campaigns")
     @ApiResponse(responseCode = "200", description = "Page of actionable items")
     @ApiResponse(responseCode = "403", description = "Caller is not a reviewer")
@@ -49,7 +49,7 @@ class AttestationReviewController {
     }
 
     @PostMapping("/items/{itemId}/certify")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_REVIEW')")
     @Operation(summary = "Certify an item — the subject still needs this access")
     @ApiResponse(responseCode = "200", description = "Decision recorded")
     @ApiResponse(responseCode = "403", description = "Caller is the subject or not an eligible reviewer")
@@ -67,7 +67,7 @@ class AttestationReviewController {
     }
 
     @PostMapping("/items/{itemId}/revoke")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_REVIEW')")
     @Operation(summary = "Revoke an item — removes the underlying grant")
     @ApiResponse(responseCode = "200", description = "Decision recorded; grant revoked")
     @ApiResponse(responseCode = "400", description = "Validation error (comment is required)")
@@ -86,7 +86,7 @@ class AttestationReviewController {
     }
 
     @PostMapping("/items/bulk")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_REVIEW')")
     @Operation(summary = "Apply the same decision to multiple items; rows are evaluated independently")
     @ApiResponse(responseCode = "200", description = "Per-row outcomes")
     @ApiResponse(responseCode = "400", description = "Validation error (empty/oversized list, non-terminal decision)")
@@ -128,7 +128,8 @@ class AttestationReviewController {
     }
 
     private static ReviewerContext toContext(JwtClaims caller) {
-        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

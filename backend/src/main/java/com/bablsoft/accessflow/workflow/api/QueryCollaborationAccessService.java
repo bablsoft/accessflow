@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
-import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.Permission;
 
 import java.util.Optional;
 import java.util.Set;
@@ -17,14 +17,16 @@ import java.util.UUID;
  */
 public interface QueryCollaborationAccessService {
 
-    boolean canCollaborate(UUID queryRequestId, UUID userId, UUID organizationId, UserRoleType role);
+    boolean canCollaborate(UUID queryRequestId, UUID userId, UUID organizationId, String roleName,
+                           Set<Permission> permissions);
 
     /**
      * Resolves the participant identity if the user may collaborate, otherwise empty. The realtime
      * relay calls this on {@code collab.join}.
      */
     Optional<CollaboratorIdentity> resolveParticipant(UUID queryRequestId, UUID userId,
-                                                       UUID organizationId, UserRoleType role);
+                                                      UUID organizationId, String roleName,
+                                                      Set<Permission> permissions);
 
     /**
      * All users who may collaborate on the query (submitter + active eligible reviewers), used as

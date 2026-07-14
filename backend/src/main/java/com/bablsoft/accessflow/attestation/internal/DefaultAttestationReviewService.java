@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignNotFoundException;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
@@ -15,7 +16,6 @@ import com.bablsoft.accessflow.attestation.internal.persistence.repo.Attestation
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -33,8 +33,6 @@ import java.util.UUID;
 @Slf4j
 class DefaultAttestationReviewService implements AttestationReviewService {
 
-    private static final Set<UserRoleType> REVIEWER_ROLES =
-            Set.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);
 
     private final AttestationItemRepository itemRepository;
     private final AttestationCampaignRepository campaignRepository;
@@ -46,7 +44,7 @@ class DefaultAttestationReviewService implements AttestationReviewService {
     @Transactional(readOnly = true)
     public PageResponse<AttestationItemView> listPendingForReviewer(ReviewerContext context,
                                                                     PageRequest pageRequest) {
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ATTESTATION_REVIEW)) {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var pageable = AttestationPageAdapter.toSpringPageable(pageRequest);
@@ -128,7 +126,7 @@ class DefaultAttestationReviewService implements AttestationReviewService {
             throw new IllegalAttestationCampaignTransitionException(campaign.getStatus(),
                     "Campaign is not OPEN");
         }
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ATTESTATION_REVIEW)) {
             throw new AttestationReviewerNotEligibleException(context.userId(), itemId);
         }
         if (item.getSubjectUserId().equals(context.userId())) {
@@ -152,7 +150,11 @@ class DefaultAttestationReviewService implements AttestationReviewService {
             return eligible.get().contains(context.userId());
         }
         // No datasource-scoped reviewers configured — only org admins may attest this datasource.
-        return context.role() == UserRoleType.ADMIN;
+        return has(context, Permission.REVIEW_OVERRIDE);
+    }
+
+    private static boolean has(ReviewerContext context, Permission permission) {
+        return context.permissions() != null && context.permissions().contains(permission);
     }
 
     private String msg(String key) {

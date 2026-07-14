@@ -39,21 +39,28 @@ class UserQueryServiceImpl implements UserQueryService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserView> findByOrganizationAndRoleName(UUID organizationId, String roleName) {
+        if (roleName == null || roleName.isBlank()) {
+            return List.of();
+        }
+        var systemRole = systemRoleOrNull(roleName);
+        return userRepository.findAllByOrganizationAndRoleName(organizationId, roleName.trim(),
+                        systemRole).stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    private static UserRoleType systemRoleOrNull(String roleName) {
+        try {
+            return UserRoleType.valueOf(roleName.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     private UserView toView(UserEntity entity) {
-        return new UserView(
-                entity.getId(),
-                entity.getEmail(),
-                entity.getDisplayName(),
-                entity.getRole(),
-                entity.getOrganization().getId(),
-                entity.isActive(),
-                entity.getAuthProvider(),
-                entity.getPasswordHash(),
-                entity.getLastLoginAt(),
-                entity.getPreferredLanguage(),
-                entity.isTotpEnabled(),
-                entity.isPlatformAdmin(),
-                entity.getCreatedAt()
-        );
+        return UserViews.toView(entity);
     }
 }

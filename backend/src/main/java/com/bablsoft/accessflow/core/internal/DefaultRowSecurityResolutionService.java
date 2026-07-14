@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.ResolvedRowSecurityPredicate;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityValueType;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowSecurityPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RowSecurityPolicyRepository;
@@ -49,21 +48,21 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
             return List.of();
         }
         var user = userRepository.findById(requesterUserId).orElse(null);
-        var role = user != null ? user.getRole() : null;
+        var roleName = user != null ? user.roleName() : null;
         var groupIds = new HashSet<>(membershipRepository.findGroupIdsForUser(requesterUserId));
         var resolved = new ArrayList<ResolvedRowSecurityPredicate>();
         for (var policy : policies) {
-            if (!appliesTo(policy, requesterUserId, role, groupIds)) {
+            if (!appliesTo(policy, requesterUserId, roleName, groupIds)) {
                 continue;
             }
-            var values = resolveValues(policy, requesterUserId, user, role);
+            var values = resolveValues(policy, requesterUserId, user, roleName);
             resolved.add(new ResolvedRowSecurityPredicate(policy.getId(), policy.getTableName(),
                     policy.getColumnName(), policy.getOperator(), values));
         }
         return resolved;
     }
 
-    private static boolean appliesTo(RowSecurityPolicyEntity policy, UUID userId, UserRoleType role,
+    private static boolean appliesTo(RowSecurityPolicyEntity policy, UUID userId, String roleName,
                                      Set<UUID> groupIds) {
         boolean hasRoles = policy.getAppliesToRoles() != null && policy.getAppliesToRoles().length > 0;
         boolean hasGroups =
@@ -73,9 +72,9 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
         if (!hasRoles && !hasGroups && !hasUsers) {
             return true; // empty scope = applies to every submitter (governance-safe default)
         }
-        if (hasRoles && role != null) {
+        if (hasRoles && roleName != null) {
             for (var allowed : policy.getAppliesToRoles()) {
-                if (allowed != null && role.name().equalsIgnoreCase(allowed.trim())) {
+                if (allowed != null && roleName.equalsIgnoreCase(allowed.trim())) {
                     return true;
                 }
             }
@@ -105,7 +104,7 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
      * always-false predicate.
      */
     private List<Object> resolveValues(RowSecurityPolicyEntity policy, UUID userId, UserEntity user,
-                                       UserRoleType role) {
+                                       String roleName) {
         if (policy.getValueType() == RowSecurityValueType.LITERAL) {
             return List.of(policy.getValueExpression());
         }
@@ -114,7 +113,7 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
             case "user.id" -> List.of(userId.toString());
             case "user.email" -> user != null && user.getEmail() != null
                     ? List.of(user.getEmail()) : List.of();
-            case "user.role" -> role != null ? List.of(role.name()) : List.of();
+            case "user.role" -> roleName != null ? List.of(roleName) : List.of();
             case "user.groups" -> new ArrayList<>(membershipRepository.findGroupNamesForUser(userId));
             default -> resolveAttribute(user, variable.substring("user.".length()));
         };

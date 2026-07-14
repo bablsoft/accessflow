@@ -1,12 +1,12 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
@@ -61,7 +61,7 @@ class QuerySubmissionController {
                 body.justification(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN,
+                caller.has(Permission.QUERY_ADMIN),
                 body.scheduledFor(),
                 submissionReason,
                 auditContext.ipAddress(),

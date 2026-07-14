@@ -1,12 +1,13 @@
 package com.bablsoft.accessflow.requestgroups.api;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,7 +24,8 @@ public interface GroupReviewService {
 
     DecisionOutcome reject(UUID requestGroupId, ReviewerContext context, String comment);
 
-    record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    record ReviewerContext(UUID userId, UUID organizationId, String roleName,
+                           Set<Permission> permissions) {
     }
 
     record PendingGroupReview(

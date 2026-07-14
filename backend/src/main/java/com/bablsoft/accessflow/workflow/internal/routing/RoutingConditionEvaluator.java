@@ -28,7 +28,9 @@ public class RoutingConditionEvaluator {
                     ctx.hasRiskSignal() && c.anyOf().contains(ctx.riskLevel());
             case ConditionNode.RiskScore c ->
                     ctx.hasRiskSignal() && c.operator().test(ctx.riskScore(), c.value());
-            case ConditionNode.RequesterRoleIn c -> c.anyOf().contains(ctx.requesterRole());
+            case ConditionNode.RequesterRoleIn c ->
+                    ctx.requesterRoleName() != null && c.anyOf().stream()
+                            .anyMatch(name -> name.equalsIgnoreCase(ctx.requesterRoleName()));
             case ConditionNode.RequesterInGroup c ->
                     !Collections.disjoint(c.groupIds(), ctx.requesterGroupIds());
             case ConditionNode.TimeOfDay c -> matchesTimeOfDay(c, ctx);

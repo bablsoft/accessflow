@@ -1,10 +1,11 @@
 package com.bablsoft.accessflow.attestation.api;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -29,7 +30,8 @@ public interface AttestationReviewService {
     BulkItemDecisionOutcome bulkDecide(List<UUID> itemIds, AttestationItemDecision decision,
                                        ReviewerContext context, String comment);
 
-    record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    record ReviewerContext(UUID userId, UUID organizationId, String roleName,
+                           Set<Permission> permissions) {
     }
 
     record ItemDecisionOutcome(UUID itemId, AttestationItemDecision decision,

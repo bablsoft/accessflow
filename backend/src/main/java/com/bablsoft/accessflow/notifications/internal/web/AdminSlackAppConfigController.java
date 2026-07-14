@@ -38,7 +38,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/admin/slack-app-config")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_NOTIFICATION_CHANNEL_MANAGE')")
 @Tag(name = "Admin Slack App Config", description = "Per-organization Slack app settings (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

@@ -42,7 +42,7 @@ import java.util.UUID;
         description = "Tag datasource tables/columns with data classifications (PII/PCI/PHI/GDPR/"
                 + "FINANCIAL/SENSITIVE). Tags are immutable (create/delete only); a column-level tag "
                 + "auto-applies a derived masking policy.")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_DATA_CLASSIFICATION_MANAGE')")
 @RequiredArgsConstructor
 @Slf4j
 class DataClassificationTagController {

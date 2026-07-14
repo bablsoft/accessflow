@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -66,6 +67,7 @@ class AuthController {
     private static final int REFRESH_COOKIE_MAX_AGE = RefreshCookieWriter.REFRESH_COOKIE_MAX_AGE;
 
     private final AuthenticationService authenticationService;
+    private final RolePermissionResolver rolePermissionResolver;
     private final AuditLogService auditLogService;
     private final UserQueryService userQueryService;
     private final BootstrapService bootstrapService;
@@ -319,7 +321,8 @@ class AuthController {
     }
 
     private LoginResponse toLoginResponse(com.bablsoft.accessflow.security.api.AuthResult result) {
-        var summary = UserSummary.from(result.user());
+        var summary = UserSummary.from(result.user(),
+                rolePermissionResolver.resolve(result.user().roleId(), result.user().role()));
         return new LoginResponse(result.accessToken(), result.tokenType(), result.expiresIn(), summary);
     }
 

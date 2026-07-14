@@ -9,6 +9,7 @@ public record InvitationPreviewResponse(
         String email,
         String displayName,
         UserRoleType role,
+        String roleName,
         String organizationName,
         Instant expiresAt
 ) {
@@ -18,6 +19,7 @@ public record InvitationPreviewResponse(
                 preview.email(),
                 preview.displayName(),
                 preview.role(),
+                preview.roleName(),
                 preview.organizationName(),
                 preview.expiresAt());
     }

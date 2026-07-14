@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.PendingReviewView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
@@ -16,7 +17,6 @@ import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
@@ -43,9 +43,6 @@ import java.util.UUID;
 @Slf4j
 class DefaultReviewService implements ReviewService {
 
-    private static final Set<UserRoleType> REVIEWER_ROLES = Set.of(UserRoleType.REVIEWER,
-            UserRoleType.ADMIN);
-
     private final QueryRequestLookupService queryRequestLookupService;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final QueryRequestStateService queryRequestStateService;
@@ -58,11 +55,11 @@ class DefaultReviewService implements ReviewService {
     @Transactional(readOnly = true)
     public PageResponse<PendingReview> listPendingForReviewer(ReviewerContext context,
                                                               PageRequest pageRequest) {
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!hasReviewPermission(context)) {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var page = queryRequestLookupService.findPendingForReviewer(context.organizationId(),
-                context.userId(), context.role(), pageRequest);
+                context.userId(), context.roleName(), pageRequest);
         var visible = page.content().stream()
                 .filter(view -> isCurrentlyActionable(view, context))
                 .map(view -> toPendingReview(view, context))
@@ -191,7 +188,7 @@ class DefaultReviewService implements ReviewService {
         if (view.submittedByUserId().equals(context.userId())) {
             throw new AccessDeniedException("A reviewer cannot review their own query request");
         }
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!hasReviewPermission(context)) {
             throw new ReviewerNotEligibleException(context.userId(), queryRequestId);
         }
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId())
@@ -259,7 +256,12 @@ class DefaultReviewService implements ReviewService {
     }
 
     private static boolean matchesRole(ApproverRule rule, ReviewerContext context) {
-        return rule.role() != null && rule.role() == context.role();
+        return rule.role() != null && rule.role().equalsIgnoreCase(context.roleName());
+    }
+
+    private static boolean hasReviewPermission(ReviewerContext context) {
+        return context.permissions() != null
+                && context.permissions().contains(Permission.QUERY_REVIEW);
     }
 
     private boolean isCurrentlyActionable(PendingReviewView view, ReviewerContext context) {

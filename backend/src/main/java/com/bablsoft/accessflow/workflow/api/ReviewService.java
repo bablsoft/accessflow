@@ -3,13 +3,14 @@ package com.bablsoft.accessflow.workflow.api;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,7 +40,12 @@ public interface ReviewService {
     BulkDecisionOutcome bulkDecide(List<UUID> queryRequestIds, DecisionType decision,
                                    ReviewerContext context, String comment);
 
-    record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    /**
+     * {@code roleName} is the reviewer's effective role name (system or custom), matched against
+     * role-targeted approver rules; {@code permissions} gates reviewer capability (AF-522).
+     */
+    record ReviewerContext(UUID userId, UUID organizationId, String roleName,
+                           Set<Permission> permissions) {
     }
 
     record PendingReview(

@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.dashboard.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.dashboard.api.DashboardService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSummaryExportService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSummaryFormat;
@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -57,8 +58,10 @@ class DashboardController {
     DashboardSummaryResponse summary(
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId,
             @AuthenticationPrincipal(expression = "userId") UUID userId,
-            @AuthenticationPrincipal(expression = "role") UserRoleType role) {
-        return DashboardSummaryResponse.from(dashboardService.summary(organizationId, userId, role));
+            @AuthenticationPrincipal(expression = "roleName") String roleName,
+            @AuthenticationPrincipal(expression = "permissions") Set<Permission> permissions) {
+        return DashboardSummaryResponse.from(
+                dashboardService.summary(organizationId, userId, roleName, permissions));
     }
 
     @GetMapping("/my-query-trends")

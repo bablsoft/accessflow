@@ -11,6 +11,8 @@ public record UserInvitationView(
         String email,
         String displayName,
         UserRoleType role,
+        UUID roleId,
+        String roleName,
         UserInvitationStatusType status,
         Instant expiresAt,
         Instant acceptedAt,

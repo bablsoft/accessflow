@@ -42,7 +42,7 @@ class ConnectorController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "List database connectors with install status")
     @ApiResponse(responseCode = "200", description = "Connector catalog")
     ConnectorListResponse listConnectors() {
@@ -50,7 +50,7 @@ class ConnectorController {
     }
 
     @PostMapping("/{id}/install")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Install a connector by downloading and caching its JDBC driver")
     @ApiResponse(responseCode = "200", description = "Connector installed; returns updated status")
     @ApiResponse(responseCode = "404", description = "Unknown connector id")

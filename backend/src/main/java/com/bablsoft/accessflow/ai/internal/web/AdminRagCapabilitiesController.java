@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/v1/admin/ai-configs/rag/capabilities")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AI_MANAGE')")
 @Tag(name = "Admin RAG Capabilities",
         description = "Deployment-level RAG capabilities for the admin UI (ADMIN only)")
 @RequiredArgsConstructor

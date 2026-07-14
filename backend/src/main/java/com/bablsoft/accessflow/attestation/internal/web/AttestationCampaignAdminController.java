@@ -43,7 +43,7 @@ class AttestationCampaignAdminController {
     private final AttestationAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "List attestation campaigns, optionally filtered by status")
     @ApiResponse(responseCode = "200", description = "Page of campaigns")
     @ApiResponse(responseCode = "403", description = "Caller is not an admin")
@@ -57,7 +57,7 @@ class AttestationCampaignAdminController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "Create a SCHEDULED attestation campaign")
     @ApiResponse(responseCode = "201", description = "Campaign created")
     @ApiResponse(responseCode = "400", description = "Validation error or inconsistent scope")
@@ -71,7 +71,7 @@ class AttestationCampaignAdminController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "Get a campaign with its item-decision breakdown")
     @ApiResponse(responseCode = "200", description = "Campaign")
     @ApiResponse(responseCode = "404", description = "Campaign not found")
@@ -81,7 +81,7 @@ class AttestationCampaignAdminController {
     }
 
     @GetMapping("/{id}/items")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "List the items (snapshotted grants) of a campaign")
     @ApiResponse(responseCode = "200", description = "Page of items")
     @ApiResponse(responseCode = "404", description = "Campaign not found")
@@ -94,7 +94,7 @@ class AttestationCampaignAdminController {
     }
 
     @PostMapping("/{id}/open")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "Open a SCHEDULED campaign immediately (snapshots grants); idempotent")
     @ApiResponse(responseCode = "200", description = "Campaign (now OPEN, or unchanged if already OPEN)")
     @ApiResponse(responseCode = "404", description = "Campaign not found")
@@ -105,7 +105,7 @@ class AttestationCampaignAdminController {
 
     @PostMapping("/{id}/cancel")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_CAMPAIGN_MANAGE')")
     @Operation(summary = "Cancel a SCHEDULED campaign")
     @ApiResponse(responseCode = "204", description = "Campaign cancelled")
     @ApiResponse(responseCode = "404", description = "Campaign not found")
@@ -119,7 +119,7 @@ class AttestationCampaignAdminController {
     }
 
     @GetMapping(value = "/{id}/evidence.csv", produces = "text/csv")
-    @PreAuthorize("hasAnyRole('ADMIN','AUDITOR')")
+    @PreAuthorize("hasAuthority('PERM_ATTESTATION_EVIDENCE_EXPORT')")
     @Operation(summary = "Export a campaign's attestation evidence as CSV")
     @ApiResponse(responseCode = "200", description = "CSV evidence")
     @ApiResponse(responseCode = "403", description = "Caller is not an admin or auditor")

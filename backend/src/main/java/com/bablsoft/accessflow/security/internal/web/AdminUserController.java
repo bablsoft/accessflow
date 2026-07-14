@@ -43,7 +43,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_USER_MANAGE')")
 @Tag(name = "Admin Users", description = "User management endpoints (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j
@@ -81,11 +81,12 @@ class AdminUserController {
                 request.displayName(),
                 passwordEncoder.encode(request.password()),
                 request.role(),
+                request.roleId(),
                 false
         );
         var created = userAdminService.createUser(command);
         recordAudit(AuditAction.USER_CREATED, created.id(), caller, auditContext,
-                Map.of("email", created.email(), "role", created.role().name()));
+                Map.of("email", created.email(), "role", String.valueOf(created.roleName())));
         var response = AdminUserResponse.from(created);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}")
@@ -104,8 +105,8 @@ class AdminUserController {
                                  @Valid @RequestBody UpdateUserRequest request,
                                  Authentication authentication) {
         var caller = currentClaims(authentication);
-        var command = new UpdateUserCommand(request.role(), request.active(), request.displayName(),
-                request.attributes());
+        var command = new UpdateUserCommand(request.role(), request.roleId(), request.active(),
+                request.displayName(), request.attributes());
         var updated = userAdminService.updateUser(id, caller.organizationId(),
                 caller.userId(), command);
         return AdminUserResponse.from(updated);

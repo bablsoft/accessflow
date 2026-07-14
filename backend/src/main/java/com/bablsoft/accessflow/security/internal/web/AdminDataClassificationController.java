@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Data classifications (reporting)",
         description = "Org-wide view of every data-classification tag across datasources, for "
                 + "compliance reporting consumers.")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_DATA_CLASSIFICATION_MANAGE')")
 @RequiredArgsConstructor
 class AdminDataClassificationController {
 

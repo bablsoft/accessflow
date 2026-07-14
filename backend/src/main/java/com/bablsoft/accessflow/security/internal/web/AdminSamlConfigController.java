@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/admin/saml-config")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SSO_CONFIGURE')")
 @Tag(name = "Admin SAML Config", description = "Per-organization SAML/SSO settings (ADMIN only)")
 @RequiredArgsConstructor
 class AdminSamlConfigController {

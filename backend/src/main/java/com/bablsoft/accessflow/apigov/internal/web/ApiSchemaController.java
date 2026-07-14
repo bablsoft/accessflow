@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
@@ -39,7 +40,7 @@ class ApiSchemaController {
 
     @PostMapping("/schemas")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Upload and parse a schema for a connector")
     @ApiResponse(responseCode = "201", description = "Schema uploaded and parsed")
     @ApiResponse(responseCode = "404", description = "Connector not found")
@@ -71,7 +72,7 @@ class ApiSchemaController {
 
     @DeleteMapping("/schemas/{schemaId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Delete a connector schema")
     @ApiResponse(responseCode = "204", description = "Schema deleted")
     @ApiResponse(responseCode = "404", description = "Connector or schema not found")
@@ -103,6 +104,6 @@ class ApiSchemaController {
     }
 
     private static boolean isAdmin(JwtClaims caller) {
-        return caller.role() != null && "ADMIN".equals(caller.role().name());
+        return caller.has(Permission.QUERY_ADMIN);
     }
 }

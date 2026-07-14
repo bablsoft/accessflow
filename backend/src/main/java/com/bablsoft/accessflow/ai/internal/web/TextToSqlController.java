@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.ai.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.ai.api.TextToSqlService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,7 +40,7 @@ class TextToSqlController {
                 request.prompt(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN);
+                caller.has(Permission.QUERY_ADMIN));
         return GeneratedSqlResponse.from(result);
     }
 }

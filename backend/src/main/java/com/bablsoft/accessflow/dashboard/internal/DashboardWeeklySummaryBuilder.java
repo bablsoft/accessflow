@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.dashboard.internal;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.core.api.MyQueryInsightsLookupService;
 import com.bablsoft.accessflow.core.api.MyQueryStatusBucket;
@@ -8,7 +10,6 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.api.DashboardRiskCount;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
@@ -27,6 +28,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -39,6 +41,7 @@ import java.util.UUID;
 class DashboardWeeklySummaryBuilder {
 
     private final UserQueryService userQueryService;
+    private final RolePermissionResolver rolePermissionResolver;
     private final ReviewService reviewService;
     private final MyQueryInsightsLookupService insightsLookupService;
     private final BehaviorAnomalyLookupService anomalyLookupService;
@@ -54,7 +57,10 @@ class DashboardWeeklySummaryBuilder {
         Instant to = weekEnd.atStartOfDay(ZoneOffset.UTC).toInstant();
 
         UserView user = userQueryService.findById(userId).orElse(null);
-        UserRoleType role = user != null ? user.role() : null;
+        String roleName = user != null ? user.roleName() : null;
+        Set<Permission> permissions = user != null
+                ? rolePermissionResolver.resolve(user.roleId(), user.role())
+                : Set.of();
 
         var trends = insightsLookupService.trends(organizationId, userId, from, to);
 
@@ -73,8 +79,9 @@ class DashboardWeeklySummaryBuilder {
                 .map(e -> new DashboardRiskCount(e.getKey(), e.getValue()))
                 .toList();
 
-        long pendingApprovals = role == null ? 0L : reviewService.listPendingForReviewer(
-                new ReviewerContext(userId, organizationId, role), PageRequest.of(0, 1)).totalElements();
+        long pendingApprovals = user == null ? 0L : reviewService.listPendingForReviewer(
+                new ReviewerContext(userId, organizationId, roleName, permissions),
+                PageRequest.of(0, 1)).totalElements();
         long openAnomalies = anomalyLookupService.badgeForUser(organizationId, userId).openCount();
         long openSuggestions = suggestionService.countOpen(organizationId, userId);
 

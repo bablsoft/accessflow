@@ -51,7 +51,7 @@ class AdminBehaviorAnomalyController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','AUDITOR')")
+    @PreAuthorize("hasAuthority('PERM_ANOMALY_VIEW')")
     @Operation(summary = "List detected behavioural anomalies for the caller's organization")
     @ApiResponse(responseCode = "200", description = "Page of anomalies ordered by detectedAt DESC")
     @ApiResponse(responseCode = "400", description = "Page size exceeds the maximum (200)")
@@ -80,7 +80,7 @@ class AdminBehaviorAnomalyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','AUDITOR')")
+    @PreAuthorize("hasAuthority('PERM_ANOMALY_VIEW')")
     @Operation(summary = "Get a single anomaly by id")
     @ApiResponse(responseCode = "200", description = "The anomaly")
     @ApiResponse(responseCode = "404", description = "Not found in this organization")
@@ -90,7 +90,7 @@ class AdminBehaviorAnomalyController {
     }
 
     @PostMapping("/{id}/acknowledge")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ANOMALY_MANAGE')")
     @Operation(summary = "Acknowledge an OPEN anomaly")
     @ApiResponse(responseCode = "200", description = "Acknowledged")
     @ApiResponse(responseCode = "404", description = "Not found in this organization")
@@ -105,7 +105,7 @@ class AdminBehaviorAnomalyController {
     }
 
     @PostMapping("/{id}/dismiss")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ANOMALY_MANAGE')")
     @Operation(summary = "Dismiss an anomaly (false positive / accepted)")
     @ApiResponse(responseCode = "200", description = "Dismissed")
     @ApiResponse(responseCode = "404", description = "Not found in this organization")

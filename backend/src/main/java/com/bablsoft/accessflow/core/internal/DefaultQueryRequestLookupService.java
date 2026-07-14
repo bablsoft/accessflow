@@ -9,7 +9,6 @@ import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
@@ -71,10 +70,10 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     @Transactional(readOnly = true)
     public PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
                                                                   UUID reviewerUserId,
-                                                                  UserRoleType role,
+                                                                  String roleName,
                                                                   PageRequest pageRequest) {
         var page = queryRequestRepository
-                .findPendingForReviewer(organizationId, reviewerUserId, role,
+                .findPendingForReviewer(organizationId, reviewerUserId, roleName,
                         QueryStatus.PENDING_REVIEW, PageAdapter.toSpringPageable(pageRequest));
         return PageAdapter.toPageResponse(page.map(this::toPendingReviewView));
     }

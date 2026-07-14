@@ -8,7 +8,6 @@ import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.core.api.ReviewPlanView;
 import com.bablsoft.accessflow.core.api.UpdateReviewPlanCommand;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanApproverEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -16,6 +15,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanApproverRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,6 +36,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final DatasourceRepository datasourceRepository;
+    private final RoleRepository roleRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -61,7 +62,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         }
         var requiresHuman = command.requiresHumanApproval() == null
                 || command.requiresHumanApproval();
-        validateApprovers(command.approvers(), requiresHuman, command.minApprovalsRequired());
+        validateApprovers(command.approvers(), requiresHuman, command.minApprovalsRequired(),
+                command.organizationId());
 
         var entity = new ReviewPlanEntity();
         entity.setId(UUID.randomUUID());
@@ -115,7 +117,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         }
         if (command.approvers() != null) {
             validateApprovers(command.approvers(), entity.isRequiresHumanApproval(),
-                    entity.getMinApprovalsRequired());
+                    entity.getMinApprovalsRequired(), organizationId);
             replaceApprovers(entity, command.approvers());
         } else {
             // Re-validate that the existing approver set still satisfies the (possibly updated)
@@ -178,7 +180,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
 
     private void validateApprovers(List<ReviewPlanView.ApproverRule> approvers,
                                    boolean requiresHumanApproval,
-                                   Integer minApprovalsRequired) {
+                                   Integer minApprovalsRequired,
+                                   UUID organizationId) {
         if (!requiresHumanApproval) {
             return;
         }
@@ -191,10 +194,10 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 throw new IllegalReviewPlanException(
                         "Each approver must specify a user or a role");
             }
-            if (rule.role() != null && rule.role() != UserRoleType.ADMIN
-                    && rule.role() != UserRoleType.REVIEWER) {
+            if (rule.role() != null
+                    && roleRepository.findByNameInScope(organizationId, rule.role()).isEmpty()) {
                 throw new IllegalReviewPlanException(
-                        "Approver role must be ADMIN or REVIEWER");
+                        "Approver role is not a known role: " + rule.role());
             }
             if (rule.stage() < 1) {
                 throw new IllegalReviewPlanException("Approver stage must be at least 1");
@@ -231,7 +234,13 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 }
                 entity.setUser(user);
             }
-            entity.setRole(rule.role());
+            if (rule.role() != null) {
+                var canonical = roleRepository
+                        .findByNameInScope(plan.getOrganization().getId(), rule.role())
+                        .orElseThrow(() -> new IllegalReviewPlanException(
+                                "Approver role is not a known role: " + rule.role()));
+                entity.setRole(canonical.getName());
+            }
             entity.setStage(rule.stage());
             approverRepository.save(entity);
         }

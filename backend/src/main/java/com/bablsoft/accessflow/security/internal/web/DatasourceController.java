@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -16,7 +17,6 @@ import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.proxy.api.SampleDataService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.internal.web.model.ConnectionTestResponse;
@@ -116,7 +116,7 @@ class DatasourceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Create a new datasource")
     @ApiResponse(responseCode = "201", description = "Datasource created")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -176,7 +176,7 @@ class DatasourceController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Update an existing datasource")
     @ApiResponse(responseCode = "200", description = "Datasource updated")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -218,7 +218,7 @@ class DatasourceController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Soft-delete a datasource (sets active=false)")
     @ApiResponse(responseCode = "204", description = "Datasource deactivated")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -230,7 +230,7 @@ class DatasourceController {
     }
 
     @PostMapping("/{id}/test")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Test connectivity to the customer database")
     @ApiResponse(responseCode = "200", description = "Connection succeeded")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -242,7 +242,7 @@ class DatasourceController {
     }
 
     @PostMapping("/{id}/test-replica")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Test connectivity to a candidate read-replica using live values")
     @ApiResponse(responseCode = "200", description = "Replica connection succeeded")
     @ApiResponse(responseCode = "400", description = "Invalid replica URL or no persisted password to fall back on")
@@ -287,7 +287,7 @@ class DatasourceController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "List user permissions on a datasource")
     @ApiResponse(responseCode = "200", description = "List of permissions")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -301,7 +301,7 @@ class DatasourceController {
     }
 
     @PostMapping("/{id}/permissions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Grant a user access to a datasource")
     @ApiResponse(responseCode = "201", description = "Permission granted")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -343,7 +343,7 @@ class DatasourceController {
     }
 
     @DeleteMapping("/{id}/permissions/{permId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Revoke a user's permission on a datasource")
     @ApiResponse(responseCode = "204", description = "Permission revoked")
     @ApiResponse(responseCode = "404", description = "Permission not found")
@@ -359,7 +359,7 @@ class DatasourceController {
     }
 
     @GetMapping("/{id}/permissions/groups")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "List group permissions on a datasource")
     @ApiResponse(responseCode = "200", description = "List of group permissions")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -374,7 +374,7 @@ class DatasourceController {
     }
 
     @PostMapping("/{id}/permissions/groups")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Grant a user group access to a datasource")
     @ApiResponse(responseCode = "201", description = "Group permission granted")
     @ApiResponse(responseCode = "404", description = "Datasource or group not found")
@@ -415,7 +415,7 @@ class DatasourceController {
     }
 
     @DeleteMapping("/{id}/permissions/groups/{permId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Revoke a user group's permission on a datasource")
     @ApiResponse(responseCode = "204", description = "Group permission revoked")
     @ApiResponse(responseCode = "404", description = "Group permission not found")
@@ -431,7 +431,7 @@ class DatasourceController {
     }
 
     @GetMapping("/{id}/reviewers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "List per-datasource reviewer assignments (users and groups)")
     @ApiResponse(responseCode = "200", description = "List of reviewers; empty means fall back to plan approvers")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
@@ -446,7 +446,7 @@ class DatasourceController {
     }
 
     @PostMapping("/{id}/reviewers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Add a user or group as a reviewer of this datasource")
     @ApiResponse(responseCode = "201", description = "Reviewer added")
     @ApiResponse(responseCode = "404", description = "Datasource, user, or group not found")
@@ -483,7 +483,7 @@ class DatasourceController {
     }
 
     @DeleteMapping("/{id}/reviewers/{reviewerId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_PERMISSION_MANAGE')")
     @Operation(summary = "Remove a datasource reviewer assignment")
     @ApiResponse(responseCode = "204", description = "Reviewer removed")
     @ApiResponse(responseCode = "404", description = "Datasource or reviewer not found")
@@ -501,8 +501,10 @@ class DatasourceController {
         return (JwtClaims) authentication.getPrincipal();
     }
 
+    // Full-catalog datasource visibility (list/detail/schema/samples without a per-datasource
+    // grant): request-workflow admins and datasource managers both need it (AF-522).
     private boolean isAdmin(JwtClaims claims) {
-        return claims.role() == UserRoleType.ADMIN;
+        return claims.has(Permission.QUERY_ADMIN) || claims.has(Permission.DATASOURCE_MANAGE);
     }
 
     private void recordAudit(AuditAction action, AuditResourceType resourceType, UUID resourceId,

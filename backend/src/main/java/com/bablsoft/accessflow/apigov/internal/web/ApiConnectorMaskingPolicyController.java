@@ -32,7 +32,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/api-connectors/{connectorId}/masking-policies")
 @Tag(name = "API connector masking policies",
         description = "Per-connector response-masking policies with conditional reveal (AF-518)")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
 @RequiredArgsConstructor
 class ApiConnectorMaskingPolicyController {
 

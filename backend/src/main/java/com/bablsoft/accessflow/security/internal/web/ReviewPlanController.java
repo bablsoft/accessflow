@@ -86,7 +86,7 @@ class ReviewPlanController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_PLAN_MANAGE')")
     @Operation(summary = "Create a new review plan")
     @ApiResponse(responseCode = "201", description = "Review plan created")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -118,7 +118,7 @@ class ReviewPlanController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_PLAN_MANAGE')")
     @Operation(summary = "Update an existing review plan")
     @ApiResponse(responseCode = "200", description = "Review plan updated")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -147,7 +147,7 @@ class ReviewPlanController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_PLAN_MANAGE')")
     @Operation(summary = "Delete a review plan that is not attached to any datasource")
     @ApiResponse(responseCode = "204", description = "Review plan deleted")
     @ApiResponse(responseCode = "403", description = "Only admins can delete review plans")

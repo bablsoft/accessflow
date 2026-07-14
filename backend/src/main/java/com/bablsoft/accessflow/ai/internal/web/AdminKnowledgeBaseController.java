@@ -32,7 +32,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/ai-configs/{configId}/knowledge-documents")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AI_MANAGE')")
 @Tag(name = "Admin RAG Knowledge Base",
         description = "Knowledge-base documents attached to a RAG-enabled AI configuration (ADMIN only)")
 @RequiredArgsConstructor

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
@@ -36,7 +37,6 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -152,18 +152,20 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public ApiRequestView get(UUID id, UUID organizationId, UUID userId, UserRoleType callerRole) {
+    public ApiRequestView get(UUID id, UUID organizationId, UUID userId,
+                              Set<Permission> callerPermissions) {
         var entity = require(id, organizationId);
         // Per docs/07-security.md role matrix, REVIEWER and ADMIN both have "View all query history";
         // the same parity applies to API requests. Everyone else can only read their own rows.
-        if (!canViewAll(callerRole) && !entity.getSubmittedBy().equals(userId)) {
+        if (!canViewAll(callerPermissions) && !entity.getSubmittedBy().equals(userId)) {
             throw new ApiRequestNotFoundException(id);
         }
         return toDetailView(entity);
     }
 
-    private static boolean canViewAll(UserRoleType callerRole) {
-        return callerRole == UserRoleType.ADMIN || callerRole == UserRoleType.REVIEWER;
+    private static boolean canViewAll(Set<Permission> callerPermissions) {
+        return callerPermissions != null
+                && callerPermissions.contains(Permission.QUERY_VIEW_ALL);
     }
 
     @Override
@@ -325,10 +327,10 @@ public class DefaultApiRequestService implements ApiRequestService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponsePayload downloadResponse(UUID id, UUID organizationId, UUID userId,
-            UserRoleType callerRole) {
+                                               Set<Permission> callerPermissions) {
         var entity = require(id, organizationId);
         // Same view guard as get(): submitter, REVIEWER, or ADMIN.
-        if (!canViewAll(callerRole) && !entity.getSubmittedBy().equals(userId)) {
+        if (!canViewAll(callerPermissions) && !entity.getSubmittedBy().equals(userId)) {
             throw new ApiRequestNotFoundException(id);
         }
         var snapshot = entity.getResponseSnapshot();

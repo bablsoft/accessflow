@@ -40,7 +40,7 @@ class RetentionPolicyController {
     private final LifecycleAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "List retention policies in the organization")
     @ApiResponse(responseCode = "200", description = "Page of retention policies")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
@@ -53,7 +53,7 @@ class RetentionPolicyController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "Get a single retention policy")
     @ApiResponse(responseCode = "200", description = "The retention policy")
     @ApiResponse(responseCode = "404", description = "Retention policy not found")
@@ -64,7 +64,7 @@ class RetentionPolicyController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "Create a retention policy")
     @ApiResponse(responseCode = "201", description = "Policy created")
     @ApiResponse(responseCode = "400", description = "Validation error or invalid policy")
@@ -85,7 +85,7 @@ class RetentionPolicyController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "Update a retention policy")
     @ApiResponse(responseCode = "200", description = "Policy updated")
     @ApiResponse(responseCode = "400", description = "Validation error or invalid policy")
@@ -108,7 +108,7 @@ class RetentionPolicyController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "Delete a retention policy")
     @ApiResponse(responseCode = "204", description = "Policy deleted")
     @ApiResponse(responseCode = "404", description = "Retention policy not found")
@@ -121,7 +121,7 @@ class RetentionPolicyController {
     }
 
     @PostMapping("/{id}/preview")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_RETENTION_POLICY_MANAGE')")
     @Operation(summary = "Dry-run preview of a policy's impact, without executing")
     @ApiResponse(responseCode = "200", description = "Impact set (tables, estimated rows, method)")
     @ApiResponse(responseCode = "404", description = "Retention policy not found")

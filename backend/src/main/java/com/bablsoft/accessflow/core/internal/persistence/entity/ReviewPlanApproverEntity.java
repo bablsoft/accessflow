@@ -1,10 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -13,8 +10,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcType;
-import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.util.UUID;
 
@@ -36,10 +31,10 @@ public class ReviewPlanApproverEntity {
     @JoinColumn(name = "user_id")
     private UserEntity user;
 
-    @Enumerated(EnumType.STRING)
-    @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(columnDefinition = "user_role_type")
-    private UserRoleType role;
+    // Role NAME (system or custom), matched case-insensitively against the reviewer's effective
+    // role name (AF-522). Widened from the user_role_type pg enum in V114.
+    @Column(length = 100)
+    private String role;
 
     @Column(nullable = false)
     private int stage;

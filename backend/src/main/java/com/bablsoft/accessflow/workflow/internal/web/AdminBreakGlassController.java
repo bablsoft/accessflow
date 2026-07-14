@@ -53,7 +53,7 @@ class AdminBreakGlassController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','AUDITOR')")
+    @PreAuthorize("hasAuthority('PERM_BREAK_GLASS_VIEW')")
     @Operation(summary = "List break-glass events for the caller's organization")
     @ApiResponse(responseCode = "200", description = "Page of break-glass events, newest first")
     @ApiResponse(responseCode = "400", description = "Page size exceeds the maximum (200)")
@@ -80,7 +80,7 @@ class AdminBreakGlassController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','AUDITOR')")
+    @PreAuthorize("hasAuthority('PERM_BREAK_GLASS_VIEW')")
     @Operation(summary = "Get a single break-glass event by id")
     @ApiResponse(responseCode = "200", description = "The break-glass event")
     @ApiResponse(responseCode = "404", description = "Not found in this organization")
@@ -90,7 +90,7 @@ class AdminBreakGlassController {
     }
 
     @PostMapping("/{id}/acknowledge")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_BREAK_GLASS_REVIEW')")
     @Operation(summary = "Acknowledge (reconcile) a pending break-glass event")
     @ApiResponse(responseCode = "200", description = "Acknowledged")
     @ApiResponse(responseCode = "403", description = "Caller is the submitter (self-acknowledge not allowed)")

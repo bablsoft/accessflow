@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
@@ -47,7 +47,7 @@ class BreakGlassController {
                 body.justification(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN,
+                caller.has(Permission.QUERY_ADMIN),
                 auditContext.ipAddress(),
                 auditContext.userAgent()));
         return BreakGlassExecuteResponse.from(result);

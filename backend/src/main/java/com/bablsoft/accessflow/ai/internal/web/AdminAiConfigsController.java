@@ -41,7 +41,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/ai-configs")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AI_MANAGE')")
 @Tag(name = "Admin AI Configs", description = "Per-organization AI analyzer configurations (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

@@ -42,7 +42,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/datasources/{datasourceId}/row-security-policies")
 @Tag(name = "Row security policies",
         description = "Per-table row-level security predicates injected into queries at execution")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_ROW_SECURITY_MANAGE')")
 @RequiredArgsConstructor
 @Slf4j
 class RowSecurityPolicyController {

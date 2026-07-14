@@ -1,9 +1,10 @@
 package com.bablsoft.accessflow.lifecycle.api;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +27,7 @@ public interface ErasureReviewService {
 
     ErasureRequestView reject(UUID requestId, ReviewerContext reviewer, String comment);
 
-    record ReviewerContext(UUID reviewerId, UUID organizationId, UserRoleType role) {
+    record ReviewerContext(UUID reviewerId, UUID organizationId, String roleName,
+                           Set<Permission> permissions) {
     }
 }

@@ -40,7 +40,7 @@ class ReviewController {
     private final StepUpService stepUpService;
 
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "List queries the caller can act on as a reviewer")
     @ApiResponse(responseCode = "200", description = "Page of currently-actionable pending queries")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
@@ -54,7 +54,7 @@ class ReviewController {
     }
 
     @PostMapping("/{queryId}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Record an approval for a query awaiting review")
     @ApiResponse(responseCode = "200", description = "Decision recorded; resulting status returned")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -74,7 +74,7 @@ class ReviewController {
     }
 
     @PostMapping("/{queryId}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Reject a query awaiting review")
     @ApiResponse(responseCode = "200", description = "Decision recorded; query transitioned to REJECTED")
     @ApiResponse(responseCode = "400", description = "Validation error (comment is required)")
@@ -94,7 +94,7 @@ class ReviewController {
     }
 
     @PostMapping("/{queryId}/decide")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Commit an approve/reject from a one-tap push action, gated by step-up auth",
             description = "AF-444. Requires a single-use step-up token from POST /auth/step-up bound to "
                     + "the caller. The self-approval and reviewer-eligibility guards still apply — a user "
@@ -125,7 +125,7 @@ class ReviewController {
     }
 
     @PostMapping("/{queryId}/request-changes")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Request changes from the submitter; query stays PENDING_REVIEW")
     @ApiResponse(responseCode = "200", description = "Decision recorded; status unchanged")
     @ApiResponse(responseCode = "400", description = "Validation error (comment is required)")
@@ -142,7 +142,7 @@ class ReviewController {
     }
 
     @PostMapping("/bulk")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Apply the same decision to a batch of queries; per-row outcomes")
     @ApiResponse(responseCode = "200",
             description = "Per-row results; partial failures do not roll back successful rows")
@@ -180,6 +180,7 @@ class ReviewController {
     }
 
     private static ReviewerContext toContext(JwtClaims caller) {
-        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 }

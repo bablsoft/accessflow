@@ -44,7 +44,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/audit-log")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AUDIT_LOG_VIEW')")
 @Tag(name = "Admin Audit Log", description = "Read access to the audit log (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

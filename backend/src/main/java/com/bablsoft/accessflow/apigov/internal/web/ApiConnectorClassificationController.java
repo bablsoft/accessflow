@@ -29,7 +29,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/api-connectors/{connectorId}/classification-tags")
 @Tag(name = "API connector classification tags",
         description = "Per-connector data-classification tags with masking derivation (AF-518)")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
 @RequiredArgsConstructor
 class ApiConnectorClassificationController {
 

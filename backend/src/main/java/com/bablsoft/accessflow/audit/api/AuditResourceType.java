@@ -24,6 +24,7 @@ public enum AuditResourceType {
     LANGFUSE_CONFIG("langfuse_config"),
     AUDIT_LOG("audit_log"),
     USER_GROUP("user_group"),
+    ROLE("role"),
     DATASOURCE_REVIEWER("datasource_reviewer"),
     QUERY_TEMPLATE("query_template"),
     SLACK_APP_CONFIG("slack_app_config"),

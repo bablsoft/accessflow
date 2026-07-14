@@ -42,7 +42,7 @@ class ErasureReviewController {
     private final LifecycleAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ERASURE_REVIEW')")
     @Operation(summary = "List erasure requests the caller can review (per review-plan eligibility)")
     @ApiResponse(responseCode = "200", description = "Page of actionable erasure requests")
     @ApiResponse(responseCode = "403", description = "Caller is not a reviewer or admin")
@@ -54,7 +54,7 @@ class ErasureReviewController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ERASURE_REVIEW')")
     @Operation(summary = "Approve an erasure request")
     @ApiResponse(responseCode = "200", description = "Decision recorded (approved / advanced a stage)")
     @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an eligible reviewer")
@@ -72,7 +72,7 @@ class ErasureReviewController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ERASURE_REVIEW')")
     @Operation(summary = "Reject an erasure request")
     @ApiResponse(responseCode = "200", description = "Request rejected")
     @ApiResponse(responseCode = "403", description = "Caller is the submitter or not an eligible reviewer")
@@ -105,7 +105,8 @@ class ErasureReviewController {
     }
 
     private static ReviewerContext toContext(JwtClaims caller) {
-        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

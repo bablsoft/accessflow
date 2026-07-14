@@ -36,7 +36,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/system-smtp")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SMTP_CONFIGURE')")
 @Tag(name = "Admin System SMTP", description = "Per-organization global SMTP configuration (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

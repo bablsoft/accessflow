@@ -42,7 +42,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/routing-policies")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_ROUTING_POLICY_MANAGE')")
 @Tag(name = "Routing Policies",
         description = "Admin management of policy-as-code query routing rules (auto-approve, "
                 + "auto-reject, require approvals, escalate)")

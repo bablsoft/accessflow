@@ -36,7 +36,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/users/invitations")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_USER_MANAGE')")
 @Tag(name = "Admin User Invitations", description = "Invite users by email (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j
@@ -66,11 +66,13 @@ class AdminUserInvitationController {
                                                   RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var issued = invitationService.invite(
-                new InviteUserCommand(request.email(), request.displayName(), request.role()),
+                new InviteUserCommand(request.email(), request.displayName(), request.role(),
+                        request.roleId()),
                 caller.organizationId(),
                 caller.userId());
         recordAudit(AuditAction.USER_INVITED, issued.invitation().id(), caller, auditContext,
-                Map.of("email", issued.invitation().email(), "role", issued.invitation().role().name()));
+                Map.of("email", issued.invitation().email(),
+                        "role", String.valueOf(issued.invitation().roleName())));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(UserInvitationResponse.from(issued.invitation()));
     }

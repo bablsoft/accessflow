@@ -18,6 +18,7 @@ public record ReviewPlanView(
         List<ApproverRule> approvers,
         Instant createdAt
 ) {
-    public record ApproverRule(UUID userId, UserRoleType role, int stage) {
+    /** {@code role} is a role NAME (system or custom), matched case-insensitively (AF-522). */
+    public record ApproverRule(UUID userId, String role, int stage) {
     }
 }

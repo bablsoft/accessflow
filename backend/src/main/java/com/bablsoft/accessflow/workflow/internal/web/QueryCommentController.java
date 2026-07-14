@@ -119,7 +119,8 @@ class QueryCommentController {
     }
 
     private static CollaboratorContext context(JwtClaims caller) {
-        return new CollaboratorContext(caller.userId(), caller.organizationId(), caller.role());
+        return new CollaboratorContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 
     private void recordAudit(JwtClaims caller, UUID queryId, UUID commentId, AuditAction action,

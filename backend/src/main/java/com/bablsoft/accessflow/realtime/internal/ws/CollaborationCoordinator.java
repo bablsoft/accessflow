@@ -92,7 +92,7 @@ public class CollaborationCoordinator {
             return;
         }
         var identity = collaborationAccessService.resolveParticipant(queryId, claims.userId(),
-                claims.organizationId(), claims.role()).orElse(null);
+                claims.organizationId(), claims.roleName(), claims.permissions()).orElse(null);
         if (identity == null) {
             sendDenied(session, queryId);
             return;

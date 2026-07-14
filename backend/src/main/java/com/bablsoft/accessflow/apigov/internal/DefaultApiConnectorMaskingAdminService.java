@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.core.api.RoleLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingAdminService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingPolicyView;
@@ -14,7 +15,6 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepo
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -39,6 +39,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
     private static final int MAX_VISIBLE_SUFFIX = 256;
 
     private final ApiConnectorMaskingPolicyRepository policyRepository;
+    private final RoleLookupService roleLookupService;
     private final ApiConnectorRepository connectorRepository;
     private final UserQueryService userQueryService;
     private final UserGroupService userGroupService;
@@ -66,7 +67,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
         var fieldRef = requireFieldRef(command.fieldRef());
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
-        var roles = normalizeRoles(command.revealToRoles());
+        var roles = normalizeRoles(organizationId, command.revealToRoles());
         validateRevealTargets(organizationId, command.revealToUserIds(), command.revealToGroupIds());
 
         var entity = new ApiConnectorMaskingPolicyEntity();
@@ -95,7 +96,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
         var fieldRef = requireFieldRef(command.fieldRef());
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
-        var roles = normalizeRoles(command.revealToRoles());
+        var roles = normalizeRoles(organizationId, command.revealToRoles());
         validateRevealTargets(organizationId, command.revealToUserIds(), command.revealToGroupIds());
 
         entity.setMatcherType(matcherType);
@@ -179,7 +180,7 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
         }
     }
 
-    private List<String> normalizeRoles(List<String> roles) {
+    private List<String> normalizeRoles(UUID organizationId, List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return List.of();
         }
@@ -188,12 +189,10 @@ class DefaultApiConnectorMaskingAdminService implements ApiConnectorMaskingAdmin
             if (role == null || role.isBlank()) {
                 continue;
             }
-            try {
-                normalized.add(UserRoleType.valueOf(role.trim().toUpperCase(Locale.ROOT)).name());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalApiConnectorMaskingPolicyException(
-                        msg("error.api_masking_policy_unknown_role", role));
-            }
+            var resolved = roleLookupService.findByNameInScope(organizationId, role.trim())
+                    .orElseThrow(() -> new IllegalApiConnectorMaskingPolicyException(
+                            msg("error.api_masking_policy_unknown_role", role)));
+            normalized.add(resolved.name());
         }
         return normalized;
     }

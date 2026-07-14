@@ -1,13 +1,14 @@
 package com.bablsoft.accessflow.apigov.api;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /** Reviewer-facing approve/reject of governed API requests. The submitter can never self-approve. */
@@ -20,7 +21,8 @@ public interface ApiReviewService {
 
     DecisionOutcome reject(UUID apiRequestId, ReviewerContext context, String comment);
 
-    record ReviewerContext(UUID userId, UUID organizationId, UserRoleType role) {
+    record ReviewerContext(UUID userId, UUID organizationId, String roleName,
+                           Set<Permission> permissions) {
     }
 
     /** Optional narrowing of the pending-review queue. Both fields are nullable / AND-combined. */

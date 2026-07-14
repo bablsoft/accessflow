@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupListFilter;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupService;
@@ -130,6 +131,6 @@ class RequestGroupController {
     }
 
     private static boolean isAdmin(JwtClaims caller) {
-        return caller.role() != null && "ADMIN".equals(caller.role().name());
+        return caller.has(Permission.QUERY_ADMIN);
     }
 }

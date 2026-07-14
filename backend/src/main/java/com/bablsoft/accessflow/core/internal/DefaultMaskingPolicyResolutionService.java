@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.ResolvedColumnMask;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.MaskingPolicyRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershipRepository;
@@ -45,13 +44,13 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
         if (policies.isEmpty()) {
             return List.of();
         }
-        var role = userRepository.findById(requesterUserId)
-                .map(u -> u.getRole())
+        var roleName = userRepository.findById(requesterUserId)
+                .map(u -> u.roleName())
                 .orElse(null);
         var groupIds = new HashSet<>(membershipRepository.findGroupIdsForUser(requesterUserId));
         var resolved = new ArrayList<ResolvedColumnMask>();
         for (var policy : policies) {
-            if (isRevealed(policy, requesterUserId, role, groupIds)) {
+            if (isRevealed(policy, requesterUserId, roleName, groupIds)) {
                 continue;
             }
             resolved.add(new ResolvedColumnMask(policy.getId(), policy.getColumnRef(),
@@ -60,11 +59,11 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
         return resolved;
     }
 
-    private static boolean isRevealed(MaskingPolicyEntity policy, UUID userId, UserRoleType role,
+    private static boolean isRevealed(MaskingPolicyEntity policy, UUID userId, String roleName,
                                       Set<UUID> groupIds) {
-        if (role != null && policy.getRevealToRoles() != null) {
+        if (roleName != null && policy.getRevealToRoles() != null) {
             for (var allowed : policy.getRevealToRoles()) {
-                if (allowed != null && role.name().equalsIgnoreCase(allowed.trim())) {
+                if (allowed != null && roleName.equalsIgnoreCase(allowed.trim())) {
                     return true;
                 }
             }

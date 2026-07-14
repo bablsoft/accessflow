@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorMa
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorMaskingPolicyRepository;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +44,11 @@ class DefaultApiConnectorMaskingResolutionService implements ApiConnectorMasking
         if (policies.isEmpty()) {
             return List.of();
         }
-        var role = userQueryService.findById(requesterUserId).map(u -> u.role()).orElse(null);
+        var roleName = userQueryService.findById(requesterUserId).map(u -> u.roleName()).orElse(null);
         var groupIds = new HashSet<>(userGroupService.findGroupIdsForUser(requesterUserId));
         var resolved = new ArrayList<ResolvedApiMask>();
         for (var policy : policies) {
-            if (isRevealed(policy, requesterUserId, role, groupIds)) {
+            if (isRevealed(policy, requesterUserId, roleName, groupIds)) {
                 continue;
             }
             resolved.add(new ResolvedApiMask(policy.getId(), policy.getMatcherType(),
@@ -60,10 +59,10 @@ class DefaultApiConnectorMaskingResolutionService implements ApiConnectorMasking
     }
 
     private static boolean isRevealed(ApiConnectorMaskingPolicyEntity policy, UUID userId,
-                                      UserRoleType role, Set<UUID> groupIds) {
-        if (role != null && policy.getRevealToRoles() != null) {
+                                      String roleName, Set<UUID> groupIds) {
+        if (roleName != null && policy.getRevealToRoles() != null) {
             for (var allowed : policy.getRevealToRoles()) {
-                if (allowed != null && role.name().equalsIgnoreCase(allowed.trim())) {
+                if (allowed != null && roleName.equalsIgnoreCase(allowed.trim())) {
                     return true;
                 }
             }
