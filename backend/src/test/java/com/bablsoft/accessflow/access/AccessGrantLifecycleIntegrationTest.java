@@ -7,7 +7,12 @@ import com.bablsoft.accessflow.access.api.AccessRequestService;
 import com.bablsoft.accessflow.access.api.AccessRequestService.SubmitCommand;
 import com.bablsoft.accessflow.access.api.AccessReviewService;
 import com.bablsoft.accessflow.access.api.AccessReviewService.ReviewerContext;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiProtocol;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
@@ -53,6 +58,8 @@ class AccessGrantLifecycleIntegrationTest {
     @Autowired ReviewPlanRepository reviewPlanRepository;
     @Autowired ReviewPlanApproverRepository reviewPlanApproverRepository;
     @Autowired DatasourceUserPermissionRepository permissionRepository;
+    @Autowired ApiConnectorRepository connectorRepository;
+    @Autowired ApiConnectorUserPermissionRepository connectorPermissionRepository;
     @Autowired AccessGrantRequestRepository requestRepository;
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired AccessRequestService accessRequestService;
@@ -135,6 +142,8 @@ class AccessGrantLifecycleIntegrationTest {
         jdbcTemplate.update("DELETE FROM access_grant_request");
         jdbcTemplate.update("DELETE FROM audit_log");
         permissionRepository.deleteAll();
+        connectorPermissionRepository.deleteAll();
+        connectorRepository.deleteAll();
         datasourceRepository.deleteAll();
         reviewPlanApproverRepository.deleteAll();
         reviewPlanRepository.deleteAll();
@@ -159,8 +168,8 @@ class AccessGrantLifecycleIntegrationTest {
     void submitApproveMaterialisesTimeBoxedGrantThenExpiryRevokesIt() {
         // Submit
         var view = accessRequestService.submit(new SubmitCommand(organization.getId(),
-                requester.getId(), datasource.getId(), true, true, false,
-                List.of("public", "analytics"), null, "PT4H", "deploy hotfix", false));
+                requester.getId(), datasource.getId(), null, true, true, false,
+                List.of("public", "analytics"), null, null, "PT4H", "deploy hotfix", false));
         assertThat(view.status()).isEqualTo(AccessGrantStatus.PENDING);
 
         // Approve (single-stage REVIEWER plan → final approval)
@@ -200,9 +209,72 @@ class AccessGrantLifecycleIntegrationTest {
     }
 
     @Test
+    void connectorSubmitApproveMaterialisesTimeBoxedGrantThenExpiryRevokesIt() {
+        var admin = user("admin", UserRoleType.ADMIN);
+        var connector = saveConnector();
+
+        // Submit a connector-targeted request (no operation allow-list = all operations)
+        var view = accessRequestService.submit(new SubmitCommand(organization.getId(),
+                requester.getId(), null, connector.getId(), true, true, false, null, null, null,
+                "PT4H", "call billing API", false));
+        assertThat(view.status()).isEqualTo(AccessGrantStatus.PENDING);
+        assertThat(view.resourceKind()).isEqualTo(AccessResourceKind.API_CONNECTOR);
+        assertThat(view.connectorId()).isEqualTo(connector.getId());
+        assertThat(view.datasourceId()).isNull();
+
+        // Approve as admin (backstop approver — the connector has no review plan attached)
+        var outcome = accessReviewService.approve(view.id(),
+                new ReviewerContext(admin.getId(), organization.getId(), UserRoleType.ADMIN), "ok");
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
+
+        // A time-boxed api_connector_user_permissions row exists with expires_at set
+        var permission = connectorPermissionRepository
+                .findByConnectorIdAndUserId(connector.getId(), requester.getId())
+                .orElseThrow();
+        assertThat(permission.getExpiresAt()).isNotNull();
+        assertThat(permission.isCanRead()).isTrue();
+        assertThat(permission.isCanWrite()).isTrue();
+        assertThat(permission.isCanBreakGlass()).isFalse();
+
+        var stored = requestRepository.findById(view.id()).orElseThrow();
+        assertThat(stored.getStatus()).isEqualTo(AccessGrantStatus.APPROVED);
+        assertThat(stored.getGrantedPermissionId()).isEqualTo(permission.getId());
+
+        // Force expiry: backdate expires_at, then run the expiry service
+        jdbcTemplate.update("UPDATE access_grant_request SET expires_at = now() - interval '1 hour' "
+                + "WHERE id = ?", view.id());
+        assertThat(accessGrantExpiryService.findExpiredGrantedIds(Instant.now())).contains(view.id());
+        assertThat(accessGrantExpiryService.expireAndRevoke(view.id())).isTrue();
+
+        // Permission revoked + request EXPIRED + audit row written with connector metadata
+        assertThat(connectorPermissionRepository
+                .findByConnectorIdAndUserId(connector.getId(), requester.getId())).isEmpty();
+        assertThat(requestRepository.findById(view.id()).orElseThrow().getStatus())
+                .isEqualTo(AccessGrantStatus.EXPIRED);
+        Integer auditCount = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM audit_log WHERE action = 'ACCESS_GRANT_EXPIRED' "
+                        + "AND metadata ->> 'resource_kind' = 'API_CONNECTOR' "
+                        + "AND metadata ->> 'connector_id' = ?", Integer.class,
+                connector.getId().toString());
+        assertThat(auditCount).isEqualTo(1);
+    }
+
+    private ApiConnectorEntity saveConnector() {
+        var connector = new ApiConnectorEntity();
+        connector.setId(UUID.randomUUID());
+        connector.setOrganizationId(organization.getId());
+        connector.setName("billing-" + UUID.randomUUID());
+        connector.setProtocol(ApiProtocol.REST);
+        connector.setBaseUrl("https://api.test");
+        connector.setActive(true);
+        return connectorRepository.save(connector);
+    }
+
+    @Test
     void cancellingPendingRequestTransitionsToCancelled() {
         var view = accessRequestService.submit(new SubmitCommand(organization.getId(),
-                requester.getId(), datasource.getId(), true, false, false, null, null, "PT2H", "j", false));
+                requester.getId(), datasource.getId(), null, true, false, false, null, null, null,
+                "PT2H", "j", false));
 
         accessRequestService.cancel(view.id(), requester.getId(), organization.getId());
 
@@ -213,7 +285,7 @@ class AccessGrantLifecycleIntegrationTest {
     @Test
     void listMineReturnsRequestersOwnRequests() {
         accessRequestService.submit(new SubmitCommand(organization.getId(), requester.getId(),
-                datasource.getId(), true, false, false, null, null, "PT2H", "j", false));
+                datasource.getId(), null, true, false, false, null, null, null, "PT2H", "j", false));
 
         var page = accessRequestService.listMine(organization.getId(), requester.getId(), null,
                 com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));

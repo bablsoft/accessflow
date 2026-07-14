@@ -366,14 +366,15 @@ Are restricted_columns set?
   PROCEED to review plan
 ```
 
-### Just-in-time (JIT) time-bound access requests (AF-378)
+### Just-in-time (JIT) time-bound access requests (AF-378, AF-567)
 
-A user can self-request temporary, scoped access instead of an admin pre-granting it. The request flows through the **same reviewer-eligibility + multi-stage approval machinery** as query review, with these security invariants:
+A user can self-request temporary, scoped access — to a datasource or an API connector (AF-567) — instead of an admin pre-granting it. The request flows through the **same reviewer-eligibility + multi-stage approval machinery** as query review, with these security invariants:
 
 - **A requester can never approve their own request.** Enforced in `DefaultAccessReviewService.prepareDecision()` at the service layer (not just the UI) — `requesterId == reviewerId` raises `AccessDeniedException` (403), exactly as the query-review self-approval block does.
-- **Eligibility is identical to query review.** The reviewer must be an approver at the request's current stage in the datasource's review plan *and* within the datasource's scoped-reviewer set (`datasource_reviewers`) when one is configured. `REVIEWER`/`ADMIN` role is necessary but not sufficient.
-- **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard datasource-access check above returns 403.
-- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* permission is revoked and replaced (extend/widen). This preserves standing access as the source of truth while letting JIT grants stack predictably.
+- **Eligibility is identical to query review.** The reviewer must be an approver at the request's current stage in the resource's review plan (the datasource's plan, or the connector's `review_plan_id`) *and* — for datasource requests — within the datasource's scoped-reviewer set (`datasource_reviewers`) when one is configured (reviewer scoping is a datasource-only concept). `REVIEWER`/`ADMIN` role is necessary but not sufficient.
+- **Grants are time-boxed.** On final-stage approval the system writes a `datasource_user_permissions` or `api_connector_user_permissions` row with `expires_at = now + requested_duration` (bounded by `accessflow.access.min-duration` / `max-duration`). `AccessGrantExpiryJob` revokes it on expiry (`EXPIRED`); an admin may early-revoke (`REVOKED`). Once expired/revoked the permission row is gone, so the standard access checks return 403 — and the connector-side effective-permission resolver already excludes rows past `expires_at` even before deletion.
+- **Pre-existing-permission policy.** A JIT grant **never silently deletes a standing (admin-granted, non-expiring) direct permission** — approval fails with `ACCESS_GRANT_ALREADY_EXISTS` (409) in that case. An existing *time-boxed* direct permission is revoked and replaced (extend/widen); group grants are never considered or touched. This preserves standing access as the source of truth while letting JIT grants stack predictably.
+- **Privilege ceiling on connector requests (AF-567).** A connector access request can only convey `can_read`/`can_write` plus an operation allow-list validated against the connector's catalog — `can_break_glass` and response-field-restriction changes are never self-requestable, and the materialised grant always carries `can_break_glass = false`.
 
 ### Break-glass / emergency access (AF-385)
 

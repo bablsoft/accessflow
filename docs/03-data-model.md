@@ -1059,22 +1059,24 @@ on `(parent_comment_id) WHERE parent_comment_id IS NOT NULL`. Authorization (sub
 
 ## access_grant_request
 
-Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-requests temporary, scoped access to a datasource; on final-stage approval the `access` module materialises a time-boxed `datasource_user_permissions` row and `AccessGrantExpiryJob` revokes it on expiry. Owned by the `access` module; cross-aggregate references are stored as bare UUIDs (no JPA relationship across the module boundary).
+Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-requests temporary, scoped access to **exactly one of a datasource or an API connector** (AF-567, Flyway V113); on final-stage approval the `access` module materialises a time-boxed `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind) row and `AccessGrantExpiryJob` revokes it on expiry. Owned by the `access` module; cross-aggregate references are stored as bare UUIDs (no JPA relationship across the module boundary).
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | UUID FK → `organizations` |
 | `requester_id` | UUID FK → `users` |
-| `datasource_id` | UUID FK → `datasources` |
-| `can_read` / `can_write` / `can_ddl` | BOOLEAN — requested capabilities. `CHECK (can_read OR can_write OR can_ddl)` |
-| `allowed_schemas` / `allowed_tables` | TEXT[] nullable — optional scope (null = all) |
+| `datasource_id` | UUID FK → `datasources`, nullable since V113 — set for datasource requests |
+| `connector_id` | UUID nullable, **bare UUID (no FK)** (AF-567, Flyway V113) — set for API-connector requests. No FK because `api_connectors` rows are hard-deleted (unlike soft-deleted datasources); the access-request history survives a connector's deletion rather than blocking it. `CHECK chk_access_grant_request_resource` enforces exactly one of `datasource_id` / `connector_id`, and that connector requests carry no `can_ddl`, no `pre_approve_queries`, and no schema/table scope, while datasource requests carry no `allowed_operations`. A partial index on `(connector_id) WHERE connector_id IS NOT NULL` backs connector-side lookups |
+| `can_read` / `can_write` / `can_ddl` | BOOLEAN — requested capabilities. `CHECK (can_read OR can_write OR can_ddl)`. Connector requests use `can_read`/`can_write` only (`can_break_glass` is deliberately not self-requestable) |
+| `allowed_schemas` / `allowed_tables` | TEXT[] nullable — optional scope (null = all); datasource requests only |
+| `allowed_operations` | TEXT[] nullable (AF-567, Flyway V113) — optional operation allow-list mirroring `api_connector_user_permissions.allowed_operations` (null = all operations); connector requests only. Entries are validated against the connector's operation catalog at submission |
 | `requested_duration` | TEXT — ISO-8601 period (e.g. `PT4H`, `P1D`); bounded by `accessflow.access.min-duration`/`max-duration` |
 | `justification` | TEXT |
 | `pre_approve_queries` | BOOLEAN NOT NULL DEFAULT false — opt-in query pre-approval (#582, Flyway V112): while the grant is `APPROVED` and unexpired, a query it covers (capability + table scope) is auto-approved by the workflow state machine instead of routing to human review. A partial index on `(requester_id, datasource_id) WHERE status = 'APPROVED' AND pre_approve_queries` backs the per-submission lookup |
 | `status` | ENUM `access_grant_status`: `PENDING` \| `APPROVED` \| `REJECTED` \| `EXPIRED` \| `REVOKED` \| `CANCELLED` |
 | `expires_at` | TIMESTAMPTZ nullable — set to `now + requested_duration` on grant |
-| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |
+| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind, AF-567) row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |
 | `version` | BIGINT — optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
@@ -1092,7 +1094,7 @@ Per-stage reviewer decisions on an access request, mirroring `review_decisions` 
 | `access_grant_request_id` | FK → `access_grant_request` (`ON DELETE CASCADE`) |
 | `reviewer_id` | UUID FK → `users` |
 | `decision` | ENUM `decision`: `APPROVED` \| `REJECTED` \| `REQUESTED_CHANGES` (only APPROVED/REJECTED used) |
-| `stage` | INTEGER — which stage of the datasource's review plan |
+| `stage` | INTEGER — which stage of the resource's review plan (the datasource's plan, or the connector's `review_plan_id` for connector requests — AF-567) |
 | `comment` | TEXT nullable |
 | `decided_at` | TIMESTAMPTZ |
 

@@ -1928,29 +1928,31 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 
 ---
 
-## Access Request Endpoints (AF-378)
+## Access Request Endpoints (AF-378, AF-567)
 
-Just-in-time, time-bound access requests. A user requests temporary scoped access to a datasource; it flows through the same reviewer-eligibility + multi-stage approval machinery as query review (a requester can never approve their own request — enforced at the service layer). On final-stage approval a time-boxed `datasource_user_permissions` row is materialised (`expires_at = now + requested_duration`) and `AccessGrantExpiryJob` revokes it on expiry.
+Just-in-time, time-bound access requests. A user requests temporary scoped access to **a datasource or an API connector** (AF-567); it flows through the same reviewer-eligibility + multi-stage approval machinery as query review (a requester can never approve their own request — enforced at the service layer). On final-stage approval a time-boxed `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind) row is materialised (`expires_at = now + requested_duration`) and `AccessGrantExpiryJob` revokes it on expiry.
 
-**Admin fallback.** Admins are the backstop approver: an `ADMIN` sees **every** `PENDING` access request in their organization (except their own) on the queue below and may approve/reject it regardless of the datasource's review plan — including datasources with no plan, or a plan that does not route to them. A single admin approval finalises such a request immediately. When the datasource *does* route to the admin as a configured stage approver, the normal multi-stage chain still applies (their approval advances one stage). Non-admin `REVIEWER`s remain strictly plan-gated. If a submitted request's plan resolves no eligible approver, the submission notification falls back to all active admins so it is never silently orphaned.
+**Admin fallback.** Admins are the backstop approver: an `ADMIN` sees **every** `PENDING` access request in their organization (except their own) on the queue below and may approve/reject it regardless of the resource's review plan — including resources with no plan, or a plan that does not route to them. A single admin approval finalises such a request immediately. When the resource *does* route to the admin as a configured stage approver, the normal multi-stage chain still applies (their approval advances one stage). Non-admin `REVIEWER`s remain strictly plan-gated. If a submitted request's plan resolves no eligible approver, the submission notification falls back to all active admins so it is never silently orphaned. Datasource requests resolve the plan attached to the datasource; connector requests resolve the connector's `review_plan_id` (the same plan that gates its governed API calls). Connector requests skip the datasource-reviewer scope filter — reviewer scoping is a datasource-only concept.
 
 ### POST /access-requests — Request Body *(any authenticated user)*
 
 ```json
 {
   "datasource_id": "uuid",
+  "connector_id": null,
   "can_read": true,
   "can_write": false,
   "can_ddl": false,
   "allowed_schemas": ["analytics"],
   "allowed_tables": null,
+  "allowed_operations": null,
   "requested_duration": "PT4H",
   "justification": "Investigate incident #1234",
   "pre_approve_queries": false
 }
 ```
 
-`requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`).
+**Exactly one** of `datasource_id` / `connector_id` must be set (AF-567). A connector request may carry `allowed_operations` — an optional operation-id allow-list validated against the connector's operation catalog (`null`/empty = all operations) — and must **not** carry `can_ddl`, `pre_approve_queries`, or `allowed_schemas`/`allowed_tables`; a datasource request must not carry `allowed_operations` (all enforced by Bean Validation, mirrored in the frontend form). `can_break_glass` is deliberately not self-requestable. `requested_duration` is an ISO-8601 period (days/hours/minutes/seconds; no months) bounded by `accessflow.access.min-duration` / `max-duration`. At least one of `can_read`/`can_write`/`can_ddl` is required. `pre_approve_queries` (optional, default `false` — #582) opts the resulting grant into **query pre-approval**: while the grant is `APPROVED` and unexpired, a submitted query it covers (capability + table scope) is auto-approved after AI analysis instead of routing to human review — see [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582). The flag is echoed on every access-request response (own list, admin queue item) so the approving reviewer sees exactly what they authorize. **Response 201** returns the created request (`status: "PENDING"`); every access-request response carries `resource_kind` (`DATASOURCE` | `API_CONNECTOR`) plus the matching `datasource_*` / `connector_*` name fields, and the admin queue item nests a `datasource` **or** `connector` `{ id, name }` summary.
 
 ### GET /access-requests — Query Parameters
 
@@ -1974,6 +1976,20 @@ Introspects the live schema of a requestable datasource so the request form can 
 
 `404 DATASOURCE_NOT_FOUND` when the datasource is not active in the caller's organization; `422 DATASOURCE_CONNECTION_TEST_FAILED` when live introspection fails.
 
+### GET /access-requests/connectors — Response 200 *(any authenticated user)* (AF-567)
+
+`[{ "id": "uuid", "name": "billing-api", "protocol": "REST" }]` — active API connectors in the organization the caller may target. Mirrors `/access-requests/datasources`: not scoped to existing permissions (id, name, protocol only; no connection or auth details).
+
+### GET /access-requests/connectors/{id}/operations — Response 200 *(any authenticated user)* (AF-567)
+
+The connector's operation catalog so the request form can populate its **Allowed operations** selector. Org-scoped but not permission-gated, mirroring the datasource schema endpoint. Empty array when the connector has no uploaded schema.
+
+```json
+[{ "operation_id": "listPets", "verb": "GET", "path": "/pets", "summary": "List pets", "write": false }]
+```
+
+`404 API_CONNECTOR_NOT_FOUND` when the connector is not an active connector in the caller's organization.
+
 ### GET /admin/access-requests — Query Parameters *(REVIEWER / ADMIN)*
 
 Paginated queue of access requests the caller can currently act on, self-requests excluded. For a `REVIEWER` this is current-stage + datasource-scope filtered, mirroring `/reviews/pending`. For an `ADMIN` it is **every** `PENDING` request in the organization (the admin-fallback backstop), so requests on plan-less datasources are still visible.
@@ -1994,14 +2010,16 @@ Paginated queue of access requests the caller can currently act on, self-request
 
 | Status | `error` code | Cause |
 |--------|--------------|-------|
-| 400 | `VALIDATION_ERROR` | Bean Validation failure (missing datasource, bad duration format, no capability, justification too long) |
+| 400 | `VALIDATION_ERROR` | Bean Validation failure (not exactly one of datasource/connector, bad duration format, no capability, DDL/pre-approval/schema scope on a connector request, operations on a datasource request, justification too long) |
 | 403 | `FORBIDDEN` | Requester attempted to review their own request |
 | 403 | `ACCESS_REVIEWER_NOT_ELIGIBLE` | Caller is not an eligible reviewer at the current stage |
 | 404 | `ACCESS_REQUEST_NOT_FOUND` | Request does not exist or belongs to another user/org |
+| 404 | `API_CONNECTOR_NOT_FOUND` | Connector request/listing targets a connector that is not active in the caller's organization (AF-567) |
 | 409 | `ACCESS_REQUEST_NOT_PENDING` | Decision attempted on a non-pending request |
 | 409 | `ACCESS_REQUEST_NOT_CANCELLABLE` | Cancel attempted on a non-pending request |
-| 409 | `ACCESS_GRANT_ALREADY_EXISTS` | Requester already holds a standing (non-expiring) permission on the datasource |
+| 409 | `ACCESS_GRANT_ALREADY_EXISTS` | Requester already holds a standing (non-expiring) permission on the datasource or API connector |
 | 422 | `INVALID_ACCESS_DURATION` | Requested duration outside the configured min/max bounds |
+| 422 | `INVALID_ACCESS_OPERATIONS` | `allowed_operations` names operation ids absent from the connector's catalog (AF-567) |
 
 ---
 

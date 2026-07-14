@@ -5,11 +5,19 @@ import com.bablsoft.accessflow.access.api.AccessRequestNotCancellableException;
 import com.bablsoft.accessflow.access.api.AccessRequestNotFoundException;
 import com.bablsoft.accessflow.access.api.AccessRequestService.SubmitCommand;
 import com.bablsoft.accessflow.access.api.AccessRequestView;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.api.InvalidAccessDurationException;
+import com.bablsoft.accessflow.access.api.InvalidAccessOperationsException;
 import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.access.internal.config.AccessProperties;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
+import com.bablsoft.accessflow.apigov.api.ApiOperation;
+import com.bablsoft.accessflow.apigov.api.ApiProtocol;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
@@ -45,12 +53,15 @@ class DefaultAccessRequestServiceTest {
     @Mock AccessRequestViewMapper viewMapper;
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock ApiConnectorLookupService connectorLookupService;
+    @Mock ApiSchemaService apiSchemaService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
 
     private DefaultAccessRequestService service;
 
     private final UUID datasourceId = UUID.randomUUID();
+    private final UUID connectorId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
     private final UUID requesterId = UUID.randomUUID();
     private final UUID requestId = UUID.randomUUID();
@@ -60,14 +71,28 @@ class DefaultAccessRequestServiceTest {
         var properties = new AccessProperties(Duration.ofMinutes(5), Duration.ofMinutes(15),
                 Duration.ofDays(30));
         service = new DefaultAccessRequestService(requestRepository, stateService, viewMapper,
-                datasourceLookupService, datasourceAdminService, properties, eventPublisher,
-                messageSource);
+                datasourceLookupService, datasourceAdminService, connectorLookupService,
+                apiSchemaService, properties, eventPublisher, messageSource);
         lenient().when(messageSource.getMessage(anyString(), any(), any())).thenReturn("msg");
     }
 
     private SubmitCommand command(String duration) {
-        return new SubmitCommand(organizationId, requesterId, datasourceId, true, false, false,
-                List.of("public"), null, duration, "need access", false);
+        return new SubmitCommand(organizationId, requesterId, datasourceId, null, true, false, false,
+                List.of("public"), null, null, duration, "need access", false);
+    }
+
+    private SubmitCommand connectorCommand(List<String> allowedOperations) {
+        return new SubmitCommand(organizationId, requesterId, null, connectorId, true, true, false,
+                null, null, allowedOperations, "PT4H", "call billing API", false);
+    }
+
+    private ApiConnectorRef connectorRef(UUID id, String name) {
+        return new ApiConnectorRef(id, name, ApiProtocol.REST, null);
+    }
+
+    private ApiOperation operation(String operationId, boolean write) {
+        return new ApiOperation(operationId, write ? "POST" : "GET", "/charges", "Charges", write,
+                null, null);
     }
 
     @Test
@@ -199,8 +224,119 @@ class DefaultAccessRequestServiceTest {
     }
 
     private AccessRequestView view() {
-        return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io", datasourceId,
-                "db", true, false, false, List.of("public"), null, "PT4H", "need access", false,
+        return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io",
+                AccessResourceKind.DATASOURCE, datasourceId, "db", null, null, true, false, false,
+                List.of("public"), null, null, "PT4H", "need access", false,
                 AccessGrantStatus.PENDING, null, null, null, null);
+    }
+
+    private AccessRequestView connectorView() {
+        return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io",
+                AccessResourceKind.API_CONNECTOR, null, null, connectorId, "billing-api", true, true,
+                false, null, null, List.of("listCharges"), "PT4H", "call billing API", false,
+                AccessGrantStatus.PENDING, null, null, null, null);
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    @Test
+    void submitConnectorRejectsNonRequestableConnector() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(UUID.randomUUID(), "other")));
+
+        assertThatThrownBy(() -> service.submit(connectorCommand(null)))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
+        verify(requestRepository, never()).save(any());
+    }
+
+    @Test
+    void submitConnectorRejectsUnknownOperationIds() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(connectorId, "billing-api")));
+        when(apiSchemaService.listOperations(connectorId, organizationId))
+                .thenReturn(List.of(operation("listCharges", false)));
+
+        assertThatThrownBy(() -> service.submit(connectorCommand(List.of("listCharges", "nope"))))
+                .isInstanceOf(InvalidAccessOperationsException.class);
+        verify(requestRepository, never()).save(any());
+    }
+
+    @Test
+    void submitConnectorPersistsConnectorIdAndOperations() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(connectorId, "billing-api")));
+        when(apiSchemaService.listOperations(connectorId, organizationId))
+                .thenReturn(List.of(operation("listCharges", false), operation("createCharge", true)));
+        when(requestRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(viewMapper.toView(any())).thenReturn(connectorView());
+
+        var result = service.submit(connectorCommand(List.of("listCharges")));
+
+        assertThat(result.status()).isEqualTo(AccessGrantStatus.PENDING);
+        var captor = org.mockito.ArgumentCaptor.forClass(AccessGrantRequestEntity.class);
+        verify(requestRepository).save(captor.capture());
+        assertThat(captor.getValue().getConnectorId()).isEqualTo(connectorId);
+        assertThat(captor.getValue().getDatasourceId()).isNull();
+        assertThat(captor.getValue().getAllowedOperations()).containsExactly("listCharges");
+        verify(eventPublisher).publishEvent(any(AccessRequestSubmittedEvent.class));
+        verify(datasourceLookupService, never()).findActiveRefsByOrganization(any());
+    }
+
+    @Test
+    void submitConnectorSkipsOperationValidationWhenNoAllowList() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(connectorId, "billing-api")));
+        when(requestRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(viewMapper.toView(any())).thenReturn(connectorView());
+
+        service.submit(connectorCommand(null));
+
+        verify(apiSchemaService, never()).listOperations(any(), any());
+        var captor = org.mockito.ArgumentCaptor.forClass(AccessGrantRequestEntity.class);
+        verify(requestRepository).save(captor.capture());
+        assertThat(captor.getValue().getAllowedOperations()).isNull();
+    }
+
+    @Test
+    void listRequestableConnectorsMapsRefs() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(connectorId, "billing-api")));
+
+        var options = service.listRequestableConnectors(organizationId);
+
+        assertThat(options).singleElement().satisfies(o -> {
+            assertThat(o.id()).isEqualTo(connectorId);
+            assertThat(o.name()).isEqualTo("billing-api");
+            assertThat(o.protocol()).isEqualTo("REST");
+        });
+    }
+
+    @Test
+    void listRequestableConnectorOperationsRejectsNonRequestableConnector() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(
+                () -> service.listRequestableConnectorOperations(connectorId, organizationId))
+                .isInstanceOf(ApiConnectorNotFoundException.class);
+        verify(apiSchemaService, never()).listOperations(any(), any());
+    }
+
+    @Test
+    void listRequestableConnectorOperationsMapsCatalog() {
+        when(connectorLookupService.findActiveRefsByOrganization(organizationId))
+                .thenReturn(List.of(connectorRef(connectorId, "billing-api")));
+        when(apiSchemaService.listOperations(connectorId, organizationId))
+                .thenReturn(List.of(operation("createCharge", true)));
+
+        var options = service.listRequestableConnectorOperations(connectorId, organizationId);
+
+        assertThat(options).singleElement().satisfies(o -> {
+            assertThat(o.operationId()).isEqualTo("createCharge");
+            assertThat(o.verb()).isEqualTo("POST");
+            assertThat(o.path()).isEqualTo("/charges");
+            assertThat(o.summary()).isEqualTo("Charges");
+            assertThat(o.write()).isTrue();
+        });
     }
 }

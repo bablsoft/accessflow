@@ -10,7 +10,12 @@ export interface CreatedApiConnector {
 export async function createApiConnectorViaApi(
   request: APIRequestContext,
   token: string,
-  options: { name: string; baseUrl?: string; aiAnalysisEnabled?: boolean },
+  options: {
+    name: string;
+    baseUrl?: string;
+    aiAnalysisEnabled?: boolean;
+    reviewPlanId?: string;
+  },
 ): Promise<CreatedApiConnector> {
   const res = await request.post(`${apiBase()}/api/v1/api-connectors`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -24,6 +29,8 @@ export async function createApiConnectorViaApi(
       ...(options.aiAnalysisEnabled === undefined
         ? {}
         : { ai_analysis_enabled: options.aiAnalysisEnabled }),
+      // Routes connector reviews — and JIT access requests (AF-567) — through the plan.
+      ...(options.reviewPlanId === undefined ? {} : { review_plan_id: options.reviewPlanId }),
     },
   });
   if (!res.ok()) {
@@ -31,6 +38,25 @@ export async function createApiConnectorViaApi(
   }
   const body = (await res.json()) as { id: string; name: string };
   return { id: body.id, name: body.name };
+}
+
+/** Uploads an inline schema document so the connector exposes an operation catalog (AF-567). */
+export async function uploadApiSchemaViaApi(
+  request: APIRequestContext,
+  token: string,
+  connectorId: string,
+  options: { schemaType?: string; rawContent: string },
+): Promise<void> {
+  const res = await request.post(`${apiBase()}/api/v1/api-connectors/${connectorId}/schemas`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      schema_type: options.schemaType ?? 'OPENAPI',
+      raw_content: options.rawContent,
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Upload API schema failed: ${res.status()} ${await res.text()}`);
+  }
 }
 
 export async function deleteApiConnectorViaApi(

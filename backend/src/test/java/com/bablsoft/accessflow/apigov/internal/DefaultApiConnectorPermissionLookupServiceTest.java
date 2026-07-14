@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.apigov.internal;
 
 import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
+import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorUserPermissionEntity;
+import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorUserPermissionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +22,8 @@ class DefaultApiConnectorPermissionLookupServiceTest {
 
     @Mock
     private EffectiveApiConnectorPermissionResolver permissionResolver;
+    @Mock
+    private ApiConnectorUserPermissionRepository userPermissionRepository;
     @InjectMocks
     private DefaultApiConnectorPermissionLookupService service;
 
@@ -47,5 +51,52 @@ class DefaultApiConnectorPermissionLookupServiceTest {
         when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.empty());
 
         assertThat(service.findFor(connectorId, userId)).isEmpty();
+    }
+
+    @Test
+    void findDirectForMapsDirectRow() {
+        var permissionId = UUID.randomUUID();
+        var connectorId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var expiry = Instant.now().plusSeconds(3600);
+        var entity = new ApiConnectorUserPermissionEntity();
+        entity.setId(permissionId);
+        entity.setConnectorId(connectorId);
+        entity.setUserId(userId);
+        entity.setExpiresAt(expiry);
+        when(userPermissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.findDirectFor(connectorId, userId).orElseThrow();
+
+        assertThat(view.id()).isEqualTo(permissionId);
+        assertThat(view.connectorId()).isEqualTo(connectorId);
+        assertThat(view.userId()).isEqualTo(userId);
+        assertThat(view.expiresAt()).isEqualTo(expiry);
+    }
+
+    @Test
+    void findDirectForMapsStandingRowWithNullExpiry() {
+        var connectorId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var entity = new ApiConnectorUserPermissionEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setConnectorId(connectorId);
+        entity.setUserId(userId);
+        entity.setExpiresAt(null);
+        when(userPermissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.of(entity));
+
+        assertThat(service.findDirectFor(connectorId, userId).orElseThrow().expiresAt()).isNull();
+    }
+
+    @Test
+    void findDirectForEmptyWhenNoDirectRow() {
+        var connectorId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        when(userPermissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.findDirectFor(connectorId, userId)).isEmpty();
     }
 }

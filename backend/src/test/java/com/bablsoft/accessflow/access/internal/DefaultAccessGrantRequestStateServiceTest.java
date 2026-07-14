@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantDec
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantDecisionRepository;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DecisionType;
@@ -41,6 +44,7 @@ class DefaultAccessGrantRequestStateServiceTest {
     @Mock AccessGrantRequestRepository requestRepository;
     @Mock AccessGrantDecisionRepository decisionRepository;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock ApiConnectorAdminService apiConnectorAdminService;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks DefaultAccessGrantRequestStateService service;
 
@@ -48,6 +52,7 @@ class DefaultAccessGrantRequestStateServiceTest {
     private final UUID reviewerId = UUID.randomUUID();
     private final UUID requesterId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
+    private final UUID connectorId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
     private final UUID permissionId = UUID.randomUUID();
 
@@ -246,6 +251,96 @@ class DefaultAccessGrantRequestStateServiceTest {
         var snapshots = service.listDecisions(requestId);
         assertThat(snapshots).hasSize(1);
         assertThat(snapshots.get(0).decision()).isEqualTo(DecisionType.APPROVED);
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    private AccessGrantRequestEntity connectorEntity(AccessGrantStatus status) {
+        var e = new AccessGrantRequestEntity();
+        e.setId(requestId);
+        e.setOrganizationId(organizationId);
+        e.setRequesterId(requesterId);
+        e.setConnectorId(connectorId);
+        e.setStatus(status);
+        e.setRequestedDuration("PT4H");
+        return e;
+    }
+
+    @Test
+    void expireRevokesConnectorPermissionAndPublishesExpiredEvent() {
+        var e = connectorEntity(AccessGrantStatus.APPROVED);
+        e.setGrantedPermissionId(permissionId);
+        when(requestRepository.findByIdForUpdate(requestId)).thenReturn(java.util.Optional.of(e));
+
+        assertThat(service.expire(requestId)).isTrue();
+
+        assertThat(e.getStatus()).isEqualTo(AccessGrantStatus.EXPIRED);
+        verify(apiConnectorAdminService).revokePermission(connectorId, organizationId, permissionId);
+        verify(datasourceAdminService, never()).revokePermission(any(), any(), any());
+        verify(eventPublisher).publishEvent(any(AccessGrantExpiredEvent.class));
+        verify(eventPublisher).publishEvent(any(AccessRequestStatusChangedEvent.class));
+    }
+
+    @Test
+    void expireToleratesMissingConnectorPermission() {
+        var e = connectorEntity(AccessGrantStatus.APPROVED);
+        e.setGrantedPermissionId(permissionId);
+        when(requestRepository.findByIdForUpdate(requestId)).thenReturn(java.util.Optional.of(e));
+        org.mockito.Mockito.doThrow(new ApiConnectorPermissionNotFoundException(permissionId))
+                .when(apiConnectorAdminService)
+                .revokePermission(connectorId, organizationId, permissionId);
+
+        assertThat(service.expire(requestId)).isTrue();
+
+        assertThat(e.getStatus()).isEqualTo(AccessGrantStatus.EXPIRED);
+        verify(eventPublisher).publishEvent(any(AccessGrantExpiredEvent.class));
+    }
+
+    @Test
+    void expireToleratesHardDeletedConnector() {
+        // Connectors are hard-deleted (permission rows cascade away) — the grant is effectively
+        // revoked, so expiry must still transition instead of retrying forever.
+        var e = connectorEntity(AccessGrantStatus.APPROVED);
+        e.setGrantedPermissionId(permissionId);
+        when(requestRepository.findByIdForUpdate(requestId)).thenReturn(java.util.Optional.of(e));
+        org.mockito.Mockito.doThrow(new ApiConnectorNotFoundException(connectorId))
+                .when(apiConnectorAdminService)
+                .revokePermission(connectorId, organizationId, permissionId);
+
+        assertThat(service.expire(requestId)).isTrue();
+
+        assertThat(e.getStatus()).isEqualTo(AccessGrantStatus.EXPIRED);
+        verify(eventPublisher).publishEvent(any(AccessGrantExpiredEvent.class));
+    }
+
+    @Test
+    void revokeRevokesConnectorPermissionAndTransitionsToRevoked() {
+        var e = connectorEntity(AccessGrantStatus.APPROVED);
+        e.setGrantedPermissionId(permissionId);
+        when(requestRepository.findByIdForUpdate(requestId)).thenReturn(java.util.Optional.of(e));
+        var actor = UUID.randomUUID();
+
+        assertThat(service.revoke(requestId, actor)).isTrue();
+
+        assertThat(e.getStatus()).isEqualTo(AccessGrantStatus.REVOKED);
+        verify(apiConnectorAdminService).revokePermission(connectorId, organizationId, permissionId);
+        verify(datasourceAdminService, never()).revokePermission(any(), any(), any());
+        verify(eventPublisher).publishEvent(any(AccessGrantRevokedEvent.class));
+    }
+
+    @Test
+    void revokeToleratesMissingConnectorPermission() {
+        var e = connectorEntity(AccessGrantStatus.APPROVED);
+        e.setGrantedPermissionId(permissionId);
+        when(requestRepository.findByIdForUpdate(requestId)).thenReturn(java.util.Optional.of(e));
+        org.mockito.Mockito.doThrow(new ApiConnectorPermissionNotFoundException(permissionId))
+                .when(apiConnectorAdminService)
+                .revokePermission(connectorId, organizationId, permissionId);
+
+        assertThat(service.revoke(requestId, UUID.randomUUID())).isTrue();
+
+        assertThat(e.getStatus()).isEqualTo(AccessGrantStatus.REVOKED);
+        verify(eventPublisher).publishEvent(any(AccessGrantRevokedEvent.class));
     }
 
     private AccessGrantDecisionEntity approvedDecision() {

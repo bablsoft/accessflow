@@ -2437,7 +2437,7 @@
   "access": {
     "request": {
       "title": "Zugriff anfragen",
-      "subtitle": "Temporären, abgegrenzten Zugriff auf eine Datenquelle anfragen",
+      "subtitle": "Fordern Sie temporären, eingeschränkten Zugriff auf eine Datenquelle oder API-Verbindung an",
       "datasource": "Datenquelle",
       "datasource_placeholder": "Datenquelle auswählen",
       "capabilities": "Berechtigungen",
@@ -2466,7 +2466,8 @@
         "capability_required": "Wählen Sie mindestens Lesen, Schreiben oder DDL",
         "duration_required": "Dauer auswählen",
         "justification_required": "Begründung ist erforderlich",
-        "justification_max": "Begründung darf höchstens 4.000 Zeichen lang sein"
+        "justification_max": "Begründung darf höchstens 4.000 Zeichen lang sein",
+        "connector_required": "Wählen Sie eine API-Verbindung"
       },
       "durations": {
         "PT1H": "1 Stunde",
@@ -2478,13 +2479,21 @@
       },
       "pre_approve_label": "Abfragen unter dieser Gewährung vorab genehmigen",
       "pre_approve_hint": "Von dieser Gewährung abgedeckte Abfragen (Berechtigung und Tabellenbereich) überspringen die menschliche Prüfung, solange die Gewährung aktiv ist. Abfragen mit hohem Risiko und Routing-Richtlinien gelten weiterhin.",
-      "pre_approve_tag": "Genehmigt Abfragen vorab"
+      "pre_approve_tag": "Genehmigt Abfragen vorab",
+      "resource": "Ressource",
+      "resource_type": "Ressourcentyp",
+      "connector": "API-Verbindung",
+      "connector_placeholder": "Wählen Sie eine API-Verbindung",
+      "operations": "Erlaubte Operationen (optional)",
+      "operations_placeholder": "Alle Operationen",
+      "operations_hint": "Leer lassen, um alle Operationen unter dieser Berechtigung zu erlauben",
+      "operations_tag_one": "{{count}} Operation",
+      "operations_tag_other": "{{count}} Operationen"
     },
     "queue": {
       "title": "Zugriffsanfragen",
       "subtitle": "Ausstehende Zugriffsanfragen prüfen und entscheiden",
       "requester": "Anforderer",
-      "datasource": "Datenquelle",
       "capabilities": "Berechtigungen",
       "duration": "Dauer",
       "justification": "Begründung",
@@ -2496,7 +2505,8 @@
       "on_approve": "Zugriffsanfrage genehmigt",
       "on_reject": "Zugriffsanfrage abgelehnt",
       "empty": "Keine Zugriffsanfragen warten auf Ihre Prüfung",
-      "pre_approve_tooltip": "Mit der Genehmigung dieser Anfrage laufen abgedeckte Abfragen ohne weitere Prüfung, solange die Gewährung aktiv ist."
+      "pre_approve_tooltip": "Mit der Genehmigung dieser Anfrage laufen abgedeckte Abfragen ohne weitere Prüfung, solange die Gewährung aktiv ist.",
+      "resource": "Ressource"
     },
     "ttl": {
       "remaining": "noch {{value}}",
@@ -2505,6 +2515,10 @@
     "columns": {
       "status": "Status",
       "expires": "Läuft ab"
+    },
+    "kind": {
+      "datasource": "Datenquelle",
+      "api_connector": "API-Verbindung"
     }
   },
   "connectors": {

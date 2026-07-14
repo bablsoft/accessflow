@@ -10,8 +10,12 @@ import com.bablsoft.accessflow.access.api.AccessRequestView;
 import com.bablsoft.accessflow.access.api.AccessReviewService;
 import com.bablsoft.accessflow.access.api.AccessReviewService.DecisionOutcome;
 import com.bablsoft.accessflow.access.api.AccessReviewService.RevocationOutcome;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.api.AccessReviewerNotEligibleException;
+import com.bablsoft.accessflow.access.api.AccessRequestService.ConnectorOperationOption;
+import com.bablsoft.accessflow.access.api.AccessRequestService.ConnectorOption;
 import com.bablsoft.accessflow.access.api.InvalidAccessDurationException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
@@ -110,8 +114,16 @@ class AccessRequestControllerIntegrationTest {
 
     private AccessRequestView view(UUID id, AccessGrantStatus status) {
         return new AccessRequestView(id, organization.getId(), UUID.randomUUID(), "u@x.io",
-                UUID.randomUUID(), "db", true, false, false, List.of("public"), null, "PT4H",
-                "j", false, status, null, null, Instant.now(), Instant.now());
+                AccessResourceKind.DATASOURCE, UUID.randomUUID(), "db", null, null, true, false,
+                false, List.of("public"), null, null, "PT4H", "j", false, status, null, null,
+                Instant.now(), Instant.now());
+    }
+
+    private AccessRequestView connectorView(UUID id, UUID connectorId, AccessGrantStatus status) {
+        return new AccessRequestView(id, organization.getId(), UUID.randomUUID(), "u@x.io",
+                AccessResourceKind.API_CONNECTOR, null, null, connectorId, "billing-api", true,
+                false, false, null, null, List.of("listCharges"), "PT4H", "j", false, status,
+                null, null, Instant.now(), Instant.now());
     }
 
     @Test
@@ -141,6 +153,129 @@ class AccessRequestControllerIntegrationTest {
                 .exchange();
 
         assertThat(response).hasStatus(400);
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    @Test
+    void submitConnectorRequestReturns201() {
+        var id = UUID.randomUUID();
+        var connectorId = UUID.randomUUID();
+        when(accessRequestService.submit(any()))
+                .thenReturn(connectorView(id, connectorId, AccessGrantStatus.PENDING));
+
+        var response = mvc.post().uri("/api/v1/access-requests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"connector_id\":\"" + connectorId
+                        + "\",\"can_read\":true,\"allowed_operations\":[\"listCharges\"],"
+                        + "\"requested_duration\":\"PT4H\",\"justification\":\"call billing\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(201);
+        assertThat(response).bodyJson().extractingPath("$.resource_kind").asString()
+                .isEqualTo("API_CONNECTOR");
+        assertThat(response).bodyJson().extractingPath("$.connector_id").asString()
+                .isEqualTo(connectorId.toString());
+        assertThat(response).bodyJson().extractingPath("$.status").asString().isEqualTo("PENDING");
+    }
+
+    @Test
+    void submitRejectsBodyTargetingBothResources() {
+        var response = mvc.post().uri("/api/v1/access-requests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"" + UUID.randomUUID()
+                        + "\",\"connector_id\":\"" + UUID.randomUUID()
+                        + "\",\"can_read\":true,\"requested_duration\":\"PT4H\","
+                        + "\"justification\":\"j\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+    }
+
+    @Test
+    void submitRejectsBodyTargetingNeitherResource() {
+        var response = mvc.post().uri("/api/v1/access-requests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"can_read\":true,\"requested_duration\":\"PT4H\","
+                        + "\"justification\":\"j\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+    }
+
+    @Test
+    void submitRejectsDdlOnConnectorRequest() {
+        var response = mvc.post().uri("/api/v1/access-requests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"connector_id\":\"" + UUID.randomUUID()
+                        + "\",\"can_read\":true,\"can_ddl\":true,"
+                        + "\"requested_duration\":\"PT4H\",\"justification\":\"j\"}")
+                .exchange();
+
+        assertThat(response).hasStatus(400);
+    }
+
+    @Test
+    void listRequestableConnectorsReturns200() {
+        var connectorId = UUID.randomUUID();
+        when(accessRequestService.listRequestableConnectors(any()))
+                .thenReturn(List.of(new ConnectorOption(connectorId, "billing-api", "REST")));
+
+        var response = mvc.get().uri("/api/v1/access-requests/connectors")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$[0].id").asString()
+                .isEqualTo(connectorId.toString());
+        assertThat(response).bodyJson().extractingPath("$[0].name").asString()
+                .isEqualTo("billing-api");
+        assertThat(response).bodyJson().extractingPath("$[0].protocol").asString()
+                .isEqualTo("REST");
+    }
+
+    @Test
+    void listRequestableConnectorsRequiresAuth() {
+        assertThat(mvc.get().uri("/api/v1/access-requests/connectors").exchange()).hasStatus(401);
+    }
+
+    @Test
+    void listRequestableConnectorOperationsReturns200() {
+        var connectorId = UUID.randomUUID();
+        when(accessRequestService.listRequestableConnectorOperations(eq(connectorId), any()))
+                .thenReturn(List.of(new ConnectorOperationOption("listCharges", "GET", "/charges",
+                        "List charges", false)));
+
+        var response = mvc.get()
+                .uri("/api/v1/access-requests/connectors/{id}/operations", connectorId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$[0].operation_id").asString()
+                .isEqualTo("listCharges");
+        assertThat(response).bodyJson().extractingPath("$[0].verb").asString().isEqualTo("GET");
+        assertThat(response).bodyJson().extractingPath("$[0].write").isEqualTo(false);
+    }
+
+    @Test
+    void listRequestableConnectorOperationsMapsUnknownConnectorTo404() {
+        var connectorId = UUID.randomUUID();
+        when(accessRequestService.listRequestableConnectorOperations(eq(connectorId), any()))
+                .thenThrow(new ApiConnectorNotFoundException(connectorId));
+
+        var response = mvc.get()
+                .uri("/api/v1/access-requests/connectors/{id}/operations", connectorId)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        assertThat(response).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("API_CONNECTOR_NOT_FOUND");
     }
 
     @Test

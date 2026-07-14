@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.access.internal;
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
+import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
@@ -33,16 +36,20 @@ class DefaultAccessRequestLookupServiceTest {
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock ReviewerEligibilityService reviewerEligibilityService;
     @Mock UserQueryService userQueryService;
+    @Mock ApiConnectorLookupService connectorLookupService;
 
     private DefaultAccessRequestLookupService service() {
         return new DefaultAccessRequestLookupService(requestRepository, viewMapper,
-                reviewPlanLookupService, reviewerEligibilityService, userQueryService);
+                reviewPlanLookupService, reviewerEligibilityService, userQueryService,
+                connectorLookupService);
     }
 
     private final UUID requestId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
+    private final UUID connectorId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
     private final UUID requesterId = UUID.randomUUID();
+    private final UUID reviewPlanId = UUID.randomUUID();
 
     private AccessGrantRequestEntity entity() {
         var e = new AccessGrantRequestEntity();
@@ -151,5 +158,51 @@ class DefaultAccessRequestLookupServiceTest {
         var recipients = service().findReviewerRecipients(requestId);
 
         assertThat(recipients).containsExactly(scopedReviewer);
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    private AccessGrantRequestEntity connectorEntity() {
+        var e = new AccessGrantRequestEntity();
+        e.setId(requestId);
+        e.setOrganizationId(organizationId);
+        e.setRequesterId(requesterId);
+        e.setConnectorId(connectorId);
+        e.setStatus(AccessGrantStatus.PENDING);
+        e.setRequestedDuration("PT4H");
+        return e;
+    }
+
+    @Test
+    void findReviewerRecipientsForConnectorResolvesPlanViaConnectorAndSkipsDatasourceScope() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(connectorEntity()));
+        when(connectorLookupService.findRef(connectorId)).thenReturn(Optional.of(
+                new ApiConnectorRef(connectorId, "billing-api", ApiProtocol.REST, reviewPlanId)));
+        var planReviewer = UUID.randomUUID();
+        var plan = new ReviewPlanSnapshot(reviewPlanId, organizationId, false, true, 1, false, 0,
+                List.of(new ApproverRule(planReviewer, null, 0)), List.of());
+        when(reviewPlanLookupService.findById(reviewPlanId)).thenReturn(Optional.of(plan));
+        when(userQueryService.findById(planReviewer)).thenReturn(Optional.of(user(planReviewer, true)));
+
+        var recipients = service().findReviewerRecipients(requestId);
+
+        assertThat(recipients).containsExactly(planReviewer);
+        // Reviewer scoping is a datasource-only concept — never consulted for connector requests.
+        org.mockito.Mockito.verify(reviewerEligibilityService, org.mockito.Mockito.never())
+                .findEligibleReviewerIds(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void findReviewerRecipientsForConnectorFallsBackToAdminsWhenConnectorHasNoPlan() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(connectorEntity()));
+        when(connectorLookupService.findRef(connectorId)).thenReturn(Optional.of(
+                new ApiConnectorRef(connectorId, "billing-api", ApiProtocol.REST, null)));
+        var adminA = UUID.randomUUID();
+        when(userQueryService.findByOrganizationAndRole(organizationId, UserRoleType.ADMIN))
+                .thenReturn(List.of(user(adminA, true)));
+
+        var recipients = service().findReviewerRecipients(requestId);
+
+        assertThat(recipients).containsExactly(adminA);
     }
 }

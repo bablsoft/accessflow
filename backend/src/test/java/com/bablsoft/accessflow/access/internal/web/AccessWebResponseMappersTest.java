@@ -1,8 +1,11 @@
 package com.bablsoft.accessflow.access.internal.web;
 
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
+import com.bablsoft.accessflow.access.api.AccessRequestService.ConnectorOperationOption;
+import com.bablsoft.accessflow.access.api.AccessRequestService.ConnectorOption;
 import com.bablsoft.accessflow.access.api.AccessRequestService.DatasourceOption;
 import com.bablsoft.accessflow.access.api.AccessRequestView;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.api.AccessReviewService.DecisionOutcome;
 import com.bablsoft.accessflow.access.api.AccessReviewService.PendingAccessRequest;
 import com.bablsoft.accessflow.access.api.AccessReviewService.RevocationOutcome;
@@ -23,19 +26,38 @@ class AccessWebResponseMappersTest {
     @Test
     void accessRequestResponseFromCopiesFields() {
         var view = new AccessRequestView(id, UUID.randomUUID(), UUID.randomUUID(), "u@x.io",
-                UUID.randomUUID(), "db", true, false, true, List.of("public"), null, "PT4H", "j",
+                AccessResourceKind.DATASOURCE, UUID.randomUUID(), "db", null, null,
+                true, false, true, List.of("public"), null, null, "PT4H", "j",
                 true, AccessGrantStatus.PENDING, null, null, Instant.now(), Instant.now());
         var response = AccessRequestResponse.from(view);
         assertThat(response.id()).isEqualTo(id);
+        assertThat(response.resourceKind()).isEqualTo(AccessResourceKind.DATASOURCE);
         assertThat(response.datasourceName()).isEqualTo("db");
+        assertThat(response.connectorId()).isNull();
         assertThat(response.canDdl()).isTrue();
         assertThat(response.status()).isEqualTo(AccessGrantStatus.PENDING);
     }
 
     @Test
+    void accessRequestResponseFromCopiesConnectorFields() {
+        var connectorId = UUID.randomUUID();
+        var view = new AccessRequestView(id, UUID.randomUUID(), UUID.randomUUID(), "u@x.io",
+                AccessResourceKind.API_CONNECTOR, null, null, connectorId, "billing-api",
+                true, true, false, null, null, List.of("getPets"), "PT4H", "j",
+                false, AccessGrantStatus.PENDING, null, null, Instant.now(), Instant.now());
+        var response = AccessRequestResponse.from(view);
+        assertThat(response.resourceKind()).isEqualTo(AccessResourceKind.API_CONNECTOR);
+        assertThat(response.connectorId()).isEqualTo(connectorId);
+        assertThat(response.connectorName()).isEqualTo("billing-api");
+        assertThat(response.allowedOperations()).containsExactly("getPets");
+        assertThat(response.datasourceId()).isNull();
+    }
+
+    @Test
     void accessRequestPageResponseFromMapsContent() {
         var view = new AccessRequestView(id, UUID.randomUUID(), UUID.randomUUID(), "u@x.io",
-                UUID.randomUUID(), "db", true, false, false, null, null, "PT4H", "j",
+                AccessResourceKind.DATASOURCE, UUID.randomUUID(), "db", null, null,
+                true, false, false, null, null, null, "PT4H", "j",
                 false, AccessGrantStatus.APPROVED, null, null, Instant.now(), Instant.now());
         var page = new PageResponse<>(List.of(view), 0, 20, 1, 1);
         var response = AccessRequestPageResponse.from(page);
@@ -47,18 +69,39 @@ class AccessWebResponseMappersTest {
     void pendingAccessRequestItemFromMapsSummaries() {
         var datasourceId = UUID.randomUUID();
         var requesterId = UUID.randomUUID();
-        var pending = new PendingAccessRequest(id, datasourceId, "db", requesterId, "u@x.io",
-                true, false, false, List.of("public"), null, "PT4H", "j", true, 1, Instant.now());
+        var pending = new PendingAccessRequest(id, AccessResourceKind.DATASOURCE,
+                datasourceId, "db", null, null, requesterId, "u@x.io",
+                true, false, false, List.of("public"), null, null, "PT4H", "j", true, 1,
+                Instant.now());
         var item = PendingAccessRequestItem.from(pending);
+        assertThat(item.resourceKind()).isEqualTo(AccessResourceKind.DATASOURCE);
         assertThat(item.datasource().id()).isEqualTo(datasourceId);
+        assertThat(item.connector()).isNull();
         assertThat(item.requestedBy().email()).isEqualTo("u@x.io");
         assertThat(item.currentStage()).isEqualTo(1);
     }
 
     @Test
+    void pendingAccessRequestItemFromMapsConnectorSummary() {
+        var connectorId = UUID.randomUUID();
+        var pending = new PendingAccessRequest(id, AccessResourceKind.API_CONNECTOR,
+                null, null, connectorId, "billing-api", UUID.randomUUID(), "u@x.io",
+                true, true, false, null, null, List.of("getPets"), "PT4H", "j", false, 0,
+                Instant.now());
+        var item = PendingAccessRequestItem.from(pending);
+        assertThat(item.resourceKind()).isEqualTo(AccessResourceKind.API_CONNECTOR);
+        assertThat(item.datasource()).isNull();
+        assertThat(item.connector().id()).isEqualTo(connectorId);
+        assertThat(item.connector().name()).isEqualTo("billing-api");
+        assertThat(item.allowedOperations()).containsExactly("getPets");
+    }
+
+    @Test
     void pendingPageResponseFromMapsContent() {
-        var pending = new PendingAccessRequest(id, UUID.randomUUID(), "db", UUID.randomUUID(),
-                "u@x.io", true, false, false, null, null, "PT4H", "j", false, 0, Instant.now());
+        var pending = new PendingAccessRequest(id, AccessResourceKind.DATASOURCE,
+                UUID.randomUUID(), "db", null, null, UUID.randomUUID(),
+                "u@x.io", true, false, false, null, null, null, "PT4H", "j", false, 0,
+                Instant.now());
         var page = new PageResponse<>(List.of(pending), 0, 20, 1, 1);
         var response = PendingAccessRequestsPageResponse.from(page);
         assertThat(response.content()).hasSize(1);
@@ -88,5 +131,26 @@ class AccessWebResponseMappersTest {
         var response = RequestableDatasourceResponse.from(new DatasourceOption(dsId, "analytics"));
         assertThat(response.id()).isEqualTo(dsId);
         assertThat(response.name()).isEqualTo("analytics");
+    }
+
+    @Test
+    void requestableConnectorResponseFromCopiesOption() {
+        var connectorId = UUID.randomUUID();
+        var response = RequestableConnectorResponse.from(
+                new ConnectorOption(connectorId, "billing-api", "REST"));
+        assertThat(response.id()).isEqualTo(connectorId);
+        assertThat(response.name()).isEqualTo("billing-api");
+        assertThat(response.protocol()).isEqualTo("REST");
+    }
+
+    @Test
+    void requestableConnectorOperationResponseFromCopiesOption() {
+        var response = RequestableConnectorOperationResponse.from(
+                new ConnectorOperationOption("getPets", "GET", "/pets", "List pets", false));
+        assertThat(response.operationId()).isEqualTo("getPets");
+        assertThat(response.verb()).isEqualTo("GET");
+        assertThat(response.path()).isEqualTo("/pets");
+        assertThat(response.summary()).isEqualTo("List pets");
+        assertThat(response.write()).isFalse();
     }
 }

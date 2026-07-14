@@ -2437,7 +2437,7 @@
   "access": {
     "request": {
       "title": "申请访问",
-      "subtitle": "申请对数据源的临时受限访问",
+      "subtitle": "申请对数据源或 API 连接的临时受限访问",
       "datasource": "数据源",
       "datasource_placeholder": "选择数据源",
       "capabilities": "权限",
@@ -2466,7 +2466,8 @@
         "capability_required": "请至少选择读取、写入或 DDL 之一",
         "duration_required": "请选择有效期",
         "justification_required": "理由为必填项",
-        "justification_max": "理由不能超过 4,000 个字符"
+        "justification_max": "理由不能超过 4,000 个字符",
+        "connector_required": "选择一个 API 连接"
       },
       "durations": {
         "PT1H": "1 小时",
@@ -2478,13 +2479,21 @@
       },
       "pre_approve_label": "预先批准此授权下的查询",
       "pre_approve_hint": "在授权有效期内，此授权覆盖的查询（能力和表范围）将跳过人工审核。高风险查询和路由策略仍然适用。",
-      "pre_approve_tag": "预批准查询"
+      "pre_approve_tag": "预批准查询",
+      "resource": "资源",
+      "resource_type": "资源类型",
+      "connector": "API 连接",
+      "connector_placeholder": "选择一个 API 连接",
+      "operations": "允许的操作（可选）",
+      "operations_placeholder": "所有操作",
+      "operations_hint": "留空以允许此授权下的所有操作",
+      "operations_tag_other": "{{count}} 个操作",
+      "operations_tag_one": "{{count}} 个操作"
     },
     "queue": {
       "title": "访问申请",
       "subtitle": "审核并处理待定的访问申请",
       "requester": "申请人",
-      "datasource": "数据源",
       "capabilities": "权限",
       "duration": "有效期",
       "justification": "理由",
@@ -2496,7 +2505,8 @@
       "on_approve": "访问申请已批准",
       "on_reject": "访问申请已拒绝",
       "empty": "没有等待您审核的访问申请",
-      "pre_approve_tooltip": "批准此申请后，在授权有效期内，覆盖范围内的查询无需进一步审核即可运行。"
+      "pre_approve_tooltip": "批准此申请后，在授权有效期内，覆盖范围内的查询无需进一步审核即可运行。",
+      "resource": "资源"
     },
     "ttl": {
       "remaining": "剩余 {{value}}",
@@ -2505,6 +2515,10 @@
     "columns": {
       "status": "状态",
       "expires": "过期时间"
+    },
+    "kind": {
+      "datasource": "数据源",
+      "api_connector": "API 连接"
     }
   },
   "connectors": {

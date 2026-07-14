@@ -2461,7 +2461,7 @@
   "access": {
     "request": {
       "title": "Request access",
-      "subtitle": "Request temporary, scoped access to a datasource",
+      "subtitle": "Request temporary, scoped access to a datasource or API connection",
       "datasource": "Datasource",
       "datasource_placeholder": "Select a datasource",
       "capabilities": "Capabilities",
@@ -2490,7 +2490,8 @@
         "capability_required": "Select at least one of read, write, or DDL",
         "duration_required": "Select a duration",
         "justification_required": "Justification is required",
-        "justification_max": "Justification must be at most 4,000 characters"
+        "justification_max": "Justification must be at most 4,000 characters",
+        "connector_required": "Select an API connection"
       },
       "durations": {
         "PT1H": "1 hour",
@@ -2502,13 +2503,21 @@
       },
       "pre_approve_label": "Pre-approve queries under this grant",
       "pre_approve_hint": "Queries covered by this grant (capability and table scope) skip human review while the grant is active. High-risk queries and routing policies still apply.",
-      "pre_approve_tag": "Pre-approves queries"
+      "pre_approve_tag": "Pre-approves queries",
+      "resource": "Resource",
+      "resource_type": "Resource type",
+      "connector": "API Connection",
+      "connector_placeholder": "Select an API connection",
+      "operations": "Allowed operations (optional)",
+      "operations_placeholder": "All operations",
+      "operations_hint": "Leave empty to allow all operations under this grant",
+      "operations_tag_one": "{{count}} operation",
+      "operations_tag_other": "{{count}} operations"
     },
     "queue": {
       "title": "Access requests",
       "subtitle": "Review and decide pending access requests",
       "requester": "Requester",
-      "datasource": "Datasource",
       "capabilities": "Capabilities",
       "duration": "Duration",
       "justification": "Justification",
@@ -2520,7 +2529,8 @@
       "on_approve": "Access request approved",
       "on_reject": "Access request rejected",
       "empty": "No access requests awaiting your review",
-      "pre_approve_tooltip": "Approving this request lets covered queries run without further review while the grant is active."
+      "pre_approve_tooltip": "Approving this request lets covered queries run without further review while the grant is active.",
+      "resource": "Resource"
     },
     "ttl": {
       "remaining": "{{value}} left",
@@ -2529,6 +2539,10 @@
     "columns": {
       "status": "Status",
       "expires": "Expires"
+    },
+    "kind": {
+      "datasource": "Datasource",
+      "api_connector": "API Connection"
     }
   },
   "connectors": {

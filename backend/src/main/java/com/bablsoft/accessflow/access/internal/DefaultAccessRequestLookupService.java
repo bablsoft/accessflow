@@ -4,6 +4,8 @@ import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
 import com.bablsoft.accessflow.access.api.AccessRequestView;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
@@ -30,6 +32,7 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final ReviewerEligibilityService reviewerEligibilityService;
     private final UserQueryService userQueryService;
+    private final ApiConnectorLookupService connectorLookupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -52,7 +55,7 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
     }
 
     private Set<UUID> resolvePlanRecipients(AccessGrantRequestEntity entity) {
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+        var plan = resolvePlan(entity);
         if (plan == null || plan.approvers() == null || plan.approvers().isEmpty()) {
             return Set.of();
         }
@@ -61,7 +64,22 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
                 .min()
                 .orElse(0);
         Set<UUID> reviewers = collectReviewersAtStage(plan, lowestStage, entity);
+        if (entity.isConnectorRequest()) {
+            // Reviewer scoping is a datasource-only concept; connector requests fan out to the
+            // plan's named approvers/roles directly.
+            return reviewers;
+        }
         return applyDatasourceScope(entity.getDatasourceId(), reviewers);
+    }
+
+    private ReviewPlanSnapshot resolvePlan(AccessGrantRequestEntity entity) {
+        if (entity.isConnectorRequest()) {
+            return connectorLookupService.findRef(entity.getConnectorId())
+                    .map(ApiConnectorRef::reviewPlanId)
+                    .flatMap(reviewPlanLookupService::findById)
+                    .orElse(null);
+        }
+        return reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
     }
 
     private Set<UUID> activeAdminRecipients(AccessGrantRequestEntity entity) {

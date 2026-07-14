@@ -47,20 +47,50 @@ public interface AccessRequestService {
      */
     DatabaseSchemaView introspectRequestableDatasourceSchema(UUID datasourceId, UUID organizationId);
 
+    /**
+     * API connectors in the organization that a user can target with an access request (id, name,
+     * protocol only). Like {@link #listRequestableDatasources(UUID)}, not scoped to existing
+     * permissions — JIT access exists precisely to grant access a user does not yet have.
+     */
+    List<ConnectorOption> listRequestableConnectors(UUID organizationId);
+
+    /**
+     * The operation catalog of a requestable connector so a JIT requester can scope their access
+     * request to specific operations. Org-scoped but NOT permission-gated. Throws
+     * {@link com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException} when the connector
+     * is not an active connector in the organization.
+     */
+    List<ConnectorOperationOption> listRequestableConnectorOperations(UUID connectorId,
+                                                                      UUID organizationId);
+
+    /**
+     * Exactly one of {@code datasourceId} / {@code connectorId} is set. {@code allowedOperations}
+     * and {@code allowedSchemas}/{@code allowedTables}/{@code canDdl}/{@code preApproveQueries}
+     * only apply to the connector / datasource kind respectively.
+     */
     record SubmitCommand(
             UUID organizationId,
             UUID requesterId,
             UUID datasourceId,
+            UUID connectorId,
             boolean canRead,
             boolean canWrite,
             boolean canDdl,
             List<String> allowedSchemas,
             List<String> allowedTables,
+            List<String> allowedOperations,
             String requestedDuration,
             String justification,
             boolean preApproveQueries) {
     }
 
     record DatasourceOption(UUID id, String name) {
+    }
+
+    record ConnectorOption(UUID id, String name, String protocol) {
+    }
+
+    record ConnectorOperationOption(String operationId, String verb, String path, String summary,
+                                    boolean write) {
     }
 }

@@ -35,8 +35,11 @@ public interface AccessReviewService {
 
     record PendingAccessRequest(
             UUID id,
+            AccessResourceKind resourceKind,
             UUID datasourceId,
             String datasourceName,
+            UUID connectorId,
+            String connectorName,
             UUID requesterId,
             String requesterEmail,
             boolean canRead,
@@ -44,6 +47,7 @@ public interface AccessReviewService {
             boolean canDdl,
             List<String> allowedSchemas,
             List<String> allowedTables,
+            List<String> allowedOperations,
             String requestedDuration,
             String justification,
             boolean preApproveQueries,

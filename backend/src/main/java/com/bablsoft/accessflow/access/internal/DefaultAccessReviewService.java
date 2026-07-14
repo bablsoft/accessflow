@@ -9,6 +9,8 @@ import com.bablsoft.accessflow.access.events.AccessRequestApprovedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestRejectedEvent;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
@@ -47,6 +49,7 @@ class DefaultAccessReviewService implements AccessReviewService {
     private final AccessGrantMaterializer materializer;
     private final UserQueryService userQueryService;
     private final DatasourceLookupService datasourceLookupService;
+    private final ApiConnectorLookupService connectorLookupService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -137,13 +140,13 @@ class DefaultAccessReviewService implements AccessReviewService {
         if (!REVIEWER_ROLES.contains(context.role())) {
             throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
         }
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+        var plan = resolvePlan(entity);
         var sameOrgPlan = plan != null && plan.organizationId().equals(entity.getOrganizationId());
         var currentStage = sameOrgPlan
                 ? currentStage(plan, stateService.listDecisions(accessRequestId))
                 : 0;
         var planEligible = sameOrgPlan
-                && isInDatasourceScope(entity.getDatasourceId(), context.userId())
+                && isInResourceScope(entity, context.userId())
                 && isApproverAtStage(plan, currentStage, context);
         if (planEligible) {
             return new DecisionPreparation(plan, currentStage, entity.getRequesterId(), false);
@@ -165,11 +168,11 @@ class DefaultAccessReviewService implements AccessReviewService {
         if (context.role() == UserRoleType.ADMIN) {
             return true;
         }
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+        var plan = resolvePlan(entity);
         if (plan == null || !plan.organizationId().equals(entity.getOrganizationId())) {
             return false;
         }
-        if (!isInDatasourceScope(entity.getDatasourceId(), context.userId())) {
+        if (!isInResourceScope(entity, context.userId())) {
             return false;
         }
         var decisions = stateService.listDecisions(entity.getId());
@@ -177,8 +180,29 @@ class DefaultAccessReviewService implements AccessReviewService {
         return isApproverAtStage(plan, stage, context);
     }
 
-    private boolean isInDatasourceScope(UUID datasourceId, UUID userId) {
-        return reviewerEligibilityService.findEligibleReviewerIds(datasourceId)
+    /**
+     * Datasource requests resolve the plan attached to the datasource; connector requests resolve
+     * the connector's {@code review_plan_id} — the same plan that gates the connector's API
+     * requests (AF-500).
+     */
+    private ReviewPlanSnapshot resolvePlan(AccessGrantRequestEntity entity) {
+        if (entity.isConnectorRequest()) {
+            // Optional.map yields empty when the connector has no review plan attached.
+            return connectorLookupService.findRef(entity.getConnectorId())
+                    .map(ApiConnectorRef::reviewPlanId)
+                    .flatMap(reviewPlanLookupService::findById)
+                    .orElse(null);
+        }
+        return reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+    }
+
+    private boolean isInResourceScope(AccessGrantRequestEntity entity, UUID userId) {
+        if (entity.isConnectorRequest()) {
+            // Reviewer scoping is a datasource-only concept (datasource_reviewers); connector
+            // requests are gated by the plan's named approvers/roles alone.
+            return true;
+        }
+        return reviewerEligibilityService.findEligibleReviewerIds(entity.getDatasourceId())
                 .map(set -> set.contains(userId))
                 .orElse(true);
     }
@@ -216,19 +240,26 @@ class DefaultAccessReviewService implements AccessReviewService {
     }
 
     private PendingAccessRequest toPendingAccessRequest(AccessGrantRequestEntity entity) {
-        // The datasource may have no review plan (admins still see such requests via the
+        // The resource may have no review plan (admins still see such requests via the
         // fallback) — report stage 0 rather than throwing.
-        var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
+        var plan = resolvePlan(entity);
         var decisions = stateService.listDecisions(entity.getId());
         var stage = plan != null ? currentStage(plan, decisions) : 0;
         var requesterEmail = userQueryService.findById(entity.getRequesterId())
                 .map(UserView::email).orElse(null);
-        var datasourceName = datasourceLookupService.findRef(entity.getDatasourceId())
-                .map(DatasourceRef::name).orElse(null);
+        var datasourceName = entity.getDatasourceId() == null ? null
+                : datasourceLookupService.findRef(entity.getDatasourceId())
+                        .map(DatasourceRef::name).orElse(null);
+        var connectorName = entity.getConnectorId() == null ? null
+                : connectorLookupService.findRef(entity.getConnectorId())
+                        .map(ApiConnectorRef::name).orElse(null);
         return new PendingAccessRequest(
                 entity.getId(),
+                AccessRequestViewMapper.resourceKind(entity),
                 entity.getDatasourceId(),
                 datasourceName,
+                entity.getConnectorId(),
+                connectorName,
                 entity.getRequesterId(),
                 requesterEmail,
                 entity.isCanRead(),
@@ -236,6 +267,7 @@ class DefaultAccessReviewService implements AccessReviewService {
                 entity.isCanDdl(),
                 AccessRequestViewMapper.toList(entity.getAllowedSchemas()),
                 AccessRequestViewMapper.toList(entity.getAllowedTables()),
+                AccessRequestViewMapper.toList(entity.getAllowedOperations()),
                 entity.getRequestedDuration(),
                 entity.getJustification(),
                 entity.isPreApproveQueries(),

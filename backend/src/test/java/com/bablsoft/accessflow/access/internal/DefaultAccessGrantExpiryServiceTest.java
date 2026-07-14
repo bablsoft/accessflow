@@ -45,9 +45,11 @@ class DefaultAccessGrantExpiryServiceTest {
     @Test
     void expireAndRevokeRecordsAuditWhenExpired() {
         when(stateService.expire(requestId)).thenReturn(true);
+        var datasourceId = UUID.randomUUID();
         var entity = new AccessGrantRequestEntity();
         entity.setId(requestId);
         entity.setOrganizationId(UUID.randomUUID());
+        entity.setDatasourceId(datasourceId);
         entity.setGrantedPermissionId(UUID.randomUUID());
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity));
 
@@ -57,6 +59,31 @@ class DefaultAccessGrantExpiryServiceTest {
         verify(auditLogService).record(captor.capture());
         assertThat(captor.getValue().action()).isEqualTo(AuditAction.ACCESS_GRANT_EXPIRED);
         assertThat(captor.getValue().actorId()).isNull();
+        assertThat(captor.getValue().metadata())
+                .containsEntry("resource_kind", "DATASOURCE")
+                .containsEntry("datasource_id", datasourceId.toString())
+                .doesNotContainKey("connector_id");
+    }
+
+    @Test
+    void expireAndRevokeRecordsConnectorMetadataForConnectorRequest() {
+        when(stateService.expire(requestId)).thenReturn(true);
+        var connectorId = UUID.randomUUID();
+        var entity = new AccessGrantRequestEntity();
+        entity.setId(requestId);
+        entity.setOrganizationId(UUID.randomUUID());
+        entity.setConnectorId(connectorId);
+        entity.setGrantedPermissionId(UUID.randomUUID());
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity));
+
+        assertThat(service.expireAndRevoke(requestId)).isTrue();
+
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().metadata())
+                .containsEntry("resource_kind", "API_CONNECTOR")
+                .containsEntry("connector_id", connectorId.toString())
+                .doesNotContainKey("datasource_id");
     }
 
     @Test

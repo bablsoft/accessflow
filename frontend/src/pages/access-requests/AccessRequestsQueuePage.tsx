@@ -62,6 +62,13 @@ export function AccessRequestsQueuePage() {
           <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>
         </Tooltip>
       )}
+      {(r.allowed_operations?.length ?? 0) > 0 && (
+        <Tooltip title={(r.allowed_operations ?? []).join(', ')}>
+          <Tag color="purple">
+            {t('access.request.operations_tag', { count: r.allowed_operations?.length ?? 0 })}
+          </Tag>
+        </Tooltip>
+      )}
     </Space>
   );
 
@@ -76,8 +83,17 @@ export function AccessRequestsQueuePage() {
       ),
     },
     {
-      title: t('access.queue.datasource'),
-      render: (_v, r) => r.datasource.name ?? r.datasource.id,
+      title: t('access.queue.resource'),
+      render: (_v, r) => (
+        <Space size={6} wrap>
+          {r.resource_kind === 'API_CONNECTOR' ? (
+            <Tag color="geekblue">{t('access.kind.api_connector')}</Tag>
+          ) : (
+            <Tag>{t('access.kind.datasource')}</Tag>
+          )}
+          <span>{r.connector?.name ?? r.datasource?.name ?? r.connector?.id ?? r.datasource?.id}</span>
+        </Space>
+      ),
     },
     { title: t('access.queue.capabilities'), render: (_v, r) => capabilityTags(r) },
     {
