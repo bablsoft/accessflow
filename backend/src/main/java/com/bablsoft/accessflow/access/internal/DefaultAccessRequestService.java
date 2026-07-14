@@ -8,8 +8,14 @@ import com.bablsoft.accessflow.access.api.AccessRequestView;
 import com.bablsoft.accessflow.access.api.InvalidAccessDurationException;
 import com.bablsoft.accessflow.access.events.AccessRequestSubmittedEvent;
 import com.bablsoft.accessflow.access.internal.config.AccessProperties;
+import com.bablsoft.accessflow.access.api.InvalidAccessOperationsException;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
+import com.bablsoft.accessflow.apigov.api.ApiOperation;
+import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
@@ -29,6 +35,7 @@ import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +46,8 @@ class DefaultAccessRequestService implements AccessRequestService {
     private final AccessRequestViewMapper viewMapper;
     private final DatasourceLookupService datasourceLookupService;
     private final DatasourceAdminService datasourceAdminService;
+    private final ApiConnectorLookupService connectorLookupService;
+    private final ApiSchemaService apiSchemaService;
     private final AccessProperties properties;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
@@ -46,18 +55,26 @@ class DefaultAccessRequestService implements AccessRequestService {
     @Override
     @Transactional
     public AccessRequestView submit(SubmitCommand command) {
-        requireRequestableDatasource(command.organizationId(), command.datasourceId());
+        if (command.connectorId() != null) {
+            requireRequestableConnector(command.organizationId(), command.connectorId());
+            validateAllowedOperations(command.organizationId(), command.connectorId(),
+                    command.allowedOperations());
+        } else {
+            requireRequestableDatasource(command.organizationId(), command.datasourceId());
+        }
         validateDuration(command.requestedDuration());
         var entity = new AccessGrantRequestEntity();
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(command.organizationId());
         entity.setRequesterId(command.requesterId());
         entity.setDatasourceId(command.datasourceId());
+        entity.setConnectorId(command.connectorId());
         entity.setCanRead(command.canRead());
         entity.setCanWrite(command.canWrite());
         entity.setCanDdl(command.canDdl());
         entity.setAllowedSchemas(toArray(command.allowedSchemas()));
         entity.setAllowedTables(toArray(command.allowedTables()));
+        entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRequestedDuration(command.requestedDuration());
         entity.setJustification(command.justification());
         entity.setPreApproveQueries(command.preApproveQueries());
@@ -111,6 +128,52 @@ class DefaultAccessRequestService implements AccessRequestService {
         // a JIT requester does not yet hold a permission on the datasource. It manages its own
         // REQUIRES_NEW read-only transaction, so no @Transactional is needed here.
         return datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConnectorOption> listRequestableConnectors(UUID organizationId) {
+        return connectorLookupService.findActiveRefsByOrganization(organizationId).stream()
+                .map(ref -> new ConnectorOption(ref.id(), ref.name(), ref.protocol().name()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConnectorOperationOption> listRequestableConnectorOperations(UUID connectorId,
+                                                                             UUID organizationId) {
+        requireRequestableConnector(organizationId, connectorId);
+        return apiSchemaService.listOperations(connectorId, organizationId).stream()
+                .map(op -> new ConnectorOperationOption(op.operationId(), op.verb(), op.path(),
+                        op.summary(), op.write()))
+                .toList();
+    }
+
+    private void requireRequestableConnector(UUID organizationId, UUID connectorId) {
+        var requestable = connectorLookupService.findActiveRefsByOrganization(organizationId)
+                .stream()
+                .map(ApiConnectorRef::id)
+                .anyMatch(id -> id.equals(connectorId));
+        if (!requestable) {
+            throw new ApiConnectorNotFoundException(connectorId);
+        }
+    }
+
+    private void validateAllowedOperations(UUID organizationId, UUID connectorId,
+                                           List<String> allowedOperations) {
+        if (allowedOperations == null || allowedOperations.isEmpty()) {
+            return;
+        }
+        var catalog = apiSchemaService.listOperations(connectorId, organizationId).stream()
+                .map(ApiOperation::operationId)
+                .collect(Collectors.toSet());
+        var unknown = allowedOperations.stream()
+                .filter(id -> !catalog.contains(id))
+                .toList();
+        if (!unknown.isEmpty()) {
+            throw new InvalidAccessOperationsException(
+                    msg("error.access_operation_unknown", String.join(", ", unknown)));
+        }
     }
 
     private void requireRequestableDatasource(UUID organizationId, UUID datasourceId) {

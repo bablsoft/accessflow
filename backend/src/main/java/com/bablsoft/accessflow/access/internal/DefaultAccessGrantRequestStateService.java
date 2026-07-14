@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantDec
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantDecisionRepository;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DecisionType;
@@ -32,6 +35,7 @@ class DefaultAccessGrantRequestStateService implements AccessGrantRequestStateSe
     private final AccessGrantRequestRepository requestRepository;
     private final AccessGrantDecisionRepository decisionRepository;
     private final DatasourceAdminService datasourceAdminService;
+    private final ApiConnectorAdminService apiConnectorAdminService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -136,11 +140,18 @@ class DefaultAccessGrantRequestStateService implements AccessGrantRequestStateSe
             return;
         }
         try {
-            datasourceAdminService.revokePermission(entity.getDatasourceId(),
-                    entity.getOrganizationId(), permissionId);
-        } catch (DatasourcePermissionNotFoundException ex) {
-            // Permission already gone (admin revoked it directly, or a prior partial run) — the
-            // grant is effectively revoked; proceed with the status transition.
+            if (entity.isConnectorRequest()) {
+                apiConnectorAdminService.revokePermission(entity.getConnectorId(),
+                        entity.getOrganizationId(), permissionId);
+            } else {
+                datasourceAdminService.revokePermission(entity.getDatasourceId(),
+                        entity.getOrganizationId(), permissionId);
+            }
+        } catch (DatasourcePermissionNotFoundException | ApiConnectorPermissionNotFoundException
+                 | ApiConnectorNotFoundException ex) {
+            // Permission already gone (admin revoked it directly, a prior partial run, or the
+            // connector itself was hard-deleted — cascading its permission rows away) — the grant
+            // is effectively revoked; proceed with the status transition.
             log.warn("Granted permission {} for access request {} already absent during revoke",
                     permissionId, entity.getId());
         }

@@ -156,6 +156,9 @@ function renderMessage(
 ): string {
   const payload: UserNotificationPayload = item.payload ?? {};
   const datasource = payload.datasource ?? '—';
+  // Access (JIT) events may target an API connector instead of a datasource; the
+  // interpolation variable name stays `datasource` so existing locale strings keep working.
+  const accessResource = payload.connector ?? payload.datasource ?? '—';
   switch (item.event_type) {
     case 'QUERY_SUBMITTED':
       return payload.submitter
@@ -189,17 +192,19 @@ function renderMessage(
       return payload.requester
         ? t('notifications.events.ACCESS_REQUEST_SUBMITTED', {
             requester: payload.requester,
-            datasource,
+            datasource: accessResource,
           })
-        : t('notifications.events.ACCESS_REQUEST_SUBMITTED_no_requester', { datasource });
+        : t('notifications.events.ACCESS_REQUEST_SUBMITTED_no_requester', {
+            datasource: accessResource,
+          });
     case 'ACCESS_REQUEST_APPROVED':
-      return t('notifications.events.ACCESS_REQUEST_APPROVED', { datasource });
+      return t('notifications.events.ACCESS_REQUEST_APPROVED', { datasource: accessResource });
     case 'ACCESS_REQUEST_REJECTED':
-      return t('notifications.events.ACCESS_REQUEST_REJECTED', { datasource });
+      return t('notifications.events.ACCESS_REQUEST_REJECTED', { datasource: accessResource });
     case 'ACCESS_GRANT_EXPIRED':
-      return t('notifications.events.ACCESS_GRANT_EXPIRED', { datasource });
+      return t('notifications.events.ACCESS_GRANT_EXPIRED', { datasource: accessResource });
     case 'ACCESS_GRANT_REVOKED':
-      return t('notifications.events.ACCESS_GRANT_REVOKED', { datasource });
+      return t('notifications.events.ACCESS_GRANT_REVOKED', { datasource: accessResource });
     default:
       return t('notifications.events.fallback');
   }

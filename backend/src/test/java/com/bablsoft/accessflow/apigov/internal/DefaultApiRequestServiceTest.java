@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException;
 import com.bablsoft.accessflow.apigov.api.ApiRequestValidationException;
 import com.bablsoft.accessflow.apigov.api.SubmitApiRequestCommand;
 import com.bablsoft.accessflow.apigov.internal.config.ApigovRequestProperties;
+import com.bablsoft.accessflow.apigov.events.ApiBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
 import com.bablsoft.accessflow.apigov.internal.EffectiveApiConnectorPermissionResolver.ResolvedApiConnectorPermission;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -22,7 +23,6 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
-import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,7 +53,6 @@ class DefaultApiRequestServiceTest {
     @Mock private ApiSchemaService schemaService;
     @Mock private ApiRequestStateService stateService;
     @Mock private ApiExecutionService executionService;
-    @Mock private BreakGlassService breakGlassService;
     @Mock private AiAnalysisLookupService aiAnalysisLookupService;
     @Mock private UserQueryService userQueryService;
     @Mock private AuditLogService auditLogService;
@@ -68,7 +67,7 @@ class DefaultApiRequestServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
-                decisionRepository, schemaService, stateService, executionService, breakGlassService,
+                decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
@@ -149,7 +148,7 @@ class DefaultApiRequestServiceTest {
 
         assertThat(result.status()).isEqualTo(QueryStatus.EXECUTED);
         verify(stateService).apply(any(), org.mockito.ArgumentMatchers.eq(QueryStatus.APPROVED));
-        verify(breakGlassService).openApiBreakGlassReview(any());
+        verify(eventPublisher).publishEvent(any(ApiBreakGlassExecutedEvent.class));
         verify(eventPublisher, never()).publishEvent(any(ApiRequestSubmittedEvent.class));
     }
 
@@ -269,7 +268,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void detailViewSlicesSnapshotToPreviewWhileDownloadKeepsFullBody() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
-                decisionRepository, schemaService, stateService, executionService, breakGlassService,
+                decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
@@ -337,7 +336,7 @@ class DefaultApiRequestServiceTest {
     @Test
     void submitRejectsBodyOverSizeCap() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
-                decisionRepository, schemaService, stateService, executionService, breakGlassService,
+                decisionRepository, schemaService, stateService, executionService,
                 aiAnalysisLookupService, userQueryService,
                 new ApigovRequestProperties(4L, 10_485_760L, 65_536L),
                 auditLogService, eventPublisher, JsonMapper.builder().build());

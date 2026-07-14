@@ -38,8 +38,12 @@ public class AccessGrantRequestEntity {
     @Column(name = "requester_id", nullable = false)
     private UUID requesterId;
 
-    @Column(name = "datasource_id", nullable = false)
+    // Exactly one of datasourceId / connectorId is set (DB CHECK chk_access_grant_request_resource).
+    @Column(name = "datasource_id")
     private UUID datasourceId;
+
+    @Column(name = "connector_id")
+    private UUID connectorId;
 
     @Column(name = "can_read", nullable = false)
     private boolean canRead = false;
@@ -57,6 +61,10 @@ public class AccessGrantRequestEntity {
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "allowed_tables", columnDefinition = "text[]")
     private String[] allowedTables;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "allowed_operations", columnDefinition = "text[]")
+    private String[] allowedOperations;
 
     @Column(name = "pre_approve_queries", nullable = false)
     private boolean preApproveQueries = false;
@@ -91,5 +99,9 @@ public class AccessGrantRequestEntity {
     @PreUpdate
     void onUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    public boolean isConnectorRequest() {
+        return connectorId != null;
     }
 }

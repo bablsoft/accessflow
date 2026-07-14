@@ -4,8 +4,10 @@ import com.bablsoft.accessflow.access.api.AccessGrantAlreadyExistsException;
 import com.bablsoft.accessflow.access.api.AccessRequestNotCancellableException;
 import com.bablsoft.accessflow.access.api.AccessRequestNotFoundException;
 import com.bablsoft.accessflow.access.api.AccessRequestNotPendingException;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.api.AccessReviewerNotEligibleException;
 import com.bablsoft.accessflow.access.api.InvalidAccessDurationException;
+import com.bablsoft.accessflow.access.api.InvalidAccessOperationsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -61,8 +63,18 @@ class AccessRequestExceptionHandler {
 
     @ExceptionHandler(AccessGrantAlreadyExistsException.class)
     ProblemDetail handleGrantExists(AccessGrantAlreadyExistsException ex) {
-        return problem(HttpStatus.CONFLICT, msg("error.access_grant_already_exists"),
-                "ACCESS_GRANT_ALREADY_EXISTS");
+        var key = ex.resourceKind() == AccessResourceKind.API_CONNECTOR
+                ? "error.access_grant_already_exists_connector"
+                : "error.access_grant_already_exists";
+        return problem(HttpStatus.CONFLICT, msg(key), "ACCESS_GRANT_ALREADY_EXISTS");
+    }
+
+    @ExceptionHandler(InvalidAccessOperationsException.class)
+    ProblemDetail handleInvalidOperations(InvalidAccessOperationsException ex) {
+        // The detail is already locale-resolved at the throw site via MessageSource.
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                ex.getMessage() != null ? ex.getMessage() : msg("error.access_operation_unknown"),
+                "INVALID_ACCESS_OPERATIONS");
     }
 
     @ExceptionHandler(InvalidAccessDurationException.class)

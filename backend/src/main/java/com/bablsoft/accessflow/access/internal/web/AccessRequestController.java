@@ -45,17 +45,20 @@ class AccessRequestController {
     @ApiResponse(responseCode = "201", description = "Request created in PENDING")
     @ApiResponse(responseCode = "400", description = "Validation error")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
-    @ApiResponse(responseCode = "404", description = "Datasource not found in the caller's organization")
-    @ApiResponse(responseCode = "422", description = "Requested duration outside the allowed range")
+    @ApiResponse(responseCode = "404",
+            description = "Datasource or API connector not found in the caller's organization")
+    @ApiResponse(responseCode = "422",
+            description = "Requested duration outside the allowed range, or unknown operation ids")
     AccessRequestResponse submit(@Valid @RequestBody SubmitAccessRequestBody body,
                                  Authentication authentication,
                                  RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
         var command = new SubmitCommand(caller.organizationId(), caller.userId(),
-                body.datasourceId(), Boolean.TRUE.equals(body.canRead()),
+                body.datasourceId(), body.connectorId(), Boolean.TRUE.equals(body.canRead()),
                 Boolean.TRUE.equals(body.canWrite()), Boolean.TRUE.equals(body.canDdl()),
-                body.allowedSchemas(), body.allowedTables(), body.requestedDuration(),
-                body.justification(), Boolean.TRUE.equals(body.preApproveQueries()));
+                body.allowedSchemas(), body.allowedTables(), body.allowedOperations(),
+                body.requestedDuration(), body.justification(),
+                Boolean.TRUE.equals(body.preApproveQueries()));
         var view = accessRequestService.submit(command);
         auditWriter.record(AuditAction.ACCESS_REQUEST_SUBMITTED, view.id(), caller,
                 submitMetadata(view), auditContext);
@@ -99,6 +102,31 @@ class AccessRequestController {
                 accessRequestService.introspectRequestableDatasourceSchema(id, caller.organizationId()));
     }
 
+    @GetMapping("/connectors")
+    @Operation(summary = "List API connectors the caller can request access to (id, name, protocol)")
+    @ApiResponse(responseCode = "200", description = "Active API connectors in the organization")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    List<RequestableConnectorResponse> listRequestableConnectors(Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return accessRequestService.listRequestableConnectors(caller.organizationId()).stream()
+                .map(RequestableConnectorResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/connectors/{id}/operations")
+    @Operation(summary = "List the operation catalog of a requestable API connector (no permission required)")
+    @ApiResponse(responseCode = "200", description = "Operations for the access-request allow-list selector")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "404", description = "API connector not found in the caller's organization")
+    List<RequestableConnectorOperationResponse> listRequestableConnectorOperations(
+            @PathVariable UUID id, Authentication authentication) {
+        var caller = currentClaims(authentication);
+        return accessRequestService
+                .listRequestableConnectorOperations(id, caller.organizationId()).stream()
+                .map(RequestableConnectorOperationResponse::from)
+                .toList();
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Cancel the caller's own pending access request")
@@ -115,7 +143,12 @@ class AccessRequestController {
 
     private static Map<String, Object> submitMetadata(AccessRequestView view) {
         var metadata = new HashMap<String, Object>();
-        metadata.put("datasource_id", view.datasourceId().toString());
+        metadata.put("resource_kind", view.resourceKind().name());
+        if (view.connectorId() != null) {
+            metadata.put("connector_id", view.connectorId().toString());
+        } else {
+            metadata.put("datasource_id", view.datasourceId().toString());
+        }
         metadata.put("requested_duration", view.requestedDuration());
         metadata.put("can_read", view.canRead());
         metadata.put("can_write", view.canWrite());

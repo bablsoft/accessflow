@@ -5,12 +5,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface ApiConnectorRepository extends JpaRepository<ApiConnectorEntity, UUID> {
 
     Optional<ApiConnectorEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    List<ApiConnectorEntity> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 
     Page<ApiConnectorEntity> findByOrganizationId(UUID organizationId, Pageable pageable);
 

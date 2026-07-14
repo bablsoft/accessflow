@@ -6,6 +6,8 @@ import type {
   AccessRequestPage,
   AccessRevocationResult,
   PendingAccessRequestsPage,
+  RequestableConnector,
+  RequestableConnectorOperation,
   RequestableDatasource,
   RequestableDatasourceSchema,
   SubmitAccessRequestInput,
@@ -26,6 +28,9 @@ export const accessRequestKeys = {
   datasources: () => ['access-requests', 'datasources'] as const,
   schema: (datasourceId: string) =>
     ['access-requests', 'datasources', datasourceId, 'schema'] as const,
+  connectors: () => ['access-requests', 'connectors'] as const,
+  connectorOperations: (connectorId: string) =>
+    ['access-requests', 'connectors', connectorId, 'operations'] as const,
   queue: () => ['access-requests', 'queue'] as const,
   queueFor: (filters: { page?: number; size?: number }) =>
     ['access-requests', 'queue', filters] as const,
@@ -59,6 +64,20 @@ export async function getRequestableDatasourceSchema(
 ): Promise<RequestableDatasourceSchema> {
   const { data } = await apiClient.get<RequestableDatasourceSchema>(
     `${BASE}/datasources/${datasourceId}/schema`,
+  );
+  return data;
+}
+
+export async function listRequestableConnectors(): Promise<RequestableConnector[]> {
+  const { data } = await apiClient.get<RequestableConnector[]>(`${BASE}/connectors`);
+  return data;
+}
+
+export async function listRequestableConnectorOperations(
+  connectorId: string,
+): Promise<RequestableConnectorOperation[]> {
+  const { data } = await apiClient.get<RequestableConnectorOperation[]>(
+    `${BASE}/connectors/${connectorId}/operations`,
   );
   return data;
 }

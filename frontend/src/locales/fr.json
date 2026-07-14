@@ -2437,7 +2437,7 @@
   "access": {
     "request": {
       "title": "Demander l'accès",
-      "subtitle": "Demander un accès temporaire et délimité à une source de données",
+      "subtitle": "Demandez un accès temporaire et limité à une source de données ou une connexion d'API",
       "datasource": "Source de données",
       "datasource_placeholder": "Sélectionner une source de données",
       "capabilities": "Capacités",
@@ -2466,7 +2466,8 @@
         "capability_required": "Sélectionnez au moins lecture, écriture ou DDL",
         "duration_required": "Sélectionner une durée",
         "justification_required": "La justification est obligatoire",
-        "justification_max": "La justification ne doit pas dépasser 4 000 caractères"
+        "justification_max": "La justification ne doit pas dépasser 4 000 caractères",
+        "connector_required": "Sélectionnez une connexion d'API"
       },
       "durations": {
         "PT1H": "1 heure",
@@ -2478,13 +2479,21 @@
       },
       "pre_approve_label": "Pré-approuver les requêtes sous cet octroi",
       "pre_approve_hint": "Les requêtes couvertes par cet octroi (capacité et périmètre de tables) sautent la revue humaine tant que l’octroi est actif. Les requêtes à haut risque et les politiques de routage s’appliquent toujours.",
-      "pre_approve_tag": "Pré-approuve les requêtes"
+      "pre_approve_tag": "Pré-approuve les requêtes",
+      "resource": "Ressource",
+      "resource_type": "Type de ressource",
+      "connector": "Connexion d'API",
+      "connector_placeholder": "Sélectionnez une connexion d'API",
+      "operations": "Opérations autorisées (facultatif)",
+      "operations_placeholder": "Toutes les opérations",
+      "operations_hint": "Laissez vide pour autoriser toutes les opérations sous cet octroi",
+      "operations_tag_one": "{{count}} opération",
+      "operations_tag_other": "{{count}} opérations"
     },
     "queue": {
       "title": "Demandes d'accès",
       "subtitle": "Examiner et décider les demandes d'accès en attente",
       "requester": "Demandeur",
-      "datasource": "Source de données",
       "capabilities": "Capacités",
       "duration": "Durée",
       "justification": "Justification",
@@ -2496,7 +2505,8 @@
       "on_approve": "Demande d'accès approuvée",
       "on_reject": "Demande d'accès rejetée",
       "empty": "Aucune demande d'accès en attente de votre examen",
-      "pre_approve_tooltip": "Approuver cette demande permet aux requêtes couvertes de s’exécuter sans revue supplémentaire tant que l’octroi est actif."
+      "pre_approve_tooltip": "Approuver cette demande permet aux requêtes couvertes de s’exécuter sans revue supplémentaire tant que l’octroi est actif.",
+      "resource": "Ressource"
     },
     "ttl": {
       "remaining": "{{value}} restant",
@@ -2505,6 +2515,10 @@
     "columns": {
       "status": "Statut",
       "expires": "Expire"
+    },
+    "kind": {
+      "datasource": "Source de données",
+      "api_connector": "Connexion d'API"
     }
   },
   "connectors": {

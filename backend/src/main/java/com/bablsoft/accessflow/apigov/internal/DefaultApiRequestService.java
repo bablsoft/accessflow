@@ -27,6 +27,7 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiReviewDecisio
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.apigov.events.ApiBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
@@ -37,7 +38,6 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
-import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -67,7 +67,6 @@ public class DefaultApiRequestService implements ApiRequestService {
     private final ApiSchemaService schemaService;
     private final ApiRequestStateService stateService;
     private final ApiExecutionService executionService;
-    private final BreakGlassService breakGlassService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserQueryService userQueryService;
     private final ApigovRequestProperties requestProperties;
@@ -134,7 +133,9 @@ public class DefaultApiRequestService implements ApiRequestService {
         }
         stateService.apply(entity, QueryStatus.APPROVED);
         var executed = executionService.execute(entity.getId());
-        breakGlassService.openApiBreakGlassReview(new BreakGlassService.ApiBreakGlassReview(
+        // Synchronous event — the workflow module opens the mandatory retro-review in this same
+        // transaction. Decoupled via the event so apigov never depends on workflow (AF-567).
+        eventPublisher.publishEvent(new ApiBreakGlassExecutedEvent(
                 command.organizationId(), entity.getId(), connector.getId(), command.submitterUserId(),
                 command.justification()));
         audit(AuditAction.API_REQUEST_BREAK_GLASS_EXECUTED, executed, command.submittedIp(),

@@ -799,7 +799,7 @@
                 <tr><td>View own query history</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
                 <tr><td>View all queries in the org</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
                 <tr><td>Approve / reject queries</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
-                <tr><td>Request time-bound datasource access (JIT)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
+                <tr><td>Request time-bound datasource / API-connection access (JIT)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td></tr>
                 <tr><td>Review / approve access requests</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage datasources</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
                 <tr><td>Manage users</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
@@ -856,16 +856,21 @@
           </p>
           <p>
             <strong>Just-in-time (JIT) access requests.</strong> Instead of an admin pre-granting a
-            datasource permission, any user can request temporary, scoped access from
-            <code>/access-requests</code> — pick a datasource, the capabilities they need
-            (read / write / DDL), an optional schema/table scope, and a duration. The request runs
+            permission, any user can request temporary, scoped access from
+            <code>/access-requests</code> — to a <em>datasource</em> (pick the capabilities they
+            need — read / write / DDL — and an optional schema/table scope) or to an <em>API
+            connection</em> (read / write plus an optional allow-list of specific operations from
+            the connector's schema catalog), with a duration. The request runs
             through the same reviewer-eligibility and multi-stage approval engine as query review
-            (a requester can never approve their own). Admins are the backstop approver: an admin
+            (a requester can never approve their own); API-connection requests route through the
+            connector's assigned review plan. Admins are the backstop approver: an admin
             sees and can approve <em>every</em> pending access request from
-            <code>/admin/access-requests</code> — even on datasources with no review plan — so a
+            <code>/admin/access-requests</code> — even on resources with no review plan — so a
             request is never stuck waiting for an approver who was never configured. On final
             approval AccessFlow writes a <strong>time-boxed permission grant</strong> (expiring at
-            <em>now + duration</em>); it's revoked automatically on expiry, and an admin can revoke an
+            <em>now + duration</em>) — a datasource permission, or an API-connection permission
+            visible on the connector's Permissions tab alongside admin-granted rows; it's revoked
+            automatically on expiry, and an admin can revoke an
             active grant early from <code>/admin/access-requests</code>. Tune the revocation cadence
             with <code>ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL</code> (default <code>PT5M</code>)
             and the allowed duration window with <code>ACCESSFLOW_ACCESS_MIN_DURATION</code> /

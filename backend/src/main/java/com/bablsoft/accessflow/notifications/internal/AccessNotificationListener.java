@@ -93,8 +93,12 @@ class AccessNotificationListener {
     private String buildPayload(AccessRequestView view) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("access_request_id", view.id().toString());
+        payload.put("resource_kind", view.resourceKind().name());
         if (view.datasourceName() != null) {
             payload.put("datasource", view.datasourceName());
+        }
+        if (view.connectorName() != null) {
+            payload.put("connector", view.connectorName());
         }
         if (view.requesterEmail() != null) {
             payload.put("requester", view.requesterEmail());

@@ -868,10 +868,15 @@ export type AccessGrantStatus =
   | 'REVOKED'
   | 'CANCELLED';
 
+export type AccessResourceKind = 'DATASOURCE' | 'API_CONNECTOR';
+
 export interface AccessRequest {
   id: string;
-  datasource_id: string;
+  resource_kind: AccessResourceKind;
+  datasource_id: string | null;
   datasource_name: string | null;
+  connector_id: string | null;
+  connector_name: string | null;
   requester_id: string;
   requester_email: string | null;
   can_read: boolean;
@@ -879,6 +884,7 @@ export interface AccessRequest {
   can_ddl: boolean;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
+  allowed_operations: string[] | null;
   requested_duration: string;
   justification: string;
   pre_approve_queries: boolean;
@@ -892,12 +898,14 @@ export interface AccessRequest {
 export type AccessRequestPage = PageEnvelope<AccessRequest>;
 
 export interface SubmitAccessRequestInput {
-  datasource_id: string;
+  datasource_id?: string | null;
+  connector_id?: string | null;
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
   allowed_schemas?: string[] | null;
   allowed_tables?: string[] | null;
+  allowed_operations?: string[] | null;
   requested_duration: string;
   justification: string;
   pre_approve_queries?: boolean;
@@ -906,6 +914,20 @@ export interface SubmitAccessRequestInput {
 export interface RequestableDatasource {
   id: string;
   name: string;
+}
+
+export interface RequestableConnector {
+  id: string;
+  name: string;
+  protocol: string;
+}
+
+export interface RequestableConnectorOperation {
+  operation_id: string;
+  verb: string;
+  path: string;
+  summary: string | null;
+  write: boolean;
 }
 
 export interface RequestableSchemaNamespace {
@@ -919,13 +941,16 @@ export interface RequestableDatasourceSchema {
 
 export interface PendingAccessRequestItem {
   id: string;
-  datasource: { id: string; name: string | null };
+  resource_kind: AccessResourceKind;
+  datasource: { id: string; name: string | null } | null;
+  connector: { id: string; name: string | null } | null;
   requested_by: { id: string; email: string | null };
   can_read: boolean;
   can_write: boolean;
   can_ddl: boolean;
   allowed_schemas: string[] | null;
   allowed_tables: string[] | null;
+  allowed_operations: string[] | null;
   requested_duration: string;
   justification: string;
   pre_approve_queries: boolean;
@@ -1616,6 +1641,8 @@ export interface UserNotificationPayload {
   query_id?: string;
   api_id?: string;
   datasource?: string;
+  connector?: string;
+  resource_kind?: AccessResourceKind;
   submitter?: string;
   submitter_name?: string;
   risk_level?: RiskLevel;

@@ -134,6 +134,21 @@ existing grant is editable in place via `PUT /api-connectors/{id}/permissions/{p
 fields, minus `userId`) — capabilities, expiry, allowed operations, and masked fields can be changed
 without revoking and re-creating, preserving the grant's `created_by`/`created_at` provenance.
 
+**Self-service JIT grants (AF-567).** Besides admin grants, a user can *request* time-boxed
+connector access through the shared access-request flow (`POST /access-requests` with
+`connector_id` — see [docs/04-api-spec.md → Access Request Endpoints](04-api-spec.md) and
+[docs/05-backend.md → JIT time-bound access requests](05-backend.md)). Reviewer eligibility resolves
+through the connector's `review_plan_id`; on final approval the request materialises as an
+`api_connector_user_permissions` row (`expires_at = now + requested_duration`, `can_read`/`can_write`
+and the requested `allowed_operations` only — never break-glass or response-field restrictions),
+visible on the connector's permissions tab alongside admin-granted rows and revoked automatically by
+`AccessGrantExpiryJob` (or early via `POST /admin/access-requests/{id}/revoke`). A standing
+(non-expiring) direct grant is never clobbered — approval fails 409; an existing time-boxed direct
+grant is replaced in place by the `(connector_id, user_id)` upsert (its `restricted_response_fields`
+are cleared — the same JIT-replaces-JIT semantics as datasource grants). Group grants are never
+considered or touched. `EffectiveApiConnectorPermissionResolver` treats JIT rows exactly like
+admin-granted expiring rows (excluded once past `expires_at`).
+
 ## 4. Governed-call pipeline
 
 `api_requests` mirrors `query_requests` and reuses the `query_status` lifecycle
@@ -163,8 +178,11 @@ without revoking and re-creating, preserving the grant's `created_by`/`created_a
    is fetched via `GET /api-requests/{id}/response`.
 
 **Break-glass** (`submission_reason=EMERGENCY_ACCESS`, gated by `can_break_glass`) force-approves and
-executes immediately, opens a mandatory retro-review in `break_glass_events`
-(`workflow.api.BreakGlassService.openApiBreakGlassReview`), writes a prominent
+executes immediately, opens a mandatory retro-review in `break_glass_events` (apigov publishes a
+synchronous `ApiBreakGlassExecutedEvent`; the workflow module's `ApiBreakGlassReviewListener` calls
+`workflow.api.BreakGlassService.openApiBreakGlassReview` in the same transaction — event-based so
+apigov never depends on workflow, which would close an access → apigov → workflow module cycle,
+AF-567), writes a prominent
 `API_REQUEST_BREAK_GLASS_EXECUTED` audit row, and fans out to org admins. **Scheduled execution**:
 `ApiRequestRunJob` fires APPROVED requests at `scheduled_for`; `ApiRequestTimeoutJob` auto-rejects
 (TIMED_OUT) requests that sit in PENDING_REVIEW past `accessflow.apigov.review-timeout`. Both are

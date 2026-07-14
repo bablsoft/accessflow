@@ -51,6 +51,12 @@ class DefaultAccessGrantExpiryService implements AccessGrantExpiryService {
             requestRepository.findById(accessRequestId).ifPresent(entity -> {
                 var metadata = new HashMap<String, Object>();
                 metadata.put("reason", "expiry");
+                metadata.put("resource_kind", AccessRequestViewMapper.resourceKind(entity).name());
+                if (entity.getConnectorId() != null) {
+                    metadata.put("connector_id", entity.getConnectorId().toString());
+                } else {
+                    metadata.put("datasource_id", entity.getDatasourceId().toString());
+                }
                 if (entity.getGrantedPermissionId() != null) {
                     metadata.put("granted_permission_id",
                             entity.getGrantedPermissionId().toString());

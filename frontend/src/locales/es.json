@@ -2437,7 +2437,7 @@
   "access": {
     "request": {
       "title": "Solicitar acceso",
-      "subtitle": "Solicita acceso temporal y delimitado a una fuente de datos",
+      "subtitle": "Solicite acceso temporal y limitado a una fuente de datos o conexión de API",
       "datasource": "Fuente de datos",
       "datasource_placeholder": "Selecciona una fuente de datos",
       "capabilities": "Permisos",
@@ -2466,7 +2466,8 @@
         "capability_required": "Selecciona al menos lectura, escritura o DDL",
         "duration_required": "Selecciona una duración",
         "justification_required": "La justificación es obligatoria",
-        "justification_max": "La justificación no puede superar los 4.000 caracteres"
+        "justification_max": "La justificación no puede superar los 4.000 caracteres",
+        "connector_required": "Seleccione una conexión de API"
       },
       "durations": {
         "PT1H": "1 hora",
@@ -2478,13 +2479,21 @@
       },
       "pre_approve_label": "Preaprobar consultas bajo esta concesión",
       "pre_approve_hint": "Las consultas cubiertas por esta concesión (capacidad y alcance de tablas) omiten la revisión humana mientras la concesión esté activa. Las consultas de alto riesgo y las políticas de enrutamiento siguen aplicándose.",
-      "pre_approve_tag": "Preaprueba consultas"
+      "pre_approve_tag": "Preaprueba consultas",
+      "resource": "Recurso",
+      "resource_type": "Tipo de recurso",
+      "connector": "Conexión de API",
+      "connector_placeholder": "Seleccione una conexión de API",
+      "operations": "Operaciones permitidas (opcional)",
+      "operations_placeholder": "Todas las operaciones",
+      "operations_hint": "Déjelo vacío para permitir todas las operaciones bajo esta concesión",
+      "operations_tag_one": "{{count}} operación",
+      "operations_tag_other": "{{count}} operaciones"
     },
     "queue": {
       "title": "Solicitudes de acceso",
       "subtitle": "Revisa y decide las solicitudes de acceso pendientes",
       "requester": "Solicitante",
-      "datasource": "Fuente de datos",
       "capabilities": "Permisos",
       "duration": "Duración",
       "justification": "Justificación",
@@ -2496,7 +2505,8 @@
       "on_approve": "Solicitud de acceso aprobada",
       "on_reject": "Solicitud de acceso rechazada",
       "empty": "No hay solicitudes de acceso pendientes de tu revisión",
-      "pre_approve_tooltip": "Aprobar esta solicitud permite que las consultas cubiertas se ejecuten sin más revisión mientras la concesión esté activa."
+      "pre_approve_tooltip": "Aprobar esta solicitud permite que las consultas cubiertas se ejecuten sin más revisión mientras la concesión esté activa.",
+      "resource": "Recurso"
     },
     "ttl": {
       "remaining": "quedan {{value}}",
@@ -2505,6 +2515,10 @@
     "columns": {
       "status": "Estado",
       "expires": "Caduca"
+    },
+    "kind": {
+      "datasource": "Fuente de datos",
+      "api_connector": "Conexión de API"
     }
   },
   "connectors": {

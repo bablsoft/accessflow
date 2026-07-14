@@ -112,6 +112,20 @@ class EffectiveApiConnectorPermissionResolverTest {
     }
 
     @Test
+    void resolveIgnoresExpiredDirectGrant() {
+        // AF-567 acceptance criterion: once a JIT-materialised direct row's expires_at passes,
+        // the effective permission disappears without any cleanup job having run yet.
+        var direct = userPermission();
+        direct.setCanRead(true);
+        direct.setExpiresAt(Instant.now().minusSeconds(60));
+        when(userPermissionRepository.findByConnectorIdAndUserId(connectorId, userId))
+                .thenReturn(java.util.Optional.of(direct));
+        when(userGroupService.findGroupIdsForUser(userId)).thenReturn(List.of());
+
+        assertThat(resolver.resolve(connectorId, userId)).isEmpty();
+    }
+
+    @Test
     void resolveEmptyWhenNoGrant() {
         when(userPermissionRepository.findByConnectorIdAndUserId(connectorId, userId))
                 .thenReturn(java.util.Optional.empty());

@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.access.internal.web;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -9,14 +8,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Request body for {@code POST /api/v1/access-requests}. The ISO-8601 {@code requestedDuration}
- * pattern allows days/hours/minutes/seconds (no months/years — those are not {@code Duration}s);
- * the configured min/max bounds are enforced server-side in the service.
+ * Request body for {@code POST /api/v1/access-requests}. Targets exactly one of
+ * {@code datasourceId} / {@code connectorId} (enforced by {@link ExactlyOneResource}, which also
+ * rejects datasource-only fields on connector requests and vice versa). The ISO-8601
+ * {@code requestedDuration} pattern allows days/hours/minutes/seconds (no months/years — those are
+ * not {@code Duration}s); the configured min/max bounds are enforced server-side in the service.
  */
 @AtLeastOneCapability
+@ExactlyOneResource
 public record SubmitAccessRequestBody(
-        @NotNull(message = "{validation.datasource_id.required}")
         UUID datasourceId,
+
+        UUID connectorId,
 
         Boolean canRead,
         Boolean canWrite,
@@ -29,6 +32,9 @@ public record SubmitAccessRequestBody(
 
         @Size(max = 200, message = "{validation.access.tables.max}")
         List<@NotBlank(message = "{validation.access.table.blank}") String> allowedTables,
+
+        @Size(max = 200, message = "{validation.access.operations.max}")
+        List<@NotBlank(message = "{validation.access.operation.blank}") String> allowedOperations,
 
         @NotBlank(message = "{validation.access.duration.required}")
         @Pattern(regexp = "^P(?!$)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+S)?)?$",

@@ -9,6 +9,10 @@ import com.bablsoft.accessflow.access.events.AccessRequestApprovedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestRejectedEvent;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
+import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
@@ -51,12 +55,15 @@ class DefaultAccessReviewServiceTest {
     @Mock AccessGrantMaterializer materializer;
     @Mock UserQueryService userQueryService;
     @Mock DatasourceLookupService datasourceLookupService;
+    @Mock ApiConnectorLookupService connectorLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultAccessReviewService service;
 
     private final UUID requestId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
+    private final UUID connectorId = UUID.randomUUID();
+    private final UUID reviewPlanId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
     private final UUID requesterId = UUID.randomUUID();
     private final UUID reviewerId = UUID.randomUUID();
@@ -387,5 +394,113 @@ class DefaultAccessReviewServiceTest {
         var e = pending();
         e.setStatus(AccessGrantStatus.APPROVED);
         return e;
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    private AccessGrantRequestEntity pendingConnector() {
+        var e = new AccessGrantRequestEntity();
+        e.setId(requestId);
+        e.setOrganizationId(organizationId);
+        e.setRequesterId(requesterId);
+        e.setConnectorId(connectorId);
+        e.setStatus(AccessGrantStatus.PENDING);
+        e.setRequestedDuration("PT4H");
+        e.setCanRead(true);
+        return e;
+    }
+
+    private ApiConnectorRef connectorRef(UUID planId) {
+        return new ApiConnectorRef(connectorId, "billing-api", ApiProtocol.REST, planId);
+    }
+
+    private ReviewPlanSnapshot reviewerRolePlanWithId(UUID planId) {
+        return new ReviewPlanSnapshot(planId, organizationId, false, true, 1, false, 0,
+                List.of(new ApproverRule(null, UserRoleType.REVIEWER, 0)), List.of());
+    }
+
+    @Test
+    void approveConnectorRequestResolvesPlanViaConnectorAndSkipsDatasourceScope() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pendingConnector()));
+        when(connectorLookupService.findRef(connectorId))
+                .thenReturn(Optional.of(connectorRef(reviewPlanId)));
+        when(reviewPlanLookupService.findById(reviewPlanId))
+                .thenReturn(Optional.of(reviewerRolePlanWithId(reviewPlanId)));
+        when(stateService.listDecisions(requestId)).thenReturn(List.of());
+        when(stateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordAccessDecisionResult(UUID.randomUUID(),
+                        AccessGrantStatus.APPROVED, false));
+
+        var outcome = service.approve(requestId, reviewer(UserRoleType.REVIEWER), "ok");
+
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
+        verify(materializer).materialize(requestId, reviewerId);
+        // Datasource reviewer scoping never applies to connector requests.
+        verify(reviewerEligibilityService, never()).findEligibleReviewerIds(any());
+        verify(reviewPlanLookupService, never()).findForDatasource(any());
+    }
+
+    @Test
+    void approveConnectorBlocksSelfApproval() {
+        var own = pendingConnector();
+        own.setRequesterId(reviewerId);
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(own));
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(UserRoleType.REVIEWER), null))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(stateService, never()).recordApprovalAndAdvance(any());
+    }
+
+    @Test
+    void approveConnectorWithoutPlanFallsBackToAdminOverride() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pendingConnector()));
+        when(connectorLookupService.findRef(connectorId))
+                .thenReturn(Optional.of(connectorRef(null))); // no review plan attached
+        var command = ArgumentCaptor.forClass(RecordAccessApprovalCommand.class);
+        when(stateService.recordApprovalAndAdvance(command.capture()))
+                .thenReturn(new RecordAccessDecisionResult(UUID.randomUUID(),
+                        AccessGrantStatus.APPROVED, false));
+
+        var outcome = service.approve(requestId, reviewer(UserRoleType.ADMIN), "ok");
+
+        assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
+        assertThat(command.getValue().isLastStage()).isTrue();
+        verify(materializer).materialize(requestId, reviewerId);
+    }
+
+    @Test
+    void approveConnectorWithoutPlanKeepsNonAdminReviewerIneligible() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(pendingConnector()));
+        when(connectorLookupService.findRef(connectorId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(UserRoleType.REVIEWER), null))
+                .isInstanceOf(AccessReviewerNotEligibleException.class);
+        verify(stateService, never()).recordApprovalAndAdvance(any());
+    }
+
+    @Test
+    void listPendingMapsConnectorRequestWithConnectorNameAndKind() {
+        when(requestRepository.findAllByOrganizationIdAndStatusOrderByCreatedAtAsc(
+                organizationId, AccessGrantStatus.PENDING))
+                .thenReturn(List.of(pendingConnector()));
+        when(connectorLookupService.findRef(connectorId))
+                .thenReturn(Optional.of(connectorRef(reviewPlanId)));
+        when(reviewPlanLookupService.findById(reviewPlanId))
+                .thenReturn(Optional.of(reviewerRolePlanWithId(reviewPlanId)));
+        when(stateService.listDecisions(requestId)).thenReturn(List.of());
+        when(userQueryService.findById(requesterId)).thenReturn(Optional.empty());
+
+        var page = service.listPendingForReviewer(reviewer(UserRoleType.REVIEWER),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(1);
+        var item = page.content().get(0);
+        assertThat(item.resourceKind()).isEqualTo(AccessResourceKind.API_CONNECTOR);
+        assertThat(item.connectorId()).isEqualTo(connectorId);
+        assertThat(item.connectorName()).isEqualTo("billing-api");
+        assertThat(item.datasourceId()).isNull();
+        assertThat(item.datasourceName()).isNull();
+        verify(reviewerEligibilityService, never()).findEligibleReviewerIds(any());
+        verify(datasourceLookupService, never()).findRef(any());
     }
 }

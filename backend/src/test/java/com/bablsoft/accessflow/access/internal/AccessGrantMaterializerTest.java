@@ -5,6 +5,11 @@ import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessRequestNotFoundException;
 import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionLookupService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionLookupService.ApiConnectorDirectPermissionView;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionView;
+import com.bablsoft.accessflow.apigov.api.GrantApiConnectorPermissionCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
@@ -37,10 +42,13 @@ class AccessGrantMaterializerTest {
     @Mock AccessGrantRequestStateService stateService;
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock DatasourceAdminService datasourceAdminService;
+    @Mock ApiConnectorPermissionLookupService connectorPermissionLookupService;
+    @Mock ApiConnectorAdminService apiConnectorAdminService;
     @InjectMocks AccessGrantMaterializer materializer;
 
     private final UUID requestId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
+    private final UUID connectorId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
     private final UUID requesterId = UUID.randomUUID();
     private final UUID approverId = UUID.randomUUID();
@@ -118,5 +126,84 @@ class AccessGrantMaterializerTest {
         verify(datasourceAdminService).revokePermission(datasourceId, organizationId, existingPermId);
         verify(datasourceAdminService).grantPermission(eq(datasourceId), eq(organizationId),
                 eq(approverId), any());
+    }
+
+    // --- AF-567: connector-targeted requests ----------------------------------------------------
+
+    private AccessGrantRequestEntity approvedConnector() {
+        var e = new AccessGrantRequestEntity();
+        e.setId(requestId);
+        e.setOrganizationId(organizationId);
+        e.setRequesterId(requesterId);
+        e.setConnectorId(connectorId);
+        e.setStatus(AccessGrantStatus.APPROVED);
+        e.setRequestedDuration("PT4H");
+        e.setCanRead(true);
+        e.setCanWrite(true);
+        e.setAllowedOperations(new String[]{"listCharges"});
+        return e;
+    }
+
+    private ApiConnectorPermissionView connectorGranted() {
+        return new ApiConnectorPermissionView(newPermissionId, connectorId, requesterId, "u@x.io",
+                "U", true, true, false, Instant.now().plusSeconds(3600), List.of("listCharges"),
+                null, Instant.now());
+    }
+
+    @Test
+    void materialiseConnectorGrantsPermissionAndAttaches() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(approvedConnector()));
+        when(connectorPermissionLookupService.findDirectFor(connectorId, requesterId))
+                .thenReturn(Optional.empty());
+        when(apiConnectorAdminService.grantPermission(eq(connectorId), eq(organizationId),
+                eq(approverId), any())).thenReturn(connectorGranted());
+
+        materializer.materialize(requestId, approverId);
+
+        var captor = ArgumentCaptor.forClass(GrantApiConnectorPermissionCommand.class);
+        verify(apiConnectorAdminService).grantPermission(eq(connectorId), eq(organizationId),
+                eq(approverId), captor.capture());
+        assertThat(captor.getValue().userId()).isEqualTo(requesterId);
+        assertThat(captor.getValue().canRead()).isTrue();
+        assertThat(captor.getValue().canWrite()).isTrue();
+        assertThat(captor.getValue().canBreakGlass()).isFalse();
+        assertThat(captor.getValue().expiresAt()).isNotNull();
+        assertThat(captor.getValue().allowedOperations()).containsExactly("listCharges");
+        assertThat(captor.getValue().restrictedResponseFields()).isNull();
+        verify(stateService).attachGrant(eq(requestId), eq(newPermissionId), any(Instant.class));
+        verify(datasourceAdminService, never()).grantPermission(any(), any(), any(), any());
+    }
+
+    @Test
+    void materialiseConnectorThrowsWhenStandingPermissionExists() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(approvedConnector()));
+        var standing = new ApiConnectorDirectPermissionView(UUID.randomUUID(), connectorId,
+                requesterId, null /* no expiry = standing */);
+        when(connectorPermissionLookupService.findDirectFor(connectorId, requesterId))
+                .thenReturn(Optional.of(standing));
+
+        assertThatThrownBy(() -> materializer.materialize(requestId, approverId))
+                .isInstanceOf(AccessGrantAlreadyExistsException.class);
+        verify(apiConnectorAdminService, never()).grantPermission(any(), any(), any(), any());
+        verify(stateService, never()).attachGrant(any(), any(), any());
+    }
+
+    @Test
+    void materialiseConnectorReplacesExistingTimeBoxedPermissionViaUpsert() {
+        when(requestRepository.findById(requestId)).thenReturn(Optional.of(approvedConnector()));
+        var jit = new ApiConnectorDirectPermissionView(UUID.randomUUID(), connectorId, requesterId,
+                Instant.now().plusSeconds(60));
+        when(connectorPermissionLookupService.findDirectFor(connectorId, requesterId))
+                .thenReturn(Optional.of(jit));
+        when(apiConnectorAdminService.grantPermission(eq(connectorId), eq(organizationId),
+                eq(approverId), any())).thenReturn(connectorGranted());
+
+        materializer.materialize(requestId, approverId);
+
+        // grantPermission upserts on (connector_id, user_id) — no explicit revoke call.
+        verify(apiConnectorAdminService).grantPermission(eq(connectorId), eq(organizationId),
+                eq(approverId), any());
+        verify(apiConnectorAdminService, never()).revokePermission(any(), any(), any());
+        verify(stateService).attachGrant(eq(requestId), eq(newPermissionId), any(Instant.class));
     }
 }

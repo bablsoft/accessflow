@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Select, Skeleton, Space, Table, Tag } from 'antd';
+import { App, Button, Card, Checkbox, Form, Input, Popconfirm, Segmented, Select, Skeleton, Space, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -14,18 +14,23 @@ import {
   cancelAccessRequest,
   getRequestableDatasourceSchema,
   listMyAccessRequests,
+  listRequestableConnectorOperations,
+  listRequestableConnectors,
   listRequestableDatasources,
   submitAccessRequest,
 } from '@/api/accessRequests';
-import type { AccessRequest } from '@/types/api';
+import type { AccessRequest, AccessResourceKind } from '@/types/api';
 
 const DURATIONS = ['PT1H', 'PT4H', 'PT8H', 'P1D', 'P3D', 'P7D'] as const;
 
 interface RequestFormValues {
-  datasource_id: string;
+  resource_kind: AccessResourceKind;
+  datasource_id?: string;
+  connector_id?: string;
   capabilities: string[];
   allowed_schemas?: string[];
   allowed_tables?: string[];
+  allowed_operations?: string[];
   requested_duration: string;
   justification: string;
   pre_approve_queries?: boolean;
@@ -37,18 +42,37 @@ export function RequestAccessPage() {
   const queryClient = useQueryClient();
   const [form] = Form.useForm<RequestFormValues>();
 
+  const resourceKind = Form.useWatch('resource_kind', form) ?? 'DATASOURCE';
+  const isConnector = resourceKind === 'API_CONNECTOR';
+
   const datasources = useQuery({
     queryKey: accessRequestKeys.datasources(),
     queryFn: listRequestableDatasources,
+    enabled: !isConnector,
+  });
+
+  const connectors = useQuery({
+    queryKey: accessRequestKeys.connectors(),
+    queryFn: listRequestableConnectors,
+    enabled: isConnector,
   });
 
   const selectedDatasource = Form.useWatch('datasource_id', form);
+  const selectedConnector = Form.useWatch('connector_id', form);
   const selectedSchemas = Form.useWatch('allowed_schemas', form);
 
   const schema = useQuery({
     queryKey: accessRequestKeys.schema(selectedDatasource ?? ''),
     queryFn: () => getRequestableDatasourceSchema(selectedDatasource as string),
-    enabled: !!selectedDatasource,
+    enabled: !isConnector && !!selectedDatasource,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const operations = useQuery({
+    queryKey: accessRequestKeys.connectorOperations(selectedConnector ?? ''),
+    queryFn: () => listRequestableConnectorOperations(selectedConnector as string),
+    enabled: isConnector && !!selectedConnector,
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -74,6 +98,15 @@ export function RequestAccessPage() {
     }
     return opts;
   }, [schema.data, selectedSchemas]);
+
+  const operationOptions = useMemo(
+    () =>
+      (operations.data ?? []).map((op) => ({
+        value: op.operation_id,
+        label: op.summary ? `${op.verb} ${op.path} — ${op.summary}` : `${op.verb} ${op.path}`,
+      })),
+    [operations.data],
+  );
 
   const mine = useQuery({
     queryKey: accessRequestKeys.mine({ size: 50 }),
@@ -110,17 +143,31 @@ export function RequestAccessPage() {
 
   const submit = useMutation({
     mutationFn: (values: RequestFormValues) =>
-      submitAccessRequest({
-        datasource_id: values.datasource_id,
-        can_read: values.capabilities.includes('read'),
-        can_write: values.capabilities.includes('write'),
-        can_ddl: values.capabilities.includes('ddl'),
-        allowed_schemas: values.allowed_schemas?.length ? values.allowed_schemas : null,
-        allowed_tables: values.allowed_tables?.length ? values.allowed_tables : null,
-        requested_duration: values.requested_duration,
-        justification: values.justification,
-        pre_approve_queries: values.pre_approve_queries === true,
-      }),
+      submitAccessRequest(
+        values.resource_kind === 'API_CONNECTOR'
+          ? {
+              connector_id: values.connector_id,
+              can_read: values.capabilities.includes('read'),
+              can_write: values.capabilities.includes('write'),
+              can_ddl: false,
+              allowed_operations: values.allowed_operations?.length
+                ? values.allowed_operations
+                : null,
+              requested_duration: values.requested_duration,
+              justification: values.justification,
+            }
+          : {
+              datasource_id: values.datasource_id,
+              can_read: values.capabilities.includes('read'),
+              can_write: values.capabilities.includes('write'),
+              can_ddl: values.capabilities.includes('ddl'),
+              allowed_schemas: values.allowed_schemas?.length ? values.allowed_schemas : null,
+              allowed_tables: values.allowed_tables?.length ? values.allowed_tables : null,
+              requested_duration: values.requested_duration,
+              justification: values.justification,
+              pre_approve_queries: values.pre_approve_queries === true,
+            },
+      ),
     onSuccess: () => {
       invalidateMine();
       form.resetFields();
@@ -138,12 +185,27 @@ export function RequestAccessPage() {
     onError: (err) => showApiError(message, err, reviewErrorMessage),
   });
 
+  const kindTag = (r: AccessRequest) =>
+    r.resource_kind === 'API_CONNECTOR' ? (
+      <Tag color="geekblue">{t('access.kind.api_connector')}</Tag>
+    ) : (
+      <Tag>{t('access.kind.datasource')}</Tag>
+    );
+
+  const resourceName = (r: AccessRequest) =>
+    r.connector_name ?? r.datasource_name ?? r.connector_id ?? r.datasource_id;
+
   const capabilityTags = (r: AccessRequest) => (
     <Space size={4} wrap>
       {r.can_read && <Tag>{t('access.request.can_read')}</Tag>}
       {r.can_write && <Tag color="orange">{t('access.request.can_write')}</Tag>}
       {r.can_ddl && <Tag color="red">{t('access.request.can_ddl')}</Tag>}
       {r.pre_approve_queries && <Tag color="blue">{t('access.request.pre_approve_tag')}</Tag>}
+      {(r.allowed_operations?.length ?? 0) > 0 && (
+        <Tag color="purple">
+          {t('access.request.operations_tag', { count: r.allowed_operations?.length ?? 0 })}
+        </Tag>
+      )}
     </Space>
   );
 
@@ -159,9 +221,13 @@ export function RequestAccessPage() {
 
   const columns: TableColumnsType<AccessRequest> = [
     {
-      title: t('access.request.datasource'),
-      dataIndex: 'datasource_name',
-      render: (_v, r) => r.datasource_name ?? r.datasource_id,
+      title: t('access.request.resource'),
+      render: (_v, r) => (
+        <Space size={6} wrap>
+          {kindTag(r)}
+          <span>{resourceName(r)}</span>
+        </Space>
+      ),
     },
     { title: t('access.request.capabilities'), render: (_v, r) => capabilityTags(r) },
     {
@@ -207,9 +273,8 @@ export function RequestAccessPage() {
           >
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 600 }}>
-                  {activeRequest.datasource_name ?? activeRequest.datasource_id}
-                </span>
+                {kindTag(activeRequest)}
+                <span style={{ fontWeight: 600 }}>{resourceName(activeRequest)}</span>
                 <AccessStatusPill status={activeRequest.status} size="sm" />
               </div>
               {capabilityTags(activeRequest)}
@@ -243,24 +308,68 @@ export function RequestAccessPage() {
             form={form}
             layout="vertical"
             onFinish={(values) => submit.mutate(values)}
-            initialValues={{ capabilities: ['read'], requested_duration: 'PT4H' }}
+            initialValues={{
+              resource_kind: 'DATASOURCE',
+              capabilities: ['read'],
+              requested_duration: 'PT4H',
+            }}
           >
-            <Form.Item
-              name="datasource_id"
-              label={t('access.request.datasource')}
-              rules={[{ required: true, message: t('access.request.validation.datasource_required') }]}
-            >
-              <Select
-                placeholder={t('access.request.datasource_placeholder')}
-                loading={datasources.isLoading}
-                options={(datasources.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
-                showSearch
-                optionFilterProp="label"
+            <Form.Item name="resource_kind" label={t('access.request.resource_type')}>
+              <Segmented
+                options={[
+                  { value: 'DATASOURCE', label: t('access.kind.datasource') },
+                  { value: 'API_CONNECTOR', label: t('access.kind.api_connector') },
+                ]}
                 onChange={() =>
-                  form.setFieldsValue({ allowed_schemas: undefined, allowed_tables: undefined })
+                  form.setFieldsValue({
+                    datasource_id: undefined,
+                    connector_id: undefined,
+                    capabilities: ['read'],
+                    allowed_schemas: undefined,
+                    allowed_tables: undefined,
+                    allowed_operations: undefined,
+                    pre_approve_queries: undefined,
+                  })
                 }
               />
             </Form.Item>
+
+            {isConnector ? (
+              <Form.Item
+                name="connector_id"
+                label={t('access.request.connector')}
+                rules={[{ required: true, message: t('access.request.validation.connector_required') }]}
+              >
+                <Select
+                  placeholder={t('access.request.connector_placeholder')}
+                  loading={connectors.isLoading}
+                  options={(connectors.data ?? []).map((c) => ({
+                    value: c.id,
+                    label: `${c.name} (${c.protocol})`,
+                  }))}
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={() => form.setFieldsValue({ allowed_operations: undefined })}
+                />
+              </Form.Item>
+            ) : (
+              <Form.Item
+                name="datasource_id"
+                label={t('access.request.datasource')}
+                rules={[{ required: true, message: t('access.request.validation.datasource_required') }]}
+              >
+                <Select
+                  placeholder={t('access.request.datasource_placeholder')}
+                  loading={datasources.isLoading}
+                  options={(datasources.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={() =>
+                    form.setFieldsValue({ allowed_schemas: undefined, allowed_tables: undefined })
+                  }
+                />
+              </Form.Item>
+            )}
 
             <Form.Item
               name="capabilities"
@@ -268,44 +377,69 @@ export function RequestAccessPage() {
               rules={[{ required: true, message: t('access.request.validation.capability_required') }]}
             >
               <Checkbox.Group
-                options={[
-                  { value: 'read', label: t('access.request.can_read') },
-                  { value: 'write', label: t('access.request.can_write') },
-                  { value: 'ddl', label: t('access.request.can_ddl') },
-                ]}
+                options={
+                  isConnector
+                    ? [
+                        { value: 'read', label: t('access.request.can_read') },
+                        { value: 'write', label: t('access.request.can_write') },
+                      ]
+                    : [
+                        { value: 'read', label: t('access.request.can_read') },
+                        { value: 'write', label: t('access.request.can_write') },
+                        { value: 'ddl', label: t('access.request.can_ddl') },
+                      ]
+                }
               />
             </Form.Item>
 
-            <Form.Item name="allowed_schemas" label={t('access.request.schemas')}>
-              <Select
-                mode="tags"
-                placeholder={t('access.request.schemas_placeholder')}
-                tokenSeparators={[',']}
-                options={schemaOptions}
-                loading={schema.isLoading}
-                optionFilterProp="label"
-              />
-            </Form.Item>
+            {isConnector ? (
+              <Form.Item
+                name="allowed_operations"
+                label={t('access.request.operations')}
+                extra={t('access.request.operations_hint')}
+              >
+                <Select
+                  mode="multiple"
+                  placeholder={t('access.request.operations_placeholder')}
+                  options={operationOptions}
+                  loading={operations.isLoading}
+                  optionFilterProp="label"
+                />
+              </Form.Item>
+            ) : (
+              <>
+                <Form.Item name="allowed_schemas" label={t('access.request.schemas')}>
+                  <Select
+                    mode="tags"
+                    placeholder={t('access.request.schemas_placeholder')}
+                    tokenSeparators={[',']}
+                    options={schemaOptions}
+                    loading={schema.isLoading}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
 
-            <Form.Item name="allowed_tables" label={t('access.request.tables')}>
-              <Select
-                mode="tags"
-                placeholder={t('access.request.tables_placeholder')}
-                tokenSeparators={[',']}
-                options={tableOptions}
-                loading={schema.isLoading}
-                optionFilterProp="label"
-              />
-            </Form.Item>
+                <Form.Item name="allowed_tables" label={t('access.request.tables')}>
+                  <Select
+                    mode="tags"
+                    placeholder={t('access.request.tables_placeholder')}
+                    tokenSeparators={[',']}
+                    options={tableOptions}
+                    loading={schema.isLoading}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
 
-            <Form.Item
-              name="pre_approve_queries"
-              valuePropName="checked"
-              extra={t('access.request.pre_approve_hint')}
-              style={{ marginBottom: 12 }}
-            >
-              <Checkbox>{t('access.request.pre_approve_label')}</Checkbox>
-            </Form.Item>
+                <Form.Item
+                  name="pre_approve_queries"
+                  valuePropName="checked"
+                  extra={t('access.request.pre_approve_hint')}
+                  style={{ marginBottom: 12 }}
+                >
+                  <Checkbox>{t('access.request.pre_approve_label')}</Checkbox>
+                </Form.Item>
+              </>
+            )}
 
             <Form.Item
               name="requested_duration"

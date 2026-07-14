@@ -14,6 +14,20 @@ public interface ApiConnectorPermissionLookupService {
 
     Optional<ApiConnectorPermissionLookupView> findFor(UUID connectorId, UUID userId);
 
+    /**
+     * The user's <em>direct</em> permission row only — group grants excluded. Used by the access
+     * (JIT) module to decide whether a standing admin-granted row would be clobbered by a JIT
+     * materialisation ({@code expiresAt == null} = standing).
+     */
+    Optional<ApiConnectorDirectPermissionView> findDirectFor(UUID connectorId, UUID userId);
+
+    record ApiConnectorDirectPermissionView(
+            UUID id,
+            UUID connectorId,
+            UUID userId,
+            Instant expiresAt) {
+    }
+
     record ApiConnectorPermissionLookupView(
             UUID connectorId,
             UUID userId,

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal;
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessRequestLookupService;
 import com.bablsoft.accessflow.access.api.AccessRequestView;
+import com.bablsoft.accessflow.access.api.AccessResourceKind;
 import com.bablsoft.accessflow.access.events.AccessGrantExpiredEvent;
 import com.bablsoft.accessflow.access.events.AccessGrantRevokedEvent;
 import com.bablsoft.accessflow.access.events.AccessRequestApprovedEvent;
@@ -45,9 +46,16 @@ class AccessNotificationListenerTest {
 
     private AccessRequestView view(AccessGrantStatus status) {
         return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io",
-                UUID.randomUUID(), "db", true, false, false, List.of("public"), null, "PT4H",
-                "need access", false, status, Instant.now().plusSeconds(3600), null, Instant.now(),
-                Instant.now());
+                AccessResourceKind.DATASOURCE, UUID.randomUUID(), "db", null, null, true, false,
+                false, List.of("public"), null, null, "PT4H", "need access", false, status,
+                Instant.now().plusSeconds(3600), null, Instant.now(), Instant.now());
+    }
+
+    private AccessRequestView connectorView(AccessGrantStatus status) {
+        return new AccessRequestView(requestId, organizationId, requesterId, "u@x.io",
+                AccessResourceKind.API_CONNECTOR, null, null, UUID.randomUUID(), "billing-api",
+                true, true, false, null, null, List.of("listCharges"), "PT4H", "need access",
+                false, status, Instant.now().plusSeconds(3600), null, Instant.now(), Instant.now());
     }
 
     @Test
@@ -130,6 +138,43 @@ class AccessNotificationListenerTest {
         listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
         verify(userNotificationService, never())
                 .recordForUsers(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void payloadCarriesResourceKindAndDatasourceName() {
+        when(accessRequestLookupService.findById(requestId))
+                .thenReturn(Optional.of(view(AccessGrantStatus.APPROVED)));
+
+        listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
+
+        var payload = capturePayload();
+        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asText())
+                .isEqualTo("DATASOURCE");
+        org.assertj.core.api.Assertions.assertThat(payload.get("datasource").asText())
+                .isEqualTo("db");
+        org.assertj.core.api.Assertions.assertThat(payload.has("connector")).isFalse();
+    }
+
+    @Test
+    void payloadCarriesConnectorNameForConnectorRequest() {
+        when(accessRequestLookupService.findById(requestId))
+                .thenReturn(Optional.of(connectorView(AccessGrantStatus.APPROVED)));
+
+        listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
+
+        var payload = capturePayload();
+        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asText())
+                .isEqualTo("API_CONNECTOR");
+        org.assertj.core.api.Assertions.assertThat(payload.get("connector").asText())
+                .isEqualTo("billing-api");
+        org.assertj.core.api.Assertions.assertThat(payload.has("datasource")).isFalse();
+    }
+
+    private tools.jackson.databind.JsonNode capturePayload() {
+        var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(any(), any(), any(), any(), any(),
+                captor.capture());
+        return new ObjectMapper().readTree(captor.getValue());
     }
 
     @Test
