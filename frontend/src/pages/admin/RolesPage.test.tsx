@@ -112,12 +112,14 @@ describe('RolesPage', () => {
     expect(screen.getByText('1 user')).toBeInTheDocument();
   });
 
-  it('disables edit and delete for system roles but not for custom roles', async () => {
+  // Row-scoped role queries over the rendered AntD table are expensive under
+  // jsdom; slow CI runners have pushed this past the default 15s timeout, so
+  // it gets explicit headroom (it asserts state, not latency).
+  it('disables edit and delete for system roles but not for custom roles', { timeout: 40_000 }, async () => {
     render(wrap(<RolesPage />));
     await screen.findByText('Admin');
-    const rows = screen.getAllByRole('row');
-    const adminRow = rows.find((r) => within(r).queryByText('Admin'))!;
-    const customRow = rows.find((r) => within(r).queryByText('Release Manager'))!;
+    const adminRow = screen.getByText('Admin').closest('tr')!;
+    const customRow = screen.getByText('Release Manager').closest('tr')!;
     expect(within(adminRow).getByRole('button', { name: 'Edit' })).toBeDisabled();
     expect(within(adminRow).getByRole('button', { name: 'Delete role' })).toBeDisabled();
     expect(within(customRow).getByRole('button', { name: 'Edit' })).toBeEnabled();
