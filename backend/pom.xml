@@ -29,6 +29,10 @@
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.7</pdfbox.version>
         <archiunit.version>1.4.2</archiunit.version>
+        <!-- External secret stores (AF-448). -->
+        <spring-vault.version>4.1.0</spring-vault.version>
+        <awssdk.version>2.48.0</awssdk.version>
+        <azure-sdk-bom.version>1.3.7</azure-sdk-bom.version>
         <!-- Repo-root connector catalog (issue #334), bundled onto the classpath as connectors/**.
              Local/CI builds run from backend/ so the default resolves to the sibling folder; the
              Docker build copies connectors into the image and overrides this with -Dconnectors.dir. -->
@@ -53,6 +57,21 @@
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
                 <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- AF-448: external secret stores (AWS Secrets Manager / Azure Key Vault SDKs). -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-sdk-bom</artifactId>
+                <version>${azure-sdk-bom.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -314,6 +333,59 @@
             <version>2.1.45</version>
         </dependency>
 
+        <!-- AF-448: external secret stores. HashiCorp Vault via spring-vault (token/AppRole/
+             Kubernetes auth + renewal); AWS Secrets Manager over the url-connection HTTP client
+             (no Netty — same choice as the DynamoDB engine); Azure Key Vault over the JDK
+             HttpClient transport (azure-core-http-netty excluded so the Azure tree cannot clash
+             with Lettuce's Netty). -->
+        <dependency>
+            <groupId>org.springframework.vault</groupId>
+            <artifactId>spring-vault-core</artifactId>
+            <version>${spring-vault.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>secretsmanager</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-security-keyvault-secrets</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-identity</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-jdk-httpclient</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -342,6 +414,17 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- AF-448: secret-store integration tests (real Vault dev server + LocalStack). -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-vault</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-localstack</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
