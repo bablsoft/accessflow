@@ -141,6 +141,7 @@ export default function AnomaliesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-anomalies"
         title={t('anomalies.title')}
         subtitle={t('anomalies.subtitle')}
         actions={

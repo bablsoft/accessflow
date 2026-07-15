@@ -163,6 +163,7 @@ export default function ApiConnectorsListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-api-connectors"
         title={t('apiGov.connectors.title')}
         subtitle={t('apiGov.connectors.subtitle')}
         actions={

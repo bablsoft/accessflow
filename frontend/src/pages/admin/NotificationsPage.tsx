@@ -146,6 +146,7 @@ export function NotificationsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-notification-channels"
         title={t('admin.notifications.title')}
         subtitle={t('admin.notifications.subtitle')}
         actions={

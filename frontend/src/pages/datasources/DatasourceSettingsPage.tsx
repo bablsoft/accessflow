@@ -211,6 +211,7 @@ export function DatasourceSettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-datasources"
         breadcrumbs={['Datasources', ds.name]}
         title={ds.name}
         subtitle={

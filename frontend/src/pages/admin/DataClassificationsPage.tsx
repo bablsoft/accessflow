@@ -23,6 +23,7 @@ export function DataClassificationsPage() {
   return (
     <div>
       <PageHeader
+        docsAnchor="cfg-data-classifications"
         title={t('admin.data_classifications.title')}
         subtitle={t('admin.data_classifications.subtitle')}
       />

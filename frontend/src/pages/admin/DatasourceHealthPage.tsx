@@ -26,6 +26,7 @@ export default function DatasourceHealthPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-datasource-health"
         title={t('admin.datasource_health.title')}
         subtitle={t('admin.datasource_health.subtitle')}
         actions={

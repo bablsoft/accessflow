@@ -732,6 +732,7 @@ export default function DatasourceCreateWizardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-datasources"
         title={t('datasources.create.title')}
         subtitle={t('datasources.create.subtitle')}
         actions={

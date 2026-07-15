@@ -113,7 +113,11 @@ export function SlackConfigPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('admin.slack.title')} subtitle={t('admin.slack.subtitle')} />
+      <PageHeader
+        docsAnchor="cfg-slack"
+        title={t('admin.slack.title')}
+        subtitle={t('admin.slack.subtitle')}
+      />
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Typography.Paragraph type="secondary">
           {configured ? t('admin.slack.status_configured') : t('admin.slack.status_unconfigured')}

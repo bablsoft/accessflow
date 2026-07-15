@@ -61,7 +61,7 @@ accessflow-ui/
 │   │   │   ├── AnomalyBadge.tsx    # Caller's open-anomaly count for a datasource (UBA — AF-383)
 │   │   │   ├── CopyButton.tsx      # Copy-to-clipboard wrapper
 │   │   │   ├── LogoMark.tsx        # Two-tone brand mark (mirrors website logo)
-│   │   │   └── PageHeader.tsx      # Consistent page header with breadcrumbs
+│   │   │   └── PageHeader.tsx      # Consistent page header with breadcrumbs + docs deep-link
 │   │   │
 │   │   ├── editor/
 │   │   │   ├── SqlEditor.tsx       # CodeMirror 6 SQL editor component
@@ -658,6 +658,41 @@ useEffect(() =>
 `websocketManager` (in `src/realtime/`) reconnects with exponential backoff `1s → 2s → 4s → 8s → 16s → 30s` (capped). The counter resets on a successful `onopen`. After 3 consecutive failures the log level drops to `debug` so a sustained backend outage does not spam the console. `disconnect()` clears any pending reconnect timer; re-mounting (`accessToken` becomes non-null) reopens immediately.
 
 The Axios refresh interceptor calls `useAuthStore.setState(...)` whenever the access token rotates — the bridge's `useEffect` reacts to that change and reconnects with the new token. No extra plumbing required.
+
+---
+
+## Contextual docs links
+
+Every admin / configuration page deep-links to the section of the public docs site
+(<https://accessflow.bablsoft.com/docs/>) that explains it, so an admin never has to leave the app
+and hunt for the right section. The page declares only *which* section it maps to; the URL and the
+rendering live in one place.
+
+`src/config/docs.ts` owns both halves:
+
+- **`DOCS_BASE_URL`** — the docs site root. A hardcoded constant, deliberately *not* runtime-
+  overridable like `apiBaseUrl` / `wsUrl`: the docs deploy with the marketing site, not per-install.
+- **`DOCS_ANCHORS` / `DocsAnchor`** — the `as const` tuple of every linkable anchor, and the literal
+  union derived from it. Passing an anchor that isn't in the list is a compile error.
+- **`docsUrl(anchor)`** — builds the absolute `…/docs/#anchor` URL.
+
+A page opts in by passing the anchor to its existing `PageHeader`:
+
+```tsx
+<PageHeader
+  docsAnchor="cfg-review-plans"
+  title={t('admin.review_plans.title')}
+  subtitle={t('admin.review_plans.subtitle')}
+/>
+```
+
+`PageHeader` renders it as a "View docs" link (`target="_blank"` + `rel="noopener noreferrer"`,
+label and `aria-label` via `t()`) in the header row, to the left of `actions` — so it stays clear of
+the page's primary call to action. The prop is optional; end-user flow pages don't pass one.
+
+**Adding a page:** add its anchor to `DOCS_ANCHORS` *and* ship a matching `id` in
+`website/docs/index.html`. `src/config/__tests__/docs.test.ts` asserts every declared anchor resolves
+to a real `id` in that file, so a typo on either side fails CI.
 
 ---
 

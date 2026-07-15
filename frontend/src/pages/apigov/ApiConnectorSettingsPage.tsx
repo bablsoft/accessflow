@@ -71,6 +71,7 @@ export default function ApiConnectorSettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-api-connectors"
         title={connectorQuery.data?.name ?? t('apiGov.settings.title')}
         subtitle={connectorQuery.data?.base_url}
         actions={<Button onClick={() => navigate('/api-connectors')}>{t('common.back')}</Button>}

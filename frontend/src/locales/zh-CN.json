@@ -31,7 +31,9 @@
     "create": "Create",
     "remove": "Remove",
     "yes": "是",
-    "no": "否"
+    "no": "否",
+    "view_docs": "查看文档",
+    "view_docs_aria": "查看文档（在新标签页中打开）"
   },
   "nav": {
     "editor": "SQL 编辑器",

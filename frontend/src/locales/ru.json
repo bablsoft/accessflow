@@ -31,7 +31,9 @@
     "create": "Create",
     "remove": "Remove",
     "yes": "Да",
-    "no": "Нет"
+    "no": "Нет",
+    "view_docs": "Документация",
+    "view_docs_aria": "Открыть документацию (в новой вкладке)"
   },
   "nav": {
     "editor": "Редактор SQL",

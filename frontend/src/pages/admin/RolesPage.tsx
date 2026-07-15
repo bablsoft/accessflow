@@ -116,6 +116,7 @@ export function RolesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-roles"
         title={t('admin.roles.title')}
         subtitle={t('admin.roles.subtitle_count', { count: roles.length })}
         actions={

@@ -105,6 +105,7 @@ export function OrganizationDetailPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-organizations"
         title={org.name}
         subtitle={org.slug}
         actions={

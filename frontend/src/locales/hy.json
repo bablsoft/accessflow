@@ -31,7 +31,9 @@
     "create": "Create",
     "remove": "Remove",
     "yes": "Այո",
-    "no": "Ոչ"
+    "no": "Ոչ",
+    "view_docs": "Դիտել փաստաթղթերը",
+    "view_docs_aria": "Դիտել փաստաթղթերը (բացվում է նոր ներդիրում)"
   },
   "nav": {
     "editor": "SQL խմբագիր",

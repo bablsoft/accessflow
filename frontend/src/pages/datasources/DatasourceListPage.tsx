@@ -41,6 +41,7 @@ export function DatasourceListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-datasources"
         title={t('datasources.list.title')}
         subtitle={t('datasources.list.subtitle')}
         actions={

@@ -184,6 +184,7 @@ export default function AiConfigCreateWizardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-ai"
         title={t('admin.ai_configs.wizard.title')}
         subtitle={t('admin.ai_configs.wizard.subtitle')}
         actions={

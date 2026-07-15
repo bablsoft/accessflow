@@ -96,6 +96,7 @@ export default function BreakGlassLogPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-break-glass"
         title={t('breakglass.title')}
         subtitle={t('breakglass.subtitle')}
         actions={

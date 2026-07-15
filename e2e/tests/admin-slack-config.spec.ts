@@ -51,6 +51,25 @@ test.describe.serial('AF-362 — Slack integration', () => {
     }
   });
 
+  // Asserts attributes rather than clicking: the link targets the live public docs site,
+  // and following it would make this suite depend on the network.
+  test('0) the page header deep-links to the matching section of the public docs', async ({
+    page,
+  }) => {
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/slack');
+    await waitForSlackConfigLoaded(page);
+
+    const docsLink = page.getByRole('link', { name: /view docs/i });
+    await expect(docsLink).toBeVisible();
+    await expect(docsLink).toHaveAttribute(
+      'href',
+      'https://accessflow.bablsoft.com/docs/#cfg-slack',
+    );
+    await expect(docsLink).toHaveAttribute('target', '_blank');
+    await expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   test('1) admin configures the Slack app → save succeeds and secrets are masked on reload', async ({
     page,
   }) => {

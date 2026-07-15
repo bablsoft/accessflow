@@ -157,6 +157,7 @@ export function GroupsListPage() {
   return (
     <>
       <PageHeader
+        docsAnchor="cfg-groups"
         title={t('admin.groups.title')}
         subtitle={t('admin.groups.description')}
         actions={
