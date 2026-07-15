@@ -63,6 +63,7 @@ class DatasourceAdminServiceImplTest {
     @Mock com.bablsoft.accessflow.core.internal.persistence.repo.CustomJdbcDriverRepository
             customJdbcDriverRepository;
     @Mock CredentialEncryptionService encryptionService;
+    @Mock com.bablsoft.accessflow.core.api.SecretResolutionService secretResolutionService;
     @Spy DefaultJdbcCoordinatesFactory coordinatesFactory = new DefaultJdbcCoordinatesFactory();
     @Mock com.bablsoft.accessflow.core.api.DriverCatalogService driverCatalog;
     @Mock com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog;
@@ -327,6 +328,69 @@ class DatasourceAdminServiceImplTest {
         assertThat(result.connectionPoolSize()).isEqualTo(25);
         assertThat(entity.getPasswordEncrypted()).isEqualTo("ENC(new-pw)");
         verify(encryptionService).encrypt("new-pw");
+    }
+
+    @Test
+    void createStoresSecretReferenceVerbatimAfterValidation() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(secretResolutionService.isReference("vault:secret/prod/db#password")).thenReturn(true);
+        var saved = new java.util.concurrent.atomic.AtomicReference<DatasourceEntity>();
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> {
+                    saved.set(inv.getArgument(0));
+                    return inv.getArgument(0);
+                });
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "db.example.com", 5432, "appdb", "svc", "vault:secret/prod/db#password",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
+                null, null, null);
+        service.create(command);
+
+        assertThat(saved.get().getPasswordEncrypted()).isEqualTo("vault:secret/prod/db#password");
+        verify(secretResolutionService).validateReference("vault:secret/prod/db#password");
+        verify(encryptionService, never()).encrypt(any());
+    }
+
+    @Test
+    void createWithDisabledProviderReferenceThrowsAndDoesNotPersist() {
+        var organization = new OrganizationEntity();
+        organization.setId(orgId);
+        when(datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "Prod"))
+                .thenReturn(false);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(organization);
+        when(secretResolutionService.isReference("azure:db-password")).thenReturn(true);
+        org.mockito.Mockito.doThrow(new com.bablsoft.accessflow.core.api.SecretProviderDisabledException("azure"))
+                .when(secretResolutionService).validateReference("azure:db-password");
+
+        var command = new CreateDatasourceCommand(orgId, "Prod", DbType.POSTGRESQL,
+                "db.example.com", 5432, "appdb", "svc", "azure:db-password",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
+                null, null, null);
+
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.SecretProviderDisabledException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStoresSecretReferenceVerbatim() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(secretResolutionService.isReference("aws:prod/db#password")).thenReturn(true);
+
+        var command = new UpdateDatasourceCommand(null, null, null, null, null,
+                "aws:prod/db#password", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
+        service.update(datasourceId, orgId, command);
+
+        assertThat(entity.getPasswordEncrypted()).isEqualTo("aws:prod/db#password");
+        verify(secretResolutionService).validateReference("aws:prod/db#password");
+        verify(encryptionService, never()).encrypt(any());
     }
 
     @Test

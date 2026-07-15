@@ -9,6 +9,9 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
+import com.bablsoft.accessflow.core.api.InvalidSecretReferenceException;
+import com.bablsoft.accessflow.core.api.SecretProviderDisabledException;
+import com.bablsoft.accessflow.core.api.SecretResolutionException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
@@ -205,6 +208,39 @@ class GlobalExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(422);
         assertThat(pd.getProperties())
                 .containsEntry("error", "DATASOURCE_CONNECTION_TEST_FAILED");
+    }
+
+    @Test
+    void invalidSecretReferenceReturns400() {
+        var pd = handler.handleInvalidSecretReference(
+                new InvalidSecretReferenceException("vault:broken"));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getDetail()).isEqualTo("error.invalid_secret_reference");
+        assertThat(pd.getProperties()).containsEntry("error", "INVALID_SECRET_REFERENCE");
+    }
+
+    @Test
+    void secretProviderDisabledReturns400WithProvider() {
+        var pd = handler.handleSecretProviderDisabled(
+                new SecretProviderDisabledException("azure"));
+
+        assertThat(pd.getStatus()).isEqualTo(400);
+        assertThat(pd.getProperties())
+                .containsEntry("error", "SECRET_PROVIDER_DISABLED")
+                .containsEntry("provider", "azure");
+    }
+
+    @Test
+    void secretResolutionFailureReturns502WithThrowSiteMessage() {
+        var pd = handler.handleSecretResolution(new SecretResolutionException(
+                "vault", "vault:secret/prod/db#password", "resolved-at-throw-site"));
+
+        assertThat(pd.getStatus()).isEqualTo(502);
+        assertThat(pd.getDetail()).isEqualTo("resolved-at-throw-site");
+        assertThat(pd.getProperties())
+                .containsEntry("error", "SECRET_RESOLUTION_FAILED")
+                .containsEntry("provider", "vault");
     }
 
     @Test

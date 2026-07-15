@@ -1,7 +1,7 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
 import com.bablsoft.accessflow.core.api.ConnectorCategory;
-import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -40,8 +40,8 @@ class DefaultQueryEngineCatalogTest {
     Path cacheDir;
 
     private final ConnectorCatalog connectorCatalog = mock(ConnectorCatalog.class);
-    private final CredentialEncryptionService encryptionService =
-            mock(CredentialEncryptionService.class);
+    private final SecretResolutionService secretResolutionService =
+            mock(SecretResolutionService.class);
     private final Clock clock = Clock.fixed(Instant.parse("2026-06-10T12:00:00Z"), ZoneOffset.UTC);
     private StaticMessageSource messageSource;
 
@@ -61,7 +61,7 @@ class DefaultQueryEngineCatalogTest {
     private DefaultQueryEngineCatalog catalog(boolean offline) {
         var properties = new DriverProperties(cacheDir, "https://example.com/maven2", offline);
         return new DefaultQueryEngineCatalog(connectorCatalog,
-                new DriverJarCache(properties, messageSource), messageSource, encryptionService,
+                new DriverJarCache(properties, messageSource), messageSource, secretResolutionService,
                 new EngineConfigProperties(Map.of("mongodb", Map.of(
                         "connect-timeout", "PT3S",
                         "server-selection-timeout", "PT7S",
@@ -104,7 +104,7 @@ class DefaultQueryEngineCatalogTest {
     @Test
     void engineForWiresContextMessagesConfigCredentialsAndClock() throws IOException {
         registerManifest(seedFixtureJar());
-        when(encryptionService.decrypt("ciphertext")).thenReturn("plaintext");
+        when(secretResolutionService.resolve("ciphertext")).thenReturn("plaintext");
 
         catalog(true).engineFor(DbType.MONGODB);
 

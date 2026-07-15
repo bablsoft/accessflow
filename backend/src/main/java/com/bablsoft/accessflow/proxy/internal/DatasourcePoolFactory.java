@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.proxy.internal;
 
-import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.CustomDriverNotFoundException;
 import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
@@ -8,6 +7,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.RequiredArgsConstructor;
@@ -17,15 +17,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class DatasourcePoolFactory {
 
-    private final CredentialEncryptionService encryptionService;
+    private final SecretResolutionService secretResolutionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final ProxyPoolProperties properties;
     private final DriverCatalogService driverCatalog;
     private final CustomJdbcDriverService customJdbcDriverService;
 
     /**
-     * Build a fresh Hikari pool from the descriptor. The persisted password is decrypted only
-     * inside this method; the local plaintext reference is dropped before return. Hikari
+     * Build a fresh Hikari pool from the descriptor. The persisted credential is resolved to
+     * plaintext only inside this method — local AES decryption, or an external secret-store
+     * fetch when the stored value is a secret reference (AF-448) — and the local plaintext
+     * reference is dropped before return. Hikari
      * retains its own copy for reconnects (unavoidable). The customer-DB JDBC driver is
      * resolved through {@link DriverCatalogService}, which downloads + caches it on first use
      * and loads it into a {@link DbType}-scoped child classloader. For datasources that
@@ -39,6 +41,7 @@ class DatasourcePoolFactory {
     HikariDataSource createPool(DatasourceConnectionDescriptor descriptor) {
         ResolvedDriver resolved = resolveDriver(descriptor);
         return buildPool(
+                descriptor,
                 resolved,
                 descriptor.id().toString(),
                 resolveJdbcUrl(descriptor),
@@ -61,6 +64,7 @@ class DatasourcePoolFactory {
                 ? descriptor.readReplicaPasswordEncrypted()
                 : descriptor.passwordEncrypted();
         return buildPool(
+                descriptor,
                 resolved,
                 descriptor.id() + "-replica",
                 descriptor.readReplicaJdbcUrl(),
@@ -69,7 +73,8 @@ class DatasourcePoolFactory {
                 descriptor.connectionPoolSize());
     }
 
-    private HikariDataSource buildPool(ResolvedDriver resolved, String idSuffix, String jdbcUrl,
+    private HikariDataSource buildPool(DatasourceConnectionDescriptor descriptor,
+                                       ResolvedDriver resolved, String idSuffix, String jdbcUrl,
                                        String username, String passwordEncrypted, int poolSize) {
         var config = new HikariConfig();
         config.setPoolName(properties.poolNamePrefix() + idSuffix);
@@ -85,7 +90,8 @@ class DatasourcePoolFactory {
             config.setLeakDetectionThreshold(leak);
         }
 
-        String plaintext = encryptionService.decrypt(passwordEncrypted);
+        String plaintext = secretResolutionService.resolve(
+                passwordEncrypted, descriptor.id(), descriptor.organizationId());
         var previousLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(resolved.classLoader());

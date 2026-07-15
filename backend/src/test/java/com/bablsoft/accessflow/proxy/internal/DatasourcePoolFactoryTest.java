@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
-import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class DatasourcePoolFactoryTest {
 
-    private CredentialEncryptionService encryptionService;
+    private SecretResolutionService secretResolutionService;
     private JdbcCoordinatesFactory coordinatesFactory;
     private ProxyPoolProperties properties;
     private DriverCatalogService driverCatalog;
@@ -54,7 +54,7 @@ class DatasourcePoolFactoryTest {
 
     @BeforeEach
     void setUp() {
-        encryptionService = mock(CredentialEncryptionService.class);
+        secretResolutionService = mock(SecretResolutionService.class);
         coordinatesFactory = mock(JdbcCoordinatesFactory.class);
         driverCatalog = mock(DriverCatalogService.class);
         customJdbcDriverService = mock(com.bablsoft.accessflow.core.api.CustomJdbcDriverService.class);
@@ -65,12 +65,13 @@ class DatasourcePoolFactoryTest {
                 .thenReturn(new JdbcCoordinates(
                         "jdbc:postgresql://h:5432/appdb?sslmode=disable",
                         "org.postgresql.Driver", "svc"));
-        when(encryptionService.decrypt("ENC(secret)")).thenReturn("plaintext");
+        when(secretResolutionService.resolve("ENC(secret)", datasourceId, organizationId))
+                .thenReturn("plaintext");
         perTypeClassLoader = new ClassLoader(getClass().getClassLoader()) {};
         when(driverCatalog.resolve(DbType.POSTGRESQL))
                 .thenReturn(new ResolvedDriver(mock(Driver.class), perTypeClassLoader,
                         "org.postgresql.Driver"));
-        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
+        factory = new DatasourcePoolFactory(secretResolutionService, coordinatesFactory, properties,
                 driverCatalog, customJdbcDriverService);
     }
 
@@ -99,13 +100,14 @@ class DatasourcePoolFactoryTest {
     }
 
     @Test
-    void createPoolDecryptsPasswordExactlyOnce() {
+    void createPoolResolvesPasswordExactlyOnceWithDatasourceContext() {
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
                 HikariDataSource.class)) {
 
             factory.createPool(descriptor);
 
-            verify(encryptionService, times(1)).decrypt("ENC(secret)");
+            verify(secretResolutionService, times(1))
+                    .resolve("ENC(secret)", datasourceId, organizationId);
         }
     }
 
@@ -127,7 +129,7 @@ class DatasourcePoolFactoryTest {
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
                 Duration.ofSeconds(2), "accessflow-ds-", null);
-        factory = new DatasourcePoolFactory(encryptionService, coordinatesFactory, properties,
+        factory = new DatasourcePoolFactory(secretResolutionService, coordinatesFactory, properties,
                 driverCatalog, customJdbcDriverService);
 
         var captured = new AtomicReference<HikariConfig>();
@@ -241,7 +243,8 @@ class DatasourcePoolFactoryTest {
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
                 "ENC(primary)", SslMode.DISABLE, 15, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/appdb", "replica-user", "ENC(replica-pw)", true);
-        when(encryptionService.decrypt("ENC(replica-pw)")).thenReturn("replica-pw-plain");
+        when(secretResolutionService.resolve("ENC(replica-pw)", datasourceId, organizationId))
+                .thenReturn("replica-pw-plain");
 
         var captured = new AtomicReference<HikariConfig>();
         try (MockedConstruction<HikariDataSource> mocked = Mockito.mockConstruction(
@@ -256,8 +259,9 @@ class DatasourcePoolFactoryTest {
             assertThat(config.getUsername()).isEqualTo("replica-user");
             assertThat(config.getPassword()).isEqualTo("replica-pw-plain");
             assertThat(config.getPoolName()).isEqualTo("accessflow-ds-" + datasourceId + "-replica");
-            // Primary password must not have been decrypted on the replica path.
-            verify(encryptionService, times(0)).decrypt("ENC(primary)");
+            // Primary password must not have been resolved on the replica path.
+            verify(secretResolutionService, times(0))
+                    .resolve("ENC(primary)", datasourceId, organizationId);
         }
     }
 

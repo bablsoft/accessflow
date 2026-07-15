@@ -39,4 +39,12 @@ public interface DatasourceLookupService {
      * "AI configured for this org" setup-progress signal.
      */
     Set<UUID> findActiveAiAnalysisAiConfigIdsByOrganization(UUID organizationId);
+
+    /**
+     * @return descriptors of every datasource whose stored credential columns (password,
+     * read-replica password, api key) equal the given external secret reference (AF-448).
+     * Used by the audit module to attribute context-less engine-lane resolves to their owning
+     * datasource(s) and organization.
+     */
+    List<DatasourceConnectionDescriptor> findByCredentialReference(String reference);
 }

@@ -46,6 +46,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupMembershi
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import lombok.RequiredArgsConstructor;
@@ -95,6 +96,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private final ReviewPlanRepository reviewPlanRepository;
     private final CustomJdbcDriverRepository customJdbcDriverRepository;
     private final CredentialEncryptionService encryptionService;
+    private final SecretResolutionService secretResolutionService;
     private final JdbcCoordinatesFactory coordinatesFactory;
     private final DriverCatalogService driverCatalog;
     private final QueryEngineCatalog engineCatalog;
@@ -169,9 +171,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setPort(command.port());
         entity.setDatabaseName(command.databaseName());
         entity.setUsername(command.username() != null ? command.username() : "");
-        entity.setPasswordEncrypted(encryptionService.encrypt(
+        entity.setPasswordEncrypted(storeCredential(
                 command.password() != null ? command.password() : ""));
-        entity.setApiKeyEncrypted(apiKey != null ? encryptionService.encrypt(apiKey) : null);
+        entity.setApiKeyEncrypted(apiKey != null ? storeCredential(apiKey) : null);
         entity.setSslMode(command.sslMode() != null ? command.sslMode() : SslMode.DISABLE);
         entity.setCustomDriver(customDriver);
         entity.setConnectorId(connectorId);
@@ -238,12 +240,12 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             entity.setUsername(command.username());
         }
         if (command.password() != null) {
-            entity.setPasswordEncrypted(encryptionService.encrypt(command.password()));
+            entity.setPasswordEncrypted(storeCredential(command.password()));
         }
         if (command.apiKey() != null) {
             // A blank API key clears it (revert to basic auth); a non-blank one is re-encrypted.
             entity.setApiKeyEncrypted(command.apiKey().isBlank()
-                    ? null : encryptionService.encrypt(command.apiKey()));
+                    ? null : storeCredential(command.apiKey()));
         }
         if (command.sslMode() != null) {
             entity.setSslMode(command.sslMode());
@@ -369,7 +371,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
         if (password != null) {
             entity.setReadReplicaPasswordEncrypted(
-                    password.isEmpty() ? null : encryptionService.encrypt(password));
+                    password.isEmpty() ? null : storeCredential(password));
         }
     }
 
@@ -381,7 +383,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setReadReplicaJdbcUrl(jdbcUrl);
         entity.setReadReplicaUsername(username);
         if (password != null && !password.isEmpty()) {
-            entity.setReadReplicaPasswordEncrypted(encryptionService.encrypt(password));
+            entity.setReadReplicaPasswordEncrypted(storeCredential(password));
         }
     }
 
@@ -423,7 +425,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.password() != null && !command.password().isEmpty()) {
             plaintextPassword = command.password();
         } else if (entity.getReadReplicaPasswordEncrypted() != null) {
-            plaintextPassword = encryptionService.decrypt(entity.getReadReplicaPasswordEncrypted());
+            plaintextPassword = secretResolutionService.resolve(
+                    entity.getReadReplicaPasswordEncrypted(), entity.getId(), organizationId);
         } else {
             throw new DatasourceConnectionTestException(
                     messageSource.getMessage("error.replica_not_configured", null,
@@ -923,7 +926,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     private Properties jdbcProperties(DatasourceEntity entity) {
         var props = new Properties();
         props.setProperty("user", entity.getUsername());
-        props.setProperty("password", encryptionService.decrypt(entity.getPasswordEncrypted()));
+        props.setProperty("password", secretResolutionService.resolve(
+                entity.getPasswordEncrypted(), entity.getId(), entity.getOrganization().getId()));
         if (entity.getDbType() == DbType.POSTGRESQL) {
             props.setProperty("connectTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS));
             props.setProperty("socketTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS));
@@ -932,6 +936,20 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             props.setProperty("socketTimeout", String.valueOf(CONNECTION_TIMEOUT_SECONDS * 1000));
         }
         return props;
+    }
+
+    /**
+     * Persistable form of a submitted credential (AF-448): a secret reference
+     * ({@code vault:}/{@code aws:}/{@code azure:}) is validated against the enabled providers
+     * and stored verbatim so it can be resolved at credential-use time; anything else is
+     * AES-256-GCM encrypted as before.
+     */
+    private String storeCredential(String raw) {
+        if (secretResolutionService.isReference(raw)) {
+            secretResolutionService.validateReference(raw);
+            return raw;
+        }
+        return encryptionService.encrypt(raw);
     }
 
     private DatabaseSchemaView readSchema(Connection connection, DbType dbType) throws SQLException {

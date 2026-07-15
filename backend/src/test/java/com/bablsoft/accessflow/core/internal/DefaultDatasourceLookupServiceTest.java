@@ -208,4 +208,32 @@ class DefaultDatasourceLookupServiceTest {
         assertThat(service.findActiveAiAnalysisAiConfigIdsByOrganization(organizationId))
                 .containsExactly(configId);
     }
+
+    @Test
+    void findByCredentialReferenceMapsMatchesToDescriptors() {
+        var org = new OrganizationEntity();
+        org.setId(organizationId);
+        var entity = new DatasourceEntity();
+        entity.setId(id);
+        entity.setOrganization(org);
+        entity.setDbType(DbType.POSTGRESQL);
+        entity.setUsername("svc");
+        entity.setPasswordEncrypted("vault:secret/prod/db#password");
+        entity.setSslMode(SslMode.REQUIRE);
+        entity.setConnectionPoolSize(15);
+        when(datasourceRepository.findAllByCredentialReference("vault:secret/prod/db#password"))
+                .thenReturn(java.util.List.of(entity));
+
+        var result = service.findByCredentialReference("vault:secret/prod/db#password");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().id()).isEqualTo(id);
+        assertThat(result.getFirst().organizationId()).isEqualTo(organizationId);
+    }
+
+    @Test
+    void findByCredentialReferenceReturnsEmptyForNullOrBlank() {
+        assertThat(service.findByCredentialReference(null)).isEmpty();
+        assertThat(service.findByCredentialReference("  ")).isEmpty();
+    }
 }

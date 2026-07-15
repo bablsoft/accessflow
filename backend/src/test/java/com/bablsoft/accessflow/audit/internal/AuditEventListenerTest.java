@@ -20,6 +20,8 @@ import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceDeactivatedEvent;
+import com.bablsoft.accessflow.core.events.SecretReferenceResolutionFailedEvent;
+import com.bablsoft.accessflow.core.events.SecretReferenceResolvedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
@@ -236,6 +238,78 @@ class AuditEventListenerTest {
         assertThat(entry.resourceId()).isEqualTo(datasourceId);
         assertThat(entry.organizationId()).isEqualTo(organizationId);
         assertThat(entry.metadata()).containsEntry("change", "deactivated");
+    }
+
+    @Test
+    void onSecretReferenceResolvedWithContextRecordsDirectly() {
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onSecretReferenceResolved(new SecretReferenceResolvedEvent(
+                "vault", "vault:secret/prod/db#password", datasourceId, organizationId));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.DATASOURCE_SECRET_RESOLVED);
+        assertThat(entry.resourceType()).isEqualTo(AuditResourceType.DATASOURCE);
+        assertThat(entry.resourceId()).isEqualTo(datasourceId);
+        assertThat(entry.organizationId()).isEqualTo(organizationId);
+        assertThat(entry.actorId()).isNull();
+        assertThat(entry.metadata()).containsEntry("provider", "vault");
+        assertThat(entry.metadata()).containsEntry("reference", "vault:secret/prod/db#password");
+        assertThat(entry.metadata()).doesNotContainKey("error");
+        verify(datasourceLookupService, never()).findByCredentialReference(any());
+    }
+
+    @Test
+    void onSecretReferenceResolutionFailedRecordsErrorMetadata() {
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onSecretReferenceResolutionFailed(new SecretReferenceResolutionFailedEvent(
+                "aws", "aws:prod/db#password", datasourceId, organizationId, "store unreachable"));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.DATASOURCE_SECRET_RESOLUTION_FAILED);
+        assertThat(entry.metadata()).containsEntry("error", "store unreachable");
+    }
+
+    @Test
+    void contextlessSecretResolveIsAttributedViaCredentialReferenceLookup() {
+        var descriptor = new DatasourceConnectionDescriptor(datasourceId, organizationId,
+                DbType.MONGODB, "h", 27017, "db", "u", "vault:secret/prod/db#password",
+                SslMode.DISABLE, 5, 1000, false, null, false, null, null, null, null, null,
+                null, false);
+        when(datasourceLookupService.findByCredentialReference("vault:secret/prod/db#password"))
+                .thenReturn(List.of(descriptor));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onSecretReferenceResolved(new SecretReferenceResolvedEvent(
+                "vault", "vault:secret/prod/db#password", null, null));
+
+        var entry = captor.getValue();
+        assertThat(entry.resourceId()).isEqualTo(datasourceId);
+        assertThat(entry.organizationId()).isEqualTo(organizationId);
+    }
+
+    @Test
+    void unattributableContextlessSecretResolveIsSkipped() {
+        when(datasourceLookupService.findByCredentialReference("vault:secret/gone#password"))
+                .thenReturn(List.of());
+
+        listener.onSecretReferenceResolved(new SecretReferenceResolvedEvent(
+                "vault", "vault:secret/gone#password", null, null));
+
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void secretResolveAuditFailureIsSwallowed() {
+        when(auditLogService.record(any())).thenThrow(new RuntimeException("db down"));
+
+        listener.onSecretReferenceResolved(new SecretReferenceResolvedEvent(
+                "vault", "vault:secret/prod/db#password", datasourceId, organizationId));
+        // No exception should propagate.
     }
 
     @Test
