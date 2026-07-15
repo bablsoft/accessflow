@@ -71,7 +71,11 @@ export default function ConnectorsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('connectors.title')} subtitle={t('connectors.subtitle')} />
+      <PageHeader
+        docsAnchor="cfg-connectors"
+        title={t('connectors.title')}
+        subtitle={t('connectors.subtitle')}
+      />
       <div
         style={{
           padding: '12px 28px',

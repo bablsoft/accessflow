@@ -195,19 +195,25 @@
 
             <h5>Configuration</h5>
             <a href="#cfg-organizations">Organizations &amp; quotas</a>
+            <a href="#cfg-languages">Languages &amp; localization</a>
             <a href="#cfg-users">Users</a>
             <a href="#cfg-roles">User roles &amp; RBAC</a>
+            <a href="#cfg-access-requests">JIT access requests</a>
+            <a href="#cfg-break-glass">Break-glass access</a>
             <a href="#cfg-groups">User groups</a>
             <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-data-classifications">Data classification</a>
             <a href="#cfg-api-connectors">API connectors</a>
             <a href="#cfg-connectors">Connectors</a>
             <a href="#cfg-drivers">Custom JDBC drivers</a>
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-routing-policies">Routing policies</a>
             <a href="#cfg-ai">AI configurations</a>
+            <a href="#cfg-langfuse">Langfuse integration</a>
             <a href="#cfg-ai-analyses">AI analyses dashboard</a>
             <a href="#cfg-datasource-health">Datasource health</a>
             <a href="#cfg-notification-channels">Notification channels</a>
+            <a href="#cfg-slack">Slack app</a>
             <a href="#cfg-smtp">System SMTP</a>
             <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
             <a href="#cfg-saml">SAML 2.0 SSO</a>
@@ -215,6 +221,7 @@
             <a href="#compliance-reports">Compliance reports</a>
             <a href="#cfg-attestation">Access recertification</a>
             <a href="#cfg-anomalies">Anomaly detection (UBA)</a>
+            <a href="#cfg-lifecycle">Data lifecycle &amp; erasure</a>
 
             <h5>Automation</h5>
             <a href="#iac">Infrastructure as Code</a>
@@ -726,6 +733,28 @@
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md">the roadmap</a>.
           </p>
 
+          <!-- Languages & localization -->
+          <h3 id="cfg-languages">Languages &amp; localization</h3>
+          <p>
+            <strong>What it is.</strong> AccessFlow ships seven bundled interface languages — English,
+            Español, Deutsch, Français, 简体中文, Русский, and Հայերեն. An org admin decides which of
+            them users may choose, which one users start on, and which language the AI reviewer
+            writes in.
+          </p>
+          <p>
+            <strong>Configure it.</strong> <code>/admin/languages</code> (admin-only) has three
+            controls: an <em>available languages</em> checklist (at least one required) that drives
+            the language switcher in the top bar; a <em>default language</em> select, narrowed to that
+            allow-list, applied to users who have not picked one; and an <em>AI review language</em>
+            select spanning all seven languages independently of the user allow-list. Saving
+            refreshes the top-bar switcher immediately.
+          </p>
+          <p>
+            <strong>Tune it.</strong> Users override the default themselves from the language switcher
+            next to the theme toggle, and the choice persists to their profile. Any string missing
+            from a translation falls back to English.
+          </p>
+
           <!-- Users -->
           <h3 id="cfg-users">Users</h3>
           <p>
@@ -862,8 +891,9 @@
             union</strong> — capabilities are OR-ed, allow-lists merge, restricted-column masks apply
             only where every grant restricts, and each grant's expiry is honoured independently.
           </p>
+          <h4 id="cfg-access-requests">Just-in-time (JIT) access requests</h4>
           <p>
-            <strong>Just-in-time (JIT) access requests.</strong> Instead of an admin pre-granting a
+            Instead of an admin pre-granting a
             permission, any user can request temporary, scoped access from
             <code>/access-requests</code> — to a <em>datasource</em> (pick the capabilities they
             need — read / write / DDL — and an optional schema/table scope) or to an <em>API
@@ -900,8 +930,9 @@
             </picture>
             <figcaption><code>/admin/access-requests</code> — pending JIT access requests; admins approve, reject, or revoke an active grant.</figcaption>
           </figure>
+          <h4 id="cfg-break-glass">Break-glass / emergency access</h4>
           <p>
-            <strong>Break-glass / emergency access.</strong> For genuine emergencies — production is
+            For genuine emergencies — production is
             down and approvers are unreachable — an admin can grant a user the
             <code>can_break_glass</code> permission on a datasource (a checkbox on the permission
             grant, alongside read / write / DDL, time-boxed via the same <code>expires_at</code>).
@@ -1093,8 +1124,9 @@
             </picture>
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
           </figure>
+          <h4 id="cfg-data-classifications">Data classification</h4>
           <p>
-            <strong>Data classification.</strong> The datasource <em>Classification</em> tab tags
+            The datasource <em>Classification</em> tab tags
             tables and columns with one or more data classifications — <em>PII</em>, <em>PCI</em>,
             <em>PHI</em>, <em>GDPR</em>, <em>FINANCIAL</em>, or <em>SENSITIVE</em> — and
             <strong>derives stricter handling automatically</strong>. Tagging a <em>column</em>
@@ -1454,8 +1486,9 @@ APPROVED → FAILED (execution error)</pre>
             provider. A blocked editor preview returns an error inline; a blocked submitted query is
             recorded as a failed (critical) analysis. Each pattern is validated as a regex when you save.
           </p>
+          <h4 id="cfg-langfuse">Langfuse integration</h4>
           <p>
-            <strong>Langfuse integration.</strong> AccessFlow optionally connects to
+            AccessFlow optionally connects to
             <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">Langfuse</a> for
             LLM observability and prompt management, configured per organization at
             <code>/admin/langfuse</code> (enable the integration, set the host — defaults to
@@ -1651,7 +1684,7 @@ APPROVED → FAILED (execution error)</pre>
             (<code>https://events.pagerduty.com/</code>).
           </p>
 
-          <h4>Slack app — Approve / Reject from Slack</h4>
+          <h4 id="cfg-slack">Slack app — Approve / Reject from Slack</h4>
           <p>
             Beyond the one-way Slack webhook channel, an admin can connect a Slack <strong>app</strong>
             at <code>/admin/slack</code> so reviewers act on requests without leaving Slack. Create the app

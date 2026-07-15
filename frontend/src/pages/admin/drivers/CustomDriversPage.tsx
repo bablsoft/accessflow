@@ -120,6 +120,7 @@ export default function CustomDriversPage() {
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHeader
+        docsAnchor="cfg-drivers"
         title={t('drivers.list.title')}
         subtitle={t('drivers.list.subtitle')}
         actions={

@@ -215,6 +215,7 @@ export function ReviewPlansPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-review-plans"
         title={t('admin.review_plans.title')}
         subtitle={t('admin.review_plans.subtitle')}
         actions={

@@ -150,6 +150,7 @@ export function GroupDetailPage() {
   return (
     <>
       <PageHeader
+        docsAnchor="cfg-groups"
         title={groupQuery.data?.name ?? t('admin.groups.title')}
         subtitle={groupQuery.data?.description ?? undefined}
         breadcrumbs={[t('admin.groups.title'), groupQuery.data?.name ?? '']}

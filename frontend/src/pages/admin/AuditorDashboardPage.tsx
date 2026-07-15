@@ -137,6 +137,7 @@ export default function AuditorDashboardPage() {
   return (
     <div>
       <PageHeader
+        docsAnchor="compliance-reports"
         title={t('auditor.title')}
         subtitle={t('auditor.subtitle')}
         actions={

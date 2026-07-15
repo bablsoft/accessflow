@@ -143,6 +143,7 @@ export function AccessRequestsQueuePage() {
   return (
     <div>
       <PageHeader
+        docsAnchor="cfg-access-requests"
         title={t('access.queue.title')}
         subtitle={t('access.queue.subtitle')}
         actions={

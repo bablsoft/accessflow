@@ -31,7 +31,9 @@
     "create": "Create",
     "remove": "Remove",
     "yes": "Ja",
-    "no": "Nein"
+    "no": "Nein",
+    "view_docs": "Dokumentation",
+    "view_docs_aria": "Dokumentation anzeigen (wird in einem neuen Tab geöffnet)"
   },
   "nav": {
     "editor": "SQL-Editor",

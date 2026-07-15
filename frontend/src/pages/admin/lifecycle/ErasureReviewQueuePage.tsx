@@ -65,6 +65,7 @@ export default function ErasureReviewQueuePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-lifecycle"
         title={t('lifecycle.erasure_review.title')}
         subtitle={t('lifecycle.erasure_review.subtitle_count', {
           count: queueQuery.data?.total_elements ?? 0,

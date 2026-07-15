@@ -164,6 +164,7 @@ export function AiConfigListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-ai"
         title={t('admin.ai_configs.title')}
         subtitle={t('admin.ai_configs.subtitle')}
         actions={

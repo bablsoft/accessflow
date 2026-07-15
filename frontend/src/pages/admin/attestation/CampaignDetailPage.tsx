@@ -123,6 +123,7 @@ export default function CampaignDetailPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-attestation"
         breadcrumbs={[
           <a
             key="back"

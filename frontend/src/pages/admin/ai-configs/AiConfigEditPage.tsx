@@ -237,6 +237,7 @@ export default function AiConfigEditPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-ai"
         title={t('admin.ai_configs.edit_title', { name: cfg.name })}
         subtitle={
           <span>

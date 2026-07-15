@@ -87,6 +87,7 @@ export default function CampaignListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-attestation"
         title={t('attestation.list.title')}
         subtitle={t('attestation.list.subtitle_count', {
           count: campaignsQuery.data?.total_elements ?? 0,

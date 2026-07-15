@@ -109,6 +109,7 @@ export default function LifecyclePoliciesListPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-lifecycle"
         title={t('lifecycle.policies.title')}
         subtitle={t('lifecycle.policies.subtitle_count', {
           count: policiesQuery.data?.total_elements ?? 0,

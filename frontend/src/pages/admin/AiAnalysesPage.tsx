@@ -59,6 +59,7 @@ export default function AiAnalysesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-ai-analyses"
         title={t('admin.ai_analyses.title')}
         subtitle={t('admin.ai_analyses.subtitle')}
         actions={

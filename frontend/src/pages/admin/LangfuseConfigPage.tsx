@@ -101,7 +101,11 @@ export function LangfuseConfigPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('admin.langfuse.title')} subtitle={t('admin.langfuse.subtitle')} />
+      <PageHeader
+        docsAnchor="cfg-langfuse"
+        title={t('admin.langfuse.title')}
+        subtitle={t('admin.langfuse.subtitle')}
+      />
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Form<LangfuseFormValues> form={form} layout="vertical" onFinish={onFinish}>
           <Section title={t('admin.langfuse.section_connection')}>

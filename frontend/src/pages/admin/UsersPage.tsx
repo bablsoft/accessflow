@@ -213,6 +213,7 @@ export function UsersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-users"
         title={t('admin.users.title')}
         subtitle={t('admin.users.subtitle_count', {
           count: usersQuery.data?.total_elements ?? 0,

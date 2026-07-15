@@ -300,6 +300,7 @@ export function RoutingPoliciesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-routing-policies"
         title={t('admin.routing_policies.title')}
         subtitle={t('admin.routing_policies.subtitle')}
         actions={

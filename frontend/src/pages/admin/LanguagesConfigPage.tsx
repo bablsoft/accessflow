@@ -82,7 +82,11 @@ export function LanguagesConfigPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('admin.languages.title')} subtitle={t('admin.languages.subtitle')} />
+      <PageHeader
+        docsAnchor="cfg-languages"
+        title={t('admin.languages.title')}
+        subtitle={t('admin.languages.subtitle')}
+      />
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <Form<LanguagesFormValues>
           form={form}

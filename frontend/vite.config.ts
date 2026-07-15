@@ -76,6 +76,8 @@ export default defineConfig({
       include: [
         'src/utils/**/*.ts',
         'src/theme/**/*.ts',
+        'src/components/common/PageHeader.tsx',
+        'src/config/docs.ts',
         'src/config/runtimeConfig.ts',
         'src/config/version.ts',
         'src/mocks/delay.ts',

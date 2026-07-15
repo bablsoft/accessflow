@@ -151,6 +151,7 @@ export function AuditLogPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="cfg-audit-log"
         title={t('admin.audit.title')}
         subtitle={t('admin.audit.subtitle')}
         actions={

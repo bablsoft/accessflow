@@ -31,7 +31,9 @@
     "close": "Close",
     "ok": "OK",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "view_docs": "View docs",
+    "view_docs_aria": "View docs (opens in a new tab)"
   },
   "nav": {
     "editor": "Query editor",
