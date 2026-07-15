@@ -855,6 +855,13 @@
       "source_connector": "Connecteurs",
       "source_connector_help": "Pilotes préconfigurés installés depuis le catalogue de connecteurs."
     },
+    "secret_ref": {
+      "help_intro": "Vous pouvez aussi saisir une référence de secret externe au lieu d’une valeur en clair.",
+      "help_vault": "HashiCorp Vault : vault:<mount>/<chemin>#<champ>.",
+      "help_aws": "AWS Secrets Manager : aws:<nom-ou-arn>[#champJson].",
+      "help_azure": "Azure Key Vault : azure:<nom-du-secret>.",
+      "provider_disabled": "Le magasin de secrets {{provider}} n’est pas activé dans ce déploiement."
+    },
     "settings": {
       "label_text_to_sql_enabled": "Activer le texte vers SQL",
       "text_to_sql_help": "Permet aux utilisateurs de rédiger du SQL à partir du langage naturel (utilise la configuration d'IA).",

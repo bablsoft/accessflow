@@ -855,6 +855,13 @@
       "source_connector": "Konnektoren",
       "source_connector_help": "Vorkonfigurierte Treiber, die aus dem Konnektorkatalog installiert werden."
     },
+    "secret_ref": {
+      "help_intro": "Statt eines Klartextwerts kann auch eine externe Secret-Referenz eingegeben werden.",
+      "help_vault": "HashiCorp Vault: vault:<mount>/<pfad>#<feld>.",
+      "help_aws": "AWS Secrets Manager: aws:<name-oder-arn>[#jsonFeld].",
+      "help_azure": "Azure Key Vault: azure:<secret-name>.",
+      "provider_disabled": "Der {{provider}}-Secret-Store ist in dieser Installation nicht aktiviert."
+    },
     "settings": {
       "label_text_to_sql_enabled": "Text-zu-SQL aktivieren",
       "text_to_sql_help": "Nutzer können SQL aus natürlicher Sprache entwerfen (verwendet die KI-Konfiguration).",

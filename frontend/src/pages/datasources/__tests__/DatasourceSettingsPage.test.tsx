@@ -33,6 +33,7 @@ vi.mock('@/api/datasources', () => ({
   revokePermission: vi.fn(),
   revokeGroupPermission: vi.fn(),
   getDatasourceSchema: (...args: unknown[]) => getDatasourceSchema(...args),
+  getSecretProviders: () => Promise.resolve({ providers: [] }),
   datasourceKeys: {
     all: ['datasources'] as const,
     lists: () => ['datasources', 'list'] as const,
@@ -43,6 +44,7 @@ vi.mock('@/api/datasources', () => ({
     groupPermissions: (id: string) =>
       ['datasources', 'detail', id, 'permissions', 'groups'] as const,
     types: () => ['datasources', 'types'] as const,
+    secretProviders: () => ['datasources', 'secret-providers'] as const,
   },
 }));
 

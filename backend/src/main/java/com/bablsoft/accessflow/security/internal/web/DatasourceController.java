@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.core.api.CustomJdbcDriverService;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceReviewerService;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
@@ -24,6 +25,7 @@ import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceReque
 import com.bablsoft.accessflow.security.internal.web.model.CreateDatasourceReviewerRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreateGroupPermissionRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreatePermissionRequest;
+import com.bablsoft.accessflow.security.internal.web.model.SecretProvidersResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatabaseSchemaResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourcePageResponse;
 import com.bablsoft.accessflow.security.internal.web.model.DatasourceResponse;
@@ -80,6 +82,7 @@ class DatasourceController {
     private final CustomJdbcDriverService customJdbcDriverService;
     private final DatasourceReviewerService datasourceReviewerService;
     private final SampleDataService sampleDataService;
+    private final SecretResolutionService secretResolutionService;
 
     @GetMapping("/types")
     @Operation(summary = "List supported database types with driver resolution status")
@@ -100,6 +103,14 @@ class DatasourceController {
                 .toList();
         return DatasourceTypesResponse.from(
                 driverCatalogService.list(caller.organizationId(), orgDrivers));
+    }
+
+    @GetMapping("/secret-providers")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
+    @Operation(summary = "List external secret-store providers enabled in this deployment (AF-448)")
+    @ApiResponse(responseCode = "200", description = "Enabled provider ids in stable order (vault, aws, azure)")
+    SecretProvidersResponse listSecretProviders() {
+        return new SecretProvidersResponse(secretResolutionService.enabledProviders());
     }
 
     @GetMapping

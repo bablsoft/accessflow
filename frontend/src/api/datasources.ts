@@ -11,6 +11,7 @@ import type {
   DatasourceSchema,
   DatasourceTypesResponse,
   SampleRowsResponse,
+  SecretProvidersResponse,
   UpdateDatasourceInput,
 } from '@/types/api';
 
@@ -34,6 +35,7 @@ export const datasourceKeys = {
   groupPermissions: (id: string) =>
     ['datasources', 'detail', id, 'permissions', 'groups'] as const,
   types: () => ['datasources', 'types'] as const,
+  secretProviders: () => ['datasources', 'secret-providers'] as const,
 };
 
 export interface SampleRowsParams {
@@ -162,5 +164,10 @@ export async function revokeGroupPermission(id: string, permId: string): Promise
 
 export async function getDatasourceTypes(): Promise<DatasourceTypesResponse> {
   const { data } = await apiClient.get<DatasourceTypesResponse>(`${BASE}/types`);
+  return data;
+}
+
+export async function getSecretProviders(): Promise<SecretProvidersResponse> {
+  const { data } = await apiClient.get<SecretProvidersResponse>(`${BASE}/secret-providers`);
   return data;
 }

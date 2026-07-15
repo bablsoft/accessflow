@@ -42,6 +42,8 @@ import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
+import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
+import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
 import {
@@ -291,6 +293,10 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     queryFn: listReviewPlans,
   });
 
+  const secretProviders = useSecretProviders();
+  const secretRefHelp = secretReferenceHelp(secretProviders, t);
+  const secretRefRule = secretReferenceRule(secretProviders, t);
+
   const initialValues: UpdateDatasourceInput = {
     name: ds.name,
     host: ds.host ?? undefined,
@@ -441,7 +447,12 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             >
               <Input className="mono" />
             </Form.Item>
-            <Form.Item label={t('datasources.settings.label_password')} name="password">
+            <Form.Item
+              label={t('datasources.settings.label_password')}
+              name="password"
+              extra={secretRefHelp}
+              rules={[secretRefRule]}
+            >
               <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
             </Form.Item>
           </Grid>
@@ -467,6 +478,8 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             <Form.Item
               label={t('datasources.settings.label_replica_password')}
               name="read_replica_password"
+              extra={secretRefHelp}
+              rules={[secretRefRule]}
             >
               <Input.Password
                 placeholder={t('datasources.settings.replica_password_placeholder')}

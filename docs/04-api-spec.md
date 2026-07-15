@@ -151,6 +151,7 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | Method | Path | Auth Required | Description |
 |--------|------|---------------|-------------|
 | `GET` | `/datasources/types` | Any | List supported database types with display metadata for the create wizard |
+| `GET` | `/datasources/secret-providers` | ADMIN | List external secret-store providers enabled in this deployment (AF-448) |
 | `GET` | `/datasources` | Any | List datasources the current user has access to |
 | `POST` | `/datasources` | ADMIN | Create new datasource |
 | `GET` | `/datasources/{id}` | Any | Get datasource details |
@@ -275,6 +276,29 @@ For non-`RELATIONAL` types, `jdbc_url_template` is `null` (the engine is native,
 | `UNAVAILABLE` | Registry entry exists but the cache directory is unwritable or the resolver is offline without a cache hit. Admin attention needed. |
 
 Bundled supported types: `POSTGRESQL`, `MYSQL`, `MARIADB`, `ORACLE`, `MSSQL`. The pseudo-type `CUSTOM` only surfaces when at least one uploaded driver targets it. See `docs/05-backend.md` → Dynamic JDBC Driver Loading for the resolution mechanism.
+
+### GET /datasources/secret-providers — Response 200
+
+External secret-store providers enabled in this deployment (AF-448), stable order `vault`,
+`aws`, `azure`; empty array when none is configured. Requires `PERM_DATASOURCE_MANAGE`. The
+datasource forms use it to decide which secret-reference syntax hints to show on the credential
+fields.
+
+```json
+{
+  "providers": ["vault", "aws"]
+}
+```
+
+When a provider is enabled, the datasource credential fields (`password`,
+`read_replica_password`, `api_key`) accept an external secret **reference** instead of a raw
+value — `vault:<mount>/<path>#<field>`, `aws:<name-or-arn>[#jsonField]`, or
+`azure:<secret-name>`. References are stored verbatim (not encrypted) and resolved through the
+store at credential-use time. Error responses on the create/update endpoints:
+`400 INVALID_SECRET_REFERENCE` (malformed reference), `400 SECRET_PROVIDER_DISABLED` (reference
+for a provider that is not enabled). Test-connection / schema / execution paths surface
+`502 SECRET_RESOLUTION_FAILED` when the external store cannot be reached or the secret/field is
+missing.
 
 ### GET /datasources — Query Parameters
 

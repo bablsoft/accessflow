@@ -281,6 +281,25 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
+    void secretProvidersReturnsEmptyListWhenNoProviderEnabled() {
+        var result = mvc.get().uri("/api/v1/datasources/secret-providers")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.providers").asArray().isEmpty();
+    }
+
+    @Test
+    void secretProvidersByAnalystReturns403() {
+        var result = mvc.get().uri("/api/v1/datasources/secret-providers")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(result).hasStatus(403);
+    }
+
+    @Test
     void listTypesReturnsCatalogForAllSupportedDbTypes() {
         var result = mvc.get().uri("/api/v1/datasources/types")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
