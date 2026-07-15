@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -35,6 +36,7 @@ public class SlackInteractionService {
     private final UserSlackMappingRepository mappingRepository;
     private final UserQueryService userQueryService;
     private final ReviewService reviewService;
+    private final RolePermissionResolver rolePermissionResolver;
     private final SlackResponseSender responseSender;
     private final SlackMessages messages;
 
@@ -51,7 +53,8 @@ public class SlackInteractionService {
             ephemeral(responseUrl, messages.forOrg(organizationId, "slack.action.invalid"));
             return;
         }
-        var context = new ReviewService.ReviewerContext(user.id(), user.organizationId(), user.role());
+        var context = new ReviewService.ReviewerContext(user.id(), user.organizationId(),
+                user.roleName(), rolePermissionResolver.resolve(user.roleId(), user.role()));
         try {
             if (ACTION_APPROVE.equals(actionId)) {
                 reviewService.approve(queryRequestId, context,

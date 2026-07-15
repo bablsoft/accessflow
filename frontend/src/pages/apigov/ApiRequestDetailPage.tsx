@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { hasPermission } from '@/utils/permissions';
 import { Alert, App, Button, Card, Descriptions, Empty, Input, Modal, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { DownloadOutlined, ThunderboltOutlined } from '@ant-design/icons';
@@ -98,7 +99,7 @@ export default function ApiRequestDetailPage() {
 
   const canDecide =
     request != null &&
-    (user?.role === 'REVIEWER' || user?.role === 'ADMIN') &&
+    hasPermission(user, 'API_REQUEST_REVIEW') &&
     request.status === 'PENDING_REVIEW' &&
     request.submitted_by !== user?.id;
 

@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,7 @@ class ApiRequestControllerTest {
 
     private Authentication auth(UserRoleType role) {
         var a = mock(Authentication.class);
-        when(a.getPrincipal()).thenReturn(new JwtClaims(userId, "u@acme.test", role, orgId));
+        when(a.getPrincipal()).thenReturn(JwtClaims.forSystemRole(userId, "u@acme.test", role, orgId));
         return a;
     }
 
@@ -61,7 +62,8 @@ class ApiRequestControllerTest {
     @Test
     void submitReturnsDetail() {
         when(requestService.submit(any())).thenReturn(new ApiRequestSubmissionResult(requestId, QueryStatus.PENDING_AI));
-        when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(UserRoleType.ANALYST)))
+        when(requestService.get(eq(requestId), eq(orgId), eq(userId),
+                eq(SystemRolePermissions.of(UserRoleType.ANALYST))))
                 .thenReturn(view());
 
         var response = controller.submit(new SubmitApiRequestRequest(connectorId, null, "POST", "/charges",
@@ -74,13 +76,14 @@ class ApiRequestControllerTest {
 
     @Test
     void getForwardsCallerRoleSoReviewersCanView() {
-        when(requestService.get(eq(requestId), eq(orgId), eq(userId), eq(UserRoleType.REVIEWER)))
+        when(requestService.get(eq(requestId), eq(orgId), eq(userId),
+                eq(SystemRolePermissions.of(UserRoleType.REVIEWER))))
                 .thenReturn(view());
 
         var response = controller.get(requestId, auth(UserRoleType.REVIEWER));
 
         assertThat(response.id()).isEqualTo(requestId);
-        verify(requestService).get(requestId, orgId, userId, UserRoleType.REVIEWER);
+        verify(requestService).get(requestId, orgId, userId, SystemRolePermissions.of(UserRoleType.REVIEWER));
     }
 
     @Test
@@ -132,7 +135,8 @@ class ApiRequestControllerTest {
 
     @Test
     void downloadResponseSetsContentTypeAndAttachment() {
-        when(requestService.downloadResponse(requestId, orgId, userId, UserRoleType.ANALYST))
+        when(requestService.downloadResponse(requestId, orgId, userId,
+                SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .thenReturn(new com.bablsoft.accessflow.apigov.api.ApiResponsePayload(
                         "{\"ok\":true}".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         "application/json", "api-response-x.json"));

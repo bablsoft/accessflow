@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.security.internal;
 
+import com.bablsoft.accessflow.core.api.RoleNotFoundException;
+import com.bablsoft.accessflow.core.api.RoleLookupService;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.PageRequest;
@@ -9,6 +11,7 @@ import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.SystemSmtpService;
 import com.bablsoft.accessflow.core.api.UserAdminService;
+import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.AcceptedInvitation;
 import com.bablsoft.accessflow.security.api.DuplicatePendingInvitationException;
 import com.bablsoft.accessflow.security.api.InvitationAlreadyAcceptedException;
@@ -58,6 +61,7 @@ class DefaultUserInvitationService implements UserInvitationService {
     private final SystemSmtpService systemSmtpService;
     private final UserAdminService userAdminService;
     private final QuotaService quotaService;
+    private final RoleLookupService roleLookupService;
     private final OrganizationLookupService organizationLookupService;
     private final PasswordEncoder passwordEncoder;
     private final SpringTemplateEngine templateEngine;
@@ -84,7 +88,19 @@ class DefaultUserInvitationService implements UserInvitationService {
         entity.setId(UUID.randomUUID());
         entity.setOrganizationId(organizationId);
         entity.setEmail(normalizedEmail);
-        entity.setRole(command.role());
+        if (command.roleId() != null) {
+            var role = roleLookupService.findById(command.roleId(), organizationId)
+                    .orElseThrow(() -> new RoleNotFoundException(command.roleId()));
+            entity.setRoleId(role.id());
+            entity.setRole(role.system() ? UserRoleType.valueOf(role.name()) : null);
+        } else if (command.role() != null) {
+            entity.setRole(command.role());
+            entity.setRoleId(roleLookupService
+                    .findByNameInScope(organizationId, command.role().name())
+                    .map(r -> r.id()).orElse(null));
+        } else {
+            throw new IllegalArgumentException("Invitation role is required");
+        }
         entity.setDisplayName(emptyToNull(command.displayName()));
         entity.setTokenHash(hash);
         entity.setStatus(UserInvitationStatusType.PENDING);
@@ -105,7 +121,7 @@ class DefaultUserInvitationService implements UserInvitationService {
         var pageable = org.springframework.data.domain.PageRequest.of(
                 pageRequest.page(), pageRequest.size(), sort);
         var page = repository.findAllByOrganizationId(organizationId, pageable);
-        var content = page.getContent().stream().map(DefaultUserInvitationService::toView).toList();
+        var content = page.getContent().stream().map(this::toView).toList();
         return new PageResponse<>(content, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }
@@ -153,6 +169,7 @@ class DefaultUserInvitationService implements UserInvitationService {
                 entity.getEmail(),
                 entity.getDisplayName(),
                 entity.getRole(),
+                roleNameOf(entity),
                 orgName,
                 entity.getExpiresAt());
     }
@@ -176,6 +193,7 @@ class DefaultUserInvitationService implements UserInvitationService {
                 resolvedDisplayName,
                 passwordEncoder.encode(plaintextPassword),
                 entity.getRole(),
+                entity.getRoleId(),
                 false));
         entity.setStatus(UserInvitationStatusType.ACCEPTED);
         entity.setAcceptedAt(Instant.now());
@@ -230,7 +248,7 @@ class DefaultUserInvitationService implements UserInvitationService {
         ctx.setVariable("organizationName", organizationName);
         ctx.setVariable("recipientEmail", invitation.getEmail());
         ctx.setVariable("recipientDisplayName", invitation.getDisplayName());
-        ctx.setVariable("role", invitation.getRole().name());
+        ctx.setVariable("role", roleNameOfStatic(invitation));
         ctx.setVariable("acceptUrl", acceptUrl);
         ctx.setVariable("expiresAt", invitation.getExpiresAt());
         return templateEngine.process("email/user-invitation", ctx);
@@ -271,19 +289,38 @@ class DefaultUserInvitationService implements UserInvitationService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    static UserInvitationView toView(UserInvitationEntity entity) {
+    private UserInvitationView toView(UserInvitationEntity entity) {
         return new UserInvitationView(
                 entity.getId(),
                 entity.getOrganizationId(),
                 entity.getEmail(),
                 entity.getDisplayName(),
                 entity.getRole(),
+                entity.getRoleId(),
+                roleNameOf(entity),
                 entity.getStatus(),
                 entity.getExpiresAt(),
                 entity.getAcceptedAt(),
                 entity.getRevokedAt(),
                 entity.getInvitedByUserId(),
                 entity.getCreatedAt());
+    }
+
+    /** The invitation's role NAME: the enum name for system roles, else the role row's name. */
+    private String roleNameOf(UserInvitationEntity entity) {
+        if (entity.getRole() != null) {
+            return entity.getRole().name();
+        }
+        if (entity.getRoleId() != null) {
+            return roleLookupService.findById(entity.getRoleId(), entity.getOrganizationId())
+                    .map(r -> r.name()).orElse(null);
+        }
+        return null;
+    }
+
+    private String roleNameOfStatic(UserInvitationEntity entity) {
+        var name = roleNameOf(entity);
+        return name != null ? name : "";
     }
 
     static Optional<UserInvitationStatusType> safeStatus(UserInvitationEntity entity) {

@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.ai.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -37,6 +37,6 @@ class QueryAnalysisController {
                 request.sql(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN);
+                caller.has(Permission.QUERY_ADMIN));
     }
 }

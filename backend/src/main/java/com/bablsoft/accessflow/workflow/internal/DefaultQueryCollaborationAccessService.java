@@ -5,9 +5,9 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.workflow.api.CollaboratorIdentity;
 import com.bablsoft.accessflow.workflow.api.QueryCollaborationAccessService;
@@ -37,7 +37,7 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
     @Override
     @Transactional(readOnly = true)
     public boolean canCollaborate(UUID queryRequestId, UUID userId, UUID organizationId,
-                                  UserRoleType role) {
+                                  String roleName, Set<Permission> permissions) {
         var snapshot = scopedSnapshot(queryRequestId, organizationId).orElse(null);
         if (snapshot == null) {
             return false;
@@ -52,16 +52,18 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
         if (snapshot.status() != QueryStatus.PENDING_REVIEW) {
             return false;
         }
-        // Admins oversee any in-review query in their org; reviewers must be assigned to it.
-        return role == UserRoleType.ADMIN || isEligibleReviewer(snapshot, userId, role);
+        // REVIEW_OVERRIDE holders (system ADMIN) oversee any in-review query in their org;
+        // other reviewers must be assigned to it.
+        return has(permissions, Permission.REVIEW_OVERRIDE)
+                || isEligibleReviewer(snapshot, userId, roleName, permissions);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<CollaboratorIdentity> resolveParticipant(UUID queryRequestId, UUID userId,
-                                                             UUID organizationId,
-                                                             UserRoleType role) {
-        if (!canCollaborate(queryRequestId, userId, organizationId, role)) {
+                                                              UUID organizationId, String roleName,
+                                                              Set<Permission> permissions) {
+        if (!canCollaborate(queryRequestId, userId, organizationId, roleName, permissions)) {
             return Optional.empty();
         }
         var displayName = userQueryService.findById(userId)
@@ -89,8 +91,8 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
     }
 
     private boolean isEligibleReviewer(QueryRequestSnapshot snapshot, UUID userId,
-                                       UserRoleType role) {
-        if (role != UserRoleType.REVIEWER && role != UserRoleType.ADMIN) {
+                                       String roleName, Set<Permission> permissions) {
+        if (!has(permissions, Permission.QUERY_REVIEW)) {
             return false;
         }
         var plan = reviewPlanLookupService.findForDatasource(snapshot.datasourceId()).orElse(null);
@@ -98,7 +100,7 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
             return false;
         }
         var isApprover = plan.approvers().stream()
-                .anyMatch(rule -> matchesUser(rule, userId) || matchesRole(rule, role));
+                .anyMatch(rule -> matchesUser(rule, userId) || matchesRole(rule, roleName));
         return isApprover && isInDatasourceScope(snapshot.datasourceId(), userId);
     }
 
@@ -115,7 +117,8 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
                         .filter(UserView::active)
                         .ifPresent(u -> reviewers.add(u.id()));
             } else if (rule.role() != null) {
-                userQueryService.findByOrganizationAndRole(snapshot.organizationId(), rule.role())
+                userQueryService.findByOrganizationAndRoleName(snapshot.organizationId(),
+                                rule.role())
                         .stream()
                         .filter(UserView::active)
                         .forEach(u -> reviewers.add(u.id()));
@@ -149,7 +152,11 @@ class DefaultQueryCollaborationAccessService implements QueryCollaborationAccess
         return rule.userId() != null && rule.userId().equals(userId);
     }
 
-    private static boolean matchesRole(ApproverRule rule, UserRoleType role) {
-        return rule.role() != null && rule.role() == role;
+    private static boolean matchesRole(ApproverRule rule, String roleName) {
+        return rule.role() != null && rule.role().equalsIgnoreCase(roleName);
+    }
+
+    private static boolean has(Set<Permission> permissions, Permission permission) {
+        return permissions != null && permissions.contains(permission);
     }
 }

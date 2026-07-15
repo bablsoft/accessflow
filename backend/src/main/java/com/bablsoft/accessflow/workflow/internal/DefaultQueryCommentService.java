@@ -165,7 +165,7 @@ class DefaultQueryCommentService implements QueryCommentService {
                 .filter(s -> s.organizationId().equals(context.organizationId()))
                 .orElseThrow(() -> new QueryRequestNotFoundException(queryRequestId));
         if (!collaborationAccessService.canCollaborate(queryRequestId, context.userId(),
-                context.organizationId(), context.role())) {
+                context.organizationId(), context.roleName(), context.permissions())) {
             throw new CollaborationNotPermittedException(queryRequestId);
         }
         return snapshot;

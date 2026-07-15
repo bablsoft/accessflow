@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
@@ -52,7 +53,7 @@ class ApiRequestController {
         var result = requestService.submit(body.toCommand(caller.organizationId(), caller.userId(),
                 isAdmin(caller), auditContext.ipAddress(), auditContext.userAgent()));
         return ApiRequestResponse.from(requestService.get(result.id(), caller.organizationId(),
-                caller.userId(), caller.role()));
+                caller.userId(), caller.permissions()));
     }
 
     @GetMapping
@@ -84,7 +85,7 @@ class ApiRequestController {
     ApiRequestResponse get(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return ApiRequestResponse.from(requestService.get(id, caller.organizationId(), caller.userId(),
-                caller.role()));
+                caller.permissions()));
     }
 
     @GetMapping("/{id}/response")
@@ -95,7 +96,7 @@ class ApiRequestController {
     ResponseEntity<byte[]> downloadResponse(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         var payload = requestService.downloadResponse(id, caller.organizationId(), caller.userId(),
-                caller.role());
+                caller.permissions());
         var disposition = ContentDisposition.attachment().filename(payload.filename()).build();
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
@@ -168,6 +169,6 @@ class ApiRequestController {
     }
 
     private static boolean isAdmin(JwtClaims caller) {
-        return caller.role() != null && "ADMIN".equals(caller.role().name());
+        return caller.has(Permission.QUERY_ADMIN);
     }
 }

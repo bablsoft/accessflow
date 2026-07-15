@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.api.CreateRowSecurityPolicyCommand;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
@@ -9,7 +10,6 @@ import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyView;
 import com.bablsoft.accessflow.core.api.RowSecurityValueType;
 import com.bablsoft.accessflow.core.api.UpdateRowSecurityPolicyCommand;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowSecurityPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RowSecurityPolicyRepository;
@@ -34,6 +34,7 @@ class DefaultRowSecurityPolicyAdminService implements RowSecurityPolicyAdminServ
     private static final String GROUPS_VARIABLE = "user.groups";
 
     private final RowSecurityPolicyRepository rowSecurityPolicyRepository;
+    private final RoleRepository roleRepository;
     private final DatasourceRepository datasourceRepository;
     private final UserRepository userRepository;
     private final UserGroupRepository userGroupRepository;
@@ -58,7 +59,7 @@ class DefaultRowSecurityPolicyAdminService implements RowSecurityPolicyAdminServ
         var operator = requireOperator(command.operator());
         var valueType = requireValueType(command.valueType());
         var valueExpression = normalizeValue(valueType, operator, command.valueExpression());
-        var roles = normalizeRoles(command.appliesToRoles());
+        var roles = normalizeRoles(organizationId, command.appliesToRoles());
         validateAppliesToTargets(organizationId, command.appliesToUserIds(), command.appliesToGroupIds());
 
         var entity = new RowSecurityPolicyEntity();
@@ -85,7 +86,7 @@ class DefaultRowSecurityPolicyAdminService implements RowSecurityPolicyAdminServ
         var operator = requireOperator(command.operator());
         var valueType = requireValueType(command.valueType());
         var valueExpression = normalizeValue(valueType, operator, command.valueExpression());
-        var roles = normalizeRoles(command.appliesToRoles());
+        var roles = normalizeRoles(organizationId, command.appliesToRoles());
         validateAppliesToTargets(organizationId, command.appliesToUserIds(), command.appliesToGroupIds());
 
         entity.setTableName(requireTableName(command.tableName()));
@@ -181,7 +182,7 @@ class DefaultRowSecurityPolicyAdminService implements RowSecurityPolicyAdminServ
         return variable;
     }
 
-    private List<String> normalizeRoles(List<String> roles) {
+    private List<String> normalizeRoles(UUID organizationId, List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return List.of();
         }
@@ -190,12 +191,10 @@ class DefaultRowSecurityPolicyAdminService implements RowSecurityPolicyAdminServ
             if (role == null || role.isBlank()) {
                 continue;
             }
-            try {
-                normalized.add(UserRoleType.valueOf(role.trim().toUpperCase(Locale.ROOT)).name());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalRowSecurityPolicyException(
-                        msg("error.row_security_unknown_role", role));
-            }
+            var resolved = roleRepository.findByNameInScope(organizationId, role.trim())
+                    .orElseThrow(() -> new IllegalRowSecurityPolicyException(
+                            msg("error.row_security_unknown_role", role)));
+            normalized.add(resolved.getName());
         }
         return normalized;
     }

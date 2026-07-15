@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.internal.routing;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
@@ -52,7 +51,7 @@ class RoutingPolicyEngineTest {
 
     private ConditionContext deleteContext() {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 80,
-                UserRoleType.ANALYST, Set.of(), LocalDateTime.of(2026, 6, 3, 10, 0),
+                "ANALYST", Set.of(), LocalDateTime.of(2026, 6, 3, 10, 0),
                 false, false, false, "203.0.113.7", "curl/8.4.0", false, 120, false);
     }
 

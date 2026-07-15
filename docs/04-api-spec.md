@@ -71,6 +71,8 @@
     "email": "alice@company.com",
     "display_name": "Alice",
     "role": "ANALYST",
+    "role_id": "uuid",
+    "permissions": ["QUERY_SUBMIT_DML", "QUERY_SUBMIT_SELECT"],
     "auth_provider": "LOCAL",
     "totp_enabled": false,
     "platform_admin": false,
@@ -79,7 +81,10 @@
 }
 ```
 
-`preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`. `platform_admin` (AF-456) is a boolean — `true` for super-admins who additionally hold the `PLATFORM_ADMIN` authority and may reach the cross-org `/api/v1/platform/organizations` management plane; the SPA uses it to show the "Platform" navigation group. The same user object (including `platform_admin`) is returned by `GET /api/v1/me`.
+`role` is the user's effective role **name** — a system role or a custom role's name — and
+`permissions` is the resolved functional-permission set of that role (AF-522); the SPA gates
+navigation and routes on `permissions`, never on the role string. The same fields appear on
+`GET /api/v1/me`. `preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`. `platform_admin` (AF-456) is a boolean — `true` for super-admins who additionally hold the `PLATFORM_ADMIN` authority and may reach the cross-org `/api/v1/platform/organizations` management plane; the SPA uses it to show the "Platform" navigation group. The same user object (including `platform_admin`) is returned by `GET /api/v1/me`.
 
 The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
 
@@ -2176,6 +2181,8 @@ New audit actions: `ATTESTATION_CAMPAIGN_OPENED`, `ATTESTATION_CAMPAIGN_CLOSED`,
       "email": "alice@company.com",
       "display_name": "Alice",
       "role": "ANALYST",
+      "role_id": "uuid",
+      "role_name": "ANALYST",
       "auth_provider": "LOCAL",
       "active": true,
       "last_login_at": "2026-05-04T10:15:00Z",
@@ -2198,11 +2205,16 @@ Results are scoped to the caller's organization.
   "email": "newuser@company.com",
   "password": "InitialPassword123!",
   "display_name": "New User",
-  "role": "ANALYST"
+  "role": "ANALYST",
+  "role_id": "uuid"
 }
 ```
 
-The new user is created with `auth_provider=LOCAL` in the caller's organization.
+Exactly one of `role` (a system-role enum name, kept for backward compatibility with bootstrap /
+Terraform / CI callers) or `role_id` (any role visible to the org — system or custom, AF-522) is
+required; `role_id` wins when both are sent. The new user is created with `auth_provider=LOCAL` in
+the caller's organization. `role` in responses is the legacy enum (null for custom-role users);
+`role_name` is always the effective role name.
 
 **Response 201:** Single user object (same shape as a `content[]` element above). The `Location` header points to `/api/v1/admin/users/{id}`.
 
@@ -2216,11 +2228,15 @@ All fields optional. Omitted fields are left unchanged.
 ```json
 {
   "role": "REVIEWER",
+  "role_id": "uuid",
   "active": true,
   "display_name": "Updated Name",
   "attributes": { "region": "EU", "tenant": "acme" }
 }
 ```
+
+`role_id` (AF-522) assigns any visible role (system or custom) and wins over the legacy `role`
+enum when both are present.
 
 `attributes` (AF-380) is an optional key/value map (≤ 50 entries; key ≤ 128, value ≤ 512 chars). When
 present it **replaces** the user's attribute map; omit it to leave attributes unchanged. These values
@@ -2228,7 +2244,7 @@ resolve in row-security predicates as `:user.<key>`. They are admin-set, **not**
 
 **Response 200:** Updated user object.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
-**Response 422:** Self-protection violation — admins cannot demote themselves from `ADMIN` or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
+**Response 422:** Self-protection violation — admins cannot change their own role to one that lacks the `USER_MANAGE` permission, or set `active=false` on their own account. `error: ILLEGAL_USER_OPERATION`.
 
 ### GET /admin/users/{id}/attributes — Response 200
 
@@ -2247,6 +2263,78 @@ Soft-deactivates the user (`active=false`) and revokes all of their refresh toke
 **Response 204:** No content.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 **Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
+
+### Roles & the permission catalog (`/admin/roles`, `/admin/permissions`) *(ROLE_MANAGE — system ADMIN)* (AF-522)
+
+#### GET /admin/permissions
+
+Read-only view of the fixed, code-defined functional-permission catalog, grouped for the
+permission-matrix UI. Admins compose roles from the catalog but can never add or edit permissions.
+
+**Response 200:**
+```json
+{
+  "groups": [
+    { "group": "QUERIES", "permissions": ["QUERY_SUBMIT_SELECT", "QUERY_SUBMIT_DML", "QUERY_SUBMIT_DDL", "QUERY_VIEW_ALL", "QUERY_REVIEW", "REVIEW_OVERRIDE", "QUERY_ADMIN"] },
+    { "group": "USERS", "permissions": ["USER_MANAGE", "GROUP_MANAGE", "ROLE_MANAGE"] }
+  ]
+}
+```
+
+#### GET /admin/roles
+
+Lists the 5 immutable global system roles plus the caller organization's custom roles.
+
+**Response 200:**
+```json
+{
+  "roles": [
+    {
+      "id": "uuid",
+      "organization_id": null,
+      "name": "ADMIN",
+      "description": "Full administrative access to every AccessFlow capability.",
+      "system": true,
+      "permissions": ["..."],
+      "assigned_user_count": 2,
+      "created_at": "2026-07-01T00:00:00Z",
+      "updated_at": "2026-07-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /admin/roles — Request Body
+
+```json
+{
+  "name": "Data Steward",
+  "description": "Reviews queries and manages masking policies",
+  "permissions": ["QUERY_REVIEW", "MASKING_POLICY_MANAGE"]
+}
+```
+
+`name` required (≤ 100 chars, case-insensitively unique among system + org roles); `description`
+≤ 500 chars; `permissions` required (may be empty), values from the catalog.
+
+**Response 201:** the created role (shape as above); `Location: /api/v1/admin/roles/{id}`.
+**Response 409:** `error: ROLE_NAME_ALREADY_EXISTS`.
+
+#### GET /admin/roles/{id}
+
+**Response 200:** single role object. **Response 404:** `error: ROLE_NOT_FOUND` (not visible to the caller's org).
+
+#### PUT /admin/roles/{id} — Request Body
+
+All fields optional; omitted fields are unchanged. Same validation as create.
+
+**Response 200:** updated role.
+**Response 409:** `error: ROLE_SYSTEM_IMMUTABLE` (system roles cannot be edited) or `ROLE_NAME_ALREADY_EXISTS`.
+
+#### DELETE /admin/roles/{id}
+
+**Response 204:** deleted.
+**Response 409:** `error: ROLE_SYSTEM_IMMUTABLE`, or `ROLE_IN_USE` when the role is still assigned to one or more users (reassign them first).
 
 ### User Groups (`/admin/groups`) *(ADMIN only)*
 

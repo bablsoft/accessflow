@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.dashboard.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestListFilter;
 import com.bablsoft.accessflow.apigov.api.ApiRequestService;
@@ -18,7 +19,6 @@ import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.dashboard.api.DashboardService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSummary;
@@ -66,12 +66,14 @@ class DefaultDashboardService implements DashboardService {
 
     @Override
     @Transactional(readOnly = true)
-    public DashboardSummary summary(UUID organizationId, UUID userId, UserRoleType role) {
+    public DashboardSummary summary(UUID organizationId, UUID userId, String roleName,
+                                    Set<Permission> permissions) {
         if (organizationId == null || userId == null) {
             throw new IllegalArgumentException("organizationId and userId are required");
         }
         var pending = reviewService.listPendingForReviewer(
-                new ReviewerContext(userId, organizationId, role), PageRequest.of(0, RECENT_LIMIT));
+                new ReviewerContext(userId, organizationId, roleName, permissions),
+                PageRequest.of(0, RECENT_LIMIT));
         List<PendingReview> recentPending = pending.content();
 
         List<MyQueryStatusCount> statusCounts = insightsLookupService.statusCounts(organizationId, userId);
@@ -99,7 +101,7 @@ class DefaultDashboardService implements DashboardService {
                 PageRequest.of(0, RECENT_LIMIT)).content();
 
         var pendingApi = apiReviewService.listPending(
-                new ApiReviewService.ReviewerContext(userId, organizationId, role),
+                new ApiReviewService.ReviewerContext(userId, organizationId, roleName, permissions),
                 new PendingApiReviewFilter(null, null), PageRequest.of(0, RECENT_LIMIT));
         List<PendingApiReview> recentPendingApi = pendingApi.content();
 

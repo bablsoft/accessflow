@@ -270,6 +270,8 @@ const analystUser: User = {
   email: 'analyst@example.com',
   display_name: 'Analyst',
   role: 'ANALYST',
+  role_id: null,
+  role_name: 'ANALYST',
   auth_provider: 'LOCAL',
   active: true,
   totp_enabled: false,

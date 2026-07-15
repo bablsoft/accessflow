@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
 import com.bablsoft.accessflow.attestation.api.AttestationItemDecision;
@@ -56,7 +57,8 @@ class DefaultAttestationReviewServiceTest {
     private final UUID itemId = UUID.randomUUID();
 
     private final ReviewerContext reviewer =
-            new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+            new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
 
     private AttestationItemEntity item(UUID subject) {
         var item = new AttestationItemEntity();
@@ -80,7 +82,8 @@ class DefaultAttestationReviewServiceTest {
     @Test
     void listReturnsEmptyForNonReviewerRole() {
         var page = service.listPendingForReviewer(
-                new ReviewerContext(reviewerId, orgId, UserRoleType.ANALYST), PageRequest.of(0, 20));
+                new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST)), PageRequest.of(0, 20));
         assertThat(page.content()).isEmpty();
         verifyNoInteractions(itemRepository);
     }
@@ -152,7 +155,8 @@ class DefaultAttestationReviewServiceTest {
 
     @Test
     void adminEligibleWhenNoDatasourceScopedReviewers() {
-        var admin = new ReviewerContext(reviewerId, orgId, UserRoleType.ADMIN);
+        var admin = new ReviewerContext(reviewerId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
         when(itemRepository.findById(itemId)).thenReturn(Optional.of(item(subjectId)));
         when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(openCampaign()));
         when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))

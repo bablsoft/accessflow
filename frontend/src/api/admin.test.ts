@@ -18,6 +18,8 @@ const userFixture = {
   email: 'alice@example.com',
   display_name: 'Alice',
   role: 'ANALYST' as const,
+  role_id: 'r-analyst',
+  role_name: 'ANALYST',
   auth_provider: 'LOCAL' as const,
   active: true,
   last_login_at: '2026-05-04T09:00:00Z',
@@ -68,20 +70,20 @@ describe('api/admin', () => {
       email: 'new@example.com',
       password: 'a-strong-password',
       display_name: 'New',
-      role: 'ANALYST',
+      role_id: 'r-analyst',
     });
     expect(post).toHaveBeenCalledWith('/api/v1/admin/users', {
       email: 'new@example.com',
       password: 'a-strong-password',
       display_name: 'New',
-      role: 'ANALYST',
+      role_id: 'r-analyst',
     });
   });
 
   it('updateUser PUTs /admin/users/{id} with the body', async () => {
     put.mockResolvedValueOnce({ data: userFixture });
-    await adminApi.updateUser('u-1', { role: 'REVIEWER' });
-    expect(put).toHaveBeenCalledWith('/api/v1/admin/users/u-1', { role: 'REVIEWER' });
+    await adminApi.updateUser('u-1', { role_id: 'r-reviewer' });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/users/u-1', { role_id: 'r-reviewer' });
   });
 
   it('getUserAttributes GETs /admin/users/{id}/attributes and unwraps the map', async () => {
@@ -552,6 +554,8 @@ describe('api/admin', () => {
     email: 'alice@example.com',
     display_name: 'Alice',
     role: 'ANALYST' as const,
+    role_id: 'r-analyst',
+    role_name: 'ANALYST',
     status: 'PENDING' as const,
     expires_at: '2026-05-20T00:00:00Z',
     accepted_at: null,
@@ -583,11 +587,11 @@ describe('api/admin', () => {
     post.mockResolvedValueOnce({ data: invitationFixture });
     await adminApi.createInvitation({
       email: 'alice@example.com',
-      role: 'ANALYST',
+      role_id: 'r-analyst',
     });
     expect(post).toHaveBeenCalledWith('/api/v1/admin/users/invitations', {
       email: 'alice@example.com',
-      role: 'ANALYST',
+      role_id: 'r-analyst',
     });
   });
 

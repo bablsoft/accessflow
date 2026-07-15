@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { SetupProgress } from '@/types/api';
+import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import '@/i18n';
@@ -38,6 +39,8 @@ const adminUser = {
   email: 'admin@example.com',
   display_name: 'Ada',
   role: 'ADMIN' as const,
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.ADMIN,
   auth_provider: 'LOCAL' as const,
   totp_enabled: false,
   platform_admin: false,
@@ -49,6 +52,8 @@ const analystUser = {
   email: 'al@example.com',
   display_name: 'Al',
   role: 'ANALYST' as const,
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.ANALYST,
   auth_provider: 'LOCAL' as const,
   totp_enabled: false,
   platform_admin: false,

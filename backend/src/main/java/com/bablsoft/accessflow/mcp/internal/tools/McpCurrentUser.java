@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
-import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -36,11 +36,15 @@ public class McpCurrentUser {
         return requireClaims().organizationId();
     }
 
-    public UserRoleType role() {
-        return requireClaims().role();
+    public boolean has(Permission permission) {
+        return requireClaims().has(permission);
     }
 
+    /**
+     * Administrative query oversight (AF-522): QUERY_ADMIN holders (system ADMIN) see all
+     * datasources, any query's detail/results, and submit without a per-datasource grant.
+     */
     public boolean isAdmin() {
-        return role() == UserRoleType.ADMIN;
+        return has(Permission.QUERY_ADMIN);
     }
 }

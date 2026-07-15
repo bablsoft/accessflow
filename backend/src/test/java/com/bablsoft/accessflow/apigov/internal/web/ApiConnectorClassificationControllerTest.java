@@ -49,7 +49,7 @@ class ApiConnectorClassificationControllerTest {
     private Authentication auth() {
         var authentication = mock(Authentication.class);
         when(authentication.getPrincipal())
-                .thenReturn(new JwtClaims(userId, "a@acme.test", UserRoleType.ADMIN, orgId));
+                .thenReturn(JwtClaims.forSystemRole(userId, "a@acme.test", UserRoleType.ADMIN, orgId));
         return authentication;
     }
 

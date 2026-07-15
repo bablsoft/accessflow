@@ -100,6 +100,7 @@ export default defineConfig({
         'src/api/queries.ts',
         'src/api/requestGroups.ts',
         'src/api/reviewPlans.ts',
+        'src/api/roles.ts',
         'src/api/routingPolicies.ts',
         'src/api/rowSecurityPolicies.ts',
         'src/api/setup.ts',

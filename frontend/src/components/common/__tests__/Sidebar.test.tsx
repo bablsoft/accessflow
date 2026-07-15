@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import '@/i18n';
 import { Sidebar } from '../Sidebar';
 import type { AuthUser } from '@/api/auth';
+import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
 function renderSidebar(user: AuthUser, collapsed = false) {
   return render(
@@ -25,6 +26,8 @@ const adminUser: AuthUser = {
   email: 'admin@example.com',
   display_name: 'Ada Admin',
   role: 'ADMIN',
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.ADMIN,
   auth_provider: 'LOCAL',
   totp_enabled: false,
   platform_admin: false,
@@ -36,6 +39,8 @@ const readonlyUser: AuthUser = {
   email: 'readonly@example.com',
   display_name: 'Read Only',
   role: 'READONLY',
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.READONLY,
   auth_provider: 'LOCAL',
   totp_enabled: false,
   platform_admin: false,

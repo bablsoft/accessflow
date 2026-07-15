@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.api;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import org.junit.jupiter.api.Test;
 
 import java.time.DayOfWeek;
@@ -77,8 +76,8 @@ class ConditionNodeTest {
     @Test
     void requesterRoleInNullBecomesEmpty() {
         assertThat(new ConditionNode.RequesterRoleIn(null).anyOf()).isEmpty();
-        assertThat(new ConditionNode.RequesterRoleIn(Set.of(UserRoleType.ADMIN)).anyOf())
-                .containsExactly(UserRoleType.ADMIN);
+        assertThat(new ConditionNode.RequesterRoleIn(Set.of("ADMIN")).anyOf())
+                .containsExactly("ADMIN");
     }
 
     @Test

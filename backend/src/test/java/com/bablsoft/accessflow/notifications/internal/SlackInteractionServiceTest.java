@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -53,6 +54,8 @@ class SlackInteractionServiceTest {
     @BeforeEach
     void setUp() {
         service = new SlackInteractionService(mappingRepository, userQueryService, reviewService,
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
                 responseSender, messages);
         lenient().when(messages.forOrg(any(), anyString())).thenAnswer(i -> i.getArgument(1));
         lenient().when(messages.forOrg(any(), anyString(), any())).thenAnswer(i -> i.getArgument(1));
@@ -109,7 +112,7 @@ class SlackInteractionServiceTest {
         verify(reviewService).approve(eq(queryId), ctxCaptor.capture(), eq("slack.action.approve_comment"));
         assertThat(ctxCaptor.getValue().userId()).isEqualTo(userId);
         assertThat(ctxCaptor.getValue().organizationId()).isEqualTo(orgId);
-        assertThat(ctxCaptor.getValue().role()).isEqualTo(UserRoleType.REVIEWER);
+        assertThat(ctxCaptor.getValue().roleName()).isEqualTo("REVIEWER");
 
         var payload = capturePayload();
         assertThat(payload.get("replace_original")).isEqualTo(true);

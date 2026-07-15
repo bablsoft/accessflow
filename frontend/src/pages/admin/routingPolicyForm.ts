@@ -3,7 +3,6 @@ import type {
   ComparisonOperator,
   QueryType,
   RiskLevel,
-  Role,
   RoutingAction,
   RoutingCondition,
   RoutingConditionOperand,
@@ -34,7 +33,8 @@ export interface RoutingConditionRow {
   risk_levels?: RiskLevel[];
   score_operator?: ComparisonOperator;
   score_value?: number;
-  roles?: Role[];
+  /** Role NAMES — system or custom (AF-522). */
+  roles?: string[];
   group_ids?: string[];
   weekdays?: Weekday[];
   time_start_min?: number;

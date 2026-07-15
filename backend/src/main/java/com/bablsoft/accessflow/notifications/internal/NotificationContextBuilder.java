@@ -434,7 +434,8 @@ class NotificationContextBuilder {
                         .filter(u -> !u.id().equals(snapshot.submittedByUserId()))
                         .ifPresent(u -> byUserId.putIfAbsent(u.id(), toRecipient(u)));
             } else if (rule.role() != null) {
-                userQueryService.findByOrganizationAndRole(snapshot.organizationId(), rule.role())
+                userQueryService.findByOrganizationAndRoleName(snapshot.organizationId(),
+                                rule.role())
                         .stream()
                         .filter(UserView::active)
                         .filter(u -> !u.id().equals(snapshot.submittedByUserId()))

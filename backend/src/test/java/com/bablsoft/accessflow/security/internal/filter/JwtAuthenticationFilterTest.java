@@ -50,8 +50,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void validBearerTokenSetsAuthentication() throws Exception {
-        var claims = new JwtClaims(UUID.randomUUID(), "alice@example.com",
-                UserRoleType.ANALYST, UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "alice@example.com", UserRoleType.ANALYST, UUID.randomUUID());
         when(jwtService.parseAccessToken("valid-token")).thenReturn(claims);
 
         var request = new MockHttpServletRequest();
@@ -69,8 +68,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void disabledOrganizationPassesThroughWithoutAuthentication() throws Exception {
         var orgId = UUID.randomUUID();
-        var claims = new JwtClaims(UUID.randomUUID(), "alice@example.com",
-                UserRoleType.ANALYST, orgId);
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "alice@example.com", UserRoleType.ANALYST, orgId);
         when(jwtService.parseAccessToken("valid-token")).thenReturn(claims);
         when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
 

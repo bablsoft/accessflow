@@ -84,6 +84,8 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
         email: 'reviewer@example.com',
         display_name: 'Rev',
         role: 'REVIEWER',
+        role_id: null,
+        permissions: ['QUERY_SUBMIT_SELECT', 'QUERY_REVIEW'],
         auth_provider: 'LOCAL',
         totp_enabled: false,
         platform_admin: false,

@@ -45,7 +45,7 @@ class ApiReviewControllerTest {
 
     private Authentication auth() {
         var a = mock(Authentication.class);
-        when(a.getPrincipal()).thenReturn(new JwtClaims(reviewerId, "r@acme.test", UserRoleType.REVIEWER, orgId));
+        when(a.getPrincipal()).thenReturn(JwtClaims.forSystemRole(reviewerId, "r@acme.test", UserRoleType.REVIEWER, orgId));
         return a;
     }
 

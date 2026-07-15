@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserProfileService;
@@ -41,7 +42,9 @@ class ApiKeyAuthenticationFilterTest {
     @BeforeEach
     void setUp() {
         filter = new ApiKeyAuthenticationFilter(apiKeyService, userProfileService,
-                organizationLookupService);
+                organizationLookupService,
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of());
         SecurityContextHolder.clearContext();
     }
 
@@ -129,7 +132,7 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void already_authenticated_skips_lookup() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(new ApiKeyAuthenticationToken(
-                new JwtClaims(UUID.randomUUID(), "a@b.c", UserRoleType.ADMIN, UUID.randomUUID())));
+                JwtClaims.forSystemRole(UUID.randomUUID(), "a@b.c", UserRoleType.ADMIN, UUID.randomUUID())));
         var req = new MockHttpServletRequest();
         req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_anything");
         filter.doFilter(req, new MockHttpServletResponse(), chain);

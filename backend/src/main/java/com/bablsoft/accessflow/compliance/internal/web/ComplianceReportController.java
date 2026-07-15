@@ -38,7 +38,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/admin/compliance")
-@PreAuthorize("hasAnyRole('AUDITOR','ADMIN')")
+@PreAuthorize("hasAuthority('PERM_COMPLIANCE_REPORT_VIEW')")
 @Tag(name = "Compliance Reporting", description = "Pre-built compliance reports and signed exports "
         + "(AUDITOR / ADMIN only)")
 @RequiredArgsConstructor

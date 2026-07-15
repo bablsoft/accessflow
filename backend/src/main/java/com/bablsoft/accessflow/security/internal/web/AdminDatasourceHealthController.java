@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/admin/datasource-health")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
 @Tag(name = "Admin Datasource Health",
         description = "Per-datasource operational health: pool gauges, 24h query volume, "
                 + "latency percentiles, error count (ADMIN only)")

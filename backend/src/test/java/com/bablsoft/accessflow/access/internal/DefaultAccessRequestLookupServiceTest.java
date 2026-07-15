@@ -128,10 +128,10 @@ class DefaultAccessRequestLookupServiceTest {
     void findReviewerRecipientsResolvesRoleApproversExcludingRequester() {
         when(requestRepository.findById(requestId)).thenReturn(Optional.of(entity()));
         var plan = new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 0,
-                List.of(new ApproverRule(null, UserRoleType.REVIEWER, 0)), List.of());
+                List.of(new ApproverRule(null, "REVIEWER", 0)), List.of());
         when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.of(plan));
         var reviewerA = UUID.randomUUID();
-        when(userQueryService.findByOrganizationAndRole(organizationId, UserRoleType.REVIEWER))
+        when(userQueryService.findByOrganizationAndRoleName(organizationId, "REVIEWER"))
                 .thenReturn(List.of(user(reviewerA, true), user(requesterId, true)));
         when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
                 .thenReturn(Optional.empty());

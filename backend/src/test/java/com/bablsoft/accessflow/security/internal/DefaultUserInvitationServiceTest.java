@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal;
 
+import com.bablsoft.accessflow.core.api.RoleLookupService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
@@ -59,6 +60,7 @@ class DefaultUserInvitationServiceTest {
     @Mock SystemSmtpService systemSmtpService;
     @Mock UserAdminService userAdminService;
     @Mock QuotaService quotaService;
+    @Mock RoleLookupService roleLookupService;
     @Mock OrganizationLookupService organizationLookupService;
     @Mock PasswordEncoder passwordEncoder;
     @Mock SpringTemplateEngine templateEngine;
@@ -72,7 +74,8 @@ class DefaultUserInvitationServiceTest {
     void setUp() {
         var props = new InvitationProperties(Duration.ofDays(7), URI.create("https://app.example.test"));
         service = new DefaultUserInvitationService(repository, systemSmtpService, userAdminService,
-                quotaService, organizationLookupService, passwordEncoder, templateEngine, props);
+                quotaService, roleLookupService, organizationLookupService, passwordEncoder,
+                templateEngine, props);
     }
 
     private void smtpConfigured() {

@@ -13,19 +13,19 @@ class ApiKeyAuthenticationTokenTest {
 
     @Test
     void principal_and_authorities_reflect_claims() {
-        var claims = new JwtClaims(UUID.randomUUID(), "u@e.c", UserRoleType.REVIEWER, UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.REVIEWER, UUID.randomUUID());
         var token = new ApiKeyAuthenticationToken(claims);
         assertThat(token.isAuthenticated()).isTrue();
         assertThat(token.getPrincipal()).isSameAs(claims);
         assertThat(token.getCredentials()).isNull();
         assertThat(token.getAuthorities())
                 .extracting(Object::toString)
-                .containsExactly("ROLE_REVIEWER");
+                .contains("ROLE_REVIEWER", "PERM_QUERY_REVIEW", "PERM_QUERY_VIEW_ALL");
     }
 
     @Test
     void implementsApiKeyAuthenticationMarkerForChannelDetection() {
-        var claims = new JwtClaims(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID());
         assertThat(new ApiKeyAuthenticationToken(claims)).isInstanceOf(ApiKeyAuthentication.class);
     }
 }

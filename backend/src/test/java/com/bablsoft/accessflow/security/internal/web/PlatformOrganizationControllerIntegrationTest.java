@@ -240,10 +240,10 @@ class PlatformOrganizationControllerIntegrationTest {
 
     private String generateToken(UserEntity entity) {
         var view = new UserView(entity.getId(), entity.getEmail(), entity.getDisplayName(),
-                entity.getRole(), entity.getOrganization().getId(), entity.isActive(),
-                entity.getAuthProvider(), entity.getPasswordHash(), entity.getLastLoginAt(),
-                entity.getPreferredLanguage(), entity.isTotpEnabled(), entity.isPlatformAdmin(),
-                entity.getCreatedAt());
+                entity.getRole(), null, entity.roleName(), entity.getOrganization().getId(),
+                entity.isActive(), entity.getAuthProvider(), entity.getPasswordHash(),
+                entity.getLastLoginAt(), entity.getPreferredLanguage(), entity.isTotpEnabled(),
+                entity.isPlatformAdmin(), entity.getCreatedAt());
         return jwtService.generateAccessToken(view);
     }
 }

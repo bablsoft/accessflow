@@ -35,7 +35,7 @@ class ApiReviewController {
     private final ApiGovAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_REQUEST_REVIEW')")
     @Operation(summary = "List API requests awaiting the caller's review")
     @ApiResponse(responseCode = "200", description = "Page of pending API reviews")
     PendingApiReviewResponse.Page pending(Authentication authentication, Pageable pageable,
@@ -48,7 +48,7 @@ class ApiReviewController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_REQUEST_REVIEW')")
     @Operation(summary = "Approve an API request (submitter can never self-approve)")
     @ApiResponse(responseCode = "200", description = "Decision recorded")
     @ApiResponse(responseCode = "403", description = "Self-approval is forbidden")
@@ -63,7 +63,7 @@ class ApiReviewController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_REQUEST_REVIEW')")
     @Operation(summary = "Reject an API request")
     @ApiResponse(responseCode = "200", description = "Decision recorded")
     @ApiResponse(responseCode = "403", description = "Self-approval is forbidden")
@@ -86,6 +86,7 @@ class ApiReviewController {
     }
 
     private static ApiReviewService.ReviewerContext context(JwtClaims caller) {
-        return new ApiReviewService.ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ApiReviewService.ReviewerContext(caller.userId(), caller.organizationId(),
+                caller.roleName(), caller.permissions());
     }
 }

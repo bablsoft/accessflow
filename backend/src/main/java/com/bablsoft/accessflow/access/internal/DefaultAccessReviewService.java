@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.access.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessRequestNotFoundException;
 import com.bablsoft.accessflow.access.api.AccessRequestNotPendingException;
@@ -21,7 +22,6 @@ import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,8 +39,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DefaultAccessReviewService implements AccessReviewService {
 
-    private static final Set<UserRoleType> REVIEWER_ROLES =
-            Set.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);
 
     private final AccessGrantRequestRepository requestRepository;
     private final AccessGrantRequestStateService stateService;
@@ -57,7 +55,7 @@ class DefaultAccessReviewService implements AccessReviewService {
     @Transactional(readOnly = true)
     public PageResponse<PendingAccessRequest> listPendingForReviewer(ReviewerContext context,
                                                                      PageRequest pageRequest) {
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ACCESS_REQUEST_REVIEW)) {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var actionable = requestRepository
@@ -137,7 +135,7 @@ class DefaultAccessReviewService implements AccessReviewService {
         if (entity.getRequesterId().equals(context.userId())) {
             throw new AccessDeniedException(msg("error.access_self_approval"));
         }
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ACCESS_REQUEST_REVIEW)) {
             throw new AccessReviewerNotEligibleException(context.userId(), accessRequestId);
         }
         var plan = resolvePlan(entity);
@@ -154,7 +152,7 @@ class DefaultAccessReviewService implements AccessReviewService {
         // Admins are the backstop approver: when the datasource's plan does not route the
         // request to them (no plan, foreign-org plan, out of scope, or not a named approver)
         // they may still decide it. Non-admin reviewers stay strictly plan-gated.
-        if (context.role() == UserRoleType.ADMIN) {
+        if (has(context, Permission.REVIEW_OVERRIDE)) {
             return new DecisionPreparation(sameOrgPlan ? plan : null, currentStage,
                     entity.getRequesterId(), true);
         }
@@ -165,7 +163,7 @@ class DefaultAccessReviewService implements AccessReviewService {
         if (entity.getRequesterId().equals(context.userId())) {
             return false;
         }
-        if (context.role() == UserRoleType.ADMIN) {
+        if (has(context, Permission.REVIEW_OVERRIDE)) {
             return true;
         }
         var plan = resolvePlan(entity);
@@ -236,7 +234,11 @@ class DefaultAccessReviewService implements AccessReviewService {
     }
 
     private static boolean matchesRole(ApproverRule rule, ReviewerContext context) {
-        return rule.role() != null && rule.role() == context.role();
+        return rule.role() != null && rule.role().equalsIgnoreCase(context.roleName());
+    }
+
+    private static boolean has(ReviewerContext context, Permission permission) {
+        return context.permissions() != null && context.permissions().contains(permission);
     }
 
     private PendingAccessRequest toPendingAccessRequest(AccessGrantRequestEntity entity) {

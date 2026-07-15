@@ -24,7 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/oauth2-config")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SSO_CONFIGURE')")
 @Tag(name = "Admin OAuth2 Config",
         description = "Per-organization OAuth2 / OIDC provider settings (ADMIN only)")
 @RequiredArgsConstructor

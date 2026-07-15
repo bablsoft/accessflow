@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
@@ -63,7 +64,7 @@ class ApiConnectorController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Create an API connector "
             + "(OAuth2 token-sourcing fields apply when auth_method=OAUTH2_CLIENT_CREDENTIALS; "
             + "secrets are write-only and never returned)")
@@ -80,7 +81,7 @@ class ApiConnectorController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Update an API connector "
             + "(omit an OAuth2 secret field to leave the stored value unchanged; "
             + "changing OAuth2 config evicts any cached access token)")
@@ -98,7 +99,7 @@ class ApiConnectorController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Delete an API connector")
     @ApiResponse(responseCode = "204", description = "Connector deleted")
     @ApiResponse(responseCode = "404", description = "Connector not found")
@@ -110,7 +111,7 @@ class ApiConnectorController {
     }
 
     @PostMapping("/{id}/test")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Probe connectivity to the connector's base URL "
             + "(for OAUTH2_CLIENT_CREDENTIALS connectors this also exercises the token fetch)")
     @ApiResponse(responseCode = "200", description = "Probe result")
@@ -121,7 +122,7 @@ class ApiConnectorController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "List per-user permissions on a connector")
     @ApiResponse(responseCode = "200", description = "Permission list")
     @ApiResponse(responseCode = "404", description = "Connector not found")
@@ -135,7 +136,7 @@ class ApiConnectorController {
 
     @PostMapping("/{id}/permissions")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Grant or update a user's access to a connector")
     @ApiResponse(responseCode = "201", description = "Permission granted")
     @ApiResponse(responseCode = "404", description = "Connector or user not found")
@@ -150,7 +151,7 @@ class ApiConnectorController {
     }
 
     @PutMapping("/{id}/permissions/{permissionId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Update a user's access to a connector")
     @ApiResponse(responseCode = "200", description = "Permission updated")
     @ApiResponse(responseCode = "404", description = "Connector or permission not found")
@@ -166,7 +167,7 @@ class ApiConnectorController {
 
     @DeleteMapping("/{id}/permissions/{permissionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Revoke a user's access to a connector")
     @ApiResponse(responseCode = "204", description = "Permission revoked")
     @ApiResponse(responseCode = "404", description = "Connector or permission not found")
@@ -179,7 +180,7 @@ class ApiConnectorController {
     }
 
     @GetMapping("/{id}/permissions/groups")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "List per-group permissions on a connector")
     @ApiResponse(responseCode = "200", description = "Group permission list")
     @ApiResponse(responseCode = "404", description = "Connector not found")
@@ -193,7 +194,7 @@ class ApiConnectorController {
 
     @PostMapping("/{id}/permissions/groups")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Grant or update a user group's access to a connector")
     @ApiResponse(responseCode = "201", description = "Group permission granted")
     @ApiResponse(responseCode = "404", description = "Connector or group not found")
@@ -210,7 +211,7 @@ class ApiConnectorController {
     }
 
     @PutMapping("/{id}/permissions/groups/{permissionId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Update a user group's access to a connector")
     @ApiResponse(responseCode = "200", description = "Group permission updated")
     @ApiResponse(responseCode = "404", description = "Connector or permission not found")
@@ -227,7 +228,7 @@ class ApiConnectorController {
 
     @DeleteMapping("/{id}/permissions/groups/{permissionId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_API_CONNECTOR_MANAGE')")
     @Operation(summary = "Revoke a user group's access to a connector")
     @ApiResponse(responseCode = "204", description = "Group permission revoked")
     @ApiResponse(responseCode = "404", description = "Connector or permission not found")
@@ -244,7 +245,7 @@ class ApiConnectorController {
     }
 
     private static boolean isAdmin(JwtClaims caller) {
-        return caller.role() != null && "ADMIN".equals(caller.role().name());
+        return caller.has(Permission.QUERY_ADMIN);
     }
 
     private static java.util.Map<String, Object> metadata(String... kv) {

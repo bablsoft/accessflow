@@ -49,7 +49,7 @@ public interface QueryRequestLookupService {
      */
     PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
                                                            UUID reviewerUserId,
-                                                           UserRoleType role,
+                                                           String roleName,
                                                            PageRequest pageRequest);
 
     /**

@@ -60,6 +60,7 @@ class GroupReviewController {
     }
 
     private static ReviewerContext context(JwtClaims caller) {
-        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 }

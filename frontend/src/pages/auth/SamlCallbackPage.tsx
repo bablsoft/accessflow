@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { exchangeSamlCode } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
-import { homePathForRole } from '@/utils/homePath';
+import { homePathForUser } from '@/utils/homePath';
 import { apiErrorTraceId, authErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
@@ -46,7 +46,7 @@ export function SamlCallbackPage() {
     void exchangeSamlCode(code)
       .then((payload) => {
         setSession(payload);
-        navigate(homePathForRole(payload.user?.role), { replace: true });
+        navigate(homePathForUser(payload.user), { replace: true });
       })
       .catch((err) => {
         setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });

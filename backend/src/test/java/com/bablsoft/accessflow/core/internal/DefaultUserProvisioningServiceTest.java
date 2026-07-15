@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,13 +30,15 @@ class DefaultUserProvisioningServiceTest {
 
     @Mock UserRepository userRepository;
     @Mock OrganizationRepository organizationRepository;
+    @Mock RoleRepository roleRepository;
 
     private DefaultUserProvisioningService service;
     private final UUID orgId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new DefaultUserProvisioningService(userRepository, organizationRepository);
+        service = new DefaultUserProvisioningService(userRepository, organizationRepository,
+                roleRepository);
     }
 
     @Test
@@ -78,6 +81,7 @@ class DefaultUserProvisioningServiceTest {
         var organization = new OrganizationEntity();
         organization.setId(orgId);
         when(organizationRepository.getReferenceById(orgId)).thenReturn(organization);
+        when(roleRepository.findByNameAndSystemTrue("REVIEWER")).thenReturn(Optional.empty());
         when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var view = service.findOrProvision(orgId, "NEW@example.com", "New User",

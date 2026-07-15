@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.security.internal.filter;
 
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
 import com.bablsoft.accessflow.core.api.UserProfileService;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -39,6 +40,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyService apiKeyService;
     private final UserProfileService userProfileService;
     private final OrganizationLookupService organizationLookupService;
+    private final RolePermissionResolver rolePermissionResolver;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -64,8 +66,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             if (!user.active() || organizationLookupService.isDisabled(user.organizationId())) {
                 return Optional.empty();
             }
+            // API-key callers get per-request permission resolution — a role edit takes effect on
+            // the caller's next request, unlike the JWT path's mint-time snapshot (AF-522).
+            var permissions = rolePermissionResolver.resolve(user.roleId(), user.role());
             return Optional.of(new JwtClaims(
-                    user.id(), user.email(), user.role(), user.organizationId(), user.platformAdmin()));
+                    user.id(), user.email(), user.role(), user.roleId(), user.roleName(),
+                    permissions, user.organizationId(), user.platformAdmin()));
         } catch (RuntimeException ex) {
             return Optional.empty();
         }

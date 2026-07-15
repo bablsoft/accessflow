@@ -43,7 +43,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/groups")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_GROUP_MANAGE')")
 @Tag(name = "Admin User Groups", description = "User group management endpoints (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

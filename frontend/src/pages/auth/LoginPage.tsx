@@ -12,7 +12,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
-import { homePathForRole } from '@/utils/homePath';
+import { homePathForUser } from '@/utils/homePath';
 import { apiErrorTraceId, authErrorMessage, isTotpRequiredError } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { LogoMark } from '@/components/common/LogoMark';
@@ -74,7 +74,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(values.email, values.password);
-      navigate(homePathForRole(useAuthStore.getState().user?.role));
+      navigate(homePathForUser(useAuthStore.getState().user));
     } catch (err) {
       if (isTotpRequiredError(err)) {
         setPendingCredentials(values);
@@ -96,7 +96,7 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(pendingCredentials.email, pendingCredentials.password, values.totp_code);
-      navigate(homePathForRole(useAuthStore.getState().user?.role));
+      navigate(homePathForUser(useAuthStore.getState().user));
     } catch (err) {
       setError({ message: authErrorMessage(err), traceId: apiErrorTraceId(err) });
     } finally {

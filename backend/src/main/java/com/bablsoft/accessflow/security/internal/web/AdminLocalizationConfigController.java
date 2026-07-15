@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/admin/localization-config")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_LOCALIZATION_CONFIGURE')")
 @Tag(name = "Admin Localization Config",
         description = "Per-organization language settings: user-facing allow-list, default language, and AI-review language (ADMIN only)")
 @RequiredArgsConstructor

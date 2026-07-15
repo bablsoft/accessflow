@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.core.internal.persistence.repo;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -52,7 +51,7 @@ public interface QueryRequestRepository
             where q.status = :status
               and d.organization.id = :orgId
               and q.submittedBy.id <> :userId
-              and (rpa.user.id = :userId or rpa.role = :role)
+              and (rpa.user.id = :userId or lower(rpa.role) = lower(:roleName))
               and (
                 not exists (select 1 from DatasourceReviewerEntity dr where dr.datasource = d)
                 or exists (
@@ -68,7 +67,7 @@ public interface QueryRequestRepository
             """)
     Page<QueryRequestEntity> findPendingForReviewer(@Param("orgId") UUID orgId,
                                                     @Param("userId") UUID userId,
-                                                    @Param("role") UserRoleType role,
+                                                    @Param("roleName") String roleName,
                                                     @Param("status") QueryStatus status,
                                                     Pageable pageable);
 

@@ -1,12 +1,12 @@
 package com.bablsoft.accessflow.lifecycle.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestInvalidStateException;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
 import com.bablsoft.accessflow.lifecycle.api.ErasureDecision;
@@ -40,8 +40,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DefaultErasureReviewService implements ErasureReviewService {
 
-    private static final Set<UserRoleType> REVIEWER_ROLES =
-            Set.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);
 
     private final DeletionRequestRepository repository;
     private final ErasureRequestStateService stateService;
@@ -54,7 +52,7 @@ class DefaultErasureReviewService implements ErasureReviewService {
     @Transactional(readOnly = true)
     public PageResponse<ErasureRequestView> listPending(ReviewerContext context,
                                                         PageRequest pageRequest) {
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ERASURE_REVIEW)) {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
         var actionable = repository
@@ -108,7 +106,7 @@ class DefaultErasureReviewService implements ErasureReviewService {
         if (entity.getRequestedBy().equals(context.reviewerId())) {
             throw new ErasureSelfApprovalException();
         }
-        if (!REVIEWER_ROLES.contains(context.role())) {
+        if (!has(context, Permission.ERASURE_REVIEW)) {
             throw new ErasureReviewerNotEligibleException(context.reviewerId(), requestId);
         }
         var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
@@ -125,7 +123,7 @@ class DefaultErasureReviewService implements ErasureReviewService {
         // Admin backstop: when the datasource's plan does not route the request to the caller (no
         // plan, foreign-org plan, out of scope, or not a named approver) an ADMIN may still decide
         // it. Non-admin reviewers stay strictly plan-gated.
-        if (context.role() == UserRoleType.ADMIN) {
+        if (has(context, Permission.REVIEW_OVERRIDE)) {
             return new DecisionPreparation(sameOrgPlan ? plan : null, currentStage,
                     entity.getRequestedBy(), true);
         }
@@ -136,7 +134,7 @@ class DefaultErasureReviewService implements ErasureReviewService {
         if (entity.getRequestedBy().equals(context.reviewerId())) {
             return false;
         }
-        if (context.role() == UserRoleType.ADMIN) {
+        if (has(context, Permission.REVIEW_OVERRIDE)) {
             return true;
         }
         var plan = reviewPlanLookupService.findForDatasource(entity.getDatasourceId()).orElse(null);
@@ -190,7 +188,11 @@ class DefaultErasureReviewService implements ErasureReviewService {
     }
 
     private static boolean matchesRole(ApproverRule rule, ReviewerContext context) {
-        return rule.role() != null && rule.role() == context.role();
+        return rule.role() != null && rule.role().equalsIgnoreCase(context.roleName());
+    }
+
+    private static boolean has(ReviewerContext context, Permission permission) {
+        return context.permissions() != null && context.permissions().contains(permission);
     }
 
     private static PageResponse<ErasureRequestView> paginate(List<ErasureRequestView> all,

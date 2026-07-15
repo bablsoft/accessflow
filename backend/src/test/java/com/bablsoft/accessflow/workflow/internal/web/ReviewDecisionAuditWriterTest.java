@@ -34,8 +34,7 @@ class ReviewDecisionAuditWriterTest {
     private final UUID queryId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
     private final UUID orgId = UUID.randomUUID();
-    private final JwtClaims caller = new JwtClaims(userId, "r@example.com",
-            UserRoleType.REVIEWER, orgId);
+    private final JwtClaims caller = JwtClaims.forSystemRole(userId, "r@example.com", UserRoleType.REVIEWER, orgId);
     private final RequestAuditContext auditContext = new RequestAuditContext("10.0.0.1", "ua/1");
 
     @Test

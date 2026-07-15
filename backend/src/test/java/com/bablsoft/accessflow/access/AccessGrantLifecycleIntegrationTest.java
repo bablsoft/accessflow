@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.access;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.access.api.AccessGrantExpiryService;
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
@@ -111,7 +112,7 @@ class AccessGrantLifecycleIntegrationTest {
         var approver = new ReviewPlanApproverEntity();
         approver.setId(UUID.randomUUID());
         approver.setReviewPlan(plan);
-        approver.setRole(UserRoleType.REVIEWER);
+        approver.setRole("REVIEWER");
         approver.setStage(1);
         reviewPlanApproverRepository.save(approver);
 
@@ -174,7 +175,8 @@ class AccessGrantLifecycleIntegrationTest {
 
         // Approve (single-stage REVIEWER plan → final approval)
         var outcome = accessReviewService.approve(view.id(),
-                new ReviewerContext(reviewer.getId(), organization.getId(), UserRoleType.REVIEWER),
+                new ReviewerContext(reviewer.getId(), organization.getId(), "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER)),
                 "ok");
         assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
 
@@ -224,7 +226,8 @@ class AccessGrantLifecycleIntegrationTest {
 
         // Approve as admin (backstop approver — the connector has no review plan attached)
         var outcome = accessReviewService.approve(view.id(),
-                new ReviewerContext(admin.getId(), organization.getId(), UserRoleType.ADMIN), "ok");
+                new ReviewerContext(admin.getId(), organization.getId(), "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN)), "ok");
         assertThat(outcome.resultingStatus()).isEqualTo(AccessGrantStatus.APPROVED);
 
         // A time-boxed api_connector_user_permissions row exists with expires_at set

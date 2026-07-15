@@ -15,7 +15,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
 import { useSetupStore } from '@/store/setupStore';
 import { useAuthStore } from '@/store/authStore';
 import { resolveRouteGuard } from '@/utils/routeGuard';
-import { homePathForRole } from '@/utils/homePath';
+import { homePathForUser } from '@/utils/homePath';
 import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 import { QueryListPage } from '@/pages/queries/QueryListPage';
@@ -54,6 +54,9 @@ const GroupsListPage = lazy(() =>
 );
 const GroupDetailPage = lazy(() =>
   import('@/pages/admin/groups/GroupDetailPage').then((m) => ({ default: m.GroupDetailPage })),
+);
+const RolesPage = lazy(() =>
+  import('@/pages/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
 );
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
@@ -103,7 +106,7 @@ export function App() {
     return <Navigate to={guard.to} replace />;
   }
 
-  const home = homePathForRole(user?.role);
+  const home = homePathForUser(user);
 
   return (
     <AntdApp>
@@ -197,7 +200,7 @@ export function App() {
           <Route
             path="/api-reviews"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'API_REQUEST_REVIEW'}>
                 <Suspense fallback={null}>
                   <ApiReviewQueuePage />
                 </Suspense>
@@ -207,7 +210,7 @@ export function App() {
           <Route
             path="/api-connectors"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'API_CONNECTOR_MANAGE'}>
                 <Suspense fallback={null}>
                   <ApiConnectorsListPage />
                 </Suspense>
@@ -217,7 +220,7 @@ export function App() {
           <Route
             path="/api-connectors/:id/settings"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'API_CONNECTOR_MANAGE'}>
                 <Suspense fallback={null}>
                   <ApiConnectorSettingsPage />
                 </Suspense>
@@ -251,7 +254,7 @@ export function App() {
           <Route
             path="/request-groups/reviews"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'QUERY_REVIEW'}>
                 <Suspense fallback={null}>
                   <RequestGroupReviewQueuePage />
                 </Suspense>
@@ -272,7 +275,7 @@ export function App() {
           <Route
             path="/reviews"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'QUERY_REVIEW'}>
                 <ReviewQueuePage />
               </AuthGuard>
             }
@@ -280,7 +283,7 @@ export function App() {
           <Route
             path="/reviews/:id/decide"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'QUERY_REVIEW'}>
                 <Suspense fallback={null}>
                   <PushDecidePage />
                 </Suspense>
@@ -290,7 +293,7 @@ export function App() {
           <Route
             path="/reviews/attestations"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'ATTESTATION_REVIEW'}>
                 <Suspense fallback={null}>
                   <AttestationWorklistPage />
                 </Suspense>
@@ -300,7 +303,7 @@ export function App() {
           <Route
             path="/admin/access-requests"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'ACCESS_REQUEST_REVIEW'}>
                 <AccessRequestsQueuePage />
               </AuthGuard>
             }
@@ -308,7 +311,7 @@ export function App() {
           <Route
             path="/datasources"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <DatasourceListPage />
               </AuthGuard>
             }
@@ -316,7 +319,7 @@ export function App() {
           <Route
             path="/datasources/new"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <Suspense fallback={null}>
                   <DatasourceCreateWizardPage />
                 </Suspense>
@@ -326,7 +329,7 @@ export function App() {
           <Route
             path="/datasources/:id/settings"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <DatasourceSettingsPage />
               </AuthGuard>
             }
@@ -334,7 +337,7 @@ export function App() {
           <Route
             path="/admin/users"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'USER_MANAGE'}>
                 <UsersPage />
               </AuthGuard>
             }
@@ -342,7 +345,7 @@ export function App() {
           <Route
             path="/admin/data-classifications"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATA_CLASSIFICATION_MANAGE'}>
                 <Suspense fallback={null}>
                   <DataClassificationsPage />
                 </Suspense>
@@ -352,7 +355,7 @@ export function App() {
           <Route
             path="/admin/groups"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'GROUP_MANAGE'}>
                 <Suspense fallback={null}>
                   <GroupsListPage />
                 </Suspense>
@@ -362,7 +365,7 @@ export function App() {
           <Route
             path="/admin/groups/:id"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'GROUP_MANAGE'}>
                 <Suspense fallback={null}>
                   <GroupDetailPage />
                 </Suspense>
@@ -370,9 +373,19 @@ export function App() {
             }
           />
           <Route
+            path="/admin/roles"
+            element={
+              <AuthGuard requirePermission={'ROLE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <RolesPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
             path="/admin/review-plans"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'REVIEW_PLAN_MANAGE'}>
                 <ReviewPlansPage />
               </AuthGuard>
             }
@@ -380,7 +393,7 @@ export function App() {
           <Route
             path="/admin/routing-policies"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'ROUTING_POLICY_MANAGE'}>
                 <RoutingPoliciesPage />
               </AuthGuard>
             }
@@ -388,7 +401,7 @@ export function App() {
           <Route
             path="/admin/attestation"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'ATTESTATION_CAMPAIGN_MANAGE'}>
                 <Suspense fallback={null}>
                   <CampaignListPage />
                 </Suspense>
@@ -398,7 +411,7 @@ export function App() {
           <Route
             path="/admin/attestation/:id"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'ATTESTATION_CAMPAIGN_MANAGE'}>
                 <Suspense fallback={null}>
                   <CampaignDetailPage />
                 </Suspense>
@@ -408,7 +421,7 @@ export function App() {
           <Route
             path="/admin/lifecycle/policies"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'RETENTION_POLICY_MANAGE'}>
                 <Suspense fallback={null}>
                   <LifecyclePoliciesListPage />
                 </Suspense>
@@ -418,7 +431,7 @@ export function App() {
           <Route
             path="/lifecycle/erasure-reviews"
             element={
-              <AuthGuard requireRole={['REVIEWER', 'ADMIN']}>
+              <AuthGuard requirePermission={'ERASURE_REVIEW'}>
                 <Suspense fallback={null}>
                   <ErasureReviewQueuePage />
                 </Suspense>
@@ -436,7 +449,7 @@ export function App() {
           <Route
             path="/admin/audit-log"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AUDIT_LOG_VIEW'}>
                 <AuditLogPage />
               </AuthGuard>
             }
@@ -444,7 +457,7 @@ export function App() {
           <Route
             path="/admin/auditor"
             element={
-              <AuthGuard requireRole={['AUDITOR', 'ADMIN']}>
+              <AuthGuard requirePermission={'COMPLIANCE_REPORT_VIEW'}>
                 <Suspense fallback={null}>
                   <AuditorDashboardPage />
                 </Suspense>
@@ -454,7 +467,7 @@ export function App() {
           <Route
             path="/admin/ai-configs"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AI_MANAGE'}>
                 <AiConfigListPage />
               </AuthGuard>
             }
@@ -462,7 +475,7 @@ export function App() {
           <Route
             path="/admin/ai-configs/new"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AI_MANAGE'}>
                 <Suspense fallback={null}>
                   <AiConfigCreateWizardPage />
                 </Suspense>
@@ -472,7 +485,7 @@ export function App() {
           <Route
             path="/admin/ai-configs/:id"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AI_MANAGE'}>
                 <Suspense fallback={null}>
                   <AiConfigEditPage />
                 </Suspense>
@@ -482,7 +495,7 @@ export function App() {
           <Route
             path="/admin/ai-analyses"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AI_MANAGE'}>
                 <Suspense fallback={null}>
                   <AiAnalysesPage />
                 </Suspense>
@@ -492,7 +505,7 @@ export function App() {
           <Route
             path="/admin/datasource-health"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <Suspense fallback={null}>
                   <DatasourceHealthPage />
                 </Suspense>
@@ -502,7 +515,7 @@ export function App() {
           <Route
             path="/admin/anomalies"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'ANOMALY_MANAGE'}>
                 <Suspense fallback={null}>
                   <AnomaliesPage />
                 </Suspense>
@@ -512,7 +525,7 @@ export function App() {
           <Route
             path="/admin/break-glass"
             element={
-              <AuthGuard requireRole={['AUDITOR', 'ADMIN']}>
+              <AuthGuard requirePermission={'BREAK_GLASS_VIEW'}>
                 <Suspense fallback={null}>
                   <BreakGlassLogPage />
                 </Suspense>
@@ -522,7 +535,7 @@ export function App() {
           <Route
             path="/admin/notifications"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'NOTIFICATION_CHANNEL_MANAGE'}>
                 <NotificationsPage />
               </AuthGuard>
             }
@@ -530,7 +543,7 @@ export function App() {
           <Route
             path="/admin/languages"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'LOCALIZATION_CONFIGURE'}>
                 <LanguagesConfigPage />
               </AuthGuard>
             }
@@ -538,7 +551,7 @@ export function App() {
           <Route
             path="/admin/drivers"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <Suspense fallback={null}>
                   <CustomDriversPage />
                 </Suspense>
@@ -548,7 +561,7 @@ export function App() {
           <Route
             path="/admin/connectors"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'DATASOURCE_MANAGE'}>
                 <Suspense fallback={null}>
                   <ConnectorsPage />
                 </Suspense>
@@ -558,7 +571,7 @@ export function App() {
           <Route
             path="/admin/saml"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'SSO_CONFIGURE'}>
                 <SamlConfigPage />
               </AuthGuard>
             }
@@ -566,7 +579,7 @@ export function App() {
           <Route
             path="/admin/oauth2"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'SSO_CONFIGURE'}>
                 <Suspense fallback={null}>
                   <OAuth2ConfigPage />
                 </Suspense>
@@ -576,7 +589,7 @@ export function App() {
           <Route
             path="/admin/slack"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'NOTIFICATION_CHANNEL_MANAGE'}>
                 <Suspense fallback={null}>
                   <SlackConfigPage />
                 </Suspense>
@@ -586,7 +599,7 @@ export function App() {
           <Route
             path="/admin/langfuse"
             element={
-              <AuthGuard requireRole="ADMIN">
+              <AuthGuard requirePermission={'AI_MANAGE'}>
                 <Suspense fallback={null}>
                   <LangfuseConfigPage />
                 </Suspense>

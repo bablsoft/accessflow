@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.apigov.api.ApiReviewService.ReviewerContext;
 import com.bablsoft.accessflow.apigov.api.SelfApprovalNotAllowedException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
@@ -64,7 +65,8 @@ class DefaultApiReviewServiceTest {
     }
 
     private ReviewerContext reviewer() {
-        return new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+        return new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
     }
 
     @Test
@@ -88,7 +90,8 @@ class DefaultApiReviewServiceTest {
         var own = pending();
         when(requestRepository.findByIdAndOrganizationId(requestId, orgId)).thenReturn(Optional.of(own));
 
-        var ctx = new ReviewerContext(submitterId, orgId, UserRoleType.ADMIN);
+        var ctx = new ReviewerContext(submitterId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
         assertThatThrownBy(() -> service.approve(requestId, ctx, "x"))
                 .isInstanceOf(SelfApprovalNotAllowedException.class);
         verify(stateService, never()).apply(any(), any());

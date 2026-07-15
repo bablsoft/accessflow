@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/admin/setup-progress")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SETUP_PROGRESS_VIEW')")
 @Tag(name = "Admin Setup Progress", description = "Onboarding progress for the caller's organization (ADMIN only)")
 @RequiredArgsConstructor
 class AdminSetupProgressController {

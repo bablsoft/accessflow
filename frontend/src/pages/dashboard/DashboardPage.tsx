@@ -46,25 +46,27 @@ import {
   type DashboardWidgetId,
 } from '@/store/preferencesStore';
 import { useAuthStore } from '@/store/authStore';
+import type { AuthUser } from '@/api/auth';
+import { hasAnyPermission, type Permission } from '@/utils/permissions';
 import { apiErrorMessage, dashboardErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
-import type { DashboardSummary, Role } from '@/types/api';
+import type { DashboardSummary } from '@/types/api';
 
-// Each widget is shown only to the roles for which it is meaningful (mirrors the sidebar nav model):
-// a non-reviewer never sees the reviewer queue, a non-admin never sees anomalies, etc.
-const WIDGET_ROLES: Record<DashboardWidgetId, Role[]> = {
-  pendingApprovals: ['REVIEWER', 'ADMIN'],
-  recentQueries: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
-  trends: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
-  suggestions: ['ANALYST', 'REVIEWER', 'ADMIN'],
-  anomalies: ['ADMIN'],
-  recentApiRequests: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
-  apiRequestTrends: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'],
-  pendingApiApprovals: ['REVIEWER', 'ADMIN'],
+// Each widget is shown only to users holding a permission for which it is meaningful (mirrors
+// the sidebar nav model, AF-522): a non-reviewer never sees the reviewer queue, etc.
+const WIDGET_PERMISSIONS: Record<DashboardWidgetId, Permission[]> = {
+  pendingApprovals: ['QUERY_REVIEW'],
+  recentQueries: ['QUERY_SUBMIT_SELECT'],
+  trends: ['QUERY_SUBMIT_SELECT'],
+  suggestions: ['QUERY_SUBMIT_DML'],
+  anomalies: ['ANOMALY_MANAGE'],
+  recentApiRequests: ['QUERY_SUBMIT_SELECT'],
+  apiRequestTrends: ['QUERY_SUBMIT_SELECT'],
+  pendingApiApprovals: ['API_REQUEST_REVIEW'],
 };
 
-function widgetAllowed(id: DashboardWidgetId, role: Role | undefined): boolean {
-  return role != null && WIDGET_ROLES[id].includes(role);
+function widgetAllowed(id: DashboardWidgetId, user: AuthUser | null): boolean {
+  return hasAnyPermission(user, WIDGET_PERMISSIONS[id]);
 }
 
 export default function DashboardPage() {
@@ -72,16 +74,16 @@ export default function DashboardPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
-  const role = useAuthStore((s) => s.user?.role);
+  const user = useAuthStore((s) => s.user);
   const widgets = usePreferencesStore((s) => s.dashboardWidgets);
   const toggleVisibility = usePreferencesStore((s) => s.toggleWidgetVisibility);
   const toggleCollapsed = usePreferencesStore((s) => s.toggleWidgetCollapsed);
   const reorderWidgets = usePreferencesStore((s) => s.reorderWidgets);
 
-  // Only the widgets the current role can actually use are eligible for the layout.
+  // Only the widgets the current user's permissions can actually use are eligible for the layout.
   const availableIds = useMemo<DashboardWidgetId[]>(
-    () => DASHBOARD_WIDGET_IDS.filter((id) => widgetAllowed(id, role)),
-    [role],
+    () => DASHBOARD_WIDGET_IDS.filter((id) => widgetAllowed(id, user)),
+    [user],
   );
 
   const summaryQuery = useQuery({

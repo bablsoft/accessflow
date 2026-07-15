@@ -5,7 +5,6 @@ import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
@@ -37,19 +36,22 @@ public class GroupReviewPlanResolver {
     private final ReviewerEligibilityService reviewerEligibilityService;
     private final ApiConnectorAdminService apiConnectorAdminService;
 
-    /** The aggregated review requirement for a group (single approval stage = 1). */
+    /**
+     * The aggregated review requirement for a group (single approval stage = 1).
+     * {@code eligibleRoleNames} are role NAMES (system or custom), matched case-insensitively.
+     */
     public record GroupReviewResolution(
             boolean requiresHumanApproval,
             int requiredApprovals,
             Set<UUID> eligibleUserIds,
-            Set<UserRoleType> eligibleRoles) {
+            Set<String> eligibleRoleNames) {
     }
 
     public GroupReviewResolution resolve(RequestGroupEntity group, List<RequestGroupItemEntity> items) {
         boolean requiresHuman = false;
         int requiredApprovals = 0;
         Set<UUID> eligibleUserIds = new HashSet<>();
-        Set<UserRoleType> eligibleRoles = new HashSet<>();
+        Set<String> eligibleRoleNames = new HashSet<>();
 
         for (RequestGroupItemEntity item : items) {
             var plan = planFor(group, item);
@@ -66,7 +68,7 @@ public class GroupReviewPlanResolver {
                     eligibleUserIds.add(rule.userId());
                 }
                 if (rule.role() != null) {
-                    eligibleRoles.add(rule.role());
+                    eligibleRoleNames.add(rule.role());
                 }
             }
             if (item.getTargetKind() == RequestGroupTargetKind.QUERY && item.getDatasourceId() != null) {
@@ -74,10 +76,8 @@ public class GroupReviewPlanResolver {
                         .ifPresent(eligibleUserIds::addAll);
             }
         }
-        // ADMIN can always act on the bundle (matches the per-query review machinery).
-        eligibleRoles.add(UserRoleType.ADMIN);
         return new GroupReviewResolution(requiresHuman, Math.max(requiredApprovals, requiresHuman ? 1 : 0),
-                Set.copyOf(eligibleUserIds), Set.copyOf(eligibleRoles));
+                Set.copyOf(eligibleUserIds), Set.copyOf(eligibleRoleNames));
     }
 
     private Optional<ReviewPlanSnapshot> planFor(RequestGroupEntity group, RequestGroupItemEntity item) {

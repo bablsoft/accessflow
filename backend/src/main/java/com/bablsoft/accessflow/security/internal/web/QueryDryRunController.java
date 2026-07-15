@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
-import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.proxy.api.QueryDryRunService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +46,6 @@ class QueryDryRunController {
                 request.sql(),
                 caller.userId(),
                 caller.organizationId(),
-                caller.role() == UserRoleType.ADMIN));
+                caller.has(Permission.QUERY_ADMIN)));
     }
 }

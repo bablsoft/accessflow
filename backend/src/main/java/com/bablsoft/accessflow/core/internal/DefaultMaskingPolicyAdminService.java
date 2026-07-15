@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.api.CreateMaskingPolicyCommand;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
@@ -8,7 +9,6 @@ import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyView;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.UpdateMaskingPolicyCommand;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.MaskingPolicyRepository;
@@ -36,6 +36,7 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
     private static final int MAX_VISIBLE_SUFFIX = 256;
 
     private final MaskingPolicyRepository maskingPolicyRepository;
+    private final RoleRepository roleRepository;
     private final DatasourceRepository datasourceRepository;
     private final UserRepository userRepository;
     private final UserGroupRepository userGroupRepository;
@@ -61,7 +62,7 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
         var columnRef = requireColumnRef(command.columnRef());
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
-        var roles = normalizeRoles(command.revealToRoles());
+        var roles = normalizeRoles(organizationId, command.revealToRoles());
         validateRevealTargets(organizationId, command.revealToUserIds(), command.revealToGroupIds());
 
         var entity = new MaskingPolicyEntity();
@@ -86,7 +87,7 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
         var columnRef = requireColumnRef(command.columnRef());
         var strategy = requireStrategy(command.strategy());
         validateParams(strategy, command.strategyParams());
-        var roles = normalizeRoles(command.revealToRoles());
+        var roles = normalizeRoles(organizationId, command.revealToRoles());
         validateRevealTargets(organizationId, command.revealToUserIds(), command.revealToGroupIds());
 
         entity.setColumnRef(columnRef);
@@ -157,7 +158,7 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
         }
     }
 
-    private List<String> normalizeRoles(List<String> roles) {
+    private List<String> normalizeRoles(UUID organizationId, List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return List.of();
         }
@@ -166,12 +167,10 @@ class DefaultMaskingPolicyAdminService implements MaskingPolicyAdminService {
             if (role == null || role.isBlank()) {
                 continue;
             }
-            try {
-                normalized.add(UserRoleType.valueOf(role.trim().toUpperCase(java.util.Locale.ROOT)).name());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalMaskingPolicyException(
-                        msg("error.masking_policy_unknown_role", role));
-            }
+            var resolved = roleRepository.findByNameInScope(organizationId, role.trim())
+                    .orElseThrow(() -> new IllegalMaskingPolicyException(
+                            msg("error.masking_policy_unknown_role", role)));
+            normalized.add(resolved.getName());
         }
         return normalized;
     }

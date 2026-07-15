@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +70,8 @@ class DefaultAccessReviewServiceTest {
     private final UUID reviewerId = UUID.randomUUID();
 
     private ReviewerContext reviewer(UserRoleType role) {
-        return new ReviewerContext(reviewerId, organizationId, role);
+        return new ReviewerContext(reviewerId, organizationId, role.name(),
+                SystemRolePermissions.of(role));
     }
 
     private AccessGrantRequestEntity pending() {
@@ -85,7 +87,7 @@ class DefaultAccessReviewServiceTest {
 
     private ReviewPlanSnapshot reviewerRolePlan() {
         return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 0,
-                List.of(new ApproverRule(null, UserRoleType.REVIEWER, 0)), List.of());
+                List.of(new ApproverRule(null, "REVIEWER", 0)), List.of());
     }
 
     @BeforeEach
@@ -274,8 +276,8 @@ class DefaultAccessReviewServiceTest {
 
     private ReviewPlanSnapshot twoStageAdminPlan() {
         return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 1,
-                List.of(new ApproverRule(null, UserRoleType.ADMIN, 0),
-                        new ApproverRule(null, UserRoleType.ADMIN, 1)), List.of());
+                List.of(new ApproverRule(null, "ADMIN", 0),
+                        new ApproverRule(null, "ADMIN", 1)), List.of());
     }
 
     @Test
@@ -416,7 +418,7 @@ class DefaultAccessReviewServiceTest {
 
     private ReviewPlanSnapshot reviewerRolePlanWithId(UUID planId) {
         return new ReviewPlanSnapshot(planId, organizationId, false, true, 1, false, 0,
-                List.of(new ApproverRule(null, UserRoleType.REVIEWER, 0)), List.of());
+                List.of(new ApproverRule(null, "REVIEWER", 0)), List.of());
     }
 
     @Test

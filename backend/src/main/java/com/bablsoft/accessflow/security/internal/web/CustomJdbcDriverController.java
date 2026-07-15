@@ -57,7 +57,7 @@ class CustomJdbcDriverController {
     private final AuditLogService auditLogService;
 
     @PostMapping(consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Upload a JDBC driver JAR (multipart)")
     @ApiResponse(responseCode = "201", description = "Driver registered")
     @ApiResponse(responseCode = "409", description = "A driver with this SHA-256 is already registered")
@@ -107,7 +107,7 @@ class CustomJdbcDriverController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "List the organization's uploaded JDBC drivers")
     @ApiResponse(responseCode = "200", description = "Drivers listed (may be empty)")
     CustomDriverListResponse listDrivers(Authentication authentication) {
@@ -116,7 +116,7 @@ class CustomJdbcDriverController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Get an uploaded JDBC driver by id")
     @ApiResponse(responseCode = "200", description = "Driver details")
     @ApiResponse(responseCode = "404", description = "Driver not found in caller's organization")
@@ -127,7 +127,7 @@ class CustomJdbcDriverController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DATASOURCE_MANAGE')")
     @Operation(summary = "Delete an uploaded JDBC driver")
     @ApiResponse(responseCode = "204", description = "Driver removed")
     @ApiResponse(responseCode = "404", description = "Driver not found")

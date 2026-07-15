@@ -91,6 +91,8 @@ const users: UserPage = {
       email: 'bob@example.com',
       display_name: 'Bob',
       role: 'ANALYST',
+      role_id: null,
+      role_name: 'ANALYST',
       auth_provider: 'LOCAL',
       active: true,
       totp_enabled: false,

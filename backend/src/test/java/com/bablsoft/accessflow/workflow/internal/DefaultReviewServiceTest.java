@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -191,7 +192,8 @@ class DefaultReviewServiceTest {
     void approveBlocksCrossTenantReviewer() {
         givenPendingReview();
         // reviewer is in a different org
-        var ctx = new ReviewerContext(reviewerId, otherOrgId, UserRoleType.REVIEWER);
+        var ctx = new ReviewerContext(reviewerId, otherOrgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
 
         assertThatThrownBy(() -> service.approve(queryId, ctx, "ok"))
                 .isInstanceOf(QueryRequestNotFoundException.class);
@@ -295,7 +297,7 @@ class DefaultReviewServiceTest {
     void listPendingFiltersOutQueriesWhereCallerIsSubmitter() {
         var view = view(QueryStatus.PENDING_REVIEW, reviewerId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq(UserRoleType.REVIEWER), any()))
+                eq("REVIEWER"), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
 
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
@@ -308,11 +310,11 @@ class DefaultReviewServiceTest {
     void listPendingIncludesActionableQueries() {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq(UserRoleType.REVIEWER), any()))
+                eq("REVIEWER"), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
-                        new ApproverRule(null, UserRoleType.REVIEWER, 1)))));
+                        new ApproverRule(null, "REVIEWER", 1)))));
         when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
 
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
@@ -327,7 +329,7 @@ class DefaultReviewServiceTest {
     void listPendingFiltersOutQueriesWhereCallerIsNotApproverAtCurrentStage() {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq(UserRoleType.REVIEWER), any()))
+                eq("REVIEWER"), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         // Caller is approver only at stage 2; stage 1 still pending
         when(reviewPlanLookupService.findForDatasource(datasourceId))
@@ -477,14 +479,14 @@ class DefaultReviewServiceTest {
     private void givenSingleStagePlan() {
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
-                        new ApproverRule(null, UserRoleType.REVIEWER, 1)))));
+                        new ApproverRule(null, "REVIEWER", 1)))));
     }
 
     private void givenSingleStagePlanWithMinApprovals(int min) {
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(new ReviewPlanSnapshot(
                         UUID.randomUUID(), organizationId, true, true, min, false, 1,
-                        List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1)),
+                        List.of(new ApproverRule(null, "REVIEWER", 1)),
                         List.of())));
     }
 
@@ -493,8 +495,8 @@ class DefaultReviewServiceTest {
                 .thenReturn(Optional.of(new ReviewPlanSnapshot(
                         UUID.randomUUID(), organizationId, true, true, 1, false, 2,
                         List.of(
-                                new ApproverRule(null, UserRoleType.REVIEWER, 1),
-                                new ApproverRule(null, UserRoleType.ADMIN, 2)),
+                                new ApproverRule(null, "REVIEWER", 1),
+                                new ApproverRule(null, "ADMIN", 2)),
                         List.of())));
     }
 
@@ -505,7 +507,8 @@ class DefaultReviewServiceTest {
     }
 
     private ReviewerContext reviewerContext(UserRoleType role) {
-        return new ReviewerContext(reviewerId, organizationId, role);
+        return new ReviewerContext(reviewerId, organizationId, role.name(),
+                SystemRolePermissions.of(role));
     }
 
     private PendingReviewView view(QueryStatus status, UUID submittedBy) {

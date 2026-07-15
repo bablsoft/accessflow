@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ class DefaultUserProvisioningService implements UserProvisioningService {
 
     private final UserRepository userRepository;
     private final OrganizationRepository organizationRepository;
+    private final RoleRepository roleRepository;
 
     @Override
     @Transactional
@@ -49,26 +51,15 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         entity.setEmail(normalizedEmail);
         entity.setDisplayName(displayName);
         entity.setAuthProvider(authProvider);
+        // SSO JIT provisioning stays keyed to system roles (SSO default_role is an enum for v1,
+        // AF-522); link the matching global role row so role_id is consistent.
         entity.setRole(defaultRole);
+        entity.setRoleRef(roleRepository.findByNameAndSystemTrue(defaultRole.name()).orElse(null));
         entity.setActive(true);
         return toView(userRepository.save(entity));
     }
 
     private UserView toView(UserEntity entity) {
-        return new UserView(
-                entity.getId(),
-                entity.getEmail(),
-                entity.getDisplayName(),
-                entity.getRole(),
-                entity.getOrganization().getId(),
-                entity.isActive(),
-                entity.getAuthProvider(),
-                entity.getPasswordHash(),
-                entity.getLastLoginAt(),
-                entity.getPreferredLanguage(),
-                entity.isTotpEnabled(),
-                entity.isPlatformAdmin(),
-                entity.getCreatedAt()
-        );
+        return UserViews.toView(entity);
     }
 }

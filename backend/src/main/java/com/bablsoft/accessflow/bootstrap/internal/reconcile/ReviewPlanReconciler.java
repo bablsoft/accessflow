@@ -52,7 +52,7 @@ public class ReviewPlanReconciler {
         var approverRules = spec.approverEmails().stream()
                 .map(email -> new ReviewPlanView.ApproverRule(
                         adminUserReconciler.lookupId(organizationId, email),
-                        UserRoleType.ADMIN,
+                        UserRoleType.ADMIN.name(),
                         1))
                 .toList();
 
@@ -152,7 +152,7 @@ public class ReviewPlanReconciler {
         map.put("approvers", approverRules.stream()
                 .map(rule -> Map.of(
                         "user_id", rule.userId().toString(),
-                        "role", rule.role().name(),
+                        "role", rule.role(),
                         "stage", rule.stage()))
                 .toList());
         return map;
@@ -171,7 +171,7 @@ public class ReviewPlanReconciler {
         map.put("approvers", view.approvers().stream()
                 .map(rule -> Map.of(
                         "user_id", rule.userId().toString(),
-                        "role", rule.role().name(),
+                        "role", rule.role(),
                         "stage", rule.stage()))
                 .toList());
         return map;

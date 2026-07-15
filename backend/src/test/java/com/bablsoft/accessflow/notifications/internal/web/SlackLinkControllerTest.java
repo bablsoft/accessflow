@@ -36,7 +36,7 @@ class SlackLinkControllerTest {
     }
 
     private UsernamePasswordAuthenticationToken auth() {
-        var claims = new JwtClaims(userId, "rev@example.com", UserRoleType.REVIEWER, orgId);
+        var claims = JwtClaims.forSystemRole(userId, "rev@example.com", UserRoleType.REVIEWER, orgId);
         return new UsernamePasswordAuthenticationToken(claims, "n/a", List.of());
     }
 

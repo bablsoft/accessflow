@@ -9,10 +9,12 @@ import com.bablsoft.accessflow.core.api.UpdateMaskingPolicyCommand;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.RoleEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.MaskingPolicyRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +47,7 @@ import static org.mockito.Mockito.when;
 class DefaultMaskingPolicyAdminServiceTest {
 
     @Mock MaskingPolicyRepository maskingPolicyRepository;
+    @Mock RoleRepository roleRepository;
     @Mock DatasourceRepository datasourceRepository;
     @Mock UserRepository userRepository;
     @Mock UserGroupRepository userGroupRepository;
@@ -57,11 +60,23 @@ class DefaultMaskingPolicyAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultMaskingPolicyAdminService(maskingPolicyRepository, datasourceRepository,
-                userRepository, userGroupRepository, new ObjectMapper(), messageSource);
+        service = new DefaultMaskingPolicyAdminService(maskingPolicyRepository, roleRepository,
+                datasourceRepository, userRepository, userGroupRepository, new ObjectMapper(),
+                messageSource);
         when(messageSource.getMessage(any(), any(), any())).thenReturn("error");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(datasource(orgId)));
         when(maskingPolicyRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(roleRepository.findByNameInScope(eq(orgId), any())).thenReturn(Optional.empty());
+        when(roleRepository.findByNameInScope(orgId, "admin")).thenReturn(Optional.of(role("ADMIN")));
+        when(roleRepository.findByNameInScope(orgId, "ADMIN")).thenReturn(Optional.of(role("ADMIN")));
+    }
+
+    private RoleEntity role(String name) {
+        var role = new RoleEntity();
+        role.setId(UUID.randomUUID());
+        role.setName(name);
+        role.setSystem(true);
+        return role;
     }
 
     @Test

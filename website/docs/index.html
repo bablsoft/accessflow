@@ -765,12 +765,20 @@
             <strong>What it is.</strong> Role-based access control. Every user carries one org-wide
             role that caps what they can do; on top of it, per-datasource permissions decide which
             databases they may touch. Pick the lowest-privilege role that still lets someone do their
-            job — only <code>ADMIN</code> can change configuration, and a user can never approve their
-            own query, whatever their role.
+            job — and a user can never approve their own query, whatever their role.
           </p>
           <p>
-            <strong>Configure it.</strong> Assign one of the five roles when you create or edit a user
-            on <code>/admin/users</code>; the matrix below is what each role may do.
+            <strong>Custom roles.</strong> Beyond the five built-in system roles, an admin can compose
+            <em>custom roles</em> on <code>/admin/roles</code> from a fixed catalog of functional
+            permissions (submit SELECT/DML/DDL, review queries, review access requests, manage
+            datasources, view the audit log, and so on) — e.g. a reviewer who may approve queries but
+            not manage users. The five system roles are immutable and behave exactly as the matrix
+            below; a custom role grants exactly the permissions you tick. Roles that are still
+            assigned to users cannot be deleted.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Assign a system or custom role when you create or edit a
+            user on <code>/admin/users</code>; the matrix below is what each built-in role may do.
           </p>
           <p>
             <strong>Platform admin is separate from the four roles.</strong> The

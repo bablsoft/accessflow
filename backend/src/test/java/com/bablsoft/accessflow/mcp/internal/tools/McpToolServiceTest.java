@@ -202,7 +202,7 @@ class McpToolServiceTest {
 
     private void authenticateAs(UserRoleType role) {
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
-                new JwtClaims(userId, "user@example.com", role, orgId),
+                JwtClaims.forSystemRole(userId, "user@example.com", role, orgId),
                 null,
                 "ROLE_" + role.name()));
     }

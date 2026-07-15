@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignAdminService;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignScope;
@@ -171,7 +172,8 @@ class AttestationLifecycleIntegrationTest {
         var itemB = items.stream().filter(i -> i.subjectUserId().equals(subjectB.getId()))
                 .findFirst().orElseThrow();
 
-        var reviewer = new ReviewerContext(admin.getId(), organization.getId(), UserRoleType.ADMIN);
+        var reviewer = new ReviewerContext(admin.getId(), organization.getId(), "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
         reviewService.certify(itemA.id(), reviewer, "still needed");
         reviewService.revoke(itemB.id(), reviewer, "no longer needed");
 
@@ -219,7 +221,8 @@ class AttestationLifecycleIntegrationTest {
         // The reviewer worklist (cross-join query + eligibility + self-review filter) must surface
         // both PENDING items to the admin reviewer, who is not the subject of either grant and is
         // eligible by admin-fallback (the datasource has no scoped reviewers).
-        var reviewer = new ReviewerContext(admin.getId(), organization.getId(), UserRoleType.ADMIN);
+        var reviewer = new ReviewerContext(admin.getId(), organization.getId(), "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
         var worklist = reviewService.listPendingForReviewer(reviewer, PageRequest.of(0, 50));
 
         assertThat(worklist.content())

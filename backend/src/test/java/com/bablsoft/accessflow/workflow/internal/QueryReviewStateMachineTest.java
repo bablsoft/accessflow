@@ -583,7 +583,7 @@ class QueryReviewStateMachineTest {
                 .thenReturn(Optional.of(new ReviewPlanSnapshot(
                         UUID.randomUUID(), organizationId, true, requiresHumanApproval, 1,
                         autoApproveReads, 1,
-                        List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1)),
+                        List.of(new ApproverRule(null, "REVIEWER", 1)),
                         List.of())));
     }
 

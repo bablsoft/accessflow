@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -79,7 +80,10 @@ class AuthControllerTest {
         passwordResetService = mock(PasswordResetService.class);
         localizationConfigService = mock(LocalizationConfigService.class);
         stepUpService = mock(StepUpService.class);
-        controller = new AuthController(authenticationService, auditLogService, userQueryService,
+        controller = new AuthController(authenticationService,
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                auditLogService, userQueryService,
                 bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService,
                 passwordResetService, localizationConfigService, stepUpService);
     }
@@ -87,8 +91,7 @@ class AuthControllerTest {
     @Test
     void stepUpVerifiesCredentialAndReturnsToken() {
         var userId = UUID.randomUUID();
-        var caller = new JwtClaims(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(),
-                false);
+        var caller = JwtClaims.forSystemRole(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(), false);
         var authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(caller);
         var expiry = Instant.parse("2026-06-22T00:05:00Z");
@@ -104,8 +107,7 @@ class AuthControllerTest {
     @Test
     void stepUpPropagatesVerificationFailure() {
         var userId = UUID.randomUUID();
-        var caller = new JwtClaims(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(),
-                false);
+        var caller = JwtClaims.forSystemRole(userId, "rev@acme.test", UserRoleType.REVIEWER, UUID.randomUUID(), false);
         var authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(caller);
         when(stepUpService.issue(userId, "rev@acme.test", null, "000000"))
@@ -297,7 +299,8 @@ class AuthControllerTest {
     void previewInvitationDelegatesToService() {
         when(userInvitationService.previewByToken("raw-token"))
                 .thenReturn(new com.bablsoft.accessflow.security.api.InvitationPreview(
-                        "alice@example.com", "Alice", UserRoleType.ANALYST, "Acme", Instant.now()));
+                        "alice@example.com", "Alice", UserRoleType.ANALYST, "ANALYST", "Acme",
+                        Instant.now()));
 
         var resp = controller.previewInvitation("raw-token");
 

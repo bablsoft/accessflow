@@ -53,7 +53,7 @@ class AdminRoutingPolicyControllerTest {
     private final UUID policyId = UUID.randomUUID();
     private final RequestAuditContext auditContext = new RequestAuditContext("203.0.113.5", "ua/1");
     private final Authentication authentication = new UsernamePasswordAuthenticationToken(
-            new JwtClaims(userId, "admin@x.com", UserRoleType.ADMIN, organizationId), "n/a",
+            JwtClaims.forSystemRole(userId, "admin@x.com", UserRoleType.ADMIN, organizationId), "n/a",
             List.of());
     private final ConditionNode condition = new ConditionNode.QueryTypeIn(Set.of(QueryType.DELETE));
 

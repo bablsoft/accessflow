@@ -8,6 +8,7 @@ public record InvitationPreview(
         String email,
         String displayName,
         UserRoleType role,
+        String roleName,
         String organizationName,
         Instant expiresAt
 ) {}

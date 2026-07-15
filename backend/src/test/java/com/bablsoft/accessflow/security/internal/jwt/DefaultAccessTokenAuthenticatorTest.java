@@ -23,8 +23,7 @@ class DefaultAccessTokenAuthenticatorTest {
 
     @Test
     void returnsClaimsWhenJwtServiceParsesSuccessfully() {
-        var claims = new JwtClaims(UUID.randomUUID(), "u@example.com",
-                UserRoleType.ANALYST, UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@example.com", UserRoleType.ANALYST, UUID.randomUUID());
         when(jwtService.parseAccessToken("good")).thenReturn(claims);
 
         assertThat(authenticator.authenticate("good")).isSameAs(claims);

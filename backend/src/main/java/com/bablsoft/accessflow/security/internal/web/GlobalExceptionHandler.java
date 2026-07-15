@@ -37,6 +37,10 @@ import com.bablsoft.accessflow.core.api.TotpAlreadyEnabledException;
 import com.bablsoft.accessflow.core.api.TotpInvalidCodeException;
 import com.bablsoft.accessflow.core.api.TotpNotEnabledException;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
+import com.bablsoft.accessflow.core.api.RoleInUseException;
+import com.bablsoft.accessflow.core.api.RoleNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.RoleNotFoundException;
+import com.bablsoft.accessflow.core.api.SystemRoleImmutableException;
 import com.bablsoft.accessflow.core.api.ReviewPlanInUseException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
@@ -385,6 +389,42 @@ class GlobalExceptionHandler {
         // Message is resolved at the throw site via MessageSource — see DefaultDataClassificationService.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_DATA_CLASSIFICATION_TAG");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    ProblemDetail handleRoleNotFound(RoleNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.role_not_found"));
+        pd.setProperty("error", "ROLE_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(RoleNameAlreadyExistsException.class)
+    ProblemDetail handleRoleNameAlreadyExists(RoleNameAlreadyExistsException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.role_name_already_exists"));
+        pd.setProperty("error", "ROLE_NAME_ALREADY_EXISTS");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SystemRoleImmutableException.class)
+    ProblemDetail handleSystemRoleImmutable(SystemRoleImmutableException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.role_system_immutable"));
+        pd.setProperty("error", "ROLE_SYSTEM_IMMUTABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(RoleInUseException.class)
+    ProblemDetail handleRoleInUse(RoleInUseException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                msg("error.role_in_use"));
+        pd.setProperty("error", "ROLE_IN_USE");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

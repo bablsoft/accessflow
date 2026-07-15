@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.internal.saml.SamlExchangeCodeStore;
 import com.bablsoft.accessflow.security.internal.web.model.LoginResponse;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 class SamlExchangeController {
 
     private final SamlExchangeCodeStore exchangeCodeStore;
+    private final RolePermissionResolver rolePermissionResolver;
     private final AuthenticationService authenticationService;
     private final RefreshCookieWriter refreshCookieWriter;
     private final MessageSource messageSource;
@@ -52,7 +54,8 @@ class SamlExchangeController {
         var result = authenticationService.issueForUser(userId);
         refreshCookieWriter.write(response, result.refreshToken(),
                 RefreshCookieWriter.REFRESH_COOKIE_MAX_AGE);
-        var summary = UserSummary.from(result.user());
+        var summary = UserSummary.from(result.user(),
+                rolePermissionResolver.resolve(result.user().roleId(), result.user().role()));
         return ResponseEntity.ok(new LoginResponse(result.accessToken(), result.tokenType(),
                 result.expiresIn(), summary));
     }

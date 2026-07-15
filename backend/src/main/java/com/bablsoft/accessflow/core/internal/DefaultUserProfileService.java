@@ -148,20 +148,6 @@ class DefaultUserProfileService implements UserProfileService {
     }
 
     private UserView toView(UserEntity entity) {
-        return new UserView(
-                entity.getId(),
-                entity.getEmail(),
-                entity.getDisplayName(),
-                entity.getRole(),
-                entity.getOrganization().getId(),
-                entity.isActive(),
-                entity.getAuthProvider(),
-                entity.getPasswordHash(),
-                entity.getLastLoginAt(),
-                entity.getPreferredLanguage(),
-                entity.isTotpEnabled(),
-                entity.isPlatformAdmin(),
-                entity.getCreatedAt()
-        );
+        return UserViews.toView(entity);
     }
 }

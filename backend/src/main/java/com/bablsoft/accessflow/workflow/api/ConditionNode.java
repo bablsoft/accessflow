@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.api;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 
 import java.time.DayOfWeek;
 import java.util.List;
@@ -84,8 +83,11 @@ public sealed interface ConditionNode {
         }
     }
 
-    /** Matches when the requester's role is one of {@code anyOf}. */
-    record RequesterRoleIn(Set<UserRoleType> anyOf) implements ConditionNode {
+    /**
+     * Matches when the requester's role NAME is one of {@code anyOf} — a system-role name or a
+     * custom role's name, compared case-insensitively (AF-522).
+     */
+    record RequesterRoleIn(Set<String> anyOf) implements ConditionNode {
         public RequesterRoleIn {
             anyOf = Set.copyOf(anyOf == null ? Set.of() : anyOf);
         }

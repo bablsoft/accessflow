@@ -29,7 +29,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/langfuse-config")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AI_MANAGE')")
 @Tag(name = "Admin Langfuse Config", description = "Per-organization Langfuse integration settings (ADMIN only)")
 @RequiredArgsConstructor
 @Slf4j

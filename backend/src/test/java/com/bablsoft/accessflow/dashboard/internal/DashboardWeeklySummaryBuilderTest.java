@@ -10,6 +10,8 @@ import com.bablsoft.accessflow.core.api.MyQueryTrendsRaw;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -23,10 +25,12 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +41,7 @@ class DashboardWeeklySummaryBuilderTest {
     private static final UUID USER = UUID.randomUUID();
 
     private final UserQueryService userQueryService = mock(UserQueryService.class);
+    private final RolePermissionResolver rolePermissionResolver = mock(RolePermissionResolver.class);
     private final ReviewService reviewService = mock(ReviewService.class);
     private final MyQueryInsightsLookupService insights = mock(MyQueryInsightsLookupService.class);
     private final BehaviorAnomalyLookupService anomalyLookup = mock(BehaviorAnomalyLookupService.class);
@@ -44,7 +49,15 @@ class DashboardWeeklySummaryBuilderTest {
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final DashboardWeeklySummaryBuilder builder = new DashboardWeeklySummaryBuilder(
-            userQueryService, reviewService, insights, anomalyLookup, suggestionService, clock);
+            userQueryService, rolePermissionResolver, reviewService, insights, anomalyLookup,
+            suggestionService, clock);
+
+    {
+        lenient().when(rolePermissionResolver.resolve(any(), any())).thenAnswer(inv -> {
+            UserRoleType r = inv.getArgument(1);
+            return r != null ? SystemRolePermissions.of(r) : Set.<com.bablsoft.accessflow.core.api.Permission>of();
+        });
+    }
 
     private UserView user(UserRoleType role) {
         return new UserView(USER, "u@x.io", "User Name", role, ORG, true,

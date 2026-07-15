@@ -32,13 +32,14 @@ public class McpReviewToolService {
     @Tool(name = "list_pending_reviews",
             description = "List queries pending review at a stage the calling user is eligible to "
                     + "approve. Excludes queries the user themselves submitted. Reviewer or admin only.")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     public McpPage<McpPendingReview> listPendingReviews(
             @ToolParam(required = false, description = "Zero-based page number (default 0).") Integer page,
             @ToolParam(required = false, description = "Page size (default 20, max 100).") Integer size) {
         var claims = currentUser.requireClaims();
         var pageRequest = pageRequest(page, size);
-        var context = new ReviewService.ReviewerContext(claims.userId(), claims.organizationId(), claims.role());
+        var context = new ReviewService.ReviewerContext(claims.userId(), claims.organizationId(),
+                claims.roleName(), claims.permissions());
         var result = reviewService.listPendingForReviewer(context, pageRequest);
         return McpPage.from(result, McpPendingReview::from);
     }
@@ -47,13 +48,14 @@ public class McpReviewToolService {
             description = "Record a review decision on a query that is PENDING_REVIEW. The decision "
                     + "must be APPROVED, REJECTED, or REQUESTED_CHANGES. Self-review is blocked. "
                     + "Reviewer or admin only.")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     public McpReviewOutcome reviewQuery(
             @ToolParam(description = "Query request UUID to decide on.") UUID queryId,
             @ToolParam(description = "Decision: APPROVED, REJECTED, or REQUESTED_CHANGES.") String decision,
             @ToolParam(required = false, description = "Optional comment (max 4000 chars) shown alongside the decision.") String comment) {
         var claims = currentUser.requireClaims();
-        var context = new ReviewService.ReviewerContext(claims.userId(), claims.organizationId(), claims.role());
+        var context = new ReviewService.ReviewerContext(claims.userId(), claims.organizationId(),
+                claims.roleName(), claims.permissions());
         var decisionType = parseDecision(decision);
         if (comment != null && comment.length() > 4000) {
             throw new IllegalArgumentException("comment must be at most 4000 characters");

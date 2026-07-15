@@ -57,7 +57,7 @@ class RequestGroupControllerTest {
 
     private Authentication auth(UserRoleType role) {
         var a = mock(Authentication.class);
-        when(a.getPrincipal()).thenReturn(new JwtClaims(userId, "u@acme.test", role, orgId));
+        when(a.getPrincipal()).thenReturn(JwtClaims.forSystemRole(userId, "u@acme.test", role, orgId));
         return a;
     }
 

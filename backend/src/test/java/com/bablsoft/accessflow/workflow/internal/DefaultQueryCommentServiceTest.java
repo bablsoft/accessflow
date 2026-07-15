@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
@@ -57,14 +58,15 @@ class DefaultQueryCommentServiceTest {
     private final UUID orgId = UUID.randomUUID();
     private final UUID authorId = UUID.randomUUID();
     private final CollaboratorContext context =
-            new CollaboratorContext(authorId, orgId, UserRoleType.REVIEWER);
+            new CollaboratorContext(authorId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
 
     @BeforeEach
     void setUp() {
         when(queryLookup.findById(queryId)).thenReturn(Optional.of(new QueryRequestSnapshot(
                 queryId, UUID.randomUUID(), orgId, UUID.randomUUID(), "SELECT 1", QueryType.SELECT,
                 false, QueryStatus.PENDING_REVIEW, null, null, null, false)));
-        when(accessService.canCollaborate(any(), any(), any(), any())).thenReturn(true);
+        when(accessService.canCollaborate(any(), any(), any(), any(), any())).thenReturn(true);
         when(accessService.collaboratorIds(any(), any())).thenReturn(Set.of(authorId));
         when(userQuery.findById(authorId))
                 .thenReturn(Optional.of(user(authorId, "Ann")));
@@ -92,7 +94,7 @@ class DefaultQueryCommentServiceTest {
 
     @Test
     void addCommentDeniedThrowsAndDoesNotPersist() {
-        when(accessService.canCollaborate(any(), any(), any(), any())).thenReturn(false);
+        when(accessService.canCollaborate(any(), any(), any(), any(), any())).thenReturn(false);
 
         assertThatThrownBy(() -> service.addComment(queryId, context,
                 new NewCommentInput(1, 1, null, "x")))

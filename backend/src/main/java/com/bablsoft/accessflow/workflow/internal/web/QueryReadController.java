@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
@@ -12,7 +13,6 @@ import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.QueryCsvExportService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
@@ -134,7 +134,7 @@ class QueryReadController {
     private static QueryListFilter buildFilter(JwtClaims caller, QueryStatus status,
                                                UUID datasourceId, UUID submittedBy,
                                                QueryType queryType, Instant from, Instant to) {
-        var effectiveSubmitter = caller.role() == UserRoleType.ADMIN ? submittedBy : caller.userId();
+        var effectiveSubmitter = caller.has(Permission.QUERY_ADMIN) ? submittedBy : caller.userId();
         return new QueryListFilter(caller.organizationId(), effectiveSubmitter, datasourceId,
                 status, queryType, from, to);
     }
@@ -148,10 +148,9 @@ class QueryReadController {
         var caller = (JwtClaims) authentication.getPrincipal();
         var detail = queryRequestLookupService.findDetailById(id, caller.organizationId())
                 .orElseThrow(() -> new QueryRequestNotFoundException(id));
-        // Per docs/07-security.md role matrix, REVIEWER and ADMIN both have
-        // "View all query history". Non-reviewers can only read their own rows.
-        if (caller.role() != UserRoleType.ADMIN
-                && caller.role() != UserRoleType.REVIEWER
+        // Per docs/07-security.md, QUERY_VIEW_ALL holders (system REVIEWER/ADMIN) may read
+        // any query; everyone else only their own rows.
+        if (!caller.has(Permission.QUERY_VIEW_ALL)
                 && !detail.submittedByUserId().equals(caller.userId())) {
             throw new QueryRequestNotFoundException(id);
         }
@@ -194,7 +193,7 @@ class QueryReadController {
     }
 
     @PostMapping("/{id}/reanalyze")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Re-run AI analysis on a query whose previous AI analysis failed")
     @ApiResponse(responseCode = "202", description = "Re-analysis accepted; runs asynchronously")
     @ApiResponse(responseCode = "403", description = "Caller is not a reviewer or admin")
@@ -238,7 +237,7 @@ class QueryReadController {
                                                  Authentication authentication) {
         var caller = (JwtClaims) authentication.getPrincipal();
         var outcome = queryLifecycleService.execute(new ExecuteQueryCommand(id, caller.userId(),
-                caller.organizationId(), caller.role() == UserRoleType.ADMIN));
+                caller.organizationId(), caller.has(Permission.QUERY_ADMIN)));
         return ResponseEntity.accepted().body(new ExecuteQueryResponse(
                 outcome.queryRequestId(), outcome.status(), outcome.rowsAffected(),
                 outcome.durationMs()));
@@ -262,7 +261,7 @@ class QueryReadController {
         var caller = (JwtClaims) authentication.getPrincipal();
         var detail = queryRequestLookupService.findDetailById(id, caller.organizationId())
                 .orElseThrow(() -> new QueryRequestNotFoundException(id));
-        if (caller.role() != UserRoleType.ADMIN
+        if (!caller.has(Permission.QUERY_ADMIN)
                 && !detail.submittedByUserId().equals(caller.userId())) {
             throw new QueryRequestNotFoundException(id);
         }
@@ -284,8 +283,7 @@ class QueryReadController {
         var caller = (JwtClaims) authentication.getPrincipal();
         var current = queryRequestLookupService.findDetailById(id, caller.organizationId())
                 .orElseThrow(() -> new QueryRequestNotFoundException(id));
-        if (caller.role() != UserRoleType.ADMIN
-                && caller.role() != UserRoleType.REVIEWER
+        if (!caller.has(Permission.QUERY_VIEW_ALL)
                 && !current.submittedByUserId().equals(caller.userId())) {
             throw new QueryRequestNotFoundException(id);
         }

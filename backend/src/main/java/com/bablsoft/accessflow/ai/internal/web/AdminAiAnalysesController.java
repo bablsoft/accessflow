@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/admin/ai-analyses")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_AI_MANAGE')")
 @Tag(name = "Admin AI Analyses", description = "Aggregate stats over the AI analysis history (ADMIN only)")
 @RequiredArgsConstructor
 class AdminAiAnalysesController {

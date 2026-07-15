@@ -68,8 +68,7 @@ class JwtHandshakeInterceptorTest {
 
     @Test
     void storesClaimsOnSuccessfulHandshake() {
-        var claims = new JwtClaims(UUID.randomUUID(), "alice@example.com",
-                UserRoleType.ANALYST, UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "alice@example.com", UserRoleType.ANALYST, UUID.randomUUID());
         when(request.getURI()).thenReturn(URI.create("ws://localhost:8080/ws?token=good"));
         when(accessTokenAuthenticator.authenticate("good")).thenReturn(claims);
 

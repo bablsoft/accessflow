@@ -646,6 +646,7 @@ Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend co
 /datasources                   → DatasourceListPage
 /datasources/:id/settings      → DatasourceSettingsPage
 /admin/users                   → UsersPage
+/admin/roles                   → RolesPage
 /admin/attestation             → CampaignListPage
 /admin/attestation/:id         → CampaignDetailPage
 /admin/audit-log               → AuditLogPage

@@ -9,10 +9,12 @@ import com.bablsoft.accessflow.core.api.RowSecurityValueType;
 import com.bablsoft.accessflow.core.api.UpdateRowSecurityPolicyCommand;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.RoleEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowSecurityPolicyEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserGroupEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RowSecurityPolicyRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserGroupRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.when;
 class DefaultRowSecurityPolicyAdminServiceTest {
 
     @Mock RowSecurityPolicyRepository rowSecurityPolicyRepository;
+    @Mock RoleRepository roleRepository;
     @Mock DatasourceRepository datasourceRepository;
     @Mock UserRepository userRepository;
     @Mock UserGroupRepository userGroupRepository;
@@ -57,10 +60,24 @@ class DefaultRowSecurityPolicyAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultRowSecurityPolicyAdminService(rowSecurityPolicyRepository,
-                datasourceRepository, userRepository, userGroupRepository, messageSource);
+                roleRepository, datasourceRepository, userRepository, userGroupRepository,
+                messageSource);
         when(messageSource.getMessage(any(), any(), any())).thenReturn("error");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(datasource(orgId)));
         when(rowSecurityPolicyRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(roleRepository.findByNameInScope(eq(orgId), any())).thenReturn(Optional.empty());
+        when(roleRepository.findByNameInScope(orgId, "analyst"))
+                .thenReturn(Optional.of(role("ANALYST")));
+        when(roleRepository.findByNameInScope(orgId, "ANALYST"))
+                .thenReturn(Optional.of(role("ANALYST")));
+    }
+
+    private RoleEntity role(String name) {
+        var role = new RoleEntity();
+        role.setId(UUID.randomUUID());
+        role.setName(name);
+        role.setSystem(true);
+        return role;
     }
 
     @Test

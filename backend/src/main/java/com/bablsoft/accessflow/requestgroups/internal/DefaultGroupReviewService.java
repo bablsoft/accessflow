@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -7,7 +8,6 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.requestgroups.api.GroupReviewService;
 import com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException;
@@ -107,12 +107,16 @@ public class DefaultGroupReviewService implements GroupReviewService {
     }
 
     private void requireEligible(RequestGroupEntity group, ReviewerContext context) {
-        if (context.role() == UserRoleType.ADMIN) {
+        // REVIEW_OVERRIDE holders (system ADMIN) can always act on the bundle — matches the
+        // per-query review machinery.
+        if (context.permissions() != null
+                && context.permissions().contains(Permission.REVIEW_OVERRIDE)) {
             return;
         }
         var items = itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId());
         var resolution = reviewPlanResolver.resolve(group, items);
-        var eligible = resolution.eligibleRoles().contains(context.role())
+        var eligible = resolution.eligibleRoleNames().stream()
+                .anyMatch(name -> name.equalsIgnoreCase(context.roleName()))
                 || resolution.eligibleUserIds().contains(context.userId());
         if (!eligible) {
             throw new RequestGroupPermissionException("You are not an eligible approver for this group");

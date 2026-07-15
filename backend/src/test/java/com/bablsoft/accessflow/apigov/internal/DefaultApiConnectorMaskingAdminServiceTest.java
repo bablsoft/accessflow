@@ -12,6 +12,8 @@ import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorMask
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.RoleLookupService;
+import com.bablsoft.accessflow.core.api.RoleView;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserGroupView;
 import com.bablsoft.accessflow.core.api.UserQueryService;
@@ -32,6 +34,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,6 +48,7 @@ import static org.mockito.Mockito.when;
 class DefaultApiConnectorMaskingAdminServiceTest {
 
     @Mock ApiConnectorMaskingPolicyRepository policyRepository;
+    @Mock RoleLookupService roleLookupService;
     @Mock ApiConnectorRepository connectorRepository;
     @Mock UserQueryService userQueryService;
     @Mock UserGroupService userGroupService;
@@ -57,12 +61,19 @@ class DefaultApiConnectorMaskingAdminServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultApiConnectorMaskingAdminService(policyRepository, connectorRepository,
-                userQueryService, userGroupService, new ObjectMapper(), messageSource);
+        service = new DefaultApiConnectorMaskingAdminService(policyRepository, roleLookupService,
+                connectorRepository, userQueryService, userGroupService, new ObjectMapper(), messageSource);
         when(messageSource.getMessage(any(), any(), any())).thenReturn("error");
+        when(roleLookupService.findByNameInScope(orgId, "admin"))
+                .thenReturn(Optional.of(systemRole("ADMIN")));
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
                 .thenReturn(Optional.of(connector()));
         when(policyRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private RoleView systemRole(String name) {
+        return new RoleView(UUID.randomUUID(), null, name, null, true, Set.of(), 0,
+                Instant.now(), Instant.now());
     }
 
     private ApiConnectorEntity connector() {

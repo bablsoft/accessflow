@@ -269,8 +269,8 @@ class QueryReviewStateMachine {
 
     private ConditionContext buildContext(QueryRequestSnapshot query, RiskLevel riskLevel,
                                           int riskScore) {
-        var role = userQueryService.findById(query.submittedByUserId())
-                .map(UserView::role)
+        var roleName = userQueryService.findById(query.submittedByUserId())
+                .map(UserView::roleName)
                 .orElse(null);
         var groupIds = Set.copyOf(userGroupService.findGroupIdsForUser(query.submittedByUserId()));
         Set<String> referencedTables = Set.of();
@@ -294,7 +294,7 @@ class QueryReviewStateMachine {
                 .orElse(null);
         boolean anomalyActive = behaviorAnomalyLookupService.hasActiveAnomaly(
                 query.organizationId(), query.submittedByUserId(), query.datasourceId());
-        return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, role,
+        return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, roleName,
                 groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional,
                 query.submittedIp(), query.submittedUserAgent(), query.ciCdOrigin(),
                 minutesSinceLastApproval, anomalyActive);

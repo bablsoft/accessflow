@@ -387,7 +387,7 @@ class RealtimeEventDispatcher {
                         .ifPresent(u -> reviewers.add(u.id()));
             } else if (rule.role() != null) {
                 userQueryService
-                        .findByOrganizationAndRole(snapshot.organizationId(), rule.role())
+                        .findByOrganizationAndRoleName(snapshot.organizationId(), rule.role())
                         .stream()
                         .filter(UserView::active)
                         .filter(u -> !u.id().equals(snapshot.submittedByUserId()))

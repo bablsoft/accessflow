@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
@@ -552,17 +551,17 @@ class DefaultQueryRequestLookupServiceTest {
                 "alice@example.com", QueryStatus.PENDING_REVIEW);
         var pageable = PageRequest.of(0, 20);
         when(queryRequestRepository.findPendingForReviewer(eq(orgId), eq(reviewerId),
-                eq(UserRoleType.REVIEWER), eq(QueryStatus.PENDING_REVIEW), any()))
+                eq("REVIEWER"), eq(QueryStatus.PENDING_REVIEW), any()))
                 .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
 
-        var page = service.findPendingForReviewer(orgId, reviewerId, UserRoleType.REVIEWER,
+        var page = service.findPendingForReviewer(orgId, reviewerId, "REVIEWER",
                 com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
         assertThat(page.totalElements()).isEqualTo(1);
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).queryRequestId()).isEqualTo(entity.getId());
         verify(queryRequestRepository).findPendingForReviewer(orgId, reviewerId,
-                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW, pageable);
+                "REVIEWER", QueryStatus.PENDING_REVIEW, pageable);
     }
 
     private static QueryRequestEntity entityWith(UUID queryId, UUID datasourceId,

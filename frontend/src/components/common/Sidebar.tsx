@@ -7,6 +7,7 @@ import {
   DatabaseOutlined,
   TeamOutlined,
   SafetyCertificateOutlined,
+  SafetyOutlined,
   TagsOutlined,
   ExperimentOutlined,
   BellOutlined,
@@ -36,8 +37,8 @@ import {
   BlockOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { Role } from '@/types/api';
 import type { AuthUser } from '@/api/auth';
+import { hasAnyPermission, type Permission } from '@/utils/permissions';
 import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
 import { roleLabel } from '@/utils/enumLabels';
@@ -50,7 +51,8 @@ interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
-  roles: Role[];
+  /** Visible when the user holds ANY of these permissions (AF-522). */
+  permissions: Permission[];
   /** When true, visible to platform admins regardless of role (AF-456). */
   platformAdmin?: boolean;
   badge?: 'pending';
@@ -82,69 +84,70 @@ export function Sidebar({
       id: 'workflow',
       label: t('nav.group_workflow'),
       items: [
-        { id: 'dashboard', to: '/dashboard', label: t('nav.dashboard'), icon: <HomeOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'], badge: 'pending' },
-        { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, roles: ['ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'] },
-        { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, roles: ['REVIEWER', 'ADMIN'] },
-        { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'request-erasure', to: '/lifecycle/erasure', label: t('nav.request_erasure'), icon: <FieldTimeOutlined />, roles: ['READONLY', 'ANALYST', 'REVIEWER', 'ADMIN'] },
-        { id: 'erasure-review', to: '/lifecycle/erasure-reviews', label: t('nav.erasure_review'), icon: <FileProtectOutlined />, roles: ['REVIEWER', 'ADMIN'] },
-        { id: 'attestation-reviews', to: '/reviews/attestations', label: t('nav.attestation_reviews'), icon: <CheckSquareOutlined />, roles: ['REVIEWER', 'ADMIN'] },
+        { id: 'dashboard', to: '/dashboard', label: t('nav.dashboard'), icon: <HomeOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'editor', to: '/editor', label: t('nav.editor'), icon: <EditOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
+        { id: 'queries', to: '/queries', label: t('nav.queries'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'], badge: 'pending' },
+        { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
+        { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, permissions: ['API_REQUEST_REVIEW'] },
+        { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'] },
+        { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'request-erasure', to: '/lifecycle/erasure', label: t('nav.request_erasure'), icon: <FieldTimeOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'erasure-review', to: '/lifecycle/erasure-reviews', label: t('nav.erasure_review'), icon: <FileProtectOutlined />, permissions: ['ERASURE_REVIEW'] },
+        { id: 'attestation-reviews', to: '/reviews/attestations', label: t('nav.attestation_reviews'), icon: <CheckSquareOutlined />, permissions: ['ATTESTATION_REVIEW'] },
       ],
     },
     {
       id: 'data',
       label: t('nav.group_data'),
       items: [
-        { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, roles: ['ADMIN'] },
-        { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, roles: ['ADMIN'] },
-        { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, roles: ['ADMIN'] },
-        { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, roles: ['ADMIN'] },
+        { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, permissions: ['DATASOURCE_MANAGE'] },
+        { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, permissions: ['API_CONNECTOR_MANAGE'] },
+        { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, permissions: ['DATASOURCE_MANAGE'] },
+        { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, permissions: ['DATASOURCE_MANAGE'] },
       ],
     },
     {
       id: 'security',
       label: t('nav.group_security'),
       items: [
-        { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, roles: ['ADMIN'] },
-        { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, roles: ['ADMIN'] },
-        { id: 'access-requests', to: '/admin/access-requests', label: t('nav.access_requests'), icon: <UnlockOutlined />, roles: ['REVIEWER', 'ADMIN'] },
-        { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, roles: ['ADMIN'] },
-        { id: 'routing-policies', to: '/admin/routing-policies', label: t('nav.routing_policies'), icon: <NodeIndexOutlined />, roles: ['ADMIN'] },
-        { id: 'data-classifications', to: '/admin/data-classifications', label: t('nav.data_classifications'), icon: <TagsOutlined />, roles: ['ADMIN'] },
-        { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <FileProtectOutlined />, roles: ['ADMIN'] },
-        { id: 'lifecycle', to: '/admin/lifecycle/policies', label: t('nav.lifecycle'), icon: <FieldTimeOutlined />, roles: ['ADMIN'] },
-        { id: 'break-glass', to: '/admin/break-glass', label: t('nav.break_glass'), icon: <ThunderboltOutlined />, roles: ['AUDITOR', 'ADMIN'] },
-        { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, roles: ['ADMIN'] },
-        { id: 'auditor', to: '/admin/auditor', label: t('nav.auditor'), icon: <AuditOutlined />, roles: ['AUDITOR', 'ADMIN'] },
-        { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, roles: ['ADMIN'] },
-        { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, roles: ['ADMIN'] },
-        { id: 'slack', to: '/admin/slack', label: t('nav.slack'), icon: <SlackOutlined />, roles: ['ADMIN'] },
+        { id: 'users', to: '/admin/users', label: t('nav.users'), icon: <TeamOutlined />, permissions: ['USER_MANAGE'] },
+        { id: 'groups', to: '/admin/groups', label: t('nav.groups'), icon: <TeamOutlined />, permissions: ['GROUP_MANAGE'] },
+        { id: 'roles', to: '/admin/roles', label: t('nav.roles'), icon: <SafetyOutlined />, permissions: ['ROLE_MANAGE'] },
+        { id: 'access-requests', to: '/admin/access-requests', label: t('nav.access_requests'), icon: <UnlockOutlined />, permissions: ['ACCESS_REQUEST_REVIEW'] },
+        { id: 'review-plans', to: '/admin/review-plans', label: t('nav.review_plans'), icon: <ApartmentOutlined />, permissions: ['REVIEW_PLAN_MANAGE'] },
+        { id: 'routing-policies', to: '/admin/routing-policies', label: t('nav.routing_policies'), icon: <NodeIndexOutlined />, permissions: ['ROUTING_POLICY_MANAGE'] },
+        { id: 'data-classifications', to: '/admin/data-classifications', label: t('nav.data_classifications'), icon: <TagsOutlined />, permissions: ['DATA_CLASSIFICATION_MANAGE'] },
+        { id: 'attestation', to: '/admin/attestation', label: t('nav.attestation'), icon: <FileProtectOutlined />, permissions: ['ATTESTATION_CAMPAIGN_MANAGE'] },
+        { id: 'lifecycle', to: '/admin/lifecycle/policies', label: t('nav.lifecycle'), icon: <FieldTimeOutlined />, permissions: ['RETENTION_POLICY_MANAGE'] },
+        { id: 'break-glass', to: '/admin/break-glass', label: t('nav.break_glass'), icon: <ThunderboltOutlined />, permissions: ['BREAK_GLASS_VIEW'] },
+        { id: 'audit', to: '/admin/audit-log', label: t('nav.audit'), icon: <SafetyCertificateOutlined />, permissions: ['AUDIT_LOG_VIEW'] },
+        { id: 'auditor', to: '/admin/auditor', label: t('nav.auditor'), icon: <AuditOutlined />, permissions: ['COMPLIANCE_REPORT_VIEW'] },
+        { id: 'saml', to: '/admin/saml', label: t('nav.saml'), icon: <IdcardOutlined />, permissions: ['SSO_CONFIGURE'] },
+        { id: 'oauth2', to: '/admin/oauth2', label: t('nav.oauth2'), icon: <LoginOutlined />, permissions: ['SSO_CONFIGURE'] },
+        { id: 'slack', to: '/admin/slack', label: t('nav.slack'), icon: <SlackOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
       ],
     },
     {
       id: 'system',
       label: t('nav.group_system'),
       items: [
-        { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, roles: ['ADMIN'] },
-        { id: 'ai-analyses', to: '/admin/ai-analyses', label: t('nav.ai_analyses'), icon: <BarChartOutlined />, roles: ['ADMIN'] },
-        { id: 'datasource-health', to: '/admin/datasource-health', label: t('nav.datasource_health'), icon: <DashboardOutlined />, roles: ['ADMIN'] },
-        { id: 'anomalies', to: '/admin/anomalies', label: t('nav.anomalies'), icon: <WarningOutlined />, roles: ['ADMIN'] },
-        { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, roles: ['ADMIN'] },
-        { id: 'langfuse', to: '/admin/langfuse', label: t('nav.langfuse'), icon: <LineChartOutlined />, roles: ['ADMIN'] },
-        { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, roles: ['ADMIN'] },
+        { id: 'ai', to: '/admin/ai-configs', label: t('nav.ai_configs'), icon: <ExperimentOutlined />, permissions: ['AI_MANAGE'] },
+        { id: 'ai-analyses', to: '/admin/ai-analyses', label: t('nav.ai_analyses'), icon: <BarChartOutlined />, permissions: ['AI_MANAGE'] },
+        { id: 'datasource-health', to: '/admin/datasource-health', label: t('nav.datasource_health'), icon: <DashboardOutlined />, permissions: ['DATASOURCE_MANAGE'] },
+        { id: 'anomalies', to: '/admin/anomalies', label: t('nav.anomalies'), icon: <WarningOutlined />, permissions: ['ANOMALY_MANAGE'] },
+        { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
+        { id: 'langfuse', to: '/admin/langfuse', label: t('nav.langfuse'), icon: <LineChartOutlined />, permissions: ['AI_MANAGE'] },
+        { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, permissions: ['LOCALIZATION_CONFIGURE'] },
       ],
     },
     {
       id: 'platform',
       label: t('nav.group_platform'),
       items: [
-        { id: 'organizations', to: '/admin/organizations', label: t('nav.organizations'), icon: <BankOutlined />, roles: [], platformAdmin: true },
+        { id: 'organizations', to: '/admin/organizations', label: t('nav.organizations'), icon: <BankOutlined />, permissions: [], platformAdmin: true },
       ],
     },
   ];
@@ -153,7 +156,8 @@ export function Sidebar({
     .map((g) => ({
       ...g,
       items: g.items.filter(
-        (it) => it.roles.includes(user.role) || (it.platformAdmin && user.platform_admin),
+        (it) => hasAnyPermission(user, it.permissions)
+          || (it.platformAdmin && user.platform_admin),
       ),
     }))
     .filter((g) => g.items.length > 0);

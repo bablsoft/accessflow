@@ -2,7 +2,8 @@ import type { ReviewPlanTemplate } from '@/types/api';
 
 export interface ReviewPlanFormApproverRow {
   user_id: string | null;
-  role: 'ADMIN' | 'REVIEWER' | null;
+  /** Role NAME — a system role or a custom role's name (AF-522). */
+  role: string | null;
   stage: number;
 }
 

@@ -39,13 +39,14 @@ import {
   updateUser,
   userKeys,
 } from '@/api/admin';
+import { listRoles, roleKeys } from '@/api/roles';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import {
   authProviderLabel,
   enumOptions,
   invitationStatusLabel,
-  roleLabel,
 } from '@/utils/enumLabels';
+import { roleSelectOptions, type RoleOption } from '@/utils/roleOptions';
 import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
@@ -53,30 +54,34 @@ import type {
   AuthProvider,
   CreateUserInput,
   InviteUserInput,
-  Role,
+  RoleSummary,
   UpdateUserInput,
   User,
   UserInvitation,
 } from '@/types/api';
 
-const ROLE_VALUES: readonly Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'] as const;
 const AUTH_PROVIDER_VALUES: readonly AuthProvider[] = ['LOCAL', 'SAML', 'OAUTH2'] as const;
+
+/** Display name of a user's role — custom-role users carry it in role_name (AF-522). */
+function roleNameOf(u: Pick<User, 'role' | 'role_name'>): string | null {
+  return u.role_name ?? u.role;
+}
 
 interface InviteFormValues {
   email: string;
   password: string;
   display_name?: string;
-  role: Role;
+  role_id: string;
 }
 
 interface InviteByEmailFormValues {
   email: string;
   display_name?: string;
-  role: Role;
+  role_id: string;
 }
 
 interface EditFormValues {
-  role: Role;
+  role_id: string;
   active: boolean;
   display_name?: string;
   attributes?: { key: string; value: string }[];
@@ -91,7 +96,7 @@ export function UsersPage() {
 
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | string>('all');
   const [providerFilter, setProviderFilter] = useState<'all' | AuthProvider>('all');
   const [inviting, setInviting] = useState(false);
   const [invitingByEmail, setInvitingByEmail] = useState(false);
@@ -105,6 +110,14 @@ export function UsersPage() {
     queryKey: userKeys.list(filters),
     queryFn: () => listUsers(filters),
   });
+
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+  });
+  const roles = useMemo(() => rolesQuery.data ?? [], [rolesQuery.data]);
+  const roleIdOptions = useMemo(() => roleSelectOptions(roles, t, 'id'), [roles, t]);
+  const roleNameOptions = useMemo(() => roleSelectOptions(roles, t, 'name'), [roles, t]);
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateUserInput) => createUser(payload),
@@ -174,7 +187,7 @@ export function UsersPage() {
   const filtered = useMemo(() => {
     const all = usersQuery.data?.content ?? [];
     return all.filter((u) => {
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (roleFilter !== 'all' && roleNameOf(u) !== roleFilter) return false;
       if (providerFilter !== 'all' && u.auth_provider !== providerFilter) return false;
       if (
         search &&
@@ -247,10 +260,11 @@ export function UsersPage() {
         <Select
           value={roleFilter}
           onChange={setRoleFilter}
-          style={{ width: 130 }}
+          style={{ width: 150 }}
+          loading={rolesQuery.isLoading}
           options={[
             { value: 'all', label: t('admin.users.filter_all_roles') },
-            ...enumOptions(ROLE_VALUES, roleLabel, t),
+            ...roleNameOptions,
           ]}
         />
         <Select
@@ -308,9 +322,12 @@ export function UsersPage() {
               },
               {
                 title: t('admin.users.col_role'),
-                dataIndex: 'role',
+                key: 'role',
                 width: 110,
-                render: (v) => <RolePill role={v} size="sm" />,
+                render: (_v, u) => {
+                  const name = roleNameOf(u);
+                  return name ? <RolePill role={name} size="sm" /> : <span className="muted">—</span>;
+                },
               },
               {
                 title: t('admin.users.col_auth'),
@@ -417,6 +434,9 @@ export function UsersPage() {
         onClose={() => setInviting(false)}
         onSubmit={(values) => createMutation.mutate(values)}
         loading={createMutation.isPending}
+        roleOptions={roleIdOptions}
+        rolesLoading={rolesQuery.isLoading}
+        defaultRoleId={defaultRoleId(roles)}
       />
 
       <InviteByEmailModal
@@ -424,6 +444,9 @@ export function UsersPage() {
         onClose={() => setInvitingByEmail(false)}
         onSubmit={(values) => inviteMutation.mutate(values)}
         loading={inviteMutation.isPending}
+        roleOptions={roleIdOptions}
+        rolesLoading={rolesQuery.isLoading}
+        defaultRoleId={defaultRoleId(roles)}
       />
 
       <EditUserModal
@@ -437,9 +460,17 @@ export function UsersPage() {
           })
         }
         loading={updateMutation.isPending}
+        roleOptions={roleIdOptions}
+        rolesLoading={rolesQuery.isLoading}
+        roles={roles}
       />
     </div>
   );
+}
+
+/** Default role preselected in the invite forms — the system ANALYST role, once loaded. */
+function defaultRoleId(roles: RoleSummary[]): string | undefined {
+  return roles.find((r) => r.system && r.name === 'ANALYST')?.id;
 }
 
 function InviteUserModal({
@@ -447,17 +478,25 @@ function InviteUserModal({
   onClose,
   onSubmit,
   loading,
+  roleOptions,
+  rolesLoading,
+  defaultRoleId: defaultId,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (values: CreateUserInput) => void;
   loading: boolean;
+  roleOptions: RoleOption[];
+  rolesLoading: boolean;
+  defaultRoleId: string | undefined;
 }) {
   const { t } = useTranslation();
   const [form] = Form.useForm<InviteFormValues>();
   useEffect(() => {
-    if (open) form.resetFields();
-  }, [open, form]);
+    if (!open) return;
+    form.resetFields();
+    if (defaultId) form.setFieldsValue({ role_id: defaultId });
+  }, [open, form, defaultId]);
 
   return (
     <Modal
@@ -473,13 +512,12 @@ function InviteUserModal({
       <Form<InviteFormValues>
         form={form}
         layout="vertical"
-        initialValues={{ role: 'ANALYST' }}
         onFinish={(values) =>
           onSubmit({
             email: values.email.trim(),
             password: values.password,
             display_name: values.display_name?.trim() || null,
-            role: values.role,
+            role_id: values.role_id,
           })
         }
       >
@@ -507,8 +545,8 @@ function InviteUserModal({
         >
           <Input maxLength={255} />
         </Form.Item>
-        <Form.Item name="role" label={t('admin.users.label_role')} rules={[{ required: true }]}>
-          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
+        <Form.Item name="role_id" label={t('admin.users.label_role')} rules={[{ required: true }]}>
+          <Select options={roleOptions} loading={rolesLoading} />
         </Form.Item>
       </Form>
     </Modal>
@@ -520,11 +558,17 @@ function EditUserModal({
   onClose,
   onSubmit,
   loading,
+  roleOptions,
+  rolesLoading,
+  roles,
 }: {
   user: User | null;
   onClose: () => void;
   onSubmit: (values: UpdateUserInput) => void;
   loading: boolean;
+  roleOptions: RoleOption[];
+  rolesLoading: boolean;
+  roles: RoleSummary[];
 }) {
   const { t } = useTranslation();
   const [form] = Form.useForm<EditFormValues>();
@@ -536,7 +580,8 @@ function EditUserModal({
   useEffect(() => {
     if (!user) return;
     form.setFieldsValue({
-      role: user.role,
+      role_id:
+        user.role_id ?? roles.find((r) => r.name === (user.role_name ?? user.role))?.id,
       active: user.active,
       display_name: user.display_name,
       attributes: Object.entries(attributesQuery.data ?? {}).map(([key, value]) => ({
@@ -544,7 +589,7 @@ function EditUserModal({
         value,
       })),
     });
-  }, [user, attributesQuery.data, form]);
+  }, [user, attributesQuery.data, form, roles]);
 
   return (
     <Modal
@@ -567,7 +612,7 @@ function EditUserModal({
             if (key) attributes[key] = (row.value ?? '').trim();
           }
           onSubmit({
-            role: values.role,
+            role_id: values.role_id,
             active: values.active,
             display_name: values.display_name?.trim() || null,
             attributes,
@@ -581,8 +626,8 @@ function EditUserModal({
         >
           <Input maxLength={255} />
         </Form.Item>
-        <Form.Item name="role" label={t('admin.users.label_role')} rules={[{ required: true }]}>
-          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
+        <Form.Item name="role_id" label={t('admin.users.label_role')} rules={[{ required: true }]}>
+          <Select options={roleOptions} loading={rolesLoading} />
         </Form.Item>
         <Form.Item name="active" label={t('admin.users.label_active')} valuePropName="checked">
           <Switch />
@@ -642,17 +687,25 @@ function InviteByEmailModal({
   onClose,
   onSubmit,
   loading,
+  roleOptions,
+  rolesLoading,
+  defaultRoleId: defaultId,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (values: InviteUserInput) => void;
   loading: boolean;
+  roleOptions: RoleOption[];
+  rolesLoading: boolean;
+  defaultRoleId: string | undefined;
 }) {
   const { t } = useTranslation();
   const [form] = Form.useForm<InviteByEmailFormValues>();
   useEffect(() => {
-    if (open) form.resetFields();
-  }, [open, form]);
+    if (!open) return;
+    form.resetFields();
+    if (defaultId) form.setFieldsValue({ role_id: defaultId });
+  }, [open, form, defaultId]);
 
   return (
     <Modal
@@ -668,12 +721,11 @@ function InviteByEmailModal({
       <Form<InviteByEmailFormValues>
         form={form}
         layout="vertical"
-        initialValues={{ role: 'ANALYST' }}
         onFinish={(values) =>
           onSubmit({
             email: values.email.trim(),
             display_name: values.display_name?.trim() || null,
-            role: values.role,
+            role_id: values.role_id,
           })
         }
       >
@@ -696,11 +748,11 @@ function InviteByEmailModal({
           <Input maxLength={255} />
         </Form.Item>
         <Form.Item
-          name="role"
+          name="role_id"
           label={t('admin.users.label_role')}
           rules={[{ required: true, message: t('validation.invite.role_required') }]}
         >
-          <Select options={enumOptions(ROLE_VALUES, roleLabel, t)} />
+          <Select options={roleOptions} loading={rolesLoading} />
         </Form.Item>
       </Form>
     </Modal>
@@ -743,8 +795,11 @@ function PendingInvitationsSection({
           },
           {
             title: t('admin.users.label_role'),
-            dataIndex: 'role',
-            render: (role: Role) => <RolePill role={role} />,
+            key: 'role',
+            render: (_v, invitation) => {
+              const name = invitation.role_name ?? invitation.role;
+              return name ? <RolePill role={name} /> : <span className="muted">—</span>;
+            },
           },
           {
             title: t('admin.users.invite_status'),

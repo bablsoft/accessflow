@@ -36,8 +36,9 @@ import {
   updateReviewPlan,
 } from '@/api/reviewPlans';
 import { setupProgressKeys } from '@/api/admin';
+import { listRoles, roleKeys } from '@/api/roles';
 import { reviewPlanErrorMessage } from '@/utils/apiErrors';
-import { enumOptions, roleLabel } from '@/utils/enumLabels';
+import { roleSelectOptions } from '@/utils/roleOptions';
 import { showApiError } from '@/utils/showApiError';
 import {
   REVIEW_PLAN_DEFAULT_VALUES as DEFAULT_VALUES,
@@ -49,10 +50,7 @@ import type {
   ReviewPlan,
   ReviewPlanTemplate,
   ReviewPlanWriteRequest,
-  Role,
 } from '@/types/api';
-
-const APPROVER_ROLES: readonly Role[] = ['REVIEWER', 'ADMIN'] as const;
 
 export function ReviewPlansPage() {
   const { t } = useTranslation();
@@ -74,6 +72,16 @@ export function ReviewPlansPage() {
     queryFn: listReviewPlanTemplates,
     staleTime: Infinity,
   });
+
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+    staleTime: 60_000,
+  });
+  const approverRoleOptions = useMemo(
+    () => roleSelectOptions(rolesQuery.data ?? [], t, 'name'),
+    [rolesQuery.data, t],
+  );
 
   const isOpen = creating || editing !== null;
 
@@ -463,7 +471,8 @@ export function ReviewPlansPage() {
                         <Select
                           allowClear
                           placeholder={t('admin.review_plans.select_role_placeholder')}
-                          options={enumOptions(APPROVER_ROLES, roleLabel, t)}
+                          options={approverRoleOptions}
+                          loading={rolesQuery.isLoading}
                         />
                       </Form.Item>
                       <Form.Item

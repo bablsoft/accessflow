@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -41,6 +42,7 @@ import java.util.UUID;
 class MeProfileController {
 
     private final UserProfileService userProfileService;
+    private final RolePermissionResolver rolePermissionResolver;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -48,7 +50,9 @@ class MeProfileController {
     @ApiResponse(responseCode = "200", description = "Profile returned")
     MeProfileResponse getProfile(Authentication authentication) {
         var caller = currentClaims(authentication);
-        return MeProfileResponse.from(userProfileService.getProfile(caller.userId()));
+        var profile = userProfileService.getProfile(caller.userId());
+        return MeProfileResponse.from(profile,
+                rolePermissionResolver.resolve(profile.roleId(), profile.role()));
     }
 
     @PutMapping("/profile")
@@ -62,7 +66,8 @@ class MeProfileController {
         var updated = userProfileService.updateDisplayName(caller.userId(), request.displayName());
         recordAudit(AuditAction.USER_PROFILE_UPDATED, caller, auditContext,
                 Map.of("display_name", updated.displayName()));
-        return MeProfileResponse.from(updated);
+        return MeProfileResponse.from(updated,
+                rolePermissionResolver.resolve(updated.roleId(), updated.role()));
     }
 
     @PostMapping("/password")

@@ -35,8 +35,13 @@ public class UserInvitationEntity {
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(nullable = false, columnDefinition = "user_role_type")
+    @Column(columnDefinition = "user_role_type")
     private UserRoleType role;
+
+    // Plain FK column (no cross-module association to core's RoleEntity); null = legacy
+    // system-role invitation (AF-522).
+    @Column(name = "role_id")
+    private UUID roleId;
 
     @Column(name = "display_name", length = 255)
     private String displayName;

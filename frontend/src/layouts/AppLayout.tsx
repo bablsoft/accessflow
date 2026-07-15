@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { hasPermission } from '@/utils/permissions';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Sidebar } from '@/components/common/Sidebar';
@@ -17,7 +18,7 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  const isReviewer = user?.role === 'REVIEWER' || user?.role === 'ADMIN';
+  const isReviewer = hasPermission(user, 'QUERY_REVIEW');
   const pendingFilters = { size: 1 };
   const { data } = useQuery({
     queryKey: reviewKeys.pendingFor(pendingFilters),

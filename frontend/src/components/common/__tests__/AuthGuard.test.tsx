@@ -16,6 +16,8 @@ function setUser(partial: Partial<AuthUser> | null) {
       email: 'a@b.c',
       display_name: 'A',
       role: 'ADMIN',
+      role_id: null,
+      permissions: [],
       auth_provider: 'LOCAL',
       totp_enabled: false,
       platform_admin: false,

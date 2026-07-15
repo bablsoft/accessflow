@@ -35,7 +35,7 @@ class AdminAccessRequestController {
     private final AccessRequestAuditWriter auditWriter;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ACCESS_REQUEST_REVIEW')")
     @Operation(summary = "List access requests the caller can act on as a reviewer")
     @ApiResponse(responseCode = "200", description = "Page of currently-actionable pending access requests")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
@@ -48,7 +48,7 @@ class AdminAccessRequestController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ACCESS_REQUEST_REVIEW')")
     @Operation(summary = "Approve an access request; final stage materialises a time-boxed grant")
     @ApiResponse(responseCode = "200", description = "Decision recorded; resulting status returned")
     @ApiResponse(responseCode = "400", description = "Validation error")
@@ -67,7 +67,7 @@ class AdminAccessRequestController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER','ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ACCESS_REQUEST_REVIEW')")
     @Operation(summary = "Reject an access request")
     @ApiResponse(responseCode = "200", description = "Decision recorded; request transitioned to REJECTED")
     @ApiResponse(responseCode = "400", description = "Validation error (comment is required)")
@@ -86,7 +86,7 @@ class AdminAccessRequestController {
     }
 
     @PostMapping("/{id}/revoke")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_ACCESS_GRANT_REVOKE')")
     @Operation(summary = "Revoke an active grant early, before its natural expiry")
     @ApiResponse(responseCode = "200", description = "Grant revoked (or no-op when already inactive)")
     @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
@@ -123,7 +123,8 @@ class AdminAccessRequestController {
     }
 
     private static ReviewerContext toContext(JwtClaims caller) {
-        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.role());
+        return new ReviewerContext(caller.userId(), caller.organizationId(), caller.roleName(),
+                caller.permissions());
     }
 
     private static JwtClaims currentClaims(Authentication authentication) {

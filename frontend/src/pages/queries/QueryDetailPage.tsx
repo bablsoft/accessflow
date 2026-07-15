@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { hasPermission } from '@/utils/permissions';
 import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Select, Skeleton } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -196,7 +197,7 @@ export function QueryDetailPage() {
     );
   }
 
-  const isReviewer = user.role === 'REVIEWER' || user.role === 'ADMIN';
+  const isReviewer = hasPermission(user, 'QUERY_REVIEW');
   const submitterId = query.submitted_by.id;
   const canDecide = isReviewer && query.status === 'PENDING_REVIEW' && submitterId !== user.id;
   const hasScheduledRun =
@@ -212,7 +213,7 @@ export function QueryDetailPage() {
       query.status === 'PENDING_REVIEW' ||
       hasScheduledRun);
   const canExecute =
-    query.status === 'APPROVED' && (submitterId === user.id || user.role === 'ADMIN');
+    query.status === 'APPROVED' && (submitterId === user.id || hasPermission(user, 'QUERY_ADMIN'));
   // Replay is offered once a query has executed; its immutable snapshot exists from then on.
   const canReplay = query.status === 'EXECUTED';
   const replayTargets = (replayDatasources?.content ?? []).filter(

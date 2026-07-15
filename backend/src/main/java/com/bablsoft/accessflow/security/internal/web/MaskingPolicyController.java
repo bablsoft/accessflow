@@ -42,7 +42,7 @@ import java.util.UUID;
 @RequestMapping("/api/v1/datasources/{datasourceId}/masking-policies")
 @Tag(name = "Masking policies",
         description = "Per-column dynamic data masking policies with conditional reveal")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_MASKING_POLICY_MANAGE')")
 @RequiredArgsConstructor
 @Slf4j
 class MaskingPolicyController {

@@ -54,10 +54,16 @@ public class UserEntity {
     @Column(name = "saml_subject", length = 255)
     private String samlSubject;
 
+    // Legacy system-role column (AF-522): populated (and kept in sync with roleRef) for users on
+    // one of the 5 system roles, NULL for users on a custom role. roleRef is the source of truth.
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
-    @Column(nullable = false, columnDefinition = "user_role_type")
+    @Column(columnDefinition = "user_role_type")
     private UserRoleType role;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id")
+    private RoleEntity roleRef;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
@@ -93,4 +99,16 @@ public class UserEntity {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    /**
+     * The user's role name — the custom role's name when one is assigned, otherwise the legacy
+     * system-role enum name. Role-targeted policy matching (masking, row security, routing,
+     * approver rules) keys on this value.
+     */
+    public String roleName() {
+        if (roleRef != null) {
+            return roleRef.getName();
+        }
+        return role != null ? role.name() : null;
+    }
 }

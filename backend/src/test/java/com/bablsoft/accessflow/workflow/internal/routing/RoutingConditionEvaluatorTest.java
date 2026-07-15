@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.internal.routing;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.ComparisonOperator;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
@@ -29,7 +28,7 @@ class RoutingConditionEvaluatorTest {
                 Set.of("payroll.salaries"),
                 RiskLevel.HIGH,
                 82,
-                UserRoleType.ANALYST,
+                "ANALYST",
                 Set.of(groupId),
                 LocalDateTime.of(2026, 6, 3, 14, 30), // Wednesday
                 false,
@@ -44,7 +43,7 @@ class RoutingConditionEvaluatorTest {
 
     private ConditionContext noRiskContext() {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), null, -1,
-                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
                 false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120, false);
     }
 
@@ -102,9 +101,9 @@ class RoutingConditionEvaluatorTest {
     @Test
     void requesterRole() {
         assertThat(evaluator.matches(
-                new ConditionNode.RequesterRoleIn(Set.of(UserRoleType.ANALYST)), context())).isTrue();
+                new ConditionNode.RequesterRoleIn(Set.of("ANALYST")), context())).isTrue();
         assertThat(evaluator.matches(
-                new ConditionNode.RequesterRoleIn(Set.of(UserRoleType.ADMIN)), context())).isFalse();
+                new ConditionNode.RequesterRoleIn(Set.of("ADMIN")), context())).isFalse();
     }
 
     @Test
@@ -194,7 +193,7 @@ class RoutingConditionEvaluatorTest {
 
     private ConditionContext at(int hour, int minute) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
-                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, hour, minute),
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, hour, minute),
                 false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120, false);
     }
 
@@ -203,7 +202,7 @@ class RoutingConditionEvaluatorTest {
     private ConditionContext clientContext(String ip, String userAgent, boolean ciCdOrigin,
                                            Integer minutesSinceLastApproval) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
-                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
                 false, false, false, ip, userAgent, ciCdOrigin, minutesSinceLastApproval, false);
     }
 
@@ -279,7 +278,7 @@ class RoutingConditionEvaluatorTest {
 
     private ConditionContext anomalyContext(boolean anomalyActive) {
         return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
-                UserRoleType.ANALYST, Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
                 false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120,
                 anomalyActive);
     }

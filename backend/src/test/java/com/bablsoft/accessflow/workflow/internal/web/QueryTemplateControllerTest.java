@@ -47,7 +47,7 @@ class QueryTemplateControllerTest {
     private final UUID templateId = UUID.randomUUID();
     private final RequestAuditContext auditContext = new RequestAuditContext("203.0.113.5", "ua/1");
     private final Authentication authentication = new UsernamePasswordAuthenticationToken(
-            new JwtClaims(userId, "alice@x.com", UserRoleType.ANALYST, organizationId),
+            JwtClaims.forSystemRole(userId, "alice@x.com", UserRoleType.ANALYST, organizationId),
             "n/a", List.of());
 
     @BeforeEach

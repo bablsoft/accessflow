@@ -105,7 +105,8 @@ class DefaultAccessRequestLookupService implements AccessRequestLookupService {
                         .filter(u -> !u.id().equals(entity.getRequesterId()))
                         .ifPresent(u -> reviewers.add(u.id()));
             } else if (rule.role() != null) {
-                userQueryService.findByOrganizationAndRole(entity.getOrganizationId(), rule.role())
+                userQueryService.findByOrganizationAndRoleName(entity.getOrganizationId(),
+                                rule.role())
                         .stream()
                         .filter(UserView::active)
                         .filter(u -> !u.id().equals(entity.getRequesterId()))
