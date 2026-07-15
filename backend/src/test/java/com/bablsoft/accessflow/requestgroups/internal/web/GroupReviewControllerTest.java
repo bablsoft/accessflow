@@ -44,7 +44,7 @@ class GroupReviewControllerTest {
 
     private Authentication auth() {
         var a = mock(Authentication.class);
-        when(a.getPrincipal()).thenReturn(new JwtClaims(userId, "r@acme.test", UserRoleType.REVIEWER, orgId));
+        when(a.getPrincipal()).thenReturn(JwtClaims.forSystemRole(userId, "r@acme.test", UserRoleType.REVIEWER, orgId));
         return a;
     }
 
@@ -62,7 +62,7 @@ class GroupReviewControllerTest {
         var captor = ArgumentCaptor.forClass(ReviewerContext.class);
         verify(service).listPending(captor.capture(), any());
         assertThat(captor.getValue().userId()).isEqualTo(userId);
-        assertThat(captor.getValue().role()).isEqualTo(UserRoleType.REVIEWER);
+        assertThat(captor.getValue().roleName()).isEqualTo("REVIEWER");
     }
 
     @Test

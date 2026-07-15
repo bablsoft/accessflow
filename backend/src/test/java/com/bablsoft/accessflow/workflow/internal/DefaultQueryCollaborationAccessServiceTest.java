@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.ApproverRule;
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -8,6 +9,7 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +27,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class DefaultQueryCollaborationAccessServiceTest {
+
+    private static final Set<Permission> ANALYST_PERMS =
+            SystemRolePermissions.of(UserRoleType.ANALYST);
+    private static final Set<Permission> REVIEWER_PERMS =
+            SystemRolePermissions.of(UserRoleType.REVIEWER);
+    private static final Set<Permission> ADMIN_PERMS =
+            SystemRolePermissions.of(UserRoleType.ADMIN);
 
     private final QueryRequestLookupService queryLookup = mock(QueryRequestLookupService.class);
     private final ReviewPlanLookupService planLookup = mock(ReviewPlanLookupService.class);
@@ -42,18 +52,18 @@ class DefaultQueryCollaborationAccessServiceTest {
     @Test
     void submitterCanCollaborateWhilePendingReviewAndPendingAi() {
         stubQuery(QueryStatus.PENDING_REVIEW);
-        assertThat(service.canCollaborate(queryId, submitterId, orgId, UserRoleType.ANALYST))
+        assertThat(service.canCollaborate(queryId, submitterId, orgId, "ANALYST", ANALYST_PERMS))
                 .isTrue();
 
         stubQuery(QueryStatus.PENDING_AI);
-        assertThat(service.canCollaborate(queryId, submitterId, orgId, UserRoleType.ANALYST))
+        assertThat(service.canCollaborate(queryId, submitterId, orgId, "ANALYST", ANALYST_PERMS))
                 .isTrue();
     }
 
     @Test
     void submitterCannotCollaborateOnceApproved() {
         stubQuery(QueryStatus.APPROVED);
-        assertThat(service.canCollaborate(queryId, submitterId, orgId, UserRoleType.ANALYST))
+        assertThat(service.canCollaborate(queryId, submitterId, orgId, "ANALYST", ANALYST_PERMS))
                 .isFalse();
     }
 
@@ -62,8 +72,8 @@ class DefaultQueryCollaborationAccessServiceTest {
         stubQuery(QueryStatus.PENDING_REVIEW);
         when(planLookup.findForDatasource(datasourceId)).thenReturn(Optional.empty());
 
-        assertThat(service.canCollaborate(queryId, UUID.randomUUID(), orgId, UserRoleType.ADMIN))
-                .isTrue();
+        assertThat(service.canCollaborate(queryId, UUID.randomUUID(), orgId, "ADMIN",
+                ADMIN_PERMS)).isTrue();
     }
 
     @Test
@@ -71,10 +81,10 @@ class DefaultQueryCollaborationAccessServiceTest {
         var reviewerId = UUID.randomUUID();
         stubQuery(QueryStatus.PENDING_REVIEW);
         when(planLookup.findForDatasource(datasourceId))
-                .thenReturn(Optional.of(plan(new ApproverRule(null, UserRoleType.REVIEWER, 1))));
+                .thenReturn(Optional.of(plan(new ApproverRule(null, "REVIEWER", 1))));
         when(eligibility.findEligibleReviewerIds(datasourceId)).thenReturn(Optional.empty());
 
-        assertThat(service.canCollaborate(queryId, reviewerId, orgId, UserRoleType.REVIEWER))
+        assertThat(service.canCollaborate(queryId, reviewerId, orgId, "REVIEWER", REVIEWER_PERMS))
                 .isTrue();
     }
 
@@ -85,29 +95,29 @@ class DefaultQueryCollaborationAccessServiceTest {
         when(planLookup.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(plan(new ApproverRule(UUID.randomUUID(), null, 1))));
 
-        assertThat(service.canCollaborate(queryId, reviewerId, orgId, UserRoleType.REVIEWER))
+        assertThat(service.canCollaborate(queryId, reviewerId, orgId, "REVIEWER", REVIEWER_PERMS))
                 .isFalse();
     }
 
     @Test
     void outsiderAnalystCannotCollaborate() {
         stubQuery(QueryStatus.PENDING_REVIEW);
-        assertThat(service.canCollaborate(queryId, UUID.randomUUID(), orgId, UserRoleType.ANALYST))
-                .isFalse();
+        assertThat(service.canCollaborate(queryId, UUID.randomUUID(), orgId, "ANALYST",
+                ANALYST_PERMS)).isFalse();
     }
 
     @Test
     void unknownQueryCannotCollaborate() {
         when(queryLookup.findById(queryId)).thenReturn(Optional.empty());
-        assertThat(service.canCollaborate(queryId, submitterId, orgId, UserRoleType.ADMIN))
+        assertThat(service.canCollaborate(queryId, submitterId, orgId, "ADMIN", ADMIN_PERMS))
                 .isFalse();
     }
 
     @Test
     void queryInDifferentOrganizationCannotCollaborate() {
         stubQuery(QueryStatus.PENDING_REVIEW);
-        assertThat(service.canCollaborate(queryId, submitterId, UUID.randomUUID(),
-                UserRoleType.ADMIN)).isFalse();
+        assertThat(service.canCollaborate(queryId, submitterId, UUID.randomUUID(), "ADMIN",
+                ADMIN_PERMS)).isFalse();
     }
 
     @Test
@@ -116,7 +126,7 @@ class DefaultQueryCollaborationAccessServiceTest {
         when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId, "Ann")));
 
         var identity = service.resolveParticipant(queryId, submitterId, orgId,
-                UserRoleType.ANALYST);
+                "ANALYST", ANALYST_PERMS);
 
         assertThat(identity).isPresent();
         assertThat(identity.get().displayName()).isEqualTo("Ann");
@@ -125,8 +135,8 @@ class DefaultQueryCollaborationAccessServiceTest {
     @Test
     void resolveParticipantEmptyWhenDenied() {
         stubQuery(QueryStatus.APPROVED);
-        assertThat(service.resolveParticipant(queryId, submitterId, orgId, UserRoleType.ANALYST))
-                .isEmpty();
+        assertThat(service.resolveParticipant(queryId, submitterId, orgId, "ANALYST",
+                ANALYST_PERMS)).isEmpty();
     }
 
     @Test
@@ -134,8 +144,8 @@ class DefaultQueryCollaborationAccessServiceTest {
         var reviewerId = UUID.randomUUID();
         stubQuery(QueryStatus.PENDING_REVIEW);
         when(planLookup.findForDatasource(datasourceId))
-                .thenReturn(Optional.of(plan(new ApproverRule(null, UserRoleType.REVIEWER, 1))));
-        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.REVIEWER))
+                .thenReturn(Optional.of(plan(new ApproverRule(null, "REVIEWER", 1))));
+        when(userQuery.findByOrganizationAndRoleName(orgId, "REVIEWER"))
                 .thenReturn(List.of(user(reviewerId, "Rev")));
         when(eligibility.findEligibleReviewerIds(any())).thenReturn(Optional.empty());
 

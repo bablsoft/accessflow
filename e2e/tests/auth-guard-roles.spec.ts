@@ -13,10 +13,12 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 const ANALYST_PASSWORD = 'AnalystPass!123';
 
 // AF-288 — assert the React `AuthGuard` (frontend/src/components/common/AuthGuard.tsx)
-// redirects:
+// redirects (since AF-522 the guard is permission-based — `requirePermission`
+// checks the permissions array from the auth payload; system roles map to the
+// same effective access as before):
 //   1. No session → /login.
-//   2. Session but role not in `requireRole` → /editor.
-//   3. Session and role allowed → render the route.
+//   2. Session but required permission missing → permission-aware home.
+//   3. Session and permission held → render the route.
 //
 // The backend's RBAC layer also returns 403 for non-admins hitting admin
 // endpoints — that's covered indirectly by admin-users-invitations.spec.ts,

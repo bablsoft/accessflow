@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.realtime.internal.ws;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.realtime.internal.ws.CollaborationRoomRegistry.JoinResult;
 import com.bablsoft.accessflow.realtime.internal.ws.CollaborationRoomRegistry.Member;
@@ -45,7 +46,7 @@ class CollaborationCoordinatorTest {
     private final UUID userId = UUID.randomUUID();
     private final UUID orgId = UUID.randomUUID();
     private final JwtClaims claims =
-            new JwtClaims(userId, "ann@example.com", UserRoleType.REVIEWER, orgId);
+            JwtClaims.forSystemRole(userId, "ann@example.com", UserRoleType.REVIEWER, orgId);
 
     @BeforeEach
     void setUp() {
@@ -55,7 +56,8 @@ class CollaborationCoordinatorTest {
     @Test
     void joinAuthorizedAddsToRoomAndAcknowledgesJoiner() throws Exception {
         var joiner = openSession("s1");
-        when(accessService.resolveParticipant(queryId, userId, orgId, UserRoleType.REVIEWER))
+        when(accessService.resolveParticipant(queryId, userId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER)))
                 .thenReturn(Optional.of(new CollaboratorIdentity(userId, "Ann")));
         when(roomRegistry.join(eq(queryId), eq(joiner), eq(userId), eq("Ann"), anyString()))
                 .thenReturn(new JoinResult(true, List.of(new Member(userId, "Ann", "#2563eb"))));
@@ -71,7 +73,8 @@ class CollaborationCoordinatorTest {
     @Test
     void joinDeniedSendsDeniedAndDoesNotJoin() throws Exception {
         var joiner = openSession("s1");
-        when(accessService.resolveParticipant(queryId, userId, orgId, UserRoleType.REVIEWER))
+        when(accessService.resolveParticipant(queryId, userId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER)))
                 .thenReturn(Optional.empty());
 
         coordinator.handle(joiner, claims, join(queryId));

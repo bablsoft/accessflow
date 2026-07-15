@@ -213,7 +213,58 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 
 ---
 
-## Authorization — Role Matrix
+## Authorization — Roles & the permission catalog (AF-522)
+
+Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
+permissions (`core.api.Permission`, 38 values grouped for display — see
+`GET /api/v1/admin/permissions`) is composed into **roles**:
+
+- The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
+  **global** rows in the `roles` table (`organization_id IS NULL`, `is_system = true`), seeded by
+  `V114` with permission sets that reproduce the matrix below exactly. Their authoritative
+  definition is `core.api.SystemRolePermissions` (the DB seeds mirror it; runtime resolution for
+  system roles always answers from the code map).
+- **Custom roles** are org-scoped rows an admin composes from the catalog at `/admin/roles`
+  (`ROLE_MANAGE` permission). Admins cannot invent permissions — only combine them. A custom role's
+  name must not collide (case-insensitively) with a system name or another custom role in the org.
+  Deleting a role still assigned to users is rejected (`409 ROLE_IN_USE`); editing/deleting a
+  system role is rejected (`409 ROLE_SYSTEM_IMMUTABLE`).
+
+**Enforcement.** Each permission maps to the Spring Security authority `PERM_<name>`; endpoints are
+gated `@PreAuthorize("hasAuthority('PERM_…')")` and service-layer checks test the caller's resolved
+permission set. The **access token** carries the role's resolved `permissions` claim (plus
+`role_id`/`role_name`), minted at login/refresh — a role edit propagates within the 15-minute
+access-token TTL. API-key callers get **per-request** resolution (the key filter already loads the
+live profile). Tokens minted before AF-522 (no permissions claim) fall back to deriving the set
+from their system-role claim. A principal on a system role also keeps the legacy `ROLE_<name>`
+authority during the transition.
+
+**Role-name matching.** Users carry `role_id` → `roles`; the legacy `users.role` enum column stays
+populated for system-role users (and NULL for custom-role users) for backward compatibility.
+Everything that targets roles *by name* — masking `reveal_to_roles`, row-security
+`applies_to_roles` (and its `user.role` predicate variable), routing-policy `requester_role`
+conditions, and review-plan approver rules — matches the user's effective role **name**
+case-insensitively, so custom roles participate in those policies exactly like system roles.
+Admin-side validation resolves the names against the org's role catalog.
+
+**Invariants unchanged:** the self-approval bans (query/access/attestation/group review) are
+identity-based and hold regardless of permissions; the `platform_admin` flag stays orthogonal;
+per-datasource permissions (can_read/can_write/can_ddl/can_break_glass, allow-lists, masking, row
+security, JIT) are a separate system untouched by the catalog.
+
+**v1 limitations:** SSO JIT-provisioning `default_role` (SAML/OAuth2) still selects a *system*
+role; admin notification fan-outs (anomaly alerts, break-glass alerts) and setup detection still
+target the system `ADMIN` role — custom-role users with admin-like permissions do not receive
+them.
+
+### System-role matrix
+
+The matrix below defines the **system roles'** permission sets (the pre-AF-522 behaviour,
+preserved exactly). Capability ↔ permission mapping examples: submit SELECT/DML/DDL →
+`QUERY_SUBMIT_SELECT`/`QUERY_SUBMIT_DML`/`QUERY_SUBMIT_DDL`; approve/reject queries →
+`QUERY_REVIEW`; view all history → `QUERY_VIEW_ALL`; the ADMIN-only oversight surfaces
+(list/export any user's queries, view any results, execute/replay any approved query, submit
+without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver" → `REVIEW_OVERRIDE`.
 
 | Capability | READONLY | ANALYST | REVIEWER | ADMIN | AUDITOR |
 |-----------|----------|---------|----------|-------|---------|
@@ -261,8 +312,10 @@ the existing permission-revoke service. Evidence CSV export is additionally avai
 compliance-reporting endpoints (`/api/v1/admin/compliance/*`, gated `hasAnyRole('AUDITOR','ADMIN')`)
 and the auditor dashboard (`/admin/auditor`); it has no datasource permissions, so it cannot submit
 queries, and it cannot reach any other admin surface. Its frontend home redirect is `/admin/auditor`
-(not `/editor`). The role maps to the Spring Security authority `ROLE_AUDITOR` like every other
-`user_role_type` value — no special-casing in `JwtAuthorities`.
+(not `/editor`) — since AF-522 the redirect is permission-driven (a user holding
+`COMPLIANCE_REPORT_VIEW` but not `QUERY_SUBMIT_SELECT` lands on the auditor dashboard). The role's
+permission set is `{COMPLIANCE_REPORT_VIEW, ATTESTATION_EVIDENCE_EXPORT, BREAK_GLASS_VIEW,
+ANOMALY_VIEW}`.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

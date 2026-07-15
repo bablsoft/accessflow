@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.mcp.internal.tools;
 
+import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.AfterEach;
@@ -38,22 +39,23 @@ class McpCurrentUserTest {
     }
 
     @Test
-    void exposes_userId_orgId_role_isAdmin() {
+    void exposes_userId_orgId_permissions_isAdmin() {
         var userId = UUID.randomUUID();
         var orgId = UUID.randomUUID();
         SecurityContextHolder.getContext().setAuthentication(authentication(
-                new JwtClaims(userId, "u@e.c", UserRoleType.ADMIN, orgId)));
+                JwtClaims.forSystemRole(userId, "u@e.c", UserRoleType.ADMIN, orgId)));
 
         assertThat(currentUser.userId()).isEqualTo(userId);
         assertThat(currentUser.organizationId()).isEqualTo(orgId);
-        assertThat(currentUser.role()).isEqualTo(UserRoleType.ADMIN);
+        assertThat(currentUser.has(Permission.QUERY_ADMIN)).isTrue();
         assertThat(currentUser.isAdmin()).isTrue();
     }
 
     @Test
     void isAdmin_false_for_other_roles() {
         SecurityContextHolder.getContext().setAuthentication(authentication(
-                new JwtClaims(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID())));
+                JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID())));
+        assertThat(currentUser.has(Permission.QUERY_ADMIN)).isFalse();
         assertThat(currentUser.isAdmin()).isFalse();
     }
 

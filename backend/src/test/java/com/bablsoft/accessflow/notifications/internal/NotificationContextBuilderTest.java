@@ -142,7 +142,7 @@ class NotificationContextBuilderTest {
         var reviewerId = UUID.randomUUID();
         var rules = List.of(
                 new ApproverRule(reviewerId, null, 1),
-                new ApproverRule(null, UserRoleType.REVIEWER, 1));
+                new ApproverRule(null, "REVIEWER", 1));
         when(reviewPlanLookup.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(plan(rules, List.of())));
         var reviewer = user(reviewerId, "rev@example.com", UserRoleType.REVIEWER);
@@ -158,7 +158,7 @@ class NotificationContextBuilderTest {
 
     @Test
     void querySubmittedExcludesSubmitterFromReviewerSet() {
-        var rules = List.of(new ApproverRule(null, UserRoleType.REVIEWER, 1));
+        var rules = List.of(new ApproverRule(null, "REVIEWER", 1));
         when(reviewPlanLookup.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(plan(rules, List.of())));
         when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.REVIEWER))

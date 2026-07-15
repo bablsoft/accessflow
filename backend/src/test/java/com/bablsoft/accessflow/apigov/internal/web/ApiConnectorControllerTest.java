@@ -50,7 +50,7 @@ class ApiConnectorControllerTest {
 
     private Authentication auth(UserRoleType role) {
         var authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(new JwtClaims(userId, "a@acme.test", role, orgId));
+        when(authentication.getPrincipal()).thenReturn(JwtClaims.forSystemRole(userId, "a@acme.test", role, orgId));
         return authentication;
     }
 

@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.ReviewPlanView;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -30,7 +29,7 @@ class ReviewPlanResponseTest {
                 List.of("ch-1"),
                 List.of(
                         new ReviewPlanView.ApproverRule(userId, null, 1),
-                        new ReviewPlanView.ApproverRule(null, UserRoleType.REVIEWER, 2)),
+                        new ReviewPlanView.ApproverRule(null, "REVIEWER", 2)),
                 Instant.parse("2026-05-01T00:00:00Z"));
 
         var response = ReviewPlanResponse.from(view);
@@ -48,7 +47,7 @@ class ReviewPlanResponseTest {
         assertThat(response.approvers()).hasSize(2);
         assertThat(response.approvers().get(0).userId()).isEqualTo(userId);
         assertThat(response.approvers().get(0).stage()).isEqualTo(1);
-        assertThat(response.approvers().get(1).role()).isEqualTo(UserRoleType.REVIEWER);
+        assertThat(response.approvers().get(1).role()).isEqualTo("REVIEWER");
         assertThat(response.createdAt()).isEqualTo(Instant.parse("2026-05-01T00:00:00Z"));
     }
 }

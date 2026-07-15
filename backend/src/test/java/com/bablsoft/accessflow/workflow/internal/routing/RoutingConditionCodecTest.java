@@ -40,7 +40,7 @@ class RoutingConditionCodecTest {
                 new ConditionNode.ReferencedTableMatches(List.of("payroll.*")),
                 new ConditionNode.RiskLevelIn(Set.of(RiskLevel.HIGH)),
                 new ConditionNode.RiskScore(ComparisonOperator.GTE, 80),
-                new ConditionNode.RequesterRoleIn(Set.of(UserRoleType.ANALYST)),
+                new ConditionNode.RequesterRoleIn(Set.of("ANALYST")),
                 new ConditionNode.RequesterInGroup(Set.of(UUID.randomUUID())),
                 new ConditionNode.TimeOfDay(1320, 360),
                 new ConditionNode.DayOfWeekIn(Set.of(DayOfWeek.MONDAY, DayOfWeek.FRIDAY)),

@@ -11,11 +11,13 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanApproverEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.RoleEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanApproverRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,12 +45,34 @@ class DefaultReviewPlanAdminServiceTest {
     @Mock OrganizationRepository organizationRepository;
     @Mock UserRepository userRepository;
     @Mock DatasourceRepository datasourceRepository;
+    @Mock RoleRepository roleRepository;
     @InjectMocks DefaultReviewPlanAdminService service;
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID otherOrgId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
     private final UUID planId = UUID.randomUUID();
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubKnownRoles() {
+        // Approver role names now resolve against the role catalog (AF-522): the system names
+        // stay valid; anything else is unknown.
+        org.mockito.Mockito.lenient()
+                .when(roleRepository.findByNameInScope(any(UUID.class), any(String.class)))
+                .thenAnswer(inv -> {
+                    String name = inv.getArgument(1);
+                    for (var known : new String[] {"ADMIN", "REVIEWER", "ANALYST", "READONLY", "AUDITOR"}) {
+                        if (known.equalsIgnoreCase(name)) {
+                            var role = new RoleEntity();
+                            role.setId(UUID.randomUUID());
+                            role.setName(known);
+                            role.setSystem(true);
+                            return Optional.of(role);
+                        }
+                    }
+                    return Optional.empty();
+                });
+    }
 
     @Test
     void createPersistsPlanAndApproversWhenHumanApprovalRequired() {
@@ -64,7 +88,7 @@ class DefaultReviewPlanAdminServiceTest {
 
         var command = new CreateReviewPlanCommand(orgId, "Default", "desc",
                 true, true, 1, 24, false, List.of(),
-                List.of(new ReviewPlanView.ApproverRule(null, UserRoleType.REVIEWER, 1)));
+                List.of(new ReviewPlanView.ApproverRule(null, "REVIEWER", 1)));
         var view = service.create(command);
 
         assertThat(view.name()).isEqualTo("Default");
@@ -111,7 +135,7 @@ class DefaultReviewPlanAdminServiceTest {
 
         assertThatThrownBy(() -> service.create(new CreateReviewPlanCommand(orgId, "Dup",
                 null, null, true, null, null, null, null,
-                List.of(new ReviewPlanView.ApproverRule(null, UserRoleType.REVIEWER, 1)))))
+                List.of(new ReviewPlanView.ApproverRule(null, "REVIEWER", 1)))))
                 .isInstanceOf(ReviewPlanNameAlreadyExistsException.class)
                 .hasMessageContaining("Dup");
     }
@@ -139,11 +163,11 @@ class DefaultReviewPlanAdminServiceTest {
     }
 
     @Test
-    void createRejectsApproverRoleNotAdminOrReviewer() {
+    void createRejectsApproverRoleUnknownToTheCatalog() {
         when(reviewPlanRepository.existsByOrganization_IdAndNameIgnoreCase(orgId, "P"))
                 .thenReturn(false);
 
-        var bad = new ReviewPlanView.ApproverRule(null, UserRoleType.ANALYST, 1);
+        var bad = new ReviewPlanView.ApproverRule(null, "WIZARD", 1);
         assertThatThrownBy(() -> service.create(new CreateReviewPlanCommand(orgId, "P",
                 null, null, true, null, null, null, null, List.of(bad))))
                 .isInstanceOf(IllegalReviewPlanException.class);
@@ -180,7 +204,7 @@ class DefaultReviewPlanAdminServiceTest {
 
         assertThatThrownBy(() -> service.create(new CreateReviewPlanCommand(orgId, "P",
                 null, null, true, 5, null, null, null,
-                List.of(new ReviewPlanView.ApproverRule(null, UserRoleType.REVIEWER, 1)))))
+                List.of(new ReviewPlanView.ApproverRule(null, "REVIEWER", 1)))))
                 .isInstanceOf(IllegalReviewPlanException.class)
                 .hasMessageContaining("min_approvals");
     }
@@ -224,7 +248,7 @@ class DefaultReviewPlanAdminServiceTest {
 
         var command = new UpdateReviewPlanCommand("Renamed", "new-desc", false, null,
                 null, 48, true, List.of("ch-1"),
-                List.of(new ReviewPlanView.ApproverRule(null, UserRoleType.ADMIN, 1)));
+                List.of(new ReviewPlanView.ApproverRule(null, "ADMIN", 1)));
         var view = service.update(planId, orgId, command);
 
         assertThat(view.name()).isEqualTo("Renamed");

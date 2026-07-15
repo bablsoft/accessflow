@@ -13,6 +13,8 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RolePermissionRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +42,8 @@ class UserAdminServiceImplTest {
 
     @Mock UserRepository userRepository;
     @Mock OrganizationRepository organizationRepository;
+    @Mock RoleRepository roleRepository;
+    @Mock RolePermissionRepository rolePermissionRepository;
     @Mock QuotaService quotaService;
     UserAdminServiceImpl service;
 
@@ -50,8 +55,10 @@ class UserAdminServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserAdminServiceImpl(userRepository, organizationRepository, quotaService,
-                objectMapper);
+        service = new UserAdminServiceImpl(userRepository, organizationRepository, roleRepository,
+                rolePermissionRepository, quotaService, objectMapper);
+        // System-role row missing → the service keeps the legacy enum-column behaviour.
+        lenient().when(roleRepository.findByNameAndSystemTrue(any())).thenReturn(Optional.empty());
     }
 
     @Test

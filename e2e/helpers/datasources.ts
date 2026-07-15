@@ -602,19 +602,81 @@ export async function inviteUserViaApi(
   adminAccessToken: string,
   email: string,
   displayName: string,
-  role: 'ADMIN' | 'REVIEWER' | 'ANALYST',
+  // A system-role enum name, or (AF-522) any role via roleId below.
+  role: 'ADMIN' | 'REVIEWER' | 'ANALYST' | null,
+  roleId?: string,
 ): Promise<InvitedUser> {
   const res = await request.post(
     `${apiBase()}/api/v1/admin/users/invitations`,
     {
       headers: { Authorization: `Bearer ${adminAccessToken}` },
-      data: { email, displayName, role },
+      data: roleId
+        ? { email, display_name: displayName, role_id: roleId }
+        : { email, displayName, role },
     },
   );
   if (!res.ok()) {
     throw new Error(`Invite user failed: ${res.status()} ${await res.text()}`);
   }
   return (await res.json()) as InvitedUser;
+}
+
+// --- Custom roles (AF-522) ------------------------------------------------
+
+export interface RoleSummary {
+  id: string;
+  name: string;
+  system: boolean;
+  permissions: string[];
+  assigned_user_count: number;
+}
+
+// POST /api/v1/admin/roles — creates a custom role composed from permission
+// catalog names. Requires an ADMIN (ROLE_MANAGE) token.
+export async function createRoleViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  name: string,
+  permissions: string[],
+  description?: string,
+): Promise<RoleSummary> {
+  const res = await request.post(`${apiBase()}/api/v1/admin/roles`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+    data: { name, description: description ?? null, permissions },
+  });
+  if (!res.ok()) {
+    throw new Error(`Create role failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as RoleSummary;
+}
+
+// GET /api/v1/admin/roles — lists system + custom roles for the org.
+export async function listRolesViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+): Promise<RoleSummary[]> {
+  const res = await request.get(`${apiBase()}/api/v1/admin/roles`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List roles failed: ${res.status()} ${await res.text()}`);
+  }
+  return ((await res.json()) as { roles: RoleSummary[] }).roles;
+}
+
+// DELETE /api/v1/admin/roles/{id} — best-effort cleanup (swallows 404/409).
+export async function deleteRoleViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}/api/v1/admin/roles/${id}`, {
+    headers: { Authorization: `Bearer ${adminAccessToken}` },
+  });
+  if (!res.ok() && res.status() !== 404 && res.status() !== 409) {
+    // eslint-disable-next-line no-console
+    console.warn(`Role cleanup (${id}) returned ${res.status()}: ${await res.text()}`);
+  }
 }
 
 // GET /api/v1/admin/users — finds a provisioned user by email so callers can

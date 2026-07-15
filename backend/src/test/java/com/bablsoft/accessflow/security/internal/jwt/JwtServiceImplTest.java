@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.security.internal.jwt;
 
+import com.bablsoft.accessflow.core.api.RolePermissionResolver;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -18,6 +20,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtServiceImplTest {
 
+    private static final RolePermissionResolver STUB_RESOLVER =
+            (roleId, fallback) -> fallback != null
+                    ? SystemRolePermissions.of(fallback)
+                    : java.util.Set.of();
+
     private JwtServiceImpl jwtService;
     private UserView testUser;
 
@@ -28,7 +35,7 @@ class JwtServiceImplTest {
         var publicKey = (RSAPublicKey) keyPair.getPublic();
 
         var props = new JwtProperties("", Duration.ofMinutes(15), Duration.ofDays(7));
-        jwtService = new JwtServiceImpl(privateKey, publicKey, props);
+        jwtService = new JwtServiceImpl(privateKey, publicKey, props, STUB_RESOLVER);
 
         testUser = new UserView(
                 UUID.randomUUID(),
@@ -61,8 +68,8 @@ class JwtServiceImplTest {
     @Test
     void accessTokenRoundtripPreservesPlatformAdminClaim() {
         var platformAdmin = new UserView(UUID.randomUUID(), "boss@example.com", "Boss",
-                UserRoleType.ADMIN, UUID.randomUUID(), true, AuthProviderType.LOCAL, null, null,
-                null, false, true, null);
+                UserRoleType.ADMIN, null, "ADMIN", UUID.randomUUID(), true,
+                AuthProviderType.LOCAL, null, null, null, false, true, null);
 
         var token = jwtService.generateAccessToken(platformAdmin);
         var claims = jwtService.parseAccessToken(token);
@@ -104,7 +111,7 @@ class JwtServiceImplTest {
         var expiredService = new JwtServiceImpl(
                 (RSAPrivateKey) keyPair.getPrivate(),
                 (RSAPublicKey) keyPair.getPublic(),
-                expiredProps);
+                expiredProps, STUB_RESOLVER);
 
         var token = expiredService.generateAccessToken(testUser);
 
@@ -121,7 +128,7 @@ class JwtServiceImplTest {
         var keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
         var privateKey = (RSAPrivateKey) keyPair.getPrivate();
         var props = new JwtProperties("", Duration.ofMinutes(15), Duration.ofDays(7));
-        var signerService = new JwtServiceImpl(privateKey, wrongPublicKey, props);
+        var signerService = new JwtServiceImpl(privateKey, wrongPublicKey, props, STUB_RESOLVER);
 
         var token = signerService.generateAccessToken(testUser);
 

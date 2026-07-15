@@ -31,8 +31,7 @@ class RealtimeWebSocketHandlerTest {
     @Test
     void afterConnectionEstablishedRegistersSessionWithUserIdFromClaims() throws Exception {
         var userId = UUID.randomUUID();
-        var claims = new JwtClaims(userId, "u@example.com", UserRoleType.ANALYST,
-                UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(userId, "u@example.com", UserRoleType.ANALYST, UUID.randomUUID());
         when(session.getAttributes()).thenReturn(attrs(claims));
 
         handler.afterConnectionEstablished(session);
@@ -52,8 +51,7 @@ class RealtimeWebSocketHandlerTest {
 
     @Test
     void handleTextMessageRoutesToCollaborationCoordinator() {
-        var claims = new JwtClaims(UUID.randomUUID(), "u@example.com", UserRoleType.REVIEWER,
-                UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@example.com", UserRoleType.REVIEWER, UUID.randomUUID());
         when(session.getAttributes()).thenReturn(attrs(claims));
         var payload = "{\"type\":\"collab.join\",\"query_id\":\"" + UUID.randomUUID() + "\"}";
 
@@ -74,8 +72,7 @@ class RealtimeWebSocketHandlerTest {
     @Test
     void afterConnectionClosedUnregistersAndEvictsFromRooms() {
         var userId = UUID.randomUUID();
-        var claims = new JwtClaims(userId, "u@example.com", UserRoleType.ANALYST,
-                UUID.randomUUID());
+        var claims = JwtClaims.forSystemRole(userId, "u@example.com", UserRoleType.ANALYST, UUID.randomUUID());
         when(session.getAttributes()).thenReturn(attrs(claims));
 
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);

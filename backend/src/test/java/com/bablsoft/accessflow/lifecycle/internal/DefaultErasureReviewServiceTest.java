@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestInvalidStateException;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
@@ -59,7 +60,8 @@ class DefaultErasureReviewServiceTest {
     private final UUID reviewerId = UUID.randomUUID();
 
     private ReviewerContext reviewer(UserRoleType role) {
-        return new ReviewerContext(reviewerId, organizationId, role);
+        return new ReviewerContext(reviewerId, organizationId, role.name(),
+                SystemRolePermissions.of(role));
     }
 
     private DeletionRequestEntity pending() {
@@ -76,12 +78,12 @@ class DefaultErasureReviewServiceTest {
 
     private ReviewPlanSnapshot reviewerRolePlan() {
         return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 0,
-                List.of(new ApproverRule(null, UserRoleType.REVIEWER, 0)), List.of());
+                List.of(new ApproverRule(null, "REVIEWER", 0)), List.of());
     }
 
     private ReviewPlanSnapshot adminOnlyPlan() {
         return new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, false, true, 1, false, 0,
-                List.of(new ApproverRule(null, UserRoleType.ADMIN, 0)), List.of());
+                List.of(new ApproverRule(null, "ADMIN", 0)), List.of());
     }
 
     private void stubEligible() {

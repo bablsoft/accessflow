@@ -48,7 +48,7 @@ class AdminUserInvitationControllerTest {
     }
 
     private UsernamePasswordAuthenticationToken auth() {
-        var claims = new JwtClaims(userId, "admin@example.com", UserRoleType.ADMIN, orgId);
+        var claims = JwtClaims.forSystemRole(userId, "admin@example.com", UserRoleType.ADMIN, orgId);
         return new UsernamePasswordAuthenticationToken(claims, "n/a", List.of());
     }
 
@@ -59,7 +59,7 @@ class AdminUserInvitationControllerTest {
                 .thenReturn(new IssuedInvitation(view, "raw-token"));
 
         var resp = controller.invite(new InviteUserRequest("alice@example.com", "Alice",
-                UserRoleType.ANALYST), auth(), auditContext);
+                UserRoleType.ANALYST, null), auth(), auditContext);
 
         assertThat(resp.getStatusCode().value()).isEqualTo(201);
         assertThat(resp.getBody().email()).isEqualTo("alice@example.com");
@@ -103,7 +103,7 @@ class AdminUserInvitationControllerTest {
 
     private UserInvitationView sampleView() {
         return new UserInvitationView(UUID.randomUUID(), orgId, "alice@example.com", "Alice",
-                UserRoleType.ANALYST, UserInvitationStatusType.PENDING,
+                UserRoleType.ANALYST, null, "ANALYST", UserInvitationStatusType.PENDING,
                 Instant.now().plusSeconds(3600), null, null, userId, Instant.now());
     }
 }

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -41,8 +42,10 @@ class SamlExchangeControllerTest {
 
     @Test
     void exchangeIssuesTokensAndSetsRefreshCookie() {
-        var controller = new SamlExchangeController(exchangeCodeStore, authenticationService,
-                refreshCookieWriter, messageSource);
+        var controller = new SamlExchangeController(exchangeCodeStore,
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                authenticationService, refreshCookieWriter, messageSource);
         when(exchangeCodeStore.consume("good")).thenReturn(Optional.of(userId));
         var result = new AuthResult("ACCESS_TOKEN", "REFRESH_TOKEN", "Bearer", 900L,
                 view(userId, "alice@example.com"));
@@ -59,8 +62,10 @@ class SamlExchangeControllerTest {
 
     @Test
     void exchangeReturns401WhenCodeUnknown() {
-        var controller = new SamlExchangeController(exchangeCodeStore, authenticationService,
-                refreshCookieWriter, messageSource);
+        var controller = new SamlExchangeController(exchangeCodeStore,
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                authenticationService, refreshCookieWriter, messageSource);
         when(exchangeCodeStore.consume("missing")).thenReturn(Optional.empty());
         when(messageSource.getMessage(eq("error.saml.exchange_code_invalid"), any(),
                 eq(LocaleContextHolder.getLocale()))).thenReturn("Invalid");

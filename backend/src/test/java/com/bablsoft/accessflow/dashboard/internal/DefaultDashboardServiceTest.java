@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
@@ -120,7 +121,8 @@ class DefaultDashboardServiceTest {
         when(apiReviewService.listPending(any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(pendingApi()), 0, 5, 2, 1));
 
-        var summary = service.summary(ORG, USER, UserRoleType.REVIEWER);
+        var summary = service.summary(ORG, USER, UserRoleType.REVIEWER.name(),
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
 
         assertThat(summary.pendingApprovalsCount()).isEqualTo(3);
         assertThat(summary.openQueriesCount()).isEqualTo(7); // 2 + 1 + 4, EXECUTED excluded
@@ -145,7 +147,8 @@ class DefaultDashboardServiceTest {
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
         stubApigovEmpty();
 
-        service.summary(ORG, USER, UserRoleType.ANALYST);
+        service.summary(ORG, USER, UserRoleType.ANALYST.name(),
+                SystemRolePermissions.of(UserRoleType.ANALYST));
 
         var captor = ArgumentCaptor.forClass(QueryListFilter.class);
         verify(queryLookup).findForOrganization(captor.capture(), any());
@@ -155,9 +158,11 @@ class DefaultDashboardServiceTest {
 
     @Test
     void summaryRejectsNullArgs() {
-        assertThatThrownBy(() -> service.summary(null, USER, UserRoleType.ANALYST))
+        assertThatThrownBy(() -> service.summary(null, USER, UserRoleType.ANALYST.name(),
+                SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.summary(ORG, null, UserRoleType.ANALYST))
+        assertThatThrownBy(() -> service.summary(ORG, null, UserRoleType.ANALYST.name(),
+                SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -195,7 +200,8 @@ class DefaultDashboardServiceTest {
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
         stubApigovEmpty();
 
-        service.summary(ORG, USER, UserRoleType.ANALYST);
+        service.summary(ORG, USER, UserRoleType.ANALYST.name(),
+                SystemRolePermissions.of(UserRoleType.ANALYST));
 
         var captor = ArgumentCaptor.forClass(ApiRequestListFilter.class);
         verify(apiRequestService).list(captor.capture(), any());

@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.core.internal;
 
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanApproverEntity;
@@ -68,7 +67,7 @@ class DefaultReviewPlanLookupServiceTest {
 
         var stage1User = userEntity();
         var approver1 = approverEntity(plan, stage1User, null, 1);
-        var approver2 = approverEntity(plan, null, UserRoleType.ADMIN, 2);
+        var approver2 = approverEntity(plan, null, "ADMIN", 2);
 
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(datasource));
         when(reviewPlanApproverRepository.findAllByReviewPlan_IdOrderByStageAsc(planId))
@@ -86,7 +85,7 @@ class DefaultReviewPlanLookupServiceTest {
                 .extracting("userId", "role", "stage")
                 .containsExactly(
                         tuple(stage1User.getId(), null, 1),
-                        tuple(null, UserRoleType.ADMIN, 2));
+                        tuple(null, "ADMIN", 2));
     }
 
     @Test
@@ -119,7 +118,7 @@ class DefaultReviewPlanLookupServiceTest {
     }
 
     private static ReviewPlanApproverEntity approverEntity(ReviewPlanEntity plan, UserEntity user,
-                                                           UserRoleType role, int stage) {
+                                                           String role, int stage) {
         var entity = new ReviewPlanApproverEntity();
         entity.setId(UUID.randomUUID());
         entity.setReviewPlan(plan);

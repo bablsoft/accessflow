@@ -45,7 +45,8 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `password_hash` | VARCHAR — null if SSO-only user |
 | `auth_provider` | ENUM: `LOCAL` \| `SAML` \| `OAUTH2` |
 | `saml_subject` | VARCHAR — SAML NameID, nullable |
-| `role` | ENUM: `ADMIN` \| `REVIEWER` \| `ANALYST` \| `READONLY` \| `AUDITOR` (`AUDITOR` added in V91 — dedicated read-only compliance role, AF-459) |
+| `role` | ENUM: `ADMIN` \| `REVIEWER` \| `ANALYST` \| `READONLY` \| `AUDITOR` (`AUDITOR` added in V91 — dedicated read-only compliance role, AF-459). **Nullable since V114 (AF-522)** — populated (and kept in sync) for users on a system role, NULL for users on a custom role; `role_id` is the source of truth. |
+| `role_id` | FK → `roles`, nullable (AF-522, V114) — the user's assigned role (system or custom). Backfilled from the legacy `role` enum for pre-existing rows. Indexed (`idx_users_role_id`). |
 | `platform_admin` | BOOLEAN NOT NULL DEFAULT false (AF-456) — orthogonal super-admin flag (**not** a fifth role). A platform admin keeps their home-org `role` and is additionally granted the Spring Security authority `PLATFORM_ADMIN`, which unlocks the cross-org `/api/v1/platform/organizations` management plane. The JWT carries a `platform_admin` claim and the login / `GET /me` user object includes a `platform_admin` boolean. The bootstrap admin and the first-run setup-wizard admin are provisioned as platform admins (a pre-existing bootstrap admin is promoted on an upgrade re-run). Added by `V87__org_isolation_quotas_platform_admin.sql`. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `last_login_at` | TIMESTAMPTZ |
@@ -55,6 +56,36 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `totp_backup_codes_encrypted` | TEXT — AES-256-GCM ciphertext of a JSON array of bcrypt hashes (one per single-use recovery code). Codes are removed from the array as they're consumed. Null when 2FA is not enabled. |
 | `attributes` | JSONB NOT NULL DEFAULT `'{}'` (AF-380) — admin-editable per-user attribute map, resolvable in row-security predicates as `:user.<key>`. Set via the user admin API; **not** synced from the IdP. Added by `V61__add_users_attributes.sql`. |
 | `created_at` | TIMESTAMPTZ |
+
+---
+
+## roles
+
+Roles composable from the fixed, code-defined functional-permission catalog (AF-522, V114). The 5
+system roles are immutable **global** rows shared by every organization; custom roles are
+org-scoped. An organization's visible roles = global system roles ∪ its custom roles.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK — system roles use fixed literal UUIDs seeded by V114 |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE, **nullable** — NULL = global system role. `CHECK (is_system = (organization_id IS NULL))` |
+| `name` | VARCHAR(100) NOT NULL — unique case-insensitively among global rows (`uq_roles_system_name`) and per org (`uq_roles_org_name`) |
+| `description` | VARCHAR(500), nullable |
+| `is_system` | BOOLEAN NOT NULL DEFAULT false — system roles reject update/delete (`409 ROLE_SYSTEM_IMMUTABLE`) |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+| `version` | BIGINT — optimistic lock |
+
+## role_permissions
+
+One row per permission granted to a role. Permission values are `core.api.Permission` enum names
+stored as text — the catalog itself is fixed in code and not editable via API. For **system**
+roles these rows are display/catalog data only (runtime resolution answers from
+`core.api.SystemRolePermissions`; a parity test keeps the seeds in sync with the code map).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `role_id` | FK → `roles` ON DELETE CASCADE (composite PK with `permission`) |
+| `permission` | VARCHAR(100) NOT NULL — a `Permission` enum name |
 
 ---
 
@@ -373,7 +404,7 @@ Maps users or roles to a review plan, with support for multi-stage sequential ap
 | `id` | UUID PK |
 | `review_plan_id` | FK → `review_plans` |
 | `user_id` | FK → `users` nullable — specific user |
-| `role` | ENUM: `ADMIN` \| `REVIEWER` — any user with this role can approve |
+| `role` | VARCHAR(100), nullable — a role **name** (system or custom, matched case-insensitively): any user whose effective role name matches can approve. Widened from the `user_role_type` enum in V114 (AF-522); validated against the org's role catalog on write. |
 | `stage` | INTEGER — enables multi-stage sequential approval (stage 1 before stage 2) |
 
 ---
@@ -1296,7 +1327,8 @@ Single-use email invitations. The token is delivered via the organization's syst
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` ON DELETE CASCADE |
 | `email` | VARCHAR(255) NOT NULL |
-| `role` | `user_role_type` enum — role the invited user receives on accept |
+| `role` | `user_role_type` enum, **nullable since V114** — legacy system-role column; NULL for custom-role invitations (AF-522) |
+| `role_id` | UUID, nullable (AF-522, V114) — FK → `roles`; the role the invited user receives on accept (wins over `role`) |
 | `display_name` | VARCHAR(255), nullable |
 | `token_hash` | VARCHAR(64) NOT NULL UNIQUE — SHA-256 hex of the plaintext token; the plaintext token is sent in the email only and never persisted |
 | `status` | `user_invitation_status` enum: `PENDING` \| `ACCEPTED` \| `REVOKED` \| `EXPIRED` |

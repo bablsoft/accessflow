@@ -35,7 +35,7 @@ class AdminKnowledgeBaseControllerTest {
     private final UUID docId = UUID.randomUUID();
     private final RequestAuditContext auditContext = new RequestAuditContext("203.0.113.5", "ua/1");
     private final Authentication authentication = new UsernamePasswordAuthenticationToken(
-            new JwtClaims(userId, "admin@example.com", UserRoleType.ADMIN, organizationId),
+            JwtClaims.forSystemRole(userId, "admin@example.com", UserRoleType.ADMIN, organizationId),
             "n/a", List.of());
 
     private KnowledgeBaseService knowledgeBaseService;

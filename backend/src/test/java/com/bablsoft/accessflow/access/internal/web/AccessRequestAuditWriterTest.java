@@ -29,8 +29,7 @@ class AccessRequestAuditWriterTest {
     @InjectMocks AccessRequestAuditWriter writer;
 
     private final UUID requestId = UUID.randomUUID();
-    private final JwtClaims caller = new JwtClaims(UUID.randomUUID(), "u@x.io",
-            UserRoleType.ADMIN, UUID.randomUUID());
+    private final JwtClaims caller = JwtClaims.forSystemRole(UUID.randomUUID(), "u@x.io", UserRoleType.ADMIN, UUID.randomUUID());
     private final RequestAuditContext ctx = new RequestAuditContext("1.2.3.4", "agent");
 
     @Test

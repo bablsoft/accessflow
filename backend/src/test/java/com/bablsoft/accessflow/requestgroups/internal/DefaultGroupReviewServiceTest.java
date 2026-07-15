@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.requestgroups.internal;
 
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -66,14 +67,16 @@ class DefaultGroupReviewServiceTest {
     }
 
     private ReviewerContext adminContext() {
-        return new ReviewerContext(reviewerId, orgId, UserRoleType.ADMIN);
+        return new ReviewerContext(reviewerId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
     }
 
     @Test
     void submitterCannotApproveOwnGroup() {
         when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
                 .thenReturn(Optional.of(group));
-        var selfContext = new ReviewerContext(submitterId, orgId, UserRoleType.ADMIN);
+        var selfContext = new ReviewerContext(submitterId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
 
         assertThatThrownBy(() -> service.approve(group.getId(), selfContext, "ok"))
                 .isInstanceOf(SelfApprovalNotAllowedException.class);
@@ -157,14 +160,15 @@ class DefaultGroupReviewServiceTest {
 
     @Test
     void nonAdminReviewerEligibleByRoleCanApprove() {
-        var reviewerContext = new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
         when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
                 .thenReturn(Optional.of(group));
         when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
                 .thenReturn(java.util.List.of());
         when(reviewPlanResolver.resolve(any(), any())).thenReturn(
                 new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
-                        java.util.Set.of(), java.util.Set.of(UserRoleType.REVIEWER)));
+                        java.util.Set.of(), java.util.Set.of("REVIEWER")));
         when(decisionRepository.findByRequestGroupIdAndReviewerIdAndStage(group.getId(), reviewerId, 1))
                 .thenReturn(Optional.empty());
         when(decisionRepository.save(any())).thenAnswer(inv -> {
@@ -182,14 +186,15 @@ class DefaultGroupReviewServiceTest {
 
     @Test
     void ineligibleReviewerIsRejected() {
-        var reviewerContext = new ReviewerContext(reviewerId, orgId, UserRoleType.REVIEWER);
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
         when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
                 .thenReturn(Optional.of(group));
         when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
                 .thenReturn(java.util.List.of());
         when(reviewPlanResolver.resolve(any(), any())).thenReturn(
                 new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
-                        java.util.Set.of(), java.util.Set.of(UserRoleType.ADMIN)));
+                        java.util.Set.of(), java.util.Set.of("ADMIN")));
 
         org.assertj.core.api.Assertions
                 .assertThatThrownBy(() -> service.approve(group.getId(), reviewerContext, "ok"))

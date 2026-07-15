@@ -144,6 +144,7 @@ class AdminUserReconcilerTest {
     void promotesExistingAdminToPlatformAdminWhenNotAlready() {
         var existingId = UUID.randomUUID();
         var existing = new UserView(existingId, "admin@acme.com", "X", UserRoleType.ADMIN,
+                null, UserRoleType.ADMIN.name(),
                 ORG_ID, true, AuthProviderType.LOCAL, "stored-hash", null, null, false,
                 false, null);
         when(userQueryService.findByEmail("admin@acme.com")).thenReturn(Optional.of(existing));
@@ -158,6 +159,7 @@ class AdminUserReconcilerTest {
     void doesNotPromoteWhenExistingAdminAlreadyPlatformAdmin() {
         var existingId = UUID.randomUUID();
         var existing = new UserView(existingId, "admin@acme.com", "X", UserRoleType.ADMIN,
+                null, UserRoleType.ADMIN.name(),
                 ORG_ID, true, AuthProviderType.LOCAL, "stored-hash", null, null, false,
                 true, null);
         when(userQueryService.findByEmail("admin@acme.com")).thenReturn(Optional.of(existing));

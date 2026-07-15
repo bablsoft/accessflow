@@ -5,7 +5,6 @@ import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
@@ -71,15 +70,14 @@ class GroupReviewPlanResolverTest {
         when(reviewPlanLookupService.findForDatasource(ds1))
                 .thenReturn(Optional.of(plan(1, new ApproverRule(approverA, null, 1))));
         when(reviewPlanLookupService.findForDatasource(ds2))
-                .thenReturn(Optional.of(plan(2, new ApproverRule(approverB, UserRoleType.REVIEWER, 1))));
+                .thenReturn(Optional.of(plan(2, new ApproverRule(approverB, "REVIEWER", 1))));
 
         var resolution = resolver.resolve(group, List.of(queryItem(ds1), queryItem(ds2)));
 
         assertThat(resolution.requiresHumanApproval()).isTrue();
         assertThat(resolution.requiredApprovals()).isEqualTo(2);
         assertThat(resolution.eligibleUserIds()).containsExactlyInAnyOrder(approverA, approverB);
-        assertThat(resolution.eligibleRoles())
-                .contains(UserRoleType.REVIEWER, UserRoleType.ADMIN);
+        assertThat(resolution.eligibleRoleNames()).contains("REVIEWER");
     }
 
     @Test
@@ -91,7 +89,7 @@ class GroupReviewPlanResolverTest {
 
         assertThat(resolution.requiresHumanApproval()).isFalse();
         assertThat(resolution.requiredApprovals()).isZero();
-        assertThat(resolution.eligibleRoles()).containsExactly(UserRoleType.ADMIN);
+        assertThat(resolution.eligibleRoleNames()).isEmpty();
     }
 
     @Test
@@ -108,12 +106,12 @@ class GroupReviewPlanResolverTest {
         when(apiConnectorAdminService.getForAdmin(connectorId, group.getOrganizationId()))
                 .thenReturn(connectorView);
         when(reviewPlanLookupService.findById(planId))
-                .thenReturn(Optional.of(plan(1, new ApproverRule(null, UserRoleType.REVIEWER, 1))));
+                .thenReturn(Optional.of(plan(1, new ApproverRule(null, "REVIEWER", 1))));
 
         var resolution = resolver.resolve(group, List.of(apiItem));
 
         assertThat(resolution.requiresHumanApproval()).isTrue();
-        assertThat(resolution.eligibleRoles()).contains(UserRoleType.REVIEWER, UserRoleType.ADMIN);
+        assertThat(resolution.eligibleRoleNames()).contains("REVIEWER");
     }
 
     @Test

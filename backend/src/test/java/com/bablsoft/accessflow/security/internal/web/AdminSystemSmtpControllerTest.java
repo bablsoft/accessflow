@@ -52,7 +52,7 @@ class AdminSystemSmtpControllerTest {
     }
 
     private UsernamePasswordAuthenticationToken auth() {
-        var claims = new JwtClaims(userId, "admin@example.com", UserRoleType.ADMIN, orgId);
+        var claims = JwtClaims.forSystemRole(userId, "admin@example.com", UserRoleType.ADMIN, orgId);
         return new UsernamePasswordAuthenticationToken(claims, "n/a", List.of());
     }
 

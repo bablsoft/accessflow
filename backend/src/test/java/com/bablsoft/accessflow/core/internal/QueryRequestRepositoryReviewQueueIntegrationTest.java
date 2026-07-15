@@ -92,12 +92,12 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
     @Test
     void findPendingForReviewerReturnsRequestForRoleApprover() {
-        saveApprover(plan, null, UserRoleType.REVIEWER, 1);
+        saveApprover(plan, null, "REVIEWER", 1);
         var pending = saveQuery(QueryStatus.PENDING_REVIEW, submitter);
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW,
+                "REVIEWER", QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -112,7 +112,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW,
+                "REVIEWER", QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -122,12 +122,12 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
     @Test
     void findPendingForReviewerExcludesQueriesSubmittedByTheReviewer() {
-        saveApprover(plan, null, UserRoleType.REVIEWER, 1);
+        saveApprover(plan, null, "REVIEWER", 1);
         saveQuery(QueryStatus.PENDING_REVIEW, reviewer);
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW,
+                "REVIEWER", QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isZero();
@@ -135,13 +135,13 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
     @Test
     void findPendingForReviewerExcludesNonPendingReviewStatuses() {
-        saveApprover(plan, null, UserRoleType.REVIEWER, 1);
+        saveApprover(plan, null, "REVIEWER", 1);
         var pending = saveQuery(QueryStatus.PENDING_REVIEW, submitter);
         saveQuery(QueryStatus.APPROVED, submitter);
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                UserRoleType.REVIEWER, QueryStatus.PENDING_REVIEW,
+                "REVIEWER", QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -184,7 +184,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
     }
 
     private ReviewPlanApproverEntity saveApprover(ReviewPlanEntity reviewPlan, UserEntity user,
-                                                  UserRoleType role, int stage) {
+                                                  String role, int stage) {
         var entity = new ReviewPlanApproverEntity();
         entity.setId(UUID.randomUUID());
         entity.setReviewPlan(reviewPlan);

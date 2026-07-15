@@ -279,7 +279,7 @@ class ReviewPlanControllerIntegrationTest {
     @Test
     void updateAppliesPartialFieldsAndReplacesApprovers() {
         var plan = savePlan(primaryOrg, "Plan");
-        saveApprover(plan, null, UserRoleType.REVIEWER, 1);
+        saveApprover(plan, null, "REVIEWER", 1);
 
         var result = mvc.put().uri("/api/v1/review-plans/" + plan.getId())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
@@ -299,7 +299,7 @@ class ReviewPlanControllerIntegrationTest {
 
         var stored = approverRepository.findAllByReviewPlan_IdOrderByStageAsc(plan.getId());
         assertThat(stored).hasSize(1);
-        assertThat(stored.get(0).getRole()).isEqualTo(UserRoleType.ADMIN);
+        assertThat(stored.get(0).getRole()).isEqualTo("ADMIN");
     }
 
     @Test
@@ -335,7 +335,7 @@ class ReviewPlanControllerIntegrationTest {
     @Test
     void deleteRemovesUnusedPlan() {
         var plan = savePlan(primaryOrg, "Plan");
-        saveApprover(plan, null, UserRoleType.REVIEWER, 1);
+        saveApprover(plan, null, "REVIEWER", 1);
 
         var result = mvc.delete().uri("/api/v1/review-plans/" + plan.getId())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
@@ -448,7 +448,7 @@ class ReviewPlanControllerIntegrationTest {
     }
 
     private ReviewPlanApproverEntity saveApprover(ReviewPlanEntity plan, UserEntity user,
-                                                  UserRoleType role, int stage) {
+                                                  String role, int stage) {
         var entity = new ReviewPlanApproverEntity();
         entity.setId(UUID.randomUUID());
         entity.setReviewPlan(plan);

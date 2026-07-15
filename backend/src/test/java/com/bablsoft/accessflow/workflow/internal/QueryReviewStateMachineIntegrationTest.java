@@ -314,7 +314,7 @@ class QueryReviewStateMachineIntegrationTest {
         var approver = new ReviewPlanApproverEntity();
         approver.setId(UUID.randomUUID());
         approver.setReviewPlan(plan);
-        approver.setRole(UserRoleType.REVIEWER);
+        approver.setRole("REVIEWER");
         approver.setStage(1);
         reviewPlanApproverRepository.save(approver);
 

@@ -51,7 +51,7 @@ class ReviewControllerTest {
         controller = new ReviewController(reviewService, auditWriter, stepUpService);
         authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(
-                new JwtClaims(userId, "rev@acme.test", UserRoleType.REVIEWER, orgId, false));
+                JwtClaims.forSystemRole(userId, "rev@acme.test", UserRoleType.REVIEWER, orgId, false));
     }
 
     @Test

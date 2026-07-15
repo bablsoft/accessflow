@@ -20,6 +20,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -209,7 +210,7 @@ class DefaultApiRequestServiceTest {
         e.setSubmittedBy(UUID.randomUUID());
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
 
-        assertThatThrownBy(() -> service.get(e.getId(), orgId, userId, UserRoleType.ANALYST))
+        assertThatThrownBy(() -> service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException.class);
     }
 
@@ -220,7 +221,7 @@ class DefaultApiRequestServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
 
-        var view = service.get(e.getId(), orgId, userId, UserRoleType.ANALYST);
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
 
         assertThat(view.id()).isEqualTo(e.getId());
         assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
@@ -234,7 +235,7 @@ class DefaultApiRequestServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
 
-        var view = service.get(e.getId(), orgId, userId, UserRoleType.REVIEWER);
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.REVIEWER));
 
         assertThat(view.id()).isEqualTo(e.getId());
     }
@@ -247,7 +248,7 @@ class DefaultApiRequestServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
 
-        var view = service.get(e.getId(), orgId, userId, UserRoleType.ADMIN);
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ADMIN));
 
         assertThat(view.id()).isEqualTo(e.getId());
     }
@@ -260,7 +261,7 @@ class DefaultApiRequestServiceTest {
         e.setResponseContentType("application/json");
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
 
-        var payload = service.downloadResponse(e.getId(), orgId, userId, UserRoleType.REVIEWER);
+        var payload = service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.REVIEWER));
 
         assertThat(new String(payload.content(), java.nio.charset.StandardCharsets.UTF_8)).contains("ok");
     }
@@ -281,11 +282,11 @@ class DefaultApiRequestServiceTest {
         lenient().when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
 
-        var view = service.get(e.getId(), orgId, userId, UserRoleType.ANALYST);
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
         assertThat(view.responseSnapshot()).isEqualTo("01234567");
         assertThat(view.responseSnapshotPreviewTruncated()).isTrue();
 
-        var payload = service.downloadResponse(e.getId(), orgId, userId, UserRoleType.ANALYST);
+        var payload = service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
         assertThat(new String(payload.content(), java.nio.charset.StandardCharsets.UTF_8)).isEqualTo(full);
     }
 
@@ -297,7 +298,7 @@ class DefaultApiRequestServiceTest {
         when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector()));
         when(decisionRepository.findByApiRequestIdOrderByStageAscDecidedAtAsc(e.getId())).thenReturn(List.of());
 
-        var view = service.get(e.getId(), orgId, userId, UserRoleType.ANALYST);
+        var view = service.get(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
         assertThat(view.responseSnapshot()).isEqualTo("{\"ok\":true}");
         assertThat(view.responseSnapshotPreviewTruncated()).isFalse();
     }
@@ -376,7 +377,7 @@ class DefaultApiRequestServiceTest {
         e.setResponseContentType("application/json");
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
 
-        var payload = service.downloadResponse(e.getId(), orgId, userId, UserRoleType.ANALYST);
+        var payload = service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST));
 
         assertThat(new String(payload.content(), java.nio.charset.StandardCharsets.UTF_8)).contains("ok");
         assertThat(payload.contentType()).isEqualTo("application/json");
@@ -388,7 +389,7 @@ class DefaultApiRequestServiceTest {
         var e = persisted(QueryStatus.APPROVED);
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
 
-        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, UserRoleType.ANALYST))
+        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException.class);
     }
 
@@ -399,7 +400,7 @@ class DefaultApiRequestServiceTest {
         e.setResponseSnapshot("x");
         when(requestRepository.findByIdAndOrganizationId(e.getId(), orgId)).thenReturn(Optional.of(e));
 
-        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, UserRoleType.ANALYST))
+        assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException.class);
     }
 }

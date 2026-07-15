@@ -315,7 +315,7 @@ immediately.
 
 The compliance-reporting dashboard at `/admin/auditor` (lazy-loaded). A `Segmented` control switches between the **Classified data access** and **Regulatory audit trail** reports; an AntD `RangePicker` sets the period (defaults to the last 90 days). Data is fetched with TanStack Query (`api/compliance.ts`, key `complianceKeys.report(type, params)`); results render in a `Table` with a `Skeleton` while loading and an `EmptyState` when no rows match. Two header buttons export the current report as a **signed PDF** or **CSV** (`exportComplianceReport`) — the download is triggered from the response blob, and the returned signature / SHA-256 are surfaced via a success toast (with a truncation warning when the row cap was hit).
 
-The `AUDITOR` role is read-only and has no personal query workflow, so `homePathForRole` (`utils/homePath.ts`) sends an auditor's home/`*` redirects to `/admin/auditor`; every other role lands on `/dashboard` (AF-498), and `AuthGuard` bounces a role-mismatch to that same role-aware home.
+Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePath.ts`) sends an auditor-shaped user (holds `COMPLIANCE_REPORT_VIEW`, lacks `QUERY_SUBMIT_SELECT`) to `/admin/auditor`; everyone else lands on `/dashboard` (AF-498), and `AuthGuard` bounces a permission-mismatch to that same home.
 
 ### DashboardPage *(any authenticated user)* — AF-498
 
@@ -727,6 +727,7 @@ for deployment recipes (Docker Compose, Helm).
 /datasources/:id/settings           → DatasourceSettingsPage
 
 /admin/users                        → UsersPage
+/admin/roles                        → RolesPage (lazy; custom roles + permission-matrix editor — AF-522)
 /admin/groups                       → GroupsListPage (lazy; user groups — AF-353)
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
@@ -753,7 +754,7 @@ for deployment recipes (Docker Compose, Helm).
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
-All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/reset-password/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Admin routes additionally check `user.role === 'ADMIN'`; `/profile` is available to every authenticated user.
+All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/reset-password/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Route and nav gating is **permission-based** (AF-522): `AuthGuard` takes `requirePermission` (any-of over the `permissions` array carried in the auth payload) and `Sidebar` items declare `permissions: Permission[]` — the helpers live in `utils/permissions.ts` (`hasPermission`, `hasAnyPermission`, `usePermission`). Custom roles therefore gate correctly with no role-name special-casing; `/profile` is available to every authenticated user.
 
 ### Setup wizard
 
